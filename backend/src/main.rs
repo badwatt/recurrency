@@ -10,13 +10,13 @@ mod subscriptions;
 mod transactions;
 
 use axum::{
+    extract::Request,
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
 };
-use axum::extract::Request;
-use std::{fs, net::SocketAddr};
+use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -152,15 +152,27 @@ async fn spa_fallback(req: Request) -> Response {
     
     // Try to serve the requested file
     let file_path = format!("{}{}", frontend_dist, path);
-    if let Ok(content) = fs::read_to_string(&file_path) {
+    if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
         let mime = if file_path.ends_with(".css") {
             "text/css"
         } else if file_path.ends_with(".js") {
             "application/javascript"
         } else if file_path.ends_with(".html") {
             "text/html"
+        } else if file_path.ends_with(".svg") {
+            "image/svg+xml"
+        } else if file_path.ends_with(".png") {
+            "image/png"
+        } else if file_path.ends_with(".ico") {
+            "image/x-icon"
+        } else if file_path.ends_with(".json") {
+            "application/json"
+        } else if file_path.ends_with(".woff2") {
+            "font/woff2"
+        } else if file_path.ends_with(".woff") {
+            "font/woff"
         } else {
-            "text/plain"
+            "application/octet-stream"
         };
         
         return Response::builder()
@@ -171,7 +183,7 @@ async fn spa_fallback(req: Request) -> Response {
     
     // Fallback to index.html for SPA routing
     let index_path = format!("{}/index.html", frontend_dist);
-    match fs::read_to_string(&index_path) {
+    match tokio::fs::read_to_string(&index_path).await {
         Ok(content) => Response::builder()
             .header("Content-Type", "text/html")
             .body(content.into())

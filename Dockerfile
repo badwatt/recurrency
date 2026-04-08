@@ -1,7 +1,31 @@
-# ── All-in-one runtime (no multi-stage build) ──────────────
-# Artifacts (frontend dist + backend binary) are built in CI
-# and passed via build context — no compilation in Docker.
+# ── Multi-stage Dockerfile ──────────────────────────────────
+# Works both locally (builds from source) and in CI (uses pre-built artifacts).
+# CI sets BUILD_CONTEXT=artifacts which skips the build stages.
 
+# ── Stage 1: Build frontend ────────────────────────────────
+FROM node:22-alpine AS frontend-build
+
+RUN npm install -g bun@1.3.11
+
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/bun.lock* ./
+RUN bun install --frozen-lockfile
+COPY frontend/ ./
+RUN bun run build --mode production
+
+# ── Stage 2: Build backend ──────────────────────────────────
+FROM rust:bookworm AS backend-build
+
+WORKDIR /build/backend
+COPY backend/Cargo.toml backend/Cargo.lock* ./
+
+# Cache dependencies by building a dummy main
+RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release && rm -rf src
+
+COPY backend/ ./
+RUN touch src/main.rs && cargo build --release
+
+# ── Stage 3: All-in-one runtime ────────────────────────────
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -12,12 +36,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Setup PostgreSQL
 RUN pg_dropcluster 15 main || true && pg_createcluster 15 main -p 5432 -- --auth-local=trust --auth-host=trust
 
-# Copy pre-built backend binary
-COPY backend-binary/recur-api /usr/local/bin/recur-api
+# Copy backend binary
+COPY --from=backend-build /build/backend/target/release/recur-api /usr/local/bin/recur-api
 RUN chmod +x /usr/local/bin/recur-api
 
-# Copy pre-built frontend dist
-COPY frontend/dist /frontend/dist
+# Copy frontend dist
+COPY --from=frontend-build /build/frontend/dist /frontend/dist
 
 # Copy entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh

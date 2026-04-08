@@ -31,9 +31,6 @@ pub enum AppError {
 
     #[error("JWT error: {0}")]
     Jwt(#[from] jsonwebtoken::errors::Error),
-
-    #[error("BCrypt error: {0}")]
-    Bcrypt(#[from] bcrypt::BcryptError),
 }
 
 impl IntoResponse for AppError {
@@ -61,10 +58,6 @@ impl IntoResponse for AppError {
             AppError::Jwt(e) => {
                 tracing::error!("JWT error: {:?}", e);
                 (StatusCode::UNAUTHORIZED, "Invalid token".to_string())
-            }
-            AppError::Bcrypt(e) => {
-                tracing::error!("Bcrypt error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Password error".to_string())
             }
         };
 
