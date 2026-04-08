@@ -31,30 +31,24 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Cache Cargo registry
+      - name: Cache Cargo registry + target
         uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-registry-${{ runner.os }}-${{ hashFiles('backend/Cargo.lock') }}
-          restore-keys: cargo-registry-${{ runner.os }}-
-
-      - name: Cache Cargo target
-        uses: actions/cache@v5
-        with:
-          path: backend/target
-          key: cargo-target-${{ runner.os }}-${{ hashFiles('backend/Cargo.lock') }}
-          restore-keys: cargo-target-${{ runner.os }}-
+            backend/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
 
       - name: Cache frontend node_modules
         id: cache-frontend
         uses: actions/cache@v5
         with:
           path: frontend/node_modules
-          key: frontend-node-${{ runner.os }}-${{ hashFiles('frontend/bun.lock*') }}
-          restore-keys: frontend-node-${{ runner.os }}-
+          key: frontend-${{ runner.os }}-${{ hashFiles('frontend/bun.lock*') }}
+          restore-keys: frontend-${{ runner.os }}-
 
       - name: Install frontend dependencies
         if: steps.cache-frontend.outputs.cache-hit != 'true'
@@ -69,7 +63,25 @@ jobs:
       - name: Run backend tests
         run: cd backend && cargo test
 
-  # ── Stage 2: Build Docker image ─────────────────────────
+      - name: Build frontend
+        run: cd frontend && bun run build --mode production
+
+      - name: Build backend
+        run: cd backend && cargo build --release
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Upload backend binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-binary
+          path: backend/target/release/recur-api
+
+  # ── Stage 2: Docker image (no rebuild, just copy artifacts) ──
   docker:
     needs: build-and-test
     runs-on: ubuntu-latest
@@ -77,6 +89,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-binary
+          path: backend-binary
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -99,7 +123,7 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest
 
-      - name: Build and push with cache
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
