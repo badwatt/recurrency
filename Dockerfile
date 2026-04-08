@@ -7,7 +7,7 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/bun.lock* ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
-RUN bun run build
+RUN bun run build --mode production
 
 # ── Stage 2: Build backend ────────────────────────────────
 FROM rust:bookworm AS backend-build

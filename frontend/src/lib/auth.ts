@@ -16,7 +16,7 @@ const storage = {
 
 // Create Better Auth client with custom JWT backend
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
+  baseURL: import.meta.env.VITE_API_URL || "",
   storage,
   // Disable built-in endpoints since we use custom backend
   disableInternalHandlers: true,

@@ -10,18 +10,22 @@ mod subscriptions;
 mod transactions;
 
 use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
 };
-use std::net::SocketAddr;
+use axum::extract::Request;
+use std::{fs, net::SocketAddr};
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-
     // Load .env file if present
+    dotenvy::dotenv().ok();
+
+    // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
@@ -126,15 +130,52 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         
         .with_state(db_pool)
         .layer(cors)
-        // Serve frontend static files (fallback for SPA)
-        // Use FRONTEND_DIST env var (default: /frontend/dist for Docker)
-        .fallback_service({
-            let frontend_dist = std::env::var("FRONTEND_DIST").unwrap_or_else(|_| "/frontend/dist".to_string());
-            tracing::info!("Serving frontend from: {}", frontend_dist);
-            ServeDir::new(&frontend_dist).fallback(ServeDir::new(format!("{}/index.html", frontend_dist)))
-        })
+        // SPA fallback - serve index.html for non-API routes
+        .fallback(spa_fallback)
 }
 
 async fn health_check() -> &'static str {
     "OK"
+}
+
+// SPA fallback handler - serves index.html for non-API routes
+async fn spa_fallback(req: Request) -> Response {
+    // Get frontend dist path from environment
+    let frontend_dist = std::env::var("FRONTEND_DIST").unwrap_or_else(|_| "/frontend/dist".to_string());
+    
+    let path = req.uri().path();
+    
+    // If it's an API route, return 404 (shouldn't happen due to route matching)
+    if path.starts_with("/api/") {
+        return (StatusCode::NOT_FOUND, "API endpoint not found").into_response();
+    }
+    
+    // Try to serve the requested file
+    let file_path = format!("{}{}", frontend_dist, path);
+    if let Ok(content) = fs::read_to_string(&file_path) {
+        let mime = if file_path.ends_with(".css") {
+            "text/css"
+        } else if file_path.ends_with(".js") {
+            "application/javascript"
+        } else if file_path.ends_with(".html") {
+            "text/html"
+        } else {
+            "text/plain"
+        };
+        
+        return Response::builder()
+            .header("Content-Type", mime)
+            .body(content.into())
+            .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Error").into_response());
+    }
+    
+    // Fallback to index.html for SPA routing
+    let index_path = format!("{}/index.html", frontend_dist);
+    match fs::read_to_string(&index_path) {
+        Ok(content) => Response::builder()
+            .header("Content-Type", "text/html")
+            .body(content.into())
+            .unwrap_or_else(|_| (StatusCode::NOT_FOUND, "index.html not found").into_response()),
+        Err(_) => (StatusCode::NOT_FOUND, "index.html not found").into_response(),
+    }
 }

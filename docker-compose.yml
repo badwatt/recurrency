@@ -4,7 +4,7 @@ services:
     container_name: recur
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "4000:80"
     environment:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ENABLE_DEMO: ${ENABLE_DEMO:-true}
