@@ -47,13 +47,13 @@ err()   { printf "${CR}❌ %s${CN}\n" "$*"; }
 
 start_db() {
   info "🐘 Starting PostgreSQL..."
-  docker compose up -d > /dev/null 2>&1
+  docker compose -f docker-compose.dev.yml up -d > /dev/null 2>&1
   ok "PostgreSQL running on port 5432"
 }
 
 stop_db() {
   info "🐘 Stopping PostgreSQL..."
-  docker compose down > /dev/null 2>&1
+  docker compose -f docker-compose.dev.yml down > /dev/null 2>&1
   ok "PostgreSQL stopped"
 }
 
@@ -192,13 +192,13 @@ cmd_reset() {
   read -rp "Are you sure? [y/N] " confirm
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     info "Resetting database..."
-    docker compose down -v > /dev/null 2>&1
-    docker compose up -d > /dev/null 2>&1
+    docker compose -f docker-compose.dev.yml down -v > /dev/null 2>&1
+    docker compose -f docker-compose.dev.yml up -d > /dev/null 2>&1
 
     # Wait for PostgreSQL to be ready
     sleep 3
     for i in {1..10}; do
-      if docker compose exec -T db pg_isready -U recur > /dev/null 2>&1; then
+      if docker compose -f docker-compose.dev.yml exec -T db pg_isready -U recur > /dev/null 2>&1; then
         break
       fi
       sleep 1
@@ -206,9 +206,9 @@ cmd_reset() {
 
     # Recreate demo user via backend API
     info "Creating demo user..."
-    docker compose exec -T backend curl -s http://localhost:8080/api/demo/init > /dev/null 2>&1 || true
+    curl -s http://localhost:8080/api/demo/init > /dev/null 2>&1 || true
 
-    ok "Database reset complete - demo user recreated (demo@recur.app / demo1234)"
+    ok "Database reset complete"
   else
     echo "Cancelled."
   fi

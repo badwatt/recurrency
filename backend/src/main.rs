@@ -15,14 +15,13 @@ use axum::{
 };
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Load .env file if present
-    dotenvy::dotenv().ok();
 
-    // Initialize tracing
+    // Load .env file if present
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
@@ -43,8 +42,12 @@ async fn main() -> anyhow::Result<()> {
     // Build application
     let app = build_app(db_pool);
 
-    // Start server
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    // Start server - use PORT env var or default 8080 (dev) / 80 (prod)
+    let port: u16 = std::env::var("APP_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -76,9 +79,9 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         // Subscriptions routes
         .route("/api/subscriptions", post(subscriptions::handlers::create))
         .route("/api/subscriptions", get(subscriptions::handlers::list))
-        .route("/api/subscriptions/:id", get(subscriptions::handlers::get))
-        .route("/api/subscriptions/:id", put(subscriptions::handlers::update))
-        .route("/api/subscriptions/:id", delete(subscriptions::handlers::delete))
+        .route("/api/subscriptions/{id}", get(subscriptions::handlers::get))
+        .route("/api/subscriptions/{id}", put(subscriptions::handlers::update))
+        .route("/api/subscriptions/{id}", delete(subscriptions::handlers::delete))
         .route("/api/subscriptions/upcoming", get(subscriptions::handlers::upcoming))
         .route("/api/subscriptions/calendar", get(subscriptions::handlers::calendar))
         
@@ -86,17 +89,17 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/transactions", post(transactions::handlers::create))
         .route("/api/transactions", get(transactions::handlers::list))
         .route("/api/transactions/date-range", get(transactions::handlers::by_date_range))
-        .route("/api/transactions/:id", get(transactions::handlers::get))
-        .route("/api/transactions/:id", put(transactions::handlers::update))
-        .route("/api/transactions/:id", delete(transactions::handlers::delete))
+        .route("/api/transactions/{id}", get(transactions::handlers::get))
+        .route("/api/transactions/{id}", put(transactions::handlers::update))
+        .route("/api/transactions/{id}", delete(transactions::handlers::delete))
         
         // Categories routes
         .route("/api/categories", post(categories::handlers::create))
         .route("/api/categories", get(categories::handlers::list))
         .route("/api/categories/with-counts", get(categories::handlers::list_with_counts))
-        .route("/api/categories/:id", get(categories::handlers::get))
-        .route("/api/categories/:id", put(categories::handlers::update))
-        .route("/api/categories/:id", delete(categories::handlers::delete))
+        .route("/api/categories/{id}", get(categories::handlers::get))
+        .route("/api/categories/{id}", put(categories::handlers::update))
+        .route("/api/categories/{id}", delete(categories::handlers::delete))
         .route("/api/categories/default", put(categories::handlers::set_default))
         
         // Reports routes
@@ -105,8 +108,8 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         // Notifications routes
         .route("/api/notifications", get(notifications::handlers::list))
         .route("/api/notifications/read-all", post(notifications::handlers::mark_all_read))
-        .route("/api/notifications/:id/read", post(notifications::handlers::mark_read))
-        .route("/api/notifications/:id", delete(notifications::handlers::delete))
+        .route("/api/notifications/{id}/read", post(notifications::handlers::mark_read))
+        .route("/api/notifications/{id}", delete(notifications::handlers::delete))
         
         // Notification preferences routes
         .route("/api/settings/notifications", get(notifications::handlers::get_notification_preferences))
@@ -123,6 +126,13 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         
         .with_state(db_pool)
         .layer(cors)
+        // Serve frontend static files (fallback for SPA)
+        // Use FRONTEND_DIST env var (default: /frontend/dist for Docker)
+        .fallback_service({
+            let frontend_dist = std::env::var("FRONTEND_DIST").unwrap_or_else(|_| "/frontend/dist".to_string());
+            tracing::info!("Serving frontend from: {}", frontend_dist);
+            ServeDir::new(&frontend_dist).fallback(ServeDir::new(format!("{}/index.html", frontend_dist)))
+        })
 }
 
 async fn health_check() -> &'static str {

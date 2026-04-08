@@ -26,36 +26,29 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-15 \
-    nginx \
-    supervisor \
     ca-certificates \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Setup PostgreSQL on port 5432
 RUN pg_dropcluster 15 main || true && pg_createcluster 15 main -p 5432 -- --auth-local=trust --auth-host=trust
 
-# Setup process manager
-RUN mkdir -p /var/log/supervisor /var/log/nginx
-COPY docker/supervisord.conf /etc/supervisor/conf.d/recur.conf
-
 # Copy backend binary
 COPY --from=backend-build /build/backend/target/release/recur-api /usr/local/bin/recur-api
 
-# Copy frontend dist
-COPY --from=frontend-build /build/frontend/dist /opt/recur/frontend
+# Copy frontend dist (backend serves it directly)
+COPY --from=frontend-build /build/frontend/dist /frontend/dist
 
-# Copy config
-COPY docker/nginx.conf /opt/recur/nginx.conf
+# Copy entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Environment defaults
 ENV DATABASE_URL="postgres://recur:recur@localhost:5432/recur" \
     APP_HOST=0.0.0.0 \
-    APP_PORT=8080 \
+    APP_PORT=80 \
     JWT_SECRET=change-me-in-production \
     ENABLE_DEMO=false \
+    FRONTEND_DIST=/frontend/dist \
     PGUSER=recur \
     PGPASSWORD=recur \
     PGDATABASE=recur
