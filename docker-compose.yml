@@ -1,0 +1,17 @@
+services:
+  app:
+    image: ghcr.io/alvaro17f/recur:latest
+    container_name: recur
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ENABLE_DEMO: ${ENABLE_DEMO:-true}
+      PGPASSWORD: ${PGPASSWORD:-recur}
+    volumes:
+      - postgres_data:/var/lib/postgresql/15/main
+
+volumes:
+  postgres_data:
+    driver: local

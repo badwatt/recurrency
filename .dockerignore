@@ -1,0 +1,38 @@
+# Git
+.git
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+frontend/node_modules
+frontend/dist
+
+# Rust
+backend/target
+
+# Tauri
+frontend/src-tauri
+
+# Docker volumes
+postgres_data
+
+# Environment
+backend/.env
+frontend/.env
+.envrc
+flake.nix
+flake.lock
+
+# Logs
+*.log
+
+# Scripts
+re
