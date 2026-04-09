@@ -10,14 +10,12 @@ mod subscriptions;
 mod transactions;
 
 use axum::{
-    extract::Request,
-    http::StatusCode,
-    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
 };
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -66,6 +64,12 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
+
+    // Frontend dist path
+    let frontend_dist = std::env::var("FRONTEND_DIST").unwrap_or_else(|_| "/frontend/dist".to_string());
+    tracing::info!("Serving frontend from: {}", frontend_dist);
+
+    let index_path = format!("{}/index.html", frontend_dist);
 
     Router::new()
         // Health check
@@ -130,64 +134,13 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         
         .with_state(db_pool)
         .layer(cors)
-        // SPA fallback - serve index.html for non-API routes
-        .fallback(spa_fallback)
+        // Serve frontend static files, fallback to index.html for SPA routing
+        .fallback_service(
+            ServeDir::new(&frontend_dist)
+                .fallback(ServeFile::new(&index_path))
+        )
 }
 
 async fn health_check() -> &'static str {
     "OK"
-}
-
-// SPA fallback handler - serves index.html for non-API routes
-async fn spa_fallback(req: Request) -> Response {
-    // Get frontend dist path from environment
-    let frontend_dist = std::env::var("FRONTEND_DIST").unwrap_or_else(|_| "/frontend/dist".to_string());
-    
-    let path = req.uri().path();
-    
-    // If it's an API route, return 404 (shouldn't happen due to route matching)
-    if path.starts_with("/api/") {
-        return (StatusCode::NOT_FOUND, "API endpoint not found").into_response();
-    }
-    
-    // Try to serve the requested file
-    let file_path = format!("{}{}", frontend_dist, path);
-    if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
-        let mime = if file_path.ends_with(".css") {
-            "text/css"
-        } else if file_path.ends_with(".js") {
-            "application/javascript"
-        } else if file_path.ends_with(".html") {
-            "text/html"
-        } else if file_path.ends_with(".svg") {
-            "image/svg+xml"
-        } else if file_path.ends_with(".png") {
-            "image/png"
-        } else if file_path.ends_with(".ico") {
-            "image/x-icon"
-        } else if file_path.ends_with(".json") {
-            "application/json"
-        } else if file_path.ends_with(".woff2") {
-            "font/woff2"
-        } else if file_path.ends_with(".woff") {
-            "font/woff"
-        } else {
-            "application/octet-stream"
-        };
-        
-        return Response::builder()
-            .header("Content-Type", mime)
-            .body(content.into())
-            .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Error").into_response());
-    }
-    
-    // Fallback to index.html for SPA routing
-    let index_path = format!("{}/index.html", frontend_dist);
-    match tokio::fs::read_to_string(&index_path).await {
-        Ok(content) => Response::builder()
-            .header("Content-Type", "text/html")
-            .body(content.into())
-            .unwrap_or_else(|_| (StatusCode::NOT_FOUND, "index.html not found").into_response()),
-        Err(_) => (StatusCode::NOT_FOUND, "index.html not found").into_response(),
-    }
 }
