@@ -76,7 +76,7 @@ export function SubscriptionDialog({
   onSubmit,
 }: SubscriptionDialogProps) {
   const { categories, fetchCategories, createCategory } = useCategoriesStore();
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(subscription?.logo_url || undefined);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
@@ -109,48 +109,42 @@ export function SubscriptionDialog({
     }
   };
 
-  // Populate form when subscription or defaultDate changes (edit mode or new from calendar)
+  // Use setValue for each field when dialog opens
   useEffect(() => {
+    if (!open) return;
+    
     if (subscription) {
-      reset({
-        name: subscription.name,
-        amount: subscription.amount.toString(),
-        currency: subscription.currency,
-        frequency: subscription.frequency,
-        start_date: subscription.start_date,
-        category_id: subscription.category_id || "",
-        notes: subscription.notes || "",
-        logo_url: subscription.logo_url || "",
-      });
+      setValue("name", subscription.name);
+      setValue("amount", subscription.amount.toString());
+      setValue("currency", subscription.currency);
+      setValue("frequency", subscription.frequency);
+      setValue("start_date", subscription.start_date);
+      setValue("category_id", subscription.category_id || "");
+      setValue("notes", subscription.notes || "");
+      setValue("logo_url", subscription.logo_url || "");
+      setLogoUrl(subscription.logo_url || undefined);
     } else if (defaultDate) {
-      // New subscription with pre-selected date from calendar
-      reset({
-        name: "",
-        amount: "",
-        currency: defaultCurrency || "USD",
-        frequency: "monthly",
-        start_date: defaultDate,
-        category_id: "",
-        notes: "",
-        logo_url: "",
-      });
+      setValue("name", "");
+      setValue("amount", "");
+      setValue("currency", defaultCurrency || "USD");
+      setValue("frequency", "monthly");
+      setValue("start_date", defaultDate);
+      setValue("category_id", "");
+      setValue("notes", "");
+      setValue("logo_url", "");
+      setLogoUrl(undefined);
     } else {
-      reset({
-        name: "",
-        amount: "",
-        currency: defaultCurrency || "USD",
-        frequency: "monthly",
-        start_date: format(new Date(), "yyyy-MM-dd"),
-        category_id: "",
-        notes: "",
-        logo_url: "",
-      });
+      setValue("name", "");
+      setValue("amount", "");
+      setValue("currency", defaultCurrency || "USD");
+      setValue("frequency", "monthly");
+      setValue("start_date", format(new Date(), "yyyy-MM-dd"));
+      setValue("category_id", "");
+      setValue("notes", "");
+      setValue("logo_url", "");
+      setLogoUrl(undefined);
     }
-  }, [subscription, defaultDate, reset]);
-
-  useEffect(() => {
-    setLogoUrl(subscription?.logo_url || undefined);
-  }, [subscription]);
+  }, [open, subscription, defaultDate, defaultCurrency, setValue]);
 
   const categoryId = watch("category_id");
 
@@ -164,7 +158,6 @@ export function SubscriptionDialog({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Only reset if NOT editing (to avoid resetting during edit mode)
       if (!subscription) {
         reset();
       }

@@ -402,6 +402,7 @@ export function SubscriptionsPage() {
       )}
 
       <SubscriptionDialog
+        key={editingSubscription?.id || "new"}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         subscription={editingSubscription}

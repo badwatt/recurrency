@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, CreditCard, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CreditCard, Calendar as CalendarIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/authStore";
 import { calendarApi, type CalendarItem } from "@/lib/api/calendar";
 import { SubscriptionDialog } from "@/components/subscription-dialog";
-import { subscriptionsApi } from "@/lib/api/subscriptions";
+import { DaySubscriptionsModal } from "@/components/day-subscriptions-modal";
+import { subscriptionsApi, type Subscription } from "@/lib/api/subscriptions";
+import { toast } from "sonner";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -19,8 +21,20 @@ export function CalendarPage() {
   const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [dialogOpen, setDialogOpen] = useState(false);
+  // Add subscription dialog
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  
+  // Day subscriptions modal
+  const [dayModalOpen, setDayModalOpen] = useState(false);
+  const [selectedDayItems, setSelectedDayItems] = useState<CalendarItem[]>([]);
+  const [selectedDayDate, setSelectedDayDate] = useState<string>("");
+  
+  // Hover state for desktop calendar
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+
+  // Editing subscription
+  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -69,21 +83,74 @@ export function CalendarPage() {
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear();
 
-  const handleDayClick = (day: number | null) => {
+  // Handle opening add dialog from hover button
+  const handleOpenAddDialog = (e: React.MouseEvent, day: number | null) => {
+    e.stopPropagation();
     if (day === null) return;
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     setSelectedDate(dateStr);
-    setDialogOpen(true);
+    setAddDialogOpen(true);
   };
 
-  const handleDialogClose = (open: boolean) => {
-    setDialogOpen(open);
-    if (!open) setSelectedDate(null);
-    else fetchCalendar();
+  // Handle day click - show subscriptions modal
+  const handleDayClick = (day: number | null) => {
+    if (day === null) return;
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const items = getItemsForDay(day);
+    setSelectedDayDate(dateStr);
+    setSelectedDayItems(items);
+    setDayModalOpen(true);
+  };
+
+  const handleAddDialogClose = (open: boolean) => {
+    setAddDialogOpen(open);
+    if (!open) {
+      setSelectedDate(null);
+      setEditingSubscription(null);
+      fetchCalendar();
+    }
+  };
+
+  const handleDayModalClose = (open: boolean) => {
+    setDayModalOpen(open);
+    if (!open) {
+      setSelectedDayItems([]);
+      setSelectedDayDate("");
+    }
   };
 
   const handleSubmitSubscription = async (data: any) => {
-    await subscriptionsApi.create(data);
+    if (editingSubscription) {
+      // Update existing subscription
+      await subscriptionsApi.update(editingSubscription.id, data);
+    } else {
+      // Create new subscription
+      await subscriptionsApi.create(data);
+    }
+  };
+
+  const handleEditSubscription = async (subscriptionId: string) => {
+    try {
+      const subscription = await subscriptionsApi.get(subscriptionId);
+      setEditingSubscription(subscription);
+      setDayModalOpen(false);
+      setAddDialogOpen(true);
+    } catch (error) {
+      toast.error("Failed to load subscription");
+    }
+  };
+
+  const handleDeleteSubscription = async (subscriptionId: string, name: string) => {
+    try {
+      await subscriptionsApi.delete(subscriptionId);
+      toast.success(`"${name}" deleted successfully`);
+      fetchCalendar();
+      // Refresh the modal items
+      const items = getItemsForDay(parseInt(selectedDayDate.split("-")[2]));
+      setSelectedDayItems(items);
+    } catch (error) {
+      toast.error("Failed to delete subscription");
+    }
   };
 
   // Sort upcoming items by date
@@ -128,7 +195,7 @@ export function CalendarPage() {
         ) : (
           <div className="space-y-2">
             {upcomingItems.map((item, index) => (
-              <Card key={index} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDate(item.date); setDialogOpen(true); }}>
+              <Card key={index} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDate(item.date); setAddDialogOpen(true); }}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -178,11 +245,30 @@ export function CalendarPage() {
                 return (
                   <div
                     key={index}
-                    className={`min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer transition-colors ${day === null ? "bg-muted/30 cursor-default" : ""}`}
+                    className={`min-h-[100px] bg-card p-2 transition-colors relative ${
+                      day === null 
+                        ? "bg-muted/30 cursor-default" 
+                        : "hover:bg-muted/50 cursor-pointer"
+                    }`}
                     onClick={() => day !== null && handleDayClick(day)}
+                    onMouseEnter={() => day !== null && setHoveredDay(day)}
+                    onMouseLeave={() => setHoveredDay(null)}
                   >
                     {day !== null && (
                       <>
+                        {/* Add button on hover */}
+                        {hoveredDay === day && (
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6 z-10 shadow-sm hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                            onClick={(e) => handleOpenAddDialog(e, day)}
+                            title="Add subscription"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        
                         <div className={`mb-1 flex h-7 w-7 items-center justify-center rounded-full text-sm ${isToday(day) ? "bg-primary text-primary-foreground font-bold" : ""}`}>
                           {day}
                         </div>
@@ -221,11 +307,30 @@ export function CalendarPage() {
         </CardContent>
       </Card>
 
+      {/* Add/Edit Subscription Dialog */}
       <SubscriptionDialog
-        open={dialogOpen}
-        onOpenChange={handleDialogClose}
-        defaultDate={selectedDate || undefined}
+        key={editingSubscription?.id || "new"}
+        open={addDialogOpen}
+        onOpenChange={handleAddDialogClose}
+        subscription={editingSubscription || undefined}
+        defaultDate={(!editingSubscription && selectedDate) || undefined}
         onSubmit={handleSubmitSubscription}
+      />
+
+      {/* Day Subscriptions Modal */}
+      <DaySubscriptionsModal
+        open={dayModalOpen}
+        onOpenChange={handleDayModalClose}
+        date={selectedDayDate}
+        items={selectedDayItems}
+        onEdit={handleEditSubscription}
+        onDelete={handleDeleteSubscription}
+        onAdd={() => {
+          handleDayModalClose(false);
+          setSelectedDate(selectedDayDate);
+          setAddDialogOpen(true);
+        }}
+        formatCurrency={formatCurrency}
       />
     </div>
   );

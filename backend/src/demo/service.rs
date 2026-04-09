@@ -55,7 +55,6 @@ impl DemoService {
         let this_month = today.month();
         let this_year = today.year();
         let today_day = today.day();
-        let days_this = days_in(this_year, this_month);
 
         // next month
         let (next_year, next_month) = if this_month == 12 {
@@ -63,22 +62,34 @@ impl DemoService {
         } else {
             (this_year, this_month + 1)
         };
-        let days_next = days_in(next_year, next_month);
 
-        // subs: (name, amount, month, day) — always relative to today
+        // subs: (name, amount, start_date_months_ago, billing_day)
         let subs = [
-            ("Netflix",        "15.99", this_month, today_day.min(days_this)),
-            ("Spotify",         "9.99", this_month, (today_day + 3).min(days_this)),
-            ("iCloud",          "2.99", this_month, (today_day + 7).min(days_this)),
-            ("Gym Membership",  "49.99", next_month,  5.min(days_next)),
-            ("Adobe CC",        "54.99", next_month, 18.min(days_next)),
+            ("Netflix",        "15.99", 3, 15),  // started 3 months ago on the 15th
+            ("Spotify",         "9.99", 1, 1),   // started 1 month ago on the 1st
+            ("iCloud",          "2.99", 6, 10),  // started 6 months ago on the 10th
+            ("Gym Membership",  "49.99", 2, 5),  // started 2 months ago on the 5th
+            ("Adobe CC",        "54.99", 4, 18),  // started 4 months ago on the 18th
         ];
 
-        let (ny, nm) = (next_year, next_month);
-        for (name, amount, m, d) in subs {
-            let yr = if (m == nm && m != this_month) || m > 12 { ny } else { this_year };
-            let mo = if m > 12 { 1 } else { m };
-            let next_date = chrono::NaiveDate::from_ymd_opt(yr, mo, d).unwrap_or(today);
+        for (name, amount, months_ago, day) in subs {
+            let start_date = {
+                let (sy, sm) = if this_month as i32 - months_ago as i32 <= 0 {
+                    (this_year - 1, 12 + this_month as i32 - months_ago as i32)
+                } else {
+                    (this_year, this_month as i32 - months_ago as i32)
+                };
+                let sd = day.min(days_in(sy, sm as u32) as u32);
+                chrono::NaiveDate::from_ymd_opt(sy, sm as u32, sd).unwrap_or(today)
+            };
+            let next_date = chrono::NaiveDate::from_ymd_opt(
+                if day <= today_day as u32 { next_year } else { this_year },
+                if day <= today_day as u32 { next_month } else { this_month },
+                day.min(days_in(
+                    if day <= today_day as u32 { next_year } else { this_year },
+                    if day <= today_day as u32 { next_month } else { this_month },
+                ))
+            ).unwrap_or(today);
 
             sqlx::query(
                 "INSERT INTO subscriptions (id, user_id, name, amount, currency, frequency, start_date, next_billing_date, is_active)
@@ -87,7 +98,7 @@ impl DemoService {
                 .bind(user_id)
                 .bind(name)
                 .bind(Decimal::from_str_exact(amount).unwrap_or(Decimal::ZERO))
-                .bind(today)
+                .bind(start_date)
                 .bind(next_date)
                 .execute(pool)
                 .await
