@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -52,6 +52,7 @@ interface TransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: Transaction;
+  defaultCurrency?: string;
   onSubmit: (data: CreateTransactionRequest) => Promise<void>;
 }
 
@@ -59,6 +60,7 @@ export function TransactionDialog({
   open,
   onOpenChange,
   transaction,
+  defaultCurrency,
   onSubmit,
 }: TransactionDialogProps) {
   const { categories, fetchCategories, createCategory } = useCategoriesStore();
@@ -69,24 +71,28 @@ export function TransactionDialog({
     }
   }, [open, fetchCategories]);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<TransactionFormData>({
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       name: "",
       amount: "",
-      currency: "USD",
+      currency: defaultCurrency || "USD",
       date: format(new Date(), "yyyy-MM-dd"),
       category_id: "",
       notes: "",
     },
   });
+
+  const notesRegister = register("notes");
+  const autoResizeNotes = () => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  };
 
   // Populate form when transaction changes (edit mode)
   useEffect(() => {
@@ -184,7 +190,7 @@ export function TransactionDialog({
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
               <Select
-                value={watch("currency") || transaction?.currency || "USD"}
+                value={watch("currency") || transaction?.currency || defaultCurrency || "USD"}
                 onValueChange={(value) => setValue("currency", value)}
               >
                 <SelectTrigger>
@@ -228,10 +234,17 @@ export function TransactionDialog({
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>
-            <Input
+            <textarea
               id="notes"
+              ref={(el) => {
+                textareaRef.current = el;
+                notesRegister.ref(el);
+              }}
               placeholder="Additional notes..."
-              {...register("notes")}
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+              name={notesRegister.name}
+              onChange={(e) => { notesRegister.onChange(e); autoResizeNotes(); }}
+              onBlur={notesRegister.onBlur}
             />
           </div>
 

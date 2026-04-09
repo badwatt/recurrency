@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, Tag, StickyNote } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { useSubscriptionsStore } from "@/stores/subscriptionsStore";
 import { usePreferencesStore } from "@/stores/preferencesStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
+import { useAuthStore } from "@/stores/authStore";
 import { SubscriptionDialog } from "@/components/subscription-dialog";
+import { NotesEditDialog } from "@/components/notes-edit-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Subscription, CreateSubscriptionRequest } from "@/lib/api/subscriptions";
 
 type ViewMode = "grid" | "list";
@@ -42,6 +45,7 @@ interface SubscriptionCardProps {
   viewMode: ViewMode;
   onEdit: (subscription: Subscription) => void;
   onDelete: (subscription: Subscription) => void;
+  onNotesClick: (subscription: Subscription) => void;
   formatCurrency: (amount: number, currency: string) => string;
   getCategoryStyle: (categoryId: string | null) => { color: string; icon: string; name: string };
 }
@@ -51,6 +55,7 @@ function SubscriptionCard({
   viewMode,
   onEdit,
   onDelete,
+  onNotesClick,
   formatCurrency,
   getCategoryStyle,
 }: SubscriptionCardProps) {
@@ -73,6 +78,20 @@ function SubscriptionCard({
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            {subscription.notes && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => onNotesClick(subscription)}>
+                      <StickyNote className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
+                    {subscription.notes}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <Badge
               variant="secondary"
               className="font-normal text-xs hidden sm:inline-flex"
@@ -98,7 +117,21 @@ function SubscriptionCard({
           </div>
         </div>
         {viewMode === "grid" && (
-          <div className="mt-2 sm:hidden">
+          <div className="mt-2 sm:hidden flex items-center gap-1">
+            {subscription.notes && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onNotesClick(subscription)}>
+                      <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
+                    {subscription.notes}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <Badge
               variant="secondary"
               className="font-normal text-xs"
@@ -118,6 +151,7 @@ function SubscriptionCard({
 }
 
 export function SubscriptionsPage() {
+  const { user } = useAuthStore();
   const {
     subscriptions,
     isLoading,
@@ -150,6 +184,8 @@ export function SubscriptionsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | undefined>();
+  const [notesEditOpen, setNotesEditOpen] = useState(false);
+  const [notesEditingSubscription, setNotesEditingSubscription] = useState<Subscription | undefined>();
 
   useEffect(() => {
     fetchSubscriptions();
@@ -181,6 +217,23 @@ export function SubscriptionsPage() {
       }
     },
     [deleteSubscription]
+  );
+
+  const handleNotesClick = useCallback(
+    (subscription: Subscription) => {
+      setNotesEditingSubscription(subscription);
+      setNotesEditOpen(true);
+    },
+    []
+  );
+
+  const handleNotesSave = useCallback(
+    async (notes: string) => {
+      if (!notesEditingSubscription) return;
+      await updateSubscription(notesEditingSubscription.id, { notes });
+      showToast("success", "Notes updated");
+    },
+    [notesEditingSubscription, updateSubscription]
   );
 
   const handleSubmit = useCallback(
@@ -223,6 +276,7 @@ export function SubscriptionsPage() {
               viewMode={viewMode}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onNotesClick={handleNotesClick}
               formatCurrency={formatCurrency}
               getCategoryStyle={getCategoryStyle}
             />
@@ -240,6 +294,7 @@ export function SubscriptionsPage() {
             viewMode={viewMode}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onNotesClick={handleNotesClick}
             formatCurrency={formatCurrency}
             getCategoryStyle={getCategoryStyle}
           />
@@ -339,7 +394,16 @@ export function SubscriptionsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         subscription={editingSubscription}
+        defaultCurrency={user?.currency}
         onSubmit={handleSubmit}
+      />
+
+      <NotesEditDialog
+        open={notesEditOpen}
+        onOpenChange={setNotesEditOpen}
+        notes={notesEditingSubscription?.notes || ""}
+        onSave={handleNotesSave}
+        title={`Notes: ${notesEditingSubscription?.name || ""}`}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -61,6 +61,7 @@ interface SubscriptionDialogProps {
   onOpenChange: (open: boolean) => void;
   subscription?: Subscription;
   defaultDate?: string;
+  defaultCurrency?: string;
   onSubmit: (data: CreateSubscriptionRequest) => Promise<void>;
 }
 
@@ -69,6 +70,7 @@ export function SubscriptionDialog({
   onOpenChange,
   subscription,
   defaultDate,
+  defaultCurrency,
   onSubmit,
 }: SubscriptionDialogProps) {
   const { categories, fetchCategories, createCategory } = useCategoriesStore();
@@ -79,25 +81,29 @@ export function SubscriptionDialog({
     }
   }, [open, fetchCategories]);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<SubscriptionFormData>({
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<SubscriptionFormData>({
     resolver: zodResolver(subscriptionSchema),
     defaultValues: {
       name: "",
       amount: "",
-      currency: "USD",
+      currency: defaultCurrency || "USD",
       frequency: "monthly",
       start_date: format(new Date(), "yyyy-MM-dd"),
       category_id: "",
       notes: "",
     },
   });
+
+  const notesRegister = register("notes");
+  const autoResizeNotes = () => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  };
 
   // Populate form when subscription or defaultDate changes (edit mode or new from calendar)
   useEffect(() => {
@@ -116,7 +122,7 @@ export function SubscriptionDialog({
       reset({
         name: "",
         amount: "",
-        currency: "USD",
+        currency: defaultCurrency || "USD",
         frequency: "monthly",
         start_date: defaultDate,
         category_id: "",
@@ -126,7 +132,7 @@ export function SubscriptionDialog({
       reset({
         name: "",
         amount: "",
-        currency: "USD",
+        currency: defaultCurrency || "USD",
         frequency: "monthly",
         start_date: format(new Date(), "yyyy-MM-dd"),
         category_id: "",
@@ -219,7 +225,7 @@ export function SubscriptionDialog({
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
               <Select
-                value={watch("currency") || subscription?.currency || "USD"}
+                value={watch("currency") || subscription?.currency || defaultCurrency || "USD"}
                 onValueChange={(value) => setValue("currency", value)}
               >
                 <SelectTrigger>
@@ -282,10 +288,17 @@ export function SubscriptionDialog({
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>
-            <Input
+            <textarea
               id="notes"
+              ref={(el) => {
+                textareaRef.current = el;
+                notesRegister.ref(el);
+              }}
               placeholder="Additional notes..."
-              {...register("notes")}
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+              name={notesRegister.name}
+              onChange={(e) => { notesRegister.onChange(e); autoResizeNotes(); }}
+              onBlur={notesRegister.onBlur}
             />
           </div>
 

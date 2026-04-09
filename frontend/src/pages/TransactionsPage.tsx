@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Receipt, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, Tag, StickyNote } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -12,6 +12,8 @@ import { useTransactionsStore } from "@/stores/transactionsStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useAuthStore } from "@/stores/authStore";
 import { TransactionDialog } from "@/components/transaction-dialog";
+import { NotesEditDialog } from "@/components/notes-edit-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Transaction, CreateTransactionRequest } from "@/lib/api/transactions";
 
 // Helper to get Lucide icon component from kebab-case name
@@ -62,6 +64,8 @@ export function TransactionsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
+  const [notesEditOpen, setNotesEditOpen] = useState(false);
+  const [notesEditingTransaction, setNotesEditingTransaction] = useState<Transaction | undefined>();
 
   useEffect(() => {
     fetchTransactions();
@@ -92,6 +96,23 @@ export function TransactionsPage() {
       }
     },
     [deleteTransaction]
+  );
+
+  const handleNotesClick = useCallback(
+    (transaction: Transaction) => {
+      setNotesEditingTransaction(transaction);
+      setNotesEditOpen(true);
+    },
+    []
+  );
+
+  const handleNotesSave = useCallback(
+    async (notes: string) => {
+      if (!notesEditingTransaction) return;
+      await updateTransaction(notesEditingTransaction.id, { notes });
+      showToast("success", "Notes updated");
+    },
+    [notesEditingTransaction, updateTransaction]
   );
 
   const handleSubmit = useCallback(
@@ -226,14 +247,30 @@ export function TransactionsPage() {
                             const { color, icon, name } = getCategoryStyle(transaction.category_id);
                             const IconComponent = getIconComponent(icon);
                             return (
-                              <Badge
-                                variant="secondary"
-                                className="font-normal text-xs hidden sm:inline-flex"
-                                style={{ color: color, backgroundColor: `${color}20` }}
-                              >
-                                <IconComponent className="h-3 w-3 mr-1" />
-                                {name}
-                              </Badge>
+                              <>
+                                {transaction.notes && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => handleNotesClick(transaction)}>
+                                          <StickyNote className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
+                                        {transaction.notes}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                <Badge
+                                  variant="secondary"
+                                  className="font-normal text-xs hidden sm:inline-flex"
+                                  style={{ color: color, backgroundColor: `${color}20` }}
+                                >
+                                  <IconComponent className="h-3 w-3 mr-1" />
+                                  {name}
+                                </Badge>
+                              </>
                             );
                           })()}
                           <p className="font-medium text-sm sm:text-base">
@@ -249,15 +286,31 @@ export function TransactionsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="mt-2 sm:hidden">
+                      <div className="mt-2 sm:hidden flex items-center gap-1">
                         {(() => {
                           const { color, icon, name } = getCategoryStyle(transaction.category_id);
                           const IconComponent = getIconComponent(icon);
                           return (
-                            <Badge variant="secondary" className="font-normal text-xs" style={{ color: color, backgroundColor: `${color}20` }}>
-                              <IconComponent className="h-3 w-3 mr-1" />
-                              {name}
-                            </Badge>
+                            <>
+                              {transaction.notes && (
+                                <TooltipProvider delayDuration={200}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleNotesClick(transaction)}>
+                                        <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
+                                      {transaction.notes}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              <Badge variant="secondary" className="font-normal text-xs" style={{ color: color, backgroundColor: `${color}20` }}>
+                                <IconComponent className="h-3 w-3 mr-1" />
+                                {name}
+                              </Badge>
+                            </>
                           );
                         })()}
                       </div>
@@ -274,7 +327,16 @@ export function TransactionsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         transaction={editingTransaction}
+        defaultCurrency={user?.currency}
         onSubmit={handleSubmit}
+      />
+
+      <NotesEditDialog
+        open={notesEditOpen}
+        onOpenChange={setNotesEditOpen}
+        notes={notesEditingTransaction?.notes || ""}
+        onSave={handleNotesSave}
+        title={`Notes: ${notesEditingTransaction?.name || ""}`}
       />
     </div>
   );
