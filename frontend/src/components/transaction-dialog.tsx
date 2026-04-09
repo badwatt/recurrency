@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { CategoryCombobox } from "@/components/ui/combobox";
 import { useCategoriesStore } from "@/stores/categoriesStore";
+import { LogoSearch } from "@/components/logo-search";
 import type { Transaction, CreateTransactionRequest } from "@/lib/api/transactions";
 import type { Category } from "@/lib/api/categories";
 
@@ -44,6 +45,7 @@ const transactionSchema = z.object({
   date: z.string().min(1, "Date is required"),
   category_id: z.string().optional(),
   notes: z.string().optional(),
+  logo_url: z.string().optional(),
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -64,6 +66,7 @@ export function TransactionDialog({
   onSubmit,
 }: TransactionDialogProps) {
   const { categories, fetchCategories, createCategory } = useCategoriesStore();
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(transaction?.logo_url || undefined);
 
   useEffect(() => {
     if (open) {
@@ -82,6 +85,7 @@ export function TransactionDialog({
       date: format(new Date(), "yyyy-MM-dd"),
       category_id: "",
       notes: "",
+      logo_url: "",
     },
   });
 
@@ -97,6 +101,7 @@ export function TransactionDialog({
   // Populate form when transaction changes (edit mode)
   useEffect(() => {
     if (transaction) {
+      setLogoUrl(transaction.logo_url || undefined);
       reset({
         name: transaction.name,
         amount: transaction.amount.toString(),
@@ -104,9 +109,21 @@ export function TransactionDialog({
         date: transaction.date,
         category_id: transaction.category_id || "",
         notes: transaction.notes || "",
+        logo_url: transaction.logo_url || "",
+      });
+    } else {
+      setLogoUrl(undefined);
+      reset({
+        name: "",
+        amount: "",
+        currency: defaultCurrency || "USD",
+        date: format(new Date(), "yyyy-MM-dd"),
+        category_id: "",
+        notes: "",
+        logo_url: "",
       });
     }
-  }, [transaction, reset]);
+  }, [transaction, defaultCurrency, reset]);
 
   const categoryId = watch("category_id");
 
@@ -122,6 +139,7 @@ export function TransactionDialog({
     if (!newOpen) {
       if (!transaction) {
         reset();
+        setLogoUrl(undefined);
       }
     }
     onOpenChange(newOpen);
@@ -135,10 +153,12 @@ export function TransactionDialog({
       date: data.date,
       category_id: data.category_id || undefined,
       notes: data.notes,
+      logo_url: logoUrl,
     };
 
     await onSubmit(submitData);
     reset();
+    setLogoUrl(undefined);
     onOpenChange(false);
   };
 
@@ -159,12 +179,20 @@ export function TransactionDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              placeholder="Coffee, Groceries, etc."
-              onFocus={(e) => setTimeout(() => e.target.setSelectionRange(e.target.value.length, e.target.value.length), 0)}
-              {...register("name")}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="name"
+                placeholder="Coffee, Groceries, etc."
+                className="flex-1"
+                onFocus={(e) => setTimeout(() => e.target.setSelectionRange(e.target.value.length, e.target.value.length), 0)}
+                {...register("name")}
+              />
+              <LogoSearch
+                query={watch("name") || ""}
+                onSelect={(url) => setLogoUrl(url)}
+                selectedLogo={logoUrl}
+              />
+            </div>
             {errors.name && (
               <p className="text-xs text-destructive">{errors.name.message}</p>
             )}

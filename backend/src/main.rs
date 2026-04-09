@@ -2,6 +2,7 @@ mod auth;
 mod categories;
 mod demo;
 mod email;
+mod logos;
 mod notifications;
 mod preferences;
 mod reports;
@@ -131,6 +132,9 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/demo/status", get(demo::handlers::status))
         .route("/api/demo/init", get(demo::handlers::init))
         .route("/api/demo/reset", post(demo::handlers::reset))
+        
+        // Logo search route
+        .route("/api/logos/search", get(logos::handlers::search))
         
         .with_state(db_pool)
         .layer(cors)

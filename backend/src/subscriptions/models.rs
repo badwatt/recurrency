@@ -18,6 +18,7 @@ pub struct Subscription {
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -33,6 +34,7 @@ pub struct CreateSubscriptionRequest {
     pub start_date: NaiveDate,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -46,6 +48,7 @@ pub struct UpdateSubscriptionRequest {
     pub category_id: Option<Uuid>,
     pub is_active: Option<bool>,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,6 +64,7 @@ pub struct SubscriptionResponse {
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -79,6 +83,7 @@ impl From<Subscription> for SubscriptionResponse {
             next_billing_date: s.next_billing_date,
             is_active: s.is_active,
             notes: s.notes,
+            logo_url: s.logo_url,
             created_at: s.created_at,
             updated_at: s.updated_at,
         }

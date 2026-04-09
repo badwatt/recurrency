@@ -8,6 +8,7 @@ export interface CalendarItem {
   amount: string;
   currency: string;
   frequency: string;
+  logo_url: string | null;
 }
 
 async function getAuthHeaders() {

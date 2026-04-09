@@ -10,6 +10,7 @@ export interface Transaction {
   currency: string;
   date: string;
   notes: string | null;
+  logo_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +22,7 @@ export interface CreateTransactionRequest {
   date: string;
   category_id?: string;
   notes?: string;
+  logo_url?: string;
 }
 
 export interface UpdateTransactionRequest {
@@ -30,6 +32,7 @@ export interface UpdateTransactionRequest {
   date?: string;
   category_id?: string;
   notes?: string;
+  logo_url?: string;
 }
 
 async function getAuthHeaders() {

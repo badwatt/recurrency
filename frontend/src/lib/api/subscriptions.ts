@@ -13,6 +13,7 @@ export interface Subscription {
   next_billing_date: string | null;
   is_active: boolean;
   notes: string | null;
+  logo_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export interface CreateSubscriptionRequest {
   start_date: string;
   category_id?: string;
   notes?: string;
+  logo_url?: string;
 }
 
 export interface UpdateSubscriptionRequest {
@@ -37,6 +39,7 @@ export interface UpdateSubscriptionRequest {
   category_id?: string;
   is_active?: boolean;
   notes?: string;
+  logo_url?: string;
 }
 
 async function getAuthHeaders() {

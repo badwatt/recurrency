@@ -14,6 +14,7 @@ pub struct Transaction {
     pub currency: String,
     pub date: NaiveDate,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -26,6 +27,7 @@ pub struct CreateTransactionRequest {
     pub date: NaiveDate,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +38,7 @@ pub struct UpdateTransactionRequest {
     pub date: Option<NaiveDate>,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -48,6 +51,7 @@ pub struct TransactionResponse {
     pub currency: String,
     pub date: NaiveDate,
     pub notes: Option<String>,
+    pub logo_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -63,6 +67,7 @@ impl From<Transaction> for TransactionResponse {
             currency: t.currency,
             date: t.date,
             notes: t.notes,
+            logo_url: t.logo_url,
             created_at: t.created_at,
             updated_at: t.updated_at,
         }

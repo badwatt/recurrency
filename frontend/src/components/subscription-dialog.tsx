@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { CategoryCombobox } from "@/components/ui/combobox";
 import { useCategoriesStore } from "@/stores/categoriesStore";
+import { LogoSearch } from "@/components/logo-search";
 import type { Subscription, CreateSubscriptionRequest } from "@/lib/api/subscriptions";
 import type { Category } from "@/lib/api/categories";
 
@@ -52,6 +53,7 @@ const subscriptionSchema = z.object({
   start_date: z.string().min(1, "Start date is required"),
   category_id: z.string().optional(),
   notes: z.string().optional(),
+  logo_url: z.string().optional(),
 });
 
 type SubscriptionFormData = z.infer<typeof subscriptionSchema>;
@@ -74,6 +76,7 @@ export function SubscriptionDialog({
   onSubmit,
 }: SubscriptionDialogProps) {
   const { categories, fetchCategories, createCategory } = useCategoriesStore();
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(subscription?.logo_url || undefined);
 
   useEffect(() => {
     if (open) {
@@ -93,6 +96,7 @@ export function SubscriptionDialog({
       start_date: format(new Date(), "yyyy-MM-dd"),
       category_id: "",
       notes: "",
+      logo_url: "",
     },
   });
 
@@ -116,6 +120,7 @@ export function SubscriptionDialog({
         start_date: subscription.start_date,
         category_id: subscription.category_id || "",
         notes: subscription.notes || "",
+        logo_url: subscription.logo_url || "",
       });
     } else if (defaultDate) {
       // New subscription with pre-selected date from calendar
@@ -127,6 +132,7 @@ export function SubscriptionDialog({
         start_date: defaultDate,
         category_id: "",
         notes: "",
+        logo_url: "",
       });
     } else {
       reset({
@@ -137,9 +143,14 @@ export function SubscriptionDialog({
         start_date: format(new Date(), "yyyy-MM-dd"),
         category_id: "",
         notes: "",
+        logo_url: "",
       });
     }
   }, [subscription, defaultDate, reset]);
+
+  useEffect(() => {
+    setLogoUrl(subscription?.logo_url || undefined);
+  }, [subscription]);
 
   const categoryId = watch("category_id");
 
@@ -170,6 +181,7 @@ export function SubscriptionDialog({
       start_date: data.start_date,
       category_id: data.category_id || undefined,
       notes: data.notes,
+      logo_url: logoUrl,
     };
 
     await onSubmit(submitData);
@@ -194,12 +206,20 @@ export function SubscriptionDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              placeholder="Netflix, Spotify, etc."
-              onFocus={(e) => setTimeout(() => e.target.setSelectionRange(e.target.value.length, e.target.value.length), 0)}
-              {...register("name")}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="name"
+                placeholder="Netflix, Spotify, etc."
+                className="flex-1"
+                onFocus={(e) => setTimeout(() => e.target.setSelectionRange(e.target.value.length, e.target.value.length), 0)}
+                {...register("name")}
+              />
+              <LogoSearch
+                query={watch("name") || ""}
+                onSelect={(url) => setLogoUrl(url)}
+                selectedLogo={logoUrl}
+              />
+            </div>
             {errors.name && (
               <p className="text-xs text-destructive">{errors.name.message}</p>
             )}

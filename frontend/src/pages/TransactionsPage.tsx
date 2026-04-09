@@ -233,8 +233,19 @@ export function TransactionsPage() {
                   <Card key={transaction.id} className="min-w-0">
                     <CardContent className="p-3 sm:p-4">
                       <div className="flex items-center gap-2 sm:gap-4">
-                        <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                          <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                        <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden">
+                          {transaction.logo_url ? (
+                            <img
+                              src={transaction.logo_url}
+                              alt={transaction.name}
+                              className="h-full w-full object-contain p-1"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate text-sm sm:text-base">{transaction.name}</p>

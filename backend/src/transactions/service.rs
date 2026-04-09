@@ -15,9 +15,9 @@ impl TransactionService {
     ) -> AppResult<Transaction> {
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (id, user_id, category_id, name, amount, currency, date, notes, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
-            RETURNING id, user_id, category_id, name, amount, currency, date, notes, created_at, updated_at
+            INSERT INTO transactions (id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+            RETURNING id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -28,6 +28,7 @@ impl TransactionService {
         .bind(&req.currency)
         .bind(req.date)
         .bind(&req.notes)
+        .bind(&req.logo_url)
         .bind(Utc::now())
         .fetch_one(pool)
         .await?;
@@ -37,7 +38,7 @@ impl TransactionService {
 
     pub async fn get_all(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<Transaction>> {
         let transactions = sqlx::query_as::<_, Transaction>(
-            "SELECT id, user_id, category_id, name, amount, currency, date, notes, created_at, updated_at 
+            "SELECT id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at 
              FROM transactions WHERE user_id = $1 ORDER BY date DESC",
         )
         .bind(user_id)
@@ -49,7 +50,7 @@ impl TransactionService {
 
     pub async fn get_by_id(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<Transaction> {
         let transaction = sqlx::query_as::<_, Transaction>(
-            "SELECT id, user_id, category_id, name, amount, currency, date, notes, created_at, updated_at 
+            "SELECT id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at 
              FROM transactions WHERE id = $1 AND user_id = $2",
         )
         .bind(id)
@@ -75,13 +76,14 @@ impl TransactionService {
         let date = req.date.unwrap_or(existing.date);
         let category_id = req.category_id.or(existing.category_id);
         let notes = req.notes.or(existing.notes);
+        let logo_url = req.logo_url.or(existing.logo_url);
 
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
             UPDATE transactions 
-            SET name = $1, amount = $2, currency = $3, date = $4, category_id = $5, notes = $6, updated_at = $7
-            WHERE id = $8 AND user_id = $9
-            RETURNING id, user_id, category_id, name, amount, currency, date, notes, created_at, updated_at
+            SET name = $1, amount = $2, currency = $3, date = $4, category_id = $5, notes = $6, logo_url = $7, updated_at = $8
+            WHERE id = $9 AND user_id = $10
+            RETURNING id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at
             "#,
         )
         .bind(&name)
@@ -90,6 +92,7 @@ impl TransactionService {
         .bind(date)
         .bind(category_id)
         .bind(&notes)
+        .bind(&logo_url)
         .bind(Utc::now())
         .bind(id)
         .bind(user_id)
@@ -121,7 +124,7 @@ impl TransactionService {
     ) -> AppResult<Vec<Transaction>> {
         let transactions = sqlx::query_as::<_, Transaction>(
             r#"
-            SELECT id, user_id, category_id, name, amount, currency, date, notes, created_at, updated_at 
+            SELECT id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at 
             FROM transactions 
             WHERE user_id = $1 AND date >= $2 AND date <= $3
             ORDER BY date DESC

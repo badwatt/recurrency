@@ -161,10 +161,21 @@ export function DashboardPage() {
                     return (
                       <div key={sub.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-full overflow-hidden ${
                             isOverdue ? "bg-destructive/10" : isToday ? "bg-yellow-500/10" : "bg-green-500/10"
                           }`}>
-                            <Receipt className={`h-4 w-4 ${isToday ? "text-yellow-500" : isOverdue ? "text-destructive" : "text-green-500"}`} />
+                            {sub.logo_url ? (
+                              <img
+                                src={sub.logo_url}
+                                alt={sub.name}
+                                className="h-full w-full object-contain p-1"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <Receipt className={`h-4 w-4 ${isToday ? "text-yellow-500" : isOverdue ? "text-destructive" : "text-green-500"}`} />
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-medium">{sub.name}</p>

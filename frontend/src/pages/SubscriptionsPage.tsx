@@ -66,8 +66,19 @@ function SubscriptionCard({
     <Card className={!subscription.is_active ? "opacity-60" : "min-w-0"}>
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-            <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+          <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden">
+            {subscription.logo_url ? (
+              <img
+                src={subscription.logo_url}
+                alt={subscription.name}
+                className="h-full w-full object-contain p-1"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate text-sm sm:text-base">{subscription.name}</p>

@@ -189,7 +189,18 @@ export function CalendarPage() {
                         <div className="space-y-1">
                           {dayItems.slice(0, 3).map((item, itemIndex) => (
                             <div key={itemIndex} className="flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs" title={`${item.name} - ${formatCurrency(item.amount, item.currency)}`}>
-                              <CreditCard className="h-3 w-3 flex-shrink-0" />
+                              {(item as {logo_url?: string}).logo_url ? (
+                                <img
+                                  src={(item as {logo_url?: string}).logo_url}
+                                  alt={item.name}
+                                  className="h-3 w-3 flex-shrink-0 object-contain rounded"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <CreditCard className="h-3 w-3 flex-shrink-0" />
+                              )}
                               <span className="truncate">{item.name}</span>
                               <span className="ml-auto flex-shrink-0 font-medium">${parseFloat(item.amount).toFixed(0)}</span>
                             </div>
