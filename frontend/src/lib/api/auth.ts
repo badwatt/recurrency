@@ -1,7 +1,5 @@
 import { apiClient } from "./client";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
-
 export interface User {
   id: string;
   email: string;
@@ -41,26 +39,10 @@ export const authApi = {
   },
 
   async verifyEmail(token: string, code: string): Promise<User> {
-    const res = await fetch(`${API_BASE}/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
-    if (!res.ok) {
-      const err = await res.text().catch(() => "Verification failed");
-      throw new Error(err);
-    }
-    return res.json();
+    return apiClient.post<User>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, { code });
   },
 
   async resendVerification(token: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/auth/resend-verification?token=${encodeURIComponent(token)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) {
-      const err = await res.text().catch(() => "Failed to resend");
-      throw new Error(err);
-    }
+    return apiClient.post(`/api/auth/resend-verification?token=${encodeURIComponent(token)}`);
   },
 };

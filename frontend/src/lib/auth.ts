@@ -15,8 +15,9 @@ const storage = {
 };
 
 // Create Better Auth client with custom JWT backend
+// baseURL is resolved lazily via getApiBaseUrl() after initConfig()
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || "",
+  baseURL: "", // Placeholder; our custom API client handles the URL
   storage,
   // Disable built-in endpoints since we use custom backend
   disableInternalHandlers: true,

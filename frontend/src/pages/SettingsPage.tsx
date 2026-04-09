@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/authStore";
 import { settingsApi } from "@/lib/api/settings";
 import { auth } from "@/lib/auth";
+import { getApiBaseUrl, setApiBaseUrl, isMobilePlatform } from "@/lib/config";
 import { notificationPreferencesApi, type NotificationPreference } from "@/lib/api/notificationPreferences";
 
 const settingsSchema = z.object({
@@ -36,6 +37,47 @@ const notificationChannels = [
 ];
 
 export function SettingsPage() {
+  const [serverUrl, setServerUrl] = useState("");
+  const [serverSaving, setServerSaving] = useState(false);
+  const [serverMsg, setServerMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    setServerUrl(getApiBaseUrl());
+  }, []);
+
+  const handleServerSave = async () => {
+    setServerSaving(true);
+    setServerMsg(null);
+    let parsedUrl = serverUrl.trim();
+    if (!parsedUrl) {
+      setServerMsg({ type: "error", text: "URL cannot be empty" });
+      setServerSaving(false);
+      return;
+    }
+    if (!/^https?:\/\//i.test(parsedUrl)) {
+      parsedUrl = `https://${parsedUrl}`;
+    }
+    try {
+      new URL(parsedUrl);
+    } catch {
+      setServerMsg({ type: "error", text: "Invalid URL format" });
+      setServerSaving(false);
+      return;
+    }
+    parsedUrl = parsedUrl.replace(/\/+$/, "");
+    try {
+      const response = await fetch(`${parsedUrl}/health`);
+      if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+      await setApiBaseUrl(parsedUrl);
+      setServerUrl(parsedUrl);
+      setServerMsg({ type: "success", text: "Server URL saved. Reload to apply." });
+    } catch (err) {
+      setServerMsg({ type: "error", text: err instanceof Error ? err.message : "Could not connect to server" });
+    } finally {
+      setServerSaving(false);
+    }
+  };
+
   const { user, setUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -196,6 +238,44 @@ export function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {isMobilePlatform() && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Server</CardTitle>
+            <CardDescription>
+              Configure your Recur server connection
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="server-url">Server URL</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="server-url"
+                  type="text"
+                  placeholder="https://myserver.example.com"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  disabled={serverSaving}
+                />
+                <Button
+                  type="button"
+                  onClick={handleServerSave}
+                  disabled={serverSaving}
+                >
+                  {serverSaving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+              {serverMsg && (
+                <p className={`text-sm ${serverMsg.type === "success" ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                  {serverMsg.text}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        )}
 
         <Card>
           <CardHeader>

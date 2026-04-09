@@ -74,20 +74,20 @@ impl DemoService {
 
         for (name, amount, months_ago, day) in subs {
             let start_date = {
-                let (sy, sm) = if this_month as i32 - months_ago as i32 <= 0 {
-                    (this_year - 1, 12 + this_month as i32 - months_ago as i32)
+                let (sy, sm) = if this_month as i32 - months_ago <= 0 {
+                    (this_year - 1, 12 + this_month as i32 - months_ago)
                 } else {
-                    (this_year, this_month as i32 - months_ago as i32)
+                    (this_year, this_month as i32 - months_ago)
                 };
-                let sd = day.min(days_in(sy, sm as u32) as u32);
+                let sd = day.min(days_in(sy, sm as u32));
                 chrono::NaiveDate::from_ymd_opt(sy, sm as u32, sd).unwrap_or(today)
             };
             let next_date = chrono::NaiveDate::from_ymd_opt(
-                if day <= today_day as u32 { next_year } else { this_year },
-                if day <= today_day as u32 { next_month } else { this_month },
+                if day <= today_day { next_year } else { this_year },
+                if day <= today_day { next_month } else { this_month },
                 day.min(days_in(
-                    if day <= today_day as u32 { next_year } else { this_year },
-                    if day <= today_day as u32 { next_month } else { this_month },
+                    if day <= today_day { next_year } else { this_year },
+                    if day <= today_day { next_month } else { this_month },
                 ))
             ).unwrap_or(today);
 
