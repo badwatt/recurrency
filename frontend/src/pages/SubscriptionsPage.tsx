@@ -47,7 +47,7 @@ interface SubscriptionCardProps {
   onDelete: (subscription: Subscription) => void;
   onNotesClick: (subscription: Subscription) => void;
   formatCurrency: (amount: number, currency: string) => string;
-  getCategoryStyle: (categoryId: string | null) => { color: string; icon: string; name: string };
+  getCategoryStyle: (categoryId: string) => { color: string; icon: string; name: string };
 }
 
 function SubscriptionCard({
@@ -178,10 +178,7 @@ export function SubscriptionsPage() {
   const viewMode = preferences.subscriptions_view as ViewMode;
 
   const getCategoryStyle = useCallback(
-    (categoryId: string | null) => {
-      if (!categoryId) {
-        return { color: "#6b7280", icon: "", name: "Uncategorized" };
-      }
+    (categoryId: string) => {
       const cat = categories.find((c) => c.id === categoryId);
       if (!cat) return { color: "#6b7280", icon: "", name: "Uncategorized" };
       return {

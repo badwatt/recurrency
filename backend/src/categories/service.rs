@@ -132,6 +132,19 @@ impl CategoryService {
         Ok(category)
     }
 
+    /// Get the default category for a user
+    pub async fn get_default(pool: &PgPool, user_id: Uuid) -> AppResult<Category> {
+        let category = sqlx::query_as::<_, Category>(
+            "SELECT id, user_id, name, icon, color, is_system, is_default, created_at, updated_at FROM categories WHERE user_id = $1 AND is_default = true"
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Default category not found".to_string()))?;
+
+        Ok(category)
+    }
+
     pub async fn delete(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<()> {
         let category = Self::get_by_id(pool, user_id, id).await?;
 
@@ -139,6 +152,23 @@ impl CategoryService {
         if category.is_default {
             return Err(AppError::BadRequest("Cannot delete the default category".to_string()));
         }
+
+        // Reassign all subscriptions and transactions from this category to the default category
+        let default_category = Self::get_default(pool, user_id).await?;
+
+        sqlx::query("UPDATE subscriptions SET category_id = $1 WHERE category_id = $2 AND user_id = $3")
+            .bind(default_category.id)
+            .bind(id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+
+        sqlx::query("UPDATE transactions SET category_id = $1 WHERE category_id = $2 AND user_id = $3")
+            .bind(default_category.id)
+            .bind(id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
 
         let result = sqlx::query("DELETE FROM categories WHERE id = $1 AND user_id = $2 AND is_default = false")
             .bind(id)

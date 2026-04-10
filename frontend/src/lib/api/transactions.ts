@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 export interface Transaction {
   id: string;
   user_id: string;
-  category_id: string | null;
+  category_id: string;
   name: string;
   amount: number;
   currency: string;

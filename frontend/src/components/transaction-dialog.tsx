@@ -43,7 +43,7 @@ const transactionSchema = z.object({
   }),
   currency: z.string().min(3, "Select a currency"),
   date: z.string().min(1, "Date is required"),
-  category_id: z.string().optional(),
+  category_id: z.string().min(1, "Category is required"),
   notes: z.string().optional(),
   logo_url: z.string().optional(),
 });
@@ -76,6 +76,8 @@ export function TransactionDialog({
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const defaultCategoryId = categories.find((c) => c.is_default)?.id || "";
+
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
@@ -83,7 +85,7 @@ export function TransactionDialog({
       amount: "",
       currency: defaultCurrency || "USD",
       date: format(new Date(), "yyyy-MM-dd"),
-      category_id: "",
+      category_id: defaultCategoryId,
       notes: "",
       logo_url: "",
     },
@@ -100,6 +102,7 @@ export function TransactionDialog({
 
   // Populate form when transaction changes (edit mode)
   useEffect(() => {
+    const defaultCatId = categories.find((c) => c.is_default)?.id || "";
     if (transaction) {
       setLogoUrl(transaction.logo_url || undefined);
       reset({
@@ -107,7 +110,7 @@ export function TransactionDialog({
         amount: transaction.amount.toString(),
         currency: transaction.currency,
         date: transaction.date,
-        category_id: transaction.category_id || "",
+        category_id: transaction.category_id,
         notes: transaction.notes || "",
         logo_url: transaction.logo_url || "",
       });
@@ -118,12 +121,12 @@ export function TransactionDialog({
         amount: "",
         currency: defaultCurrency || "USD",
         date: format(new Date(), "yyyy-MM-dd"),
-        category_id: "",
+        category_id: defaultCatId,
         notes: "",
         logo_url: "",
       });
     }
-  }, [transaction, defaultCurrency, reset]);
+  }, [transaction, defaultCurrency, reset, categories]);
 
   const categoryId = watch("category_id");
 
@@ -151,7 +154,7 @@ export function TransactionDialog({
       amount: parseFloat(data.amount),
       currency: data.currency,
       date: data.date,
-      category_id: data.category_id || undefined,
+      category_id: data.category_id,
       notes: data.notes,
       logo_url: logoUrl,
     };

@@ -12,7 +12,7 @@ export interface MonthlySummary {
 }
 
 export interface CategoryBreakdown {
-  category_id: string | null;
+  category_id: string;
   category_name: string;
   total: string;
   count: number;

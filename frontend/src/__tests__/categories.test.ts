@@ -10,8 +10,7 @@ import { describe, it, expect } from "vitest";
  */
 
 describe("Category display helpers", () => {
-  const getCategoryDisplay = (categoryId: string | null, categories: {id: string, name: string}[]) => {
-    if (!categoryId) return "Uncategorized";
+  const getCategoryDisplay = (categoryId: string, categories: {id: string, name: string}[]) => {
     const cat = categories.find((c) => c.id === categoryId);
     return cat?.name || "Uncategorized";
   };
@@ -26,16 +25,16 @@ describe("Category display helpers", () => {
     expect(getCategoryDisplay("cat-456", categories)).toBe("Food & Drink");
   });
 
-  it("should display 'Uncategorized' when subscription has no category", () => {
-    expect(getCategoryDisplay(null, categories)).toBe("Uncategorized");
+  it("should display 'Uncategorized' when category not found", () => {
+    expect(getCategoryDisplay("cat-999", categories)).toBe("Uncategorized");
   });
 
   it("should display category name when transaction has category", () => {
     expect(getCategoryDisplay("cat-123", categories)).toBe("Entertainment");
   });
 
-  it("should display 'Uncategorized' when transaction has no category", () => {
-    expect(getCategoryDisplay(null, categories)).toBe("Uncategorized");
+  it("should display 'Uncategorized' when transaction category not found", () => {
+    expect(getCategoryDisplay("cat-999", categories)).toBe("Uncategorized");
   });
 });
 
@@ -93,14 +92,16 @@ describe("Uncategorized as default category", () => {
     expect(isSystemCategory("Entertainment")).toBe(false);
   });
 
-  it("should default to null/categorized when no category selected", () => {
+  it("should always have a default category assigned", () => {
+    // category_id is now always a string — auto-assigned to the default category
     const newSubscription = {
       name: "New Service",
       amount: 9.99,
-      category_id: null,
+      category_id: "cat-default",
     };
 
-    expect(newSubscription.category_id).toBeNull();
+    expect(typeof newSubscription.category_id).toBe("string");
+    expect(newSubscription.category_id).toBeTruthy();
   });
 });
 

@@ -8,6 +8,7 @@ use crate::shared::error::{AppError, AppResult};
 use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
+use crate::categories::service::CategoryService;
 
 pub struct SubscriptionService;
 
@@ -19,6 +20,12 @@ impl SubscriptionService {
     ) -> AppResult<Subscription> {
         let next_billing_date = calculate_next_billing_date(req.start_date, &req.frequency);
 
+        // Auto-assign default category if none provided
+        let category_id = match req.category_id {
+            Some(id) => id,
+            None => CategoryService::get_default(pool, user_id).await?.id,
+        };
+
         let subscription = sqlx::query_as::<_, Subscription>(
             r#"
             INSERT INTO subscriptions (id, user_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at)
@@ -28,7 +35,7 @@ impl SubscriptionService {
         )
         .bind(Uuid::new_v4())
         .bind(user_id)
-        .bind(req.category_id)
+        .bind(category_id)
         .bind(&req.name)
         .bind(req.amount)
         .bind(&req.currency)
@@ -84,7 +91,7 @@ impl SubscriptionService {
         let start_date = req.start_date.unwrap_or(existing.start_date);
         let next_billing_date = req.next_billing_date
             .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency));
-        let category_id = req.category_id.or(existing.category_id);
+        let category_id = req.category_id.unwrap_or(existing.category_id);
         let is_active = req.is_active.unwrap_or(existing.is_active);
         let notes = req.notes.or(existing.notes);
         let logo_url = req.logo_url.or(existing.logo_url);

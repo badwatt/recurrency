@@ -51,7 +51,7 @@ const subscriptionSchema = z.object({
   currency: z.string().min(3, "Select a currency"),
   frequency: z.string().min(1, "Select a frequency"),
   start_date: z.string().min(1, "Start date is required"),
-  category_id: z.string().optional(),
+  category_id: z.string().min(1, "Category is required"),
   notes: z.string().optional(),
   logo_url: z.string().optional(),
 });
@@ -86,6 +86,8 @@ export function SubscriptionDialog({
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const defaultCategoryId = categories.find((c) => c.is_default)?.id || "";
+
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<SubscriptionFormData>({
     resolver: zodResolver(subscriptionSchema),
     defaultValues: {
@@ -94,7 +96,7 @@ export function SubscriptionDialog({
       currency: defaultCurrency || "USD",
       frequency: "monthly",
       start_date: format(new Date(), "yyyy-MM-dd"),
-      category_id: "",
+      category_id: defaultCategoryId,
       notes: "",
       logo_url: "",
     },
@@ -112,14 +114,15 @@ export function SubscriptionDialog({
   // Use setValue for each field when dialog opens
   useEffect(() => {
     if (!open) return;
-    
+    const defaultCatId = categories.find((c) => c.is_default)?.id || "";
+
     if (subscription) {
       setValue("name", subscription.name);
       setValue("amount", subscription.amount.toString());
       setValue("currency", subscription.currency);
       setValue("frequency", subscription.frequency);
       setValue("start_date", subscription.start_date);
-      setValue("category_id", subscription.category_id || "");
+      setValue("category_id", subscription.category_id);
       setValue("notes", subscription.notes || "");
       setValue("logo_url", subscription.logo_url || "");
       setLogoUrl(subscription.logo_url || undefined);
@@ -129,22 +132,21 @@ export function SubscriptionDialog({
       setValue("currency", defaultCurrency || "USD");
       setValue("frequency", "monthly");
       setValue("start_date", defaultDate);
-      setValue("category_id", "");
+      setValue("category_id", defaultCatId);
       setValue("notes", "");
       setValue("logo_url", "");
-      setLogoUrl(undefined);
     } else {
       setValue("name", "");
       setValue("amount", "");
       setValue("currency", defaultCurrency || "USD");
       setValue("frequency", "monthly");
       setValue("start_date", format(new Date(), "yyyy-MM-dd"));
-      setValue("category_id", "");
+      setValue("category_id", defaultCatId);
       setValue("notes", "");
       setValue("logo_url", "");
       setLogoUrl(undefined);
     }
-  }, [open, subscription, defaultDate, defaultCurrency, setValue]);
+  }, [open, subscription, defaultDate, defaultCurrency, setValue, categories]);
 
   const categoryId = watch("category_id");
 
@@ -172,7 +174,7 @@ export function SubscriptionDialog({
       currency: data.currency,
       frequency: data.frequency,
       start_date: data.start_date,
-      category_id: data.category_id || undefined,
+      category_id: data.category_id,
       notes: data.notes,
       logo_url: logoUrl,
     };

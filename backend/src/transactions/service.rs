@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::shared::error::{AppError, AppResult};
 use crate::transactions::models::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
+use crate::categories::service::CategoryService;
 
 pub struct TransactionService;
 
@@ -13,6 +14,12 @@ impl TransactionService {
         user_id: Uuid,
         req: CreateTransactionRequest,
     ) -> AppResult<Transaction> {
+        // Auto-assign default category if none provided
+        let category_id = match req.category_id {
+            Some(id) => id,
+            None => CategoryService::get_default(pool, user_id).await?.id,
+        };
+
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
             INSERT INTO transactions (id, user_id, category_id, name, amount, currency, date, notes, logo_url, created_at, updated_at)
@@ -22,7 +29,7 @@ impl TransactionService {
         )
         .bind(Uuid::new_v4())
         .bind(user_id)
-        .bind(req.category_id)
+        .bind(category_id)
         .bind(&req.name)
         .bind(req.amount)
         .bind(&req.currency)
@@ -74,7 +81,7 @@ impl TransactionService {
         let amount = req.amount.unwrap_or(existing.amount);
         let currency = req.currency.unwrap_or(existing.currency);
         let date = req.date.unwrap_or(existing.date);
-        let category_id = req.category_id.or(existing.category_id);
+        let category_id = req.category_id.unwrap_or(existing.category_id);
         let notes = req.notes.or(existing.notes);
         let logo_url = req.logo_url.or(existing.logo_url);
 

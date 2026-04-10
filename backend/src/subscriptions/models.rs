@@ -9,7 +9,7 @@ use validator::Validate;
 pub struct Subscription {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub category_id: Option<Uuid>,
+    pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
     pub currency: String,
@@ -55,7 +55,7 @@ pub struct UpdateSubscriptionRequest {
 pub struct SubscriptionResponse {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub category_id: Option<Uuid>,
+    pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
     pub currency: String,

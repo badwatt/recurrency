@@ -53,8 +53,7 @@ export function TransactionsPage() {
   const { categories, fetchCategories } = useCategoriesStore();
 
   const getCategoryStyle = useCallback(
-    (categoryId: string | null) => {
-      if (!categoryId) return { color: "#6b7280", icon: "", name: "Uncategorized" };
+    (categoryId: string) => {
       const cat = categories.find((c) => c.id === categoryId);
       if (!cat) return { color: "#6b7280", icon: "", name: "Uncategorized" };
       return { color: cat.color || "#6b7280", icon: cat.icon || "", name: cat.name };

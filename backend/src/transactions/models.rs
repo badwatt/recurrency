@@ -8,7 +8,7 @@ use uuid::Uuid;
 pub struct Transaction {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub category_id: Option<Uuid>,
+    pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
     pub currency: String,
@@ -45,7 +45,7 @@ pub struct UpdateTransactionRequest {
 pub struct TransactionResponse {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub category_id: Option<Uuid>,
+    pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
     pub currency: String,
