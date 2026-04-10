@@ -64,3 +64,6 @@ logs/
 
 # Android signing
 keystore.properties
+
+# NixOS
+.direnv
