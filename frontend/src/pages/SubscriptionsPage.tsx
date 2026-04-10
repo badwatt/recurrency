@@ -94,10 +94,26 @@ function SubscriptionCard({
             </p>
           </div>
 
-          {/* Amount */}
-          <p className="font-bold text-xl tracking-tight">
-            {formatCurrency(subscription.amount, subscription.currency)}
-          </p>
+          {/* Amount + Notes (mobile) */}
+          <div className="flex items-center gap-1">
+            {subscription.notes && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 sm:hidden" onClick={() => onNotesClick(subscription)}>
+                      <StickyNote className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
+                    {subscription.notes}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <p className="font-bold text-xl tracking-tight">
+              {formatCurrency(subscription.amount, subscription.currency)}
+            </p>
+          </div>
 
           {/* Category badge */}
           <Badge
@@ -118,7 +134,7 @@ function SubscriptionCard({
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNotesClick(subscription)}>
+                    <Button variant="ghost" size="icon" className="hidden sm:flex h-8 w-8" onClick={() => onNotesClick(subscription)}>
                       <StickyNote className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </TooltipTrigger>
