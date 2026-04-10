@@ -166,7 +166,7 @@ export function DashboardPage() {
                               <img
                                 src={sub.logo_url}
                                 alt={sub.name}
-                                className="h-full w-full object-contain p-1"
+                                className="h-full w-full object-cover"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).style.display = "none";
                                 }}

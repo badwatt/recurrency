@@ -74,7 +74,7 @@ function SubscriptionCard({
               <img
                 src={subscription.logo_url}
                 alt={subscription.name}
-                className="h-full w-full object-contain p-1.5"
+                className="h-full w-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
@@ -164,7 +164,7 @@ function SubscriptionCard({
               <img
                 src={subscription.logo_url}
                 alt={subscription.name}
-                className="h-full w-full object-contain p-1"
+                className="h-full w-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
