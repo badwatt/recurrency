@@ -112,45 +112,52 @@ export function ReportsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-6 overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
           <p className="text-muted-foreground">
             Analyze your spending patterns
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[2024, 2025, 2026].map((y) => (
-                <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-20 shrink-0">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2024, 2025, 2026].map((y) => (
+                    <SelectItem key={y} value={y.toString()}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 text-sm border rounded-md hover:bg-muted"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm border rounded-md hover:bg-muted"
           >
             <Download className="h-4 w-4" />
-            Export CSV
+            <span className="sm:hidden">Export</span>
+            <span className="hidden sm:inline">Export CSV</span>
           </button>
         </div>
       </div>
@@ -263,8 +270,8 @@ export function ReportsPage() {
               </CardHeader>
               <CardContent>
                 {report.category_breakdown.length > 0 ? (
-                  <div className="flex items-center gap-8">
-                    <ResponsiveContainer width="50%" height={300}>
+                  <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
+                    <ResponsiveContainer width="100%" height={300} className="sm:max-w-[50%]">
                       <PieChart>
                         <Pie
                           data={report.category_breakdown}

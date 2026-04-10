@@ -113,7 +113,7 @@ function SubscriptionCard({
           </Badge>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 mt-auto">
+          <div className="flex items-center gap-1 mt-auto flex-wrap justify-center">
             {subscription.notes && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
@@ -210,14 +210,14 @@ function SubscriptionCard({
             <p className="font-medium text-sm sm:text-base">
               {formatCurrency(subscription.amount, subscription.currency)}
             </p>
-            <div className="flex items-center gap-0.5 sm:gap-1">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => onToggleActive(subscription)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => onToggleActive(subscription)}>
                       {subscription.is_active
-                        ? <Pause className="h-4 w-4 text-amber-500" />
-                        : <Play className="h-4 w-4 text-emerald-500" />}
+                        ? <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500" />
+                        : <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -420,15 +420,15 @@ export function SubscriptionsPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Subscriptions</h1>
-          <p className="text-muted-foreground">
-            Manage your recurring expenses
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex border rounded-md">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start justify-between gap-3 sm:flex-col sm:gap-0">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Subscriptions</h1>
+            <p className="text-muted-foreground">
+              Manage your recurring expenses
+            </p>
+          </div>
+          <div className="flex border rounded-md shrink-0 sm:hidden">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="icon"
@@ -446,9 +446,30 @@ export function SubscriptionsPage() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={handleCreate}>
+        </div>
+        <div className="flex items-center gap-2 sm:w-auto w-full">
+          <div className="hidden sm:flex border rounded-md shrink-0">
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setSubscriptionsView("grid")}
+              title="Grid view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setSubscriptionsView("list")}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button onClick={handleCreate} className="sm:w-auto w-full">
             <Plus className="mr-2 h-4 w-4" />
-            Add
+            <span className="hidden sm:inline">Add Subscription</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>

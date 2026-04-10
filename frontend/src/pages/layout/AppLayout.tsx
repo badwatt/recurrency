@@ -141,7 +141,7 @@ export function AppLayout() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto bg-background">
+        <main className="flex-1 overflow-auto overflow-x-hidden bg-background">
           <Outlet />
         </main>
       </div>

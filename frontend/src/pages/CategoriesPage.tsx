@@ -113,16 +113,17 @@ export function CategoriesPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
           <p className="text-muted-foreground">
             Organize your expenses with categories
           </p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="sm:w-auto w-full">
           <Plus className="mr-2 h-4 w-4" />
-          Add Category
+          <span className="hidden sm:inline">Add Category</span>
+          <span className="sm:hidden">Add</span>
         </Button>
       </div>
 

@@ -173,16 +173,17 @@ export function TransactionsPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
           <p className="text-muted-foreground">
             Track your one-time expenses
           </p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="sm:w-auto w-full">
           <Plus className="mr-2 h-4 w-4" />
-          Add Transaction
+          <span className="hidden sm:inline">Add Transaction</span>
+          <span className="sm:hidden">Add</span>
         </Button>
       </div>
 
