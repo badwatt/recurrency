@@ -62,6 +62,83 @@ function SubscriptionCard({
   const { color, icon, name: catName } = getCategoryStyle(subscription.category_id);
   const IconComponent = getIconComponent(icon);
 
+  if (viewMode === "grid") {
+    return (
+      <Card className={`group relative flex flex-col h-full ${!subscription.is_active ? "opacity-60" : ""}`}>
+        <CardContent className="flex flex-col items-center justify-between flex-1 p-5 pb-4 text-center gap-3">
+          {/* Logo / Icon */}
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted overflow-hidden">
+            {subscription.logo_url ? (
+              <img
+                src={subscription.logo_url}
+                alt={subscription.name}
+                className="h-full w-full object-contain p-1.5"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <CreditCard className="h-7 w-7 text-muted-foreground" />
+            )}
+          </div>
+
+          {/* Name & billing date */}
+          <div className="min-w-0 w-full">
+            <p className="font-semibold truncate text-base leading-tight">{subscription.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              {subscription.is_active && subscription.next_billing_date
+                ? `Next: ${new Date(subscription.next_billing_date).toLocaleDateString()}`
+                : subscription.is_active ? "No billing date" : "Inactive"}
+            </p>
+          </div>
+
+          {/* Amount */}
+          <p className="font-bold text-xl tracking-tight">
+            {formatCurrency(subscription.amount, subscription.currency)}
+          </p>
+
+          {/* Category badge */}
+          <Badge
+            variant="secondary"
+            className="font-normal text-xs"
+            style={{
+              color: color || "#6b7280",
+              backgroundColor: `${color}15` || "#f3f4f6",
+            }}
+          >
+            <IconComponent className="h-3 w-3 mr-1" />
+            {catName}
+          </Badge>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 mt-auto">
+            {subscription.notes && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNotesClick(subscription)}>
+                      <StickyNote className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
+                    {subscription.notes}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(subscription)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(subscription)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // List view
   return (
     <Card className={!subscription.is_active ? "opacity-60" : "min-w-0"}>
       <CardContent className="p-3 sm:p-4">
@@ -127,35 +204,6 @@ function SubscriptionCard({
             </div>
           </div>
         </div>
-        {viewMode === "grid" && (
-          <div className="mt-2 sm:hidden flex items-center gap-1">
-            {subscription.notes && (
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onNotesClick(subscription)}>
-                      <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-[280px] whitespace-pre-wrap text-xs">
-                    {subscription.notes}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            <Badge
-              variant="secondary"
-              className="font-normal text-xs"
-              style={{
-                color: color || "#6b7280",
-                backgroundColor: `${color}15` || "#f3f4f6",
-              }}
-            >
-              <IconComponent className="h-3 w-3 mr-1" />
-              {catName}
-            </Badge>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -276,7 +324,7 @@ export function SubscriptionsPage() {
 
     if (viewMode === "grid") {
       return (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           {subs.map((subscription) => (
             <SubscriptionCard
               key={subscription.id}
