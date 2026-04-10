@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, Tag, StickyNote } from "lucide-react";
+import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, Tag, StickyNote, Pause, Play } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -45,6 +45,7 @@ interface SubscriptionCardProps {
   viewMode: ViewMode;
   onEdit: (subscription: Subscription) => void;
   onDelete: (subscription: Subscription) => void;
+  onToggleActive: (subscription: Subscription) => void;
   onNotesClick: (subscription: Subscription) => void;
   formatCurrency: (amount: number, currency: string) => string;
   getCategoryStyle: (categoryId: string) => { color: string; icon: string; name: string };
@@ -55,6 +56,7 @@ function SubscriptionCard({
   viewMode,
   onEdit,
   onDelete,
+  onToggleActive,
   onNotesClick,
   formatCurrency,
   getCategoryStyle,
@@ -126,6 +128,20 @@ function SubscriptionCard({
                 </Tooltip>
               </TooltipProvider>
             )}
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onToggleActive(subscription)}>
+                    {subscription.is_active
+                      ? <Pause className="h-4 w-4 text-amber-500" />
+                      : <Play className="h-4 w-4 text-emerald-500" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {subscription.is_active ? "Pause subscription" : "Resume subscription"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(subscription)}>
               <Pencil className="h-4 w-4" />
             </Button>
@@ -195,6 +211,20 @@ function SubscriptionCard({
               {formatCurrency(subscription.amount, subscription.currency)}
             </p>
             <div className="flex items-center gap-0.5 sm:gap-1">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => onToggleActive(subscription)}>
+                      {subscription.is_active
+                        ? <Pause className="h-4 w-4 text-amber-500" />
+                        : <Play className="h-4 w-4 text-emerald-500" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {subscription.is_active ? "Pause subscription" : "Resume subscription"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => onEdit(subscription)}>
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -275,6 +305,23 @@ export function SubscriptionsPage() {
     [deleteSubscription]
   );
 
+  const handleToggleActive = useCallback(
+    async (subscription: Subscription) => {
+      try {
+        await updateSubscription(subscription.id, { is_active: !subscription.is_active });
+        showToast(
+          "success",
+          subscription.is_active
+            ? `"${subscription.name}" paused`
+            : `"${subscription.name}" resumed`
+        );
+      } catch {
+        showToast("error", "Failed to update subscription");
+      }
+    },
+    [updateSubscription]
+  );
+
   const handleNotesClick = useCallback(
     (subscription: Subscription) => {
       setNotesEditingSubscription(subscription);
@@ -332,6 +379,7 @@ export function SubscriptionsPage() {
               viewMode={viewMode}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onToggleActive={handleToggleActive}
               onNotesClick={handleNotesClick}
               formatCurrency={formatCurrency}
               getCategoryStyle={getCategoryStyle}
@@ -350,6 +398,7 @@ export function SubscriptionsPage() {
             viewMode={viewMode}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onToggleActive={handleToggleActive}
             onNotesClick={handleNotesClick}
             formatCurrency={formatCurrency}
             getCategoryStyle={getCategoryStyle}
