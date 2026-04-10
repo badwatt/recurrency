@@ -66,8 +66,8 @@ jobs:
         env:
           JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
 
-      - name: Build APK
-        run: cd frontend && bunx tauri android build --apk
+      - name: Build APK (debug signed)
+        run: cd frontend && bunx tauri android build --apk --debug
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
