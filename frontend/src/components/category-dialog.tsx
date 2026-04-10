@@ -96,7 +96,8 @@ export function CategoryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleFormSubmit} className="space-y-6">
+        <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0 sm:flex-initial sm:min-h-auto sm:block">
+          <div className="space-y-6 overflow-y-auto sm:overflow-visible flex-1 sm:flex-initial">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -193,6 +194,8 @@ export function CategoryDialog({
               <p className="font-medium">{name || "Category Name"}</p>
               <p className="text-sm text-muted-foreground">Preview</p>
             </div>
+          </div>
+
           </div>
 
           <DialogFooter>

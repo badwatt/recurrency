@@ -179,7 +179,8 @@ export function TransactionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col flex-1 min-h-0 sm:flex-initial sm:min-h-auto sm:block">
+          <div className="space-y-4 overflow-y-auto sm:overflow-visible flex-1 sm:flex-initial">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <div className="flex items-center gap-2">
@@ -277,6 +278,8 @@ export function TransactionDialog({
               onChange={(e) => { notesRegister.onChange(e); autoResizeNotes(); }}
               onBlur={notesRegister.onBlur}
             />
+          </div>
+
           </div>
 
           <DialogFooter>
