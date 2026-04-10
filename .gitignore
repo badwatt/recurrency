@@ -61,3 +61,6 @@ logs/
 # PIDs
 .backend.pid
 .frontend.pid
+
+# Android signing
+keystore.properties

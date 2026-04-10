@@ -1,19 +1,18 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: recur-db
+    container_name: recurrency-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: recur
-      POSTGRES_PASSWORD: recur_dev_password
-      POSTGRES_DB: recur
+      POSTGRES_USER: recurrency
+      POSTGRES_PASSWORD: recurrency_dev_password
+      POSTGRES_DB: recurrency
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U recur -d recur"]
+      test: ["CMD-SHELL", "pg_isready -U recurrency -d recurrency"]
       interval: 5s
       timeout: 5s
       retries: 5

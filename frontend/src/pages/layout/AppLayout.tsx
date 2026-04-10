@@ -59,7 +59,7 @@ export function AppLayout() {
       >
         {/* Logo */}
         <div className="flex h-14 items-center justify-between border-b px-4">
-          <h1 className="text-xl font-bold tracking-tight">Recur</h1>
+          <h1 className="text-xl font-bold tracking-tight">Recurrency</h1>
           <Button
             variant="ghost"
             size="icon"
@@ -127,7 +127,7 @@ export function AppLayout() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold">Recur</h1>
+          <h1 className="text-lg font-bold">Recurrency</h1>
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <NotificationBell />

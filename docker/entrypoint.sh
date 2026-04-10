@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Recur - All-in-One ==="
+echo "=== Recurrency - All-in-One ==="
 
 # ── Configure PostgreSQL ─────────────────────────────────
 echo "Configuring PostgreSQL..."
@@ -24,12 +24,12 @@ su - postgres -c "/usr/lib/postgresql/15/bin/pg_ctl start -D /var/lib/postgresql
 
 echo "Waiting for PostgreSQL..."
 for i in $(seq 1 30); do
-    if su - postgres -c "psql -h localhost -U recur -d recur -c 'SELECT 1'" >/dev/null 2>&1; then
+    if su - postgres -c "psql -h localhost -U recurrency -d recurrency -c 'SELECT 1'" >/dev/null 2>&1; then
         echo "PostgreSQL is ready."
         break
     fi
-    su - postgres -c "psql -c \"CREATE USER recur WITH PASSWORD '${PGPASSWORD:-recur}' SUPERUSER;\"" 2>/dev/null || true
-    su - postgres -c "psql -c \"CREATE DATABASE recur OWNER recur;\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"CREATE USER recurrency WITH PASSWORD '${PGPASSWORD:-recurrency}' SUPERUSER;\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"CREATE DATABASE recurrency OWNER recurrency;\"" 2>/dev/null || true
     sleep 1
 done
 
@@ -49,14 +49,14 @@ for i in $(seq 1 15); do
 done
 
 # ── Set environment for backend ────────────────────────
-export DATABASE_URL="postgres://recur:${PGPASSWORD:-recur}@localhost:5432/recur"
+export DATABASE_URL="postgres://recurrency:${PGPASSWORD:-recurrency}@localhost:5432/recurrency"
 export APP_HOST="${APP_HOST:-0.0.0.0}"
 export APP_PORT="${APP_PORT:-80}"
 export JWT_SECRET="${JWT_SECRET:-change-me-in-production}"
 export ENABLE_DEMO="${ENABLE_DEMO:-false}"
 
-echo "Starting Recur on port ${APP_PORT}..."
+echo "Starting Recurrency on port ${APP_PORT}..."
 echo "Frontend: http://localhost:${APP_PORT}"
 echo "API:      http://localhost:${APP_PORT}/api"
 echo ""
-exec /usr/local/bin/recur-api
+exec /usr/local/bin/recurrency-api

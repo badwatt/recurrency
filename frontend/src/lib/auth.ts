@@ -33,8 +33,8 @@ export const auth = {
     });
 
     // Store token for later use
-    storage.setItem("recur-token", response.token);
-    storage.setItem("recur-user", JSON.stringify(response.user));
+    storage.setItem("recurrency-token", response.token);
+    storage.setItem("recurrency-user", JSON.stringify(response.user));
 
     return response;
   },
@@ -46,22 +46,22 @@ export const auth = {
     });
 
     // Store token for later use
-    storage.setItem("recur-token", response.token);
-    storage.setItem("recur-user", JSON.stringify(response.user));
+    storage.setItem("recurrency-token", response.token);
+    storage.setItem("recurrency-user", JSON.stringify(response.user));
 
     return response;
   },
 
   async signOut(): Promise<void> {
-    storage.removeItem("recur-token");
-    storage.removeItem("recur-user");
+    storage.removeItem("recurrency-token");
+    storage.removeItem("recurrency-user");
   },
 
   async getCurrentUser(): Promise<User | null> {
-    const token = storage.getItem("recur-token");
+    const token = storage.getItem("recurrency-token");
     if (!token) return null;
 
-    const userStr = storage.getItem("recur-user");
+    const userStr = storage.getItem("recurrency-user");
     if (!userStr) return null;
 
     try {
@@ -72,11 +72,11 @@ export const auth = {
   },
 
   updateStoredUser(user: User): void {
-    storage.setItem("recur-user", JSON.stringify(user));
+    storage.setItem("recurrency-user", JSON.stringify(user));
   },
 
   async isAuthenticated(): Promise<boolean> {
-    const token = storage.getItem("recur-token");
+    const token = storage.getItem("recurrency-token");
     if (!token) return false;
 
     try {
@@ -90,6 +90,6 @@ export const auth = {
   },
 
   getToken(): string | null {
-    return storage.getItem("recur-token");
+    return storage.getItem("recurrency-token");
   },
 };

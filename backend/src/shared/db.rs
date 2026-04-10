@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 pub async fn create_pool() -> anyhow::Result<PgPool> {
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://recur:recur_dev_password@localhost:5432/recur".to_string());
+        .unwrap_or_else(|_| "postgres://recurrency:recurrency_dev_password@localhost:5432/recurrency".to_string());
 
     let pool = PgPoolOptions::new()
         .max_connections(10)

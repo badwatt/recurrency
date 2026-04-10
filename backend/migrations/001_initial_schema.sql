@@ -1,4 +1,4 @@
--- Initial schema for Recur
+-- Initial schema for Recurrency
 -- This migration creates all the necessary tables
 
 -- Enable UUID extension

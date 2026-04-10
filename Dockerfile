@@ -37,8 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pg_dropcluster 15 main || true && pg_createcluster 15 main -p 5432 -- --auth-local=trust --auth-host=trust
 
 # Copy backend binary
-COPY --from=backend-build /build/backend/target/release/recur-api /usr/local/bin/recur-api
-RUN chmod +x /usr/local/bin/recur-api
+COPY --from=backend-build /build/backend/target/release/recurrency-api /usr/local/bin/recurrency-api
+RUN chmod +x /usr/local/bin/recurrency-api
 
 # Copy frontend dist
 COPY --from=frontend-build /build/frontend/dist /frontend/dist
@@ -48,15 +48,15 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Environment defaults
-ENV DATABASE_URL="postgres://recur:recur@localhost:5432/recur" \
+ENV DATABASE_URL="postgres://recurrency:recurrency@localhost:5432/recur" \
     APP_HOST=0.0.0.0 \
     APP_PORT=80 \
     JWT_SECRET=change-me-in-production \
     ENABLE_DEMO=false \
     FRONTEND_DIST=/frontend/dist \
-    PGUSER=recur \
-    PGPASSWORD=recur \
-    PGDATABASE=recur
+    PGUSER=recurrency \
+    PGPASSWORD=recurrency \
+    PGDATABASE=recurrency
 
 EXPOSE 80
 

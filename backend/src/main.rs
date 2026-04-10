@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Starting Recur API server...");
+    tracing::info!("Starting Recurrency API server...");
 
     // Build database pool
     let db_pool = shared::db::create_pool().await?;

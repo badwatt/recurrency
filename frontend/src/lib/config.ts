@@ -1,7 +1,7 @@
 let backendUrl = "";
 let initialized = false;
 
-const STORAGE_KEY = "recur-backend-url";
+const STORAGE_KEY = "recurrency-backend-url";
 
 function isTauri(): boolean {
   return !!(window as any).__TAURI_INTERNALS__;

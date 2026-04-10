@@ -1,9 +1,9 @@
 [package]
-name = "recur-api"
+name = "recurrency-api"
 version = "0.1.0"
 edition = "2021"
-description = "Recur API - Backend for subscription tracker"
-authors = ["Recur Team"]
+description = "Recurrency API - Backend for subscription tracker"
+authors = ["Recurrency Team"]
 
 [dependencies]
 # Web framework

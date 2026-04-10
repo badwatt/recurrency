@@ -1,14 +1,14 @@
 services:
   app:
-    image: ghcr.io/alvaro17f/recur:latest
-    container_name: recur
+    image: ghcr.io/alvaro17f/recurrency:latest
+    container_name: recurrency
     restart: unless-stopped
     ports:
       - "4000:80"
     environment:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ENABLE_DEMO: ${ENABLE_DEMO:-true}
-      PGPASSWORD: ${PGPASSWORD:-recur}
+      PGPASSWORD: ${PGPASSWORD:-recurrency}
     volumes:
       - postgres_data:/var/lib/postgresql/15/main
 

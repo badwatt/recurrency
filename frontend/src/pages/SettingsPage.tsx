@@ -244,7 +244,7 @@ export function SettingsPage() {
           <CardHeader>
             <CardTitle>Server</CardTitle>
             <CardDescription>
-              Configure your Recur server connection
+              Configure your Recurrency server connection
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -1,19 +1,19 @@
-# Recur
+# Recurrency
 
 > Every expense is a subscription.
 
 A self-hosted subscription and expense tracker. Because every purchase is really a question:
 *Would I subscribe to this today?*
 
-![Recur Dashboard](assets/dashboard.png)
+![Recurrency Dashboard](assets/dashboard.png)
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/alvaro17f/recur.git
-cd recur
+git clone https://github.com/alvaro17f/recurrency.git
+cd recurrency
 
 # Start all services (frontend, backend, database)
 ./re up
@@ -58,11 +58,11 @@ Services in dev mode:
 
 ```bash
 # Pull and run the all-in-one image
-docker run -d --name recur \
+docker run -d --name recurrency \
   -p 3000:80 \
   -e JWT_SECRET=your-secret-key \
   -e ENABLE_DEMO=true \
-  ghcr.io/alvaro17f/recur:latest
+  ghcr.io/alvaro17f/recurrency:latest
 
 # Open in browser
 open http://localhost:3000
@@ -89,7 +89,7 @@ docker compose up -d
 | `SMTP_USER` | — | SMTP username |
 | `SMTP_PASSWORD` | — | SMTP password |
 | `SMTP_FROM` | — | Sender email address |
-| `PGPASSWORD` | `recur` | PostgreSQL password |
+| `PGPASSWORD` | `recurrency` | PostgreSQL password |
 
 ---
 

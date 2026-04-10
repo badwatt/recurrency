@@ -14,7 +14,7 @@ class ApiClient {
   ): Promise<T> {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}${endpoint}`;
-    const token = localStorage.getItem("recur-token");
+    const token = localStorage.getItem("recurrency-token");
 
     const headers: HeadersInit = {
       "Content-Type": "application/json",

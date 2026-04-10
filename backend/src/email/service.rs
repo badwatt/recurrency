@@ -29,7 +29,7 @@ pub fn get_config() -> Option<SmtpConfig> {
         user: std::env::var("SMTP_USER").unwrap(),
         password: std::env::var("SMTP_PASSWORD").unwrap(),
         from: std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
-        app_name: std::env::var("APP_NAME").unwrap_or_else(|_| "Recur".to_string()),
+        app_name: std::env::var("APP_NAME").unwrap_or_else(|_| "Recurrency".to_string()),
     })
 }
 
@@ -162,7 +162,7 @@ mod tests {
         std::env::set_var("SMTP_USER", "user@gmail.com");
         std::env::set_var("SMTP_PASSWORD", "password123");
         std::env::set_var("SMTP_PORT", "587");
-        std::env::set_var("SMTP_FROM", "noreply@recur.app");
+        std::env::set_var("SMTP_FROM", "noreply@recurrency.app");
         std::env::set_var("APP_NAME", "MyApp");
 
         // Should return Some with all env vars
@@ -173,7 +173,7 @@ mod tests {
         assert_eq!(cfg.host, "smtp.gmail.com");
         assert_eq!(cfg.port, 587);
         assert_eq!(cfg.user, "user@gmail.com");
-        assert_eq!(cfg.from, "noreply@recur.app");
+        assert_eq!(cfg.from, "noreply@recurrency.app");
         assert_eq!(cfg.app_name, "MyApp");
 
         // Clean up

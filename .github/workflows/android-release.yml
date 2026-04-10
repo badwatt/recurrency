@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: recur-android
+          name: recurrency-android
           path: frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: warn
 

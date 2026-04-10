@@ -24,7 +24,7 @@ fn demo_email() -> String {
     env::var("DEMO_EMAIL").unwrap_or_else(|_| {
         if is_demo_enabled() {
             // Generate random email when enabled but not configured
-            format!("demo_{}@recur.local", &Uuid::new_v4().to_string()[..8])
+            format!("demo_{}@recurrency.local", &Uuid::new_v4().to_string()[..8])
         } else {
             String::new()
         }

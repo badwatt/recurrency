@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Recur - Subscription & Expense Tracker
+# Recurrency - Subscription & Expense Tracker
 # Usage: ./re <command>
 #
 
@@ -71,8 +71,8 @@ stop_backend() {
     kill -TERM "$(cat "$PID_BACKEND")" 2>/dev/null || true
     rm -f "$PID_BACKEND"
   fi
-  pkill -TERM -f "recur-api" 2>/dev/null || true
-  pkill -9 -f "recur-api" 2>/dev/null || true
+  pkill -TERM -f "recurrency-api" 2>/dev/null || true
+  pkill -9 -f "recurrency-api" 2>/dev/null || true
   ok "Backend stopped"
 }
 
@@ -98,11 +98,11 @@ stop_frontend() {
 is_running() { pgrep -f "$1" > /dev/null 2>&1; }
 
 show_status() {
-  info "📊 Recur Status:"
+  info "📊 Recurrency Status:"
   echo
 
-  if is_running "recur-api"; then
-    ok "Backend running (PID: $(pgrep -f "recur-api" | head -1))"
+  if is_running "recurrency-api"; then
+    ok "Backend running (PID: $(pgrep -f "recurrency-api" | head -1))"
   else
     err "Backend stopped"
   fi
@@ -113,7 +113,7 @@ show_status() {
     err "Frontend stopped"
   fi
 
-  if docker ps --filter name=recur-db --format "{{.Names}}" 2>/dev/null | grep -q recur-db; then
+  if docker ps --filter name=recurrency-db --format "{{.Names}}" 2>/dev/null | grep -q recurrency-db; then
     ok "PostgreSQL running"
   else
     err "PostgreSQL stopped"
@@ -123,7 +123,7 @@ show_status() {
 # ── Commands ──────────────────────────────────────────────
 
 cmd_up() {
-  info "🚀 Starting Recur..."
+  info "🚀 Starting Recurrency..."
   start_db
   sleep 2
   start_backend
@@ -157,7 +157,7 @@ cmd_logs() {
 }
 
 cmd_setup() {
-  info "🔧 Setting up Recur..."
+  info "🔧 Setting up Recurrency..."
   cd "$PROJECT_DIR/frontend" && bun install
   cd "$PROJECT_DIR/backend" && cargo build
   ok "Setup complete!"
@@ -173,7 +173,7 @@ cmd_typecheck() {
 }
 
 cmd_build() {
-  info "🔨 Building Recur..."
+  info "🔨 Building Recurrency..."
   cd "$PROJECT_DIR/frontend" && bun run build
   cd "$PROJECT_DIR/backend" && cargo build --release
   ok "Build complete!"
@@ -198,7 +198,7 @@ cmd_reset() {
     # Wait for PostgreSQL to be ready
     sleep 3
     for i in {1..10}; do
-      if docker compose -f docker-compose.dev.yml exec -T db pg_isready -U recur > /dev/null 2>&1; then
+      if docker compose -f docker-compose.dev.yml exec -T db pg_isready -U recurrency > /dev/null 2>&1; then
         break
       fi
       sleep 1
@@ -215,7 +215,7 @@ cmd_reset() {
 }
 
 cmd_help() {
-  printf "\n${CB}Recur - Commands${CN}\n\n"
+  printf "\n${CB}Recurrency - Commands${CN}\n\n"
   printf "  ${CG}%-12s${CN} %s\n" "up" "Start all services"
   printf "  ${CG}%-12s${CN} %s\n" "up --prod" "Start in production mode"
   printf "  ${CG}%-12s${CN} %s\n" "down" "Stop all services"

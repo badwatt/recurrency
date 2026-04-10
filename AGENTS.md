@@ -1,8 +1,8 @@
-# Recur - Agente Specification
+# Recurrency - Agente Specification
 
 ## Overview
 
-**Recur** is a subscription and expense tracker that treats every expense like a subscription. It helps users budget by viewing recurring costs as ongoing commitments, prompting them to ask: *"Would I subscribe to this today?"*
+**Recurrency** is a subscription and expense tracker that treats every expense like a subscription. It helps users budget by viewing recurring costs as ongoing commitments, prompting them to ask: *"Would I subscribe to this today?"*
 
 ## Tech Stack
 

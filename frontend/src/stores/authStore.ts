@@ -106,7 +106,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user: User) => set({ user }),
     }),
     {
-      name: "recur-auth",
+      name: "recurrency-auth",
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,

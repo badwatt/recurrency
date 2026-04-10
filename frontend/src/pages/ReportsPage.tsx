@@ -85,7 +85,7 @@ export function ReportsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `recur-report-${selectedYear}-${selectedMonth}.csv`;
+    a.download = `recurrency-report-${selectedYear}-${selectedMonth}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

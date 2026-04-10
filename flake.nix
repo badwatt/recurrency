@@ -1,5 +1,5 @@
 {
-  description = "Recur - Subscription & Expense Tracker";
+  description = "Recurrency - Subscription & Expense Tracker";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -67,7 +67,7 @@
 
           # Shell hook
           shellHook = ''
-            echo "🟢 Recur dev environment ready"
+            echo "🟢 Recurrency dev environment ready"
             echo "Node: $(node --version)"
             echo "Rust: $(rustc --version)"
             echo "Bun: $(bun --version)"

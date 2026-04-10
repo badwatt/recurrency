@@ -60,7 +60,7 @@ export function SetupPage() {
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome to Recur</CardTitle>
+          <CardTitle className="text-2xl">Welcome to Recurrency</CardTitle>
           <CardDescription>
             Enter your server address to get started
           </CardDescription>
@@ -84,7 +84,7 @@ export function SetupPage() {
                 <p className="text-sm text-destructive">{error}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                Enter the URL of your Recur server (e.g., https://recur.example.com)
+                Enter the URL of your Recurrency server (e.g., https://recurrency.example.com)
               </p>
             </div>
             <Button
