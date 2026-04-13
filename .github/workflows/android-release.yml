@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_INCREMENTAL: 0
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -29,6 +32,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: frontend/src-tauri
+          cache-on-failure: true
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -39,6 +43,21 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Cache Android SDK
+        uses: actions/cache@v5
+        with:
+          path: /usr/local/lib/android/sdk
+          key: android-sdk-${{ runner.os }}
+
+      - name: Cache Gradle
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('frontend/src-tauri/gen/android/**/*.gradle*', 'frontend/src-tauri/gen/android/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -58,9 +77,6 @@ jobs:
         if: steps.cache-frontend.outputs.cache-hit != 'true'
         run: cd frontend && bun install --frozen-lockfile
 
-      - name: Type check frontend
-        run: cd frontend && bun run typecheck
-
       - name: Initialize Tauri Android project
         run: cd frontend && bunx tauri android init --ci
         env:
@@ -70,31 +86,23 @@ jobs:
         run: |
           MANIFEST="frontend/src-tauri/gen/android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST" ]; then
-            # Add usesCleartextTraffic and networkSecurityConfig to application tag
-            sed -i 's/android:label="@string\/app_name"/android:label="@string\/app_name" android:usesCleartextTraffic="true" android:networkSecurityConfig="@xml\/network_security_config"/' "$MANIFEST"
+            # Add networkSecurityConfig to application tag (usesCleartextTraffic already exists)
+            sed -i 's/<application/<application android:networkSecurityConfig="@xml\/network_security_config"/' "$MANIFEST"
             # Copy network security config
             mkdir -p frontend/src-tauri/gen/android/app/src/main/res/xml
             cp frontend/src-tauri/android-resources/xml/network_security_config.xml frontend/src-tauri/gen/android/app/src/main/res/xml/
-            echo "=== AndroidManifest.xml ==="
-            cat "$MANIFEST"
           else
-            echo "AndroidManifest.xml not found, skipping network security config"
+            echo "AndroidManifest.xml not found, skipping"
           fi
+
+      - name: Type check frontend
+        run: cd frontend && bun run typecheck
 
       - name: Build APK (debug signed)
         run: cd frontend && bunx tauri android build --apk --debug
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
-
-      - name: Find APK files
-        if: always()
-        run: |
-          echo "=== Searching for APK files ==="
-          find frontend/src-tauri/gen/android -name "*.apk" -type f 2>/dev/null || echo "No APKs in gen/android"
-          find frontend -name "*.apk" -type f 2>/dev/null || echo "No APKs in frontend"
-          echo "=== Listing build outputs ==="
-          ls -la frontend/src-tauri/gen/android/app/build/outputs/apk/ 2>/dev/null || echo "No apk output dir"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
