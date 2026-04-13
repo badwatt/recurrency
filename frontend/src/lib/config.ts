@@ -90,6 +90,10 @@ export function isMobilePlatform(): boolean {
     : false;
 }
 
+export function isTauriApp(): boolean {
+  return isTauri();
+}
+
 export function isBackendUrlConfigured(): boolean {
   return backendUrl !== "";
 }

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { demoApi, type DemoStatus } from "@/lib/api/demo";
+import { getApiBaseUrl, setApiBaseUrl, isTauriApp } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,10 +24,54 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [serverUrl, setServerUrl] = useState("");
+  const [serverError, setServerError] = useState("");
+  const [serverSaving, setServerSaving] = useState(false);
 
   useEffect(() => {
     demoApi.getStatus().then(setDemoStatus).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (isTauriApp()) {
+      try {
+        setServerUrl(getApiBaseUrl());
+      } catch {
+        // config not initialized yet
+      }
+    }
+  }, []);
+
+  const handleSaveServer = async () => {
+    setServerSaving(true);
+    setServerError("");
+    let url = serverUrl.trim();
+    if (!url) {
+      setServerError("URL cannot be empty");
+      setServerSaving(false);
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    try {
+      new URL(url);
+    } catch {
+      setServerError("Invalid URL format");
+      setServerSaving(false);
+      return;
+    }
+    url = url.replace(/\/+$/, "");
+    try {
+      const res = await fetch(`${url}/health`);
+      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      await setApiBaseUrl(url);
+      setServerUrl(url);
+      toast.success("Server connected");
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : "Could not connect");
+    } finally {
+      setServerSaving(false);
+    }
+  };
 
   const handleDemoLogin = async () => {
     setError("");
@@ -72,6 +117,32 @@ export function LoginPage() {
             {error && (
               <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
+              </div>
+            )}
+            {isTauriApp() && (
+              <div className="space-y-2">
+                <Label htmlFor="server-url">Server URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="server-url"
+                    type="text"
+                    placeholder="https://myserver.example.com"
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    disabled={serverSaving}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSaveServer}
+                    disabled={serverSaving}
+                  >
+                    {serverSaving ? "..." : "Save"}
+                  </Button>
+                </div>
+                {serverError && (
+                  <p className="text-xs text-destructive">{serverError}</p>
+                )}
               </div>
             )}
             <div className="space-y-2">
