@@ -40,7 +40,7 @@ export function AppLayout() {
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
