@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, Tag, StickyNote, Pause, Play } from "lucide-react";
 import * as LucideIcons from "lucide-react";
@@ -14,6 +14,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { SubscriptionDialog } from "@/components/subscription-dialog";
 import { NotesEditDialog } from "@/components/notes-edit-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FilterSort, type FilterConfig, type SortConfig } from "@/components/filter-sort";
 import type { Subscription, CreateSubscriptionRequest } from "@/lib/api/subscriptions";
 
 type ViewMode = "grid" | "list";
@@ -289,6 +290,9 @@ export function SubscriptionsPage() {
   const [notesEditOpen, setNotesEditOpen] = useState(false);
   const [notesEditingSubscription, setNotesEditingSubscription] = useState<Subscription | undefined>();
 
+  const [filters, setFilters] = useState<FilterConfig>({});
+  const [sort, setSort] = useState<SortConfig>({ field: "next_billing_date", direction: "asc" });
+
   useEffect(() => {
     fetchSubscriptions();
     fetchPreferences();
@@ -372,8 +376,79 @@ export function SubscriptionsPage() {
     [editingSubscription, createSubscription, updateSubscription]
   );
 
-  const activeSubscriptions = subscriptions.filter((s) => s.is_active);
-  const inactiveSubscriptions = subscriptions.filter((s) => !s.is_active);
+  const statusOptions = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
+
+  const frequencyOptions = [
+    { value: "weekly", label: "Weekly" },
+    { value: "monthly", label: "Monthly" },
+    { value: "quarterly", label: "Quarterly" },
+    { value: "yearly", label: "Yearly" },
+  ];
+
+  const sortOptions = [
+    { value: "next_billing_date", label: "Upcoming date" },
+    { value: "amount", label: "Price" },
+    { value: "name", label: "Name" },
+    { value: "frequency", label: "Frequency" },
+    { value: "start_date", label: "Start date" },
+  ];
+
+  const filteredSubscriptions = useMemo(() => {
+    let result = [...subscriptions];
+
+    if (filters.status === "active") result = result.filter((s) => s.is_active);
+    else if (filters.status === "inactive") result = result.filter((s) => !s.is_active);
+
+    if (filters.frequency) result = result.filter((s) => s.frequency === filters.frequency);
+    if (filters.categoryId) result = result.filter((s) => s.category_id === filters.categoryId);
+
+    if (filters.priceMin) {
+      const min = parseFloat(filters.priceMin);
+      if (!isNaN(min)) result = result.filter((s) => s.amount >= min);
+    }
+    if (filters.priceMax) {
+      const max = parseFloat(filters.priceMax);
+      if (!isNaN(max)) result = result.filter((s) => s.amount <= max);
+    }
+
+    const freqOrder: Record<string, number> = { weekly: 0, monthly: 1, quarterly: 2, yearly: 3 };
+
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sort.field) {
+        case "next_billing_date": {
+          const aDate = a.next_billing_date ? new Date(a.next_billing_date).getTime() : Infinity;
+          const bDate = b.next_billing_date ? new Date(b.next_billing_date).getTime() : Infinity;
+          cmp = aDate - bDate;
+          break;
+        }
+        case "amount":
+          cmp = a.amount - b.amount;
+          break;
+        case "name":
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case "frequency":
+          cmp = (freqOrder[a.frequency] ?? 99) - (freqOrder[b.frequency] ?? 99);
+          break;
+        case "start_date": {
+          const aStart = a.start_date ? new Date(a.start_date).getTime() : Infinity;
+          const bStart = b.start_date ? new Date(b.start_date).getTime() : Infinity;
+          cmp = aStart - bStart;
+          break;
+        }
+      }
+      return sort.direction === "asc" ? cmp : -cmp;
+    });
+
+    return result;
+  }, [subscriptions, filters, sort]);
+
+  const clearFilters = () => setFilters({});
 
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat("en-US", {
@@ -382,13 +457,11 @@ export function SubscriptionsPage() {
     }).format(amount);
   };
 
-  const renderSubscriptions = (subs: Subscription[]) => {
-    if (subs.length === 0) return null;
-
+  const renderSubscriptions = () => {
     if (viewMode === "grid") {
       return (
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          {subs.map((subscription) => (
+          {filteredSubscriptions.map((subscription) => (
             <SubscriptionCard
               key={subscription.id}
               subscription={subscription}
@@ -407,7 +480,7 @@ export function SubscriptionsPage() {
 
     return (
       <div className="space-y-2">
-        {subs.map((subscription) => (
+        {filteredSubscriptions.map((subscription) => (
           <SubscriptionCard
             key={subscription.id}
             subscription={subscription}
@@ -510,25 +583,30 @@ export function SubscriptionsPage() {
             </Button>
           </CardContent>
         </Card>
+      ) : filteredSubscriptions.length === 0 ? (
+        <Card>
+          <CardContent className="flex h-40 flex-col items-center justify-center gap-2">
+            <p className="text-sm text-muted-foreground">No subscriptions match your filters</p>
+            <Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-6">
-          {activeSubscriptions.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">
-                Active ({activeSubscriptions.length})
-              </h2>
-              {renderSubscriptions(activeSubscriptions)}
-            </div>
-          )}
-
-          {inactiveSubscriptions.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-muted-foreground">
-                Inactive ({inactiveSubscriptions.length})
-              </h2>
-              {renderSubscriptions(inactiveSubscriptions)}
-            </div>
-          )}
+        <div className="space-y-4">
+          <FilterSort
+            filters={filters}
+            sort={sort}
+            onFiltersChange={setFilters}
+            onSortChange={setSort}
+            onClear={clearFilters}
+            statusOptions={statusOptions}
+            frequencyOptions={frequencyOptions}
+            categories={categories}
+            sortOptions={sortOptions}
+          />
+          <div className="text-sm text-muted-foreground">
+            {filteredSubscriptions.length} subscription{filteredSubscriptions.length !== 1 ? "s" : ""}
+          </div>
+          {renderSubscriptions()}
         </div>
       )}
 

@@ -2,7 +2,7 @@ import { apiClient } from "./client";
 import { auth } from "@/lib/auth";
 
 export interface Preferences {
-  theme: "light" | "dark" | "system";
+  theme: "light" | "dark" | "mocha" | "system";
   subscriptions_view: "grid" | "list";
 }
 

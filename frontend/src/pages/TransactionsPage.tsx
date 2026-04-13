@@ -14,6 +14,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import { NotesEditDialog } from "@/components/notes-edit-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FilterSort, type FilterConfig, type SortConfig } from "@/components/filter-sort";
 import type { Transaction, CreateTransactionRequest } from "@/lib/api/transactions";
 
 // Helper to get Lucide icon component from kebab-case name
@@ -65,6 +66,17 @@ export function TransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [notesEditOpen, setNotesEditOpen] = useState(false);
   const [notesEditingTransaction, setNotesEditingTransaction] = useState<Transaction | undefined>();
+
+  const [filters, setFilters] = useState<FilterConfig>({});
+  const [sort, setSort] = useState<SortConfig>({ field: "date", direction: "desc" });
+
+  const sortOptions = [
+    { value: "date", label: "Date" },
+    { value: "amount", label: "Price" },
+    { value: "name", label: "Name" },
+  ];
+
+  const clearFilters = () => setFilters({});
 
   useEffect(() => {
     fetchTransactions();
@@ -138,11 +150,44 @@ export function TransactionsPage() {
     }).format(amount);
   };
 
-  // Group transactions by month
+  const filteredTransactions = useMemo(() => {
+    let result = [...transactions];
+
+    if (filters.categoryId) result = result.filter((t) => t.category_id === filters.categoryId);
+
+    if (filters.priceMin) {
+      const min = parseFloat(filters.priceMin);
+      if (!isNaN(min)) result = result.filter((t) => parseFloat(t.amount.toString()) >= min);
+    }
+    if (filters.priceMax) {
+      const max = parseFloat(filters.priceMax);
+      if (!isNaN(max)) result = result.filter((t) => parseFloat(t.amount.toString()) <= max);
+    }
+
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sort.field) {
+        case "date":
+          cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case "amount":
+          cmp = parseFloat(a.amount.toString()) - parseFloat(b.amount.toString());
+          break;
+        case "name":
+          cmp = a.name.localeCompare(b.name);
+          break;
+      }
+      return sort.direction === "asc" ? cmp : -cmp;
+    });
+
+    return result;
+  }, [transactions, filters, sort]);
+
+  // Group filtered transactions by month
   const groupedByMonth = useMemo(() => {
     const groups: Record<string, Transaction[]> = {};
 
-    transactions.forEach((t) => {
+    filteredTransactions.forEach((t) => {
       const date = new Date(t.date);
       const key = format(date, "yyyy-MM");
       if (!groups[key]) {
@@ -159,7 +204,7 @@ export function TransactionsPage() {
         const total = txns.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
         return { key, label, transactions: txns, total };
       });
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   if (error) {
     return (
@@ -207,8 +252,25 @@ export function TransactionsPage() {
             </Button>
           </CardContent>
         </Card>
+      ) : filteredTransactions.length === 0 ? (
+        <Card>
+          <CardContent className="flex h-40 flex-col items-center justify-center gap-2">
+            <p className="text-sm text-muted-foreground">No transactions match your filters</p>
+            <Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>
+          </CardContent>
+        </Card>
       ) : (
-        <Tabs defaultValue={groupedByMonth[0]?.key} className="w-full">
+        <div className="space-y-4">
+          <FilterSort
+            filters={filters}
+            sort={sort}
+            onFiltersChange={setFilters}
+            onSortChange={setSort}
+            onClear={clearFilters}
+            categories={categories}
+            sortOptions={sortOptions}
+          />
+          <Tabs defaultValue={groupedByMonth[0]?.key} className="w-full">
           <TabsList className="mb-4 overflow-x-auto flex-nowrap">
             {groupedByMonth.map((group) => (
               <TabsTrigger key={group.key} value={group.key} className="flex-shrink-0">
@@ -332,6 +394,7 @@ export function TransactionsPage() {
             </TabsContent>
           ))}
         </Tabs>
+        </div>
       )}
 
       <TransactionDialog

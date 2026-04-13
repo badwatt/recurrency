@@ -12,7 +12,7 @@ export function useTheme() {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove("light", "dark");
+    root.classList.remove("light", "dark", "mocha");
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -30,7 +30,7 @@ export function useTheme() {
     const handleChange = () => {
       if (theme === "system") {
         const root = window.document.documentElement;
-        root.classList.remove("light", "dark");
+        root.classList.remove("light", "dark", "mocha");
         root.classList.add(mediaQuery.matches ? "dark" : "light");
       }
     };
