@@ -5,12 +5,15 @@
 # ── Stage 1: Build frontend ────────────────────────────────
 FROM node:22-alpine AS frontend-build
 
+ARG APP_VERSION=dev
+
 RUN npm install -g bun@1.3.11
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/bun.lock* ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
+RUN echo "export default { version: '$APP_VERSION' };" > src/version.ts
 RUN bun run build --mode production
 
 # ── Stage 2: Build backend ──────────────────────────────────
@@ -47,16 +50,11 @@ COPY --from=frontend-build /build/frontend/dist /frontend/dist
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Environment defaults
-ENV DATABASE_URL="postgres://recurrency:recurrency@localhost:5432/recur" \
-    APP_HOST=0.0.0.0 \
+# Environment defaults (override via docker-compose.yml or docker run -e)
+ENV APP_HOST=0.0.0.0 \
     APP_PORT=80 \
-    JWT_SECRET=change-me-in-production \
     ENABLE_DEMO=false \
-    FRONTEND_DIST=/frontend/dist \
-    PGUSER=recurrency \
-    PGPASSWORD=recurrency \
-    PGDATABASE=recurrency
+    FRONTEND_DIST=/frontend/dist
 
 EXPOSE 80
 
