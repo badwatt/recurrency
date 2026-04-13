@@ -1,6 +1,6 @@
 [package]
 name = "recurrency-api"
-version = "0.1.0"
+version = "0.8.1"
 edition = "2021"
 description = "Recurrency API - Backend for subscription tracker"
 authors = ["Recurrency Team"]
