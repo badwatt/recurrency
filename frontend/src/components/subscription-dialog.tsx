@@ -146,7 +146,8 @@ export function SubscriptionDialog({
       setValue("logo_url", "");
       setLogoUrl(undefined);
     }
-  }, [open, subscription, defaultDate, defaultCurrency, setValue, categories]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- categories excluded: re-running resets form when new category is created
+  }, [open, subscription, defaultDate, defaultCurrency, setValue]);
 
   const categoryId = watch("category_id");
 

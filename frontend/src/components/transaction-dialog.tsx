@@ -126,7 +126,8 @@ export function TransactionDialog({
         logo_url: "",
       });
     }
-  }, [transaction, defaultCurrency, reset, categories]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- categories excluded: re-running resets form when new category is created
+  }, [transaction, defaultCurrency, reset]);
 
   const categoryId = watch("category_id");
 

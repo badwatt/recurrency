@@ -40,7 +40,7 @@ export function AppLayout() {
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className="flex h-dvh" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <div className="flex h-dvh safe-area-top safe-area-bottom">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -58,7 +58,7 @@ export function AppLayout() {
         )}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center justify-between border-b px-4">
+        <div className="flex h-14 items-center justify-between border-b px-4 safe-area-left safe-area-right">
           <h1 className="text-xl font-bold tracking-tight">Recurrency</h1>
           <Button
             variant="ghost"
@@ -96,7 +96,7 @@ export function AppLayout() {
         <Separator />
 
         {/* User section */}
-        <div className="p-4">
+        <div className="p-4 safe-area-bottom safe-area-left safe-area-right">
           <div className="flex items-center gap-3">
             <div className="flex flex-1 flex-col min-w-0">
               <span className="text-sm font-medium truncate">{user?.name || user?.email}</span>
@@ -118,7 +118,7 @@ export function AppLayout() {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile header */}
-        <header className="flex h-14 items-center justify-between border-b bg-card px-4 lg:hidden">
+        <header className="flex h-14 items-center justify-between border-b bg-card px-4 lg:hidden safe-area-top safe-area-left safe-area-right">
           <Button
             variant="ghost"
             size="icon"
