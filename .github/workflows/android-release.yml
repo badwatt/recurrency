@@ -2,8 +2,8 @@ name: Android Release
 
 on:
   push:
-    tags:
-      - "v*"
+    paths:
+      - "VERSION"
   workflow_dispatch:
 
 permissions:
@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Sync version
+        run: bash scripts/sync-version.sh
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -112,8 +115,8 @@ jobs:
           path: frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: warn
 
-      - name: Attach APK to GitHub Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+      - name: Attach APK to release
+        if: always()
+        run: |
+          VERSION=$(cat VERSION)
+          gh release upload "v${VERSION}" frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk || echo "Release v${VERSION} not found yet, APK available as artifact"
