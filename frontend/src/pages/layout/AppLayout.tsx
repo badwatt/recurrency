@@ -58,7 +58,7 @@ export function AppLayout() {
         )}
       >
         {/* Logo - respect status bar on mobile */}
-        <div className="flex h-14 items-center justify-between border-b px-4 pt-safe-top pl-safe-left pr-safe-right">
+        <div className="flex min-h-14 items-center justify-between border-b pl-[max(1rem,var(--safe-area-inset-left,env(safe-area-inset-left,0px)))] pr-[max(1rem,var(--safe-area-inset-right,env(safe-area-inset-right,0px)))] pt-[max(0px,var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
           <h1 className="text-xl font-bold tracking-tight">Recurrency</h1>
           <Button
             variant="ghost"
@@ -96,7 +96,7 @@ export function AppLayout() {
         <Separator />
 
         {/* User section - respect nav bar on mobile */}
-        <div className="p-4 pb-safe-bottom pl-safe-left pr-safe-right">
+        <div className="p-4 pb-[max(1rem,var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] pl-[max(1rem,var(--safe-area-inset-left,env(safe-area-inset-left,0px)))] pr-[max(1rem,var(--safe-area-inset-right,env(safe-area-inset-right,0px)))]">
           <div className="flex items-center gap-3">
             <div className="flex flex-1 flex-col min-w-0">
               <span className="text-sm font-medium truncate">{user?.name || user?.email}</span>
@@ -118,7 +118,7 @@ export function AppLayout() {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile header - respect status bar */}
-        <header className="flex h-14 items-center justify-between border-b bg-card px-4 lg:hidden pt-safe-top pl-safe-left pr-safe-right">
+        <header className="flex min-h-14 items-center justify-between border-b bg-card pl-[max(1rem,var(--safe-area-inset-left,env(safe-area-inset-left,0px)))] pr-[max(1rem,var(--safe-area-inset-right,env(safe-area-inset-right,0px)))] pt-[max(0px,var(--safe-area-inset-top,env(safe-area-inset-top,0px)))] lg:hidden">
           <Button
             variant="ghost"
             size="icon"
@@ -138,7 +138,7 @@ export function AppLayout() {
         </header>
 
         {/* Main content - respect nav bar at bottom */}
-        <main className="flex-1 overflow-auto overflow-x-hidden bg-background pb-safe-bottom">
+        <main className="flex-1 overflow-auto overflow-x-hidden bg-background pb-[max(0px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]">
           <Outlet />
         </main>
       </div>
