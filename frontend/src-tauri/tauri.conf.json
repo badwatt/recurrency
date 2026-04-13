@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Recurrency",
-  "version": "0.8.4",
+  "version": "0.0.0",
   "identifier": "com.alvaro17f.recurrency",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "bash ../../scripts/sync-version.sh && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "bash ../../scripts/sync-version.sh && npm run build",
     "frontendDist": "../dist"
   },
   "app": {
