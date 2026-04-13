@@ -121,11 +121,3 @@ jobs:
           name: recurrency-android
           path: recurrency-*.apk
           if-no-files-found: warn
-
-      - name: Attach APK to release
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(cat VERSION)
-          gh release upload "v${VERSION}" recurrency-*.apk || echo "Release v${VERSION} not found yet, APK available as artifact"

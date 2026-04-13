@@ -115,7 +115,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Stage 3: Create release ──────────────────────────────
+  # ── Stage 3: Create release and attach APK ──────────────
   release:
     needs: docker
     runs-on: ubuntu-latest
@@ -134,3 +134,29 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
           draft: false
+
+      - name: Download APK artifact
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          # Find the Android workflow run for this commit
+          RUN_ID=$(gh run list --workflow=android-release.yml --status=completed --limit=1 --json databaseId --jq '.[0].databaseId') || true
+          if [ -n "$RUN_ID" ]; then
+            gh run download "$RUN_ID" --name recurrency-android --dir apk
+          else
+            echo "No Android workflow run found, skipping APK attach"
+          fi
+
+      - name: Attach APK to release
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if [ -f apk/recurrency-*.apk ]; then
+            gh release upload "v${VERSION}" apk/recurrency-*.apk
+          else
+            echo "No APK found, skipping attach"
+          fi
