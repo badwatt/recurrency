@@ -1,4 +1,3 @@
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::shared::error::{AppError, AppResult};
@@ -24,6 +23,25 @@ struct DDGResponse {
     results: Option<Vec<DDGImageResult>>,
 }
 
+/// Extract VQD token from DDG HTML response.
+/// Pattern: `vqd='<token>'` or `vqd="<token>"` in the HTML.
+fn extract_vqd(html: &str) -> Option<String> {
+    for prefix in &["vqd='", "vqd=\"", "vqd="] {
+        if let Some(start) = html.find(prefix) {
+            let token_start = start + prefix.len();
+            let token_end = html[token_start..]
+                .find(|c: char| c == '\'' || c == '"' || c == '&' || c == ';')
+                .map(|i| token_start + i)
+                .unwrap_or(html.len());
+            let token = &html[token_start..token_end];
+            if !token.is_empty() {
+                return Some(token.to_string());
+            }
+        }
+    }
+    None
+}
+
 pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
     // Clean query
     let query = query.trim().to_lowercase();
@@ -42,10 +60,7 @@ pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
         .map_err(|e| AppError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
     // Get VQD token
-    let vqd_url = format!(
-        "https://duckduckgo.com/?q={}",
-        urlencoding::encode(&search_term)
-    );
+    let vqd_url = format!("https://duckduckgo.com/?q={}", search_term);
 
     let vqd_response = client
         .get(&vqd_url)
@@ -58,21 +73,14 @@ pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
         .await
         .map_err(|e| AppError::Internal(format!("Failed to read VQD response: {}", e)))?;
 
-    // Extract VQD token using regex
-    let vqd_regex = Regex::new(r"vqd=([\d-]+)&")
-        .map_err(|e| AppError::Internal(format!("Invalid regex: {}", e)))?;
-
-    let vqd_token = vqd_regex
-        .captures(&vqd_html)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_string())
+    // Extract VQD token from HTML
+    let vqd_token = extract_vqd(&vqd_html)
         .ok_or_else(|| AppError::Internal("Failed to extract VQD token".to_string()))?;
 
     // Now fetch images using i.js endpoint
     let images_url = format!(
         "https://duckduckgo.com/i.js?q={}&vqd={}&o=json&f=%2C%2Ctransparent%2CWide%2C",
-        urlencoding::encode(&search_term),
-        vqd_token
+        search_term, vqd_token
     );
 
     let images_response = client
@@ -108,10 +116,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_vqd_regex() {
+    fn test_extract_vqd_single_quotes() {
+        let html = r#"some text vqd='123-456' other stuff"#;
+        assert_eq!(extract_vqd(html), Some("123-456".to_string()));
+    }
+
+    #[test]
+    fn test_extract_vqd_double_quotes() {
+        let html = r#"some text vqd="123-456" other stuff"#;
+        assert_eq!(extract_vqd(html), Some("123-456".to_string()));
+    }
+
+    #[test]
+    fn test_extract_vqd_ampersand() {
         let html = r#"some text vqd=123-456& other stuff"#;
-        let re = Regex::new(r"vqd=([\d-]+)&").unwrap();
-        let caps = re.captures(html).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "123-456");
+        assert_eq!(extract_vqd(html), Some("123-456".to_string()));
+    }
+
+    #[test]
+    fn test_extract_vqd_missing() {
+        let html = r#"some text without vqd token"#;
+        assert_eq!(extract_vqd(html), None);
     }
 }

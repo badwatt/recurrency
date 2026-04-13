@@ -50,8 +50,7 @@ lettre = { version = "0.11", default-features = false, features = ["tokio1-nativ
 
 # HTTP client for logo search
 reqwest = { version = "0.13", features = ["json"] }
-regex = "1"
-urlencoding = "2"
+
 
 # Random (for demo credentials)
 rand = "0.10"
