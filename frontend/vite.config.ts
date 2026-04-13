@@ -7,6 +7,10 @@ import { readFileSync } from "fs";
 const host = process.env.TAURI_DEV_HOST;
 
 function getAppVersion(): string {
+  // CI/Docker: version passed via VITE_APP_VERSION env var
+  // Local dev: read from VERSION file at repo root
+  const envVersion = process.env.VITE_APP_VERSION;
+  if (envVersion) return envVersion;
   try {
     const version = readFileSync(path.resolve(__dirname, "../VERSION"), "utf-8").trim();
     return version || "dev";

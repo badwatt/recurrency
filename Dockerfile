@@ -13,7 +13,7 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/bun.lock* ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
-RUN echo "export default { version: '$APP_VERSION' };" > src/version.ts
+ENV VITE_APP_VERSION=$APP_VERSION
 RUN bun run build --mode production
 
 # ── Stage 2: Build backend ──────────────────────────────────
