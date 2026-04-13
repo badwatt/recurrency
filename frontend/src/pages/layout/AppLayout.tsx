@@ -100,10 +100,9 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <div className="flex flex-1 flex-col min-w-0">
               <span className="text-sm font-medium truncate">{user?.name || user?.email}</span>
-              <span className="text-xs text-muted-foreground">
-                {user?.currency || "USD"}
-              </span>
+              <span className="text-xs text-muted-foreground">{__APP_VERSION__}</span>
             </div>
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="icon"
@@ -129,14 +128,12 @@ export function AppLayout() {
           </Button>
           <h1 className="text-lg font-bold">Recurrency</h1>
           <div className="flex items-center gap-1">
-            <ThemeToggle />
             <NotificationBell />
           </div>
         </header>
 
         {/* Desktop header */}
         <header className="hidden lg:flex h-14 items-center justify-end gap-2 border-b bg-card px-6">
-          <ThemeToggle />
           <NotificationBell />
         </header>
 

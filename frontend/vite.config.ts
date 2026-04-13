@@ -1,13 +1,27 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { execSync } from "child_process";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+function getAppVersion(): string {
+  try {
+    const tag = execSync("git describe --tags --abbrev=0", { encoding: "utf-8" }).trim();
+    return tag;
+  } catch {
+    return "dev";
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+
+  define: {
+    __APP_VERSION__: JSON.stringify(getAppVersion()),
+  },
 
   resolve: {
     alias: {
