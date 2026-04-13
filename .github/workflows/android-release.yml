@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Sync version
         run: |
@@ -41,7 +41,7 @@ jobs:
           cache-on-failure: true
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         id: setup-java
         with:
           distribution: temurin
