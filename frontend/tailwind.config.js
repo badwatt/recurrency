@@ -93,10 +93,7 @@ export default {
         dvh: "100dvh",
       },
       spacing: {
-        "safe-top": "var(--safe-area-inset-top, env(safe-area-inset-top, 0px))",
-        "safe-bottom": "var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))",
-        "safe-left": "var(--safe-area-inset-left, env(safe-area-inset-left, 0px))",
-        "safe-right": "var(--safe-area-inset-right, env(safe-area-inset-right, 0px))",
+
       },
       boxShadow: {
         "tremor-input": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
