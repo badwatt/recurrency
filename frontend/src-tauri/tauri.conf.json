@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "identifier": "com.alvaro17f.recurrency",
   "build": {
-    "beforeDevCommand": "bash ../../scripts/sync-version.sh && npm run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bash ../../scripts/sync-version.sh && npm run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
