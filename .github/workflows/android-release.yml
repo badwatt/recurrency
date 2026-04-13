@@ -117,6 +117,8 @@ jobs:
 
       - name: Attach APK to release
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(cat VERSION)
           gh release upload "v${VERSION}" frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk || echo "Release v${VERSION} not found yet, APK available as artifact"
