@@ -49,7 +49,7 @@ dotenvy = "0.15"
 lettre = { version = "0.11", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
 
 # HTTP client for logo search
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 regex = "1"
 urlencoding = "2"
 
