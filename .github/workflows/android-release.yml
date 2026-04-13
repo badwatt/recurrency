@@ -107,12 +107,18 @@ jobs:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
 
+      - name: Rename APK
+        run: |
+          VERSION=$(cat VERSION)
+          SRC=$(find frontend/src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1)
+          mv "$SRC" "recurrency-${VERSION}-arm64.apk"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: recurrency-android
-          path: frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: recurrency-*.apk
           if-no-files-found: warn
 
       - name: Attach APK to release
@@ -121,4 +127,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(cat VERSION)
-          gh release upload "v${VERSION}" frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk || echo "Release v${VERSION} not found yet, APK available as artifact"
+          gh release upload "v${VERSION}" recurrency-*.apk || echo "Release v${VERSION} not found yet, APK available as artifact"
