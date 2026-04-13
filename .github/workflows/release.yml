@@ -224,6 +224,38 @@ jobs:
             echo "AndroidManifest.xml not found, skipping"
           fi
 
+      - name: Configure Android safe area (MainActivity + Edge-to-Edge)
+        run: |
+          # Copy custom MainActivity.kt with safe-area injection
+          PACKAGE_DIR="frontend/src-tauri/gen/android/app/src/main/java/com/alvaro17f/recurrency"
+          mkdir -p "$PACKAGE_DIR"
+          cp frontend/src-tauri/android-resources/MainActivity.kt "$PACKAGE_DIR/MainActivity.kt"
+
+          # Add activity-ktx dependency for enableEdgeToEdge()
+          GRADLE_FILE="frontend/src-tauri/gen/android/app/build.gradle.kts"
+          if [ -f "$GRADLE_FILE" ]; then
+            if ! grep -q 'activity-ktx' "$GRADLE_FILE"; then
+              sed -i '/dependencies {/a\    implementation("androidx.activity:activity-ktx:1.9.3")' "$GRADLE_FILE"
+            fi
+          fi
+
+          # Apply transparent status/nav bar theme
+          RES_VALUES="frontend/src-tauri/gen/android/app/src/main/res/values/themes.xml"
+          mkdir -p "$(dirname "$RES_VALUES")"
+          if [ -f "$RES_VALUES" ]; then
+            sed -i 's|<item name="android:statusBarColor">[^<]*</item>|<item name="android:statusBarColor">@android:color/transparent</item>|g' "$RES_VALUES"
+            sed -i 's|<item name="android:navigationBarColor">[^<]*</item>|<item name="android:navigationBarColor">@android:color/transparent</item>|g' "$RES_VALUES"
+            if ! grep -q 'android:windowLayoutInDisplayCutoutMode' "$RES_VALUES"; then
+              sed -i '</resources>/i\    <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>' "$RES_VALUES"
+            fi
+          fi
+
+          RES_NIGHT="frontend/src-tauri/gen/android/app/src/main/res/values-night/themes.xml"
+          if [ -f "$RES_NIGHT" ]; then
+            sed -i 's|<item name="android:statusBarColor">[^<]*</item>|<item name="android:statusBarColor">@android:color/transparent</item>|g' "$RES_NIGHT"
+            sed -i 's|<item name="android:navigationBarColor">[^<]*</item>|<item name="android:navigationBarColor">@android:color/transparent</item>|g' "$RES_NIGHT"
+          fi
+
       - name: Type check frontend
         run: cd frontend && bun run typecheck
 
