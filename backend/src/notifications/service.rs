@@ -85,9 +85,9 @@ impl NotificationService {
 
         if prefs.is_empty() {
             return vec![
-                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 3 },
-                NotificationPreferenceResponse { channel: "push".to_string(), enabled: true, reminder_days_before: 3 },
-                NotificationPreferenceResponse { channel: "system".to_string(), enabled: true, reminder_days_before: 3 },
+                NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 },
+                NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 3 },
+                NotificationPreferenceResponse { channel: "system".to_string(), enabled: false, reminder_days_before: 3 },
             ];
         }
 

@@ -40,7 +40,7 @@ impl AuthService {
         let user = sqlx::query_as::<_, User>(
             r#"
             INSERT INTO users (id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, 'USD', $5, $6, $7, $7)
+            VALUES ($1, $2, $3, $4, 'EUR', $5, $6, $7, $7)
             RETURNING id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at
             "#,
         )
@@ -179,7 +179,7 @@ impl AuthService {
 
     pub async fn update_settings(pool: &PgPool, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
         let name = req.name.unwrap_or_default();
-        let currency = req.currency.unwrap_or_else(|| "USD".to_string());
+        let currency = req.currency.unwrap_or_else(|| "EUR".to_string());
 
         let user = sqlx::query_as::<_, User>(
             r#"

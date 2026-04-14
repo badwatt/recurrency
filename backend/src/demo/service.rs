@@ -55,7 +55,7 @@ impl DemoService {
             .map_err(|e| e.to_string())?;
 
         sqlx::query(
-            "UPDATE users SET currency = 'USD', name = 'Demo User', verified = true, updated_at = NOW() WHERE id = $1",
+            "UPDATE users SET currency = 'EUR', name = 'Demo User', verified = true, updated_at = NOW() WHERE id = $1",
         )
         .bind(user_id)
         .execute(pool)
@@ -104,7 +104,7 @@ impl DemoService {
 
             sqlx::query(
                 "INSERT INTO subscriptions (id, user_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active)
-                 VALUES ($1, $2, $3, $4, $5, 'USD', 'monthly', $6, $7, true)"
+                 VALUES ($1, $2, $3, $4, $5, 'EUR', 'monthly', $6, $7, true)"
             )
                 .bind(Uuid::new_v4())
                 .bind(user_id)
@@ -129,7 +129,7 @@ impl DemoService {
             let date = today - chrono::Duration::days(ago);
             sqlx::query(
                 "INSERT INTO transactions (id, user_id, category_id, name, amount, currency, date)
-                 VALUES ($1, $2, $3, $4, $5, 'USD', $6)"
+                 VALUES ($1, $2, $3, $4, $5, 'EUR', $6)"
             )
                 .bind(Uuid::new_v4())
                 .bind(user_id)

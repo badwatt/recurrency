@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -14,12 +12,7 @@ import { auth } from "@/lib/auth";
 import { getApiBaseUrl, isTauriApp } from "@/lib/config";
 import { notificationPreferencesApi, type NotificationPreference } from "@/lib/api/notificationPreferences";
 
-const settingsSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  currency: z.string().min(3, "Select a currency"),
-});
-
-type SettingsForm = z.infer<typeof settingsSchema>;
+const nameSchema = z.string().min(2, "Name must be at least 2 characters");
 
 const currencies = [
   { code: "USD", name: "US Dollar" },
@@ -37,43 +30,27 @@ const notificationChannels = [
 ];
 
 export function SettingsPage() {
+  const { user, setUser } = useAuthStore();
+  const [name, setName] = useState(user?.name || "");
+  const [currency, setCurrency] = useState(user?.currency || "EUR");
+  const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({
+    email: false,
+    push: false,
+    system: false,
+  });
+  const [prefsLoading, setPrefsLoading] = useState(false);
   const [serverUrl, setServerUrl] = useState("");
 
   useEffect(() => {
     setServerUrl(getApiBaseUrl());
   }, []);
 
-  const { user, setUser } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({
-    email: true,
-    push: true,
-    system: true,
-  });
-  const [prefsLoading, setPrefsLoading] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<SettingsForm>({
-    resolver: zodResolver(settingsSchema),
-    defaultValues: {
-      name: user?.name || "",
-      currency: user?.currency || "USD",
-    },
-  });
-
   useEffect(() => {
     if (user) {
-      reset({
-        name: user.name || "",
-        currency: user.currency || "USD",
-      });
+      setName(user.name || "");
+      setCurrency(user.currency || "EUR");
     }
-  }, [user, reset]);
+  }, [user]);
 
   // Load notification preferences
   useEffect(() => {
@@ -92,45 +69,46 @@ export function SettingsPage() {
     loadPrefs();
   }, []);
 
-  const handleNotificationToggle = async (channel: string, enabled: boolean) => {
-    setNotificationPrefs((prev) => ({ ...prev, [channel]: enabled }));
-    setPrefsLoading(true);
-    
+  const saveName = async () => {
+    const result = nameSchema.safeParse(name);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
     try {
-      await notificationPreferencesApi.update([{ channel, enabled }]);
-    } catch (error) {
-      console.error("Failed to update notification preference:", error);
-      // Revert on error
-      setNotificationPrefs((prev) => ({ ...prev, [channel]: !enabled }));
-    } finally {
-      setPrefsLoading(false);
+      const updatedUser = await settingsApi.update({ name });
+      setUser(updatedUser);
+      auth.updateStoredUser(updatedUser);
+      toast.success("Name saved");
+    } catch {
+      toast.error("Failed to save name");
     }
   };
 
-  const onSubmit = async (data: SettingsForm) => {
-    setIsLoading(true);
-    setMessage(null);
-    
+  const saveCurrency = async (newCurrency: string) => {
+    setCurrency(newCurrency);
     try {
-      const updatedUser = await settingsApi.update({
-        name: data.name,
-        currency: data.currency,
-      });
-      
-      // Update local state and localStorage
+      const updatedUser = await settingsApi.update({ currency: newCurrency });
       setUser(updatedUser);
       auth.updateStoredUser(updatedUser);
-      reset({
-        name: updatedUser.name || "",
-        currency: updatedUser.currency,
-      });
-      
-      setMessage({ type: "success", text: "Settings saved successfully!" });
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-      setMessage({ type: "error", text: "Failed to save settings. Please try again." });
+      toast.success("Currency saved");
+    } catch {
+      toast.error("Failed to save currency");
+    }
+  };
+
+  const handleNotificationToggle = async (channel: string, enabled: boolean) => {
+    setNotificationPrefs((prev) => ({ ...prev, [channel]: enabled }));
+    setPrefsLoading(true);
+
+    try {
+      await notificationPreferencesApi.update([{ channel, enabled }]);
+      toast.success(`${channel} notifications ${enabled ? "enabled" : "disabled"}`);
+    } catch {
+      toast.error("Failed to update notification preference");
+      setNotificationPrefs((prev) => ({ ...prev, [channel]: !enabled }));
     } finally {
-      setIsLoading(false);
+      setPrefsLoading(false);
     }
   };
 
@@ -143,137 +121,114 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>
-              Update your personal information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={user?.email || ""}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                {...register("name")}
-              />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Preferences</CardTitle>
-            <CardDescription>
-              Customize your experience
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currency">Default Currency</Label>
-              <select
-                id="currency"
-                {...register("currency")}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                {currencies.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.code} - {currency.name}
-                  </option>
-                ))}
-              </select>
-              {errors.currency && (
-                <p className="text-xs text-destructive">{errors.currency.message}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {isTauriApp() && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Server</CardTitle>
-            <CardDescription>
-              Your Recurrency server connection
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="server-url">Server URL</Label>
-              <Input
-                id="server-url"
-                type="text"
-                value={serverUrl}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-          </CardContent>
-        </Card>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>
-              Configure how you receive notifications
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notificationChannels.map((channel, index) => (
-              <div key={channel.key}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{channel.label}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {channel.description}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationPrefs[channel.key] ?? true}
-                    onCheckedChange={(enabled) => handleNotificationToggle(channel.key, enabled)}
-                    disabled={prefsLoading}
-                  />
-                </div>
-                {index < notificationChannels.length - 1 && <Separator className="mt-4" />}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {message && (
-          <div
-            className={`p-4 rounded-md ${
-              message.type === "success"
-                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-            }`}
-          >
-            {message.text}
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>
+            Update your personal information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={user?.email || ""}
+              disabled
+              className="bg-muted"
+            />
           </div>
-        )}
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveName}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting || isLoading}>
-            {isSubmitting || isLoading ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>Preferences</CardTitle>
+          <CardDescription>
+            Customize your experience
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="currency">Default Currency</Label>
+            <select
+              id="currency"
+              value={currency}
+              onChange={(e) => saveCurrency(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {currencies.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} - {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isTauriApp() && (
+      <Card>
+        <CardHeader>
+          <CardTitle>Server</CardTitle>
+          <CardDescription>
+            Your Recurrency server connection
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="server-url">Server URL</Label>
+            <Input
+              id="server-url"
+              type="text"
+              value={serverUrl}
+              disabled
+              className="bg-muted"
+            />
+          </div>
+        </CardContent>
+      </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+          <CardDescription>
+            Configure how you receive notifications
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {notificationChannels.map((channel, index) => (
+            <div key={channel.key}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{channel.label}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {channel.description}
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationPrefs[channel.key] ?? false}
+                  onCheckedChange={(enabled) => handleNotificationToggle(channel.key, enabled)}
+                  disabled={prefsLoading}
+                />
+              </div>
+              {index < notificationChannels.length - 1 && <Separator className="mt-4" />}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
