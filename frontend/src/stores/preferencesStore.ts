@@ -27,6 +27,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     set({ isLoading: true });
     try {
       const preferences = await preferencesApi.get();
+      localStorage.setItem('recurrency-theme', preferences.theme);
       set({ preferences, isLoading: false, initialized: true });
     } catch (error) {
       console.error("Failed to fetch preferences:", error);
@@ -45,6 +46,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   },
 
   setTheme: async (theme: Preferences["theme"]) => {
+    localStorage.setItem('recurrency-theme', theme);
     set((state) => ({
       preferences: { ...state.preferences, theme },
     }));
