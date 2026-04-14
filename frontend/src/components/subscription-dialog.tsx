@@ -93,7 +93,7 @@ export function SubscriptionDialog({
     defaultValues: {
       name: "",
       amount: "",
-      currency: defaultCurrency || "USD",
+      currency: defaultCurrency || "EUR",
       frequency: "monthly",
       start_date: format(new Date(), "yyyy-MM-dd"),
       category_id: defaultCategoryId,
@@ -129,7 +129,7 @@ export function SubscriptionDialog({
     } else if (defaultDate) {
       setValue("name", "");
       setValue("amount", "");
-      setValue("currency", defaultCurrency || "USD");
+      setValue("currency", defaultCurrency || "EUR");
       setValue("frequency", "monthly");
       setValue("start_date", defaultDate);
       setValue("category_id", defaultCatId);
@@ -138,7 +138,7 @@ export function SubscriptionDialog({
     } else {
       setValue("name", "");
       setValue("amount", "");
-      setValue("currency", defaultCurrency || "USD");
+      setValue("currency", defaultCurrency || "EUR");
       setValue("frequency", "monthly");
       setValue("start_date", format(new Date(), "yyyy-MM-dd"));
       setValue("category_id", defaultCatId);
@@ -242,7 +242,7 @@ export function SubscriptionDialog({
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
               <Select
-                value={watch("currency") || subscription?.currency || defaultCurrency || "USD"}
+                value={watch("currency") || subscription?.currency || defaultCurrency || "EUR"}
                 onValueChange={(value) => setValue("currency", value)}
               >
                 <SelectTrigger>

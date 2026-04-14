@@ -171,7 +171,7 @@ export function CalendarPage() {
           </p>
         </div>
         <div className="text-right hidden md:block">
-          <p className="text-2xl font-bold">{formatCurrency(monthTotal.toString(), user?.currency || "USD")}</p>
+          <p className="text-2xl font-bold">{formatCurrency(monthTotal.toString(), user?.currency || "EUR")}</p>
           <p className="text-sm text-muted-foreground">Total this month</p>
         </div>
       </div>
@@ -183,7 +183,7 @@ export function CalendarPage() {
             <CalendarIcon className="h-5 w-5" />
             Upcoming Payments
           </h2>
-          <p className="text-lg font-bold">{formatCurrency(monthTotal.toString(), user?.currency || "USD")}</p>
+          <p className="text-lg font-bold">{formatCurrency(monthTotal.toString(), user?.currency || "EUR")}</p>
         </div>
         
         {isLoading ? (

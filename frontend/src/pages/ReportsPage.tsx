@@ -65,7 +65,7 @@ export function ReportsPage() {
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: user?.currency || "USD",
+      currency: user?.currency || "EUR",
     }).format(num);
   };
 

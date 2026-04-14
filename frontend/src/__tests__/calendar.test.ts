@@ -75,7 +75,7 @@ describe("SubscriptionDialog date pre-filling", () => {
     id: "123",
     name: "Netflix",
     amount: 15.99,
-    currency: "USD",
+    currency: "EUR",
     frequency: "monthly" as const,
     start_date: "2026-04-20",
     is_active: true,

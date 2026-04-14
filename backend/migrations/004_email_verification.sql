@@ -14,7 +14,7 @@ VALUES (
     'demo@recurrency.app',
     '$argon2id$v=19$m=65536,t=3,p=4$1DHP6Y+8Y+KZ8pETQhgWmw$NubAUCWr1x65aiJKpq2bZshbL483/reR1hZ3qedOjZ8',
     'Demo User',
-    'USD',
+    'EUR',
     true,
     NOW(),
     NOW()

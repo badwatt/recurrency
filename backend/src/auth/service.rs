@@ -179,13 +179,13 @@ impl AuthService {
 
     pub async fn update_settings(pool: &PgPool, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
         let name = req.name.unwrap_or_default();
-        let currency = req.currency.unwrap_or_else(|| "EUR".to_string());
+        let currency = req.currency.unwrap_or_else(|| String::new());
 
         let user = sqlx::query_as::<_, User>(
             r#"
             UPDATE users 
             SET name = COALESCE(NULLIF($2, ''), name),
-                currency = $3,
+                currency = COALESCE(NULLIF($3, ''), currency),
                 updated_at = NOW()
             WHERE id = $1
             RETURNING id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at

@@ -79,7 +79,7 @@ pub async fn init(State(pool): State<PgPool>) -> AppResult<Json<serde_json::Valu
     sqlx::query(
         r#"
         INSERT INTO users (id, email, password_hash, name, currency, verified, created_at, updated_at)
-        VALUES ($1, $2, $3, 'Demo User', 'USD', true, NOW(), NOW())
+        VALUES ($1, $2, $3, 'Demo User', 'EUR', true, NOW(), NOW())
         ON CONFLICT (email) DO UPDATE SET
             password_hash = EXCLUDED.password_hash,
             verified = true,

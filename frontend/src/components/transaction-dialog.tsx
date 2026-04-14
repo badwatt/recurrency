@@ -83,7 +83,7 @@ export function TransactionDialog({
     defaultValues: {
       name: "",
       amount: "",
-      currency: defaultCurrency || "USD",
+      currency: defaultCurrency || "EUR",
       date: format(new Date(), "yyyy-MM-dd"),
       category_id: defaultCategoryId,
       notes: "",
@@ -119,7 +119,7 @@ export function TransactionDialog({
       reset({
         name: "",
         amount: "",
-        currency: defaultCurrency || "USD",
+        currency: defaultCurrency || "EUR",
         date: format(new Date(), "yyyy-MM-dd"),
         category_id: defaultCatId,
         notes: "",
@@ -223,7 +223,7 @@ export function TransactionDialog({
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
               <Select
-                value={watch("currency") || transaction?.currency || defaultCurrency || "USD"}
+                value={watch("currency") || transaction?.currency || defaultCurrency || "EUR"}
                 onValueChange={(value) => setValue("currency", value)}
               >
                 <SelectTrigger>

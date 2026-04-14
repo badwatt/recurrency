@@ -23,7 +23,7 @@ describe("utils", () => {
 
 describe("date formatting", () => {
   it("formats currency correctly", () => {
-    const formatCurrency = (amount: number, currency = "USD") => {
+    const formatCurrency = (amount: number, currency = "EUR") => {
       return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency,

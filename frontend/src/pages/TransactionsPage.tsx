@@ -286,7 +286,7 @@ export function TransactionsPage() {
                   {group.transactions.length} transactions
                 </span>
                 <span className="text-sm font-bold">
-                  {formatCurrency(group.total, user?.currency || "USD")}
+                  {formatCurrency(group.total, user?.currency || "EUR")}
                 </span>
               </div>
 

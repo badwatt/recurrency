@@ -45,7 +45,7 @@ export function DashboardPage() {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: user?.currency || "USD",
+      currency: user?.currency || "EUR",
     }).format(amount);
 
   const getNextBillingDays = (date: string | null) => {
