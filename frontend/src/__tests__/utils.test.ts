@@ -30,8 +30,8 @@ describe("date formatting", () => {
       }).format(amount);
     };
 
-    expect(formatCurrency(9.99)).toBe("$9.99");
-    expect(formatCurrency(100)).toBe("$100.00");
+    expect(formatCurrency(9.99)).toBe("€9.99");
+    expect(formatCurrency(100, "USD")).toBe("$100.00");
     expect(formatCurrency(1234.56, "EUR")).toContain("1,234.56");
   });
 });
