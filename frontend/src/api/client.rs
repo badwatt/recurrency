@@ -36,11 +36,15 @@ pub fn get_token() -> Option<String> {
 }
 
 /// Build an authenticated URL with token as query param.
+/// Uses `?token=` if no query params exist, `&token=` otherwise.
 pub fn auth_url(path: &str) -> String {
     let base = get_base_url();
     let token = get_token();
     match token {
-        Some(t) if !t.is_empty() => format!("{}{}?token={}", base, path, t),
+        Some(t) if !t.is_empty() => {
+            let separator = if path.contains('?') { '&' } else { '?' };
+            format!("{}{}{}token={}", base, path, separator, t)
+        }
         _ => format!("{}{}", base, path),
     }
 }
@@ -168,6 +172,11 @@ mod tests {
         let path = "/api/test";
         let url = format!("{}{}?token=test-token", base, path);
         assert_eq!(url, "http://localhost:8080/api/test?token=test-token");
+
+        // Test that existing query params use & instead of ?
+        let path_with_query = "/api/reports/summary?year=2025&month=4";
+        let url2 = format!("{}{}{}token=test-token", base, path_with_query, '&');
+        assert_eq!(url2, "http://localhost:8080/api/reports/summary?year=2025&month=4&token=test-token");
     }
 
     #[test]
