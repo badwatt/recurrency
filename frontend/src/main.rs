@@ -56,6 +56,8 @@ fn App() -> Element {
     use_future(move || async move {
         if !AUTH().initialized {
             AUTH.write().hydrate_from_storage();
+            // Always mark initialized so route guard doesn't loop forever
+            AUTH.write().initialized = true;
         }
     });
 
