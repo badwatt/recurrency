@@ -1,12 +1,6 @@
 import { getApiBaseUrl } from "@/lib/config";
 
-interface ApiError {
-  error: string;
-  details?: string;
-}
-
 class ApiClient {
-  constructor() {}
 
   private async request<T>(
     endpoint: string,
@@ -33,8 +27,8 @@ class ApiClient {
     if (!response.ok) {
       const text = await response.text().catch(() => "An error occurred");
       try {
-        const error: ApiError = JSON.parse(text);
-        throw new Error(error.error || "An error occurred");
+        const errorData: { error?: string } = JSON.parse(text);
+        throw new Error(errorData.error || "An error occurred");
       } catch {
         throw new Error(text || "An error occurred");
       }

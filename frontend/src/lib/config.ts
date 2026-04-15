@@ -7,16 +7,6 @@ function isTauri(): boolean {
   return !!(window as any).__TAURI_INTERNALS__;
 }
 
-async function getPlatform(): Promise<string> {
-  if (!isTauri()) return "web";
-  try {
-    const { platform } = await import("@tauri-apps/plugin-os");
-    return platform();
-  } catch {
-    return "unknown";
-  }
-}
-
 async function loadFromStore(key: string): Promise<string | null> {
   try {
     const { load } = await import("@tauri-apps/plugin-store");
@@ -46,16 +36,9 @@ export async function initConfig(): Promise<void> {
   const envUrl = import.meta.env.VITE_API_URL || "";
 
   if (isTauri()) {
-    const platform = await getPlatform();
-    if (platform === "android" || platform === "ios") {
-      // On mobile, try store first, then env, then empty
-      const stored = await loadFromStore(STORAGE_KEY);
-      backendUrl = stored || envUrl;
-    } else {
-      // Desktop Tauri — same-origin works via VITE_API_URL
-      const stored = await loadFromStore(STORAGE_KEY);
-      backendUrl = stored || envUrl;
-    }
+    // Tauri (mobile or desktop) — try store first, then env
+    const stored = await loadFromStore(STORAGE_KEY);
+    backendUrl = stored || envUrl;
   } else {
     // Web — try localStorage, then env
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -85,9 +68,7 @@ export async function setApiBaseUrl(url: string): Promise<void> {
 export function isMobilePlatform(): boolean {
   if (!isTauri()) return false;
   // Synchronous best-effort check; initConfig handles the async platform detection
-  return initialized && backendUrl !== "" && !window.matchMedia("(min-width: 1024px)").matches
-    ? true
-    : false;
+  return initialized && backendUrl !== "" && !window.matchMedia("(min-width: 1024px)").matches;
 }
 
 export function isTauriApp(): boolean {

@@ -1,8 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Receipt, Tag, StickyNote } from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, StickyNote } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,28 +13,11 @@ import { NotesEditDialog } from "@/components/notes-edit-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FilterSort, type FilterConfig, type SortConfig } from "@/components/filter-sort";
 import type { Transaction, CreateTransactionRequest } from "@/lib/api/transactions";
+import { showToast } from "@/lib/toast";
+import { formatCurrency } from "@/lib/format";
+import { getIcon } from "@/lib/icons";
 
-// Helper to get Lucide icon component from kebab-case name
-const getIconComponent = (iconName: string): LucideIcon => {
-  if (!iconName) return Tag;
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  const pascalCase = iconName
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  return icons[pascalCase] || Tag;
-};
 
-// Safe toast wrapper
-const showToast = (type: "success" | "error", message: string) => {
-  setTimeout(() => {
-    if (type === "success") {
-      toast.success(message);
-    } else {
-      toast.error(message);
-    }
-  }, 0);
-};
 
 export function TransactionsPage() {
   const { user } = useAuthStore();
@@ -143,12 +123,7 @@ export function TransactionsPage() {
     [editingTransaction, createTransaction, updateTransaction]
   );
 
-  const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  };
+
 
   const filteredTransactions = useMemo(() => {
     let result = [...transactions];
@@ -318,7 +293,7 @@ export function TransactionsPage() {
                         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                           {(() => {
                             const { color, icon, name } = getCategoryStyle(transaction.category_id);
-                            const IconComponent = getIconComponent(icon);
+                            const IconComponent = getIcon(icon);
                             return (
                               <>
                                 {transaction.notes && (
@@ -362,7 +337,7 @@ export function TransactionsPage() {
                       <div className="mt-2 sm:hidden flex items-center gap-1">
                         {(() => {
                           const { color, icon, name } = getCategoryStyle(transaction.category_id);
-                          const IconComponent = getIconComponent(icon);
+                          const IconComponent = getIcon(icon);
                           return (
                             <>
                               {transaction.notes && (

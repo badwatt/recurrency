@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface MonthlySummary {
   year: number;
@@ -28,12 +28,6 @@ export interface ReportResponse {
   monthly_summary: MonthlySummary;
   category_breakdown: CategoryBreakdown[];
   recent_trends: SpendingTrend[];
-}
-
-async function getAuthParams() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
 }
 
 export const reportsApi = {

@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface NotificationPreference {
   channel: string;
@@ -14,12 +14,6 @@ export interface NotificationPreferencesResponse {
 export interface UpdatePreferenceRequest {
   channel: string;
   enabled: boolean;
-}
-
-async function getAuthParams() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
 }
 
 export const notificationPreferencesApi = {

@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface Subscription {
   id: string;
@@ -42,40 +42,34 @@ export interface UpdateSubscriptionRequest {
   logo_url?: string;
 }
 
-async function getAuthHeaders() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
-}
-
 export const subscriptionsApi = {
   async list(): Promise<Subscription[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Subscription[]>(`/api/subscriptions?token=${encodeURIComponent(token)}`);
   },
 
   async get(id: string): Promise<Subscription> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Subscription>(`/api/subscriptions/${id}?token=${encodeURIComponent(token)}`);
   },
 
   async create(data: CreateSubscriptionRequest): Promise<Subscription> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.post<Subscription>(`/api/subscriptions?token=${encodeURIComponent(token)}`, data);
   },
 
   async update(id: string, data: UpdateSubscriptionRequest): Promise<Subscription> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.put<Subscription>(`/api/subscriptions/${id}?token=${encodeURIComponent(token)}`, data);
   },
 
   async delete(id: string): Promise<void> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.delete(`/api/subscriptions/${id}?token=${encodeURIComponent(token)}`);
   },
 
   async upcoming(): Promise<Subscription[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Subscription[]>(`/api/subscriptions/upcoming?token=${encodeURIComponent(token)}`);
   },
 };

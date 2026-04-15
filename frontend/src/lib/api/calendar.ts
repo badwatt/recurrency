@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface CalendarItem {
   date: string;
@@ -11,15 +11,9 @@ export interface CalendarItem {
   logo_url: string | null;
 }
 
-async function getAuthHeaders() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
-}
-
 export const calendarApi = {
   async getMonth(year: number, month: number): Promise<CalendarItem[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<CalendarItem[]>(
       `/api/subscriptions/calendar?token=${encodeURIComponent(token)}&year=${year}&month=${month}`
     );

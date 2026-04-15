@@ -14,14 +14,7 @@ import { notificationPreferencesApi, type NotificationPreference } from "@/lib/a
 
 const nameSchema = z.string().min(2, "Name must be at least 2 characters");
 
-const currencies = [
-  { code: "USD", name: "US Dollar" },
-  { code: "EUR", name: "Euro" },
-  { code: "GBP", name: "British Pound" },
-  { code: "JPY", name: "Japanese Yen" },
-  { code: "CAD", name: "Canadian Dollar" },
-  { code: "AUD", name: "Australian Dollar" },
-];
+import { CURRENCIES } from "@/lib/constants";
 
 const notificationChannels = [
   { key: "email", label: "Email Notifications", description: "Receive email reminders before payments" },
@@ -168,9 +161,9 @@ export function SettingsPage() {
               onChange={(e) => saveCurrency(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              {currencies.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} - {c.name}
+              {CURRENCIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.value} - {c.label}
                 </option>
               ))}
             </select>

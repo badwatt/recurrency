@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Plus, Check, Tag } from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronDown, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,17 +8,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { getIcon } from "@/lib/icons";
 
-// Helper to get Lucide icon from kebab-case name
-const getIcon = (name: string | null | undefined): LucideIcon => {
-  if (!name) return Tag;
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  const pascalCase = name
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  return icons[pascalCase] || Tag;
-};
+
 
 interface CategoryOption {
   id: string;

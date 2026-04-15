@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { X } from "lucide-react";
 import {
   Dialog,
@@ -15,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Category, CreateCategoryRequest } from "@/lib/api/categories";
 import { CATEGORY_ICONS, CATEGORY_COLORS } from "@/lib/api/categories";
+import { getIcon } from "@/lib/icons";
 
 interface CategoryDialogProps {
   open: boolean;
@@ -23,16 +22,7 @@ interface CategoryDialogProps {
   onSubmit: (data: CreateCategoryRequest) => Promise<void>;
 }
 
-// Convert kebab-case to PascalCase and get icon component
-const getIcon = (name: string | null | undefined): LucideIcon => {
-  if (!name) return LucideIcons.Tag;
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  const pascalCase = name
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  return icons[pascalCase] || LucideIcons.Tag;
-};
+
 
 export function CategoryDialog({
   open,

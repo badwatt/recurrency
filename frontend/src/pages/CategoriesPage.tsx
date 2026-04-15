@@ -1,36 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
-import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Tag, Star } from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { CategoryDialog } from "@/components/category-dialog";
 import type { Category, CreateCategoryRequest } from "@/lib/api/categories";
+import { showToast } from "@/lib/toast";
+import { getIcon } from "@/lib/icons";
 
-// Helper to get icon component safely from kebab-case name
-const getIcon = (name: string | null | undefined): LucideIcon => {
-  if (!name) return Tag;
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  // Convert kebab-case to PascalCase
-  const pascalCase = name
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  return icons[pascalCase] || Tag;
-};
 
-// Safe toast wrapper that schedules after render
-const showToast = (type: "success" | "error", message: string) => {
-  setTimeout(() => {
-    if (type === "success") {
-      toast.success(message);
-    } else {
-      toast.error(message);
-    }
-  }, 0);
-};
 
 export function CategoriesPage() {
   const {

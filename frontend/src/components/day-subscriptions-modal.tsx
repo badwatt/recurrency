@@ -74,9 +74,9 @@ export function DaySubscriptionsModal({
                 className="flex items-center gap-3 p-3 rounded-lg border bg-card"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
-                  {(item as { logo_url?: string }).logo_url ? (
+                  {item.logo_url ? (
                     <img
-                      src={(item as { logo_url?: string }).logo_url}
+                      src={item.logo_url}
                       alt={item.name}
                       className="h-full w-full object-contain p-1"
                       onError={(e) => {

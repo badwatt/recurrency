@@ -14,9 +14,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
-  setLoading: (loading: boolean) => void;
   setUser: (user: User) => void;
-  updateUser: (updates: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -92,16 +90,6 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
         });
       },
-
-      updateUser: (updates: Partial<User>) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          const updatedUser = { ...currentUser, ...updates };
-          set({ user: updatedUser });
-        }
-      },
-
-      setLoading: (isLoading: boolean) => set({ isLoading }),
 
       setUser: (user: User) => set({ user }),
     }),

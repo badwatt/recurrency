@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { Download, TrendingUp, DollarSign, CreditCard, Receipt } from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { reportsApi, type ReportResponse } from "@/lib/api/reports";
 import { useAuthStore } from "@/stores/authStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
+import { formatCurrency } from "@/lib/format";
+import { getIcon } from "@/lib/icons";
 
 const MONTHS = [
   { value: "1", label: "January" },
@@ -61,13 +61,7 @@ export function ReportsPage() {
     }
   };
 
-  const formatCurrency = (amount: string | number) => {
-    const num = typeof amount === "string" ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: user?.currency || "EUR",
-    }).format(num);
-  };
+  const fc = (amount: string | number) => formatCurrency(amount, user?.currency || "EUR");
 
   const handleExportCSV = () => {
     if (!report) return;
@@ -88,17 +82,6 @@ export function ReportsPage() {
     a.download = `recurrency-report-${selectedYear}-${selectedMonth}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  // Helper to get Lucide icon component from kebab-case name
-  const getIconComponent = (iconName: string): LucideIcon => {
-    if (!iconName) return LucideIcons.Tag;
-    const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-    const pascalCase = iconName
-      .split("-")
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join("");
-    return icons[pascalCase] || LucideIcons.Tag;
   };
 
   if (!report && !isLoading) {
@@ -177,7 +160,7 @@ export function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(report.monthly_summary.overall_total)}
+                  {fc(report.monthly_summary.overall_total)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {MONTHS.find((m) => m.value === selectedMonth)?.label} {selectedYear}
@@ -192,7 +175,7 @@ export function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(report.monthly_summary.subscriptions_total)}
+                  {fc(report.monthly_summary.subscriptions_total)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {report.monthly_summary.subscriptions_count} active
@@ -207,7 +190,7 @@ export function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(report.monthly_summary.transactions_total)}
+                  {fc(report.monthly_summary.transactions_total)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {report.monthly_summary.transactions_count} transactions
@@ -245,7 +228,7 @@ export function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="period" />
                       <YAxis tickFormatter={(value) => `$${value}`} />
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Tooltip formatter={(value: number) => fc(value)} />
                       <Line
                         type="monotone"
                         dataKey="total"
@@ -288,13 +271,13 @@ export function ReportsPage() {
                             return <Cell key={`cell-${index}`} fill={color} />;
                           })}
                         </Pie>
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Tooltip formatter={(value: number) => fc(value)} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="flex-1 space-y-2">
                       {report.category_breakdown.slice(0, 5).map((cat) => {
                         const { color, icon } = getCategoryStyleByName(cat.category_name);
-                        const Icon = getIconComponent(icon);
+                        const Icon = getIcon(icon);
                         return (
                           <div key={cat.category_name} className="flex items-center gap-2">
                             <div
@@ -329,7 +312,7 @@ export function ReportsPage() {
                 <div className="space-y-4">
                   {report.category_breakdown.map((cat) => {
                     const { color, icon } = getCategoryStyleByName(cat.category_name);
-                    const Icon = getIconComponent(icon);
+                    const Icon = getIcon(icon);
                     return (
                       <div key={cat.category_name} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -344,7 +327,7 @@ export function ReportsPage() {
                           </div>
                           <div className="flex items-center gap-4">
                             <span className="text-muted-foreground">{cat.count} items</span>
-                            <span className="font-bold">{formatCurrency(cat.total)}</span>
+                            <span className="font-bold">{fc(cat.total)}</span>
                           </div>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">

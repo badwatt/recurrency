@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface LogoResult {
   url: string;
@@ -8,15 +8,9 @@ export interface LogoResult {
   height?: number;
 }
 
-async function getAuthHeaders() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
-}
-
 export const logosApi = {
   async search(query: string): Promise<LogoResult[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     const response = await apiClient.get<{ results: LogoResult[] }>(
       `/api/logos/search?token=${encodeURIComponent(token)}&q=${encodeURIComponent(query)}`
     );

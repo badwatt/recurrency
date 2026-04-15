@@ -1,9 +1,5 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
-import { toast } from "sonner";
-import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, Tag, StickyNote, Pause, Play } from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
+import { Plus, Pencil, Trash2, LayoutGrid, List, CreditCard, StickyNote, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,30 +12,13 @@ import { NotesEditDialog } from "@/components/notes-edit-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FilterSort, type FilterConfig, type SortConfig } from "@/components/filter-sort";
 import type { Subscription, CreateSubscriptionRequest } from "@/lib/api/subscriptions";
+import { showToast } from "@/lib/toast";
+import { formatCurrency } from "@/lib/format";
+import { getIcon } from "@/lib/icons";
 
 type ViewMode = "grid" | "list";
 
-// Safe toast wrapper
-const showToast = (type: "success" | "error", message: string) => {
-  setTimeout(() => {
-    if (type === "success") {
-      toast.success(message);
-    } else {
-      toast.error(message);
-    }
-  }, 0);
-};
 
-// Helper to get Lucide icon component from kebab-case name
-const getIconComponent = (iconName: string): LucideIcon => {
-  if (!iconName) return Tag;
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  const pascalCase = iconName
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  return icons[pascalCase] || Tag;
-};
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -63,7 +42,7 @@ function SubscriptionCard({
   getCategoryStyle,
 }: SubscriptionCardProps) {
   const { color, icon, name: catName } = getCategoryStyle(subscription.category_id);
-  const IconComponent = getIconComponent(icon);
+  const IconComponent = getIcon(icon);
 
   if (viewMode === "grid") {
     return (
@@ -449,13 +428,6 @@ export function SubscriptionsPage() {
   }, [subscriptions, filters, sort]);
 
   const clearFilters = () => setFilters({});
-
-  const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  };
 
   const renderSubscriptions = () => {
     if (viewMode === "grid") {

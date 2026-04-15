@@ -3,6 +3,7 @@ import { CreditCard, Receipt, Calendar, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubscriptionsStore } from "@/stores/subscriptionsStore";
 import { useAuthStore } from "@/stores/authStore";
+import { formatCurrency } from "@/lib/format";
 
 export function DashboardPage() {
   const { user } = useAuthStore();
@@ -42,11 +43,7 @@ export function DashboardPage() {
     };
   }, [subscriptions]);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: user?.currency || "EUR",
-    }).format(amount);
+  const fc = (amount: number) => formatCurrency(amount, user?.currency || "EUR");
 
   const getNextBillingDays = (date: string | null) => {
     if (!date) return null;
@@ -69,7 +66,7 @@ export function DashboardPage() {
         </div>
       </div>
       <div className="text-right">
-        <p className="text-sm font-medium">{formatCurrency(parseFloat(sub.amount.toString()))}</p>
+        <p className="text-sm font-medium">{fc(parseFloat(sub.amount.toString()))}</p>
         <p className="text-xs text-muted-foreground">{getNextBillingDays(sub.next_billing_date)}</p>
       </div>
     </div>
@@ -89,7 +86,7 @@ export function DashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.monthlyTotal)}</div>
+            <div className="text-2xl font-bold">{fc(stats.monthlyTotal)}</div>
             <p className="text-xs text-muted-foreground">{stats.totalActive} active subscriptions</p>
           </CardContent>
         </Card>
@@ -99,7 +96,7 @@ export function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.yearlyTotal)}</div>
+            <div className="text-2xl font-bold">{fc(stats.yearlyTotal)}</div>
             <p className="text-xs text-muted-foreground">Projected annual spending</p>
           </CardContent>
         </Card>
@@ -183,7 +180,7 @@ export function DashboardPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-medium">{formatCurrency(parseFloat(sub.amount.toString()))}</p>
+                          <p className="text-sm font-medium">{fc(parseFloat(sub.amount.toString()))}</p>
                           <p className={`text-xs ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
                             {getNextBillingDays(sub.next_billing_date)}
                           </p>

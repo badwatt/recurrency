@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface Notification {
   id: string;
@@ -14,12 +14,6 @@ export interface Notification {
 export interface NotificationResponse {
   notifications: Notification[];
   unread_count: number;
-}
-
-async function getAuthParams() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
 }
 
 export const notificationsApi = {

@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface Transaction {
   id: string;
@@ -35,40 +35,34 @@ export interface UpdateTransactionRequest {
   logo_url?: string;
 }
 
-async function getAuthHeaders() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
-}
-
 export const transactionsApi = {
   async list(): Promise<Transaction[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Transaction[]>(`/api/transactions?token=${encodeURIComponent(token)}`);
   },
 
   async get(id: string): Promise<Transaction> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Transaction>(`/api/transactions/${id}?token=${encodeURIComponent(token)}`);
   },
 
   async create(data: CreateTransactionRequest): Promise<Transaction> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.post<Transaction>(`/api/transactions?token=${encodeURIComponent(token)}`, data);
   },
 
   async update(id: string, data: UpdateTransactionRequest): Promise<Transaction> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.put<Transaction>(`/api/transactions/${id}?token=${encodeURIComponent(token)}`, data);
   },
 
   async delete(id: string): Promise<void> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.delete(`/api/transactions/${id}?token=${encodeURIComponent(token)}`);
   },
 
   async getByDateRange(fromDate: string, toDate: string): Promise<Transaction[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Transaction[]>(
       `/api/transactions/date-range?token=${encodeURIComponent(token)}&from_date=${fromDate}&to_date=${toDate}`
     );

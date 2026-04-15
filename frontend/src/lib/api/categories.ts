@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 
 export interface Category {
   id: string;
@@ -11,11 +11,6 @@ export interface Category {
   is_default: boolean;
   created_at: string;
   updated_at: string;
-}
-
-export interface CategoryWithCounts extends Category {
-  subscription_count: number;
-  transaction_count: number;
 }
 
 export interface CreateCategoryRequest {
@@ -30,45 +25,34 @@ export interface UpdateCategoryRequest {
   color?: string | null;
 }
 
-async function getAuthHeaders() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
-}
-
 export const categoriesApi = {
   async list(): Promise<Category[]> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Category[]>(`/api/categories?token=${encodeURIComponent(token)}`);
   },
 
-  async listWithCounts(): Promise<CategoryWithCounts[]> {
-    const { token } = await getAuthHeaders();
-    return apiClient.get<CategoryWithCounts[]>(`/api/categories/with-counts?token=${encodeURIComponent(token)}`);
-  },
-
   async get(id: string): Promise<Category> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.get<Category>(`/api/categories/${id}?token=${encodeURIComponent(token)}`);
   },
 
   async create(data: CreateCategoryRequest): Promise<Category> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.post<Category>(`/api/categories?token=${encodeURIComponent(token)}`, data);
   },
 
   async update(id: string, data: UpdateCategoryRequest): Promise<Category> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.put<Category>(`/api/categories/${id}?token=${encodeURIComponent(token)}`, data);
   },
 
   async delete(id: string): Promise<void> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.delete(`/api/categories/${id}?token=${encodeURIComponent(token)}`);
   },
 
   async setDefault(id: string): Promise<Category> {
-    const { token } = await getAuthHeaders();
+    const { token } = await getAuthParams();
     return apiClient.put<Category>(`/api/categories/default?token=${encodeURIComponent(token)}`, { id });
   },
 };

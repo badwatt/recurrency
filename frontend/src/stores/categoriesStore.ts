@@ -107,5 +107,3 @@ export const useCategoriesStore = create<CategoriesState>((set) => ({
     }
   },
 }));
-
-export { Category, CreateCategoryRequest, UpdateCategoryRequest };

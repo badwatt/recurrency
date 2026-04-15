@@ -34,14 +34,7 @@ const frequencies = [
   { value: "yearly", label: "Yearly" },
 ];
 
-const currencies = [
-  { value: "USD", label: "USD ($)" },
-  { value: "EUR", label: "EUR (€)" },
-  { value: "GBP", label: "GBP (£)" },
-  { value: "JPY", label: "JPY (¥)" },
-  { value: "CAD", label: "CAD ($)" },
-  { value: "AUD", label: "AUD ($)" },
-];
+import { CURRENCIES } from "@/lib/constants";
 
 const subscriptionSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -249,7 +242,7 @@ export function SubscriptionDialog({
                   <SelectValue placeholder="Select currency" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currencies.map((c) => (
+                  {CURRENCIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
                       {c.label}
                     </SelectItem>

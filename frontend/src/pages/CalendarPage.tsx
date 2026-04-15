@@ -8,6 +8,7 @@ import { SubscriptionDialog } from "@/components/subscription-dialog";
 import { DaySubscriptionsModal } from "@/components/day-subscriptions-modal";
 import { subscriptionsApi, type Subscription } from "@/lib/api/subscriptions";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/format";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -76,8 +77,7 @@ export function CalendarPage() {
     return calendarItems.filter(item => item.date === dateStr);
   };
 
-  const formatCurrency = (amount: string, currency: string) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency }).format(parseFloat(amount));
+
 
   const today = new Date();
   const isToday = (day: number) =>
@@ -275,9 +275,9 @@ export function CalendarPage() {
                         <div className="space-y-1">
                           {dayItems.slice(0, 3).map((item, itemIndex) => (
                             <div key={itemIndex} className="flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs" title={`${item.name} - ${formatCurrency(item.amount, item.currency)}`}>
-                              {(item as {logo_url?: string}).logo_url ? (
+                              {item.logo_url ? (
                                 <img
-                                  src={(item as {logo_url?: string}).logo_url}
+                                  src={item.logo_url}
                                   alt={item.name}
                                   className="h-3 w-3 flex-shrink-0 object-contain rounded"
                                   onError={(e) => {

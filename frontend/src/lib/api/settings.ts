@@ -1,16 +1,10 @@
 import { apiClient } from "./client";
-import { auth } from "@/lib/auth";
+import { getAuthParams } from "./auth-helpers";
 import type { User } from "./auth";
 
 export interface UpdateSettingsRequest {
   name?: string;
   currency?: string;
-}
-
-async function getAuthParams() {
-  const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");
-  return { token };
 }
 
 export const settingsApi = {
