@@ -53,7 +53,7 @@ cmd_dx() {
   echo -e "${CYAN}Starting Dioxus frontend...${NC}"
   cd "$PROJECT_ROOT/frontend"
   export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
-  dx serve --platform web --port 1420
+  nix-shell -p openssl pkg-config llvmPackages_19.lld --run "dx serve --platform web --port 1420"
 }
 
 cmd_all() {
@@ -83,7 +83,7 @@ cmd_test() {
   echo ""
   echo -e "${CYAN}Running Dioxus frontend tests...${NC}"
   cd "$PROJECT_ROOT/frontend"
-  nix-shell -p openssl pkg-config --run "cargo test 2>&1" || cargo test 2>&1 || true
+  nix-shell -p openssl pkg-config llvmPackages_19.lld --run "cargo test 2>&1" || cargo test 2>&1 || true
 }
 
 cmd_help() {
