@@ -11,12 +11,7 @@ use crate::shared::error::AppResult;
 use crate::categories::models::{CreateCategoryRequest, CategoryResponse, UpdateCategoryRequest, SetDefaultRequest};
 use crate::categories::service::{CategoryService, CategoryWithCounts};
 
-#[derive(serde::Deserialize)]
-pub struct AuthQuery {
-    pub token: String,
-}
-
-pub async fn create(
+use crate::shared::AuthQuery;pub async fn create(
     State(pool): State<PgPool>,
     Query(auth): Query<AuthQuery>,
     Json(req): Json<CreateCategoryRequest>,

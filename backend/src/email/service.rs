@@ -83,7 +83,7 @@ pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()
         .to(to)
         .subject(&subject)
         .header(lettre::message::header::ContentType::TEXT_HTML)
-        .body(html.clone())
+        .body(html)
         .map_err(|e| AppError::Internal(format!("Failed to build email: {}", e)))?;
 
     let creds = lettre::transport::smtp::authentication::Credentials::new(

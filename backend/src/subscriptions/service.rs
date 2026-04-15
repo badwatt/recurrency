@@ -4,6 +4,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::shared::date_utils::days_in_month;
 use crate::shared::error::{AppError, AppResult};
 use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
@@ -267,19 +268,4 @@ fn add_months(date: NaiveDate, months: i32) -> NaiveDate {
 
     NaiveDate::from_ymd_opt(new_year, new_month as u32, new_day)
         .unwrap_or(date + chrono::Duration::days(30))
-}
-
-fn days_in_month(year: i32, month: u32) -> u32 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => {
-            if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
-                29
-            } else {
-                28
-            }
-        }
-        _ => 30,
-    }
 }

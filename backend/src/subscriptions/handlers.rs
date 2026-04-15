@@ -14,11 +14,7 @@ use crate::subscriptions::models::{
 };
 use crate::subscriptions::service::{SubscriptionService, CalendarItem};
 
-#[derive(serde::Deserialize)]
-pub struct AuthQuery {
-    pub token: String,
-}
-
+use crate::shared::AuthQuery;
 #[derive(serde::Deserialize)]
 pub struct CalendarQuery {
     pub token: String,

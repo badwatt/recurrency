@@ -3,6 +3,8 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::shared::date_utils::days_in_month;
+
 pub struct DemoService;
 
 impl DemoService {
@@ -90,13 +92,13 @@ impl DemoService {
                 } else {
                     (this_year, this_month as i32 - months_ago)
                 };
-                let sd = day.min(days_in(sy, sm as u32));
+                let sd = day.min(days_in_month(sy, sm as u32));
                 chrono::NaiveDate::from_ymd_opt(sy, sm as u32, sd).unwrap_or(today)
             };
             let next_date = chrono::NaiveDate::from_ymd_opt(
                 if day <= today_day { next_year } else { this_year },
                 if day <= today_day { next_month } else { this_month },
-                day.min(days_in(
+                day.min(days_in_month(
                     if day <= today_day { next_year } else { this_year },
                     if day <= today_day { next_month } else { this_month },
                 ))
@@ -146,11 +148,3 @@ impl DemoService {
     }
 }
 
-fn days_in(year: i32, month: u32) -> u32 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) { 29 } else { 28 },
-        _ => 30,
-    }
-}

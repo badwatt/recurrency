@@ -1,6 +1,5 @@
 use std::env;
 
-use argon2::{password_hash::{rand_core::OsRng, PasswordHasher, SaltString}, Argon2};
 use axum::{
     extract::{Query, State},
     Json,
@@ -11,6 +10,7 @@ use uuid::Uuid;
 use crate::auth::service::AuthService;
 use crate::demo::service::DemoService;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::password_utils::hash_password;
 
 /// Check if demo mode is enabled via environment variable.
 fn is_demo_enabled() -> bool {
@@ -44,16 +44,7 @@ fn demo_password_hash(password: &str) -> Result<String, AppError> {
     }
 
     // Generate hash from the given password
-    argon2_hash(password)
-}
-
-fn argon2_hash(password: &str) -> Result<String, AppError> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map(|hash| hash.to_string())
-        .map_err(|e| AppError::Internal(format!("Failed to hash password: {}", e)))
+    hash_password(password)
 }
 
 /// Get demo status for frontend.

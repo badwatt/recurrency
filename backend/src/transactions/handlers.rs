@@ -11,12 +11,7 @@ use crate::shared::error::AppResult;
 use crate::transactions::models::{CreateTransactionRequest, TransactionResponse, UpdateTransactionRequest};
 use crate::transactions::service::TransactionService;
 
-#[derive(serde::Deserialize)]
-pub struct AuthQuery {
-    pub token: String,
-}
-
-#[derive(serde::Deserialize)]
+use crate::shared::AuthQuery;#[derive(serde::Deserialize)]
 pub struct DateRangeQuery {
     pub token: String,
     pub from_date: Option<String>,

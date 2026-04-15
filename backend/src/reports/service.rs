@@ -4,6 +4,7 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use chrono::Datelike;
 
+use crate::shared::date_utils::days_in_month;
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
 
 pub struct ReportService;
@@ -235,15 +236,4 @@ fn subtract_months_from_date(date: chrono::NaiveDate, months: i32) -> chrono::Na
     let max_day = days_in_month(new_year, new_month);
     let new_day = day.min(max_day);
     chrono::NaiveDate::from_ymd_opt(new_year, new_month, new_day).unwrap_or(date)
-}
-
-fn days_in_month(year: i32, month: u32) -> u32 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => {
-            if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) { 29 } else { 28 }
-        }
-        _ => 30,
-    }
 }

@@ -1,9 +1,10 @@
+use std::sync::OnceLock;
+
 use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User, UserResponse};
 use crate::shared::error::{AppError, AppResult};
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
+use argon2::password_hash::{PasswordHash, PasswordVerifier};
+use argon2::Argon2;
+use crate::shared::password_utils::hash_password;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header};
 use sqlx::PgPool;
@@ -12,7 +13,15 @@ use uuid::Uuid;
 use crate::email::{is_configured, send_verification_email};
 use crate::categories::service::CategoryService;
 
-const JWT_SECRET: &[u8] = b"super_secret_jwt_key_change_in_production";
+static JWT_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
+
+fn get_jwt_secret() -> &'static [u8] {
+    JWT_SECRET.get_or_init(|| {
+        std::env::var("JWT_SECRET")
+            .unwrap_or_else(|_| "super_secret_jwt_key_change_in_production".to_string())
+            .into_bytes()
+    }).as_slice()
+}
 
 fn generate_code() -> String {
     format!("{:06}", rand::random::<u32>() % 1_000_000)
@@ -106,7 +115,7 @@ impl AuthService {
     pub async fn verify_token(token: &str) -> AppResult<Claims> {
         let token_data = decode::<Claims>(
             token,
-            &DecodingKey::from_secret(JWT_SECRET),
+            &DecodingKey::from_secret(get_jwt_secret()),
             &jsonwebtoken::Validation::default(),
         )?;
         Ok(token_data.claims)
@@ -202,16 +211,6 @@ impl AuthService {
     }
 }
 
-fn hash_password(password: &str) -> AppResult<String> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .to_string();
-    Ok(password_hash)
-}
-
 fn verify_password(password: &str, hash: &str) -> AppResult<()> {
     let parsed_hash = PasswordHash::new(hash)
         .map_err(|e| AppError::Internal(format!("Failed to parse hash: {}", e)))?;
@@ -237,7 +236,7 @@ fn generate_token(user: &User) -> AppResult<String> {
     let token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(JWT_SECRET),
+        &EncodingKey::from_secret(get_jwt_secret()),
     )?;
 
     Ok(token)
