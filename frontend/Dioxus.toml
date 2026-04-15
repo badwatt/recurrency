@@ -2,12 +2,13 @@
 name = "Recurrency"
 out_dir = "dist"
 asset_dir = "assets"
+public_dir = "public"
 
 [web.app]
 title = "Recurrency"
 
 [web.watcher]
-watch_path = ["src", "assets"]
+watch_path = ["src", "assets", "public"]
 
 [bundle]
 identifier = "com.alvaro17f.recurrency"

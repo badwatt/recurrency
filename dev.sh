@@ -55,8 +55,8 @@ cmd_dx() {
   cd "$PROJECT_ROOT/frontend"
   export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
   # Build CSS first, then watch alongside dx serve
-  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify 2>/dev/null || true
-  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --watch &
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify 2>/dev/null && cp assets/tailwind.css public/tailwind.css || true
+  npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --watch &
   TW_PID=$!
   trap "kill $TW_PID 2>/dev/null" EXIT
   nix-shell -p openssl pkg-config llvmPackages_19.lld --run "dx serve --platform web --port 1420"
@@ -69,8 +69,8 @@ cmd_all() {
   echo -e "${GREEN}Starting backend and frontend in parallel...${NC}"
   echo -e "${RED}Press Ctrl+C to stop.${NC}"
   cd "$PROJECT_ROOT/frontend"
-  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify 2>/dev/null || true
-  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --watch &
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify 2>/dev/null && cp assets/tailwind.css public/tailwind.css || true
+  npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --watch &
   TW_PID=$!
   cmd_backend &
   BACKEND_PID=$!
@@ -114,6 +114,7 @@ Commands:
   all       Start db + backend + frontend
   stop      Stop all services
   test      Run all tests
+  css       Build Tailwind CSS once
   help      Show this help
 
 Environment:
@@ -131,6 +132,7 @@ cmd_css() {
   echo -e "${CYAN}Building Tailwind CSS...${NC}"
   cd "$PROJECT_ROOT/frontend"
   npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
+  cp assets/tailwind.css public/tailwind.css
   echo -e "${GREEN}CSS built.${NC}"
 }
 
@@ -149,4 +151,3 @@ help) cmd_help ;;
   exit 1
   ;;
 esac
-
