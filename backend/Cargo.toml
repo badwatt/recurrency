@@ -52,6 +52,9 @@ lettre = { version = "0.11.21", default-features = false, features = ["tokio1-na
 reqwest = { version = "0.13", features = ["json"] }
 
 
+# URL-encoded parsing (for OptionalQuery extractor)
+serde_urlencoded = "0.7"
+
 # Random (for demo credentials)
 rand = "0.10.1"
 

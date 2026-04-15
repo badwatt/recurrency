@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::State,
     http::HeaderMap,
     Json,
 };
@@ -11,6 +11,7 @@ use crate::reports::models::ReportResponse;
 use crate::reports::service::ReportService;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
+use crate::shared::OptionalQuery;
 
 #[derive(serde::Deserialize)]
 pub struct ReportQuery {
@@ -21,14 +22,14 @@ pub struct ReportQuery {
 
 pub async fn get_report(
     State(pool): State<PgPool>,
-    Query(query): Query<ReportQuery>,
+    OptionalQuery(query): OptionalQuery<ReportQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<ReportResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.token.as_ref(), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
     let today = chrono::Utc::now().date_naive();
-    let year = query.year.unwrap_or(today.year());
-    let month = query.month.unwrap_or(today.month());
+    let year = query.as_ref().and_then(|q| q.year).unwrap_or(today.year());
+    let month = query.as_ref().and_then(|q| q.month).unwrap_or(today.month());
 
     let report = ReportService::get_full_report(&pool, claims.sub, year, month).await;
 

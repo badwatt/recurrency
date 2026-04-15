@@ -9,6 +9,7 @@ use crate::auth::models::{AuthResponse, CreateUserRequest, LoginRequest, UpdateS
 use crate::auth::service::AuthService;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
+use crate::shared::OptionalQuery;
 
 pub async fn register(
     State(pool): State<PgPool>,
@@ -49,10 +50,10 @@ pub struct SettingsQuery {
 
 pub async fn get_settings(
     State(pool): State<PgPool>,
-    Query(query): Query<SettingsQuery>,
+    OptionalQuery(query): OptionalQuery<SettingsQuery>,
     headers: axum::http::HeaderMap,
 ) -> AppResult<Json<UserResponse>> {
-    let token = extract_token_from_request(query.token.as_ref(), &headers)?;
+    let token = extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
     let claims = AuthService::verify_token(&token).await?;
     let user = AuthService::get_user_by_id(&pool, claims.sub).await?;
     Ok(Json(user.into()))
@@ -60,11 +61,11 @@ pub async fn get_settings(
 
 pub async fn update_settings(
     State(pool): State<PgPool>,
-    Query(query): Query<SettingsQuery>,
+    OptionalQuery(query): OptionalQuery<SettingsQuery>,
     headers: axum::http::HeaderMap,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> AppResult<Json<UserResponse>> {
-    let token = extract_token_from_request(query.token.as_ref(), &headers)?;
+    let token = extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
     let claims = AuthService::verify_token(&token).await?;
     let user = AuthService::update_settings(&pool, claims.sub, req).await?;
     Ok(Json(user.into()))

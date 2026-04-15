@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::State,
     http::HeaderMap,
     Json,
 };
@@ -10,6 +10,7 @@ use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::preferences::service::PreferencesService;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
+use crate::shared::OptionalQuery;
 
 #[derive(serde::Deserialize)]
 pub struct PreferencesQuery {
@@ -18,21 +19,21 @@ pub struct PreferencesQuery {
 
 pub async fn get_preferences(
     State(pool): State<PgPool>,
-    Query(query): Query<PreferencesQuery>,
+    OptionalQuery(query): OptionalQuery<PreferencesQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<PreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.token.as_ref(), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
     let preferences = PreferencesService::get_preferences(&pool, claims.sub).await?;
     Ok(Json(preferences))
 }
 
 pub async fn update_preferences(
     State(pool): State<PgPool>,
-    Query(query): Query<PreferencesQuery>,
+    OptionalQuery(query): OptionalQuery<PreferencesQuery>,
     headers: HeaderMap,
     Json(req): Json<UpdatePreferencesRequest>,
 ) -> AppResult<Json<PreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.token.as_ref(), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
     let preferences = PreferencesService::update_preferences(&pool, claims.sub, req).await?;
     Ok(Json(preferences))
 }
