@@ -1,0 +1,24 @@
+[package]
+name = "recurrency-ui"
+version = "0.1.0"
+edition = "2021"
+description = "Recurrency - Subscription tracker (Dioxus frontend)"
+
+[dependencies]
+dioxus = { version = "0.7", features = ["fullstack", "router"] }
+web-sys = { version = "0.3", optional = true, features = ["Window", "Document", "Element", "MediaQueryList", "MediaQueryListEvent", "Storage"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1", features = ["serde"] }
+rust_decimal_macros = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+reqwest = { version = "0.12", features = ["json"] }
+log = "0.4"
+
+[features]
+default = ["web"]
+web = ["dioxus/web", "web-sys"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]
+server = ["dioxus/server"]

@@ -1,0 +1,17 @@
+[application]
+name = "Recurrency"
+asset_dir = "assets"
+
+[web.app]
+title = "Recurrency"
+index = "assets/index.html"
+
+[web.watcher]
+watch_path = ["src", "assets"]
+
+[web.resource]
+style = ["assets/tailwind.css"]
+
+[bundle]
+identifier = "com.alvaro17f.recurrency"
+icon = ["assets/icon.png"]
