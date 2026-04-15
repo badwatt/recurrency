@@ -1,6 +1,9 @@
 use dioxus::prelude::*;
 use crate::models::auth::UserResponse;
 
+const TOKEN_KEY: &str = "recurrency-auth-token";
+const USER_KEY: &str = "recurrency-auth-user";
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AuthState {
     pub user: Option<UserResponse>,
@@ -31,6 +34,7 @@ impl AuthState {
         self.is_authenticated = !requires_verification;
         self.is_loading = false;
         self.initialized = true;
+        self.persist_to_storage();
     }
 
     /// Mark user as verified after email verification.
@@ -39,14 +43,76 @@ impl AuthState {
         if let Some(ref mut user) = self.user {
             user.verified = true;
         }
+        self.persist_to_storage();
     }
 
     /// Clear all auth state on logout.
     pub fn logout(&mut self) {
+        Self::clear_storage();
         self.user = None;
         self.is_authenticated = false;
         self.is_loading = false;
         self.token = None;
+    }
+
+    /// Persist token + user to localStorage.
+    pub fn persist_to_storage(&self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let (Some(token), Some(user)) = (&self.token, &self.user) {
+                if let Some(storage) = web_sys::window()
+                    .and_then(|w| w.local_storage().ok())
+                    .flatten()
+                {
+                    let _ = storage.set_item(TOKEN_KEY, token);
+                    if let Ok(user_json) = serde_json::to_string(user) {
+                        let _ = storage.set_item(USER_KEY, &user_json);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Remove auth keys from localStorage.
+    fn clear_storage() {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+            {
+                let _ = storage.remove_item(TOKEN_KEY);
+                let _ = storage.remove_item(USER_KEY);
+            }
+        }
+    }
+
+    /// Restore token + user from localStorage. Returns true if restored.
+    pub fn hydrate_from_storage(&mut self) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+            {
+                let token = storage.get_item(TOKEN_KEY).ok().flatten();
+                let user_json = storage.get_item(USER_KEY).ok().flatten();
+                if let (Some(token), Some(user_json)) = (token, user_json) {
+                    if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json) {
+                        self.token = Some(token);
+                        self.user = Some(user);
+                        self.is_authenticated = true;
+                        self.initialized = true;
+                        return true;
+                    }
+                }
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // No localStorage available outside wasm32 — nothing to hydrate
+        }
+        false
     }
 }
 

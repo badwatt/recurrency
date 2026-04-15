@@ -16,7 +16,7 @@ pub fn LoginPage() -> Element {
     // Check demo status on mount
     use_future(move || async move {
         match demo::get_status().await {
-            Ok(_status) => demo_enabled.set(true),
+            Ok(status) => demo_enabled.set(status.enabled),
             Err(_) => demo_enabled.set(false),
         }
     });
@@ -45,17 +45,27 @@ pub fn LoginPage() -> Element {
     let handle_demo = move |_evt: MouseEvent| async move {
         error.set(String::new());
         demo_loading.set(true);
-        // init → login → reset
+        // init → login with credentials → set_authenticated → reset (fire-and-forget)
         match demo::init().await {
             Ok(init_resp) => {
-                AUTH.write().set_authenticated(
-                    init_resp.token.clone(),
-                    init_resp.user.clone(),
-                    init_resp.requires_verification,
-                );
-                let _ = demo::reset().await;
-                let nav = navigator();
-                nav.push(Route::Dashboard {});
+                match auth::login(init_resp.email, init_resp.password).await {
+                    Ok(auth_resp) => {
+                        AUTH.write().set_authenticated(
+                            auth_resp.token,
+                            auth_resp.user,
+                            auth_resp.requires_verification,
+                        );
+                        // Fire-and-forget reset
+                        spawn(async move {
+                            let _ = demo::reset().await;
+                        });
+                        let nav = navigator();
+                        nav.push(Route::Dashboard {});
+                    }
+                    Err(e) => {
+                        error.set(e.to_string());
+                    }
+                }
             }
             Err(e) => {
                 error.set(e.to_string());

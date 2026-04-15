@@ -12,6 +12,22 @@ use crate::state::preferences::PREFERENCES;
 
 #[component]
 pub fn AppLayout() -> Element {
+    let auth = AUTH();
+
+    // Wait for initialization before deciding
+    if !auth.initialized {
+        return rsx! {
+            div { class: "flex min-h-dvh items-center justify-center", "Loading..." }
+        };
+    }
+
+    // Route guard: redirect to login if not authenticated
+    if !auth.is_authenticated {
+        let nav = navigator();
+        nav.push(crate::Route::Login {});
+        return rsx! { div {} };
+    }
+
     let mut sidebar_open = use_swipe_sidebar();
     let current_route: crate::Route = use_route();
 

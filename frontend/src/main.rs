@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use crate::state::auth::AUTH;
 
 mod api;
 mod auth;
@@ -51,6 +52,13 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    // Hydrate auth state from localStorage on mount
+    use_future(move || async move {
+        if !AUTH().initialized {
+            AUTH.write().hydrate_from_storage();
+        }
+    });
+
     rsx! {
         dioxus::document::Stylesheet { href: "/tailwind.css" }
         Router::<Route> {}
