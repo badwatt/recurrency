@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useSwipeSidebar } from "@/hooks/useSwipeSidebar";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -33,18 +34,25 @@ export function AppLayout() {
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const closeSidebar = () => setSidebarOpen(false);
+  const openSidebar = () => setSidebarOpen(true);
+
+  useSwipeSidebar({
+    onOpen: openSidebar,
+    onClose: closeSidebar,
+    isOpen: sidebarOpen,
+  });
+
   const handleLogout = async () => {
     await logout();
   };
-
-  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <div className="flex h-dvh">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={closeSidebar}
         />
       )}
@@ -57,7 +65,7 @@ export function AppLayout() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Logo - respect status bar on mobile */}
+        {/* Logo */}
         <div className="flex min-h-14 items-center justify-between border-b px-4">
           <h1 className="text-xl font-bold tracking-tight">Recurrency</h1>
           <Button
@@ -95,7 +103,7 @@ export function AppLayout() {
 
         <Separator />
 
-        {/* User section - respect nav bar on mobile */}
+        {/* User section */}
         <div className="p-4">
           <div className="flex items-center gap-3">
             <div className="flex flex-1 flex-col min-w-0">
@@ -117,12 +125,12 @@ export function AppLayout() {
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile header - respect status bar */}
-        <header className="flex min-h-14 items-center justify-between border-b bg-card px-4 lg:hidden">
+        {/* Mobile header - translucent with blur */}
+        <header className="flex min-h-14 items-center justify-between bg-card/80 backdrop-blur-md border-b border-border/50 px-4 lg:hidden sticky top-0 z-30">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setSidebarOpen(true)}
+            onClick={openSidebar}
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -132,12 +140,12 @@ export function AppLayout() {
           </div>
         </header>
 
-        {/* Desktop header */}
-        <header className="hidden lg:flex h-14 items-center justify-end gap-2 border-b bg-card px-6">
+        {/* Desktop header - translucent with blur */}
+        <header className="hidden lg:flex h-14 items-center justify-end gap-2 bg-card/80 backdrop-blur-md border-b border-border/50 px-6">
           <NotificationBell />
         </header>
 
-        {/* Main content - respect nav bar at bottom */}
+        {/* Main content */}
         <main className="flex-1 overflow-auto overflow-x-hidden bg-background">
           <Outlet />
         </main>
