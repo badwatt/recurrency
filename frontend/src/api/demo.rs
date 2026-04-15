@@ -24,7 +24,7 @@ pub async fn get_status() -> Result<DemoStatus, ApiError> {
 }
 
 pub async fn init() -> Result<DemoInitResponse, ApiError> {
-    api_post("/api/demo/init", &serde_json::json!({})).await
+    api_get("/api/demo/init").await
 }
 
 pub async fn reset() -> Result<DemoResetResponse, ApiError> {
