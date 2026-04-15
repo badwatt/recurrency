@@ -2,6 +2,7 @@ use std::env;
 
 use axum::{
     extract::{Query, State},
+    http::HeaderMap,
     Json,
 };
 use sqlx::PgPool;
@@ -9,6 +10,7 @@ use uuid::Uuid;
 
 use crate::auth::service::AuthService;
 use crate::demo::service::DemoService;
+use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
 
@@ -93,18 +95,19 @@ pub async fn init(State(pool): State<PgPool>) -> AppResult<Json<serde_json::Valu
 
 #[derive(serde::Deserialize)]
 pub struct DemoQuery {
-    pub token: String,
+    pub token: Option<String>,
 }
 
 pub async fn reset(
     State(pool): State<PgPool>,
     Query(query): Query<DemoQuery>,
+    headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
     if !is_demo_enabled() {
         return Err(AppError::BadRequest("Demo mode is not enabled".to_string()));
     }
 
-    let claims = AuthService::verify_token(&query.token).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(query.token.as_ref(), &headers)?).await?;
 
     match DemoService::reset_demo_data(&pool, claims.sub).await {
         Ok(()) => Ok(Json(serde_json::json!({

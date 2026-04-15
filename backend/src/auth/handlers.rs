@@ -7,6 +7,7 @@ use validator::Validate;
 
 use crate::auth::models::{AuthResponse, CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse};
 use crate::auth::service::AuthService;
+use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
 
 pub async fn register(
@@ -46,35 +47,12 @@ pub struct SettingsQuery {
     pub token: Option<String>,
 }
 
-/// Extract auth token from either query param or Authorization header.
-fn extract_token(query: &SettingsQuery, headers: &axum::http::HeaderMap) -> Result<String, axum::http::StatusCode> {
-    // Query param takes priority
-    if let Some(ref token) = query.token {
-        if !token.is_empty() {
-            return Ok(token.clone());
-        }
-    }
-
-    // Fallback to Authorization: Bearer <token>
-    if let Some(auth_header) = headers.get("authorization") {
-        if let Ok(auth_str) = auth_header.to_str() {
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                if !token.is_empty() {
-                    return Ok(token.to_string());
-                }
-            }
-        }
-    }
-
-    Err(axum::http::StatusCode::UNAUTHORIZED)
-}
-
 pub async fn get_settings(
     State(pool): State<PgPool>,
     Query(query): Query<SettingsQuery>,
     headers: axum::http::HeaderMap,
 ) -> AppResult<Json<UserResponse>> {
-    let token = extract_token(&query, &headers).map_err(|_| crate::shared::error::AppError::Unauthorized("Missing token".into()))?;
+    let token = extract_token_from_request(query.token.as_ref(), &headers)?;
     let claims = AuthService::verify_token(&token).await?;
     let user = AuthService::get_user_by_id(&pool, claims.sub).await?;
     Ok(Json(user.into()))
@@ -86,7 +64,7 @@ pub async fn update_settings(
     headers: axum::http::HeaderMap,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> AppResult<Json<UserResponse>> {
-    let token = extract_token(&query, &headers).map_err(|_| crate::shared::error::AppError::Unauthorized("Missing token".into()))?;
+    let token = extract_token_from_request(query.token.as_ref(), &headers)?;
     let claims = AuthService::verify_token(&token).await?;
     let user = AuthService::update_settings(&pool, claims.sub, req).await?;
     Ok(Json(user.into()))
