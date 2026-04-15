@@ -84,7 +84,7 @@ fn Setup() -> Element {
 
 #[component]
 fn Dashboard() -> Element {
-    rsx! { div { "Dashboard page" } }
+    rsx! { crate::pages::Dashboard {} }
 }
 
 #[component]

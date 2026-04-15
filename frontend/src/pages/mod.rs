@@ -7,6 +7,7 @@ pub mod reports_page;
 pub mod settings_page;
 pub mod setup;
 
+pub use dashboard::Dashboard;
 pub use transactions_page::TransactionsPage;
 pub use categories_page::CategoriesPage;
 pub use calendar_page::CalendarPage;
