@@ -72,7 +72,6 @@ pub fn AppLayout() -> Element {
                     }
                     div { class: "flex items-center gap-2",
                         NotificationBell {}
-                        ThemeToggleButton {}
                     }
                 }
 
@@ -100,7 +99,6 @@ pub fn AppLayout() -> Element {
                     div { class: "flex-1" }
                     div { class: "flex items-center gap-2",
                         NotificationBell {}
-                        ThemeToggleButton {}
                     }
                 }
 
@@ -140,14 +138,28 @@ fn DesktopSidebar() -> Element {
             }
 
             // Bottom section
-            div { class: "border-t border-border px-3 py-3 space-y-2",
-                div { class: "flex items-center justify-between px-3",
-                    span { class: "text-sm font-medium text-foreground truncate",
-                        {AUTH().user.as_ref().map(|u| u.name.clone().unwrap_or_else(|| u.email.clone())).unwrap_or_default()}
+            div { class: "border-t border-border px-3 py-3",
+                div { class: "flex items-center gap-3",
+                    div { class: "flex-col min-w-0 flex-1",
+                        span { class: "text-sm font-medium text-foreground truncate block",
+                            {AUTH().user.as_ref().map(|u| u.name.clone().unwrap_or_else(|| u.email.clone())).unwrap_or_default()}
+                        }
+                        span { class: "text-xs text-muted-foreground",
+                            {"v".to_string() + env!("CARGO_PKG_VERSION")}
+                        }
                     }
                     ThemeToggleButton {}
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                        title: "Log out",
+                        onclick: move |_| {
+                            AUTH.write().logout();
+                            navigator().push(crate::Route::Login {});
+                        },
+                        SvgIcon { icon: Icon::Logout, size: 18 }
+                    }
                 }
-                LogoutButton {}
             }
         }
     }
@@ -200,14 +212,29 @@ fn MobileSidebar(on_close: EventHandler<()>) -> Element {
             }
 
             // Bottom section
-            div { class: "border-t border-border px-3 py-3 space-y-2",
-                div { class: "flex items-center justify-between px-3",
-                    span { class: "text-sm font-medium text-foreground truncate",
-                        {AUTH().user.as_ref().map(|u| u.name.clone().unwrap_or_else(|| u.email.clone())).unwrap_or_default()}
+            div { class: "border-t border-border px-3 py-3",
+                div { class: "flex items-center gap-3",
+                    div { class: "flex-col min-w-0 flex-1",
+                        span { class: "text-sm font-medium text-foreground truncate block",
+                            {AUTH().user.as_ref().map(|u| u.name.clone().unwrap_or_else(|| u.email.clone())).unwrap_or_default()}
+                        }
+                        span { class: "text-xs text-muted-foreground",
+                            {"v".to_string() + env!("CARGO_PKG_VERSION")}
+                        }
                     }
                     ThemeToggleButton {}
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                        title: "Log out",
+                        onclick: move |_| {
+                            on_close.call(());
+                            AUTH.write().logout();
+                            navigator().push(crate::Route::Login {});
+                        },
+                        SvgIcon { icon: Icon::Logout, size: 18 }
+                    }
                 }
-                MobileLogoutButton { on_close: on_close.clone() }
             }
         }
     }
@@ -252,46 +279,7 @@ fn MobileNavLink(to: crate::Route, label: String, active: bool, icon: Icon, on_c
     }
 }
 
-// ──────────────────────────────────────────────
-// Logout buttons
-// ──────────────────────────────────────────────
 
-#[component]
-fn LogoutButton() -> Element {
-    let nav = navigator();
-
-    rsx! {
-        button {
-            r#type: "button",
-            class: "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full",
-            onclick: move |_| {
-                AUTH.write().logout();
-                nav.push(crate::Route::Login {});
-            },
-            SvgIcon { icon: Icon::Logout, size: 18 }
-            span { "Log out" }
-        }
-    }
-}
-
-#[component]
-fn MobileLogoutButton(on_close: EventHandler<()>) -> Element {
-    let nav = navigator();
-
-    rsx! {
-        button {
-            r#type: "button",
-            class: "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full",
-            onclick: move |_| {
-                on_close.call(());
-                AUTH.write().logout();
-                nav.push(crate::Route::Login {});
-            },
-            SvgIcon { icon: Icon::Logout, size: 18 }
-            span { "Log out" }
-        }
-    }
-}
 
 // ──────────────────────────────────────────────
 // Theme toggle

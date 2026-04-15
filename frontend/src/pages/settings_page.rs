@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
 use crate::state::auth::AUTH;
-use crate::state::preferences::PREFERENCES;
 use crate::api::settings;
 use crate::api::notification_preferences;
 use crate::models::auth::UpdateSettingsRequest;
@@ -28,7 +27,6 @@ pub fn SettingsPage() -> Element {
     let mut saving_name = use_signal(|| false);
     let mut saving_currency = use_signal(|| false);
     let server_url = use_signal(|| crate::api::client::get_base_url());
-    let mut name_error = use_signal(String::new);
 
     // Load notification preferences
     use_future(move || async move {
@@ -52,31 +50,6 @@ pub fn SettingsPage() -> Element {
         }
     });
 
-    let handle_save_name = move |_| {
-        let n = name();
-        if n.len() < 2 {
-            name_error.set("Name must be at least 2 characters".into());
-            return;
-        }
-        name_error.set(String::new());
-        saving_name.set(true);
-        spawn(async move {
-            match settings::update(&UpdateSettingsRequest {
-                name: Some(n),
-                currency: None,
-            }).await {
-                Ok(resp) => {
-                    AUTH.write().user = Some(resp.user);
-                    AUTH.write().persist_to_storage();
-                    saving_name.set(false);
-                }
-                Err(e) => {
-                    log::error!("Failed to save name: {}", e);
-                    saving_name.set(false);
-                }
-            }
-        });
-    };
 
     let mut handle_save_currency = move |new_currency: String| {
         currency.set(new_currency.clone());
@@ -126,12 +99,7 @@ pub fn SettingsPage() -> Element {
 
     let user_email = AUTH().user.as_ref().map(|u| u.email.clone()).unwrap_or_default();
     let cur = currency();
-    let theme_label = match PREFERENCES().theme() {
-        "light" => "Light",
-        "dark" => "Dark",
-        "mocha" => "Mocha",
-        _ => "System",
-    };
+
 
     rsx! {
         div { class: "p-4 md:p-6 space-y-6",
@@ -159,51 +127,37 @@ pub fn SettingsPage() -> Element {
                     // Name
                     div { class: "space-y-2",
                         label { r#for: "settings-name", class: "text-sm font-medium", "Name" }
-                        div { class: "flex gap-2",
-                            input {
-                                id: "settings-name",
-                                r#type: "text",
-                                value: "{name}",
-                                oninput: move |e| { name.set(e.value()); name_error.set(String::new()); },
-                                class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
-                            }
-                            button {
-                                onclick: handle_save_name,
-                                disabled: saving_name(),
-                                class: "h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 shrink-0",
-                                if saving_name() { "Saving..." } else { "Save" }
-                            }
-                        }
-                        if !name_error().is_empty() {
-                            p { class: "text-sm text-destructive", "{name_error}" }
-                        }
-                    }
-                    // Logout
-                    div { class: "pt-4 border-t border-border",
-                        button {
-                            onclick: move |_| {
-                                AUTH.write().logout();
-                                let nav = navigator();
-                                nav.push(crate::Route::Login {});
+                        input {
+                            id: "settings-name",
+                            r#type: "text",
+                            value: "{name}",
+                            oninput: move |e| name.set(e.value()),
+                            onblur: move |_| {
+                                let n = name();
+                                if n.len() >= 2 {
+                                    saving_name.set(true);
+                                    spawn(async move {
+                                        match settings::update(&UpdateSettingsRequest {
+                                            name: Some(n),
+                                            currency: None,
+                                        }).await {
+                                            Ok(resp) => {
+                                                AUTH.write().user = Some(resp.user);
+                                                AUTH.write().persist_to_storage();
+                                                saving_name.set(false);
+                                            }
+                                            Err(e) => {
+                                                log::error!("Failed to save name: {}", e);
+                                                saving_name.set(false);
+                                            }
+                                        }
+                                    });
+                                }
                             },
-                            class: "flex w-full items-center justify-center gap-2 h-10 rounded-md border border-destructive/50 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors",
-                            svg {
-                                xmlns: "http://www.w3.org/2000/svg",
-                                width: "16",
-                                height: "16",
-                                view_box: "0 0 24 24",
-                                fill: "none",
-                                stroke: "currentColor",
-                                stroke_width: "2",
-                                stroke_linecap: "round",
-                                stroke_linejoin: "round",
-                                path { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }
-                                polyline { points: "16 17 21 12 16 7" }
-                                line { x1: "21", y1: "12", x2: "9", y2: "12" }
-                            }
-                            "Log out"
+                            class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
                         }
                     }
+
                 }
             }
 
@@ -225,98 +179,6 @@ pub fn SettingsPage() -> Element {
                             for (val, label) in CURRENCIES {
                                 option { value: "{val}", "{label}" }
                             }
-                        }
-                    }
-                }
-            }
-
-            // Appearance card
-            div { class: "rounded-lg border border-border bg-card",
-                div { class: "p-6 border-b border-border",
-                    h2 { class: "text-lg font-semibold", "Appearance" }
-                    p { class: "text-sm text-muted-foreground", "Customize the look and feel" }
-                }
-                div { class: "p-6 space-y-4",
-                    div { class: "flex items-center justify-between",
-                        div {
-                            p { class: "font-medium", "Theme" }
-                            p { class: "text-sm text-muted-foreground", "{theme_label}" }
-                        }
-                        button {
-                            onclick: move |_| crate::theme::hooks::toggle_theme(),
-                            class: "flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors",
-                            {match PREFERENCES().theme() {
-                                "light" => rsx! {
-                                    svg {
-                                        xmlns: "http://www.w3.org/2000/svg",
-                                        width: "18",
-                                        height: "18",
-                                        view_box: "0 0 24 24",
-                                        fill: "none",
-                                        stroke: "currentColor",
-                                        stroke_width: "2",
-                                        stroke_linecap: "round",
-                                        stroke_linejoin: "round",
-                                        circle { cx: "12", cy: "12", r: "5" }
-                                        line { x1: "12", y1: "1", x2: "12", y2: "3" }
-                                        line { x1: "12", y1: "21", x2: "12", y2: "23" }
-                                        line { x1: "4.22", y1: "4.22", x2: "5.64", y2: "5.64" }
-                                        line { x1: "18.36", y1: "18.36", x2: "19.78", y2: "19.78" }
-                                        line { x1: "1", y1: "12", x2: "3", y2: "12" }
-                                        line { x1: "21", y1: "12", x2: "23", y2: "12" }
-                                        line { x1: "4.22", y1: "19.78", x2: "5.64", y2: "18.36" }
-                                        line { x1: "18.36", y1: "5.64", x2: "19.78", y2: "4.22" }
-                                    }
-                                },
-                                "dark" => rsx! {
-                                    svg {
-                                        xmlns: "http://www.w3.org/2000/svg",
-                                        width: "18",
-                                        height: "18",
-                                        view_box: "0 0 24 24",
-                                        fill: "none",
-                                        stroke: "currentColor",
-                                        stroke_width: "2",
-                                        stroke_linecap: "round",
-                                        stroke_linejoin: "round",
-                                        path { d: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" }
-                                    }
-                                },
-                                "mocha" => rsx! {
-                                    svg {
-                                        xmlns: "http://www.w3.org/2000/svg",
-                                        width: "18",
-                                        height: "18",
-                                        view_box: "0 0 24 24",
-                                        fill: "none",
-                                        stroke: "currentColor",
-                                        stroke_width: "2",
-                                        stroke_linecap: "round",
-                                        stroke_linejoin: "round",
-                                        path { d: "M18 8h1a4 4 0 0 1 0 8h-1" }
-                                        path { d: "M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" }
-                                        line { x1: "6", y1: "1", x2: "6", y2: "4" }
-                                        line { x1: "10", y1: "1", x2: "10", y2: "4" }
-                                        line { x1: "14", y1: "1", x2: "14", y2: "4" }
-                                    }
-                                },
-                                _ => rsx! {
-                                    svg {
-                                        xmlns: "http://www.w3.org/2000/svg",
-                                        width: "18",
-                                        height: "18",
-                                        view_box: "0 0 24 24",
-                                        fill: "none",
-                                        stroke: "currentColor",
-                                        stroke_width: "2",
-                                        stroke_linecap: "round",
-                                        stroke_linejoin: "round",
-                                        rect { x: "2", y: "3", width: "20", height: "14", rx: "2", ry: "2" }
-                                        line { x1: "8", y1: "21", x2: "16", y2: "21" }
-                                        line { x1: "12", y1: "17", x2: "12", y2: "21" }
-                                    }
-                                }
-                            }}
                         }
                     }
                 }
