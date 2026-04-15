@@ -54,7 +54,7 @@ jobs:
         run: cd frontend && npm install
 
       - name: Build Tailwind CSS
-        run: cd frontend && npx tailwindcss -i assets/tailwind.css -o assets/tailwind.css --minify
+        run: cd frontend && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
       - name: Run backend tests
         run: cd backend && cargo test

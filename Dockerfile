@@ -22,7 +22,7 @@ RUN rm -rf src
 COPY frontend/ ./
 
 # Build Tailwind CSS
-RUN npm install --prefix . tailwindcss tailwindcss-animate && npx tailwindcss -i assets/tailwind.css -o assets/tailwind.css --minify || true
+RUN npm install --prefix . tailwindcss tailwindcss-animate && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
 # Build Dioxus web bundle
 RUN dx bundle --platform web --release 2>&1 || true

@@ -7,10 +7,11 @@ set -e
 # Commands:
 #   db        Start PostgreSQL
 #   backend   Start backend (cargo run)
-#   dx        Start Dioxus frontend (dx serve --web)
-#   all       Start db + backend + frontend
+#   dx        Start Dioxus frontend (dx serve --web) + Tailwind watch
+#   all       Start db + backend + frontend + Tailwind watch
 #   stop      Stop all services
 #   test      Run all tests
+#   css       Build Tailwind CSS once
 #   help      Show this help
 
 CYAN='\033[0;36m'
@@ -53,7 +54,13 @@ cmd_dx() {
   echo -e "${CYAN}Starting Dioxus frontend...${NC}"
   cd "$PROJECT_ROOT/frontend"
   export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
+  # Build CSS first, then watch alongside dx serve
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify 2>/dev/null || true
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --watch &
+  TW_PID=$!
+  trap "kill $TW_PID 2>/dev/null" EXIT
   nix-shell -p openssl pkg-config llvmPackages_19.lld --run "dx serve --platform web --port 1420"
+  kill $TW_PID 2>/dev/null
 }
 
 cmd_all() {
@@ -61,12 +68,20 @@ cmd_all() {
   echo ""
   echo -e "${GREEN}Starting backend and frontend in parallel...${NC}"
   echo -e "${RED}Press Ctrl+C to stop.${NC}"
+  cd "$PROJECT_ROOT/frontend"
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify 2>/dev/null || true
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --watch &
+  TW_PID=$!
   cmd_backend &
   BACKEND_PID=$!
   sleep 3
-  cmd_dx &
+  cd "$PROJECT_ROOT/frontend"
+  export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
+  nix-shell -p openssl pkg-config llvmPackages_19.lld --run "dx serve --platform web --port 1420" &
   DX_PID=$!
+  trap "kill $TW_PID $BACKEND_PID $DX_PID 2>/dev/null" EXIT
   wait $BACKEND_PID $DX_PID
+  kill $TW_PID 2>/dev/null
 }
 
 cmd_stop() {
@@ -108,7 +123,15 @@ Examples:
   ./dev.sh db      # Start just the database
   ./dev.sh all     # Start everything
   ./dev.sh test    # Run all tests
+  ./dev.sh css     # Build Tailwind CSS once
 EOF
+}
+
+cmd_css() {
+  echo -e "${CYAN}Building Tailwind CSS...${NC}"
+  cd "$PROJECT_ROOT/frontend"
+  npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
+  echo -e "${GREEN}CSS built.${NC}"
 }
 
 case "${1:-help}" in
@@ -118,6 +141,7 @@ dx) cmd_dx ;;
 all) cmd_all ;;
 stop) cmd_stop ;;
 test) cmd_test ;;
+css) cmd_css ;;
 help) cmd_help ;;
 *)
   echo -e "${RED}Unknown command: $1${NC}"
