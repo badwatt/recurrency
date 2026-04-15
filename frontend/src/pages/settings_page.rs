@@ -67,6 +67,7 @@ pub fn SettingsPage() -> Element {
             }).await {
                 Ok(resp) => {
                     AUTH.write().user = Some(resp.user);
+                    AUTH.write().persist_to_storage();
                     saving_name.set(false);
                 }
                 Err(e) => {
@@ -87,6 +88,7 @@ pub fn SettingsPage() -> Element {
             }).await {
                 Ok(resp) => {
                     AUTH.write().user = Some(resp.user);
+                    AUTH.write().persist_to_storage();
                     saving_currency.set(false);
                 }
                 Err(e) => {

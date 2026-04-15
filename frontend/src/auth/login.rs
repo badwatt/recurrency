@@ -55,10 +55,8 @@ pub fn LoginPage() -> Element {
                             auth_resp.user,
                             auth_resp.requires_verification,
                         );
-                        // Fire-and-forget reset
-                        spawn(async move {
-                            let _ = demo::reset().await;
-                        });
+                        // Await reset so demo data is ready before navigating
+                        let _ = demo::reset().await;
                         let nav = navigator();
                         nav.push(Route::Dashboard {});
                     }
