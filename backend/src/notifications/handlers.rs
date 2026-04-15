@@ -23,7 +23,7 @@ pub async fn list(
     Query(query): Query<NotificationQuery>,
 ) -> AppResult<Json<NotificationResponse>> {
     let claims = AuthService::verify_token(&query.token).await?;
-    let notifications = NotificationService::list(&pool, claims.sub).await;
+    let notifications = NotificationService::list(&pool, claims.sub).await?;
     Ok(Json(notifications))
 }
 
@@ -35,7 +35,7 @@ pub async fn mark_read(
     let claims = AuthService::verify_token(&query.token).await?;
     let notification_id = Uuid::parse_str(&id)
         .map_err(|_| AppError::NotFound("Invalid notification ID".to_string()))?;
-    let success = NotificationService::mark_read(&pool, claims.sub, notification_id).await;
+    let success = NotificationService::mark_read(&pool, claims.sub, notification_id).await?;
     Ok(Json(serde_json::json!({ "success": success })))
 }
 
@@ -44,7 +44,7 @@ pub async fn mark_all_read(
     Query(query): Query<NotificationQuery>,
 ) -> AppResult<Json<serde_json::Value>> {
     let claims = AuthService::verify_token(&query.token).await?;
-    let count = NotificationService::mark_all_read(&pool, claims.sub).await;
+    let count = NotificationService::mark_all_read(&pool, claims.sub).await?;
     Ok(Json(serde_json::json!({ "marked_count": count })))
 }
 
@@ -56,7 +56,7 @@ pub async fn delete(
     let claims = AuthService::verify_token(&query.token).await?;
     let notification_id = Uuid::parse_str(&id)
         .map_err(|_| AppError::NotFound("Invalid notification ID".to_string()))?;
-    let success = NotificationService::delete(&pool, claims.sub, notification_id).await;
+    let success = NotificationService::delete(&pool, claims.sub, notification_id).await?;
     Ok(Json(serde_json::json!({ "success": success })))
 }
 
@@ -66,7 +66,7 @@ pub async fn get_notification_preferences(
     Query(query): Query<NotificationQuery>,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
     let claims = AuthService::verify_token(&query.token).await?;
-    let preferences = NotificationService::get_notification_preferences(&pool, claims.sub).await;
+    let preferences = NotificationService::get_notification_preferences(&pool, claims.sub).await?;
     Ok(Json(NotificationPreferencesResponse { preferences }))
 }
 
@@ -76,6 +76,6 @@ pub async fn update_notification_preferences(
     Json(req): Json<UpdateNotificationPreferencesRequest>,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
     let claims = AuthService::verify_token(&query.token).await?;
-    let preferences = NotificationService::update_notification_preferences(&pool, claims.sub, req.preferences).await;
+    let preferences = NotificationService::update_notification_preferences(&pool, claims.sub, req.preferences).await?;
     Ok(Json(NotificationPreferencesResponse { preferences }))
 }

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { CalendarItem } from "@/lib/api/calendar";
+import { handleImgError } from "@/lib/utils";
 
 interface DaySubscriptionsModalProps {
   open: boolean;
@@ -79,9 +80,7 @@ export function DaySubscriptionsModal({
                       src={item.logo_url}
                       alt={item.name}
                       className="h-full w-full object-contain p-1"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
+                      onError={handleImgError}
                     />
                   ) : (
                     <CreditCard className="h-5 w-5 text-primary" />

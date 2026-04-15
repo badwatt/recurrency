@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { CreditCard, Receipt, Calendar, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubscriptionsStore } from "@/stores/subscriptionsStore";
 import { useAuthStore } from "@/stores/authStore";
 import { formatCurrency } from "@/lib/format";
+import { handleImgError } from "@/lib/utils";
 
 export function DashboardPage() {
   const { user } = useAuthStore();
@@ -43,7 +44,7 @@ export function DashboardPage() {
     };
   }, [subscriptions]);
 
-  const fc = (amount: number) => formatCurrency(amount, user?.currency || "EUR");
+  const fc = useCallback((amount: number) => formatCurrency(amount, user?.currency || "EUR"), [user?.currency]);
 
   const getNextBillingDays = (date: string | null) => {
     if (!date) return null;
@@ -164,9 +165,7 @@ export function DashboardPage() {
                                 src={sub.logo_url}
                                 alt={sub.name}
                                 className="h-full w-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = "none";
-                                }}
+                                onError={handleImgError}
                               />
                             ) : (
                               <Receipt className={`h-4 w-4 ${isToday ? "text-yellow-500" : isOverdue ? "text-destructive" : "text-green-500"}`} />

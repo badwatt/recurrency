@@ -19,7 +19,7 @@ pub async fn get_preferences(
     Query(query): Query<PreferencesQuery>,
 ) -> AppResult<Json<PreferencesResponse>> {
     let claims = AuthService::verify_token(&query.token).await?;
-    let preferences = PreferencesService::get_preferences(&pool, claims.sub).await;
+    let preferences = PreferencesService::get_preferences(&pool, claims.sub).await?;
     Ok(Json(preferences))
 }
 
@@ -29,6 +29,6 @@ pub async fn update_preferences(
     Json(req): Json<UpdatePreferencesRequest>,
 ) -> AppResult<Json<PreferencesResponse>> {
     let claims = AuthService::verify_token(&query.token).await?;
-    let preferences = PreferencesService::update_preferences(&pool, claims.sub, req).await;
+    let preferences = PreferencesService::update_preferences(&pool, claims.sub, req).await?;
     Ok(Json(preferences))
 }

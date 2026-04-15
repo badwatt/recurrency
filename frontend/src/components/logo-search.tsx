@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { logosApi, type LogoResult } from "@/lib/api/logos";
+import { handleImgError } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface LogoSearchProps {
@@ -69,9 +70,7 @@ export function LogoSearch({ query, onSelect, selectedLogo }: LogoSearchProps) {
               src={selectedLogo}
               alt="Selected logo"
               className="h-8 w-8 object-contain rounded border"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              onError={handleImgError}
             />
             <Button
               type="button"
@@ -137,9 +136,9 @@ export function LogoSearch({ query, onSelect, selectedLogo }: LogoSearchProps) {
 
             {logos.length > 0 && (
               <div className="grid grid-cols-4 gap-3">
-                {logos.map((logo, index) => (
+                {logos.map((logo) => (
                   <button
-                    key={index}
+                    key={logo.url}
                     type="button"
                     onClick={() => handleSelect(logo.url)}
                     className="flex aspect-square items-center justify-center rounded-md border border-input bg-background p-2 transition-colors hover:border-primary hover:bg-muted/50"
@@ -147,13 +146,10 @@ export function LogoSearch({ query, onSelect, selectedLogo }: LogoSearchProps) {
                   >
                     <img
                       src={logo.thumbnail}
-                      alt={`Logo ${index + 1}`}
+                      alt={`Logo ${logo.url}`}
                       className="max-h-full max-w-full object-contain"
                       loading="lazy"
-                      onError={(e) => {
-                        // Hide on error
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
+                      onError={handleImgError}
                     />
                   </button>
                 ))}

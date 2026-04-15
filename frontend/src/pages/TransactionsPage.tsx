@@ -14,8 +14,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FilterSort, type FilterConfig, type SortConfig } from "@/components/filter-sort";
 import type { Transaction, CreateTransactionRequest } from "@/lib/api/transactions";
 import { showToast } from "@/lib/toast";
+import { handleImgError } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { getIcon } from "@/lib/icons";
+
+const sortOptions = [
+  { value: "date", label: "Date" },
+  { value: "amount", label: "Price" },
+  { value: "name", label: "Name" },
+];
 
 
 
@@ -49,12 +56,6 @@ export function TransactionsPage() {
 
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: "date", direction: "desc" });
-
-  const sortOptions = [
-    { value: "date", label: "Date" },
-    { value: "amount", label: "Price" },
-    { value: "name", label: "Name" },
-  ];
 
   const clearFilters = () => setFilters({});
 
@@ -276,9 +277,7 @@ export function TransactionsPage() {
                               src={transaction.logo_url}
                               alt={transaction.name}
                               className="h-full w-full object-contain p-1"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = "none";
-                              }}
+                              onError={handleImgError}
                             />
                           ) : (
                             <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />

@@ -239,15 +239,14 @@ fn advance_date(date: NaiveDate, frequency: &str) -> NaiveDate {
 fn calculate_next_billing_date(start_date: NaiveDate, frequency: &str) -> NaiveDate {
     let today = Utc::now().date_naive();
     let mut next_date = start_date;
+    let mut iterations = 0;
 
     while next_date <= today {
-        next_date = match frequency {
-            "weekly" => next_date + chrono::Duration::weeks(1),
-            "monthly" => add_months(next_date, 1),
-            "quarterly" => add_months(next_date, 3),
-            "yearly" => add_months(next_date, 12),
-            _ => next_date + chrono::Duration::days(30),
-        };
+        next_date = advance_date(next_date, frequency);
+        iterations += 1;
+        if iterations > 1000 {
+            break;
+        }
     }
 
     next_date

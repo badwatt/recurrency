@@ -9,6 +9,7 @@ import { DaySubscriptionsModal } from "@/components/day-subscriptions-modal";
 import { subscriptionsApi, type Subscription } from "@/lib/api/subscriptions";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
+import { handleImgError } from "@/lib/utils";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -194,8 +195,8 @@ export function CalendarPage() {
           <Card><CardContent className="py-8 text-center text-muted-foreground">No payments scheduled this month</CardContent></Card>
         ) : (
           <div className="space-y-2">
-            {upcomingItems.map((item, index) => (
-              <Card key={index} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDate(item.date); setAddDialogOpen(true); }}>
+            {upcomingItems.map((item) => (
+              <Card key={`${item.date}-${item.subscription_id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedDate(item.date); setAddDialogOpen(true); }}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -280,9 +281,7 @@ export function CalendarPage() {
                                   src={item.logo_url}
                                   alt={item.name}
                                   className="h-3 w-3 flex-shrink-0 object-contain rounded"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = "none";
-                                  }}
+                                  onError={handleImgError}
                                 />
                               ) : (
                                 <CreditCard className="h-3 w-3 flex-shrink-0" />

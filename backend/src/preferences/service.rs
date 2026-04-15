@@ -2,18 +2,18 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
+use crate::shared::error::AppResult;
 
 pub struct PreferencesService;
 
 impl PreferencesService {
-    pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> PreferencesResponse {
+    pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<PreferencesResponse> {
         let prefs = sqlx::query_as::<_, (String, String)>(
             "SELECT key, value FROM user_preferences WHERE user_id = $1",
         )
         .bind(user_id)
         .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
         let mut response = PreferencesResponse::default();
 
@@ -25,14 +25,14 @@ impl PreferencesService {
             }
         }
 
-        response
+        Ok(response)
     }
 
     pub async fn update_preferences(
         pool: &PgPool,
         user_id: Uuid,
         req: UpdatePreferencesRequest,
-    ) -> PreferencesResponse {
+    ) -> AppResult<PreferencesResponse> {
         if let Some(theme) = req.theme {
             sqlx::query(
                 r#"
@@ -44,8 +44,7 @@ impl PreferencesService {
             .bind(user_id)
             .bind(&theme)
             .execute(pool)
-            .await
-            .ok();
+            .await?;
         }
 
         if let Some(subscriptions_view) = req.subscriptions_view {
@@ -59,8 +58,7 @@ impl PreferencesService {
             .bind(user_id)
             .bind(&subscriptions_view)
             .execute(pool)
-            .await
-            .ok();
+            .await?;
         }
 
         Self::get_preferences(pool, user_id).await

@@ -24,6 +24,8 @@ const MONTHS = [
   { value: "12", label: "December" },
 ];
 
+const REPORT_YEARS = [new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()];
+
 export function ReportsPage() {
   const { user } = useAuthStore();
   const { categories, fetchCategories } = useCategoriesStore();
@@ -61,7 +63,7 @@ export function ReportsPage() {
     }
   };
 
-  const fc = (amount: string | number) => formatCurrency(amount, user?.currency || "EUR");
+  const fc = useCallback((amount: string | number) => formatCurrency(amount, user?.currency || "EUR"), [user?.currency]);
 
   const handleExportCSV = () => {
     if (!report) return;
@@ -125,7 +127,7 @@ export function ReportsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[2024, 2025, 2026].map((y) => (
+                  {REPORT_YEARS.map((y) => (
                     <SelectItem key={y} value={y.toString()}>
                       {y}
                     </SelectItem>

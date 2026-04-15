@@ -47,50 +47,46 @@ function App() {
     return <LoadingScreen />;
   }
 
-  // On mobile, if no backend URL is configured, show setup
-  if (isMobilePlatform() && !isBackendUrlConfigured()) {
-    return (
-      <>
-        <Routes>
-          <Route path="/setup" element={<SetupPage />} />
-          <Route path="*" element={<Navigate to="/setup" replace />} />
-        </Routes>
-        <Toaster position="top-right" richColors />
-      </>
-    );
-  }
+  const content = isMobilePlatform() && !isBackendUrlConfigured() ? (
+    <Routes>
+      <Route path="/setup" element={<SetupPage />} />
+      <Route path="*" element={<Navigate to="/setup" replace />} />
+    </Routes>
+  ) : (
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/setup" element={<SetupPage />} />
+
+        {/* Protected routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DashboardPage />} />
+          <Route path="subscriptions" element={<SubscriptionsPage />} />
+          <Route path="transactions" element={<TransactionsPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Route>
+
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
+  );
 
   return (
     <>
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/setup" element={<SetupPage />} />
-
-          {/* Protected routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<DashboardPage />} />
-            <Route path="subscriptions" element={<SubscriptionsPage />} />
-            <Route path="transactions" element={<TransactionsPage />} />
-            <Route path="calendar" element={<CalendarPage />} />
-            <Route path="categories" element={<CategoriesPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+      {content}
       <Toaster position="top-right" richColors />
     </>
   );

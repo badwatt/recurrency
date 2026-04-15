@@ -13,10 +13,32 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FilterSort, type FilterConfig, type SortConfig } from "@/components/filter-sort";
 import type { Subscription, CreateSubscriptionRequest } from "@/lib/api/subscriptions";
 import { showToast } from "@/lib/toast";
+import { handleImgError } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { getIcon } from "@/lib/icons";
 
 type ViewMode = "grid" | "list";
+
+const statusOptions = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
+
+const frequencyOptions = [
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "yearly", label: "Yearly" },
+];
+
+const sortOptions = [
+  { value: "next_billing_date", label: "Upcoming date" },
+  { value: "amount", label: "Price" },
+  { value: "name", label: "Name" },
+  { value: "frequency", label: "Frequency" },
+  { value: "start_date", label: "Start date" },
+];
 
 
 
@@ -55,9 +77,7 @@ function SubscriptionCard({
                 src={subscription.logo_url}
                 alt={subscription.name}
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
+                onError={handleImgError}
               />
             ) : (
               <CreditCard className="h-7 w-7 text-muted-foreground" />
@@ -161,9 +181,7 @@ function SubscriptionCard({
                 src={subscription.logo_url}
                 alt={subscription.name}
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
+                onError={handleImgError}
               />
             ) : (
               <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
@@ -354,27 +372,6 @@ export function SubscriptionsPage() {
     },
     [editingSubscription, createSubscription, updateSubscription]
   );
-
-  const statusOptions = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
-  ];
-
-  const frequencyOptions = [
-    { value: "weekly", label: "Weekly" },
-    { value: "monthly", label: "Monthly" },
-    { value: "quarterly", label: "Quarterly" },
-    { value: "yearly", label: "Yearly" },
-  ];
-
-  const sortOptions = [
-    { value: "next_billing_date", label: "Upcoming date" },
-    { value: "amount", label: "Price" },
-    { value: "name", label: "Name" },
-    { value: "frequency", label: "Frequency" },
-    { value: "start_date", label: "Start date" },
-  ];
 
   const filteredSubscriptions = useMemo(() => {
     let result = [...subscriptions];
