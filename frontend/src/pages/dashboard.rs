@@ -6,6 +6,98 @@ use crate::state::auth::AUTH;
 use crate::api::subscriptions as api_subs;
 use crate::utils::format::format_currency;
 
+// ── SVG Icon Components ──────────────────────────────────────────────────────
+
+fn icon_credit_card() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            class: "h-4 w-4 text-muted-foreground",
+            rect { x: "1", y: "4", width: "22", height: "16", rx: "2" }
+            line { x1: "1", y1: "10", x2: "23", y2: "10" }
+        }
+    }
+}
+
+fn icon_trending_up() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            class: "h-4 w-4 text-muted-foreground",
+            polyline { points: "23 6 13.5 15.5 8.5 10.5 1 18" }
+            polyline { points: "17 6 23 6" }
+            polyline { points: "23 6 23 12" }
+        }
+    }
+}
+
+fn icon_calendar() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            class: "h-4 w-4 text-muted-foreground",
+            rect { x: "3", y: "4", width: "18", height: "18", rx: "2", ry: "2" }
+            line { x1: "16", y1: "2", x2: "16", y2: "6" }
+            line { x1: "8", y1: "2", x2: "8", y2: "6" }
+            line { x1: "3", y1: "10", x2: "21", y2: "10" }
+        }
+    }
+}
+
+fn icon_receipt() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            class: "h-4 w-4 text-muted-foreground",
+            line { x1: "4", y1: "2", x2: "4", y2: "22" }
+            path { d: "M1 2h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H1" }
+            path { d: "M4 18h2" }
+            circle { cx: "12", cy: "10", r: "2" }
+            path { d: "M13 14h-2" }
+            line { x1: "1", y1: "20", x2: "4", y2: "20" }
+        }
+    }
+}
+
+fn icon_logout() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            class: "h-4 w-4 text-muted-foreground",
+            path { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }
+            polyline { points: "16 17 21 12 16 7" }
+            line { x1: "21", y1: "12", x2: "9", y2: "12" }
+        }
+    }
+}
+
+// ── Dashboard Component ──────────────────────────────────────────────────────
+
 #[component]
 pub fn Dashboard() -> Element {
     // Fetch subscriptions on mount
@@ -86,10 +178,9 @@ pub fn Dashboard() -> Element {
             div { class: "grid gap-4 md:grid-cols-2 lg:grid-cols-4",
                 // Monthly Subscriptions
                 div { class: "bg-card border border-border rounded-lg",
-                    div { class: "flex flex-row items-center justify-between p-6 pb-2",
+                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Monthly Subscriptions" }
-                        // CreditCard icon placeholder
-                        span { class: "text-muted-foreground", "💳" }
+                        {icon_credit_card()}
                     }
                     div { class: "p-6 pt-0",
                         div { class: "text-2xl font-bold", "{format_currency(monthly_total, currency)}" }
@@ -99,9 +190,9 @@ pub fn Dashboard() -> Element {
 
                 // Yearly Cost
                 div { class: "bg-card border border-border rounded-lg",
-                    div { class: "flex flex-row items-center justify-between p-6 pb-2",
+                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Yearly Cost" }
-                        span { class: "text-muted-foreground", "📈" }
+                        {icon_trending_up()}
                     }
                     div { class: "p-6 pt-0",
                         div { class: "text-2xl font-bold", "{format_currency(yearly_total, currency)}" }
@@ -111,9 +202,9 @@ pub fn Dashboard() -> Element {
 
                 // Due This Week
                 div { class: "bg-card border border-border rounded-lg",
-                    div { class: "flex flex-row items-center justify-between p-6 pb-2",
+                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Due This Week" }
-                        span { class: "text-muted-foreground", "📅" }
+                        {icon_calendar()}
                     }
                     div { class: "p-6 pt-0",
                         div { class: "text-2xl font-bold", "{due_week.len()}" }
@@ -123,9 +214,9 @@ pub fn Dashboard() -> Element {
 
                 // Due This Month
                 div { class: "bg-card border border-border rounded-lg",
-                    div { class: "flex flex-row items-center justify-between p-6 pb-2",
+                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Due This Month" }
-                        span { class: "text-muted-foreground", "🧾" }
+                        {icon_receipt()}
                     }
                     div { class: "p-6 pt-0",
                         div { class: "text-2xl font-bold", "{due_month.len()}" }
@@ -157,7 +248,7 @@ pub fn Dashboard() -> Element {
                                             div { key: "{sub.id}", class: "flex items-center justify-between",
                                                 div { class: "flex items-center gap-3",
                                                     div { class: "flex h-9 w-9 items-center justify-center rounded-full bg-primary/10",
-                                                        span { class: "text-sm text-primary", "💳" }
+                                                        {icon_credit_card()}
                                                     }
                                                     div {
                                                         p { class: "text-sm font-medium", "{sub.name}" }
@@ -198,8 +289,13 @@ pub fn Dashboard() -> Element {
                                         let next_date = sub.next_billing_date.unwrap();
                                         let overdue = is_overdue(next_date);
                                         let today = is_today(next_date);
-                                        let dot_class = if overdue { "bg-destructive/10" } else if today { "bg-yellow-500/10" } else { "bg-green-500/10" };
-                                        let icon_class = if today { "text-yellow-500" } else if overdue { "text-destructive" } else { "text-green-500" };
+                                        let (dot_class, icon_class) = if overdue {
+                                            ("bg-destructive/10", "text-destructive")
+                                        } else if today {
+                                            ("bg-yellow-500/10", "text-yellow-500")
+                                        } else {
+                                            ("bg-green-500/10", "text-green-500")
+                                        };
                                         let date_str = format_date_short(next_date);
                                         let days_label = next_billing_days(Some(next_date));
                                         let logo_url = sub.logo_url.clone();
@@ -215,7 +311,21 @@ pub fn Dashboard() -> Element {
                                                                 class: "h-full w-full object-cover",
                                                             }
                                                         } else {
-                                                            span { class: "text-sm {icon_class}", "🧾" }
+                                                            svg {
+                                                                view_box: "0 0 24 24",
+                                                                fill: "none",
+                                                                stroke: "currentColor",
+                                                                stroke_width: "2",
+                                                                stroke_linecap: "round",
+                                                                stroke_linejoin: "round",
+                                                                class: "h-4 w-4 {icon_class}",
+                                                                line { x1: "4", y1: "2", x2: "4", y2: "22" }
+                                                                path { d: "M1 2h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H1" }
+                                                                path { d: "M4 18h2" }
+                                                                circle { cx: "12", cy: "10", r: "2" }
+                                                                path { d: "M13 14h-2" }
+                                                                line { x1: "1", y1: "20", x2: "4", y2: "20" }
+                                                            }
                                                         }
                                                     }
                                                     div {

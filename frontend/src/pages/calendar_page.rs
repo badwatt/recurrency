@@ -5,6 +5,22 @@ use crate::models::subscription::CalendarItem;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, Local, NaiveDate};
 
+fn icon_calendar() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "20", height: "20", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        rect { x: "3", y: "4", width: "18", height: "18", rx: "2", ry: "2" }
+        line { x1: "16", y1: "2", x2: "16", y2: "6" }
+        line { x1: "8", y1: "2", x2: "8", y2: "6" }
+        line { x1: "3", y1: "10", x2: "21", y2: "10" }
+    }}
+}
+
+fn icon_credit_card() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        rect { x: "1", y: "4", width: "22", height: "16", rx: "2" }
+        line { x1: "1", y1: "10", x2: "23", y2: "10" }
+    }}
+}
+
 const WEEKDAYS: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES: &[&str] = &[
     "", "January", "February", "March", "April", "May", "June",
@@ -184,7 +200,7 @@ pub fn CalendarPage() -> Element {
             div { class: "md:hidden space-y-4",
                 div { class: "flex items-center justify-between",
                     h2 { class: "text-lg font-semibold flex items-center gap-2",
-                        span { "📅" }
+                        {icon_calendar()}
                         "Upcoming Payments"
                     }
                     p { class: "text-lg font-bold", "{total_display}" }
@@ -211,7 +227,7 @@ pub fn CalendarPage() -> Element {
                                         div { class: "flex items-center justify-between",
                                             div { class: "flex items-center gap-3",
                                                 div { class: "flex h-10 w-10 items-center justify-center rounded-full bg-primary/10",
-                                                    span { class: "text-primary", "💳" }
+                                                    span { class: "text-primary", {icon_credit_card()} }
                                                 }
                                                 div {
                                                     p { class: "font-medium", "{name}" }
@@ -304,7 +320,7 @@ pub fn CalendarPage() -> Element {
                                                                     key: "{item.subscription_id}",
                                                                     class: "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs",
                                                                     title: "{item.title_str}",
-                                                                    span { class: "shrink-0", "💳" }
+                                                                    span { class: "shrink-0", {icon_credit_card()} }
                                                                     span { class: "truncate", "{item.name}" }
                                                                     span { class: "ml-auto shrink-0 font-medium", "{item.amount_str}" }
                                                                 }
@@ -352,7 +368,7 @@ pub fn CalendarPage() -> Element {
                                     {rsx! {
                                         div { key: "{id}", class: "flex items-center justify-between p-3 rounded-lg border border-border",
                                             div { class: "flex items-center gap-2",
-                                                span { "💳" }
+                                                {icon_credit_card()}
                                                 span { class: "font-medium", "{name}" }
                                             }
                                             span { class: "font-bold", "{amount_str}" }

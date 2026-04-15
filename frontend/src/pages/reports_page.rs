@@ -7,6 +7,28 @@ use crate::models::report::*;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, Local};
 
+fn icon_credit_card() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        rect { x: "1", y: "4", width: "22", height: "16", rx: "2" }
+        line { x1: "1", y1: "10", x2: "23", y2: "10" }
+    }}
+}
+
+fn icon_receipt() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        line { x1: "4", y1: "2", x2: "4", y2: "22" }
+        path { d: "M1 2h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H1" }
+    }}
+}
+
+fn icon_trending_up() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        polyline { points: "23 6 13.5 15.5 8.5 10.5 1 18" }
+        polyline { points: "17 6 23 6" }
+        polyline { points: "23 6 23 12" }
+    }}
+}
+
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"), ("2", "February"), ("3", "March"),
     ("4", "April"), ("5", "May"), ("6", "June"),
@@ -160,7 +182,7 @@ pub fn ReportsPage() -> Element {
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "Subscriptions" }
-                                    span { class: "text-muted-foreground", "💳" }
+                                    span { class: "text-muted-foreground", {icon_credit_card()} }
                                 }
                                 p { class: "text-2xl font-bold",
                                     {format_currency(r.monthly_summary.subscriptions_total, &currency)}
@@ -173,7 +195,7 @@ pub fn ReportsPage() -> Element {
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "One-time" }
-                                    span { class: "text-muted-foreground", "🧾" }
+                                    span { class: "text-muted-foreground", {icon_receipt()} }
                                 }
                                 p { class: "text-2xl font-bold",
                                     {format_currency(r.monthly_summary.transactions_total, &currency)}
@@ -186,7 +208,7 @@ pub fn ReportsPage() -> Element {
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "Categories" }
-                                    span { class: "text-muted-foreground", "📈" }
+                                    span { class: "text-muted-foreground", {icon_trending_up()} }
                                 }
                                 p { class: "text-2xl font-bold",
                                     "{r.category_breakdown.len()}"

@@ -10,6 +10,100 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
 
+// ─── Lucide-style SVG icon components ───────────────────────────────────────
+
+fn ReceiptIcon() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            width: "16",
+            height: "16",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            path { d: "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" }
+            line { x1: "8", y1: "7", x2: "16", y2: "7" }
+            line { x1: "8", y1: "11", x2: "16", y2: "11" }
+            line { x1: "8", y1: "15", x2: "12", y2: "15" }
+        }
+    }
+}
+
+fn ReceiptIconLarge() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            width: "40",
+            height: "40",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            path { d: "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" }
+            line { x1: "8", y1: "7", x2: "16", y2: "7" }
+            line { x1: "8", y1: "11", x2: "16", y2: "11" }
+            line { x1: "8", y1: "15", x2: "12", y2: "15" }
+        }
+    }
+}
+
+fn Trash2Icon() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            width: "16",
+            height: "16",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            polyline { points: "3 6 5 6 21 6" }
+            path { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }
+            line { x1: "10", y1: "11", x2: "10", y2: "17" }
+            line { x1: "14", y1: "11", x2: "14", y2: "17" }
+        }
+    }
+}
+
+fn PencilIcon() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            width: "16",
+            height: "16",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            path { d: "M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }
+        }
+    }
+}
+
+fn PlusIcon() -> Element {
+    rsx! {
+        svg {
+            view_box: "0 0 24 24",
+            width: "16",
+            height: "16",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "2",
+            stroke_linecap: "round",
+            stroke_linejoin: "round",
+            line { x1: "12", y1: "5", x2: "12", y2: "19" }
+            line { x1: "5", y1: "12", x2: "19", y2: "12" }
+        }
+    }
+}
+
+// ─── Data types ─────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FilterConfig {
     pub category_id: Option<Uuid>,
@@ -222,7 +316,10 @@ pub fn TransactionsPage() -> Element {
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
                 div {
-                    h1 { class: "text-3xl font-bold tracking-tight", "Transactions" }
+                    h1 { class: "text-3xl font-bold tracking-tight",
+                        {ReceiptIcon()}
+                        " Transactions"
+                    }
                     p { class: "text-muted-foreground", "Track your one-time expenses" }
                 }
                 button {
@@ -237,7 +334,8 @@ pub fn TransactionsPage() -> Element {
                         dialog_open.set(true);
                     },
                     class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
-                    "+ Add Transaction"
+                    {PlusIcon()}
+                    "Add Transaction"
                 }
             }
 
@@ -355,7 +453,9 @@ pub fn TransactionsPage() -> Element {
             } else if state.transactions.is_empty() {
                 rsx! {
                     div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
-                        span { class: "text-4xl", "🧾" }
+                        span { class: "text-muted-foreground",
+                            {ReceiptIconLarge()}
+                        }
                         div { class: "text-center",
                             p { class: "text-lg font-medium", "No transactions yet" }
                             p { class: "text-sm text-muted-foreground", "Add your first one-time expense" }
@@ -372,7 +472,8 @@ pub fn TransactionsPage() -> Element {
                                 dialog_open.set(true);
                             },
                             class: "inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                            "+ Add Transaction"
+                            {PlusIcon()}
+                            "Add Transaction"
                         }
                     }
                 }
@@ -395,8 +496,8 @@ pub fn TransactionsPage() -> Element {
                                 div { class: "space-y-2",
                                     // Month header
                                     div { class: "flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2",
-                                        span { class: "text-sm font-medium",
-                                            "{group.transactions.len()} transactions"
+                                        span { class: "text-sm font-semibold text-muted-foreground",
+                                            "{group.label} · {group.transactions.len()} transactions"
                                         }
                                         span { class: "text-sm font-bold",
                                             {format_currency(group.total, &currency)}
@@ -405,14 +506,16 @@ pub fn TransactionsPage() -> Element {
                                     // Transaction list
                                     for txn in &group.transactions {
                                         {rsx! {
-                                            div { key: "{txn.id}", class: "rounded-lg border border-border bg-card p-3 sm:p-4",
+                                            div { key: "{txn.id}", class: "rounded-lg border border-border bg-card p-3 sm:p-4 hover:bg-muted/50 transition-colors",
                                                 div { class: "flex items-center gap-2 sm:gap-4",
                                                     // Icon
                                                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
                                                         if let Some(url) = &txn.logo_url {
                                                             img { src: "{url}", alt: "{txn.name}", class: "h-full w-full object-contain p-1" }
                                                         } else {
-                                                            span { class: "text-muted-foreground text-sm", "🧾" }
+                                                            span { class: "text-muted-foreground",
+                                                                {ReceiptIcon()}
+                                                            }
                                                         }
                                                     }
                                                     // Name + date
@@ -447,7 +550,7 @@ pub fn TransactionsPage() -> Element {
                                                                 let txn = txn.clone();
                                                                 move |_| open_edit(&txn)
                                                             },
-                                                            "✏"
+                                                            {PencilIcon()}
                                                         }
                                                         button {
                                                             class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
@@ -455,7 +558,7 @@ pub fn TransactionsPage() -> Element {
                                                                 let id = txn.id;
                                                                 move |_| handle_delete(id)
                                                             },
-                                                            "🗑"
+                                                            {Trash2Icon()}
                                                         }
                                                     }
                                                 }

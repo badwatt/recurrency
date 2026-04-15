@@ -6,6 +6,41 @@ use crate::utils::icons::ICON_NAMES;
 use uuid::Uuid;
 
 /// Available color palette for category picker.
+fn icon_tag() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "32", height: "32", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        path { d: "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" }
+        line { x1: "7", y1: "7", x2: "7.01", y2: "7" }
+    }}
+}
+
+fn icon_star() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        polygon { points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" }
+    }}
+}
+
+fn icon_pencil() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        path { d: "M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }
+    }}
+}
+
+fn icon_trash_2() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        polyline { points: "3 6 5 6 21 6" }
+        path { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }
+        line { x1: "10", y1: "11", x2: "10", y2: "17" }
+        line { x1: "14", y1: "11", x2: "14", y2: "17" }
+    }}
+}
+
+fn icon_plus() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        line { x1: "12", y1: "5", x2: "12", y2: "19" }
+        line { x1: "5", y1: "12", x2: "19", y2: "12" }
+    }}
+}
+
 const COLOR_PALETTE: &[&str] = &[
     "#ef4444", "#f97316", "#f59e0b", "#eab308",
     "#84cc16", "#22c55e", "#10b981", "#14b8a6",
@@ -131,7 +166,7 @@ pub fn CategoriesPage() -> Element {
                 button {
                     onclick: open_create,
                     class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
-                    "+ Add Category"
+                    {icon_plus()} "Add Category"
                 }
             }
 
@@ -144,7 +179,7 @@ pub fn CategoriesPage() -> Element {
             } else if state.categories.is_empty() {
                 rsx! {
                     div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
-                        span { class: "text-4xl", "🏷" }
+                        {icon_tag()}
                         div { class: "text-center",
                             p { class: "text-lg font-medium", "No categories yet" }
                             p { class: "text-sm text-muted-foreground", "Create categories to organize your subscriptions and transactions" }
@@ -152,7 +187,7 @@ pub fn CategoriesPage() -> Element {
                         button {
                             onclick: open_create,
                             class: "inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                            "+ Add Category"
+                            {icon_plus()} "Add Category"
                         }
                     }
                 }
@@ -192,7 +227,7 @@ pub fn CategoriesPage() -> Element {
                                                     class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
                                                     title: "Set as default",
                                                     onclick: move |_| handle_set_default(cat_id),
-                                                    "⭐"
+                                                    {icon_star()}
                                                 }
                                             }
                                             button {
@@ -201,13 +236,13 @@ pub fn CategoriesPage() -> Element {
                                                     let cat = cat.clone();
                                                     move |_| open_edit(&cat)
                                                 },
-                                                "✏"
+                                                {icon_pencil()}
                                             }
                                             if !is_default {
                                                 button {
                                                     class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
                                                     onclick: move |_| handle_delete(cat_id),
-                                                    "🗑"
+                                                    {icon_trash_2()}
                                                 }
                                             }
                                         }

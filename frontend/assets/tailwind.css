@@ -71,6 +71,10 @@
   }
 }
 
+html:not(.dark):not(.mocha) {
+  /* light mode is default, no class needed */
+}
+
 @layer base {
   * {
     @apply border-border;
