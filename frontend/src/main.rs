@@ -52,6 +52,7 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
+        dioxus::document::Stylesheet { href: "/tailwind.css" }
         Router::<Route> {}
     }
 }
