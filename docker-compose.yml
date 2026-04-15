@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/alvaro17f/recurrency:latest
+    build: .
     container_name: recurrency
     restart: unless-stopped
     ports:

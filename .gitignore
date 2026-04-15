@@ -67,3 +67,5 @@ keystore.properties
 
 # NixOS
 .direnv
+.env
+.env.example

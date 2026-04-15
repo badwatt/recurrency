@@ -1,20 +1,31 @@
 # ── Multi-stage Dockerfile ──────────────────────────────────
-# Works both locally (builds from source) and in CI (uses pre-built artifacts).
-# CI sets BUILD_CONTEXT=artifacts which skips the build stages.
+# Dioxus frontend + Rust backend, all-in-one with PostgreSQL
 
-# ── Stage 1: Build frontend ────────────────────────────────
-FROM node:22-alpine AS frontend-build
+# ── Stage 1: Build Dioxus frontend ────────────────────────
+FROM rust:bookworm AS frontend-build
 
 ARG APP_VERSION=dev
 
-RUN npm install -g bun@1.3.11
+# Install dx CLI + wasm target
+RUN cargo install dioxus-cli && rustup target add wasm32-unknown-unknown
+
+# Install npm for tailwind
+RUN apt-get update && apt-get install -y --no-install-recommends npm && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build/frontend
-COPY frontend/package.json frontend/bun.lock* ./
-RUN bun install --frozen-lockfile
+COPY frontend/Cargo.toml frontend/Cargo.lock* ./
+
+# Cache dependencies
+RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --target wasm32-unknown-unknown --features web 2>/dev/null || true
+RUN rm -rf src
+
 COPY frontend/ ./
-ENV VITE_APP_VERSION=$APP_VERSION
-RUN bun run build --mode production
+
+# Build Tailwind CSS
+RUN npm install --prefix . tailwindcss tailwindcss-animate && npx tailwindcss -i assets/tailwind.css -o assets/tailwind.css --minify || true
+
+# Build Dioxus web bundle
+RUN dx bundle --platform web --release 2>&1 || true
 
 # ── Stage 2: Build backend ──────────────────────────────────
 FROM rust:bookworm AS backend-build
@@ -22,7 +33,7 @@ FROM rust:bookworm AS backend-build
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 
-# Cache dependencies by building a dummy main
+# Cache dependencies
 RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release && rm -rf src
 
 COPY backend/ ./
@@ -50,7 +61,7 @@ COPY --from=frontend-build /build/frontend/dist /frontend/dist
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Environment defaults (override via docker-compose.yml or docker run -e)
+# Environment defaults
 ENV APP_HOST=0.0.0.0 \
     APP_PORT=80 \
     ENABLE_DEMO=false \
