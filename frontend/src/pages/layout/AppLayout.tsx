@@ -125,7 +125,7 @@ export function AppLayout() {
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile header - translucent with blur */}
+        {/* Mobile header - translucent with safe area */}
         <header className="flex min-h-14 items-center justify-between bg-card/80 backdrop-blur-md border-b border-border/50 px-4 lg:hidden sticky top-0 z-30">
           <Button
             variant="ghost"
@@ -140,7 +140,7 @@ export function AppLayout() {
           </div>
         </header>
 
-        {/* Desktop header - translucent with blur */}
+        {/* Desktop header */}
         <header className="hidden lg:flex h-14 items-center justify-end gap-2 bg-card/80 backdrop-blur-md border-b border-border/50 px-6">
           <NotificationBell />
         </header>

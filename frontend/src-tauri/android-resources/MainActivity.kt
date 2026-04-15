@@ -13,8 +13,7 @@ class MainActivity : TauriActivity() {
         super.onCreate(savedInstanceState)
 
         // Apply safe area padding on the root content view.
-        // This is more reliable than setPadding on the WebView because
-        // the root view persists across WebView recreate/lifecycle events.
+        // This lets system bars be transparent while keeping content visible.
         val rootView = findViewById<View>(android.R.id.content)
         ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
