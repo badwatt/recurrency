@@ -63,12 +63,12 @@ pub fn SettingsPage() -> Element {
                 Ok(resp) => {
                     AUTH.write().user = Some(resp.user);
                     AUTH.write().persist_to_storage();
-                    TOAST().success("Currency updated");
+                    TOAST.write().success("Currency updated");
                     saving_currency.set(false);
                 }
                 Err(e) => {
                     log::error!("Failed to save currency: {}", e);
-                    TOAST().error("Failed to update currency");
+                    TOAST.write().error("Failed to update currency");
                     saving_currency.set(false);
                 }
             }
@@ -89,14 +89,14 @@ pub fn SettingsPage() -> Element {
             };
             match notification_preferences::update(&req).await {
                 Ok(_) => {
-                    TOAST().success("Notification preferences updated");
+                    TOAST.write().success("Notification preferences updated");
                 }
                 Err(e) => {
                     log::error!("Failed to update notification pref: {}", e);
                     let mut prefs = notification_prefs();
                     prefs.insert(channel, !enabled);
                     notification_prefs.set(prefs);
-                    TOAST().error("Failed to update notifications");
+                    TOAST.write().error("Failed to update notifications");
                 }
             }
             prefs_loading.set(false);
@@ -150,12 +150,12 @@ pub fn SettingsPage() -> Element {
                                             Ok(resp) => {
                                                 AUTH.write().user = Some(resp.user);
                                                 AUTH.write().persist_to_storage();
-                                                TOAST().success("Name updated");
+                                                TOAST.write().success("Name updated");
                                                 saving_name.set(false);
                                             }
                                             Err(e) => {
                                                 log::error!("Failed to save name: {}", e);
-                                                TOAST().error("Failed to update name");
+                                                TOAST.write().error("Failed to update name");
                                                 saving_name.set(false);
                                             }
                                         }
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn settings_should_show_toast_on_success() {
         // Test that toast API exists and can be called
-        // After fix: settings page should call TOAST().success(...) on save
+        // After fix: settings page should call TOAST.write().success(...) on save
         use crate::components::toast::{ToastState, ToastKind};
         
         let mut state = ToastState::default();
