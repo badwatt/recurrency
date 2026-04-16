@@ -48,7 +48,18 @@
         @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
     </style>
     <link rel="stylesheet" href="/tailwind.css" />
+
+</head>
+<body>
+    <div id="pre-wasm-loader">
+        <div class="rings"><div class="r1"></div><div class="r2"></div></div>
+        <p>Loading...</p>
+    </div>
+    <div id="main"></div>
     <script>
+        // Set loader background immediately after body exists.
+        // This runs synchronously before any rendering, so inline style
+        // overrides the CSS default (no cascade delay).
         (function() {
             try {
                 var stored = localStorage.getItem('recurrency-theme');
@@ -57,9 +68,16 @@
                 if (theme === 'dark') cls = 'dark';
                 else if (theme === 'mocha') cls = 'mocha';
                 else if (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) cls = 'dark';
+                // Add theme class to html
                 if (cls === 'dark') document.documentElement.classList.add('dark');
                 else if (cls === 'mocha') document.documentElement.classList.add('mocha');
                 window.__recurrency_theme = cls;
+                // Set loader bg via inline style (authoritative, no cascade)
+                var loader = document.getElementById('pre-wasm-loader');
+                if (loader) {
+                    loader.style.backgroundColor = cls === 'dark' ? 'rgb(2,8,23)' : cls === 'mocha' ? 'rgb(30,30,46)' : 'rgb(255,255,255)';
+                }
+                // Update meta theme-color
                 var meta = document.querySelector('meta[name="theme-color"]');
                 if (meta) {
                     meta.content = cls === 'dark' ? '#020817' : cls === 'mocha' ? '#1e1e2e' : '#ffffff';
@@ -67,12 +85,5 @@
             } catch(e) {}
         })();
     </script>
-</head>
-<body>
-    <div id="pre-wasm-loader">
-        <div class="rings"><div class="r1"></div><div class="r2"></div></div>
-        <p>Loading...</p>
-    </div>
-    <div id="main"></div>
 </body>
 </html>

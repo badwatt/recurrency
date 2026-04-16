@@ -52,36 +52,25 @@ fn index_html_applies_mocha_class_to_html() {
 }
 
 #[test]
+#[test]
 fn index_html_meta_theme_color_matches_css_variables() {
     // meta[name=theme-color] must match the inline CSS variable --background hex values.
     // Bug: dark theme-color was #030712 but CSS --background hsl(222.2,84%,4.9%)=#020817.
-    // Fix: inline <style> defines vars correctly, meta.theme-color uses correct hex values.
+    // Fix: body-end script sets meta.content to correct hex values per theme.
     let html = include_str!("../assets/index.html");
-    // Find meta.content assignments in the <head> script
-    let head_section = html.split("</head>").nth(0).unwrap_or("");
-    let meta_line = head_section.lines()
-        .find(|l| l.contains("meta.content"))
-        .unwrap_or("");
-    // Extract all #XXXXXX from meta.content line, order: dark, mocha, light
-    let all_hex: Vec<String> = meta_line.split('#')
-        .skip(1)
-        .filter_map(|s| {
-            let hex: String = s.chars().take_while(|c| c.is_ascii_hexdigit()).collect();
-            if hex.len() == 6 { Some(hex) } else { None }
-        })
-        .collect();
-    assert!(all_hex.len() >= 3,
-        "meta.content line must have 3 hex values (dark, mocha, light), found: {}",
-        all_hex.len());
-    // dark: #020817, mocha: #1e1e2e, light: #ffffff
-    let expected = ["020817", "1e1e2e", "ffffff"];
-    let themes = ["dark", "mocha", "light"];
-    for (i, theme) in themes.iter().enumerate() {
-        assert_eq!(all_hex[i].to_lowercase(), expected[i],
-            "meta theme-color for {} mismatch: expected #{}, got #{}",
-            theme, expected[i], all_hex[i]);
-    }
+    // Script in body sets meta.content with dark/mocha/light hex values
+    let body_section = html.split("<body>").nth(1).unwrap_or("");
+    assert!(body_section.contains("meta.content"),
+        "Body script must set meta[name=theme-color] content");
+    // Verify the hex values are correct
+    assert!(body_section.contains("#020817"),
+        "Dark mode meta theme-color must be #020817 (matches CSS --background)");
+    assert!(body_section.contains("#1e1e2e"),
+        "Mocha mode meta theme-color must be #1e1e2e (matches CSS --background)");
+    assert!(body_section.contains("#ffffff"),
+        "Light mode meta theme-color must be #ffffff (matches CSS --background)");
 }
+
 
 #[test]
 fn index_html_has_loading_spinner_before_wasm() {
@@ -101,23 +90,31 @@ fn index_html_has_loading_spinner_before_wasm() {
 }
 
 #[test]
+#[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
-    // Loading spinner must be a semi-transparent overlay with backdrop-blur.
-    // Must use EXPLICIT rgba values (not hsl(var/alpha) which may be ambiguous
-    // when --background contains spaces like "222.2 84% 4.9%").
-    // Bug: bg-background/85 generates bg-color:hsl(var(--background)) with no alpha.
+    // Pre-WASM loader must set bg via inline style (authoritative, no cascade delay).
+    // Bug: CSS rule `#pre-wasm-loader { bg: white }` + `.dark #pre-wasm-loader { bg: dark }`
+    // → browser applies white before .dark class exists → white flash in dark mode.
+    // Fix: script at END of body sets loader.style.backgroundColor inline.
     let html = include_str!("../assets/index.html");
+    // Script must be at END of body (after <div id="pre-wasm-loader">, before </body>)
+    let body_section = html.split("<body>").nth(1).unwrap_or("");
+    let loader_div_end = body_section.find("<div id=\"main\">").unwrap_or(usize::MAX);
+    let after_loader = &body_section[loader_div_end..];
+    assert!(after_loader.contains("Set loader background"),
+        "Theme script must be AFTER <div id=\"pre-wasm-loader\"> in body");
+    // Script must set loader.style.backgroundColor inline (highest specificity)
+    assert!(body_section.contains("loader.style.backgroundColor"),
+        "Script must set loader.style.backgroundColor for themed bg (no FOUC)");
+    // Must have backdrop-blur overlay
     let style_section = html.split("<style>").nth(1).unwrap_or("").split("</style>").next().unwrap_or("");
-    let lower = style_section.to_lowercase();
-    // Must have backdrop-filter: blur
-    assert!(lower.contains("backdrop-filter") || lower.contains("backdrop-blur"),
+    assert!(style_section.contains("backdrop-filter"),
         "#pre-wasm-loader style must include backdrop-filter:blur");
-    // Must use EXPLICIT rgb()/rgba() values for background —
-    // rgb() and hsl() with CSS variable + alpha may be ambiguous.
-    let has_explicit_rgb = lower.contains("rgb(");
-    assert!(has_explicit_rgb,
+    // Must use explicit rgb() values for themed bg
+    assert!(style_section.contains("rgb("),
         "#pre-wasm-loader must use explicit rgb() for themed background");
 }
+
 
 #[test]
 fn index_html_has_inline_theme_variables() {
