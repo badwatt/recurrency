@@ -234,3 +234,29 @@ fn index_html_loader_is_backdrop_blur_overlay() {
     assert!(has_semi_transparent,
         "#pre-wasm-loader must have semi-transparent background (not opaque)");
 }
+
+#[test]
+fn index_html_has_inline_theme_variables() {
+    // CSS variables for dark/mocha are defined in tailwind.css which loads async.
+    // On refresh, before tailwind.css parses, var(--background) etc. are empty
+    // for .dark/.mocha themes → spinner shows wrong colors (light theme fallback).
+    // Bug: spinner colors wrong on refresh in dark/mocha mode.
+    // Fix: inline fallback CSS variables for each theme in index.html <style>.
+    let html = include_str!("../assets/index.html");
+    let style_section = html.split("<style>").nth(1).unwrap_or("").split("</style>").next().unwrap_or("");
+    // Must have .dark and .mocha selectors defining the spinner's CSS variables
+    assert!(style_section.contains(".dark"),
+        "Inline <style> must define .dark selector with CSS variable overrides");
+    assert!(style_section.contains(".mocha"),
+        "Inline <style> must define .mocha selector with CSS variable overrides");
+    // Each must define --background, --foreground, --primary, --muted
+    for theme in [".dark", ".mocha"] {
+        let block = style_section.split(theme).nth(1).unwrap_or("");
+        let block_short: String = block.chars().take(500).collect();
+        for var in ["--background", "--foreground", "--primary", "--muted"] {
+            assert!(block_short.contains(var),
+                "{} in inline <style> must define {} for spinner theming",
+                theme, var);
+        }
+    }
+}

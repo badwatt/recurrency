@@ -7,6 +7,26 @@
     <title>Recurrency</title>
     <link rel="stylesheet" href="/tailwind.css" />
     <style>
+        /* Inline theme variables — available before tailwind.css loads.
+           Prevents wrong-color flash on refresh in dark/mocha mode. */
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --primary: 222.2 47.4% 11.2%;
+            --muted: 210 40% 96.1%;
+        }
+        .dark {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --primary: 210 40% 98%;
+            --muted: 217.2 32.6% 17.5%;
+        }
+        .mocha {
+            --background: 240 21% 15%;
+            --foreground: 226 64% 88%;
+            --primary: 232 97% 85%;
+            --muted: 234 13% 31%;
+        }
         /* Pre-WASM loading overlay — themed + semi-transparent + backdrop-blur */
         #pre-wasm-loader {
             display: flex; flex-direction: column;
