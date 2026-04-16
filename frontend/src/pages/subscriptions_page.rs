@@ -906,11 +906,6 @@ fn render_dialog(
     let start_date_err = start_date_error();
     let category_err = category_error();
 
-    let category_options: Vec<(String, String)> = CATEGORIES()
-        .categories.iter()
-        .map(|c| (c.id.to_string(), c.name.clone()))
-        .collect();
-
     rsx! {
         div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
             div { class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg",
@@ -1013,21 +1008,16 @@ fn render_dialog(
                     // Category
                     div { class: "space-y-1.5",
                         label { class: "text-sm font-medium", "Category" }
-                        select {
-                            class: if category_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                            value: "{form_category_id}",
-                            onchange: move |e: Event<FormData>| {
-                                form.write().category_id = e.value();
-                                category_error.set(String::new());
-                            },
-                            option { value: "", "Select category..." }
-                            for (id, name) in category_options.iter() {
-                                option { value: "{id}", "{name}" }
+                        {rsx! {
+                            crate::components::CategoryCombobox {
+                                selected_id: form_category_id,
+                                on_change: move |id: String| {
+                                    form.write().category_id = id;
+                                    category_error.set(String::new());
+                                },
+                                error: if category_err.is_empty() { None } else { Some(category_err) },
                             }
-                        }
-                        if !category_err.is_empty() {
-                            p { class: "text-xs text-red-500", "{category_err}" }
-                        }
+                        }}
                     }
 
                     // Notes

@@ -1,6 +1,7 @@
 pub mod badge;
 pub mod button;
 pub mod card;
+pub mod category_combobox;
 pub mod chart;
 pub mod dialog;
 pub mod input;
@@ -10,3 +11,4 @@ pub mod select;
 pub mod toast;
 
 pub use logo_image::logo_image_with_fallback;
+pub use category_combobox::CategoryCombobox;

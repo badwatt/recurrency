@@ -411,11 +411,6 @@ pub fn CalendarPage() -> Element {
         edit_dialog_open.set(false);
     };
 
-    // Category options for form
-    let category_options: Vec<(String, String)> = CATEGORIES()
-        .categories.iter()
-        .map(|c| (c.id.to_string(), c.name.clone()))
-        .collect();
 
     let form_name = edit_form().name;
     let form_amount = edit_form().amount;
@@ -772,21 +767,16 @@ pub fn CalendarPage() -> Element {
                             // Category
                             div { class: "space-y-1.5",
                                 label { class: "text-sm font-medium", "Category" }
-                                select {
-                                    class: if category_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                                    value: "{form_category_id}",
-                                    onchange: move |e: Event<FormData>| {
-                                        edit_form.write().category_id = e.value();
-                                        category_error.set(String::new());
-                                    },
-                                    option { value: "", "Select category..." }
-                                    for (id, name) in category_options.iter() {
-                                        option { value: "{id}", "{name}" }
+                                {rsx! {
+                                    crate::components::CategoryCombobox {
+                                        selected_id: form_category_id,
+                                        on_change: move |id: String| {
+                                            edit_form.write().category_id = id;
+                                            category_error.set(String::new());
+                                        },
+                                        error: if category_err.is_empty() { None } else { Some(category_err) },
                                     }
-                                }
-                                if !category_err.is_empty() {
-                                    p { class: "text-xs text-red-500", "{category_err}" }
-                                }
+                                }}
                             }
 
                             // Notes

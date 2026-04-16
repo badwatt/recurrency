@@ -743,22 +743,16 @@ pub fn TransactionsPage() -> Element {
                             // Category
                             div { class: "space-y-2",
                                 label { class: "text-sm font-medium", "Category" }
-                                select {
-                                    value: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
-                                    onchange: move |e| {
-                                        let v = e.value();
-                                        form_category_id.set(if v.is_empty() { None } else { Uuid::parse_str(&v).ok() });
-                                        category_error.set(String::new());
-                                    },
-                                    class: if category_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                                    option { value: "", "Select category" }
-                                    for cat in &cats.categories {
-                                        option { value: "{cat.id}", "{cat.name}" }
+                                {rsx! {
+                                    crate::components::CategoryCombobox {
+                                        selected_id: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
+                                        on_change: move |id: String| {
+                                            form_category_id.set(if id.is_empty() { None } else { Uuid::parse_str(&id).ok() });
+                                            category_error.set(String::new());
+                                        },
+                                        error: if category_error().is_empty() { None } else { Some(category_error()) },
                                     }
-                                }
-                                if !category_error().is_empty() {
-                                    p { class: "text-xs text-red-500", "{category_error()}" }
-                                }
+                                }}
                             }
                             // Notes
                             div { class: "space-y-2",
