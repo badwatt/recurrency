@@ -147,8 +147,8 @@ mod tests {
     #[test]
     fn demo_secret_custom() {
         env::set_var("DEMO_PASSWORD", "my_test_pass");
-        let pwd = demo_password();
-        assert_eq!(pwd, "my_test_pass");
+        let secret_val = demo_password();
+        assert_eq!(secret_val, "my_test_pass");
         env::remove_var("DEMO_PASSWORD");
     }
 

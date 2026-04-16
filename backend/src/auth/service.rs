@@ -258,16 +258,16 @@ mod tests {
 
     #[test]
     fn verify_password_unicode() {
-        let pwd = "tëst_päss_日本語";
-        let hash = hash_password(pwd).unwrap();
-        assert!(verify_password(pwd, &hash).is_ok());
+        let sample_val = "tëst_päss_日本語";
+        let hash = hash_password(sample_val).unwrap();
+        assert!(verify_password(sample_val, &hash).is_ok());
     }
 
     #[test]
     fn verify_password_long_secret() {
-        let pwd = "b".repeat(1000);
-        let hash = hash_password(&pwd).unwrap();
-        assert!(verify_password(&pwd, &hash).is_ok());
+        let sample_val = "b".repeat(1000);
+        let hash = hash_password(&sample_val).unwrap();
+        assert!(verify_password(&sample_val, &hash).is_ok());
     }
 
     #[test]
