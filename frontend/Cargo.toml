@@ -23,3 +23,8 @@ web = ["dioxus/web", "web-sys"]
 desktop = ["dioxus/desktop"]
 mobile = ["dioxus/mobile"]
 server = ["dioxus/server"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 16
+strip = true
