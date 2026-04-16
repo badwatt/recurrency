@@ -224,7 +224,12 @@ pub fn SubscriptionsPage() -> Element {
             let state = PREFERENCES();
             if !state.initialized {
                 match api::preferences::get().await {
-                    Ok(p) => PREFERENCES.write().set_data(p),
+                    Ok(p) => {
+                        // Preserve theme from localStorage
+                        let saved_theme = PREFERENCES().theme().to_string();
+                        PREFERENCES.write().set_data(p);
+                        PREFERENCES.write().set_theme(saved_theme);
+                    }
                     Err(_) => {}
                 }
             }
