@@ -229,6 +229,7 @@ pub(crate) fn sort_calendar_items(items: &mut [CalendarItem]) {
 }
 
 /// Generate billing dates for a given subscription within a month.
+#[allow(dead_code)]
 pub(crate) fn generate_billing_dates(
     next_billing: NaiveDate,
     frequency: &str,

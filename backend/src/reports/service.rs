@@ -239,6 +239,7 @@ impl ReportService {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn normalize_to_monthly(amount: Decimal, frequency: &str) -> Decimal {
     match frequency {
         "weekly" => amount * Decimal::from_str_exact("4.33").unwrap_or(Decimal::ZERO),

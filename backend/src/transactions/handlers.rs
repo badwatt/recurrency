@@ -109,6 +109,7 @@ pub async fn by_date_range(
 }
 
 /// Parse a date string in YYYY-MM-DD format, returning None on failure.
+#[allow(dead_code)]
 pub(crate) fn parse_date(date_str: &str) -> Option<chrono::NaiveDate> {
     chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
 }
