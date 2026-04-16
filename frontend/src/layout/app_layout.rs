@@ -40,7 +40,10 @@ pub fn AppLayout() -> Element {
     // Apply theme from preferences on mount
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
+        #[cfg(feature = "web")]
         crate::theme::hooks::apply_theme_to_document(&theme);
+        #[cfg(not(feature = "web"))]
+        let _ = theme; // silence unused warning
     });
 
     rsx! {
