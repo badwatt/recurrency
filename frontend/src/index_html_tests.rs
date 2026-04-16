@@ -229,12 +229,11 @@ fn index_html_loader_is_backdrop_blur_overlay() {
     // Must have backdrop-filter: blur
     assert!(lower.contains("backdrop-filter") || lower.contains("backdrop-blur"),
         "#pre-wasm-loader style must include backdrop-filter:blur");
-    // Must use EXPLICIT rgba() values for semi-transparent background —
-    // rgb() and hsl() with CSS variable + alpha (var/0.85) may be ambiguous
-    // when the variable contains spaces.
-    let has_explicit_rgba = lower.contains("rgba(") || lower.contains("rgb(");
-    assert!(has_explicit_rgba,
-        "#pre-wasm-loader must use explicit rgba()/rgb() with alpha for semi-transparent bg");
+    // Must use EXPLICIT rgb()/rgba() values for background —
+    // rgb() and hsl() with CSS variable + alpha may be ambiguous.
+    let has_explicit_rgb = lower.contains("rgb(");
+    assert!(has_explicit_rgb,
+        "#pre-wasm-loader must use explicit rgb() for themed background");
 }
 
 #[test]

@@ -27,17 +27,17 @@
             --primary: 232 97% 85%;
             --muted: 234 13% 31%;
         }
-        /* Pre-WASM loading overlay — themed + semi-transparent + backdrop-blur */
+        /* Pre-WASM loading overlay — themed + backdrop-blur */
         #pre-wasm-loader {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             position: fixed; inset: 0; z-index: 9999;
-            background-color: rgba(255,255,255,0.85);
+            background-color: rgb(255,255,255);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             color: hsl(var(--foreground));
         }
-        .dark #pre-wasm-loader { background-color: rgba(2,8,23,0.85); }
-        .mocha #pre-wasm-loader { background-color: rgba(30,30,46,0.85); }
+        .dark #pre-wasm-loader { background-color: rgb(2,8,23); }
+        .mocha #pre-wasm-loader { background-color: rgb(30,30,46); }
         #pre-wasm-loader .rings { position: relative; width: 3rem; height: 3rem; }
         #pre-wasm-loader .r1,
         #pre-wasm-loader .r2 { position: absolute; inset: 0; border-radius: 9999px; border: 4px solid hsl(var(--muted)); }
