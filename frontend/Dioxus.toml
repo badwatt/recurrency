@@ -15,5 +15,6 @@ identifier = "com.alvaro17f.recurrency"
 icon = ["assets/icon.png"]
 
 [android]
-# Only build arm64 (95%+ of Android devices) — skip x86_64 to halve build time
+# arm64 covers 95%+ of devices; add "x86_64-linux-android" if needed for emulators
 build_targets = ["aarch64-linux-android"]
+min_sdk_version = 21
