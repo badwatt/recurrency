@@ -65,3 +65,4 @@ serial_test = "3"
 lto = "thin"
 codegen-units = 16
 strip = true
+opt-level = 2

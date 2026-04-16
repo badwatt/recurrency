@@ -5,6 +5,7 @@
 FROM rust:bookworm AS frontend-build
 
 ARG APP_VERSION=dev
+ENV RUSTFLAGS="-C target-cpu=generic"
 
 # Install dx CLI + wasm target
 RUN cargo install dioxus-cli && rustup target add wasm32-unknown-unknown
@@ -30,14 +31,16 @@ RUN dx bundle --platform web --release 2>&1 || true
 # ── Stage 2: Build backend ──────────────────────────────────
 FROM rust:bookworm AS backend-build
 
+ENV RUSTFLAGS="-C target-cpu=generic"
+
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 
 # Cache dependencies
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release && rm -rf src
+RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release -j 4 && rm -rf src
 
 COPY backend/ ./
-RUN touch src/main.rs && cargo build --release
+RUN touch src/main.rs && cargo build --release -j 4
 
 # ── Stage 3: All-in-one runtime ────────────────────────────
 FROM debian:bookworm-slim
