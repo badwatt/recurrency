@@ -33,7 +33,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown, aarch64-linux-android, x86_64-linux-android
+
+      - name: Install OpenSSL (ubuntu)
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
       - name: Install dx CLI
         run: cargo install dioxus-cli
@@ -61,12 +64,67 @@ jobs:
 
       - name: Run frontend tests
         run: cd frontend && cargo test
-        env:
-          OPENSSL_DIR: /usr/local/opt/openssl@3
-          OPENSSL_LIB_DIR: /usr/local/opt/openssl@3/lib
 
       - name: Build frontend (web)
         run: cd frontend && dx bundle --platform web --release
+
+  # ── Stage 1b: Build Android APK ───────────────────────────
+  build-android:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Sync version
+        run: |
+          V=$(cat VERSION)
+          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml backend/Cargo.toml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - name: Install Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          add-to-path: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dx CLI
+        run: cargo install dioxus-cli
+
+      - name: Create icon fallback
+        run: |
+          mkdir -p frontend/assets
+          if [ ! -f frontend/assets/icon.png ]; then
+            # Create 512x512 placeholder icon
+            convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
+          fi
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend
+          cache-on-failure: true
+
+      - name: Build Android APK
+        run: cd frontend && dx bundle --platform android --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: recurrency-android
+          path: frontend/dist/android/**/*.apk
+          retention-days: 30
 
   # ── Stage 2: Build Docker image ──────────────────────────
   docker:
