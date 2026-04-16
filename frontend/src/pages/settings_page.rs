@@ -525,4 +525,49 @@ mod tests {
         assert_eq!(state.items[0].message, "Failed to save");
         assert!(matches!(state.items[0].kind, ToastKind::Error));
     }
+
+    // ── Toast lifecycle in settings flow ──
+    #[test]
+    fn settings_toast_lifecycle_add_then_remove() {
+        // RED: Simulates settings save → toast → user dismisses
+        use crate::components::toast::ToastState;
+        
+        let mut state = ToastState::default();
+        
+        // User saves settings, toast appears
+        state.success("Currency updated");
+        assert_eq!(state.items.len(), 1);
+        let toast_id = state.items[0].id;
+        
+        // User clicks X to dismiss
+        state.remove(toast_id);
+        assert_eq!(state.items.len(), 0);
+    }
+
+    #[test]
+    fn settings_multiple_toasts_can_be_individually_removed() {
+        // RED: Multiple settings changes create multiple toasts
+        use crate::components::toast::ToastState;
+        
+        let mut state = ToastState::default();
+        
+        // First save: currency
+        state.success("Currency updated");
+        let currency_id = state.items[0].id;
+        
+        // Second save: name
+        state.success("Name updated");
+        let name_id = state.items[1].id;
+        
+        assert_eq!(state.items.len(), 2);
+        
+        // Dismiss currency toast only
+        state.remove(currency_id);
+        assert_eq!(state.items.len(), 1);
+        assert!(state.items.iter().any(|t| t.message == "Name updated"));
+        
+        // Dismiss name toast
+        state.remove(name_id);
+        assert_eq!(state.items.len(), 0);
+    }
 }

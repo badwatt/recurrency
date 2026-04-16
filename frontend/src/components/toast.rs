@@ -178,4 +178,64 @@ mod tests {
         // This is a compile-time check - if ToastContainer doesn't exist or has wrong signature, this won't compile
         let _container_fn = ToastContainer;
     }
+
+    // ── Toast remove functionality tests ──
+    #[test]
+    fn toast_state_remove_existing_item() {
+        // RED: Add toast, then remove it - should be empty
+        let mut state = ToastState::default();
+        state.success("Test message");
+        assert_eq!(state.items.len(), 1);
+        
+        let id = state.items[0].id;
+        state.remove(id);
+        
+        assert_eq!(state.items.len(), 0);
+    }
+
+    #[test]
+    fn toast_state_remove_preserves_other_items() {
+        // RED: Add 3 toasts, remove middle one - others stay
+        let mut state = ToastState::default();
+        state.success("First");
+        state.success("Second");
+        state.success("Third");
+        assert_eq!(state.items.len(), 3);
+        
+        let second_id = state.items[1].id;
+        state.remove(second_id);
+        
+        assert_eq!(state.items.len(), 2);
+        assert!(state.items.iter().any(|t| t.message == "First"));
+        assert!(state.items.iter().any(|t| t.message == "Third"));
+        assert!(!state.items.iter().any(|t| t.message == "Second"));
+    }
+
+    #[test]
+    fn toast_state_remove_nonexistent_id_does_nothing() {
+        // RED: Remove non-existent id - state unchanged
+        let mut state = ToastState::default();
+        state.success("Test");
+        let original_len = state.items.len();
+        
+        state.remove(9999); // Non-existent ID
+        
+        assert_eq!(state.items.len(), original_len);
+    }
+
+    #[test]
+    fn toast_state_can_add_and_remove_multiple_times() {
+        // RED: Add/remove cycle multiple times
+        let mut state = ToastState::default();
+        
+        state.success("Toast 1");
+        let id1 = state.items[0].id;
+        state.remove(id1);
+        assert!(state.items.is_empty());
+        
+        state.error("Toast 2");
+        let id2 = state.items[0].id;
+        state.remove(id2);
+        assert!(state.items.is_empty());
+    }
 }
