@@ -126,6 +126,14 @@ pub fn AppLayout() -> Element {
                 // Toast notifications
                 crate::components::toast::ToastContainer {}
             }
+
+            // Notification click-outside overlay — MUST be outside header (backdrop-filter breaks fixed positioning)
+            if NOTIFICATIONS().is_open {
+                div {
+                    class: "fixed inset-0 z-40",
+                    onclick: move |_| NOTIFICATIONS.write().is_open = false,
+                }
+            }
         }
     }
 }
@@ -338,7 +346,6 @@ fn ThemeToggleButton() -> Element {
 
 #[component]
 fn NotificationBell() -> Element {
-    let mut open = use_signal(|| false);
     let unread = NOTIFICATIONS().unread_count;
 
     rsx! {
@@ -347,7 +354,7 @@ fn NotificationBell() -> Element {
                 r#type: "button",
                 class: "relative inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
                 onclick: move |_| {
-                    let next = !open();
+                    let next = !NOTIFICATIONS().is_open;
                     if next {
                         spawn(async move {
                             match notifications::list().await {
@@ -356,7 +363,7 @@ fn NotificationBell() -> Element {
                             }
                         });
                     }
-                    open.set(next);
+                    NOTIFICATIONS.write().toggle();
                 },
                 svg {
                     view_box: "0 0 24 24",
@@ -379,7 +386,7 @@ fn NotificationBell() -> Element {
             }
 
             // Dropdown panel
-            if open() {
+            if NOTIFICATIONS().is_open {
                 // Panel (positioned below the bell — child of .relative container)
                     div {
                         class: "absolute right-0 top-full mt-2 w-80 rounded-md border border-border bg-card shadow-lg z-50 overflow-hidden",
@@ -420,11 +427,6 @@ fn NotificationBell() -> Element {
                                 },
                             }}
                         }
-                    }
-                    // Click-outside overlay (after panel so panel gets events first)
-                    div {
-                        class: "fixed inset-0 z-40",
-                        onclick: move |_| open.set(false),
                     }
             }
         }
@@ -698,5 +700,28 @@ mod tests {
         let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
         assert!(bell_section.contains("e.stop_propagation()"),
             "Notification panel must call stop_propagation on onclick");
+    }
+
+    #[test]
+    fn notification_overlay_outside_header_backdrop_filter() {
+        // The notification click-outside overlay must NOT be inside any element
+        // with backdrop-filter (backdrop-blur-md), because CSS backdrop-filter
+        // on an ancestor makes fixed-position children position relative to that
+        // ancestor instead of the viewport. Overlay only covers header height.
+        // Bug: clicking below dropdown didn't close it — overlay limited to header.
+        // Fix: overlay rendered at App level, outside header with backdrop-blur-md.
+        let src = include_str!("app_layout.rs");
+        // The overlay must NOT be inside NotificationBell (renders inside header)
+        let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
+        let before_next_fn = bell_section.split("fn NotificationItem").nth(0).unwrap_or(bell_section);
+        let overlay_in_bell = before_next_fn.contains("fixed inset-0 z-40");
+        assert!(!overlay_in_bell,
+            "Notification overlay must not be inside NotificationBell (header has backdrop-blur-md). Move to App level.");
+        // The overlay must exist at App level using NOTIFICATIONS signal
+        let has_app_overlay = src.lines().any(|l| {
+            l.contains("fixed inset-0 z-40") && l.contains("NOTIFICATIONS")
+        });
+        assert!(has_app_overlay,
+            "Notification overlay must exist at App level using NOTIFICATIONS global signal");
     }
 }

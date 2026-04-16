@@ -28,11 +28,20 @@
 </head>
 <body>
     <script>
-        // Set body background-color AFTER body exists to prevent white flash
+        // Set body background-color AFTER body exists to prevent white flash.
+        // Derives color from CSS variable --background so values always match.
         try {
-            var bgMap = { dark: '#030712', mocha: '#1e1e2e', light: '#ffffff' };
             var cls = window.__recurrency_theme || 'light';
-            document.body.style.backgroundColor = bgMap[cls] || '#ffffff';
+            // Read computed CSS variable value
+            var style = getComputedStyle(document.documentElement);
+            var bg = style.getPropertyValue('--background').trim();
+            if (bg) {
+                document.body.style.backgroundColor = 'hsl(' + bg + ')';
+            } else {
+                // Fallback hex for very old browsers
+                var bgMap = { dark: '#020817', mocha: '#1e1e2e', light: '#ffffff' };
+                document.body.style.backgroundColor = bgMap[cls] || '#ffffff';
+            }
         } catch(e) {}
     </script>
     <div id="main"></div>
