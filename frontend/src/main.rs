@@ -13,6 +13,9 @@ mod state;
 mod theme;
 mod utils;
 
+#[cfg(test)]
+mod index_html_tests;
+
 #[derive(Routable, Clone, Debug, PartialEq)]
 #[rustfmt::skip]
 pub enum Route {

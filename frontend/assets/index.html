@@ -17,6 +17,9 @@
                 else if (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) cls = 'dark';
                 if (cls === 'dark') document.documentElement.classList.add('dark');
                 else if (cls === 'mocha') document.documentElement.classList.add('mocha');
+                // Set body background-color immediately to prevent white flash on refresh
+                var bgMap = { dark: '#030712', mocha: '#1e1e2e', light: '#ffffff' };
+                document.body.style.backgroundColor = bgMap[cls] || '#ffffff';
                 var meta = document.querySelector('meta[name="theme-color"]');
                 if (meta) {
                     meta.content = cls === 'dark' ? '#030712' : cls === 'mocha' ? '#1e1e2e' : '#ffffff';
