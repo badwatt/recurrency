@@ -201,11 +201,26 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      - name: Build Android APK
-        run: cd frontend && dx build --platform android --release
+      - name: Build Android AAB
+        run: cd frontend && dx bundle --platform android --release
 
-      - name: List bundle output
-        run: find frontend/dist -type f \( -name '*.aab' -o -name '*.apk' \) | head -10
+      - name: Install bundletool
+        run: |
+          curl -sL https://github.com/google/bundletool/releases/latest/download/bundletool-all.jar \
+            -o /usr/local/bin/bundletool.jar
+
+      - name: Convert AAB to APK
+        run: |
+          AAB=$(find frontend/dist -name '*.aab' | head -1)
+          echo "Found AAB: $AAB"
+          java -jar /usr/local/bin/bundletool.jar build-apks \
+            --bundle="$AAB" \
+            --output=frontend/dist/recurrency.apks \
+            --mode=universal
+          cd frontend/dist
+          unzip -o recurrency.apks '*.apk' -d .
+          mv universal.apk recurrency.apk 2>/dev/null || true
+          ls -la *.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
