@@ -122,6 +122,20 @@ jobs:
             type=raw,value=${{ needs.prepare.outputs.version }}
             type=raw,value=latest
 
+      - name: Cancel if sibling job failed
+        if: always()
+        run: |
+          SIBLING=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+            --jq '.jobs[] | select(.name!="${{ github.job }}") | select(.conclusion=="failure") | .name')
+          if [ -n "$SIBLING" ]; then
+            echo "Sibling job $SIBLING failed — cancelling this run"
+            gh run cancel ${{ github.run_id }}
+            sleep 5
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -194,6 +208,20 @@ jobs:
           if [ ! -f frontend/assets/icon.png ]; then
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
+
+      - name: Cancel if sibling job failed
+        if: always()
+        run: |
+          SIBLING=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+            --jq '.jobs[] | select(.name!="${{ github.job }}") | select(.conclusion=="failure") | .name')
+          if [ -n "$SIBLING" ]; then
+            echo "Sibling job $SIBLING failed — cancelling this run"
+            gh run cancel ${{ github.run_id }}
+            sleep 5
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Android APK
         run: cd frontend && dx bundle --platform android --release
