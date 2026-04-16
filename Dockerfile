@@ -40,7 +40,11 @@ RUN npm install --prefix . tailwindcss tailwindcss-animate \
     && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
 # Build Dioxus web bundle
-RUN dx bundle --platform web --release
+RUN dx bundle --platform web --release && \
+    echo "=== Frontend output ===" && \
+    ls -la dist/ 2>/dev/null && \
+    echo "=== Searching for index.html ===" && \
+    find dist/ target/dx/ -name 'index.html' -type f 2>/dev/null
 
 # ── Stage 2: Build backend ──────────────────────────────────
 # rust:bookworm has glibc 2.36 — binary compatible with debian:bookworm-slim runtime
@@ -74,8 +78,24 @@ RUN pg_dropcluster 15 main || true && pg_createcluster 15 main -p 5432 -- --auth
 COPY --from=backend-build /build/backend/target/release/recurrency-api /usr/local/bin/recurrency-api
 RUN chmod +x /usr/local/bin/recurrency-api
 
-# Copy frontend dist
+# Copy frontend dist (dx bundle output)
 COPY --from=frontend-build /build/frontend/dist /frontend/dist
+
+# Also copy dx build output as fallback (dx build uses target/dx/ instead of dist/)
+COPY --from=frontend-build /build/frontend/target/dx /tmp/dx_output
+
+# Ensure index.html exists — try both output locations
+RUN if [ ! -f /frontend/dist/index.html ]; then \
+        IDX=$(find /tmp/dx_output -name 'index.html' -type f | head -1); \
+        if [ -n "$IDX" ]; then \
+            WEBDIR=$(dirname "$IDX"); \
+            echo "Frontend found at: $WEBDIR"; \
+            cp -r "$WEBDIR"/* /frontend/dist/; \
+        fi; \
+    fi && \
+    test -f /frontend/dist/index.html || (echo "FATAL: index.html not found in frontend build output!" && exit 1) && \
+    echo "Frontend files:" && ls -la /frontend/dist/ && \
+    rm -rf /tmp/dx_output
 
 # Copy entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh

@@ -71,6 +71,18 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
     tracing::info!("Serving frontend from: {}", frontend_dist);
 
     let index_path = format!("{}/index.html", frontend_dist);
+    if !std::path::Path::new(&index_path).exists() {
+        tracing::error!("Frontend index.html not found at: {}", index_path);
+        tracing::error!("Ensure FRONTEND_DIST points to a directory containing index.html");
+        if let Ok(entries) = std::fs::read_dir(&frontend_dist) {
+            tracing::error!("Contents of {}:", frontend_dist);
+            for entry in entries.flatten() {
+                tracing::error!("  - {}", entry.path().display());
+            }
+        } else {
+            tracing::error!("Directory {} does not exist or is empty", frontend_dist);
+        }
+    }
 
     Router::new()
         // Health check

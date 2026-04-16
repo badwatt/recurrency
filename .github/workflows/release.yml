@@ -201,42 +201,15 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      - name: Build Android APK
+      - name: Build Android APK (debug)
         run: cd frontend && dx bundle --platform android
-
-      - name: Patch generated Gradle files
-        run: |
-          # Workaround for Dioxus issue #5251:
-          # dx generates Java 8 targets (obsolete with Java 17+) and
-          # broken lint tasks that crash release builds.
-          # Patch even for debug builds to prevent future issues.
-          GRADLE_FILE=$(find frontend/target/dx -name 'build.gradle.kts' -path '*/app/*' | head -1)
-          if [ -n "$GRADLE_FILE" ]; then
-            sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
-            sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-            echo "Patched Java target: 1.8 → 17"
-          fi
-          MANIFEST=$(find frontend/target/dx -name 'AndroidManifest.xml' -path '*/main/*' | head -1)
-          if [ -n "$MANIFEST" ]; then
-            sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
-            echo "Removed deprecated extractNativeLibs attribute"
-          fi
-
-      - name: Rebuild with patched Gradle
-        run: |
-          ANDROID_DIR=$(find frontend/target/dx -maxdepth 5 -name 'app' -path '*/android/app' -type d | head -1)
-          if [ -n "$ANDROID_DIR" ]; then
-            cd "$ANDROID_DIR"
-            ./gradlew assembleDebug \
-              -x lintVitalAnalyzeDebug \
-              -x lintVitalDebug \
-              -x lintVitalReportDebug
-          fi
 
       - name: Locate APK
         run: |
           echo "Searching for APK..."
-          APK=$(find frontend/target/dx -name '*.apk' -type f | head -1)
+          ls -la frontend/dist/*.apk 2>/dev/null || true
+          find frontend/target/dx -name '*.apk' -type f 2>/dev/null || true
+          APK=$(find frontend/target/dx frontend/dist -name '*.apk' -type f 2>/dev/null | head -1)
           echo "Found APK: $APK"
           mkdir -p frontend/dist
           cp "$APK" frontend/dist/recurrency.apk
