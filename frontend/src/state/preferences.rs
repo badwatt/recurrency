@@ -21,6 +21,11 @@ impl PreferencesState {
         &self.preferences.subscriptions_view
     }
 
+    /// Get first day of week: "monday" or "sunday" (default: "monday").
+    pub fn first_day_of_week(&self) -> &str {
+        &self.preferences.first_day_of_week
+    }
+
     pub fn set_loading(&mut self) {
         self.is_loading = true;
     }
@@ -38,6 +43,10 @@ impl PreferencesState {
 
     pub fn set_subscriptions_view(&mut self, view: String) {
         self.preferences.subscriptions_view = view;
+    }
+
+    pub fn set_first_day_of_week(&mut self, day: String) {
+        self.preferences.first_day_of_week = day;
     }
 
     /// Persist theme to localStorage.
@@ -83,10 +92,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_is_system_grid() {
+    fn default_is_system_grid_monday() {
         let state = PreferencesState::default();
         assert_eq!(state.theme(), "system");
         assert_eq!(state.subscriptions_view(), "grid");
+        assert_eq!(state.first_day_of_week(), "monday");
     }
 
     #[test]
@@ -104,11 +114,21 @@ mod tests {
     }
 
     #[test]
+    fn set_first_day_of_week() {
+        let mut state = PreferencesState::default();
+        state.set_first_day_of_week("sunday".into());
+        assert_eq!(state.first_day_of_week(), "sunday");
+        state.set_first_day_of_week("monday".into());
+        assert_eq!(state.first_day_of_week(), "monday");
+    }
+
+    #[test]
     fn set_data_marks_initialized() {
         let mut state = PreferencesState::default();
         state.set_data(PreferencesResponse {
             theme: "mocha".into(),
             subscriptions_view: "list".into(),
+            first_day_of_week: "monday".into(),
         });
         assert!(state.initialized);
         assert_eq!(state.theme(), "mocha");

@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::state::auth::AUTH;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::categories::CATEGORIES;
+use crate::state::preferences::PREFERENCES;
 use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::models::subscription::{CalendarItem, UpdateSubscriptionRequest};
@@ -30,16 +31,21 @@ fn icon_credit_card() -> Element {
     }}
 }
 
-const WEEKDAYS: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_SUNDAY: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_MONDAY: &[&str] = &["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES: &[&str] = &[
     "", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
 ];
 
 /// Compute calendar grid days (with null padding for leading empty cells).
-pub fn calendar_days(year: i32, month: u32) -> Vec<Option<u32>> {
+pub fn calendar_days(year: i32, month: u32, first_day_of_week: &str) -> Vec<Option<u32>> {
     let first_day = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
-    let start_padding = first_day.weekday().num_days_from_sunday();
+    let start_padding = if first_day_of_week == "sunday" {
+        first_day.weekday().num_days_from_sunday()
+    } else {
+        first_day.weekday().num_days_from_monday()
+    };
     let total_days = days_in_month(year, month);
     let mut days: Vec<Option<u32>> = (0..start_padding).map(|_| None).collect();
     for d in 1..=total_days {
@@ -189,14 +195,18 @@ pub fn CalendarPage() -> Element {
     let year = current_year();
     let month = current_month();
 
-    // Load calendar data
-    use_future(move || async move {
-        is_loading.set(true);
-        match sub_api::calendar_month(year, month).await {
-            Ok(items) => calendar_items.set(items),
-            Err(e) => log::error!("Failed to fetch calendar: {}", e),
-        }
-        is_loading.set(false);
+    // Load calendar data — re-runs when year or month changes
+    use_effect(move || {
+        let year = current_year();
+        let month = current_month();
+        spawn(async move {
+            is_loading.set(true);
+            match sub_api::calendar_month(year, month).await {
+                Ok(items) => calendar_items.set(items),
+                Err(e) => log::error!("Failed to fetch calendar: {}", e),
+            }
+            is_loading.set(false);
+        });
     });
 
     // Ensure subscriptions are loaded for category lookups and edit actions
@@ -228,12 +238,14 @@ pub fn CalendarPage() -> Element {
     });
 
     let currency = AUTH().currency().to_string();
+    let first_day = PREFERENCES().first_day_of_week().to_string();
     let items = calendar_items();
     let total = month_total(&items);
     let total_display = format_currency(total, &currency);
-    let days = calendar_days(year, month);
+    let days = calendar_days(year, month, &first_day);
     let now = Local::now().date_naive();
     let month_label = format!("{} {}", MONTH_NAMES.get(month as usize).unwrap_or(&""), year);
+    let weekday_headers = if first_day == "sunday" { WEEKDAYS_SUNDAY } else { WEEKDAYS_MONDAY };
 
     // Pre-compute day cells for desktop grid
     let day_cells: Vec<Option<DayCellInfo>> = days.iter().map(|d| {
@@ -534,7 +546,7 @@ pub fn CalendarPage() -> Element {
                         rsx! {
                             div { class: "grid grid-cols-7 gap-px bg-border",
                                 // Weekday headers
-                                for day_name in WEEKDAYS {
+                                for day_name in weekday_headers {
                                     {rsx! {
                                         div { class: "bg-muted p-2 text-center text-sm font-medium text-muted-foreground",
                                             "{day_name}"
@@ -555,9 +567,9 @@ pub fn CalendarPage() -> Element {
                                                 "mb-1 flex h-7 w-7 items-center justify-center rounded-full text-sm"
                                             };
                                             let cell_cls = if info.is_today {
-                                                "relative min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer ring-2 ring-primary"
+                                                "relative group min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer ring-2 ring-primary"
                                             } else {
-                                                "relative min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer"
+                                                "relative group min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer"
                                             };
                                             // Format date for pre-filling the subscription form
                                             let formatted_date = format!("{:04}-{:02}-{:02}", year, month, d);
@@ -571,7 +583,7 @@ pub fn CalendarPage() -> Element {
                                                     // Add subscription button (top-right, visible on hover)
                                                     button {
                                                         r#type: "button",
-                                                        class: "absolute top-1 right-1 h-6 w-6 hidden group-hover:flex items-center justify-center rounded-md bg-primary text-primary-foreground opacity-0 hover:bg-primary/80 transition-opacity",
+                                                        class: "absolute top-1 right-1 h-6 w-6 hidden group-hover:flex group-hover:opacity-100 items-center justify-center rounded-md bg-primary text-primary-foreground opacity-0 hover:bg-primary/80 transition-opacity",
                                                         title: "Add subscription for {formatted_date}",
                                                         onclick: move |e| {
                                                             e.stop_propagation();
@@ -879,7 +891,7 @@ mod tests {
 
     #[test]
     fn calendar_days_padding() {
-        let days = calendar_days(2024, 1);
+        let days = calendar_days(2024, 1, "sunday");
         assert_eq!(days[0], None);
         assert_eq!(days[1], Some(1));
         assert_eq!(days[31], Some(31));
@@ -888,14 +900,14 @@ mod tests {
 
     #[test]
     fn calendar_days_february_leap() {
-        let days = calendar_days(2024, 2);
+        let days = calendar_days(2024, 2, "sunday");
         let day_count = days.iter().filter(|d| d.is_some()).count();
         assert_eq!(day_count, 29);
     }
 
     #[test]
     fn calendar_days_february_normal() {
-        let days = calendar_days(2023, 2);
+        let days = calendar_days(2023, 2, "sunday");
         let day_count = days.iter().filter(|d| d.is_some()).count();
         assert_eq!(day_count, 28);
     }
@@ -977,7 +989,7 @@ mod tests {
     // ── Additional calendar logic tests ──
     #[test]
     fn calendar_days_march_2024() {
-        let days = calendar_days(2024, 3);
+        let days = calendar_days(2024, 3, "sunday");
         // March 1, 2024 is a Friday (4 padding days: Sun-Thu)
         let padding = days.iter().take_while(|d| d.is_none()).count();
         assert_eq!(padding, 5); // March 2024 starts on Friday
@@ -987,7 +999,7 @@ mod tests {
 
     #[test]
     fn calendar_days_december_2024() {
-        let days = calendar_days(2024, 12);
+        let days = calendar_days(2024, 12, "sunday");
         let real_days = days.iter().filter(|d| d.is_some()).count();
         assert_eq!(real_days, 31);
     }
@@ -1095,14 +1107,15 @@ mod tests {
 
     #[test]
     fn calendar_days_total_cell_count() {
-        let days = calendar_days(2024, 1);
+        let days = calendar_days(2024, 1, "sunday");
         // Should be padding + 31 days
         assert!(days.len() >= 31);
     }
 
     #[test]
     fn weekdays_count() {
-        assert_eq!(WEEKDAYS.len(), 7);
+        assert_eq!(WEEKDAYS_SUNDAY.len(), 7);
+        assert_eq!(WEEKDAYS_MONDAY.len(), 7);
     }
 
     #[test]
@@ -1213,6 +1226,68 @@ mod tests {
     }
 
     // ── Add subscription button on day cell ──
+    #[test]
+    fn calendar_days_monday_starts_on_monday() {
+        // January 2024 starts on Monday — Monday start means 0 padding
+        let days = calendar_days(2024, 1, "monday");
+        assert_eq!(days[0], Some(1), "Monday: first day of Jan 2024 should be in cell 0");
+    }
+
+    #[test]
+    fn calendar_days_sunday_starts_on_monday() {
+        // January 2024 starts on Monday
+        // Sunday start: Sunday is day 0, so Monday is 1 padding
+        let days = calendar_days(2024, 1, "sunday");
+        assert_eq!(days[0], None, "Sunday: first cell should be empty (Sunday before Monday)");
+        assert_eq!(days[1], Some(1), "Sunday: second cell should be day 1");
+    }
+
+    #[test]
+    fn calendar_days_march_2024_monday() {
+        // March 1, 2024 is a Friday
+        // Monday start: Mon(0), Tue(1), Wed(2), Thu(3), Fri(4) → 4 padding
+        let days = calendar_days(2024, 3, "monday");
+        assert_eq!(days[0], None);
+        assert_eq!(days[1], None);
+        assert_eq!(days[2], None);
+        assert_eq!(days[3], None);
+        assert_eq!(days[4], Some(1), "Friday = 4 days from Monday");
+    }
+
+    #[test]
+    fn calendar_days_march_2024_sunday() {
+        // March 1, 2024 is a Friday
+        // Sunday start: Sun(0), Mon(1), Tue(2), Wed(3), Thu(4), Fri(5) → 5 padding
+        let days = calendar_days(2024, 3, "sunday");
+        for (i, d) in days.iter().enumerate() {
+            if i < 5 { assert!(d.is_none(), "Sunday start: cell {i} should be empty"); }
+        }
+        assert_eq!(days[5], Some(1), "Friday = 5 days from Sunday");
+    }
+
+    #[test]
+    fn calendar_days_correct_total_days() {
+        // February has 29 days in 2024 (leap year)
+        let days_monday = calendar_days(2024, 2, "monday");
+        let days_sunday = calendar_days(2024, 2, "sunday");
+        let jan_days: Vec<_> = days_monday.iter().filter_map(|d| *d).collect();
+        assert_eq!(jan_days.len(), 29);
+        let jan_days_sun: Vec<_> = days_sunday.iter().filter_map(|d| *d).collect();
+        assert_eq!(jan_days_sun.len(), 29);
+    }
+
+    #[test]
+    fn calendar_days_padding_depends_on_first_day() {
+        // Same month, different start days → different padding
+        let days_monday = calendar_days(2024, 7, "monday");  // July 1, 2024 is Monday
+        let days_sunday = calendar_days(2024, 7, "sunday");
+        let monday_padding = days_monday.iter().take_while(|d| d.is_none()).count();
+        let sunday_padding = days_sunday.iter().take_while(|d| d.is_none()).count();
+        // July 1 is Monday → Monday=0, Sunday=1
+        assert_eq!(monday_padding, 0, "July 1 is Monday → 0 padding");
+        assert_eq!(sunday_padding, 1, "July 1 is Monday → 1 padding for Sunday start");
+    }
+
     #[test]
     fn calendar_item_billing_date_field_exists() {
         // CalendarItem must have billing_date field for frontend to display

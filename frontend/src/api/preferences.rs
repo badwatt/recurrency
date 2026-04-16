@@ -22,6 +22,7 @@ mod tests {
         let req = UpdatePreferencesRequest {
             theme: Some("dark".into()),
             subscriptions_view: None,
+            first_day_of_week: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("dark"));

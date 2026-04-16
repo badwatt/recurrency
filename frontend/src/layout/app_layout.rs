@@ -17,7 +17,14 @@ pub fn AppLayout() -> Element {
     // Wait for initialization before deciding
     if !auth.initialized {
         return rsx! {
-            div { class: "flex min-h-dvh items-center justify-center", "Loading..." }
+            div { class: "flex min-h-dvh flex-col items-center justify-center gap-4 bg-background text-foreground",
+                // Animated spinner — two rings spinning opposite directions
+                div { class: "relative h-12 w-12",
+                    div { class: "absolute inset-0 animate-spin rounded-full border-4 border-muted border-t-primary" }
+                    div { class: "absolute inset-2 animate-spin rounded-full border-4 border-muted/50 border-b-primary/50" }
+                }
+                p { class: "text-sm text-muted-foreground font-medium animate-pulse", "Loading..." }
+            }
         };
     }
 

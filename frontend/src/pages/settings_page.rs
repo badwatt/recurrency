@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::state::auth::AUTH;
+use crate::state::preferences::PREFERENCES;
 use crate::api::settings;
 use crate::api::notification_preferences;
 use crate::models::auth::UpdateSettingsRequest;
@@ -187,6 +188,31 @@ pub fn SettingsPage() -> Element {
                             for (val, label) in CURRENCIES {
                                 option { value: "{val}", "{label}" }
                             }
+                        }
+                    }
+                    // First day of week
+                    div { class: "space-y-2",
+                        label { r#for: "settings-first-day", class: "text-sm font-medium", "First Day of Week" }
+                        select {
+                            id: "settings-first-day",
+                            value: "{PREFERENCES().first_day_of_week()}",
+                            onchange: move |e| {
+                                let day = e.value();
+                                PREFERENCES.write().set_first_day_of_week(day.clone());
+                                spawn(async move {
+                                    match crate::api::preferences::update(&crate::models::preferences::UpdatePreferencesRequest {
+                                        theme: None,
+                                        subscriptions_view: None,
+                                        first_day_of_week: Some(day),
+                                    }).await {
+                                        Ok(_) => TOAST.write().success("First day of week updated"),
+                                        Err(_) => TOAST.write().error("Failed to update preference"),
+                                    }
+                                });
+                            },
+                            class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
+                            option { value: "monday", "Monday" }
+                            option { value: "sunday", "Sunday" }
                         }
                     }
                 }
