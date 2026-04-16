@@ -7,19 +7,19 @@
 FROM ubuntu:24.04 AS frontend-build
 
 ARG APP_VERSION=dev
-ENV RUSTFLAGS="-C target-cpu=generic"
+ENV RUSTFLAGS="-C target-cpu=generic" \
+    DEBIAN_FRONTEND=noninteractive
 
-# Install system deps (separate layer — retry on mirror sync issues)
-RUN apt-get update || apt-get update && \
-    apt-get install -y --no-install-recommends \
-    curl pkg-config libssl-dev ca-certificates npm && \
+# Install system deps with retry on mirror sync
+RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl pkg-config libssl-dev ca-certificates npm && break || sleep 5; done && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Rust via rustup (separate layer — cached if system deps unchanged)
+# Install Rust via rustup
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install dx CLI via binstall + wasm target (separate layer — cached if Rust unchanged)
+# Install dx CLI via binstall + wasm target
 RUN curl -L --proto '=https' --tlsv1.2 -sSf \
     https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
     cargo binstall dioxus-cli --no-confirm && \
@@ -45,11 +45,11 @@ RUN dx bundle --platform web --release
 # ── Stage 2: Build backend ──────────────────────────────────
 FROM ubuntu:24.04 AS backend-build
 
-ENV RUSTFLAGS="-C target-cpu=generic"
+ENV RUSTFLAGS="-C target-cpu=generic" \
+    DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update || apt-get update && \
-    apt-get install -y --no-install-recommends \
-    curl pkg-config libssl-dev ca-certificates && \
+RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl pkg-config libssl-dev ca-certificates && break || sleep 5; done && \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
