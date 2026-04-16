@@ -5,6 +5,7 @@ use crate::api::reports;
 use crate::api::categories;
 use crate::models::report::*;
 use crate::utils::format::format_currency;
+use crate::components::chart::{LineChart, LineData, DonutChart, DonutData, palette_color};
 use chrono::{Datelike, Local};
 
 fn icon_credit_card() -> Element {
@@ -29,6 +30,13 @@ fn icon_trending_up() -> Element {
     }}
 }
 
+fn icon_pie_chart() -> Element {
+    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
+        path { d: "M21.21 15.89A10 10 0 1 1 8 2.83" }
+        path { d: "22 12A10 10 0 0 0 12 2v10z" }
+    }}
+}
+
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"), ("2", "February"), ("3", "March"),
     ("4", "April"), ("5", "May"), ("6", "June"),
@@ -41,7 +49,6 @@ fn report_years() -> Vec<i32> {
     vec![this_year - 2, this_year - 1, this_year]
 }
 
-/// Build CSV from report data.
 pub fn build_csv(report: &ReportResponse) -> String {
     let mut csv = String::from("Category,Amount,Count,Percentage\n");
     for cat in &report.category_breakdown {
@@ -53,7 +60,6 @@ pub fn build_csv(report: &ReportResponse) -> String {
     csv
 }
 
-/// Get category style (color, icon) by name from category list.
 pub fn category_style_by_name<'a>(
     categories: &'a [crate::models::category::Category],
     name: &str,
@@ -162,7 +168,7 @@ pub fn ReportsPage() -> Element {
             } else if let Some(r) = report() {
                 rsx! {
                     div { class: "space-y-6",
-                        // Summary Cards
+                        // ── Summary Cards ─────────────────────────────
                         div { class: "grid gap-4 md:grid-cols-4",
                             // Total Spending
                             div { class: "rounded-lg border border-border bg-card p-6",
@@ -204,87 +210,118 @@ pub fn ReportsPage() -> Element {
                                     "{r.monthly_summary.transactions_count} transactions"
                                 }
                             }
-                            // Categories
-                            div { class: "rounded-lg border border-border bg-card p-6",
-                                div { class: "flex items-center justify-between pb-2",
-                                    span { class: "text-sm font-medium text-muted-foreground", "Categories" }
-                                    span { class: "text-muted-foreground", {icon_trending_up()} }
+                            // Avg per month (derived from trends)
+                            {
+                                let avg: rust_decimal::Decimal = if r.recent_trends.is_empty() {
+                                    r.monthly_summary.overall_total
+                                } else {
+                                    let sum: rust_decimal::Decimal = r.recent_trends.iter().map(|t| t.total).sum();
+                                    sum / rust_decimal::Decimal::from(r.recent_trends.len() as i64)
+                                };
+                                rsx! {
+                                    div { class: "rounded-lg border border-border bg-card p-6",
+                                        div { class: "flex items-center justify-between pb-2",
+                                            span { class: "text-sm font-medium text-muted-foreground", "Avg / Month" }
+                                            span { class: "text-muted-foreground", {icon_trending_up()} }
+                                        }
+                                        p { class: "text-2xl font-bold",
+                                            {format_currency(avg, &currency)}
+                                        }
+                                        p { class: "text-xs text-muted-foreground",
+                                            "over {r.recent_trends.len()} months"
+                                        }
+                                    }
                                 }
-                                p { class: "text-2xl font-bold",
-                                    "{r.category_breakdown.len()}"
-                                }
-                                p { class: "text-xs text-muted-foreground", "with expenses" }
                             }
                         }
 
-                        // Spending Trends (simplified text table, no chart lib)
+                        // ── Charts Row: Line + Donut ────────────────────
                         div { class: "grid gap-6 md:grid-cols-2",
+                            // Spending Trends Line Chart
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 h3 { class: "text-lg font-semibold mb-4", "Spending Trends" }
                                 if r.recent_trends.is_empty() {
                                     p { class: "text-muted-foreground text-center py-8", "No trend data available" }
                                 } else {
-                                    div { class: "space-y-2",
-                                        for trend in &r.recent_trends {
-                                            {let trend_total_str = format_currency(trend.total, &currency);
-                                             let pct = {
-                                                 let max_total: rust_decimal::Decimal = r.recent_trends.iter().map(|t| t.total).max().unwrap_or(rust_decimal::Decimal::ONE);
-                                                 if max_total > rust_decimal::Decimal::ZERO {
-                                                     let val = trend.total / max_total * rust_decimal::Decimal::from(100);
-                                                     val.to_string()
-                                                 } else { "0".to_string() }
-                                             };
-                                             rsx! {
-                                                div { key: "{trend.period}", class: "flex items-center justify-between py-1",
-                                                    span { class: "text-sm", "{trend.period}" }
-                                                    span { class: "text-sm font-medium", "{trend_total_str}" }
-                                                }
-                                                div { class: "h-2 bg-muted rounded-full overflow-hidden",
-                                                    div {
-                                                        class: "h-full rounded-full bg-primary",
-                                                        style: "width: {pct}%",
-                                                    }
-                                                }
-                                            }}
+                                    {
+                                        // Trends come newest-first from API, reverse for chronological
+                                        let mut trends = r.recent_trends.clone();
+                                        trends.reverse();
+                                        let line_data: Vec<LineData> = trends.iter().map(|t| {
+                                            LineData {
+                                                label: t.period.clone(),
+                                                value: t.total.to_string().parse::<f64>().unwrap_or(0.0),
+                                            }
+                                        }).collect();
+                                        rsx! {
+                                            LineChart {
+                                                data: line_data,
+                                                height: "220".to_string(),
+                                                color: "#6366f1".to_string(),
+                                            }
                                         }
                                     }
                                 }
                             }
 
-                            // Category Breakdown (pie-like display)
+                            // Category Breakdown Donut Chart
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 h3 { class: "text-lg font-semibold mb-4", "By Category" }
                                 if r.category_breakdown.is_empty() {
                                     p { class: "text-muted-foreground text-center py-8", "No category data available" }
                                 } else {
-                                    div { class: "space-y-2",
-                                        for cat in r.category_breakdown.iter().take(5) {
-                                            {let (color, _icon) = category_style_by_name(&cats.categories, &cat.category_name);
-                                             rsx! {
-                                                div { key: "{cat.category_name}", class: "flex items-center gap-2",
-                                                    div {
-                                                        class: "w-6 h-6 rounded-full flex items-center justify-center",
-                                                        style: "background-color: {color}20",
-                                                        div { class: "w-3 h-3 rounded-full", style: "background-color: {color}" }
-                                                    }
-                                                    span { class: "text-sm flex-1 truncate", "{cat.category_name}" }
-                                                    span { class: "text-sm font-medium", "{cat.percentage:.0}%" }
+                                    div { class: "flex flex-col items-center gap-4",
+                                        {
+                                            let donut_data: Vec<DonutData> = r.category_breakdown.iter().enumerate().map(|(i, cat)| {
+                                                let pos = cats.categories.iter().position(|c2| c2.name == cat.category_name).unwrap_or(i);
+                                                let color = palette_color(pos).to_string();
+                                                DonutData {
+                                                    label: cat.category_name.clone(),
+                                                    value: cat.percentage,
+                                                    color,
                                                 }
-                                            }}
+                                            }).collect();
+                                            rsx! {
+                                                DonutChart {
+                                                    data: donut_data,
+                                                    size: "180".to_string(),
+                                                    stroke_width: "12".to_string(),
+                                                }
+                                            }
+                                        }
+                                        // Legend
+                                        div { class: "grid grid-cols-2 gap-x-4 gap-y-1.5 w-full",
+                                            for (i, cat) in r.category_breakdown.iter().take(8).enumerate() {
+                                                {
+                                                    let cats_guard = CATEGORIES();
+                                                    let color = if let Some(pos) = cats_guard.categories.iter().position(|c2| c2.name == cat.category_name) {
+                                                        palette_color(pos).to_string()
+                                                    } else {
+                                                        palette_color(i).to_string()
+                                                    };
+                                                    rsx! {
+                                                        div { key: "{cat.category_name}", class: "flex items-center gap-1.5 text-sm",
+                                                            div { class: "w-2.5 h-2.5 rounded-full shrink-0", style: "background-color: {color}" }
+                                                            span { class: "truncate text-muted-foreground", "{cat.category_name}" }
+                                                            span { class: "font-medium ml-auto", "{cat.percentage:.0}%" }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // Category Details Table
+                        // ── Category Details Table ──────────────────────
                         div { class: "rounded-lg border border-border bg-card p-6",
                             h3 { class: "text-lg font-semibold mb-4", "Category Breakdown" }
                             if r.category_breakdown.is_empty() {
                                 p { class: "text-muted-foreground text-center py-8", "No category data available" }
                             } else {
                                 div { class: "space-y-4",
-                                    for cat in &r.category_breakdown {
+                                    for cat in r.category_breakdown.iter() {
                                         {let (color, _icon) = category_style_by_name(&cats.categories, &cat.category_name);
                                          rsx! {
                                             div { key: "{cat.category_name}", class: "space-y-2",
@@ -335,7 +372,7 @@ mod tests {
     use rust_decimal_macros::dec;
     use crate::models::category::Category;
     use uuid::Uuid;
-    use chrono::{DateTime, Utc};
+    use chrono::DateTime;
 
     fn make_cat(name: &str, color: &str, icon: &str) -> Category {
         Category {
@@ -408,5 +445,35 @@ mod tests {
     #[test]
     fn month_options_count() {
         assert_eq!(MONTH_OPTIONS.len(), 12);
+    }
+
+    #[test]
+    fn palette_color_deterministic() {
+        use crate::components::chart::palette_color;
+        assert_eq!(palette_color(0), "#6366f1");
+        assert_eq!(palette_color(1), "#f59e0b");
+    }
+
+    #[test]
+    fn donut_data_construction() {
+        use crate::components::chart::DonutData;
+        let d = DonutData {
+            label: "Food".into(),
+            value: 45.0,
+            color: "#6366f1".into(),
+        };
+        assert_eq!(d.label, "Food");
+        assert_eq!(d.value, 45.0);
+    }
+
+    #[test]
+    fn line_data_construction() {
+        use crate::components::chart::LineData;
+        let d = LineData {
+            label: "Jan".into(),
+            value: 150.0,
+        };
+        assert_eq!(d.label, "Jan");
+        assert_eq!(d.value, 150.0);
     }
 }

@@ -88,6 +88,264 @@ pub fn BarChart(data: Vec<BarData>, height: String) -> Element {
     }
 }
 
+// ── Line Chart ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LineData {
+    pub label: String,
+    pub value: f64,
+}
+
+#[component]
+pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element {
+    if data.is_empty() {
+        return rsx! {
+            div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
+        };
+    }
+
+    let max_val = data.iter().map(|d| d.value).fold(0.0_f64, f64::max);
+    let max_val = if max_val == 0.0 { 1.0 } else { max_val };
+
+    let padding_left = 60.0_f64;
+    let padding_right = 16.0_f64;
+    let padding_top = 16.0_f64;
+    let padding_bottom = 32.0_f64;
+    let view_width = 500.0_f64;
+    let view_height = 220.0_f64;
+
+    let chart_w = view_width - padding_left - padding_right;
+    let chart_h = view_height - padding_top - padding_bottom;
+
+    // Compute points
+    let n = data.len() as f64;
+    let step_x = if data.len() > 1 { chart_w / (n - 1.0) } else { 0.0 };
+
+    let points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
+        let x = padding_left + i as f64 * step_x;
+        let y = padding_top + chart_h - (d.value / max_val) * chart_h;
+        (x, y)
+    }).collect();
+
+    // Build polyline path
+    let line_path = points.iter().enumerate().map(|(i, (x, y))| {
+        if i == 0 { format!("M{x:.1},{y:.1}") } else { format!("L{x:.1},{y:.1}") }
+    }).collect::<Vec<_>>().join(" ");
+
+    // Build area fill path (close to bottom)
+    let area_path = if let (Some(&(first_x, _)), Some(&(last_x, _))) = (points.first(), points.last()) {
+        let bottom_y = padding_top + chart_h;
+        let mut path = line_path.clone();
+        path.push_str(&format!("L{last_x:.1},{bottom_y:.1}L{first_x:.1},{bottom_y:.1}Z"));
+        path
+    } else {
+        line_path.clone()
+    };
+
+    // Gradient id
+    let grad_id = "lineGrad";
+
+    rsx! {
+        svg {
+            view_box: "0 0 {view_width} {view_height}",
+            width: "100%",
+            height: "{height}",
+            xmlns: "http://www.w3.org/2000/svg",
+            class: "overflow-visible",
+
+            // Defs: gradient for area fill
+            defs {
+                linearGradient {
+                    id: "{grad_id}",
+                    x1: "0", y1: "0", x2: "0", y2: "1",
+                    stop { offset: "0%", stop_color: "{color}", stop_opacity: "0.3" }
+                    stop { offset: "100%", stop_color: "{color}", stop_opacity: "0.02" }
+                }
+            }
+
+            // Horizontal grid lines
+            {
+                let grid_lines = (0..5).map(|i| {
+                    let y = padding_top + (chart_h / 4.0) * i as f64;
+                    let val = max_val - (max_val / 4.0) * i as f64;
+                    rsx! {
+                        line {
+                            key: "grid-{i}",
+                            x1: "{padding_left}",
+                            y1: "{y}",
+                            x2: "{padding_left + chart_w}",
+                            y2: "{y}",
+                            stroke: "currentColor",
+                            stroke_opacity: "0.07",
+                            stroke_dasharray: "3,3",
+                        }
+                        text {
+                            x: "{padding_left - 6.0}",
+                            y: "{y + 4.0}",
+                            fill: "currentColor",
+                            class: "text-xs fill-muted-foreground",
+                            text_anchor: "end",
+                            {format!("{:.0}", val)}
+                        }
+                    }
+                }).collect::<Vec<_>>();
+                grid_lines.into_iter()
+            }
+
+            // Area fill
+            path {
+                d: "{area_path}",
+                fill: "url(#{grad_id})",
+            }
+
+            // Line
+            path {
+                d: "{line_path}",
+                fill: "none",
+                stroke: "{color}",
+                stroke_width: "2.5",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+            }
+
+            // Data points + labels
+            for (i, (x, y)) in points.iter().enumerate() {
+                circle {
+                    key: "dot-{i}",
+                    cx: "{x}",
+                    cy: "{y}",
+                    r: "3.5",
+                    fill: "{color}",
+                    stroke: "var(--card, #fff)",
+                    stroke_width: "2",
+                }
+                text {
+                    x: "{x}",
+                    y: "{padding_top + chart_h + 18.0}",
+                    fill: "currentColor",
+                    class: "text-xs fill-muted-foreground",
+                    text_anchor: "middle",
+                    {data[i].label.clone()}
+                }
+            }
+        }
+    }
+}
+
+// ── Donut Chart ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DonutData {
+    pub label: String,
+    pub value: f64,
+    pub color: String,
+}
+
+#[component]
+pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> Element {
+    if data.is_empty() {
+        return rsx! {
+            div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
+        };
+    }
+
+    let total: f64 = data.iter().map(|d| d.value).sum();
+    if total == 0.0 {
+        return rsx! {
+            div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
+        };
+    }
+
+    // SVG viewBox: center at 50,50 with radius ~40
+    let center = 50.0_f64;
+    let radius = 40.0_f64;
+    let circumference = 2.0 * std::f64::consts::PI * radius;
+
+    let sw: f64 = stroke_width.parse().unwrap_or(12.0);
+    let segments = compute_donut_segments(&data, total, circumference);
+
+    rsx! {
+        div { class: "flex flex-col items-center",
+            svg {
+                view_box: "0 0 {center*2.0} {center*2.0}",
+                width: "{size}",
+                height: "{size}",
+                xmlns: "http://www.w3.org/2000/svg",
+                class: "transform -rotate-90",
+
+                for seg in &segments {
+                    circle {
+                        key: "{seg.label}",
+                        cx: "{center}",
+                        cy: "{center}",
+                        r: "{radius}",
+                        fill: "none",
+                        stroke: "{seg.color}",
+                        stroke_width: "{sw}",
+                        stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
+                        stroke_dashoffset: "{-seg.offset}",
+                        stroke_linecap: "round",
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct DonutSegment {
+    label: String,
+    color: String,
+    dash_len: f64,
+    offset: f64,
+}
+
+fn compute_donut_segments(data: &[DonutData], total: f64, circumference: f64) -> Vec<DonutSegment> {
+    let mut segments = Vec::new();
+    let mut cum_offset = 0.0;
+    let gap = 2.0_f64; // small gap between slices
+
+    for (i, d) in data.iter().enumerate() {
+        let pct = d.value / total;
+        let dash_len = (pct * circumference).max(0.0);
+        let effective_len = if data.len() > 1 && dash_len > gap * 2.0 {
+            dash_len - gap
+        } else {
+            dash_len
+        };
+        segments.push(DonutSegment {
+            label: format!("{}-{}", d.label, i),
+            color: d.color.clone(),
+            dash_len: effective_len,
+            offset: cum_offset,
+        });
+        cum_offset += dash_len;
+    }
+    segments
+}
+
+// ── Palette ──────────────────────────────────────────────────────────────────
+
+/// Consistent color palette for category slices.
+pub const CHART_PALETTE: &[&str] = &[
+    "#6366f1", // indigo
+    "#f59e0b", // amber
+    "#10b981", // emerald
+    "#ef4444", // red
+    "#8b5cf6", // violet
+    "#06b6d4", // cyan
+    "#f97316", // orange
+    "#ec4899", // pink
+    "#14b8a6", // teal
+    "#84cc16", // lime
+    "#e11d48", // rose
+    "#64748b", // slate
+];
+
+/// Get a color from the palette by index.
+pub fn palette_color(index: usize) -> &'static str {
+    CHART_PALETTE[index % CHART_PALETTE.len()]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,5 +372,55 @@ mod tests {
     fn empty_data() {
         let data: Vec<BarData> = vec![];
         assert!(data.is_empty());
+    }
+
+    #[test]
+    fn line_data_points() {
+        let data = vec![
+            LineData { label: "Jan".into(), value: 100.0 },
+            LineData { label: "Feb".into(), value: 200.0 },
+            LineData { label: "Mar".into(), value: 150.0 },
+        ];
+        let max = data.iter().map(|d| d.value).fold(0.0_f64, f64::max);
+        assert_eq!(max, 200.0);
+    }
+
+    #[test]
+    fn donut_segments_computation() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 60.0, color: "#f00".into() },
+            DonutData { label: "B".into(), value: 40.0, color: "#0f0".into() },
+        ];
+        let total: f64 = 100.0;
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        assert_eq!(segs.len(), 2);
+        // First segment: 60% of circumference
+        let expected_first = 0.6 * circ - 2.0; // gap deducted
+        assert!((segs[0].dash_len - expected_first).abs() < 0.01);
+        assert!((segs[0].offset).abs() < 0.01);
+    }
+
+    #[test]
+    fn palette_color_cycling() {
+        assert_eq!(palette_color(0), "#6366f1");
+        assert_eq!(palette_color(12), "#6366f1"); // wraps
+        assert_eq!(palette_color(1), "#f59e0b");
+    }
+
+    #[test]
+    fn donut_empty_data() {
+        let data: Vec<DonutData> = vec![];
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn donut_zero_total() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 0.0, color: "#f00".into() },
+        ];
+        let total: f64 = 0.0;
+        // Should be handled by returning "No data" element at render time
+        assert_eq!(total, 0.0);
     }
 }

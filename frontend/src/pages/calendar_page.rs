@@ -1,8 +1,17 @@
 use dioxus::prelude::*;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
+use uuid::Uuid;
+
 use crate::state::auth::AUTH;
-use crate::api::subscriptions;
-use crate::models::subscription::CalendarItem;
+use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::state::categories::CATEGORIES;
+use crate::api;
+use crate::api::subscriptions as sub_api;
+use crate::models::subscription::{CalendarItem, UpdateSubscriptionRequest};
 use crate::utils::format::format_currency;
+use crate::utils::constants::{CURRENCIES, FREQUENCIES};
+use crate::components::dialog::Dialog;
 use chrono::{Datelike, Local, NaiveDate};
 
 fn icon_calendar() -> Element {
@@ -101,6 +110,54 @@ fn day_cell_info(items: &[CalendarItem], year: i32, month: u32, day: u32, curren
     }
 }
 
+/// Dialog form state for editing a subscription from the calendar modal.
+#[derive(Debug, Clone, Default)]
+struct EditForm {
+    name: String,
+    amount: String,
+    currency: String,
+    frequency: String,
+    start_date: String,
+    category_id: String,
+    notes: String,
+    logo_url: String,
+}
+
+/// Helper: find category name for a CalendarItem by looking up the subscription in SUBSCRIPTIONS.
+fn category_name_for_item(item: &CalendarItem) -> String {
+    let subs = SUBSCRIPTIONS();
+    if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == item.subscription_id) {
+        let cats = CATEGORIES();
+        if let Some(cat) = cats.get_by_id(&sub.category_id) {
+            return cat.name.clone();
+        }
+    }
+    "Uncategorized".to_string()
+}
+
+/// Helper: find category color for a CalendarItem.
+fn category_color_for_item(item: &CalendarItem) -> String {
+    let subs = SUBSCRIPTIONS();
+    if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == item.subscription_id) {
+        let cats = CATEGORIES();
+        if let Some(cat) = cats.get_by_id(&sub.category_id) {
+            return cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
+        }
+    }
+    "#6b7280".to_string()
+}
+
+/// Helper: format frequency display.
+fn format_frequency(freq: &str) -> &str {
+    match freq {
+        "weekly" => "Weekly",
+        "monthly" => "Monthly",
+        "quarterly" => "Quarterly",
+        "yearly" => "Yearly",
+        _ => freq,
+    }
+}
+
 #[component]
 pub fn CalendarPage() -> Element {
     let mut current_year = use_signal(|| Local::now().year());
@@ -109,17 +166,59 @@ pub fn CalendarPage() -> Element {
     let mut is_loading = use_signal(|| false);
     let mut selected_day = use_signal(|| None::<(i32, u32, u32)>);
 
+    // Edit dialog state
+    let mut edit_dialog_open = use_signal(|| false);
+    let mut editing_id = use_signal(|| None::<Uuid>);
+    let mut edit_form = use_signal(EditForm::default);
+    let mut name_error: Signal<String> = use_signal(String::new);
+    let mut amount_error: Signal<String> = use_signal(String::new);
+    let mut currency_error: Signal<String> = use_signal(String::new);
+    let mut frequency_error: Signal<String> = use_signal(String::new);
+    let mut start_date_error: Signal<String> = use_signal(String::new);
+    let mut category_error: Signal<String> = use_signal(String::new);
+
+    // Delete confirmation state
+    let mut delete_confirm_id = use_signal(|| None::<Uuid>);
+
     let year = current_year();
     let month = current_month();
 
     // Load calendar data
     use_future(move || async move {
         is_loading.set(true);
-        match subscriptions::calendar_month(year, month).await {
+        match sub_api::calendar_month(year, month).await {
             Ok(items) => calendar_items.set(items),
             Err(e) => log::error!("Failed to fetch calendar: {}", e),
         }
         is_loading.set(false);
+    });
+
+    // Ensure subscriptions are loaded for category lookups and edit actions
+    use_effect(move || {
+        spawn(async move {
+            let state = SUBSCRIPTIONS();
+            if !state.is_loading && state.subscriptions.is_empty() && state.error.is_none() {
+                SUBSCRIPTIONS.write().set_loading();
+                match api::subscriptions::list().await {
+                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                    Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+                }
+            }
+        });
+    });
+
+    // Ensure categories are loaded for category lookups
+    use_effect(move || {
+        spawn(async move {
+            let state = CATEGORIES();
+            if !state.is_loading && state.categories.is_empty() && state.error.is_none() {
+                CATEGORIES.write().set_loading();
+                match api::categories::list().await {
+                    Ok(data) => CATEGORIES.write().set_data(data),
+                    Err(e) => CATEGORIES.write().set_error(e.to_string()),
+                }
+            }
+        });
     });
 
     let currency = AUTH().currency().to_string();
@@ -172,15 +271,169 @@ pub fn CalendarPage() -> Element {
         current_month.set(now.month());
     };
 
-    // Selected day dialog data
-    let selected_dialog = selected_day().map(|(sy, sm, sd)| {
-        let label = format!("{} {} {}", MONTH_NAMES.get(sm as usize).unwrap_or(&""), sd, sy);
-        let day_item_refs = items_for_day(&items, sy, sm, sd);
-        let day_displays: Vec<(uuid::Uuid, String, String)> = day_item_refs.iter().map(|item| {
-            (item.subscription_id, item.name.clone(), format_currency(item.amount, &item.currency))
-        }).collect();
-        (label, day_displays)
-    });
+    // Selected day dialog data: gather CalendarItems with full display info
+    let selected_day_items: Vec<(CalendarItem, String, String)> = selected_day()
+        .map(|(sy, sm, sd)| {
+            let day_refs = items_for_day(&items, sy, sm, sd);
+            day_refs.iter().map(|item| {
+                let cat_name = category_name_for_item(item);
+                let cat_color = category_color_for_item(item);
+                ((*item).clone(), cat_name, cat_color)
+            }).collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let selected_day_label = selected_day().map(|(sy, sm, sd)| {
+        format!("{} {} {}", MONTH_NAMES.get(sm as usize).unwrap_or(&""), sd, sy)
+    }).unwrap_or_default();
+
+    // Handler: open edit dialog for a subscription
+    let mut handle_edit = move |sub_id: Uuid| {
+        let subs = SUBSCRIPTIONS();
+        if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == sub_id) {
+            editing_id.set(Some(sub.id));
+            edit_form.set(EditForm {
+                name: sub.name.clone(),
+                amount: sub.amount.to_string(),
+                currency: sub.currency.clone(),
+                frequency: sub.frequency.clone(),
+                start_date: sub.start_date.to_string(),
+                category_id: sub.category_id.to_string(),
+                notes: sub.notes.clone().unwrap_or_default(),
+                logo_url: sub.logo_url.clone().unwrap_or_default(),
+            });
+            name_error.set(String::new());
+            amount_error.set(String::new());
+            currency_error.set(String::new());
+            frequency_error.set(String::new());
+            start_date_error.set(String::new());
+            category_error.set(String::new());
+            edit_dialog_open.set(true);
+        }
+    };
+
+    // Handler: open delete confirmation
+    let mut handle_delete_request = move |sub_id: Uuid| {
+        delete_confirm_id.set(Some(sub_id));
+    };
+
+    // Handler: confirm delete
+    let handle_delete_confirm = move |_| {
+        if let Some(id) = delete_confirm_id() {
+            spawn(async move {
+                let _ = api::subscriptions::delete(&id).await;
+                match api::subscriptions::list().await {
+                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                    Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+                }
+                // Also refresh calendar
+                let y = current_year();
+                let m = current_month();
+                match sub_api::calendar_month(y, m).await {
+                    Ok(items) => calendar_items.set(items),
+                    Err(_) => {}
+                }
+            });
+            delete_confirm_id.set(None);
+        }
+    };
+
+    // Handler: submit edit form
+    let handle_edit_submit = move |_| {
+        let f = edit_form();
+        let mut valid = true;
+
+        if f.name.trim().is_empty() {
+            name_error.set("Name is required".into());
+            valid = false;
+        }
+        let amount_result = f.amount.parse::<Decimal>();
+        if f.amount.is_empty() {
+            amount_error.set("Amount is required".into());
+            valid = false;
+        } else if amount_result.is_err() || amount_result.as_ref().unwrap_or(&dec!(0)) <= &dec!(0) {
+            amount_error.set("Amount must be greater than 0".into());
+            valid = false;
+        }
+        if f.currency.is_empty() {
+            currency_error.set("Currency is required".into());
+            valid = false;
+        }
+        if f.frequency.is_empty() {
+            frequency_error.set("Frequency is required".into());
+            valid = false;
+        }
+        if f.start_date.is_empty() {
+            start_date_error.set("Start date is required".into());
+            valid = false;
+        } else if f.start_date.parse::<chrono::NaiveDate>().is_err() {
+            start_date_error.set("Invalid date format".into());
+            valid = false;
+        }
+        if f.category_id.is_empty() {
+            category_error.set("Category is required".into());
+            valid = false;
+        }
+
+        if !valid { return; }
+
+        let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
+        let category = if f.category_id.is_empty() { None } else { Uuid::parse_str(&f.category_id).ok() };
+
+        if let Some(id) = editing_id() {
+            let req = UpdateSubscriptionRequest {
+                name: Some(f.name),
+                amount: Some(amount),
+                currency: Some(f.currency),
+                frequency: Some(f.frequency),
+                start_date: Some(f.start_date.parse().unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())),
+                category_id: category,
+                notes: if f.notes.is_empty() { None } else { Some(f.notes.clone()) },
+                logo_url: if f.logo_url.is_empty() { None } else { Some(f.logo_url.clone()) },
+                ..Default::default()
+            };
+            spawn(async move {
+                let _ = api::subscriptions::update(&id, &req).await;
+                match api::subscriptions::list().await {
+                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                    Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+                }
+                // Refresh calendar
+                let y = current_year();
+                let m = current_month();
+                match sub_api::calendar_month(y, m).await {
+                    Ok(items) => calendar_items.set(items),
+                    Err(_) => {}
+                }
+            });
+        }
+
+        edit_dialog_open.set(false);
+    };
+
+    // Category options for form
+    let category_options: Vec<(String, String)> = CATEGORIES()
+        .categories.iter()
+        .map(|c| (c.id.to_string(), c.name.clone()))
+        .collect();
+
+    let form_name = edit_form().name;
+    let form_amount = edit_form().amount;
+    let form_currency = edit_form().currency;
+    let form_frequency = edit_form().frequency;
+    let form_start_date = edit_form().start_date;
+    let form_category_id = edit_form().category_id;
+    let form_notes = edit_form().notes;
+
+    let name_err = name_error();
+    let amount_err = amount_error();
+    let currency_err = currency_error();
+    let frequency_err = frequency_error();
+    let start_date_err = start_date_error();
+    let category_err = category_error();
+
+    let is_editing = editing_id().is_some();
+    let edit_title = if is_editing { "Edit Subscription".to_string() } else { "Add Subscription".to_string() };
 
     rsx! {
         div { class: "p-4 md:p-6 space-y-6",
@@ -355,33 +608,234 @@ pub fn CalendarPage() -> Element {
                 }
             }
 
-            // Day detail modal
-            if let Some((label, day_displays)) = selected_dialog {
-                div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-                    div { class: "w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg mx-4",
-                        h2 { class: "text-lg font-semibold mb-4", "{label}" }
-                        if day_displays.is_empty() {
-                            p { class: "text-muted-foreground", "No payments scheduled" }
-                        } else {
-                            div { class: "space-y-2",
-                                for (id, name, amount_str) in &day_displays {
-                                    {rsx! {
-                                        div { key: "{id}", class: "flex items-center justify-between p-3 rounded-lg border border-border",
-                                            div { class: "flex items-center gap-2",
-                                                {icon_credit_card()}
-                                                span { class: "font-medium", "{name}" }
+            // Day detail modal using Dialog component
+            Dialog {
+                open: selected_day().is_some(),
+                on_close: move |_| selected_day.set(None),
+                title: selected_day_label.clone(),
+                {rsx! {
+                    if selected_day_items.is_empty() {
+                        p { class: "text-muted-foreground text-center py-4", "No payments scheduled" }
+                    } else {
+                        div { class: "space-y-3",
+                            for (item, cat_name, cat_color) in &selected_day_items {
+                                {rsx! {
+                                    div {
+                                        key: "{item.subscription_id}",
+                                        class: "rounded-lg border border-border p-4 space-y-2",
+                                        // Top row: name + amount
+                                        div { class: "flex items-start justify-between gap-2",
+                                            div { class: "flex-1 min-w-0",
+                                                p { class: "font-semibold truncate", "{item.name}" }
+                                                div { class: "flex items-center gap-2 mt-1 flex-wrap",
+                                                    span {
+                                                        class: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
+                                                        style: "color: {cat_color}; background-color: {cat_color}15;",
+                                                        "{cat_name}"
+                                                    }
+                                                    span { class: "text-xs text-muted-foreground",
+                                                        "{format_frequency(&item.frequency)}"
+                                                    }
+                                                }
                                             }
-                                            span { class: "font-bold", "{amount_str}" }
+                                            p { class: "text-lg font-bold shrink-0",
+                                                "{format_currency(item.amount, &item.currency)}"
+                                            }
                                         }
-                                    }}
+                                        // Action buttons
+                                        div { class: "flex items-center gap-2 pt-1",
+                                            button {
+                                                class: "text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent",
+                                                onclick: {
+                                                    let sub_id = item.subscription_id;
+                                                    move |_| handle_edit(sub_id)
+                                                },
+                                                "✏ Edit"
+                                            }
+                                            button {
+                                                class: "text-xs px-3 py-1.5 rounded-md border border-border text-red-600 hover:bg-red-50 dark:hover:bg-red-950",
+                                                onclick: {
+                                                    let sub_id = item.subscription_id;
+                                                    move |_| handle_delete_request(sub_id)
+                                                },
+                                                "🗑 Delete"
+                                            }
+                                        }
+                                    }
+                                }}
+                            }
+                        }
+                    }
+                }}
+            }
+
+            // Edit subscription dialog
+            if edit_dialog_open() {
+                div { class: "fixed inset-0 z-[60] flex items-center justify-center bg-black/50",
+                    div { class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg mx-4",
+                        h2 { class: "text-lg font-semibold", "{edit_title}" }
+                        p { class: "text-sm text-muted-foreground mb-4", "Make changes to your subscription here." }
+
+                        div { class: "space-y-4",
+                            // Name
+                            div { class: "space-y-1.5",
+                                label { class: "text-sm font-medium", "Name" }
+                                input {
+                                    class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                                    placeholder: "Netflix, Spotify, etc.",
+                                    value: "{form_name}",
+                                    oninput: move |e: Event<FormData>| {
+                                        edit_form.write().name = e.value();
+                                        name_error.set(String::new());
+                                    },
+                                }
+                                if !name_err.is_empty() {
+                                    p { class: "text-xs text-red-500", "{name_err}" }
+                                }
+                            }
+
+                            // Amount + Currency
+                            div { class: "grid grid-cols-2 gap-4",
+                                div { class: "space-y-1.5",
+                                    label { class: "text-sm font-medium", "Amount" }
+                                    input {
+                                        r#type: "number",
+                                        step: "0.01",
+                                        min: "0",
+                                        class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                                        placeholder: "9.99",
+                                        value: "{form_amount}",
+                                        oninput: move |e: Event<FormData>| {
+                                            edit_form.write().amount = e.value();
+                                            amount_error.set(String::new());
+                                        },
+                                    }
+                                    if !amount_err.is_empty() {
+                                        p { class: "text-xs text-red-500", "{amount_err}" }
+                                    }
+                                }
+                                div { class: "space-y-1.5",
+                                    label { class: "text-sm font-medium", "Currency" }
+                                    select {
+                                        class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                                        value: "{form_currency}",
+                                        onchange: move |e: Event<FormData>| {
+                                            edit_form.write().currency = e.value();
+                                            currency_error.set(String::new());
+                                        },
+                                        for (val, label) in CURRENCIES {
+                                            option { value: "{val}", "{label}" }
+                                        }
+                                    }
+                                    if !currency_err.is_empty() {
+                                        p { class: "text-xs text-red-500", "{currency_err}" }
+                                    }
+                                }
+                            }
+
+                            // Frequency + Start date
+                            div { class: "grid grid-cols-2 gap-4",
+                                div { class: "space-y-1.5",
+                                    label { class: "text-sm font-medium", "Frequency" }
+                                    select {
+                                        class: if frequency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                                        value: "{form_frequency}",
+                                        onchange: move |e: Event<FormData>| {
+                                            edit_form.write().frequency = e.value();
+                                            frequency_error.set(String::new());
+                                        },
+                                        for (val, label) in FREQUENCIES {
+                                            option { value: "{val}", "{label}" }
+                                        }
+                                    }
+                                    if !frequency_err.is_empty() {
+                                        p { class: "text-xs text-red-500", "{frequency_err}" }
+                                    }
+                                }
+                                div { class: "space-y-1.5",
+                                    label { class: "text-sm font-medium", "Start Date" }
+                                    input {
+                                        r#type: "date",
+                                        class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                                        value: "{form_start_date}",
+                                        oninput: move |e: Event<FormData>| {
+                                            edit_form.write().start_date = e.value();
+                                            start_date_error.set(String::new());
+                                        },
+                                    }
+                                    if !start_date_err.is_empty() {
+                                        p { class: "text-xs text-red-500", "{start_date_err}" }
+                                    }
+                                }
+                            }
+
+                            // Category
+                            div { class: "space-y-1.5",
+                                label { class: "text-sm font-medium", "Category" }
+                                select {
+                                    class: if category_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                                    value: "{form_category_id}",
+                                    onchange: move |e: Event<FormData>| {
+                                        edit_form.write().category_id = e.value();
+                                        category_error.set(String::new());
+                                    },
+                                    option { value: "", "Select category..." }
+                                    for (id, name) in category_options.iter() {
+                                        option { value: "{id}", "{name}" }
+                                    }
+                                }
+                                if !category_err.is_empty() {
+                                    p { class: "text-xs text-red-500", "{category_err}" }
+                                }
+                            }
+
+                            // Notes
+                            div { class: "space-y-1.5",
+                                label { class: "text-sm font-medium", "Notes (optional)" }
+                                textarea {
+                                    class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                                    placeholder: "Additional notes...",
+                                    value: "{form_notes}",
+                                    oninput: move |e: Event<FormData>| edit_form.write().notes = e.value(),
                                 }
                             }
                         }
-                        div { class: "mt-4 flex justify-end",
+
+                        // Footer
+                        div { class: "flex justify-end gap-2 mt-6",
                             button {
-                                onclick: move |_| selected_day.set(None),
-                                class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
-                                "Close"
+                                class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
+                                onclick: move |_| edit_dialog_open.set(false),
+                                "Cancel"
+                            }
+                            button {
+                                class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                                onclick: handle_edit_submit,
+                                "Save Changes"
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Delete confirmation dialog
+            if delete_confirm_id().is_some() {
+                div { class: "fixed inset-0 z-[70] flex items-center justify-center bg-black/50",
+                    div { class: "bg-background rounded-lg p-6 w-80 space-y-4 shadow-lg",
+                        h3 { class: "font-semibold", "Delete subscription?" }
+                        p { class: "text-sm text-muted-foreground",
+                            "This action cannot be undone."
+                        }
+                        div { class: "flex justify-end gap-2",
+                            button {
+                                class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
+                                onclick: move |_| delete_confirm_id.set(None),
+                                "Cancel"
+                            }
+                            button {
+                                class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700",
+                                onclick: handle_delete_confirm,
+                                "Delete"
                             }
                         }
                     }
@@ -395,7 +849,6 @@ pub fn CalendarPage() -> Element {
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;
-    use uuid::Uuid;
 
     fn make_calendar_item(name: &str, amount: rust_decimal::Decimal, billing_date: NaiveDate) -> CalendarItem {
         CalendarItem {
@@ -496,5 +949,14 @@ mod tests {
         let info = day_cell_info(&items, 2024, 3, 10, "EUR");
         assert_eq!(info.items.len(), 3); // take(3)
         assert_eq!(info.extra_count, 2); // 5 - 3
+    }
+
+    #[test]
+    fn format_frequency_test() {
+        assert_eq!(format_frequency("weekly"), "Weekly");
+        assert_eq!(format_frequency("monthly"), "Monthly");
+        assert_eq!(format_frequency("quarterly"), "Quarterly");
+        assert_eq!(format_frequency("yearly"), "Yearly");
+        assert_eq!(format_frequency("custom"), "custom");
     }
 }
