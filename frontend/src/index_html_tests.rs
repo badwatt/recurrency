@@ -159,3 +159,60 @@ fn index_html_applies_mocha_class_to_html() {
         "index.html must add 'mocha' class to <html> element"
     );
 }
+
+#[test]
+fn index_html_meta_theme_color_matches_css_variables() {
+    // meta[name=theme-color] must match actual CSS --background for each theme.
+    // Bug: dark theme-color was #030712 but CSS --background = #020817.
+    let html = include_str!("../assets/index.html");
+    let css = include_str!("../assets/tailwind.css");
+    let cssmap = parse_css_backgrounds(css);
+
+    // Find meta.content assignments in the <head> script
+    let head_section = html.split("</head>").nth(0).unwrap_or("");
+    let meta_line = head_section.lines()
+        .find(|l| l.contains("meta.content"))
+        .unwrap_or("");
+
+    // Extract all #XXXXXX from meta.content line, order: dark, mocha, light
+    let all_hex: Vec<String> = meta_line.split('#')
+        .skip(1)
+        .filter_map(|s| {
+            let hex: String = s.chars().take_while(|c| c.is_ascii_hexdigit()).collect();
+            if hex.len() == 6 { Some(hex) } else { None }
+        })
+        .collect();
+
+    assert!(all_hex.len() >= 3,
+        "meta.content line must have 3 hex values (dark, mocha, light), found: {}",
+        all_hex.len());
+
+    let themes = ["dark", "mocha", "light"];
+    for (i, theme) in themes.iter().enumerate() {
+        if let Some(css_hex) = cssmap.get(*theme) {
+            assert_eq!(
+                all_hex[i].to_lowercase(),
+                css_hex.to_lowercase(),
+                "meta theme-color for {} mismatch: meta has #{}, CSS --background is #{}",
+                theme, all_hex[i], css_hex
+            );
+        }
+    }
+}
+
+#[test]
+fn index_html_has_loading_spinner_before_wasm() {
+    // Before WASM loads, there's a gap where only index.html is visible.
+    // Must show a themed loading spinner so users see a themed page, not blank.
+    let html = include_str!("../assets/index.html");
+    let body_section = html.split("\x3cbody>").nth(1).unwrap_or("").to_lowercase();
+    // Must have a spinner element (id="pre-wasm-loader" or class containing "loading")
+    let has_spinner = body_section.contains("pre-wasm-loader") || body_section.contains("loading") || body_section.contains("spinner");
+    assert!(has_spinner,
+        "index.html must have a loading spinner in <body> that shows before WASM loads");
+    // Spinner must use CSS variables for theming (not hardcoded colors)
+    let html_lower = html.to_lowercase();
+    let has_css_vars = html_lower.contains("--primary") || html_lower.contains("--foreground") || html_lower.contains("--background");
+    assert!(has_css_vars,
+        "Loading spinner must use CSS variables (--primary, --foreground) for theme adaptation");
+}

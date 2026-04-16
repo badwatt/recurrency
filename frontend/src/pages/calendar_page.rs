@@ -706,7 +706,7 @@ pub fn CalendarPage() -> Element {
                     class: "fixed inset-0 z-[60] flex items-center justify-center bg-black/50",
                     onclick: move |_| edit_dialog_open.set(false),
                     div {
-                        class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg mx-4",
+                        class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-[425px] shadow-lg sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
                         onclick: move |e| e.stop_propagation(),
                         h2 { class: "text-lg font-semibold", "{edit_title}" }
                         p { class: "text-sm text-muted-foreground mb-4", "Make changes to your subscription here." }
@@ -832,7 +832,7 @@ pub fn CalendarPage() -> Element {
                         }
 
                         // Footer
-                        div { class: "flex justify-end gap-2 mt-6",
+                        div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6",
                             button {
                                 class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
                                 onclick: move |_| edit_dialog_open.set(false),
@@ -851,12 +851,12 @@ pub fn CalendarPage() -> Element {
             // Delete confirmation dialog
             if delete_confirm_id().is_some() {
                 div { class: "fixed inset-0 z-[70] flex items-center justify-center bg-black/50",
-                    div { class: "bg-background rounded-lg p-6 w-80 space-y-4 shadow-lg",
+                    div { class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:w-80 space-y-4 shadow-lg h-dvh sm:h-auto flex flex-col",
                         h3 { class: "font-semibold", "Delete subscription?" }
                         p { class: "text-sm text-muted-foreground",
                             "This action cannot be undone."
                         }
-                        div { class: "flex justify-end gap-2",
+                        div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                             button {
                                 class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
                                 onclick: move |_| delete_confirm_id.set(None),

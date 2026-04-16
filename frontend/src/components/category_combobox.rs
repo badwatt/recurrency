@@ -162,7 +162,7 @@ pub fn CategoryCombobox(
                                     }
                                 },
                             }
-                            div { class: "flex justify-end gap-2",
+                            div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                                 button {
                                     class: "px-3 py-1.5 text-sm rounded-md border hover:bg-muted",
                                     r#type: "button",

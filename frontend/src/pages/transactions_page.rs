@@ -670,7 +670,7 @@ pub fn TransactionsPage() -> Element {
                     class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
                     onclick: move |_| dialog_open.set(false),
                     div {
-                        class: "w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg mx-4",
+                        class: "w-full sm:max-w-md rounded-none sm:rounded-lg border border-border bg-card p-4 sm:p-6 shadow-lg sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
                         onclick: move |e| e.stop_propagation(),
                         h2 { class: "text-lg font-semibold mb-4",
                             if editing_id().is_some() { "Edit Transaction" } else { "Add Transaction" }
@@ -768,7 +768,7 @@ pub fn TransactionsPage() -> Element {
                                 }
                             }
                             // Actions
-                            div { class: "flex justify-end gap-2 pt-2",
+                            div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2",
                                 button {
                                     onclick: move |_| dialog_open.set(false),
                                     class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
@@ -805,7 +805,7 @@ pub fn TransactionsPage() -> Element {
                                     value: "{notes_dialog_value}",
                                     oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
                                 }
-                                div { class: "flex justify-end gap-2",
+                                div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                                     button {
                                         class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
                                         onclick: move |_| notes_dialog_open.set(false),

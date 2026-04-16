@@ -14,6 +14,11 @@ use crate::state::preferences::PREFERENCES;
 pub fn AppLayout() -> Element {
     let auth = AUTH();
 
+    // Hide pre-WASM loading spinner (the one in index.html)
+    use_future(move || async move {
+        let _ = dioxus::document::eval("document.getElementById('pre-wasm-loader').style.display='none';");
+    });
+
     // Wait for initialization before deciding
     if !auth.initialized {
         return rsx! {

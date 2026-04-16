@@ -38,22 +38,22 @@ pub fn Dialog(
 
             // Dialog card
             div {
-                class: "bg-card border border-border rounded-lg shadow-lg max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto",
+                class: "bg-card border border-border rounded-none sm:rounded-lg shadow-lg w-full sm:max-w-lg mx-0 sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden",
                 onclick: move |e| e.stop_propagation(),
 
                 // Header
-                div { class: "flex items-center justify-between p-6 border-b border-border",
+                div { class: "flex items-center justify-between p-4 sm:p-6 border-b border-border",
                     h2 { class: "text-lg font-semibold text-foreground", {title.clone()} }
                     button {
                         r#type: "button",
-                        class: "text-muted-foreground hover:text-foreground",
+                        class: "text-muted-foreground hover:text-foreground p-2 sm:p-0",
                         onclick: move |_| on_close.call(()),
                         "✕"
                     }
                 }
 
                 // Content
-                div { class: "p-6",
+                div { class: "p-4 sm:p-6 flex-1 overflow-y-auto",
                     {children}
                 }
             }
@@ -94,5 +94,52 @@ mod tests {
         // Dialog uses use_future to listen for Escape key and calls dioxus.send(true).
         // This is a browser-only feature; the test verifies the code path exists.
         assert!(true);
+    }
+
+    #[test]
+    fn dialog_card_is_fullscreen_on_mobile() {
+        // On mobile, dialog card must be full-width and full-height.
+        // Bug: dialogs were small even on mobile, making forms hard to use.
+        // Fix: card has sm:max-w-lg + sm:max-h but mobile gets full viewport.
+        let src = include_str!("dialog.rs");
+        // Find the actual class string on the card div (first occurrence of bg-card)
+        let card_section = src.split("bg-card").nth(1).unwrap_or("");
+        let class_line = card_section.lines().next().unwrap_or("");
+        // Must use sm:max-w-lg (not bare max-w-lg) so mobile is unconstrained
+        assert!(class_line.contains("sm:max-w-lg"),
+            "Dialog card class must include sm:max-w-lg for mobile responsiveness. Found: {}",
+            class_line.trim());
+    }
+
+    #[test]
+    fn dialog_card_has_mobile_full_height() {
+        // On mobile, dialog card heights must fill the viewport (no max-h constraint).
+        let src = include_str!("dialog.rs");
+        let card_section = src.split("bg-card").nth(1).unwrap_or("");
+        let class_line = card_section.lines().next().unwrap_or("");
+        // Must use sm: or md: prefix on max-h so mobile fills viewport
+        let has_bare_max_h = class_line.contains("max-h-") && !class_line.contains("sm:max-h") && !class_line.contains("md:max-h");
+        assert!(!has_bare_max_h,
+            "Dialog card must not have bare max-h on mobile (use sm:max-h or md:max-h). Found: {}",
+            class_line.trim());
+    }
+
+    #[test]
+    fn dialog_footer_buttons_stack_on_mobile() {
+        // Modal footer buttons must stack vertically on mobile, horizontally on desktop.
+        // Bug: buttons side-by-side on mobile makes them too narrow.
+        // Fix: use flex-col sm:flex-row on footer container.
+        // This test checks pages that render modal footer buttons.
+        // Dialog component itself doesn't render buttons, so we check
+        // subscription/transaction dialog code.
+        let sub_src = include_str!("../pages/subscriptions_page.rs");
+        let tx_src = include_str!("../pages/transactions_page.rs");
+        // Both render_dialog functions must use flex-col sm:flex-row for footer
+        let sub_footer = sub_src.contains("flex-col sm:flex-row") || sub_src.contains("flex-col-reverse sm:flex-row");
+        let tx_footer = tx_src.contains("flex-col sm:flex-row") || tx_src.contains("flex-col-reverse sm:flex-row");
+        assert!(sub_footer,
+            "subscriptions dialog footer must use flex-col sm:flex-row for stacking on mobile");
+        assert!(tx_footer,
+            "transactions dialog footer must use flex-col sm:flex-row for stacking on mobile");
     }
 }

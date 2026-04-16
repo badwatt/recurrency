@@ -623,13 +623,13 @@ pub fn SubscriptionsPage() -> Element {
                     class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
                     onclick: move |_| delete_confirm_id.set(None),
                     div {
-                        class: "bg-background rounded-lg p-6 w-80 space-y-4 shadow-lg",
+                        class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:w-80 space-y-4 shadow-lg h-dvh sm:h-auto flex flex-col",
                         onclick: move |e| e.stop_propagation(),
                         h3 { class: "font-semibold", "Delete subscription?" }
                         p { class: "text-sm text-muted-foreground",
                             "This action cannot be undone."
                         }
-                        div { class: "flex justify-end gap-2",
+                        div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                             button {
                                 class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
                                 onclick: move |_| delete_confirm_id.set(None),
@@ -674,7 +674,7 @@ pub fn SubscriptionsPage() -> Element {
                                     value: "{notes_dialog_value}",
                                     oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
                                 }
-                                div { class: "flex justify-end gap-2",
+                                div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                                     button {
                                         class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
                                         onclick: move |_| notes_dialog_open.set(false),
@@ -928,7 +928,7 @@ fn render_dialog(
         div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
             onclick: move |_| dialog_open.set(false),
             div {
-                class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg",
+                class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-[425px] shadow-lg h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
                 onclick: move |e| e.stop_propagation(),
                 h2 { class: "text-lg font-semibold", "{title}" }
                 p { class: "text-sm text-muted-foreground mb-4", "{desc}" }
@@ -1054,7 +1054,7 @@ fn render_dialog(
                 }
 
                 // Footer
-                div { class: "flex justify-end gap-2 mt-6",
+                div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6",
                     button {
                         class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
                         onclick: move |_| dialog_open.set(false),

@@ -340,7 +340,7 @@ pub fn CategoriesPage() -> Element {
                         }
                     }
                     // Actions
-                    div { class: "flex justify-end gap-2 pt-2",
+                    div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2",
                         button {
                             onclick: move |_| dialog_open.set(false),
                             class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
