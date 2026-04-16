@@ -10,6 +10,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   CARGO_INCREMENTAL: 0
+  DX_VERSION: "0.7.5"
 
 permissions:
   contents: write
@@ -29,11 +30,10 @@ jobs:
         id: version
         run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
-  # ── Stage 1: Build & test ─────────────────────────────────
-  build-and-test:
+  # ── Backend tests ─────────────────────────────────────────
+  test-backend:
     needs: prepare
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -41,38 +41,93 @@ jobs:
       - name: Sync version
         run: |
           V="${{ needs.prepare.outputs.version }}"
-          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml backend/Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"$V\"/" backend/Cargo.toml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
 
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
-      - name: Cache Cargo (backend)
+      - name: Cache Cargo
         uses: swatinem/rust-cache@v2
         with:
           workspaces: backend
           cache-on-failure: true
 
-      - name: Cache Cargo (frontend)
+      - name: Run backend tests
+        run: cd backend && cargo test
+
+  # ── Frontend tests ────────────────────────────────────────
+  test-frontend:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Sync version
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Cache Cargo
         uses: swatinem/rust-cache@v2
         with:
           workspaces: frontend
           cache-on-failure: true
 
-      - name: Cache Bun
+      - name: Run frontend tests
+        run: cd frontend && cargo test
+
+  # ── Build frontend web bundle ─────────────────────────────
+  build-web:
+    needs: [prepare, test-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Sync version
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend
+          cache-on-failure: true
+
+      - name: Cache dx CLI
         uses: actions/cache@v4
         with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('frontend/package.json', 'frontend/bun.lockb') }}
-          restore-keys: bun-
+          path: ~/.cargo/bin/dx
+          key: dx-${{ env.DX_VERSION }}-${{ runner.os }}
 
       - name: Install dx CLI
-        run: cargo install dioxus-cli
+        run: |
+          if [ ! -f ~/.cargo/bin/dx ]; then
+            cargo install dioxus-cli --version ${{ env.DX_VERSION }}
+          fi
 
       - name: Install frontend deps (tailwind)
         run: cd frontend && npm install
@@ -80,20 +135,20 @@ jobs:
       - name: Build Tailwind CSS
         run: cd frontend && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
-      - name: Run backend tests
-        run: cd backend && cargo test
-
-      - name: Run frontend tests
-        run: cd frontend && cargo test
-
       - name: Build frontend (web)
         run: cd frontend && dx bundle --platform web --release
 
-  # ── Stage 1b: Build Android APK ───────────────────────────
-  build-android:
-    needs: [prepare, build-and-test]
-    runs-on: ubuntu-latest
+      - name: Upload web bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: recurrency-web
+          path: frontend/dist/
+          retention-days: 7
 
+  # ── Build Android APK ──────────────────────────────────────
+  build-android:
+    needs: [prepare, test-frontend]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -101,7 +156,7 @@ jobs:
       - name: Sync version
         run: |
           V="${{ needs.prepare.outputs.version }}"
-          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml backend/Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -130,14 +185,23 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Cache Cargo (frontend)
+      - name: Cache Cargo
         uses: swatinem/rust-cache@v2
         with:
           workspaces: frontend
           cache-on-failure: true
 
+      - name: Cache dx CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/dx
+          key: dx-${{ env.DX_VERSION }}-${{ runner.os }}
+
       - name: Install dx CLI
-        run: cargo install dioxus-cli
+        run: |
+          if [ ! -f ~/.cargo/bin/dx ]; then
+            cargo install dioxus-cli --version ${{ env.DX_VERSION }}
+          fi
 
       - name: Ensure icon exists
         run: |
@@ -155,11 +219,10 @@ jobs:
           path: frontend/dist/android/**/*.apk
           retention-days: 30
 
-  # ── Stage 2: Build Docker image ──────────────────────────
+  # ── Build Docker image ───────────────────────────────────
   docker:
     needs: prepare
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -200,11 +263,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Stage 3: Create release ──────────────────────────────
+  # ── Create release ────────────────────────────────────────
   release:
-    needs: [build-and-test, build-android, docker]
+    needs: [test-backend, test-frontend, build-web, build-android, docker]
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -215,10 +277,18 @@ jobs:
           name: recurrency-android
           path: ./artifacts/android
 
+      - name: Download web bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: recurrency-web
+          path: ./artifacts/web
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
           generate_release_notes: true
           draft: false
-          files: ./artifacts/android/**/*.apk
+          files: |
+            ./artifacts/android/**/*.apk
+            ./artifacts/web/**/*
