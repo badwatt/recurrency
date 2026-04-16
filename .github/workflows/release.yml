@@ -182,6 +182,7 @@ jobs:
           workspaces: frontend
           cache-on-failure: true
           prefix-key: android-arm64
+          cache-bin: false
 
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
@@ -190,6 +191,9 @@ jobs:
         run: |
           cargo binstall dioxus-cli --version ${{ env.DX_VERSION }} --no-confirm
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Verify dx CLI
+        run: which dx && dx --version
 
       - name: Ensure icon exists
         run: |
