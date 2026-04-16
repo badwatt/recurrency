@@ -156,7 +156,7 @@ jobs:
           draft: false
 
   # ── Build Android APK ──────────────────────────────────────
-  build-android:
+  android:
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     steps:
