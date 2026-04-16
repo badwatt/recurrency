@@ -7,8 +7,8 @@ FROM rust:bookworm AS frontend-build
 ARG APP_VERSION=dev
 ENV RUSTFLAGS="-C target-cpu=generic"
 
-# Install dx CLI + wasm target
-RUN cargo install dioxus-cli && rustup target add wasm32-unknown-unknown
+# Install cargo-binstall + dx CLI + wasm target
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && cargo binstall dioxus-cli --no-confirm && rustup target add wasm32-unknown-unknown
 
 # Install npm for tailwind
 RUN apt-get update && apt-get install -y --no-install-recommends npm && rm -rf /var/lib/apt/lists/*
