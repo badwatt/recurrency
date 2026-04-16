@@ -450,14 +450,11 @@ pub fn SubscriptionsPage() -> Element {
                                     }
                                 }
                                 if filters_popover() {
-                                    // Overlay + panel (click outside to close)
+                                    // Panel positioned relative to button container (parent has .relative)
                                     div {
-                                        class: "fixed inset-0 z-40",
-                                        onclick: move |_| filters_popover.set(false),
-                                        div {
-                                            class: "absolute left-0 top-full mt-2 z-50 w-80 rounded-md border bg-popover p-3 shadow-md space-y-3",
-                                            onclick: move |e| e.stop_propagation(),
-                                        div { class: "flex items-center justify-between",
+                                        class: "absolute left-0 top-full mt-2 z-50 w-80 rounded-md border bg-popover p-3 shadow-md space-y-3",
+                                        onclick: move |e| e.stop_propagation(),
+                                    div { class: "flex items-center justify-between",
                                             h4 { class: "font-medium text-sm", "Filters" }
                                             if active_filter_count > 0 {
                                                 button {
@@ -546,6 +543,10 @@ pub fn SubscriptionsPage() -> Element {
                                             }
                                         }
                                     }
+                                    // Click-outside overlay (after panel so panel gets events first)
+                                    div {
+                                        class: "fixed inset-0 z-40",
+                                        onclick: move |_| filters_popover.set(false),
                                     }
                                 }
                             }

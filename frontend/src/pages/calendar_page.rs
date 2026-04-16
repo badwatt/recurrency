@@ -702,8 +702,12 @@ pub fn CalendarPage() -> Element {
 
             // Edit subscription dialog
             if edit_dialog_open() {
-                div { class: "fixed inset-0 z-[60] flex items-center justify-center bg-black/50",
-                    div { class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg mx-4",
+                div {
+                    class: "fixed inset-0 z-[60] flex items-center justify-center bg-black/50",
+                    onclick: move |_| edit_dialog_open.set(false),
+                    div {
+                        class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg mx-4",
+                        onclick: move |e| e.stop_propagation(),
                         h2 { class: "text-lg font-semibold", "{edit_title}" }
                         p { class: "text-sm text-muted-foreground mb-4", "Make changes to your subscription here." }
 
@@ -1309,5 +1313,28 @@ mod tests {
         let info = day_cell_info(&items, 2024, 3, 20, "USD");
         assert!(!info.items.is_empty());
         assert_eq!(info.day, 20);
+    }
+
+    // ── TDD: Calendar subscription dialog click-outside ──
+    #[test]
+    fn calendar_sub_dialog_card_has_stop_propagation() {
+        // Add/Edit subscription dialog in calendar must have stop_propagation on card
+        // and onclick close on backdrop.
+        // Bug: backdrop has no onclick, card has no stop_propagation.
+        let src = include_str!("calendar_page.rs");
+        // Find the edit_dialog_open section
+        let dialog_section = src.split("edit_dialog_open()").nth(1).unwrap_or("");
+        let before_next_section = dialog_section.split("Notes dialog").next()
+            .unwrap_or(dialog_section.split("Calendar day").next().unwrap_or(dialog_section));
+        let code_lines: Vec<&str> = before_next_section.lines()
+            .filter(|l| !l.trim().starts_with("//"))
+            .collect();
+        let code_text = code_lines.join("\n");
+        let has_stop_prop = code_text.contains("e.stop_propagation()");
+        let has_backdrop_close = code_text.contains("edit_dialog_open.set(false)");
+        assert!(has_stop_prop,
+            "Calendar subscription dialog card must have stop_propagation");
+        assert!(has_backdrop_close,
+            "Calendar subscription dialog backdrop must close on click");
     }
 }

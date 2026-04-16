@@ -380,12 +380,7 @@ fn NotificationBell() -> Element {
 
             // Dropdown panel
             if open() {
-                // Fixed overlay behind dropdown — click anywhere outside to close
-                div {
-                    class: "fixed inset-0 z-40",
-                    onclick: move |_| open.set(false),
-
-                    // Panel (positioned above the bell)
+                // Panel (positioned below the bell — child of .relative container)
                     div {
                         class: "absolute right-0 top-full mt-2 w-80 rounded-md border border-border bg-card shadow-lg z-50 overflow-hidden",
                         onclick: move |e| e.stop_propagation(),
@@ -426,7 +421,11 @@ fn NotificationBell() -> Element {
                             }}
                         }
                     }
-                }
+                    // Click-outside overlay (after panel so panel gets events first)
+                    div {
+                        class: "fixed inset-0 z-40",
+                        onclick: move |_| open.set(false),
+                    }
             }
         }
     }
@@ -678,16 +677,26 @@ mod tests {
 
     // ── Notification click-outside tests ──
     #[test]
-    fn notification_dropdown_has_click_outside_overlay() {
-        // NotificationBell must have a fixed overlay that closes the dropdown on click.
-        // Before fix: no overlay, dropdown was absolute-only.
-        // After fix: fixed inset-0 z-40 overlay wrapping the panel.
-        assert!(true); // structural check
+    fn notification_panel_positioned_below_bell() {
+        // Panel must be absolute child of .relative container (not child of fixed overlay).
+        // Bug: panel was absolute inside fixed overlay -> top-full = 100vh, panel off-screen.
+        // Fix: panel is direct child of .relative container, overlay is sibling after panel.
+        let src = include_str!("app_layout.rs");
+        // Find NotificationBell section
+        let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
+        // The panel with top-full must NOT be inside the fixed overlay
+        let before_overlay = bell_section.split("fixed inset-0 z-40").nth(0).unwrap_or("");
+        let panel_before_overlay = before_overlay.contains("top-full");
+        assert!(panel_before_overlay,
+            "Notification panel must be positioned BEFORE the fixed overlay in DOM (child of .relative, not fixed overlay)");
     }
 
     #[test]
     fn notification_panel_stops_propagation() {
-        // Panel inside overlay must stop_propagation to prevent closing on panel click.
-        assert!(true); // structural check
+        // Panel must stop_propagation to prevent closing on panel click.
+        let src = include_str!("app_layout.rs");
+        let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
+        assert!(bell_section.contains("e.stop_propagation()"),
+            "Notification panel must call stop_propagation on onclick");
     }
 }
