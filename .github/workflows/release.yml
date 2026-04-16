@@ -30,9 +30,67 @@ jobs:
         id: version
         run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
+  # ── Backend tests ──────────────────────────────────────────
+  test-backend:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Sync version
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$V\"/" backend/Cargo.toml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+          cache-on-failure: true
+
+      - name: Run backend tests
+        run: cd backend && cargo test
+
+  # ── Frontend tests ─────────────────────────────────────────
+  test-frontend:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Sync version
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend
+          cache-on-failure: true
+
+      - name: Run frontend tests
+        run: cd frontend && cargo test
+
   # ── Build Docker image + create release ──────────────────
   docker:
-    needs: prepare
+    needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ needs.prepare.outputs.version }}
@@ -85,7 +143,7 @@ jobs:
 
   # ── Build Android APK ──────────────────────────────────────
   build-android:
-    needs: prepare
+    needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
