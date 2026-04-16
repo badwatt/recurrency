@@ -187,7 +187,9 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install dx CLI
-        run: cargo binstall dioxus-cli --version ${{ env.DX_VERSION }} --no-confirm
+        run: |
+          cargo binstall dioxus-cli --version ${{ env.DX_VERSION }} --no-confirm
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Ensure icon exists
         run: |
