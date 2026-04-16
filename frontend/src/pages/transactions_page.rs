@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 // ─── Lucide-style SVG icon components ───────────────────────────────────────
 
+#[allow(non_snake_case)]
 fn ReceiptIcon() -> Element {
     rsx! {
         svg {
@@ -33,6 +34,7 @@ fn ReceiptIcon() -> Element {
     }
 }
 
+#[allow(non_snake_case)]
 fn ReceiptIconLarge() -> Element {
     rsx! {
         svg {
@@ -52,6 +54,7 @@ fn ReceiptIconLarge() -> Element {
     }
 }
 
+#[allow(non_snake_case)]
 fn Trash2Icon() -> Element {
     rsx! {
         svg {
@@ -71,6 +74,7 @@ fn Trash2Icon() -> Element {
     }
 }
 
+#[allow(non_snake_case)]
 fn PencilIcon() -> Element {
     rsx! {
         svg {
@@ -87,6 +91,7 @@ fn PencilIcon() -> Element {
     }
 }
 
+#[allow(non_snake_case)]
 fn PlusIcon() -> Element {
     rsx! {
         svg {

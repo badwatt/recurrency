@@ -28,7 +28,6 @@ pub fn Button(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn variant_default_class() {

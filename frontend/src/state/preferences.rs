@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use crate::models::preferences::PreferencesResponse;
 
+#[allow(dead_code)]
 const THEME_KEY: &str = "recurrency-theme";
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -50,7 +51,7 @@ impl PreferencesState {
     }
 
     /// Persist theme to localStorage.
-    fn persist_theme(&self, theme: &str) {
+    fn persist_theme(&self, _theme: &str) {
         #[cfg(target_arch = "wasm32")]
         {
             if let Some(storage) = web_sys::window()

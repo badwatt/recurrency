@@ -30,12 +30,6 @@ fn icon_trending_up() -> Element {
     }}
 }
 
-fn icon_pie_chart() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        path { d: "M21.21 15.89A10 10 0 1 1 8 2.83" }
-        path { d: "22 12A10 10 0 0 0 12 2v10z" }
-    }}
-}
 
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"), ("2", "February"), ("3", "March"),

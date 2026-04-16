@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn due_this_week() {
-        use chrono::{Local, Days, Datelike};
+        use chrono::{Local, Days};
         let now = Local::now().date_naive();
         let in_3_days = now.checked_add_days(Days::new(3)).unwrap();
         let in_10_days = now.checked_add_days(Days::new(10)).unwrap();
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn due_this_month() {
-        use chrono::{Local, Days, Datelike};
+        use chrono::{Local, Days};
         let now = Local::now().date_naive();
         let this_month = now;
         let next_month = now.checked_add_days(Days::new(32)).unwrap();

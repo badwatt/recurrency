@@ -5,6 +5,7 @@ pub async fn list() -> Result<Vec<Subscription>, ApiError> {
     api_get("/api/subscriptions").await
 }
 
+#[allow(dead_code)]
 pub async fn get(id: &uuid::Uuid) -> Result<Subscription, ApiError> {
     api_get(&format!("/api/subscriptions/{}", id)).await
 }
@@ -21,6 +22,7 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
     api_delete(&format!("/api/subscriptions/{}", id)).await
 }
 
+#[allow(dead_code)]
 pub async fn upcoming() -> Result<Vec<Subscription>, ApiError> {
     api_get("/api/subscriptions/upcoming").await
 }

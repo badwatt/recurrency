@@ -54,7 +54,7 @@ pub static NOTIFICATIONS: GlobalSignal<NotificationsState> = Signal::global(|| N
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc};
+    use chrono::DateTime;
     use uuid::Uuid;
 
     fn make_notification(read: bool) -> Notification {

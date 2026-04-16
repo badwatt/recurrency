@@ -5,6 +5,7 @@ pub async fn list() -> Result<Vec<Transaction>, ApiError> {
     api_get("/api/transactions").await
 }
 
+#[allow(dead_code)]
 pub async fn get(id: &uuid::Uuid) -> Result<Transaction, ApiError> {
     api_get(&format!("/api/transactions/{}", id)).await
 }

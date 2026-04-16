@@ -21,6 +21,7 @@ pub const FREQUENCIES: &[(&str, &str)] = &[
 pub const DEFAULT_CURRENCY: &str = "EUR";
 
 /// App version (read from VERSION file at build time).
+#[allow(dead_code)]
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]

@@ -1,7 +1,9 @@
 use dioxus::prelude::*;
 use crate::models::auth::UserResponse;
 
+#[allow(dead_code)]
 const TOKEN_KEY: &str = "recurrency-auth-token";
+#[allow(dead_code)]
 const USER_KEY: &str = "recurrency-auth-user";
 
 #[derive(Debug, Clone, Default, PartialEq)]

@@ -52,7 +52,6 @@ fn index_html_applies_mocha_class_to_html() {
 }
 
 #[test]
-#[test]
 fn index_html_meta_theme_color_matches_css_variables() {
     // meta[name=theme-color] must match the inline CSS variable --background hex values.
     // Bug: dark theme-color was #030712 but CSS --background hsl(222.2,84%,4.9%)=#020817.
@@ -89,8 +88,6 @@ fn index_html_has_loading_spinner_before_wasm() {
         "Loading spinner must use CSS variables (--primary, --foreground) for theme adaptation");
 }
 
-#[test]
-#[test]
 #[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
     // Pre-WASM loader must be semi-transparent + backdrop-blur.

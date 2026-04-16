@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn donut_zero_total() {
-        let data = vec![
+        let _data = vec![
             DonutData { label: "A".into(), value: 0.0, color: "#f00".into() },
         ];
         let total: f64 = 0.0;

@@ -102,13 +102,8 @@ jobs:
       - name: Install dx CLI
         run: cargo install dioxus-cli
 
-      - name: Create icon fallback
-        run: |
-          mkdir -p frontend/assets
-          if [ ! -f frontend/assets/icon.png ]; then
-            # Create 512x512 placeholder icon
-            convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
-          fi
+      - name: Verify icon exists
+        run: test -f frontend/assets/icon.png
 
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2

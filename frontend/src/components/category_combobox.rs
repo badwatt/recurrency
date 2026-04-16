@@ -345,7 +345,7 @@ pub fn should_show_create(cats: &[crate::models::category::Category], search: &s
 mod tests {
     use super::*;
     use crate::models::category::Category;
-    use chrono::{DateTime, Utc};
+    use chrono::DateTime;
     use uuid::Uuid;
 
     fn make_cat(name: &str) -> Category {

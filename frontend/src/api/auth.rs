@@ -11,10 +11,12 @@ pub async fn register(email: String, password: String, name: String) -> Result<A
     api_post("/api/auth/register", &req).await
 }
 
+#[allow(dead_code)]
 pub async fn verify(token: &str) -> Result<serde_json::Value, ApiError> {
     api_post("/api/auth/verify", &serde_json::json!({ "token": token })).await
 }
 
+#[allow(dead_code)]
 pub async fn verify_email(token: &str, code: &str) -> Result<serde_json::Value, ApiError> {
     api_post(&format!("/api/auth/verify-email?token={}", token), &serde_json::json!({ "code": code })).await
 }
@@ -23,10 +25,12 @@ pub async fn resend_verification(token: &str) -> Result<serde_json::Value, ApiEr
     api_post(&format!("/api/auth/resend-verification?token={}", token), &serde_json::json!({})).await
 }
 
+#[allow(dead_code)]
 pub async fn get_current_user(token: &str) -> Result<UserResponse, ApiError> {
     api_get_with_token("/api/auth/me", token).await
 }
 
+#[allow(dead_code)]
 async fn api_get_with_token<T: serde::de::DeserializeOwned>(path: &str, token: &str) -> Result<T, ApiError> {
     let base = crate::api::client::get_base_url();
     let url = format!("{}{}?token={}", base, path, token);

@@ -4,4 +4,3 @@ mod verify_email;
 
 pub use login::LoginPage;
 pub use register::RegisterPage;
-pub use verify_email::VerifyEmailPage;

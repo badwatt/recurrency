@@ -41,7 +41,7 @@ pub static CATEGORIES: GlobalSignal<CategoriesState> = Signal::global(|| Categor
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc};
+    use chrono::DateTime;
     use uuid::Uuid;
 
     fn make_cat(name: &str, is_default: bool) -> Category {

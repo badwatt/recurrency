@@ -670,7 +670,6 @@ fn SvgIcon(icon: Icon, size: i32) -> Element {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // ── Logo navigation tests ──
     #[test]
