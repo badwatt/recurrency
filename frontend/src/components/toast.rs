@@ -68,7 +68,7 @@ fn ToastEntry(item: ToastItem) -> Element {
     // Auto-dismiss after 3s
     spawn(async move {
         gloo_timers::future::TimeoutFuture::new(3000).await;
-        TOAST().remove(id);
+        TOAST.write().remove(id);
     });
 
     let (bg, text_color) = match item.kind {
@@ -83,7 +83,7 @@ fn ToastEntry(item: ToastItem) -> Element {
                 r#type: "button",
                 class: "text-white/70 hover:text-white",
                 onclick: move |_| {
-                    TOAST().remove(id);
+                    TOAST.write().remove(id);
                 },
                 "✕"
             }
