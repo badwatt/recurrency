@@ -4,6 +4,7 @@ use crate::state::categories::CATEGORIES;
 use crate::state::auth::AUTH;
 use crate::api::transactions;
 use crate::components::logo_image_with_fallback;
+use crate::components::dialog::Dialog;
 use crate::models::transaction::*;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, NaiveDate};
@@ -201,6 +202,12 @@ pub fn TransactionsPage() -> Element {
     let mut form_category_id = use_signal(|| None::<Uuid>);
     let mut form_notes = use_signal(String::new);
     let mut form_saving = use_signal(|| false);
+
+    // Notes dialog state
+    let mut notes_dialog_open = use_signal(|| false);
+    let mut notes_dialog_txn_id = use_signal(|| None::<Uuid>);
+    let mut notes_dialog_value = use_signal(String::new);
+    let mut notes_saving = use_signal(|| false);
 
     // Validation error signals
     let mut name_error = use_signal(String::new);
@@ -618,6 +625,18 @@ pub fn TransactionsPage() -> Element {
                                                     // Actions
                                                     div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
                                                         button {
+                                                            class: if txn.notes.as_ref().is_some_and(|n| !n.is_empty()) { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-primary" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" },
+                                                            onclick: {
+                                                                let txn = txn.clone();
+                                                                move |_| {
+                                                                    notes_dialog_txn_id.set(Some(txn.id));
+                                                                    notes_dialog_value.set(txn.notes.clone().unwrap_or_default());
+                                                                    notes_dialog_open.set(true);
+                                                                }
+                                                            },
+                                                            "📝"
+                                                        }
+                                                        button {
                                                             class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
                                                             onclick: {
                                                                 let txn = txn.clone();
@@ -762,6 +781,62 @@ pub fn TransactionsPage() -> Element {
                                     disabled: form_saving(),
                                     class: "h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
                                     if form_saving() { "Saving..." } else { "Save" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Notes dialog ──
+            if notes_dialog_open() {
+                {
+                    let txn_name = notes_dialog_txn_id().map(|id| {
+                        TRANSACTIONS().transactions.iter().find(|t| t.id == id).map(|t| t.name.clone()).unwrap_or_default()
+                    }).unwrap_or_default();
+                    let title = format!("Notes: {}", txn_name);
+                    rsx! {
+                        Dialog {
+                            open: true,
+                            on_close: move |_| notes_dialog_open.set(false),
+                            title: title,
+                            div { class: "space-y-4",
+                                textarea {
+                                    class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                                    placeholder: "Add notes...",
+                                    value: "{notes_dialog_value}",
+                                    oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
+                                }
+                                div { class: "flex justify-end gap-2",
+                                    button {
+                                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
+                                        onclick: move |_| notes_dialog_open.set(false),
+                                        "Cancel"
+                                    }
+                                    button {
+                                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                                        disabled: notes_saving(),
+                                        onclick: move |_| {
+                                            let id = notes_dialog_txn_id().unwrap();
+                                            let notes = notes_dialog_value();
+                                            let is_empty = notes.is_empty();
+                                            notes_saving.set(true);
+                                            spawn(async move {
+                                                let req = UpdateTransactionRequest {
+                                                    notes: if is_empty { None } else { Some(notes) },
+                                                    ..Default::default()
+                                                };
+                                                let _ = transactions::update(&id, &req).await;
+                                                match transactions::list().await {
+                                                    Ok(data) => TRANSACTIONS.write().set_data(data),
+                                                    Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
+                                                }
+                                                notes_saving.set(false);
+                                                notes_dialog_open.set(false);
+                                            });
+                                        },
+                                        if notes_saving() { "Saving..." } else { "Save" }
+                                    }
                                 }
                             }
                         }

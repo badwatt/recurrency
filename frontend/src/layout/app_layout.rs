@@ -54,8 +54,9 @@ pub fn AppLayout() -> Element {
 
             // ── Mobile sidebar panel ──
             aside {
+                id: "mobile-sidebar",
                 class: if sidebar_open() {
-                    "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 transform translate-x-0"
+                    "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 transform translate-x-0 sidebar-open"
                 } else {
                     "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 -translate-x-full"
                 },

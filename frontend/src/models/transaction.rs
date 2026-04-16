@@ -29,7 +29,7 @@ pub struct CreateTransactionRequest {
     pub logo_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct UpdateTransactionRequest {
     pub name: Option<String>,
     pub amount: Option<Decimal>,

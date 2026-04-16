@@ -12,6 +12,7 @@ use crate::state::auth::AUTH;
 use crate::utils::format::format_currency;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::components::logo_image_with_fallback;
+use crate::components::dialog::Dialog;
 
 // ── Filter / Sort types ──────────────────────────────────────────────
 
@@ -167,6 +168,10 @@ pub fn SubscriptionsPage() -> Element {
     let mut form: Signal<DialogForm> = use_signal(DialogForm::default);
     let mut filters_popover: Signal<bool> = use_signal(|| false);
     let mut delete_confirm_id: Signal<Option<Uuid>> = use_signal(|| None);
+    let mut notes_dialog_open: Signal<bool> = use_signal(|| false);
+    let mut notes_dialog_sub_id: Signal<Option<Uuid>> = use_signal(|| None);
+    let mut notes_dialog_value: Signal<String> = use_signal(String::new);
+    let mut notes_saving: Signal<bool> = use_signal(|| false);
 
     // Validation error signals
     let mut name_error: Signal<String> = use_signal(String::new);
@@ -288,6 +293,12 @@ pub fn SubscriptionsPage() -> Element {
         start_date_error.set(String::new());
         category_error.set(String::new());
         dialog_open.set(true);
+    });
+
+    let handle_notes_click: Callback<Subscription> = use_callback(move |sub: Subscription| {
+        notes_dialog_sub_id.set(Some(sub.id));
+        notes_dialog_value.set(sub.notes.unwrap_or_default());
+        notes_dialog_open.set(true);
     });
 
     let clear_filters: Callback<()> = use_callback(move |_| {
@@ -570,7 +581,7 @@ pub fn SubscriptionsPage() -> Element {
                             rsx! {
                                 div { class: "grid gap-4 grid-cols-2 lg:grid-cols-4",
                                     for sub in filtered.iter() {
-                                        {render_grid_card(sub, handle_edit, handle_delete, handle_toggle_active)}
+                                        {render_grid_card(sub, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
                                     }
                                 }
                             }
@@ -578,7 +589,7 @@ pub fn SubscriptionsPage() -> Element {
                             rsx! {
                                 div { class: "space-y-2",
                                     for sub in filtered.iter() {
-                                        {render_list_card(sub, handle_edit, handle_delete, handle_toggle_active)}
+                                        {render_list_card(sub, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
                                     }
                                 }
                             }
@@ -625,6 +636,62 @@ pub fn SubscriptionsPage() -> Element {
                     }
                 }
             }
+
+            // ── Notes dialog ──
+            if notes_dialog_open() {
+                {
+                    let sub_name = notes_dialog_sub_id().map(|id| {
+                        SUBSCRIPTIONS().subscriptions.iter().find(|s| s.id == id).map(|s| s.name.clone()).unwrap_or_default()
+                    }).unwrap_or_default();
+                    let title = format!("Notes: {}", sub_name);
+                    rsx! {
+                        Dialog {
+                            open: true,
+                            on_close: move |_| notes_dialog_open.set(false),
+                            title: title,
+                            div { class: "space-y-4",
+                                textarea {
+                                    class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                                    placeholder: "Add notes...",
+                                    value: "{notes_dialog_value}",
+                                    oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
+                                }
+                                div { class: "flex justify-end gap-2",
+                                    button {
+                                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
+                                        onclick: move |_| notes_dialog_open.set(false),
+                                        "Cancel"
+                                    }
+                                    button {
+                                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                                        disabled: notes_saving(),
+                                        onclick: move |_| {
+                                            let id = notes_dialog_sub_id().unwrap();
+                                            let notes = notes_dialog_value();
+                                            let is_empty = notes.is_empty();
+                                            notes_saving.set(true);
+                                            spawn(async move {
+                                                let req = UpdateSubscriptionRequest {
+                                                    notes: if is_empty { None } else { Some(notes) },
+                                                    ..Default::default()
+                                                };
+                                                let _ = api::subscriptions::update(&id, &req).await;
+                                                match api::subscriptions::list().await {
+                                                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                                                    Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+                                                }
+                                                notes_saving.set(false);
+                                                notes_dialog_open.set(false);
+                                            });
+                                        },
+                                        if notes_saving() { "Saving..." } else { "Save" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -636,6 +703,7 @@ fn render_grid_card(
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
+    on_notes: Callback<Subscription>,
 ) -> Element {
     let opacity = if sub.is_active { "" } else { "opacity-60" };
     let formatted = format_currency(sub.amount, &sub.currency);
@@ -662,6 +730,8 @@ fn render_grid_card(
     let sub_for_toggle = sub.clone();
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
+    let sub_for_notes = sub.clone();
+    let has_notes = sub.notes.as_ref().is_some_and(|n| !n.is_empty());
 
     rsx! {
         div { class: "group relative flex flex-col h-full rounded-lg border bg-card {opacity}",
@@ -687,6 +757,11 @@ fn render_grid_card(
                 }
 
                 div { class: "flex items-center gap-1 mt-auto flex-wrap justify-center",
+                    button {
+                        class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-primary" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" },
+                        onclick: move |_| on_notes.call(sub_for_notes.clone()),
+                        "📝"
+                    }
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
                         onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
@@ -715,6 +790,7 @@ fn render_list_card(
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
+    on_notes: Callback<Subscription>,
 ) -> Element {
     let opacity = if sub.is_active { "" } else { "opacity-60" };
     let formatted = format_currency(sub.amount, &sub.currency);
@@ -741,6 +817,8 @@ fn render_list_card(
     let sub_for_toggle = sub.clone();
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
+    let sub_for_notes = sub.clone();
+    let has_notes = sub.notes.as_ref().is_some_and(|n| !n.is_empty());
 
     rsx! {
         div { class: "rounded-lg border bg-card {opacity} min-w-0",
@@ -767,6 +845,11 @@ fn render_list_card(
                         p { class: "font-medium text-sm sm:text-base", "{formatted}" }
 
                         div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
+                            button {
+                                class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-primary" } else { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" },
+                                onclick: move |_| on_notes.call(sub_for_notes.clone()),
+                                "📝"
+                            }
                             button {
                                 class: "h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md hover:bg-muted",
                                 onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
