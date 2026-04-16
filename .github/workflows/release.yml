@@ -122,7 +122,7 @@ jobs:
             type=raw,value=${{ needs.prepare.outputs.version }}
             type=raw,value=latest
 
-      - name: Cancel if sibling job failed
+      - name: Cancel on sibling failure
         if: always()
         run: |
           SIBLING=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
@@ -209,7 +209,7 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      - name: Cancel if sibling job failed
+      - name: Cancel on sibling failure
         if: always()
         run: |
           SIBLING=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
