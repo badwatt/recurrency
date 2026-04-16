@@ -244,7 +244,7 @@ mod tests {
         let pass_val = "test_pass_val";
         assert!(!name.is_empty());
         assert!(email.contains('@'));
-        assert!(password.len() >= 8);
+        assert!(pass_val.len() >= 8);
     }
 
     #[test]
