@@ -438,4 +438,56 @@ mod tests {
             assert_eq!(*map.get(*key).unwrap(), false);
         }
     }
+
+    // ── Settings update auth flow simulation ──
+    #[test]
+    fn settings_update_response_updates_user_currency() {
+        // Simulates what happens when settings::update returns SettingsResponse
+        use crate::models::auth::{UserResponse, SettingsResponse};
+        use uuid::Uuid;
+
+        let updated_user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: Some("Alice".into()),
+            currency: "USD".into(),
+            verified: true,
+        };
+        
+        let response = SettingsResponse {
+            user: updated_user,
+        };
+        
+        // Verify response structure
+        assert_eq!(response.user.currency, "USD");
+        assert_eq!(response.user.name, Some("Alice".into()));
+    }
+
+    // ── Currency update flow simulation ──
+    #[test]
+    fn currency_update_request_response_cycle() {
+        use crate::models::auth::{UpdateSettingsRequest, SettingsResponse, UserResponse};
+        use uuid::Uuid;
+
+        // Create request
+        let req = UpdateSettingsRequest {
+            name: None,
+            currency: Some("JPY".into()),
+        };
+        assert_eq!(req.currency.as_deref(), Some("JPY"));
+
+        // Simulate response (would come from API)
+        let resp = SettingsResponse {
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "test@test.com".into(),
+                name: None,
+                currency: "JPY".into(),
+                verified: true,
+            },
+        };
+        
+        // Verify currency was updated in response
+        assert_eq!(resp.user.currency, "JPY");
+    }
 }

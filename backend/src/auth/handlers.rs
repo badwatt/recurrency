@@ -5,7 +5,7 @@ use axum::{
 use sqlx::PgPool;
 use validator::Validate;
 
-use crate::auth::models::{AuthResponse, CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse};
+use crate::auth::models::{AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest, UserResponse};
 use crate::auth::service::AuthService;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
@@ -64,7 +64,7 @@ pub async fn update_settings(
     OptionalQuery(query): OptionalQuery<SettingsQuery>,
     headers: axum::http::HeaderMap,
     Json(req): Json<UpdateSettingsRequest>,
-) -> AppResult<Json<UserResponse>> {
+) -> AppResult<Json<SettingsResponse>> {
     let token = extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
     let claims = AuthService::verify_token(&token).await?;
     let user = AuthService::update_settings(&pool, claims.sub, req).await?;

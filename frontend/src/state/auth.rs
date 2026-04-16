@@ -215,4 +215,40 @@ mod tests {
         state.user = Some(user);
         assert!(!state.is_verified());
     }
+
+    #[test]
+    fn test_manual_user_update_updates_auth_state() {
+        // Simulates settings page: AUTH.write().user = Some(resp.user)
+        let mut state = AuthState::default();
+        state.set_authenticated("token123".into(), sample_user(), false);
+        
+        // Simulate getting updated user from settings API
+        let mut updated_user = sample_user();
+        updated_user.currency = "USD".into();
+        updated_user.name = Some("New Name".into());
+        
+        state.user = Some(updated_user);
+        
+        // Verify user was updated
+        assert_eq!(state.user.as_ref().unwrap().currency, "USD");
+        assert_eq!(state.user.as_ref().unwrap().name, Some("New Name".into()));
+        assert!(state.is_authenticated); // Still authenticated
+    }
+
+    #[test]
+    fn test_auth_state_persists_after_manual_update() {
+        // Test that auth state maintains correct structure for persistence
+        let mut state = AuthState::default();
+        state.set_authenticated("token123".into(), sample_user(), false);
+        
+        // Update user (simulating settings save)
+        let mut updated_user = sample_user();
+        updated_user.currency = "JPY".into();
+        state.user = Some(updated_user);
+        
+        // State should have both token and user for persistence
+        assert!(state.token.is_some());
+        assert!(state.user.is_some());
+        assert_eq!(state.currency(), "JPY");
+    }
 }

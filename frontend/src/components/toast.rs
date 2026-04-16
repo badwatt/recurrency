@@ -170,4 +170,12 @@ mod tests {
         let state = ToastState::default();
         assert!(state.items.is_empty());
     }
+
+    // ── ToastContainer component test ──
+    #[test]
+    fn toast_container_function_exists() {
+        // Verify ToastContainer is properly defined and public
+        // This is a compile-time check - if ToastContainer doesn't exist or has wrong signature, this won't compile
+        let _container_fn = ToastContainer;
+    }
 }

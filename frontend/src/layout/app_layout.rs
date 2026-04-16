@@ -106,6 +106,9 @@ pub fn AppLayout() -> Element {
                 main { class: "flex-1 overflow-y-auto p-6",
                     Outlet::<crate::Route> {}
                 }
+
+                // Toast notifications
+                crate::components::toast::ToastContainer {}
             }
         }
     }

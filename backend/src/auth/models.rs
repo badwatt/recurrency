@@ -68,6 +68,19 @@ impl From<User> for UserResponse {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct SettingsResponse {
+    pub user: UserResponse,
+}
+
+impl From<User> for SettingsResponse {
+    fn from(user: User) -> Self {
+        Self {
+            user: user.into(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: Uuid,        // user id
