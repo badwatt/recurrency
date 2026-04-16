@@ -3,17 +3,26 @@
 
 #[test]
 fn index_html_sets_body_background_on_theme() {
-    // index.html inline script must set document.body.style.backgroundColor
-    // based on theme BEFORE the WASM app loads, to prevent white flash on refresh.
-    //
-    // Before fix: only sets class on <html>, body background is white (default).
-    // After fix: sets body.style.backgroundColor to match theme color.
+    // index.html must set body background color AFTER body exists.
+    // Bug: script in <head> runs before <body> exists → document.body is null → silent failure.
+    // Fix: use DOMContentLoaded or place script after <body> opening tag.
     let html = include_str!("../assets/index.html");
 
-    // Script must set body background-color for each theme
+    // Script must set body background-color AFTER body element exists
     assert!(
         html.contains("body.style.backgroundColor") || html.contains("body.style.background-color"),
-        "index.html must set body background color in inline script to prevent white flash"
+        "index.html must set body background color to prevent white flash"
+    );
+
+    // Script that sets body.style must run AFTER <body> exists
+    // Either: (a) script is inside <body>, or (b) uses DOMContentLoaded
+    let body_section = html.split("<body>").nth(1).unwrap_or("");
+    let has_dom_content_loaded = html.contains("DOMContentLoaded");
+    let bg_setup_in_body = body_section.contains("body.style.backgroundColor")
+        || body_section.contains("body.style.background-color");
+    assert!(
+        has_dom_content_loaded || bg_setup_in_body,
+        "body.style.backgroundColor must be set AFTER body exists (DOMContentLoaded or script in <body>)"
     );
 }
 

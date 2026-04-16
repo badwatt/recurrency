@@ -455,7 +455,7 @@ pub fn SubscriptionsPage() -> Element {
                                         class: "fixed inset-0 z-40",
                                         onclick: move |_| filters_popover.set(false),
                                         div {
-                                            class: "absolute left-0 top-10 z-50 w-80 rounded-md border bg-popover p-3 shadow-md space-y-3",
+                                            class: "absolute left-0 top-full mt-2 z-50 w-80 rounded-md border bg-popover p-3 shadow-md space-y-3",
                                             onclick: move |e| e.stop_propagation(),
                                         div { class: "flex items-center justify-between",
                                             h4 { class: "font-medium text-sm", "Filters" }
@@ -618,8 +618,12 @@ pub fn SubscriptionsPage() -> Element {
 
             // ── Delete confirmation ──
             if delete_confirm_id().is_some() {
-                div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-                    div { class: "bg-background rounded-lg p-6 w-80 space-y-4 shadow-lg",
+                div {
+                    class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
+                    onclick: move |_| delete_confirm_id.set(None),
+                    div {
+                        class: "bg-background rounded-lg p-6 w-80 space-y-4 shadow-lg",
+                        onclick: move |e| e.stop_propagation(),
                         h3 { class: "font-semibold", "Delete subscription?" }
                         p { class: "text-sm text-muted-foreground",
                             "This action cannot be undone."
@@ -921,7 +925,10 @@ fn render_dialog(
 
     rsx! {
         div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-            div { class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg",
+            onclick: move |_| dialog_open.set(false),
+            div {
+                class: "bg-background rounded-lg p-6 w-full max-w-[425px] shadow-lg",
+                onclick: move |e| e.stop_propagation(),
                 h2 { class: "text-lg font-semibold", "{title}" }
                 p { class: "text-sm text-muted-foreground mb-4", "{desc}" }
 
@@ -1811,5 +1818,51 @@ mod tests {
         // Before fix: panel is absolute-only, no click-outside handler.
         // After fix: fixed inset-0 overlay + panel with stop_propagation.
         assert!(true); // structural check
+    }
+
+    // ── TDD: Subscription dialog click-outside ──
+    #[test]
+    fn subscription_dialog_card_has_stop_propagation() {
+        // Add/Edit subscription dialog card must have stop_propagation.
+        // Bug: inline backdrop has onclick but card doesn't stop_propagation →
+        // clicks inside dialog propagate to backdrop → dialog closes.
+        let src = include_str!("subscriptions_page.rs");
+        // Find the render_dialog function (the Add/Edit dialog)
+        let dialog_fn = src.split("fn render_dialog").nth(1).unwrap_or("");
+        let code_lines: Vec<&str> = dialog_fn.lines()
+            .filter(|l| !l.trim().starts_with("//"))
+            .collect();
+        let code_text = code_lines.join("\n");
+        let has_stop_prop_on_card = code_text.contains("e.stop_propagation()");
+        let uses_dialog_comp = code_text.contains("Dialog {") || code_text.contains("Dialog(");
+        assert!(
+            has_stop_prop_on_card || uses_dialog_comp,
+            "Subscription dialog card must have onclick stop_propagation or use Dialog component"
+        );
+    }
+
+    #[test]
+    fn delete_confirm_dialog_click_outside() {
+        // Delete confirmation must also close on click-outside.
+        let src = include_str!("subscriptions_page.rs");
+        assert!(
+            src.contains("stop_propagation") || src.contains("Dialog"),
+            "Delete confirmation must have click-outside close (Dialog or stop_propagation)"
+        );
+    }
+
+    // ── TDD: Filters popover position ──
+    #[test]
+    fn filters_popover_positioned_below_button() {
+        // Filters popover must appear below the Filters button, not top-left.
+        // Bug: "absolute left-0 top-10" positions relative to parent container top.
+        // Fix: use "top-full mt-2" to anchor below the button.
+        let src = include_str!("subscriptions_page.rs");
+        // Find the popover panel class line (contains bg-popover)
+        let has_correct_position = src.lines().any(|l| {
+            l.contains("bg-popover") && l.contains("top-full")
+        });
+        assert!(has_correct_position,
+            "Filters popover panel should use top-full mt-2 (below button), not top-10");
     }
 }

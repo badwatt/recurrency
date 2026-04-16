@@ -666,8 +666,12 @@ pub fn TransactionsPage() -> Element {
 
             // Dialog overlay
             if dialog_open() {
-                div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-                    div { class: "w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg mx-4",
+                div {
+                    class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
+                    onclick: move |_| dialog_open.set(false),
+                    div {
+                        class: "w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg mx-4",
+                        onclick: move |e| e.stop_propagation(),
                         h2 { class: "text-lg font-semibold mb-4",
                             if editing_id().is_some() { "Edit Transaction" } else { "Add Transaction" }
                         }
@@ -1199,5 +1203,28 @@ mod tests {
         let c = Uuid::new_v4();
         let txn = make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c);
         assert!(!txn.notes.as_ref().is_some_and(|n| !n.is_empty()));
+    }
+
+    // ── TDD: Transaction dialog click-outside ──
+    #[test]
+    fn transaction_dialog_card_has_stop_propagation() {
+        // Add/Edit transaction modal card must have stop_propagation.
+        // Bug: inline backdrop has onclick but card doesn't stop_propagation →
+        // clicks inside dialog propagate to backdrop → dialog closes.
+        let src = include_str!("transactions_page.rs");
+        // Find the Add/Edit dialog overlay section (NOT the notes dialog)
+        let dialog_section = src.split("Dialog overlay").nth(1).unwrap_or("");
+        let before_notes = dialog_section.split("Notes dialog").next().unwrap_or(dialog_section);
+        // Card inside dialog must have stop_propagation (not just in test comments)
+        let code_lines: Vec<&str> = before_notes.lines()
+            .filter(|l| !l.trim().starts_with("//"))
+            .collect();
+        let code_text = code_lines.join("\n");
+        let has_stop_prop_on_card = code_text.contains("e.stop_propagation()");
+        let uses_dialog_comp = before_notes.contains("Dialog {") || before_notes.contains("Dialog(");
+        assert!(
+            has_stop_prop_on_card || uses_dialog_comp,
+            "Transaction Add/Edit dialog card must have onclick stop_propagation or use Dialog component"
+        );
     }
 }
