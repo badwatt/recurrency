@@ -125,10 +125,16 @@
         else if (cls === 'mocha') document.documentElement.classList.add('mocha');
         window.__recurrency_theme = cls;
         // Set loader bg via inline style (authoritative, no cascade)
-        var loader = document.getElementById('pre-wasm-loader');
-        if (loader) {
-          loader.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        }
+        // Hide pre-WASM loader once Dioxus mounts
+        var observer = new MutationObserver(function() {
+            var main = document.getElementById('main');
+            if (main && main.children.length > 0) {
+                var loader = document.getElementById('pre-wasm-loader');
+                if (loader) loader.style.display = 'none';
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.getElementById('main'), { childList: true });
         // Update meta theme-color
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) {
