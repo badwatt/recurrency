@@ -178,48 +178,48 @@ pub fn Dashboard() -> Element {
             // Stat cards — 2 cols mobile, 4 cols lg
             div { class: "grid gap-4 md:grid-cols-2 lg:grid-cols-4",
                 // Monthly Subscriptions
-                div { class: "bg-card border border-border rounded-lg",
+                div { class: "bg-card border border-border rounded-lg p-6",
                     div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Monthly Subscriptions" }
                         {icon_credit_card()}
                     }
-                    div { class: "p-6 pt-0",
+                    div { class: "pt-0",
                         div { class: "text-2xl font-bold", "{format_currency(monthly_total, currency)}" }
                         p { class: "text-xs text-muted-foreground", "{total_active} active subscriptions" }
                     }
                 }
 
                 // Yearly Cost
-                div { class: "bg-card border border-border rounded-lg",
+                div { class: "bg-card border border-border rounded-lg p-6",
                     div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Yearly Cost" }
                         {icon_trending_up()}
                     }
-                    div { class: "p-6 pt-0",
+                    div { class: "pt-0",
                         div { class: "text-2xl font-bold", "{format_currency(yearly_total, currency)}" }
                         p { class: "text-xs text-muted-foreground", "Projected annual spending" }
                     }
                 }
 
                 // Due This Week
-                div { class: "bg-card border border-border rounded-lg",
+                div { class: "bg-card border border-border rounded-lg p-6",
                     div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Due This Week" }
                         {icon_calendar()}
                     }
-                    div { class: "p-6 pt-0",
+                    div { class: "pt-0",
                         div { class: "text-2xl font-bold", "{due_week.len()}" }
                         p { class: "text-xs text-muted-foreground", "Payments in next 7 days" }
                     }
                 }
 
                 // Due This Month
-                div { class: "bg-card border border-border rounded-lg",
+                div { class: "bg-card border border-border rounded-lg p-6",
                     div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
                         span { class: "text-sm font-medium", "Due This Month" }
                         {icon_receipt()}
                     }
-                    div { class: "p-6 pt-0",
+                    div { class: "pt-0",
                         div { class: "text-2xl font-bold", "{due_month.len()}" }
                         p { class: "text-xs text-muted-foreground", "Payments remaining this month" }
                     }
