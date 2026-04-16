@@ -37,6 +37,12 @@ pub fn AppLayout() -> Element {
         sidebar_open.set(false);
     });
 
+    // Apply theme from preferences on mount
+    use_effect(move || {
+        let theme = PREFERENCES().theme().to_string();
+        crate::theme::hooks::apply_theme_to_document(&theme);
+    });
+
     rsx! {
         div { class: "flex h-screen bg-background",
             // ── Desktop sidebar (always visible lg+) ──

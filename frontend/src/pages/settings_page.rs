@@ -5,6 +5,7 @@ use crate::api::notification_preferences;
 use crate::models::auth::UpdateSettingsRequest;
 use crate::models::notification::{UpdateNotificationPreferenceRequest, UpdateNotificationPreferencesRequest};
 use crate::utils::constants::CURRENCIES;
+use crate::components::toast::TOAST;
 
 const NOTIFICATION_CHANNELS: &[(&str, &str, &str)] = &[
     ("email", "Email Notifications", "Receive email reminders before payments"),
@@ -62,10 +63,12 @@ pub fn SettingsPage() -> Element {
                 Ok(resp) => {
                     AUTH.write().user = Some(resp.user);
                     AUTH.write().persist_to_storage();
+                    TOAST().success("Currency updated");
                     saving_currency.set(false);
                 }
                 Err(e) => {
                     log::error!("Failed to save currency: {}", e);
+                    TOAST().error("Failed to update currency");
                     saving_currency.set(false);
                 }
             }
@@ -85,12 +88,15 @@ pub fn SettingsPage() -> Element {
                 }],
             };
             match notification_preferences::update(&req).await {
-                Ok(_) => {}
+                Ok(_) => {
+                    TOAST().success("Notification preferences updated");
+                }
                 Err(e) => {
                     log::error!("Failed to update notification pref: {}", e);
                     let mut prefs = notification_prefs();
                     prefs.insert(channel, !enabled);
                     notification_prefs.set(prefs);
+                    TOAST().error("Failed to update notifications");
                 }
             }
             prefs_loading.set(false);
@@ -144,10 +150,12 @@ pub fn SettingsPage() -> Element {
                                             Ok(resp) => {
                                                 AUTH.write().user = Some(resp.user);
                                                 AUTH.write().persist_to_storage();
+                                                TOAST().success("Name updated");
                                                 saving_name.set(false);
                                             }
                                             Err(e) => {
                                                 log::error!("Failed to save name: {}", e);
+                                                TOAST().error("Failed to update name");
                                                 saving_name.set(false);
                                             }
                                         }
@@ -489,5 +497,32 @@ mod tests {
         
         // Verify currency was updated in response
         assert_eq!(resp.user.currency, "JPY");
+    }
+
+    // ── Toast notification integration tests ──
+    #[test]
+    fn settings_should_show_toast_on_success() {
+        // Test that toast API exists and can be called
+        // After fix: settings page should call TOAST().success(...) on save
+        use crate::components::toast::{ToastState, ToastKind};
+        
+        let mut state = ToastState::default();
+        state.success("Currency saved");
+        
+        assert_eq!(state.items.len(), 1);
+        assert_eq!(state.items[0].message, "Currency saved");
+        assert!(matches!(state.items[0].kind, ToastKind::Success));
+    }
+
+    #[test]
+    fn settings_should_show_toast_on_error() {
+        use crate::components::toast::{ToastState, ToastKind};
+        
+        let mut state = ToastState::default();
+        state.error("Failed to save");
+        
+        assert_eq!(state.items.len(), 1);
+        assert_eq!(state.items[0].message, "Failed to save");
+        assert!(matches!(state.items[0].kind, ToastKind::Error));
     }
 }

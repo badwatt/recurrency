@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::state::auth::AUTH;
+use crate::state::preferences::PREFERENCES;
 
 mod api;
 mod auth;
@@ -59,6 +60,8 @@ fn App() -> Element {
             // Always mark initialized so route guard doesn't loop forever
             AUTH.write().initialized = true;
         }
+        // Hydrate preferences (theme) from localStorage
+        PREFERENCES.write().hydrate_from_storage();
     });
 
     rsx! {

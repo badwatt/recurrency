@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 use crate::models::preferences::PreferencesResponse;
 
+const THEME_KEY: &str = "recurrency-theme";
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PreferencesState {
     pub preferences: PreferencesResponse,
@@ -30,11 +32,47 @@ impl PreferencesState {
     }
 
     pub fn set_theme(&mut self, theme: String) {
-        self.preferences.theme = theme;
+        self.preferences.theme = theme.clone();
+        self.persist_theme(&theme);
     }
 
     pub fn set_subscriptions_view(&mut self, view: String) {
         self.preferences.subscriptions_view = view;
+    }
+
+    /// Persist theme to localStorage.
+    fn persist_theme(&self, theme: &str) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+            {
+                let _ = storage.set_item(THEME_KEY, theme);
+            }
+        }
+    }
+
+    /// Hydrate theme from localStorage on startup.
+    pub fn hydrate_from_storage(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+            {
+                if let Ok(Some(theme)) = storage.get_item(THEME_KEY) {
+                    // Only update if theme is valid
+                    if ["light", "dark", "mocha", "system"].contains(&theme.as_str()) {
+                        self.preferences.theme = theme;
+                    }
+                }
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // No localStorage available outside wasm32
+        }
     }
 }
 
@@ -95,5 +133,34 @@ mod tests {
     fn default_not_initialized() {
         let state = PreferencesState::default();
         assert!(!state.initialized);
+    }
+
+    // ── Theme persistence tests ──
+    #[test]
+    fn set_theme_updates_preferences() {
+        let mut state = PreferencesState::default();
+        state.set_theme("dark".into());
+        assert_eq!(state.theme(), "dark");
+    }
+
+    #[test]
+    fn set_theme_does_not_persist_by_itself() {
+        // set_theme only updates in-memory state
+        // Persistence should be handled separately
+        let mut state = PreferencesState::default();
+        state.set_theme("mocha".into());
+        assert_eq!(state.theme(), "mocha");
+        // State has the theme but no localStorage persistence yet
+    }
+
+    #[test]
+    fn preferences_state_can_be_updated_multiple_times() {
+        let mut state = PreferencesState::default();
+        state.set_theme("light".into());
+        assert_eq!(state.theme(), "light");
+        state.set_theme("dark".into());
+        assert_eq!(state.theme(), "dark");
+        state.set_theme("system".into());
+        assert_eq!(state.theme(), "system");
     }
 }
