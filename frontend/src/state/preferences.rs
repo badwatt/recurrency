@@ -51,7 +51,7 @@ impl PreferencesState {
     }
 
     /// Persist theme to localStorage.
-    fn persist_theme(&self, _theme: &str) {
+    fn persist_theme(&self, theme: &str) {
         #[cfg(target_arch = "wasm32")]
         {
             if let Some(storage) = web_sys::window()
