@@ -193,12 +193,13 @@ impl SubscriptionService {
 
             while billing_date <= month_end {
                 calendar_items.push(CalendarItem {
-                    date: billing_date,
                     subscription_id: sub.id,
                     name: sub.name.clone(),
                     amount: sub.amount,
                     currency: sub.currency.clone(),
                     frequency: sub.frequency.clone(),
+                    billing_date,
+                    is_active: sub.is_active,
                     logo_url: sub.logo_url.clone(),
                 });
                 billing_date = advance_date(billing_date, &sub.frequency);
@@ -213,17 +214,18 @@ impl SubscriptionService {
 
 #[derive(Debug, Serialize)]
 pub struct CalendarItem {
-    pub date: NaiveDate,
     pub subscription_id: Uuid,
     pub name: String,
     pub amount: Decimal,
     pub currency: String,
     pub frequency: String,
+    pub billing_date: NaiveDate,
+    pub is_active: bool,
     pub logo_url: Option<String>,
 }
 
 pub(crate) fn sort_calendar_items(items: &mut [CalendarItem]) {
-    items.sort_by(|a, b| a.date.cmp(&b.date));
+    items.sort_by(|a, b| a.billing_date.cmp(&b.billing_date));
 }
 
 /// Generate billing dates for a given subscription within a month.
@@ -591,26 +593,28 @@ mod tests {
         let uid = Uuid::new_v4();
         let mut items = vec![
             CalendarItem {
-                date: NaiveDate::from_ymd_opt(2024, 1, 20).unwrap(),
                 subscription_id: uid,
                 name: "B".to_string(),
                 amount: Decimal::TEN,
                 currency: "USD".to_string(),
                 frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 20).unwrap(),
+                is_active: true,
                 logo_url: None,
             },
             CalendarItem {
-                date: NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
                 subscription_id: uid,
                 name: "A".to_string(),
                 amount: Decimal::TEN,
                 currency: "USD".to_string(),
                 frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
+                is_active: true,
                 logo_url: None,
             },
         ];
         sort_calendar_items(&mut items);
-        assert!(items[0].date < items[1].date);
+        assert!(items[0].billing_date < items[1].billing_date);
         assert_eq!(items[0].name, "A");
         assert_eq!(items[1].name, "B");
     }
@@ -627,12 +631,13 @@ mod tests {
         let uid = Uuid::new_v4();
         let mut items = vec![
             CalendarItem {
-                date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
                 subscription_id: uid,
                 name: "Solo".to_string(),
                 amount: Decimal::ONE,
                 currency: "EUR".to_string(),
                 frequency: "monthly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                is_active: true,
                 logo_url: None,
             },
         ];

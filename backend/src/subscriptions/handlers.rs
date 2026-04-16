@@ -162,16 +162,19 @@ mod tests {
     #[test]
     fn calendar_item_serialization() {
         let item = CalendarItem {
-            date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             subscription_id: Uuid::new_v4(),
             name: "Netflix".to_string(),
             amount: rust_decimal::Decimal::from(1599),
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            is_active: true,
             logo_url: None,
         };
         let json = serde_json::to_value(&item).unwrap();
         assert_eq!(json["name"], "Netflix");
-        assert!(json.get("date").is_some());
+        assert!(json.get("billing_date").is_some(), "Should have billing_date field, got: {:?}", json);
+        assert!(json.get("is_active").is_some(), "Should have is_active field");
+        assert!(json.get("date").is_none(), "Should NOT have 'date' field");
     }
 }

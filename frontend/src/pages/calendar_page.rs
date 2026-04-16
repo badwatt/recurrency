@@ -123,6 +123,12 @@ struct EditForm {
     logo_url: String,
 }
 
+impl EditForm {
+    fn reset(&mut self) {
+        *self = EditForm::default();
+    }
+}
+
 /// Helper: find category name for a CalendarItem by looking up the subscription in SUBSCRIPTIONS.
 fn category_name_for_item(item: &CalendarItem) -> String {
     let subs = SUBSCRIPTIONS();
@@ -549,10 +555,12 @@ pub fn CalendarPage() -> Element {
                                                 "mb-1 flex h-7 w-7 items-center justify-center rounded-full text-sm"
                                             };
                                             let cell_cls = if info.is_today {
-                                                "min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer ring-2 ring-primary"
+                                                "relative min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer ring-2 ring-primary"
                                             } else {
-                                                "min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer"
+                                                "relative min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer"
                                             };
+                                            // Format date for pre-filling the subscription form
+                                            let formatted_date = format!("{:04}-{:02}-{:02}", year, month, d);
                                             rsx! {
                                                 div {
                                                     key: "{idx}",
@@ -560,6 +568,22 @@ pub fn CalendarPage() -> Element {
                                                     onclick: move |_| selected_day.set(Some((year, month, d))),
                                                     // Day number
                                                     div { class: "{today_cls}", "{d}" }
+                                                    // Add subscription button (top-right, visible on hover)
+                                                    button {
+                                                        r#type: "button",
+                                                        class: "absolute top-1 right-1 h-6 w-6 hidden group-hover:flex items-center justify-center rounded-md bg-primary text-primary-foreground opacity-0 hover:bg-primary/80 transition-opacity",
+                                                        title: "Add subscription for {formatted_date}",
+                                                        onclick: move |e| {
+                                                            e.stop_propagation();
+                                                            // Reset form and pre-fill the date
+                                                            edit_form.write().reset();
+                                                            edit_form.write().start_date = formatted_date.clone();
+                                                            edit_form.write().currency = AUTH().currency().to_string();
+                                                            editing_id.set(None);
+                                                            edit_dialog_open.set(true);
+                                                        },
+                                                        "+"
+                                                    }
                                                     // Items
                                                     div { class: "space-y-1",
                                                         for item in &info.items {
@@ -1186,5 +1210,29 @@ mod tests {
         let json = serde_json::to_string(&item).unwrap();
         let back: CalendarItem = serde_json::from_str(&json).unwrap();
         assert_eq!(back.name, "Test");
+    }
+
+    // ── Add subscription button on day cell ──
+    #[test]
+    fn calendar_item_billing_date_field_exists() {
+        // CalendarItem must have billing_date field for frontend to display
+        let item = make_calendar_item("Netflix", dec!(15.99), NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        assert_eq!(item.billing_date, NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+    }
+
+    #[test]
+    fn calendar_item_is_active_field_exists() {
+        // CalendarItem must have is_active for filtering
+        let item = make_calendar_item("Netflix", dec!(15.99), NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        assert!(item.is_active); // make_calendar_item creates active items
+    }
+
+    #[test]
+    fn day_cell_info_preserves_billing_date() {
+        let date = NaiveDate::from_ymd_opt(2024, 3, 20).unwrap();
+        let items = vec![make_calendar_item("Test", dec!(10), date)];
+        let info = day_cell_info(&items, 2024, 3, 20, "USD");
+        assert!(!info.items.is_empty());
+        assert_eq!(info.day, 20);
     }
 }

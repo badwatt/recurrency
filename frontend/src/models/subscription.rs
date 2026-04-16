@@ -137,6 +137,45 @@ mod tests {
         assert_eq!(back.billing_date, NaiveDate::from_ymd_opt(2024, 2, 1).unwrap());
     }
 
+    // ── Backend response field mismatch tests ──
+    #[test]
+    fn calendar_item_requires_billing_date_field() {
+        // Backend sends "date" but frontend expects "billing_date"
+        // This test documents the expected field name
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        
+        // Must contain "billing_date" not "date"
+        assert!(json.contains("billing_date"), "Should have billing_date field, got: {}", json);
+        assert!(!json.contains("\"date\""), "Should not have 'date' field");
+    }
+
+    #[test]
+    fn calendar_item_includes_is_active_field() {
+        // is_active field must be present for frontend to filter active subscriptions
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("is_active"), "Should have is_active field");
+    }
+
     #[test]
     fn update_request_default_all_none() {
         let req = UpdateSubscriptionRequest::default();
