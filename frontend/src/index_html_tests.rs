@@ -219,20 +219,22 @@ fn index_html_has_loading_spinner_before_wasm() {
 
 #[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
-    // Loading spinner must be a semi-transparent overlay with backdrop-blur,
-    // not a solid opaque div that hides page content.
-    // Bug: loader was a full-viewport solid div, no blur/semi-transparency.
+    // Loading spinner must be a semi-transparent overlay with backdrop-blur.
+    // Must use EXPLICIT rgba values (not hsl(var/alpha) which may be ambiguous
+    // when --background contains spaces like "222.2 84% 4.9%").
+    // Bug: bg-background/85 generates bg-color:hsl(var(--background)) with no alpha.
     let html = include_str!("../assets/index.html");
     let style_section = html.split("<style>").nth(1).unwrap_or("").split("</style>").next().unwrap_or("");
     let lower = style_section.to_lowercase();
-    // Must have backdrop-filter: blur or backdrop-blur class
+    // Must have backdrop-filter: blur
     assert!(lower.contains("backdrop-filter") || lower.contains("backdrop-blur"),
-        "#pre-wasm-loader style must include backdrop-filter:blur for semi-transparent overlay");
-    // Must have semi-transparent background (rgba or hsl with alpha < 1)
-    let has_semi_transparent = lower.contains("rgba") || lower.contains("hsla")
-        || (lower.contains("hsl(") && lower.contains("/"));  // hsl(var/alpha) syntax
-    assert!(has_semi_transparent,
-        "#pre-wasm-loader must have semi-transparent background (not opaque)");
+        "#pre-wasm-loader style must include backdrop-filter:blur");
+    // Must use EXPLICIT rgba() values for semi-transparent background —
+    // rgb() and hsl() with CSS variable + alpha (var/0.85) may be ambiguous
+    // when the variable contains spaces.
+    let has_explicit_rgba = lower.contains("rgba(") || lower.contains("rgb(");
+    assert!(has_explicit_rgba,
+        "#pre-wasm-loader must use explicit rgba()/rgb() with alpha for semi-transparent bg");
 }
 
 #[test]
