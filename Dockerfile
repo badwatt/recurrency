@@ -43,17 +43,10 @@ RUN npm install --prefix . tailwindcss tailwindcss-animate \
 RUN dx bundle --platform web --release
 
 # ── Stage 2: Build backend ──────────────────────────────────
-FROM ubuntu:24.04 AS backend-build
+# rust:bookworm has glibc 2.36 — binary compatible with debian:bookworm-slim runtime
+FROM rust:1-bookworm AS backend-build
 
-ENV RUSTFLAGS="-C target-cpu=generic" \
-    DEBIAN_FRONTEND=noninteractive
-
-RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl pkg-config libssl-dev ca-certificates && break || sleep 5; done && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+ENV RUSTFLAGS="-C target-cpu=generic"
 
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./
