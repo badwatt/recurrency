@@ -1,19 +1,25 @@
 # ── Multi-stage Dockerfile ──────────────────────────────────
 # Dioxus frontend + Rust backend, all-in-one with PostgreSQL
+# Build stages: ubuntu:24.04 (glibc 2.39 = cargo-binstall compatible)
+# Runtime: debian:bookworm-slim (PostgreSQL 15)
 
 # ── Stage 1: Build Dioxus frontend ────────────────────────
-FROM rust:bookworm AS frontend-build
+FROM ubuntu:24.04 AS frontend-build
 
 ARG APP_VERSION=dev
 ENV RUSTFLAGS="-C target-cpu=generic"
 
-# Install cargo-binstall + dx CLI + wasm target
-RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+# Install Rust + cargo-binstall + dx CLI + wasm target + npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl pkg-config libssl-dev ca-certificates npm \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . "$HOME/.cargo/env" \
+    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
     && cargo binstall dioxus-cli --no-confirm \
     && rustup target add wasm32-unknown-unknown
 
-# Install npm for tailwind
-RUN apt-get update && apt-get install -y --no-install-recommends npm && rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /build/frontend
 COPY frontend/Cargo.toml frontend/Cargo.lock* ./
@@ -33,9 +39,16 @@ RUN npm install --prefix . tailwindcss tailwindcss-animate \
 RUN dx bundle --platform web --release
 
 # ── Stage 2: Build backend ──────────────────────────────────
-FROM rust:bookworm AS backend-build
+FROM ubuntu:24.04 AS backend-build
 
 ENV RUSTFLAGS="-C target-cpu=generic"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl pkg-config libssl-dev ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./
