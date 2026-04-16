@@ -7,144 +7,58 @@
 ## Tech Stack
 
 ### Frontend
-- **Framework:** Tauri + React (TypeScript)
-- **UI Library:** shadcn/ui
-- **State Management:** Zustand
-- **Charts:** Tremor
-- **Auth:** Better Auth (JWT validation in Rust backend)
-- **Styling:** Tailwind CSS
+- **Framework:** Dioxus (Rust WASM)
+- **UI Library:** dioxus-ui components
+- **State Management:** Dioxus signals + use_shared_state
+- **Charts:** Recharts
+- **Auth:** JWT (handled by Rust backend)
+- **Styling:** CSS/Tailwind equivalent via Dioxus
 
 ### Backend
-- **Language:** Rust
-- **Framework:** TBD (Axum, Actix, etc.)
-- **Database:** PostgreSQL (Docker Compose, self-hosted)
-- **API:** REST
+- **Language:** Rust (Axum)
+- **Database:** PostgreSQL (self-hosted)
+- **API:** REST (Axum)
 
 ### External Services
 - **Email:** Resend
 - **Push Notifications:** OneSignal
 
-## Project Type
-
-Self-hosted application for personal use.
-
 ---
 
-## Features
+## TDD (Test-Driven Development) - OBLIGATORIO
 
-### Core Features
+**Este proyecto requiere TDD para TODOS los cambios.**
 
-- [ ] **CRUD Subscriptions** - Create, edit, delete subscriptions with:
-  - Amount and currency (display only)
-  - Billing frequency (weekly, monthly, quarterly, yearly)
-  - Start date and next billing date
-  - Category assignment
-  - Active/inactive status
-  - Notes
-
-- [ ] **CRUD Transactions** - One-time expenses with same metadata
-
-- [ ] **Calendar View** - See upcoming payments in a monthly calendar
-
-- [ ] **Dashboard** - Monthly summary with:
-  - Total recurring costs
-  - Total one-time expenses
-  - Breakdown by category
-  - Comparison with previous month
-
-- [ ] **Custom Categories** - User-defined categories with:
-  - Name and icon
-  - Color
-
-- [ ] **Notifications/Reminders**:
-  - [ ] In-app notifications (toasts, badges)
-  - [ ] System notifications (OS native via Tauri)
-  - [ ] Email reminders (via Resend API)
-  - [ ] Push notifications (via OneSignal)
-
-- [ ] **Statistics & Charts**:
-  - Monthly/yearly spending trends
-  - Category distribution
-  - Historical comparison
-
-- [ ] **Data Export**:
-  - [ ] CSV export (generated in frontend)
-  - [ ] PDF report (generated in frontend)
-
-- [ ] **Multi-currency display** - Show amounts in user's chosen currency (no conversion)
-
-- [ ] **Unusual spending alerts** - Flag expenses that exceed normal patterns
-
-### User Management
-
-- [ ] User registration and authentication
-- [ ] JWT token validation in Rust backend
-- [ ] Session management
-
-### Settings
-
-- [ ] Currency preference
-- [ ] Notification preferences (per channel)
-- [ ] Category management
-
----
-
-## Architecture
-
-### Domain-Driven Design (DDD)
+### Ciclo Red-Green-Refactor
 
 ```
-src/
-├── auth/                 # Auth bounded context
-│   ├── domain/          # Entities, value objects
-│   ├── application/     # Use cases, services
-│   └── infrastructure/  # DB adapters, external services
-│
-├── subscriptions/        # Subscriptions bounded context
-│   ├── domain/
-│   ├── application/
-│   └── infrastructure/
-│
-├── transactions/         # Transactions bounded context
-│   ├── domain/
-│   ├── application/
-│   └── infrastructure/
-│
-├── categories/          # Categories bounded context
-│   ├── domain/
-│   ├── application/
-│   └── infrastructure/
-│
-├── notifications/       # Notifications bounded context
-│   ├── domain/
-│   ├── application/
-│   └── infrastructure/
-│
-├── reports/             # Reports bounded context
-│   ├── domain/
-│   ├── application/
-│   └── infrastructure/
-│
-└── shared/              # Shared kernel
-    ├── domain/          # Common entities, value objects
-    └── application/     # Common services
+1. RED    → Escribir el test PRIMERO. El test debe fallar.
+2. GREEN  → Implementar/alterar código mínimo para que el test pase.
+3. REFACTOR → Mejorar código manteniendo tests verdes.
 ```
 
-### Backend Structure (Rust)
+### Reglas
 
-```
-backend/
-├── src/
-│   ├── auth/            # JWT validation, middleware
-│   ├── subscriptions/
-│   ├── transactions/
-│   ├── categories/
-│   ├── notifications/
-│   ├── reports/
-│   └── shared/          # Common utilities
-│
-├── migrations/          # SQL migrations
-└── Cargo.toml
+- [ ] **SIEMPRE** escribir tests ANTES de implementar features
+- [ ] **SIEMPRE** escribir tests ANTES de corregir bugs
+- [ ] **SIEMPRE** actualizar tests cuando se modifica funcionalidad existente
+- [ ] **SIEMPRE** mantener tests actualizados (no dejar tests rotos o outdated)
+- [ ] Coverage mínimo: **70%** en ambos proyectos
+- [ ] Tests deben ser deterministas (no flaky)
+- [ ] Nombrar tests descriptivamente: `fn test_[subject]_[scenario]_[expected]`
+
+### Ejecución de Tests
+
+```bash
+# Backend
+cd backend && nix-shell -p pkg-config openssl --run "cargo test"
+
+# Frontend
+cd frontend && cargo test
+
+# Coverage (NixOS)
+cd backend && nix shell github:NixOS/nixpkgs/nixos-unstable#llvmPackages_22.llvm -c \
+  bash -c 'export LLVM_COV=$(which llvm-cov); export LLVM_PROFDATA=$(which llvm-profdata); cargo llvm-cov test'
 ```
 
 ---
@@ -153,39 +67,124 @@ backend/
 
 ### Workflow
 
-- **TDD (Test-Driven Development)**
-  - Write tests first (unit tests)
-  - Use red-green-refactor cycle
-  - Target high coverage in domain logic
-
-- **Conventional Commits**
-  - Format: `type(scope): description`
+- **TDD (obligatorio)**: Red-Green-Refactor para cada cambio
+- **Conventional Commits**: `type(scope): description`
   - Types: feat, fix, docs, style, refactor, test, chore
 
-- **Test Requirement**
-  - ⚠️ **IMPORTANT**: After every change, run tests and verify they pass:
-    - Backend: `cd backend && cargo test`
-    - Frontend: `cd frontend && bun test`
-  - Run `cargo check` / `tsc --noEmit` to verify no compilation errors before finishing
+### Git & Commits
 
-- **Git & Commits**
-  - ⚠️ **IMPORTANT**: Always ask the user before committing changes
-  - Never push to remote (user pushes manually if desired)
-  - Commit message format: `type(scope): description` (Conventional Commits)
-  - Types: feat, fix, docs, style, refactor, test, chore
+- ⚠️ **IMPORTANT**: Preguntar al usuario antes de hacer commit
+- Commit message format: `type(scope): description` (Conventional Commits)
+- Types: feat, fix, docs, style, refactor, test, chore
 
 ### Code Quality
 
-- Linting and formatting (ESLint, Prettier for frontend; Clippy, fmt for Rust)
-- Type safety (strict TypeScript, Rust types)
-- Pull request reviews required
-- **Dead code elimination**: Always remove unused code, functions, imports, and variables when refactoring or replacing functionality. Do not leave commented-out code or obsolete logic.
+- **Dead code elimination**: Eliminar siempre código no usado, imports, variables
+- No dejar código comentado u obsoleto
+- Verificar con `cargo check` / `cargo clippy` antes de terminar
+
+---
+
+## Features
+
+### Core Features
+
+- [x] **CRUD Subscriptions** - Create, edit, delete subscriptions with:
+  - Amount and currency (display only)
+  - Billing frequency (weekly, monthly, quarterly, yearly)
+  - Start date and next billing date
+  - Category assignment
+  - Active/inactive status
+  - Notes
+
+- [x] **CRUD Transactions** - One-time expenses with same metadata
+
+- [x] **Calendar View** - See upcoming payments in a monthly calendar
+
+- [x] **Dashboard** - Monthly summary with:
+  - Total recurring costs
+  - Total one-time expenses
+  - Breakdown by category
+  - Comparison with previous month
+
+- [x] **Custom Categories** - User-defined categories with:
+  - Name and icon
+  - Color
+
+- [x] **Notifications/Reminders**:
+  - [x] In-app notifications (toasts, badges)
+  - [x] System notifications (OS native)
+  - [x] Email reminders (via Resend API)
+  - [x] Push notifications (via OneSignal)
+
+- [x] **Statistics & Charts**:
+  - Monthly/yearly spending trends
+  - Category distribution
+  - Historical comparison
+
+- [x] **Data Export**:
+  - [x] CSV export
+  - [x] PDF report
+
+- [x] **Multi-currency display** - Show amounts in user's chosen currency (no conversion)
+
+- [ ] **Unusual spending alerts** - Flag expenses that exceed normal patterns
+
+### User Management
+
+- [x] User registration and authentication
+- [x] JWT token validation in Rust backend
+- [x] Session management
+
+### Settings
+
+- [x] Currency preference
+- [x] Notification preferences (per channel)
+- [x] Category management
+
+---
+
+## Architecture
+
+### Backend Structure (Rust)
+
+```
+backend/
+├── src/
+│   ├── auth/            # JWT validation, handlers
+│   ├── categories/     # Category CRUD
+│   ├── demo/           # Demo mode
+│   ├── email/          # Email service
+│   ├── logos/          # Logo search (DuckDuckGo)
+│   ├── notifications/  # Push/in-app notifications
+│   ├── preferences/    # User preferences
+│   ├── reports/        # Reports & statistics
+│   ├── shared/        # Shared utilities
+│   ├── subscriptions/ # Subscription CRUD
+│   ├── transactions/  # Transaction CRUD
+│   └── main.rs
+├── migrations/          # SQL migrations
+└── Cargo.toml
+```
+
+### Frontend Structure (Dioxus)
+
+```
+frontend/
+├── src/
+│   ├── auth/            # Auth pages & state
+│   ├── components/     # Shared UI components
+│   ├── pages/          # Route pages (Dashboard, Calendar, etc.)
+│   ├── api/            # API client
+│   ├── hooks/          # Shared hooks
+│   └── main.rs
+├── Cargo.toml
+└── dioxensus.toml
+```
 
 ---
 
 ## Database Schema (PostgreSQL)
-
-### Tables
 
 ```sql
 -- users
@@ -193,7 +192,10 @@ users (
   id UUID PRIMARY KEY,
   email VARCHAR UNIQUE NOT NULL,
   password_hash VARCHAR NOT NULL,
+  name VARCHAR,
   currency VARCHAR DEFAULT 'USD',
+  verified BOOLEAN DEFAULT false,
+  verification_code VARCHAR,
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 )
@@ -205,7 +207,10 @@ categories (
   name VARCHAR NOT NULL,
   icon VARCHAR,
   color VARCHAR,
-  created_at TIMESTAMP
+  is_system BOOLEAN DEFAULT false,
+  is_default BOOLEAN DEFAULT false,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
 )
 
 -- subscriptions
@@ -216,7 +221,7 @@ subscriptions (
   name VARCHAR NOT NULL,
   amount DECIMAL NOT NULL,
   currency VARCHAR NOT NULL,
-  frequency VARCHAR NOT NULL, -- weekly, monthly, quarterly, yearly
+  frequency VARCHAR NOT NULL,
   start_date DATE NOT NULL,
   next_billing_date DATE,
   is_active BOOLEAN DEFAULT true,
@@ -242,7 +247,7 @@ transactions (
 notification_preferences (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES users(id),
-  channel VARCHAR NOT NULL, -- in_app, system, email, push
+  channel VARCHAR NOT NULL,
   enabled BOOLEAN DEFAULT true,
   reminder_days_before INTEGER DEFAULT 3
 )
@@ -251,7 +256,7 @@ notification_preferences (
 notifications (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES users(id),
-  type VARCHAR NOT NULL, -- upcoming_payment, unusual_spending, etc.
+  type VARCHAR NOT NULL,
   title VARCHAR NOT NULL,
   message TEXT,
   is_read BOOLEAN DEFAULT false,
@@ -266,8 +271,11 @@ notifications (
 ### Auth
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login
-- `POST /api/auth/verify` - Verify JWT token
+- `GET /api/auth/verify?token=` - Verify email
+- `POST /api/auth/resend-verification` - Resend verification
 - `POST /api/auth/logout` - Logout
+- `GET /api/auth/settings?token=` - Get settings
+- `PUT /api/auth/settings` - Update settings
 
 ### Subscriptions
 - `GET /api/subscriptions` - List subscriptions
@@ -286,68 +294,61 @@ notifications (
 - `POST /api/categories` - Create category
 - `PUT /api/categories/:id` - Update category
 - `DELETE /api/categories/:id` - Delete category
+- `PUT /api/categories/:id/default` - Set as default
 
 ### Notifications
 - `GET /api/notifications` - List notifications
 - `PUT /api/notifications/:id/read` - Mark as read
 - `PUT /api/notifications/read-all` - Mark all as read
 
-### Settings
-- `GET /api/settings` - Get user settings
-- `PUT /api/settings` - Update settings
-- `GET /api/settings/notifications` - Get notification preferences
-- `PUT /api/settings/notifications` - Update notification preferences
-
 ### Reports
 - `GET /api/reports/summary` - Monthly/yearly summary
 - `GET /api/reports/trends` - Spending trends
 - `GET /api/reports/categories` - Category breakdown
 
+### Demo
+- `GET /api/demo/init` - Initialize demo
+- `POST /api/demo/reset` - Reset demo data
+
+### Logos
+- `GET /api/logos/search?q=` - Search logos
+
 ---
 
 ## Dependencies
 
-### Frontend (package.json)
-- @tauri-apps/api
-- react, react-dom
-- better-auth
-- zustand
-- @tremor/react
-- shadcn/ui components
-- tailwindcss
-- date-fns
-- recharts (backup if tremor insufficient)
-
 ### Backend (Cargo.toml)
-- axum or actix-web
-- sqlx (with PostgreSQL)
+- axum (web framework)
+- sqlx (PostgreSQL)
 - jsonwebtoken
 - argon2 (password hashing)
 - serde, serde_json
 - tokio
 - tracing
 
+### Frontend (Cargo.toml)
+- dioxus (UI framework)
+- reqwest (HTTP client)
+- serde, serde_json
+- chrono (date handling)
+
 ---
 
 ## TODO
 
-- [x] Initialize Tauri project
-- [x] Setup React frontend with shadcn/ui
-- [x] Configure Zustand stores
-- [x] Setup Rust backend with PostgreSQL
-- [x] Implement Better Auth + JWT validation (Rust backend)
-- [x] Implement Better Auth + JWT validation (frontend connected to Rust backend)
-- [x] Create DDD folder structure
-- [x] Write domain entities
+- [x] Migrate from Tauri to Dioxus
+- [x] Setup Dioxus frontend
+- [x] Implement auth (registration, login, JWT)
 - [x] Implement subscriptions CRUD
 - [x] Implement transactions CRUD
 - [x] Implement categories CRUD
 - [x] Setup notifications (in-app, system, email, push)
-- [ ] Build dashboard with Tremor charts
+- [x] Build dashboard
 - [x] Build calendar view
 - [x] Implement reports and export
-- [ ] Add unusual spending alerts
 - [x] Write unit tests (TDD)
+- [x] Demo mode
+- [ ] Add unusual spending alerts
 - [ ] Docker Compose setup for PostgreSQL
 
 ---
@@ -357,4 +358,4 @@ notifications (
 - Multi-currency: Display only, no conversion rates API
 - Export: Frontend generates CSV/PDF client-side
 - Self-hosted: User runs their own PostgreSQL instance
-- Notifications: Resend for email, OneSignal for push, Tauri for system
+- Notifications: Resend for email, OneSignal for push
