@@ -59,6 +59,9 @@ pub fn CategoriesPage() -> Element {
     let mut form_saving = use_signal(|| false);
     let mut show_icon_picker = use_signal(|| false);
 
+    // Validation error signals
+    let mut name_error = use_signal(String::new);
+
     // Load data
     use_future(move || async move {
         if !CATEGORIES().categories.is_empty() { return; }
@@ -77,6 +80,7 @@ pub fn CategoriesPage() -> Element {
         form_icon.set("Tag".into());
         form_color.set("#6b7280".into());
         show_icon_picker.set(false);
+        name_error.set(String::new());
         dialog_open.set(true);
     };
 
@@ -86,11 +90,21 @@ pub fn CategoriesPage() -> Element {
         form_icon.set(cat.icon.clone().unwrap_or_else(|| "Tag".into()));
         form_color.set(cat.color.clone().unwrap_or_else(|| "#6b7280".into()));
         show_icon_picker.set(false);
+        name_error.set(String::new());
         dialog_open.set(true);
     };
 
     let handle_save = move |_| {
-        let name = form_name();
+        // Validate name
+        let name_val = form_name();
+        if name_val.trim().is_empty() {
+            name_error.set("Name is required".into());
+            return;
+        } else if name_val.trim().len() < 2 {
+            name_error.set("Name must be at least 2 characters".into());
+            return;
+        }
+
         let icon = form_icon();
         let color = form_color();
         let editing = editing_id();
@@ -99,13 +113,13 @@ pub fn CategoriesPage() -> Element {
         spawn(async move {
             let result = if let Some(id) = editing {
                 categories::update(&id, &UpdateCategoryRequest {
-                    name: Some(name),
+                    name: Some(name_val),
                     icon: Some(icon),
                     color: Some(color),
                 }).await
             } else {
                 categories::create(&CreateCategoryRequest {
-                    name,
+                    name: name_val,
                     icon: Some(icon),
                     color: Some(color),
                 }).await
@@ -268,8 +282,14 @@ pub fn CategoriesPage() -> Element {
                                 input {
                                     r#type: "text",
                                     value: "{form_name}",
-                                    oninput: move |e| form_name.set(e.value()),
-                                    class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                                    oninput: move |e| {
+                                        form_name.set(e.value());
+                                        name_error.set(String::new());
+                                    },
+                                    class: if name_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                                }
+                                if !name_error().is_empty() {
+                                    p { class: "text-xs text-red-500", "{name_error()}" }
                                 }
                             }
                             // Icon

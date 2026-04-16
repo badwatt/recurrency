@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::input::Input;
+use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
 
 #[component]
@@ -18,11 +19,7 @@ pub fn LogoSearch(
         // Selected logo preview + button
         div { class: "flex items-center gap-3",
             if !selected_url.is_empty() {
-                img {
-                    src: "{selected_url}",
-                    alt: "Logo",
-                    class: "h-10 w-10 rounded object-contain border border-border",
-                }
+                {logo_image_with_fallback("selected-logo", Some(selected_url.as_str()), "Logo", "h-10 w-10 rounded object-contain border border-border")}
             }
             button {
                 r#type: "button",
@@ -78,11 +75,7 @@ pub fn LogoSearch(
                                         dialog_open.set(false);
                                     }
                                 },
-                                img {
-                                    src: "{logo.url}",
-                                    alt: "{logo.name}",
-                                    class: "h-10 w-10 object-contain",
-                                }
+                                {logo_image_with_fallback(&format!("search-result-{}", logo.name), Some(logo.url.as_str()), &logo.name, "h-10 w-10 object-contain")}
                                 span { class: "text-xs text-muted-foreground truncate w-full text-center",
                                     {logo.name.clone()}
                                 }

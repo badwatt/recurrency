@@ -3,6 +3,7 @@ use crate::state::transactions::TRANSACTIONS;
 use crate::state::categories::CATEGORIES;
 use crate::state::auth::AUTH;
 use crate::api::transactions;
+use crate::components::logo_image_with_fallback;
 use crate::models::transaction::*;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, NaiveDate};
@@ -201,6 +202,13 @@ pub fn TransactionsPage() -> Element {
     let mut form_notes = use_signal(String::new);
     let mut form_saving = use_signal(|| false);
 
+    // Validation error signals
+    let mut name_error = use_signal(String::new);
+    let mut amount_error = use_signal(String::new);
+    let mut currency_error = use_signal(String::new);
+    let mut date_error = use_signal(String::new);
+    let mut category_error = use_signal(String::new);
+
     // Load data
     use_future(move || async move {
         if TRANSACTIONS().is_loading { return; }
@@ -234,28 +242,84 @@ pub fn TransactionsPage() -> Element {
         form_date.set(txn.date.to_string());
         form_category_id.set(Some(txn.category_id));
         form_notes.set(txn.notes.clone().unwrap_or_default());
+        name_error.set(String::new());
+        amount_error.set(String::new());
+        currency_error.set(String::new());
+        date_error.set(String::new());
+        category_error.set(String::new());
         dialog_open.set(true);
     };
 
     let handle_save = move |_| {
-        let name = form_name();
+        // Validate
+        let mut valid = true;
+        let name_val = form_name();
         let amount_str = form_amount();
+        let currency_val = form_currency();
+        let date_str = form_date();
+        let cat_id_val = form_category_id();
+
+        if name_val.trim().is_empty() {
+            name_error.set("Name is required".into());
+            valid = false;
+        } else if name_val.trim().len() < 2 {
+            name_error.set("Name must be at least 2 characters".into());
+            valid = false;
+        }
+
+        if amount_str.is_empty() {
+            amount_error.set("Amount is required".into());
+            valid = false;
+        } else {
+            match Decimal::from_str(&amount_str) {
+                Ok(d) if d > Decimal::ZERO => {},
+                Ok(_) => {
+                    amount_error.set("Amount must be greater than 0".into());
+                    valid = false;
+                },
+                Err(_) => {
+                    amount_error.set("Invalid amount".into());
+                    valid = false;
+                }
+            }
+        }
+
+        if currency_val.is_empty() {
+            currency_error.set("Currency is required".into());
+            valid = false;
+        }
+
+        if date_str.is_empty() {
+            date_error.set("Date is required".into());
+            valid = false;
+        } else if NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").is_err() {
+            date_error.set("Invalid date format".into());
+            valid = false;
+        }
+
+        if cat_id_val.is_none() {
+            category_error.set("Category is required".into());
+            valid = false;
+        }
+
+        if !valid { return; }
+
         let amount = match Decimal::from_str(&amount_str) {
             Ok(d) => d,
             Err(_) => return,
         };
-        let date = match NaiveDate::parse_from_str(&form_date(), "%Y-%m-%d") {
+        let date = match NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
             Ok(d) => d,
             Err(_) => return,
         };
         let editing = editing_id();
-        let cat_id = form_category_id();
+        let cat_id = cat_id_val;
 
         form_saving.set(true);
         spawn(async move {
             let result = if let Some(id) = editing {
                 transactions::update(&id, &UpdateTransactionRequest {
-                    name: Some(name),
+                    name: Some(name_val),
                     amount: Some(amount),
                     currency: Some(form_currency()),
                     date: Some(date),
@@ -265,7 +329,7 @@ pub fn TransactionsPage() -> Element {
                 }).await
             } else {
                 transactions::create(&CreateTransactionRequest {
-                    name,
+                    name: name_val,
                     amount,
                     currency: form_currency(),
                     date,
@@ -331,6 +395,11 @@ pub fn TransactionsPage() -> Element {
                         form_date.set(chrono::Local::now().format("%Y-%m-%d").to_string());
                         form_category_id.set(CATEGORIES().default_category().map(|c| c.id));
                         form_notes.set(String::new());
+                        name_error.set(String::new());
+                        amount_error.set(String::new());
+                        currency_error.set(String::new());
+                        date_error.set(String::new());
+                        category_error.set(String::new());
                         dialog_open.set(true);
                     },
                     class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
@@ -469,6 +538,11 @@ pub fn TransactionsPage() -> Element {
                                 form_date.set(chrono::Local::now().format("%Y-%m-%d").to_string());
                                 form_category_id.set(CATEGORIES().default_category().map(|c| c.id));
                                 form_notes.set(String::new());
+                                name_error.set(String::new());
+                                amount_error.set(String::new());
+                                currency_error.set(String::new());
+                                date_error.set(String::new());
+                                category_error.set(String::new());
                                 dialog_open.set(true);
                             },
                             class: "inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
@@ -510,9 +584,8 @@ pub fn TransactionsPage() -> Element {
                                                 div { class: "flex items-center gap-2 sm:gap-4",
                                                     // Icon
                                                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
-                                                        if let Some(url) = &txn.logo_url {
-                                                            img { src: "{url}", alt: "{txn.name}", class: "h-full w-full object-contain p-1" }
-                                                        } else {
+                                                        {logo_image_with_fallback(&format!("txn-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-full w-full object-contain p-1")}
+                                                        if txn.logo_url.is_none() {
                                                             span { class: "text-muted-foreground",
                                                                 {ReceiptIcon()}
                                                             }
@@ -586,8 +659,14 @@ pub fn TransactionsPage() -> Element {
                                 input {
                                     r#type: "text",
                                     value: "{form_name}",
-                                    oninput: move |e| form_name.set(e.value()),
-                                    class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                                    oninput: move |e| {
+                                        form_name.set(e.value());
+                                        name_error.set(String::new());
+                                    },
+                                    class: if name_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                                }
+                                if !name_error().is_empty() {
+                                    p { class: "text-xs text-red-500", "{name_error()}" }
                                 }
                             }
                             // Amount
@@ -598,19 +677,31 @@ pub fn TransactionsPage() -> Element {
                                         r#type: "number",
                                         step: "0.01",
                                         value: "{form_amount}",
-                                        oninput: move |e| form_amount.set(e.value()),
-                                        class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                                        oninput: move |e| {
+                                            form_amount.set(e.value());
+                                            amount_error.set(String::new());
+                                        },
+                                        class: if amount_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                                    }
+                                    if !amount_error().is_empty() {
+                                        p { class: "text-xs text-red-500", "{amount_error()}" }
                                     }
                                 }
                                 div { class: "space-y-2",
                                     label { class: "text-sm font-medium", "Currency" }
                                     select {
                                         value: "{form_currency}",
-                                        onchange: move |e| form_currency.set(e.value()),
-                                        class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                                        onchange: move |e| {
+                                            form_currency.set(e.value());
+                                            currency_error.set(String::new());
+                                        },
+                                        class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
                                         for (val, label) in crate::utils::constants::CURRENCIES {
                                             option { value: "{val}", "{label}" }
                                         }
+                                    }
+                                    if !currency_error().is_empty() {
+                                        p { class: "text-xs text-red-500", "{currency_error()}" }
                                     }
                                 }
                             }
@@ -620,8 +711,14 @@ pub fn TransactionsPage() -> Element {
                                 input {
                                     r#type: "date",
                                     value: "{form_date}",
-                                    oninput: move |e| form_date.set(e.value()),
-                                    class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                                    oninput: move |e| {
+                                        form_date.set(e.value());
+                                        date_error.set(String::new());
+                                    },
+                                    class: if date_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                                }
+                                if !date_error().is_empty() {
+                                    p { class: "text-xs text-red-500", "{date_error()}" }
                                 }
                             }
                             // Category
@@ -632,12 +729,16 @@ pub fn TransactionsPage() -> Element {
                                     onchange: move |e| {
                                         let v = e.value();
                                         form_category_id.set(if v.is_empty() { None } else { Uuid::parse_str(&v).ok() });
+                                        category_error.set(String::new());
                                     },
-                                    class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                                    class: if category_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
                                     option { value: "", "Select category" }
                                     for cat in &cats.categories {
                                         option { value: "{cat.id}", "{cat.name}" }
                                     }
+                                }
+                                if !category_error().is_empty() {
+                                    p { class: "text-xs text-red-500", "{category_error()}" }
                                 }
                             }
                             // Notes

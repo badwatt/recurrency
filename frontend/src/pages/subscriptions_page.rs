@@ -11,6 +11,7 @@ use crate::state::preferences::PREFERENCES;
 use crate::state::auth::AUTH;
 use crate::utils::format::format_currency;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
+use crate::components::logo_image_with_fallback;
 
 // ── Filter / Sort types ──────────────────────────────────────────────
 
@@ -167,6 +168,14 @@ pub fn SubscriptionsPage() -> Element {
     let mut filters_popover: Signal<bool> = use_signal(|| false);
     let mut delete_confirm_id: Signal<Option<Uuid>> = use_signal(|| None);
 
+    // Validation error signals
+    let mut name_error: Signal<String> = use_signal(String::new);
+    let mut amount_error: Signal<String> = use_signal(String::new);
+    let mut currency_error: Signal<String> = use_signal(String::new);
+    let mut frequency_error: Signal<String> = use_signal(String::new);
+    let mut start_date_error: Signal<String> = use_signal(String::new);
+    let mut category_error: Signal<String> = use_signal(String::new);
+
     let subs_state = SUBSCRIPTIONS();
     let cats_state = CATEGORIES();
     let prefs_state = PREFERENCES();
@@ -230,6 +239,12 @@ pub fn SubscriptionsPage() -> Element {
             notes: sub.notes.unwrap_or_default(),
             logo_url: sub.logo_url.unwrap_or_default(),
         });
+        name_error.set(String::new());
+        amount_error.set(String::new());
+        currency_error.set(String::new());
+        frequency_error.set(String::new());
+        start_date_error.set(String::new());
+        category_error.set(String::new());
         dialog_open.set(true);
     });
 
@@ -266,6 +281,12 @@ pub fn SubscriptionsPage() -> Element {
             notes: String::new(),
             logo_url: String::new(),
         });
+        name_error.set(String::new());
+        amount_error.set(String::new());
+        currency_error.set(String::new());
+        frequency_error.set(String::new());
+        start_date_error.set(String::new());
+        category_error.set(String::new());
         dialog_open.set(true);
     });
 
@@ -568,7 +589,7 @@ pub fn SubscriptionsPage() -> Element {
 
             // ── Create/Edit Dialog ──
             if dialog_open() {
-                {render_dialog(form, editing_id, dialog_open)}
+                {render_dialog(form, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, category_error)}
             }
 
             // ── Delete confirmation ──
@@ -646,9 +667,8 @@ fn render_grid_card(
         div { class: "group relative flex flex-col h-full rounded-lg border bg-card {opacity}",
             div { class: "flex flex-col items-center justify-between flex-1 p-5 pb-4 text-center gap-3",
                 div { class: "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted overflow-hidden",
-                    if let Some(ref url) = logo_url {
-                        img { src: "{url}", alt: "{name}", class: "h-full w-full object-cover" }
-                    } else {
+                    {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-cover")}
+                    if logo_url.is_none() {
                         span { class: "text-2xl text-muted-foreground", "💳" }
                     }
                 }
@@ -727,9 +747,8 @@ fn render_list_card(
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
-                        if let Some(ref url) = logo_url {
-                            img { src: "{url}", alt: "{name}", class: "h-full w-full object-cover" }
-                        } else {
+                        {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-cover")}
+                        if logo_url.is_none() {
                             span { class: "text-sm text-muted-foreground", "💳" }
                         }
                     }
@@ -777,6 +796,12 @@ fn render_dialog(
     mut form: Signal<DialogForm>,
     editing_id: Signal<Option<Uuid>>,
     mut dialog_open: Signal<bool>,
+    mut name_error: Signal<String>,
+    mut amount_error: Signal<String>,
+    mut currency_error: Signal<String>,
+    mut frequency_error: Signal<String>,
+    mut start_date_error: Signal<String>,
+    mut category_error: Signal<String>,
 ) -> Element {
     let is_editing = editing_id().is_some();
     let title = if is_editing { "Edit Subscription" } else { "Add Subscription" };
@@ -790,6 +815,13 @@ fn render_dialog(
     let form_start_date = form().start_date;
     let form_category_id = form().category_id;
     let form_notes = form().notes;
+
+    let name_err = name_error();
+    let amount_err = amount_error();
+    let currency_err = currency_error();
+    let frequency_err = frequency_error();
+    let start_date_err = start_date_error();
+    let category_err = category_error();
 
     let category_options: Vec<(String, String)> = CATEGORIES()
         .categories.iter()
@@ -807,10 +839,16 @@ fn render_dialog(
                     div { class: "space-y-1.5",
                         label { class: "text-sm font-medium", "Name" }
                         input {
-                            class: "w-full h-9 rounded-md border bg-background px-3 text-sm",
+                            class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                             placeholder: "Netflix, Spotify, etc.",
                             value: "{form_name}",
-                            oninput: move |e: Event<FormData>| form.write().name = e.value(),
+                            oninput: move |e: Event<FormData>| {
+                                form.write().name = e.value();
+                                name_error.set(String::new());
+                            },
+                        }
+                        if !name_err.is_empty() {
+                            p { class: "text-xs text-red-500", "{name_err}" }
                         }
                     }
 
@@ -822,21 +860,33 @@ fn render_dialog(
                                 r#type: "number",
                                 step: "0.01",
                                 min: "0",
-                                class: "w-full h-9 rounded-md border bg-background px-3 text-sm",
+                                class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                                 placeholder: "9.99",
                                 value: "{form_amount}",
-                                oninput: move |e: Event<FormData>| form.write().amount = e.value(),
+                                oninput: move |e: Event<FormData>| {
+                                    form.write().amount = e.value();
+                                    amount_error.set(String::new());
+                                },
+                            }
+                            if !amount_err.is_empty() {
+                                p { class: "text-xs text-red-500", "{amount_err}" }
                             }
                         }
                         div { class: "space-y-1.5",
                             label { class: "text-sm font-medium", "Currency" }
                             select {
-                                class: "w-full h-9 rounded-md border bg-background px-2 text-sm",
+                                class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
                                 value: "{form_currency}",
-                                onchange: move |e: Event<FormData>| form.write().currency = e.value(),
+                                onchange: move |e: Event<FormData>| {
+                                    form.write().currency = e.value();
+                                    currency_error.set(String::new());
+                                },
                                 for (val, label) in CURRENCIES {
                                     option { value: "{val}", "{label}" }
                                 }
+                            }
+                            if !currency_err.is_empty() {
+                                p { class: "text-xs text-red-500", "{currency_err}" }
                             }
                         }
                     }
@@ -846,21 +896,33 @@ fn render_dialog(
                         div { class: "space-y-1.5",
                             label { class: "text-sm font-medium", "Frequency" }
                             select {
-                                class: "w-full h-9 rounded-md border bg-background px-2 text-sm",
+                                class: if frequency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
                                 value: "{form_frequency}",
-                                onchange: move |e: Event<FormData>| form.write().frequency = e.value(),
+                                onchange: move |e: Event<FormData>| {
+                                    form.write().frequency = e.value();
+                                    frequency_error.set(String::new());
+                                },
                                 for (val, label) in FREQUENCIES {
                                     option { value: "{val}", "{label}" }
                                 }
+                            }
+                            if !frequency_err.is_empty() {
+                                p { class: "text-xs text-red-500", "{frequency_err}" }
                             }
                         }
                         div { class: "space-y-1.5",
                             label { class: "text-sm font-medium", "Start Date" }
                             input {
                                 r#type: "date",
-                                class: "w-full h-9 rounded-md border bg-background px-3 text-sm",
+                                class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                                 value: "{form_start_date}",
-                                oninput: move |e: Event<FormData>| form.write().start_date = e.value(),
+                                oninput: move |e: Event<FormData>| {
+                                    form.write().start_date = e.value();
+                                    start_date_error.set(String::new());
+                                },
+                            }
+                            if !start_date_err.is_empty() {
+                                p { class: "text-xs text-red-500", "{start_date_err}" }
                             }
                         }
                     }
@@ -869,13 +931,19 @@ fn render_dialog(
                     div { class: "space-y-1.5",
                         label { class: "text-sm font-medium", "Category" }
                         select {
-                            class: "w-full h-9 rounded-md border bg-background px-2 text-sm",
+                            class: if category_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
                             value: "{form_category_id}",
-                            onchange: move |e: Event<FormData>| form.write().category_id = e.value(),
+                            onchange: move |e: Event<FormData>| {
+                                form.write().category_id = e.value();
+                                category_error.set(String::new());
+                            },
                             option { value: "", "Select category..." }
                             for (id, name) in category_options.iter() {
                                 option { value: "{id}", "{name}" }
                             }
+                        }
+                        if !category_err.is_empty() {
+                            p { class: "text-xs text-red-500", "{category_err}" }
                         }
                     }
 
@@ -902,6 +970,56 @@ fn render_dialog(
                         class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
                         onclick: move |_| {
                             let f = form();
+                            let mut valid = true;
+
+                            // Validate name
+                            if f.name.trim().is_empty() {
+                                name_error.set("Name is required".into());
+                                valid = false;
+                            } else if f.name.trim().len() < 2 {
+                                name_error.set("Name must be at least 2 characters".into());
+                                valid = false;
+                            }
+
+                            // Validate amount
+                            let amount_result = f.amount.parse::<Decimal>();
+                            if f.amount.is_empty() {
+                                amount_error.set("Amount is required".into());
+                                valid = false;
+                            } else if amount_result.is_err() || amount_result.as_ref().unwrap_or(&dec!(0)) <= &dec!(0) {
+                                amount_error.set("Amount must be greater than 0".into());
+                                valid = false;
+                            }
+
+                            // Validate currency
+                            if f.currency.is_empty() {
+                                currency_error.set("Currency is required".into());
+                                valid = false;
+                            }
+
+                            // Validate frequency
+                            if f.frequency.is_empty() {
+                                frequency_error.set("Frequency is required".into());
+                                valid = false;
+                            }
+
+                            // Validate start_date
+                            if f.start_date.is_empty() {
+                                start_date_error.set("Start date is required".into());
+                                valid = false;
+                            } else if f.start_date.parse::<chrono::NaiveDate>().is_err() {
+                                start_date_error.set("Invalid date format".into());
+                                valid = false;
+                            }
+
+                            // Validate category
+                            if f.category_id.is_empty() {
+                                category_error.set("Category is required".into());
+                                valid = false;
+                            }
+
+                            if !valid { return; }
+
                             let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
                             let category = if f.category_id.is_empty() { None } else { Uuid::parse_str(&f.category_id).ok() };
 

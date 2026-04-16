@@ -5,6 +5,7 @@ use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::auth::AUTH;
 use crate::api::subscriptions as api_subs;
 use crate::utils::format::format_currency;
+use crate::components::logo_image_with_fallback;
 
 // ── SVG Icon Components ──────────────────────────────────────────────────────
 
@@ -304,13 +305,8 @@ pub fn Dashboard() -> Element {
                                             div { key: "{sub.id}", class: "flex items-center justify-between",
                                                 div { class: "flex items-center gap-3",
                                                     div { class: "flex h-9 w-9 items-center justify-center rounded-full overflow-hidden {dot_class}",
-                                                        if let Some(url) = logo_url {
-                                                            img {
-                                                                src: "{url}",
-                                                                alt: "{sub.name}",
-                                                                class: "h-full w-full object-cover",
-                                                            }
-                                                        } else {
+                                                        {logo_image_with_fallback(&format!("dash-{}", sub.id), logo_url.as_deref(), &sub.name, "h-full w-full object-cover")}
+                                                        if logo_url.is_none() {
                                                             svg {
                                                                 view_box: "0 0 24 24",
                                                                 fill: "none",

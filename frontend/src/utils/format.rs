@@ -1,6 +1,6 @@
 use rust_decimal::Decimal;
 
-/// Format an amount as currency string (e.g., "€15.99", "$9.99")
+/// Format an amount as currency string (e.g., "€1,500.00", "$9.99", "¥1,500")
 /// Mirrors the JS Intl.NumberFormat behavior from the React frontend.
 pub fn format_currency(amount: Decimal, currency: &str) -> String {
     let symbol = match currency {
@@ -12,7 +12,8 @@ pub fn format_currency(amount: Decimal, currency: &str) -> String {
     };
 
     let abs = amount.abs();
-    let formatted = format_decimal(abs);
+    let no_decimals = currency == "JPY";
+    let formatted = format_decimal(abs, no_decimals);
 
     if amount.is_sign_negative() {
         format!("-{}{}", symbol, formatted)
@@ -21,25 +22,41 @@ pub fn format_currency(amount: Decimal, currency: &str) -> String {
     }
 }
 
-fn format_decimal(d: Decimal) -> String {
-    // Format to 2 decimal places for most currencies, 0 for JPY
+fn format_decimal(d: Decimal, no_decimals: bool) -> String {
     let s = format!("{}", d);
-    if let Some(dot_pos) = s.find('.') {
-        let integer = &s[..dot_pos];
-        let decimal = &s[dot_pos + 1..];
-        let decimal = format!("{:0<2}", decimal);
-        let decimal = &decimal[..2];
-        // Remove trailing zeros for whole amounts
-        if decimal == "00" {
-            format!("{}.00", integer)
-        } else if decimal.ends_with('0') {
-            format!("{}.{}", integer, decimal)
-        } else {
-            format!("{}.{}", integer, decimal)
-        }
+    let (integer_part, decimal_part) = if let Some(dot_pos) = s.find('.') {
+        (&s[..dot_pos], Some(&s[dot_pos + 1..]))
     } else {
-        format!("{}.00", s)
+        (s.as_str(), None)
+    };
+
+    let integer_with_commas = add_thousands_separators(integer_part);
+
+    if no_decimals {
+        integer_with_commas
+    } else {
+        let decimal = match decimal_part {
+            Some(dp) => format!("{:0<2}", dp),
+            None => "00".to_string(),
+        };
+        let decimal = &decimal[..2];
+        format!("{}.{}", integer_with_commas, decimal)
     }
+}
+
+/// Add thousands separators (commas) to an integer string.
+/// e.g. "1500" -> "1,500", "0" -> "0"
+fn add_thousands_separators(s: &str) -> String {
+    let mut result = String::new();
+    let digits: Vec<char> = s.chars().collect();
+    let len = digits.len();
+    for (i, c) in digits.iter().enumerate() {
+        if i > 0 && (len - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(*c);
+    }
+    result
 }
 
 pub fn get_currency_symbol(currency: &str) -> &str {
@@ -74,7 +91,12 @@ mod tests {
 
     #[test]
     fn format_jpy() {
-        assert_eq!(format_currency(dec!(1500), "JPY"), "¥1500.00");
+        assert_eq!(format_currency(dec!(1500), "JPY"), "¥1,500");
+    }
+
+    #[test]
+    fn format_jpy_no_decimals() {
+        assert_eq!(format_currency(dec!(12345), "JPY"), "¥12,345");
     }
 
     #[test]
@@ -94,8 +116,23 @@ mod tests {
     }
 
     #[test]
+    fn format_negative_thousands() {
+        assert_eq!(format_currency(dec!(-1500), "EUR"), "-€1,500.00");
+    }
+
+    #[test]
     fn format_whole_number() {
         assert_eq!(format_currency(dec!(10), "EUR"), "€10.00");
+    }
+
+    #[test]
+    fn format_thousands() {
+        assert_eq!(format_currency(dec!(1500), "EUR"), "€1,500.00");
+    }
+
+    #[test]
+    fn format_millions() {
+        assert_eq!(format_currency(dec!(1234567.89), "USD"), "$1,234,567.89");
     }
 
     #[test]
