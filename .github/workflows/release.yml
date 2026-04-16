@@ -201,18 +201,26 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      - name: Build Android APK
+      - name: Build Android bundle
         run: cd frontend && dx bundle --platform android --release
 
-      - name: Upload APK
+      - name: List bundle output
+        run: find frontend/dist -type f \( -name '*.aab' -o -name '*.apk' \) | head -10
+
+      - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
           name: recurrency-android
-          path: frontend/dist/android/**/*.apk
+          path: |-
+            frontend/dist/**/*.aab
+            frontend/dist/**/*.apk
           retention-days: 30
+          if-no-files-found: error
 
-      - name: Upload APK to Release
+      - name: Upload bundle to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
-          files: frontend/dist/android/**/*.apk
+          files: |-
+            frontend/dist/**/*.aab
+            frontend/dist/**/*.apk
