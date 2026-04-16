@@ -201,32 +201,22 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      - name: Build Android AAB
+      - name: Build Android APK
         run: cd frontend && dx bundle --platform android --release
 
-      - name: Install bundletool
+      - name: Locate APK
         run: |
-          curl -sL https://github.com/google/bundletool/releases/latest/download/bundletool-all.jar \
-            -o /usr/local/bin/bundletool.jar
-
-      - name: Convert AAB to APK
-        run: |
-          AAB=$(find frontend/dist -name '*.aab' | head -1)
-          echo "Found AAB: $AAB"
-          java -jar /usr/local/bin/bundletool.jar build-apks \
-            --bundle="$AAB" \
-            --output=frontend/dist/recurrency.apks \
-            --mode=universal
-          cd frontend/dist
-          unzip -o recurrency.apks '*.apk' -d .
-          mv universal.apk recurrency.apk 2>/dev/null || true
-          ls -la *.apk
+          echo "Searching for APK in target directory..."
+          APK=$(find frontend/target/dx -name '*.apk' -type f | head -1)
+          echo "Found APK: $APK"
+          mkdir -p frontend/dist
+          cp "$APK" frontend/dist/recurrency.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: recurrency-android
-          path: frontend/dist/**/*.apk
+          path: frontend/dist/recurrency.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -234,4 +224,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
-          files: frontend/dist/**/*.apk
+          files: frontend/dist/recurrency.apk
