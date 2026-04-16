@@ -1,0 +1,5 @@
+[build]
+target-dir = "target"
+
+[env]
+CARGO_LLVM_COV_TARGET_DIR = { value = "target", force = true }
