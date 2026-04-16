@@ -69,3 +69,5 @@ keystore.properties
 .direnv
 .env
 .env.example
+frontend/assets/tailwind.css
+frontend/public/tailwind.css
