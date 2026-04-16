@@ -8,7 +8,9 @@ ARG APP_VERSION=dev
 ENV RUSTFLAGS="-C target-cpu=generic"
 
 # Install cargo-binstall + dx CLI + wasm target
-RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && cargo binstall dioxus-cli --no-confirm && rustup target add wasm32-unknown-unknown
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+    && cargo binstall dioxus-cli --no-confirm \
+    && rustup target add wasm32-unknown-unknown
 
 # Install npm for tailwind
 RUN apt-get update && apt-get install -y --no-install-recommends npm && rm -rf /var/lib/apt/lists/*
@@ -16,17 +18,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends npm && rm -rf /
 WORKDIR /build/frontend
 COPY frontend/Cargo.toml frontend/Cargo.lock* ./
 
-# Cache dependencies
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --target wasm32-unknown-unknown --features web 2>/dev/null || true
+# Cache dependencies — separate layers for better Docker caching
+RUN mkdir src && echo 'fn main() {}' > src/main.rs
+RUN cargo build --target wasm32-unknown-unknown --features web --release 2>/dev/null || true
 RUN rm -rf src
 
 COPY frontend/ ./
 
 # Build Tailwind CSS
-RUN npm install --prefix . tailwindcss tailwindcss-animate && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
+RUN npm install --prefix . tailwindcss tailwindcss-animate \
+    && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
 # Build Dioxus web bundle
-RUN dx bundle --platform web --release 2>&1 || true
+RUN dx bundle --platform web --release
 
 # ── Stage 2: Build backend ──────────────────────────────────
 FROM rust:bookworm AS backend-build
@@ -36,8 +40,10 @@ ENV RUSTFLAGS="-C target-cpu=generic"
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 
-# Cache dependencies
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release -j 4 && rm -rf src
+# Cache dependencies — separate layers
+RUN mkdir src && echo 'fn main() {}' > src/main.rs
+RUN cargo build --release -j 4 2>/dev/null || true
+RUN rm -rf src
 
 COPY backend/ ./
 RUN touch src/main.rs && cargo build --release -j 4
