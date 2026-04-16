@@ -121,3 +121,49 @@ pub async fn reset(
         }))),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn demo_is_enabled_default() {
+        // Default is disabled when no env vars are set
+        // (ENABLE_DEMO is not set, so it defaults to false)
+        let enabled = is_demo_enabled();
+        // Note: This test's result depends on env state
+        // We just verify the function doesn't panic
+        let _ = enabled;
+    }
+
+    #[test]
+    fn demo_email_custom() {
+        env::set_var("DEMO_EMAIL", "custom@demo.com");
+        let email = demo_email();
+        assert_eq!(email, "custom@demo.com");
+        env::remove_var("DEMO_EMAIL");
+    }
+
+    #[test]
+    fn demo_secret_custom() {
+        env::set_var("DEMO_PASSWORD", "my_test_pass");
+        let pwd = demo_password();
+        assert_eq!(pwd, "my_test_pass");
+        env::remove_var("DEMO_PASSWORD");
+    }
+
+    #[test]
+    fn demo_secret_hash_custom() {
+        env::set_var("DEMO_PASSWORD_HASH", "precomputed$hash");
+        let hash = demo_password_hash("anything").unwrap();
+        assert_eq!(hash, "precomputed$hash");
+        env::remove_var("DEMO_PASSWORD_HASH");
+    }
+
+    #[test]
+    fn demo_secret_hash_generated() {
+        env::remove_var("DEMO_PASSWORD_HASH");
+        let hash = demo_password_hash("testpass").unwrap();
+        assert!(!hash.is_empty());
+    }
+}

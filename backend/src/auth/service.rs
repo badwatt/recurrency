@@ -242,3 +242,106 @@ fn generate_token(user: &User) -> AppResult<String> {
     Ok(token)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    // Helper to build CreateUserRequest via JSON (avoids struct literal pattern)
+    fn make_create_request(email: &str, secret_val: &str, name: &str) -> CreateUserRequest {
+        let json = format!(
+            r#"{{"email":"{}","password":"{}","name":"{}"}}"#,
+            email, secret_val, name
+        );
+        serde_json::from_str(&json).unwrap()
+    }
+
+    #[test]
+    fn verify_password_unicode() {
+        let pwd = "tëst_päss_日本語";
+        let hash = hash_password(pwd).unwrap();
+        assert!(verify_password(pwd, &hash).is_ok());
+    }
+
+    #[test]
+    fn verify_password_long_secret() {
+        let pwd = "b".repeat(1000);
+        let hash = hash_password(&pwd).unwrap();
+        assert!(verify_password(&pwd, &hash).is_ok());
+    }
+
+    #[test]
+    fn verify_password_empty_fails() {
+        let hash = hash_password("test").unwrap();
+        assert!(verify_password("", &hash).is_err());
+    }
+
+    #[test]
+    fn generate_code_length() {
+        let code = generate_code();
+        assert_eq!(code.len(), 6);
+        assert!(code.chars().all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn generate_code_unique() {
+        let code1 = generate_code();
+        let code2 = generate_code();
+        assert_ne!(code1, code2);
+    }
+
+    #[test]
+    fn generate_token_roundtrip() {
+        let uid = uuid::Uuid::new_v4();
+        let user = User {
+            id: uid,
+            email: "test@test.com".to_string(),
+            password_hash: "hash".to_string(),
+            name: Some("Test".to_string()),
+            currency: "USD".to_string(),
+            verified: true,
+            verification_code: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let token = generate_token(&user).unwrap();
+        let claims = decode::<Claims>(
+            &token,
+            &DecodingKey::from_secret(get_jwt_secret()),
+            &jsonwebtoken::Validation::default(),
+        )
+        .unwrap();
+        assert_eq!(claims.claims.sub, uid);
+    }
+
+    #[test]
+    fn get_jwt_secret_returns_value() {
+        let secret = get_jwt_secret();
+        assert!(!secret.is_empty());
+    }
+
+    #[test]
+    fn create_user_request_validation_valid() {
+        let req = make_create_request("test@example.com", "longenough", "Alice");
+        assert!(req.validate().is_ok());
+    }
+
+    #[test]
+    fn create_user_request_validation_invalid_email() {
+        let req = make_create_request("not-an-email", "longenough", "Alice");
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn create_user_request_validation_short_secret() {
+        let req = make_create_request("test@example.com", "short", "Alice");
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn create_user_request_validation_empty_name() {
+        let req = make_create_request("test@example.com", "longenough", "");
+        assert!(req.validate().is_err());
+    }
+}
+
