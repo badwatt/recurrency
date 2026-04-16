@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
     <title>Recurrency</title>
-    <link rel="stylesheet" href="/tailwind.css" />
     <style>
-        /* Inline theme variables — available before tailwind.css loads.
-           Prevents wrong-color flash on refresh in dark/mocha mode. */
+        /* Inline theme variables — MUST be before <link> to ensure
+           body{background-color:hsl(var(--background))} in tailwind.css
+           has defined variables at parse time. */
         :root {
             --background: 0 0% 100%;
             --foreground: 222.2 84% 4.9%;
@@ -47,6 +47,7 @@
         #pre-wasm-loader p { font-size: 0.875rem; font-weight: 500; animation: pulse 2s ease-in-out infinite; }
         @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
     </style>
+    <link rel="stylesheet" href="/tailwind.css" />
     <script>
         (function() {
             try {
@@ -68,23 +69,6 @@
     </script>
 </head>
 <body>
-    <script>
-        // Set body background-color AFTER body exists to prevent white flash.
-        // Derives color from CSS variable --background so values always match.
-        try {
-            var cls = window.__recurrency_theme || 'light';
-            // Read computed CSS variable value
-            var style = getComputedStyle(document.documentElement);
-            var bg = style.getPropertyValue('--background').trim();
-            if (bg) {
-                document.body.style.backgroundColor = 'hsl(' + bg + ')';
-            } else {
-                // Fallback hex for very old browsers
-                var bgMap = { dark: '#020817', mocha: '#1e1e2e', light: '#ffffff' };
-                document.body.style.backgroundColor = bgMap[cls] || '#ffffff';
-            }
-        } catch(e) {}
-    </script>
     <div id="pre-wasm-loader">
         <div class="rings"><div class="r1"></div><div class="r2"></div></div>
         <p>Loading...</p>

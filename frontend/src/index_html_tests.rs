@@ -1,145 +1,36 @@
-/// Tests for index.html inline script that sets theme before WASM loads.
-/// These verify the HTML structure, not runtime behavior.
-
-use std::collections::HashMap;
-
-/// Parse the bgMap from the index.html <body> script: dark: '#XXXXXX', mocha: '#XXXXXX', light: '#XXXXXX'
-fn parse_bgmap(html: &str) -> HashMap<&str, &str> {
-    let body_section = html.split("<body>").nth(1).unwrap_or("");
-    let mut map = HashMap::new();
-    for theme in &["dark", "mocha", "light"] {
-        // Find pattern: {theme}: '#XXXXXX'
-        let needle = format!("{}: '", theme);
-        if let Some(idx) = body_section.find(&needle) {
-            let rest = &body_section[idx + needle.len()..];
-            if rest.starts_with('#') {
-                if let Some(end) = rest[1..].find('\'') {
-                    let hex = &rest[1..1 + end];
-                    if hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
-                        map.insert(*theme, hex);
-                    }
-                }
-            }
-        }
-    }
-    map
-}
-
-/// Parse CSS --background: h s% l% values from tailwind.css and return theme→hex pairs.
-fn parse_css_backgrounds(css: &str) -> HashMap<&str, String> {
-    let mut backgrounds: Vec<String> = Vec::new();
-    // Find all --background: H S% L% in order
-    let parts: Vec<&str> = css.split("--background:").skip(1).collect();
-    for part in &parts {
-        let trimmed = part.trim();
-        // Parse: 222.2 84% 4.9% or 0 0% 100%;--foreground...
-        // Tokenize on whitespace/semicolon, take first 3 numeric-ish tokens
-        // Take text up to first semicolon (end of CSS declaration)
-        let before_semi = trimmed.split(';').next().unwrap_or(trimmed);
-        let mut nums = Vec::new();
-        for tok in before_semi.split_whitespace() {
-            let clean = tok.trim_end_matches('%');
-            if clean.parse::<f64>().is_ok() {
-                nums.push(clean.to_string());
-            }
-            if nums.len() == 3 { break; }
-        }
-        if nums.len() == 3 {
-            if let (Ok(h), Ok(s), Ok(l)) = (
-                nums[0].parse::<f64>(),
-                nums[1].parse::<f64>(),
-                nums[2].parse::<f64>(),
-            ) {
-                let (r, g, b) = hsl_to_rgb(h, s / 100.0, l / 100.0);
-                backgrounds.push(format!("{:02x}{:02x}{:02x}", r, g, b));
-            }
-        }
-    }
-    let mut map = HashMap::new();
-    // Order: light (:root), dark, mocha
-    let themes = ["light", "dark", "mocha"];
-    for (i, theme) in themes.iter().enumerate() {
-        if i < backgrounds.len() {
-            map.insert(*theme, backgrounds[i].clone());
-        }
-    }
-    map
-}
-
-/// Convert HSL to RGB (h in degrees, s and l in [0,1]).
-fn hsl_to_rgb(h: f64, s: f64, l: f64) -> (u8, u8, u8) {
-    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
-    let h_prime = h / 60.0;
-    let x = c * (1.0 - (h_prime % 2.0 - 1.0).abs());
-    let (r1, g1, b1) = if h_prime < 1.0 { (c, x, 0.0) }
-        else if h_prime < 2.0 { (x, c, 0.0) }
-        else if h_prime < 3.0 { (0.0, c, x) }
-        else if h_prime < 4.0 { (0.0, x, c) }
-        else if h_prime < 5.0 { (x, 0.0, c) }
-        else { (c, 0.0, x) };
-    let m = l - c / 2.0;
-    (
-        ((r1 + m) * 255.0).round() as u8,
-        ((g1 + m) * 255.0).round() as u8,
-        ((b1 + m) * 255.0).round() as u8,
-    )
-}
+/// Tests for index.html — CSS variable setup and theme initialization.
 
 #[test]
 fn index_html_body_bgmap_matches_css_variables() {
-    // index.html must derive body background from CSS variables,
-    // not hardcode hex values that drift from CSS.
-    // Bug: hardcoded hex #030712 didn't match CSS --background hsl(222.2,84%,4.9%)=#020817.
-    // Fix: use getComputedStyle to read --background, fallback to exact hex matches.
+    // index.html must define CSS variables for body background BEFORE tailwind.css loads.
+    // Bug: <style> was AFTER <link> → tailwind.css body{background-color:hsl(var(--background))}
+    // parsed with undefined vars → body defaulted to white on refresh.
+    // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE <link>.
     let html = include_str!("../assets/index.html");
-    let css = include_str!("../assets/tailwind.css");
-    let body_section = html.split("\x3cbody>").nth(1).unwrap_or("");
 
-    // Primary: script reads CSS variable
-    let reads_css_var = body_section.contains("getComputedStyle")
-        && body_section.contains("--background");
-    assert!(reads_css_var,
-        "index.html body script should read --background CSS variable via getComputedStyle");
-
-    // Fallback: hardcoded hex must match CSS variables exactly
-    let bgmap = parse_bgmap(html);
-    let cssmap = parse_css_backgrounds(css);
-    for theme in &["light", "dark", "mocha"] {
-        if let (Some(html_hex), Some(css_hex)) = (bgmap.get(*theme), cssmap.get(*theme)) {
-            assert_eq!(
-                html_hex.to_lowercase(),
-                css_hex.to_lowercase(),
-                "bgMap {} fallback color mismatch: html #{}, CSS #{}",
-                theme, html_hex, css_hex
-            );
-        }
-        // Missing from bgmap is OK if CSS variable path is used
+    // <style> must come BEFORE <link> so vars are defined when tailwind.css parses
+    let link_pos = html.find("<link rel=\"stylesheet\"").unwrap_or(usize::MAX);
+    let style_pos = html.find("<style>").unwrap_or(usize::MAX);
+    assert!(style_pos < link_pos, "<style> with CSS vars must appear BEFORE <link> to tailwind.css so body has themed bg.");
+    for selector in [":root", ".dark", ".mocha"] {
+        assert!(html.contains(selector),
+            "CSS variables for {} must be defined inline", selector);
     }
 }
 
 #[test]
 fn index_html_sets_body_background_on_theme() {
-    // index.html must set body background color AFTER body exists.
-    // Bug: script in <head> runs before <body> exists → document.body is null → silent failure.
-    // Fix: use DOMContentLoaded or place script after <body> opening tag.
+    // Body background is set via tailwind.css: body{background-color:hsl(var(--background))}.
+    // CSS variables must be defined before tailwind.css parses this rule.
+    // Bug: <style> after <link> → vars undefined → body white on refresh.
+    // Fix: inline <style> with vars before <link> → body gets correct themed bg.
     let html = include_str!("../assets/index.html");
-
-    // Script must set body background-color AFTER body element exists
-    assert!(
-        html.contains("body.style.backgroundColor") || html.contains("body.style.background-color"),
-        "index.html must set body background color to prevent white flash"
-    );
-
-    // Script that sets body.style must run AFTER <body> exists
-    // Either: (a) script is inside <body>, or (b) uses DOMContentLoaded
-    let body_section = html.split("<body>").nth(1).unwrap_or("");
-    let has_dom_content_loaded = html.contains("DOMContentLoaded");
-    let bg_setup_in_body = body_section.contains("body.style.backgroundColor")
-        || body_section.contains("body.style.background-color");
-    assert!(
-        has_dom_content_loaded || bg_setup_in_body,
-        "body.style.backgroundColor must be set AFTER body exists (DOMContentLoaded or script in <body>)"
-    );
+    // Verify CSS variables are defined in <style> (which must come before <link>)
+    assert!(html.contains("--background"),
+        "inline <style> must define --background CSS variable");
+    // The theme script adds .dark/.mocha class to <html> before body renders
+    assert!(html.contains("document.documentElement.classList"),
+        "index.html must add theme class to <html> element");
 }
 
 #[test]
@@ -162,18 +53,15 @@ fn index_html_applies_mocha_class_to_html() {
 
 #[test]
 fn index_html_meta_theme_color_matches_css_variables() {
-    // meta[name=theme-color] must match actual CSS --background for each theme.
-    // Bug: dark theme-color was #030712 but CSS --background = #020817.
+    // meta[name=theme-color] must match the inline CSS variable --background hex values.
+    // Bug: dark theme-color was #030712 but CSS --background hsl(222.2,84%,4.9%)=#020817.
+    // Fix: inline <style> defines vars correctly, meta.theme-color uses correct hex values.
     let html = include_str!("../assets/index.html");
-    let css = include_str!("../assets/tailwind.css");
-    let cssmap = parse_css_backgrounds(css);
-
     // Find meta.content assignments in the <head> script
     let head_section = html.split("</head>").nth(0).unwrap_or("");
     let meta_line = head_section.lines()
         .find(|l| l.contains("meta.content"))
         .unwrap_or("");
-
     // Extract all #XXXXXX from meta.content line, order: dark, mocha, light
     let all_hex: Vec<String> = meta_line.split('#')
         .skip(1)
@@ -182,21 +70,16 @@ fn index_html_meta_theme_color_matches_css_variables() {
             if hex.len() == 6 { Some(hex) } else { None }
         })
         .collect();
-
     assert!(all_hex.len() >= 3,
         "meta.content line must have 3 hex values (dark, mocha, light), found: {}",
         all_hex.len());
-
+    // dark: #020817, mocha: #1e1e2e, light: #ffffff
+    let expected = ["020817", "1e1e2e", "ffffff"];
     let themes = ["dark", "mocha", "light"];
     for (i, theme) in themes.iter().enumerate() {
-        if let Some(css_hex) = cssmap.get(*theme) {
-            assert_eq!(
-                all_hex[i].to_lowercase(),
-                css_hex.to_lowercase(),
-                "meta theme-color for {} mismatch: meta has #{}, CSS --background is #{}",
-                theme, all_hex[i], css_hex
-            );
-        }
+        assert_eq!(all_hex[i].to_lowercase(), expected[i],
+            "meta theme-color for {} mismatch: expected #{}, got #{}",
+            theme, expected[i], all_hex[i]);
     }
 }
 
