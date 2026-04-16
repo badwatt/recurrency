@@ -157,7 +157,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android, x86_64-linux-android
+          targets: aarch64-linux-android
 
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev imagemagick
@@ -168,12 +168,7 @@ jobs:
         with:
           ndk-version: r27
           add-to-path: true
-
-      - name: Cache NDK
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.ndk.outputs.ndk-path }}
-          key: ndk-r27-${{ runner.os }}
+          local-cache: true
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -181,11 +176,12 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Cache Cargo
+      - name: Cache Cargo (android)
         uses: swatinem/rust-cache@v2
         with:
           workspaces: frontend
           cache-on-failure: true
+          prefix-key: android-arm64
 
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main

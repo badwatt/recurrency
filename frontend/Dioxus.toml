@@ -13,3 +13,7 @@ watch_path = ["src", "assets", "public"]
 [bundle]
 identifier = "com.alvaro17f.recurrency"
 icon = ["assets/icon.png"]
+
+[android]
+# Only build arm64 (95%+ of Android devices) — skip x86_64 to halve build time
+build_targets = ["aarch64-linux-android"]
