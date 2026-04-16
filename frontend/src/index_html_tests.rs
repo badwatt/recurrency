@@ -91,29 +91,24 @@ fn index_html_has_loading_spinner_before_wasm() {
 
 #[test]
 #[test]
+#[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
-    // Pre-WASM loader must set bg via inline style (authoritative, no cascade delay).
-    // Bug: CSS rule `#pre-wasm-loader { bg: white }` + `.dark #pre-wasm-loader { bg: dark }`
-    // → browser applies white before .dark class exists → white flash in dark mode.
-    // Fix: script at END of body sets loader.style.backgroundColor inline.
+    // Pre-WASM loader must be semi-transparent + backdrop-blur.
+    // User intent: loader overlays the app (visible through blur), not opaque wall.
     let html = include_str!("../assets/index.html");
-    // Script must be at END of body (after <div id="pre-wasm-loader">, before </body>)
-    let body_section = html.split("<body>").nth(1).unwrap_or("");
-    let loader_div_end = body_section.find("<div id=\"main\">").unwrap_or(usize::MAX);
-    let after_loader = &body_section[loader_div_end..];
-    assert!(after_loader.contains("Set loader background"),
-        "Theme script must be AFTER <div id=\"pre-wasm-loader\"> in body");
-    // Script must set loader.style.backgroundColor inline (highest specificity)
-    assert!(body_section.contains("loader.style.backgroundColor"),
-        "Script must set loader.style.backgroundColor for themed bg (no FOUC)");
-    // Must have backdrop-blur overlay
     let style_section = html.split("<style>").nth(1).unwrap_or("").split("</style>").next().unwrap_or("");
+    // Must have backdrop-filter: blur
     assert!(style_section.contains("backdrop-filter"),
-        "#pre-wasm-loader style must include backdrop-filter:blur");
-    // Must use explicit rgb() values for themed bg
-    assert!(style_section.contains("rgb("),
-        "#pre-wasm-loader must use explicit rgb() for themed background");
+        "#pre-wasm-loader must have backdrop-filter:blur");
+    // Must be SEMI-transparent (rgba), NOT opaque solid
+    assert!(style_section.contains("rgba("),
+        "#pre-wasm-loader must use rgba() for semi-transparent background");
+    // Must NOT be solid opaque white/black
+    assert!(!style_section.contains("background-color: rgb(255,255,255)") &&
+            !style_section.contains("rgb(2,8,23)"),
+        "Loader must NOT be opaque solid color");
 }
+
 
 
 #[test]
