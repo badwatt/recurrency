@@ -103,3 +103,53 @@ pub async fn set_default(
 
     Ok(Json(category.into()))
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::categories::service::resolve_optional_json_field;
+
+    #[test]
+    fn set_default_request_deserialize() {
+        let json = r#"{"id":"550e8400-e29b-41d4-a716-446655440000"}"#;
+        let req: SetDefaultRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.id, Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap());
+    }
+
+    #[test]
+    fn create_category_request_deserialize() {
+        let json = "{\"name\":\"Streaming\",\"icon\":\"tv\",\"color\":\"#ff0000\"}";
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "Streaming");
+        assert_eq!(req.icon.as_deref(), Some("tv"));
+        assert_eq!(req.color.as_deref(), Some("#ff0000"));
+    }
+
+    #[test]
+    fn update_category_request_deserialize_all_fields() {
+        let json = "{\"name\":\"Updated\",\"icon\":\"star\",\"color\":\"#00ff00\"}";
+        let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.as_deref(), Some("Updated"));
+        assert!(req.icon.is_string());
+        assert!(req.color.is_string());
+    }
+
+    #[test]
+    fn update_category_request_deserialize_null_fields() {
+        let json = r#"{"name":null,"icon":null,"color":null}"#;
+        let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert!(req.name.is_none());
+        assert!(req.icon.is_null());
+        assert!(req.color.is_null());
+    }
+
+    #[test]
+    fn update_category_icon_resolution() {
+        let req = UpdateCategoryRequest {
+            name: None,
+            icon: serde_json::Value::String("new-icon".to_string()),
+            color: serde_json::Value::Null,
+        };
+        let icon = resolve_optional_json_field(req.icon, Some("old".to_string()));
+        assert_eq!(icon, Some("new-icon".to_string()));
+    }
+}

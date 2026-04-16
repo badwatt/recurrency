@@ -227,4 +227,40 @@ mod tests {
         assert!(err.to_string().contains("400"));
         assert!(err.to_string().contains("Email already taken"));
     }
+
+    #[test]
+    fn password_visibility_toggle() {
+        let mut visible = false;
+        visible = !visible;
+        assert!(visible);
+        visible = !visible;
+        assert!(!visible);
+    }
+
+    #[test]
+    fn register_form_fields() {
+        let name = "John Doe";
+        let email = "john@example.com";
+        let pass_val = "test_pass_val";
+        assert!(!name.is_empty());
+        assert!(email.contains('@'));
+        assert!(password.len() >= 8);
+    }
+
+    #[test]
+    fn auth_state_logout_after_register() {
+        let mut state = AuthState::default();
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "new@test.com".into(),
+            name: Some("New".into()),
+            currency: "EUR".into(),
+            verified: true,
+        };
+        state.set_authenticated("tok".into(), user, false);
+        assert!(state.is_authenticated);
+        state.logout();
+        assert!(!state.is_authenticated);
+        assert!(state.token.is_none());
+    }
 }

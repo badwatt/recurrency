@@ -37,3 +37,37 @@ pub async fn update_preferences(
     let preferences = PreferencesService::update_preferences(&pool, claims.sub, req).await?;
     Ok(Json(preferences))
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preferences_query_deserialize() {
+        let query = "token=my-token";
+        let result: PreferencesQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.token.as_deref(), Some("my-token"));
+    }
+
+    #[test]
+    fn preferences_query_empty() {
+        let query = "";
+        let result: PreferencesQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.token.is_none());
+    }
+
+    #[test]
+    fn update_preferences_request_deserialize() {
+        let json = r#"{"theme":"dark","subscriptions_view":"list"}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.theme.as_deref(), Some("dark"));
+        assert_eq!(req.subscriptions_view.as_deref(), Some("list"));
+    }
+
+    #[test]
+    fn update_preferences_request_partial() {
+        let json = r#"{"theme":"light"}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.theme.as_deref(), Some("light"));
+        assert!(req.subscriptions_view.is_none());
+    }
+}

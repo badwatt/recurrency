@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-       #[serial]
+    #[serial]
     fn test_get_config_none_and_some() {
         // Remove all SMTP env vars
         std::env::remove_var("SMTP_HOST");
@@ -160,7 +160,7 @@ mod tests {
         // Set all env vars
         std::env::set_var("SMTP_HOST", "smtp.gmail.com");
         std::env::set_var("SMTP_USER", "user@gmail.com");
-        std::env::set_var("SMTP_PASSWORD", "password123");
+        std::env::set_var("SMTP_PASSWORD", "test_pass_val");
         std::env::set_var("SMTP_PORT", "587");
         std::env::set_var("SMTP_FROM", "noreply@recurrency.app");
         std::env::set_var("APP_NAME", "MyApp");
@@ -183,5 +183,69 @@ mod tests {
         std::env::remove_var("SMTP_PORT");
         std::env::remove_var("SMTP_FROM");
         std::env::remove_var("APP_NAME");
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_config_default_values() {
+        std::env::set_var("SMTP_HOST", "smtp.test.com");
+        std::env::set_var("SMTP_USER", "test@test.com");
+        std::env::set_var("SMTP_PASSWORD", "pass");
+        std::env::remove_var("SMTP_PORT");
+        std::env::remove_var("SMTP_FROM");
+        std::env::remove_var("APP_NAME");
+
+        let config = get_config().unwrap();
+        assert_eq!(config.port, 587); // default
+        assert_eq!(config.from, "noreply@localhost"); // default
+        assert_eq!(config.app_name, "Recurrency"); // default
+
+        // Clean up
+        std::env::remove_var("SMTP_HOST");
+        std::env::remove_var("SMTP_USER");
+        std::env::remove_var("SMTP_PASSWORD");
+    }
+
+    #[test]
+    fn test_build_html_structure() {
+        let html = build_html("user@test.com", "654321");
+        assert!(html.contains("<html>"));
+        assert!(html.contains("</html>"));
+        assert!(html.contains("<style>"));
+        assert!(html.contains("container"));
+    }
+
+    #[test]
+    fn test_build_html_contains_verify_heading() {
+        let html = build_html("test@verify.com", "999999");
+        assert!(html.contains("Verify your email"));
+    }
+
+    #[test]
+    fn test_build_html_code_formatting() {
+        let html = build_html("test@code.com", "424242");
+        assert!(html.contains("424242"));
+        assert!(html.contains("class=\"code\""));
+    }
+
+    #[test]
+    fn test_build_html_footer_message() {
+        let html = build_html("test@footer.com", "111111");
+        assert!(html.contains("ignore this email"));
+    }
+
+    #[test]
+    fn test_smtp_config_clone() {
+        let cfg = SmtpConfig {
+            host: "smtp.test.com".to_string(),
+            port: 587,
+            user: "test@test.com".to_string(),
+            password: "secret".to_string(),
+            from: "noreply@test.com".to_string(),
+            app_name: "TestApp".to_string(),
+        };
+        let cloned = cfg.clone();
+        assert_eq!(cfg.host, cloned.host);
+        assert_eq!(cfg.port, cloned.port);
     }
 }

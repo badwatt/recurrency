@@ -423,4 +423,98 @@ mod tests {
         // Should be handled by returning "No data" element at render time
         assert_eq!(total, 0.0);
     }
+
+    #[test]
+    fn donut_segments_single_item() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 100.0, color: "#f00".into() },
+        ];
+        let total: f64 = 100.0;
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        assert_eq!(segs.len(), 1);
+        // Single item gets full circumference (no gap)
+        assert!((segs[0].dash_len - circ).abs() < 0.01);
+    }
+
+    #[test]
+    fn donut_segments_offsets() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 50.0, color: "#f00".into() },
+            DonutData { label: "B".into(), value: 30.0, color: "#0f0".into() },
+            DonutData { label: "C".into(), value: 20.0, color: "#00f".into() },
+        ];
+        let total: f64 = 100.0;
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        // First offset is 0
+        assert!((segs[0].offset).abs() < 0.01);
+        // Second offset is after first segment
+        assert!(segs[1].offset > 0.0);
+        // Third offset is after first + second
+        assert!(segs[2].offset > segs[1].offset);
+    }
+
+    #[test]
+    fn line_data_empty() {
+        let data: Vec<LineData> = vec![];
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn line_data_single_point() {
+        let data = vec![
+            LineData { label: "Only".into(), value: 42.0 },
+        ];
+        let max = data.iter().map(|d| d.value).fold(0.0_f64, f64::max);
+        assert_eq!(max, 42.0);
+        // step_x would be 0 for single data point (n-1 = 0)
+        let n = data.len() as f64;
+        let step_x = if data.len() > 1 { 400.0 / (n - 1.0) } else { 0.0 };
+        assert_eq!(step_x, 0.0);
+    }
+
+    #[test]
+    fn palette_color_beyond_range() {
+        // Test wrapping: index 13 should equal index 1
+        assert_eq!(palette_color(13), palette_color(1));
+        assert_eq!(palette_color(24), palette_color(0));
+    }
+
+    #[test]
+    fn bar_data_roundtrip() {
+        let d = BarData { label: "Test".into(), value: 42.0, color: "#abc".into() };
+        let json = serde_json::to_string(&d).unwrap();
+        let back: BarData = serde_json::from_str(&json).unwrap();
+        assert_eq!(d, back);
+    }
+
+    #[test]
+    fn line_data_roundtrip() {
+        let d = LineData { label: "Jan".into(), value: 100.0 };
+        let json = serde_json::to_string(&d).unwrap();
+        let back: LineData = serde_json::from_str(&json).unwrap();
+        assert_eq!(d, back);
+    }
+
+    #[test]
+    fn donut_data_roundtrip() {
+        let d = DonutData { label: "A".into(), value: 50.0, color: "#f00".into() };
+        let json = serde_json::to_string(&d).unwrap();
+        let back: DonutData = serde_json::from_str(&json).unwrap();
+        assert_eq!(d, back);
+    }
+
+    #[test]
+    fn chart_palette_length() {
+        assert_eq!(CHART_PALETTE.len(), 12);
+    }
+
+    #[test]
+    fn chart_palette_all_hex() {
+        for color in CHART_PALETTE {
+            assert!(color.starts_with('#'));
+            assert_eq!(color.len(), 7);
+        }
+    }
 }

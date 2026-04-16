@@ -10,8 +10,9 @@ services:
       ENABLE_DEMO: ${ENABLE_DEMO:-true}
       PGPASSWORD: ${PGPASSWORD:-recurrency}
     volumes:
-      - postgres_data:/var/lib/postgresql/15/main
+      - recurrency_data:/var/lib/postgresql/15/main
 
 volumes:
   postgres_data:
     driver: local
+

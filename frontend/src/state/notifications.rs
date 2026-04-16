@@ -119,4 +119,94 @@ mod tests {
         state.toggle();
         assert!(!state.is_open);
     }
+
+    #[test]
+    fn set_loading_state() {
+        let mut state = NotificationsState::default();
+        state.set_loading();
+        assert!(state.is_loading);
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn set_loading_clears_error() {
+        let mut state = NotificationsState::default();
+        state.error = Some("some error".into());
+        state.set_loading();
+        assert!(state.error.is_none());
+        assert!(state.is_loading);
+    }
+
+    #[test]
+    fn set_data() {
+        let mut state = NotificationsState::default();
+        state.set_loading();
+        let n1 = make_notification(false);
+        let n2 = make_notification(true);
+        state.set_data(vec![n1, n2], 1);
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+        assert_eq!(state.notifications.len(), 2);
+        assert_eq!(state.unread_count, 1);
+    }
+
+    #[test]
+    fn mark_as_read_already_read() {
+        let mut state = NotificationsState::default();
+        let n = make_notification(true); // already read
+        let id = n.id;
+        state.notifications = vec![n];
+        state.unread_count = 0;
+        state.mark_as_read(&id);
+        assert_eq!(state.unread_count, 0);
+    }
+
+    #[test]
+    fn mark_as_read_unknown_id() {
+        let mut state = NotificationsState::default();
+        let n = make_notification(false);
+        state.notifications = vec![n];
+        state.unread_count = 1;
+        let unknown_id = Uuid::new_v4();
+        state.mark_as_read(&unknown_id);
+        // No notification was modified, but recount still works
+        assert_eq!(state.unread_count, 1);
+    }
+
+    #[test]
+    fn delete_read_notification_keeps_unread_count() {
+        let mut state = NotificationsState::default();
+        let n1 = make_notification(false);
+        let n2 = make_notification(true); // read
+        let id2 = n2.id;
+        state.notifications = vec![n1, n2];
+        state.unread_count = 1;
+        state.delete(&id2); // delete the read one
+        assert_eq!(state.notifications.len(), 1);
+        assert_eq!(state.unread_count, 1);
+    }
+
+    #[test]
+    fn delete_unread_reduces_count() {
+        let mut state = NotificationsState::default();
+        let n1 = make_notification(false);
+        let n2 = make_notification(false);
+        let id1 = n1.id;
+        state.notifications = vec![n1, n2];
+        state.unread_count = 2;
+        state.delete(&id1);
+        assert_eq!(state.unread_count, 1);
+        assert_eq!(state.notifications.len(), 1);
+    }
+
+    #[test]
+    fn set_data_clears_error() {
+        let mut state = NotificationsState::default();
+        state.set_loading();
+        state.error = Some("fail".into());
+        let n1 = make_notification(false);
+        state.set_data(vec![n1], 1);
+        assert!(state.error.is_none());
+        assert!(!state.is_loading);
+    }
 }

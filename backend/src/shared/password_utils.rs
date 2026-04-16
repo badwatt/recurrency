@@ -50,4 +50,18 @@ mod tests {
             .verify_password("wrong".as_bytes(), &parsed);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn hash_length_reasonable() {
+        let hash = hash_password("test_pass_val").unwrap();
+        // Argon2 hashes are typically ~97 characters
+        assert!(hash.len() > 50);
+        assert!(hash.starts_with("$argon2"));
+    }
+
+    #[test]
+    fn hash_contains_argon2_identifier() {
+        let hash = hash_password("test").unwrap();
+        assert!(hash.contains("$argon2id$"));
+    }
 }

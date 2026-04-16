@@ -20,3 +20,29 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
 pub async fn set_default(id: &uuid::Uuid) -> Result<(), ApiError> {
     api_put("/api/categories/default", &serde_json::json!({ "id": id })).await
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn category_api_paths() {
+        let base = "/api/categories";
+        assert!(base.starts_with("/api/"));
+
+        let id = uuid::Uuid::new_v4();
+        let detail = format!("/api/categories/{}", id);
+        assert!(detail.starts_with("/api/categories/"));
+    }
+
+    #[test]
+    fn set_default_path() {
+        let path = "/api/categories/default";
+        assert!(path.contains("default"));
+    }
+
+    #[test]
+    fn set_default_request_body() {
+        let id = uuid::Uuid::new_v4();
+        let body = serde_json::json!({ "id": id });
+        assert_eq!(body["id"], id.to_string());
+    }
+}

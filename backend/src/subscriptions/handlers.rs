@@ -119,3 +119,59 @@ pub async fn calendar(
 
     Ok(Json(items))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn calendar_query_deserialize() {
+        let query = "year=2024&month=6&token=abc";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.year, Some(2024));
+        assert_eq!(result.month, Some(6));
+        assert_eq!(result.token.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn calendar_query_empty() {
+        let query = "";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.year.is_none());
+        assert!(result.month.is_none());
+        assert!(result.token.is_none());
+    }
+
+    #[test]
+    fn calendar_query_partial_year_only() {
+        let query = "year=2024";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.year, Some(2024));
+        assert!(result.month.is_none());
+    }
+
+    #[test]
+    fn calendar_defaults_to_current_date() {
+        let today = chrono::Utc::now().date_naive();
+        let year = None::<i32>.unwrap_or(today.year());
+        let month = None::<u32>.unwrap_or(today.month());
+        assert_eq!(year, today.year());
+        assert_eq!(month, today.month());
+    }
+
+    #[test]
+    fn calendar_item_serialization() {
+        let item = CalendarItem {
+            date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix".to_string(),
+            amount: rust_decimal::Decimal::from(1599),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            logo_url: None,
+        };
+        let json = serde_json::to_value(&item).unwrap();
+        assert_eq!(json["name"], "Netflix");
+        assert!(json.get("date").is_some());
+    }
+}

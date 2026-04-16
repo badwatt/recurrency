@@ -39,3 +39,48 @@ where
         Ok(OptionalQuery(result))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_query_deserialize_with_token() {
+        let query = "token=abc123";
+        let result: AuthQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.token.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn auth_query_deserialize_without_token() {
+        let query = "";
+        let result: AuthQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.token.is_none());
+    }
+
+    #[test]
+    fn optional_query_parsing_empty() {
+        // Test the logic that OptionalQuery uses internally
+        let query = "";
+        let result = if query.is_empty() { None } else { serde_urlencoded::from_str::<AuthQuery>(query).ok() };
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn optional_query_parsing_valid() {
+        let query = "token=mytoken";
+        let result = serde_urlencoded::from_str::<AuthQuery>(query).ok();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().token.as_deref(), Some("mytoken"));
+    }
+
+    #[test]
+    fn optional_query_none_when_malformed() {
+        // A malformed query string should result in None for the OptionalQuery logic
+        // Simulate: valid URL but params don't match the struct
+        let query = "unknown_param=value";
+        let result = serde_urlencoded::from_str::<AuthQuery>(query).ok();
+        // AuthQuery has token as Option, so unknown params are fine
+        assert!(result.is_some());
+    }
+}

@@ -24,3 +24,31 @@ pub async fn search(
     
     Ok(Json(LogoSearchResponse { results }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn logo_search_query_deserialize() {
+        let query = "q=netflix";
+        let result: LogoSearchQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.q, "netflix");
+    }
+
+    #[test]
+    fn logo_search_query_empty_q() {
+        let query = "q=";
+        let result: LogoSearchQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.q.is_empty());
+    }
+
+    #[test]
+    fn logo_search_response_serialization() {
+        let resp = LogoSearchResponse {
+            results: vec![],
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert!(json.get("results").unwrap().is_array());
+    }
+}

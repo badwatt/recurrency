@@ -107,3 +107,68 @@ pub async fn by_date_range(
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }
+
+/// Parse a date string in YYYY-MM-DD format, returning None on failure.
+pub(crate) fn parse_date(date_str: &str) -> Option<chrono::NaiveDate> {
+    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Datelike;
+
+    // ── parse_date ──
+
+    #[test]
+    fn parse_date_valid() {
+        let result = parse_date("2024-06-15");
+        assert!(result.is_some());
+        let d = result.unwrap();
+        assert_eq!(d.year(), 2024);
+        assert_eq!(d.month(), 6);
+        assert_eq!(d.day(), 15);
+    }
+
+    #[test]
+    fn parse_date_invalid_format() {
+        assert!(parse_date("06/15/2024").is_none());
+        assert!(parse_date("2024-13-01").is_none());
+        assert!(parse_date("not-a-date").is_none());
+        assert!(parse_date("").is_none());
+    }
+
+    #[test]
+    fn parse_date_edge_cases() {
+        assert!(parse_date("2024-02-29").is_some()); // leap year
+        assert!(parse_date("2023-02-29").is_none()); // not a leap year
+        assert!(parse_date("2024-12-31").is_some());
+        assert!(parse_date("2024-01-01").is_some());
+    }
+
+    // ── DateRangeQuery deserialization ──
+
+    #[test]
+    fn date_range_query_deserialize() {
+        let query = "from_date=2024-01-01&to_date=2024-12-31";
+        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.from_date.as_deref(), Some("2024-01-01"));
+        assert_eq!(result.to_date.as_deref(), Some("2024-12-31"));
+    }
+
+    #[test]
+    fn date_range_query_empty() {
+        let query = "";
+        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.from_date.is_none());
+        assert!(result.to_date.is_none());
+    }
+
+    #[test]
+    fn date_range_query_partial() {
+        let query = "from_date=2024-06-01";
+        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.from_date.as_deref(), Some("2024-06-01"));
+        assert!(result.to_date.is_none());
+    }
+}

@@ -82,11 +82,7 @@ impl NotificationService {
         .await?;
 
         if prefs.is_empty() {
-            return Ok(vec![
-                NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 },
-                NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 3 },
-                NotificationPreferenceResponse { channel: "system".to_string(), enabled: false, reminder_days_before: 3 },
-            ]);
+            return Ok(default_notification_preferences());
         }
 
         Ok(prefs
@@ -122,5 +118,50 @@ impl NotificationService {
         }
 
         Self::get_notification_preferences(pool, user_id).await
+    }
+}
+
+/// Generate default notification preferences when none exist in DB.
+pub(crate) fn default_notification_preferences() -> Vec<NotificationPreferenceResponse> {
+    vec![
+        NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 },
+        NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 3 },
+        NotificationPreferenceResponse { channel: "system".to_string(), enabled: false, reminder_days_before: 3 },
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_notification_preferences_has_three_channels() {
+        let prefs = default_notification_preferences();
+        assert_eq!(prefs.len(), 3);
+    }
+
+    #[test]
+    fn default_notification_preferences_channels() {
+        let prefs = default_notification_preferences();
+        let channels: Vec<&str> = prefs.iter().map(|p| p.channel.as_str()).collect();
+        assert!(channels.contains(&"email"));
+        assert!(channels.contains(&"push"));
+        assert!(channels.contains(&"system"));
+    }
+
+    #[test]
+    fn default_notification_preferences_all_disabled() {
+        let prefs = default_notification_preferences();
+        for pref in &prefs {
+            assert!(!pref.enabled, "{} should be disabled by default", pref.channel);
+        }
+    }
+
+    #[test]
+    fn default_notification_preferences_reminder_days() {
+        let prefs = default_notification_preferences();
+        for pref in &prefs {
+            assert_eq!(pref.reminder_days_before, 3);
+        }
     }
 }

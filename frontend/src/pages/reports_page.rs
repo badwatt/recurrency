@@ -476,4 +476,167 @@ mod tests {
         assert_eq!(d.label, "Jan");
         assert_eq!(d.value, 150.0);
     }
+
+    // ── Additional tests ──
+    #[test]
+    fn build_csv_all_categories() {
+        let report = ReportResponse {
+            monthly_summary: crate::models::report::MonthlySummary {
+                year: 2024, month: 1,
+                subscriptions_total: dec!(100),
+                transactions_total: dec!(50),
+                overall_total: dec!(150),
+                subscriptions_count: 5,
+                transactions_count: 3,
+            },
+            category_breakdown: vec![
+                crate::models::report::CategoryBreakdown {
+                    category_id: None,
+                    category_name: "Food".into(),
+                    total: dec!(100),
+                    count: 5,
+                    percentage: 66.7,
+                },
+                crate::models::report::CategoryBreakdown {
+                    category_id: None,
+                    category_name: "Transport".into(),
+                    total: dec!(50),
+                    count: 3,
+                    percentage: 33.3,
+                },
+            ],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        assert!(csv.contains("Food"));
+        assert!(csv.contains("Transport"));
+        assert!(csv.contains("66.7%"));
+        assert!(csv.contains("33.3%"));
+    }
+
+    #[test]
+    fn build_csv_empty_breakdown() {
+        let report = ReportResponse {
+            monthly_summary: crate::models::report::MonthlySummary {
+                year: 2024, month: 1,
+                subscriptions_total: dec!(0),
+                transactions_total: dec!(0),
+                overall_total: dec!(0),
+                subscriptions_count: 0,
+                transactions_count: 0,
+            },
+            category_breakdown: vec![],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        assert!(csv.starts_with("Category,Amount,Count,Percentage\n"));
+    }
+
+    #[test]
+    fn category_style_by_name_with_multiple() {
+        let cats = vec![
+            make_cat("Food", "#ef4444", "Coffee"),
+            make_cat("Transport", "#3b82f6", "Car"),
+        ];
+        let (color, icon) = category_style_by_name(&cats, "Transport");
+        assert_eq!(color, "#3b82f6");
+        assert_eq!(icon, "Car");
+    }
+
+    #[test]
+    fn report_years_returns_three() {
+        let years = report_years();
+        assert_eq!(years.len(), 3);
+    }
+
+    #[test]
+    fn month_options_first_january() {
+        assert_eq!(MONTH_OPTIONS[0], ("1", "January"));
+    }
+
+    #[test]
+    fn month_options_last_december() {
+        assert_eq!(MONTH_OPTIONS[11], ("12", "December"));
+    }
+
+    #[test]
+    fn avg_per_month_computation() {
+        // Simulate the avg computation from the component
+        let trends = vec![
+            crate::models::report::SpendingTrend { period: "2024-01".into(), total: dec!(100) },
+            crate::models::report::SpendingTrend { period: "2024-02".into(), total: dec!(200) },
+        ];
+        let sum: rust_decimal::Decimal = trends.iter().map(|t| t.total).sum();
+        let avg = sum / rust_decimal::Decimal::from(trends.len() as i64);
+        assert_eq!(avg, dec!(150));
+    }
+
+    #[test]
+    fn avg_per_month_empty_trends_falls_to_total() {
+        let overall_total = dec!(250);
+        let trends: Vec<crate::models::report::SpendingTrend> = vec![];
+        let avg = if trends.is_empty() {
+            overall_total
+        } else {
+            let sum: rust_decimal::Decimal = trends.iter().map(|t| t.total).sum();
+            sum / rust_decimal::Decimal::from(trends.len() as i64)
+        };
+        assert_eq!(avg, dec!(250));
+    }
+
+    #[test]
+    fn csv_escaping() {
+        // Category name with comma
+        let report = ReportResponse {
+            monthly_summary: crate::models::report::MonthlySummary {
+                year: 2024, month: 1,
+                subscriptions_total: dec!(50),
+                transactions_total: dec!(0),
+                overall_total: dec!(50),
+                subscriptions_count: 1,
+                transactions_count: 0,
+            },
+            category_breakdown: vec![
+                crate::models::report::CategoryBreakdown {
+                    category_id: None,
+                    category_name: "Food, Drinks".into(),
+                    total: dec!(50),
+                    count: 1,
+                    percentage: 100.0,
+                },
+            ],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        assert!(csv.contains("Food, Drinks"));
+    }
+
+    #[test]
+    fn donut_data_ordering() {
+        use crate::components::chart::DonutData;
+        let data = vec![
+            DonutData { label: "A".into(), value: 50.0, color: "#f00".into() },
+            DonutData { label: "B".into(), value: 30.0, color: "#0f0".into() },
+            DonutData { label: "C".into(), value: 20.0, color: "#00f".into() },
+        ];
+        let total: f64 = data.iter().map(|d| d.value).sum();
+        assert_eq!(total, 100.0);
+    }
+
+    #[test]
+    fn palette_color_all_colors() {
+        use crate::components::chart::palette_color;
+        for i in 0..12 {
+            let c = palette_color(i);
+            assert!(c.starts_with('#'), "Color at index {} should start with #", i);
+        }
+    }
+
+    #[test]
+    fn export_filename_construction() {
+        let year = "2024";
+        let month = "6";
+        let filename = format!("recurrency-report-{}-{}.csv", year, month);
+        assert_eq!(filename, "recurrency-report-2024-6.csv");
+    }
 }

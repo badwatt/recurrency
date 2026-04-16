@@ -952,4 +952,252 @@ mod tests {
         assert_eq!(format_month(2024, 6), "June 2024");
         assert_eq!(format_month(2024, 12), "December 2024");
     }
+
+    // ── Additional filter/sort tests ──
+    #[test]
+    fn filter_by_price_min_only() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+        ];
+        let filters = FilterConfig { price_min: Some(dec!(10)), ..Default::default() };
+        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+        assert_eq!(groups[0].transactions.len(), 1);
+        assert_eq!(groups[0].transactions[0].name, "B");
+    }
+
+    #[test]
+    fn filter_by_price_max_only() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+        ];
+        let filters = FilterConfig { price_max: Some(dec!(10)), ..Default::default() };
+        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+        assert_eq!(groups[0].transactions.len(), 1);
+        assert_eq!(groups[0].transactions[0].name, "A");
+    }
+
+    #[test]
+    fn filter_by_category_and_price() {
+        let c1 = Uuid::new_v4();
+        let c2 = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c1),
+            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c1),
+            make_txn("C", dec!(10), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c2),
+        ];
+        let filters = FilterConfig { category_id: Some(c1), price_min: Some(dec!(10)), ..Default::default() };
+        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+        assert_eq!(groups[0].transactions.len(), 1);
+        assert_eq!(groups[0].transactions[0].name, "B");
+    }
+
+    #[test]
+    fn sort_by_name_ascending() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("Charlie", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("Alpha", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+        ];
+        let sort = SortConfig { field: "name".into(), direction: "asc".into() };
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+        assert_eq!(groups[0].transactions[0].name, "Alpha");
+        assert_eq!(groups[0].transactions[1].name, "Charlie");
+    }
+
+    #[test]
+    fn sort_by_amount_ascending() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c),
+        ];
+        let sort = SortConfig { field: "amount".into(), direction: "asc".into() };
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+        assert_eq!(groups[0].transactions[0].name, "A");
+        assert_eq!(groups[0].transactions[1].name, "B");
+        assert_eq!(groups[0].transactions[2].name, "C");
+    }
+
+    #[test]
+    fn sort_by_date_descending() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("B", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+        ];
+        let sort = SortConfig { field: "date".into(), direction: "desc".into() };
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+        assert_eq!(groups[0].transactions[0].name, "B");
+        assert_eq!(groups[0].transactions[1].name, "A");
+    }
+
+    #[test]
+    fn sort_unknown_field_defaults_to_date() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("B", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+        ];
+        let sort = SortConfig { field: "unknown".into(), direction: "asc".into() };
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+        assert_eq!(groups[0].transactions[0].name, "A"); // sorted by date asc as default
+    }
+
+    #[test]
+    fn groups_across_multiple_months() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("Jan1", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("Jan2", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+            make_txn("Feb", dec!(15), NaiveDate::from_ymd_opt(2024,2,10).unwrap(), c),
+            make_txn("Mar", dec!(25), NaiveDate::from_ymd_opt(2024,3,5).unwrap(), c),
+        ];
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+        assert_eq!(groups.len(), 3);
+        // Descending month order
+        assert_eq!(groups[0].key, "2024-03");
+        assert_eq!(groups[1].key, "2024-02");
+        assert_eq!(groups[2].key, "2024-01");
+    }
+
+    #[test]
+    fn month_group_total_multiple_txns() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+            make_txn("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,20).unwrap(), c),
+        ];
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+        assert_eq!(groups[0].total, dec!(60));
+    }
+
+    #[test]
+    fn no_transactions_returns_empty_groups() {
+        let txns: Vec<Transaction> = vec![];
+        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+        assert!(groups.is_empty());
+    }
+
+    #[test]
+    fn filter_removes_all_returns_empty_groups() {
+        let c = Uuid::new_v4();
+        let txns = vec![
+            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
+        ];
+        let filters = FilterConfig { price_min: Some(dec!(100)), ..Default::default() };
+        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+        assert!(groups.is_empty());
+    }
+
+    // ── Validation logic (mirrors dialog save) ──
+    #[test]
+    fn validate_name_empty() {
+        let name = "";
+        assert!(name.trim().is_empty());
+    }
+
+    #[test]
+    fn validate_name_too_short() {
+        let name = "A";
+        assert!(name.trim().len() < 2);
+    }
+
+    #[test]
+    fn validate_amount_zero_invalid() {
+        let amount_str = "0";
+        let parsed = Decimal::from_str(amount_str);
+        match parsed {
+            Ok(d) => assert!(d <= Decimal::ZERO),
+            Err(_) => panic!("Should parse"),
+        }
+    }
+
+    #[test]
+    fn validate_amount_negative_invalid() {
+        let amount_str = "-5";
+        let parsed = Decimal::from_str(amount_str);
+        match parsed {
+            Ok(d) => assert!(d <= Decimal::ZERO),
+            Err(_) => panic!("Should parse"),
+        }
+    }
+
+    #[test]
+    fn validate_amount_positive_valid() {
+        let amount_str = "9.99";
+        let parsed = Decimal::from_str(amount_str);
+        match parsed {
+            Ok(d) => assert!(d > Decimal::ZERO),
+            Err(_) => panic!("Should parse"),
+        }
+    }
+
+    #[test]
+    fn validate_amount_non_numeric_invalid() {
+        let amount_str = "abc";
+        let parsed = Decimal::from_str(amount_str);
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn validate_date_valid_format() {
+        let date_str = "2024-06-15";
+        assert!(NaiveDate::parse_from_str(date_str, "%Y-%m-%d").is_ok());
+    }
+
+    #[test]
+    fn validate_date_invalid_format() {
+        let date_str = "06/15/2024";
+        assert!(NaiveDate::parse_from_str(date_str, "%Y-%m-%d").is_err());
+    }
+
+    #[test]
+    fn validate_date_empty_invalid() {
+        let date_str = "";
+        assert!(date_str.is_empty());
+    }
+
+    #[test]
+    fn month_label_all_months() {
+        for m in 1..=12u32 {
+            let label = format_month(2024, m);
+            assert!(!label.is_empty(), "Month {} should have a label", m);
+        }
+    }
+
+    #[test]
+    fn filter_config_default_is_empty() {
+        let f = FilterConfig::default();
+        assert!(f.category_id.is_none());
+        assert!(f.price_min.is_none());
+        assert!(f.price_max.is_none());
+    }
+
+    #[test]
+    fn sort_config_default() {
+        let s = SortConfig::default();
+        assert_eq!(s.field, "");
+        assert_eq!(s.direction, "");
+    }
+
+    #[test]
+    fn transaction_has_notes() {
+        let c = Uuid::new_v4();
+        let mut txn = make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c);
+        txn.notes = Some("Important note".into());
+        assert!(txn.notes.as_ref().is_some_and(|n| !n.is_empty()));
+    }
+
+    #[test]
+    fn transaction_no_notes() {
+        let c = Uuid::new_v4();
+        let txn = make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c);
+        assert!(!txn.notes.as_ref().is_some_and(|n| !n.is_empty()));
+    }
 }

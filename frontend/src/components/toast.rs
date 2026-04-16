@@ -128,4 +128,46 @@ mod tests {
         state.success("b");
         assert_ne!(state.items[0].id, state.items[1].id);
     }
+
+    #[test]
+    fn toast_messages_preserved() {
+        let mut state = ToastState::default();
+        state.success("saved");
+        state.error("failed to save");
+        assert_eq!(state.items[0].message, "saved");
+        assert_eq!(state.items[1].message, "failed to save");
+    }
+
+    #[test]
+    fn toast_remove_nonexistent_id() {
+        let mut state = ToastState::default();
+        state.success("a");
+        state.remove(9999); // nonexistent
+        assert_eq!(state.items.len(), 1);
+    }
+
+    #[test]
+    fn toast_remove_all_one_by_one() {
+        let mut state = ToastState::default();
+        state.success("a");
+        state.success("b");
+        state.success("c");
+        for item in state.items.clone() {
+            state.remove(item.id);
+        }
+        assert!(state.items.is_empty());
+    }
+
+    #[test]
+    fn toast_kind_equality() {
+        assert_eq!(ToastKind::Success, ToastKind::Success);
+        assert_eq!(ToastKind::Error, ToastKind::Error);
+        assert_ne!(ToastKind::Success, ToastKind::Error);
+    }
+
+    #[test]
+    fn toast_default_empty() {
+        let state = ToastState::default();
+        assert!(state.items.is_empty());
+    }
 }

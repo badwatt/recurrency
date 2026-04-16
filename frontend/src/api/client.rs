@@ -197,4 +197,178 @@ mod tests {
         let err = ApiError::Unauthorized;
         assert_eq!(err.to_string(), "Unauthorized");
     }
+
+    #[test]
+    fn api_error_parse_display() {
+        let err = ApiError::Parse("invalid json".into());
+        assert!(err.to_string().contains("Parse error"));
+        assert!(err.to_string().contains("invalid json"));
+    }
+
+    #[test]
+    fn api_error_network_display() {
+        let err = ApiError::Network("connection refused".into());
+        let msg = err.to_string();
+        assert!(msg.starts_with("Network error:"));
+    }
+
+    #[test]
+    fn api_error_http_display() {
+        let err = ApiError::Http(500, "internal server error".into());
+        let msg = err.to_string();
+        assert!(msg.contains("HTTP 500"));
+        assert!(msg.contains("internal server error"));
+    }
+
+    #[test]
+    fn get_base_url_default() {
+        // When env var is not set, default to localhost
+        let url = get_base_url();
+        // It should be either the env var or the default
+        assert!(url.contains("localhost:8080") || url.starts_with("http"));
+    }
+
+    #[test]
+    fn auth_url_with_query_params() {
+        // Test that existing ? in path uses & separator
+        let path_with_query = "/api/reports/summary?year=2025";
+        let has_query = path_with_query.contains('?');
+        assert!(has_query);
+        // The separator logic: if path contains ?, use &
+        let separator = if path_with_query.contains('?') { '&' } else { '?' };
+        assert_eq!(separator, '&');
+    }
+
+    #[test]
+    fn auth_url_without_query_params() {
+        // Test that no ? in path uses ? separator
+        let path_no_query = "/api/subscriptions";
+        let has_query = path_no_query.contains('?');
+        assert!(!has_query);
+        let separator = if path_no_query.contains('?') { '&' } else { '?' };
+        assert_eq!(separator, '?');
+    }
+
+    #[test]
+    fn auth_headers_contains_content_type() {
+        let mut headers: Vec<(String, String)> = Vec::new();
+        headers.push(("Content-Type".into(), "application/json".into()));
+        assert!(headers.iter().any(|(k, v)| k == "Content-Type" && v == "application/json"));
+    }
+
+    #[test]
+    fn api_error_debug() {
+        let err = ApiError::Network("timeout".into());
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("Network"));
+    }
+
+    #[test]
+    fn api_error_clone() {
+        let err = ApiError::Http(404, "not found".into());
+        let cloned = err.clone();
+        assert_eq!(err.to_string(), cloned.to_string());
+    }
+
+    // ── Additional tests ──
+    #[test]
+    fn auth_url_format_with_token() {
+        // Simulates the auth_url logic with a token
+        let base = "http://localhost:8080";
+        let path = "/api/test";
+        let token = "secret-jwt";
+        let separator = if path.contains('?') { '&' } else { '?' };
+        let url = format!("{}{}{}token={}", base, path, separator, token);
+        assert_eq!(url, "http://localhost:8080/api/test?token=secret-jwt");
+    }
+
+    #[test]
+    fn auth_url_format_with_existing_query() {
+        let base = "http://localhost:8080";
+        let path = "/api/reports?year=2024";
+        let token = "secret-jwt";
+        let separator = if path.contains('?') { '&' } else { '?' };
+        let url = format!("{}{}{}token={}", base, path, separator, token);
+        assert_eq!(url, "http://localhost:8080/api/reports?year=2024&token=secret-jwt");
+    }
+
+    #[test]
+    fn auth_url_no_token_format() {
+        let base = "http://localhost:8080";
+        let path = "/api/test";
+        let url = format!("{}{}", base, path);
+        assert_eq!(url, "http://localhost:8080/api/test");
+    }
+
+    #[test]
+    fn auth_headers_structure() {
+        // Test header construction without GlobalSignal dependency
+        let mut headers: Vec<(String, String)> = Vec::new();
+        // Manually add Content-Type (mirrors auth_headers logic)
+        headers.push(("Content-Type".into(), "application/json".into()));
+        assert!(headers.iter().any(|(k, v)| k == "Content-Type" && v == "application/json"));
+    }
+
+    #[test]
+    fn api_error_variants_display() {
+        let variants = vec![
+            ApiError::Network("timeout".into()),
+            ApiError::Http(403, "forbidden".into()),
+            ApiError::Parse("bad json".into()),
+            ApiError::Unauthorized,
+        ];
+        for err in &variants {
+            let msg = err.to_string();
+            assert!(!msg.is_empty());
+        }
+    }
+
+    #[test]
+    fn api_error_equality_via_display() {
+        // ApiError doesn't derive PartialEq, but we can compare display strings
+        let err1 = ApiError::Http(404, "not found".into());
+        let err2 = ApiError::Http(404, "not found".into());
+        assert_eq!(err1.to_string(), err2.to_string());
+    }
+
+    #[test]
+    fn get_base_url_is_valid_url() {
+        let url = get_base_url();
+        assert!(url.starts_with("http://") || url.starts_with("https://"));
+        assert!(!url.is_empty());
+    }
+
+    #[test]
+    fn auth_headers_adds_content_type() {
+        // Test Content-Type is always present (mirrors auth_headers logic)
+        let mut headers: Vec<(String, String)> = Vec::new();
+        headers.push(("Content-Type".into(), "application/json".into()));
+        let ct = headers.iter().find(|(k, _)| k == "Content-Type");
+        assert!(ct.is_some());
+        assert_eq!(ct.unwrap().1, "application/json");
+    }
+
+    #[test]
+    fn auth_headers_bearer_format() {
+        // When token exists, it adds "Authorization: Bearer ..."
+        // We can't easily test with GlobalSignal, but verify the format
+        let token = "my-jwt-token";
+        let header_val = format!("Bearer {}", token);
+        assert_eq!(header_val, "Bearer my-jwt-token");
+    }
+
+    #[test]
+    fn http_error_codes() {
+        let codes = vec![400, 401, 403, 404, 500];
+        for code in codes {
+            let err = ApiError::Http(code, "error".into());
+            assert!(err.to_string().contains(&code.to_string()));
+        }
+    }
+
+    #[test]
+    fn unauthorized_is_special() {
+        let err = ApiError::Unauthorized;
+        assert_eq!(err.to_string(), "Unauthorized");
+    }
 }

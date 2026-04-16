@@ -435,4 +435,187 @@ mod tests {
     fn icon_names_not_empty() {
         assert!(!ICON_NAMES.is_empty());
     }
+
+    // ── Comprehensive icon_display tests ──
+    #[test]
+    fn icon_display_all_mappings() {
+        // Test every known icon mapping
+        assert_eq!(icon_display("Home"), "🏠");
+        assert_eq!(icon_display("ShoppingBag"), "🛍");
+        assert_eq!(icon_display("Coffee"), "☕");
+        assert_eq!(icon_display("Car"), "🚗");
+        assert_eq!(icon_display("Heart"), "❤");
+        assert_eq!(icon_display("Film"), "🎬");
+        assert_eq!(icon_display("Music"), "🎵");
+        assert_eq!(icon_display("Gamepad2"), "🎮");
+        assert_eq!(icon_display("Briefcase"), "💼");
+        assert_eq!(icon_display("GraduationCap"), "🎓");
+        assert_eq!(icon_display("Plane"), "✈");
+        assert_eq!(icon_display("Zap"), "⚡");
+        assert_eq!(icon_display("Wifi"), "📶");
+        assert_eq!(icon_display("Smartphone"), "📱");
+        assert_eq!(icon_display("Laptop"), "💻");
+        assert_eq!(icon_display("Monitor"), "🖥");
+        assert_eq!(icon_display("Cloud"), "☁");
+        assert_eq!(icon_display("Database"), "🗄");
+        assert_eq!(icon_display("Server"), "🖧");
+        assert_eq!(icon_display("Lock"), "🔒");
+        assert_eq!(icon_display("Shield"), "🛡");
+        assert_eq!(icon_display("CreditCard"), "💳");
+        assert_eq!(icon_display("Wallet"), "👛");
+        assert_eq!(icon_display("Gift"), "🎁");
+        assert_eq!(icon_display("Star"), "⭐");
+        assert_eq!(icon_display("Sun"), "☀");
+        assert_eq!(icon_display("Moon"), "🌙");
+        assert_eq!(icon_display("CloudRain"), "🌧");
+        assert_eq!(icon_display("Thermometer"), "🌡");
+        assert_eq!(icon_display("Activity"), "📈");
+        assert_eq!(icon_display("Pill"), "💊");
+        assert_eq!(icon_display("Stethoscope"), "🩺");
+        assert_eq!(icon_display("Baby"), "👶");
+        assert_eq!(icon_display("Flower"), "🌸");
+        assert_eq!(icon_display("TreePine"), "🌲");
+        assert_eq!(icon_display("Utensils"), "餐具");
+        assert_eq!(icon_display("Beer"), "🍺");
+        assert_eq!(icon_display("Wine"), "🍷");
+        assert_eq!(icon_display("Tag"), "🏷");
+    }
+
+    #[test]
+    fn icon_display_returns_string() {
+        let result: String = icon_display("Home");
+        assert!(result.len() > 0);
+    }
+
+    // ── Validation logic tests (mirrors component logic) ──
+    #[test]
+    fn validate_name_empty_is_invalid() {
+        let name = "";
+        assert!(name.trim().is_empty());
+    }
+
+    #[test]
+    fn validate_name_single_char_is_too_short() {
+        let name = "A";
+        assert!(name.trim().len() < 2);
+    }
+
+    #[test]
+    fn validate_name_two_chars_is_valid() {
+        let name = "AB";
+        assert!(name.trim().len() >= 2);
+    }
+
+    #[test]
+    fn validate_name_whitespace_only_is_invalid() {
+        let name = "   ";
+        assert!(name.trim().is_empty());
+    }
+
+    #[test]
+    fn validate_name_with_spaces_is_valid() {
+        let name = "Home Decor";
+        assert!(!name.trim().is_empty());
+        assert!(name.trim().len() >= 2);
+    }
+
+    // ── Color palette tests ──
+    #[test]
+    fn color_palette_has_hex_format() {
+        for color in COLOR_PALETTE {
+            assert!(color.starts_with('#'), "Color {} should start with #", color);
+            assert_eq!(color.len(), 7, "Color {} should be 7 chars (#RRGGBB)", color);
+        }
+    }
+
+    #[test]
+    fn color_palette_has_unique_colors() {
+        let mut seen = std::collections::HashSet::new();
+        for color in COLOR_PALETTE {
+            assert!(seen.insert(*color), "Duplicate color: {}", color);
+        }
+    }
+
+    #[test]
+    fn color_palette_includes_red() {
+        assert!(COLOR_PALETTE.contains(&"#ef4444"));
+    }
+
+    #[test]
+    fn color_palette_includes_blue() {
+        assert!(COLOR_PALETTE.contains(&"#3b82f6"));
+    }
+
+    #[test]
+    fn color_default_is_gray() {
+        // Default color used in form: #6b7280
+        assert!(COLOR_PALETTE.contains(&"#6b7280"));
+    }
+
+    // ── Category background color computation ──
+    #[test]
+    fn category_bg_transparency() {
+        // The component uses format!("{}20", cat_color) for bg
+        let cat_color = "#ef4444";
+        let cat_bg = format!("{}20", cat_color);
+        assert_eq!(cat_bg, "#ef444420");
+    }
+
+    #[test]
+    fn category_color_fallback() {
+        // If no color, defaults to #888
+        let cat_color: Option<String> = None;
+        let resolved = cat_color.unwrap_or_else(|| "#888".into());
+        assert_eq!(resolved, "#888");
+    }
+
+    #[test]
+    fn category_icon_fallback() {
+        // If no icon, defaults to "Tag"
+        let cat_icon: Option<String> = None;
+        let resolved = cat_icon.unwrap_or_else(|| "Tag".into());
+        assert_eq!(resolved, "Tag");
+    }
+
+    // ── ICON_NAMES coverage ──
+    #[test]
+    fn all_icon_names_mapped() {
+        // Every ICON_NAME should have a non-default mapping
+        for name in ICON_NAMES {
+            let display = icon_display(name);
+            // Unknown icons return 🏷 (Tag default)
+            // Tag itself also returns 🏷, so we just check non-empty
+            assert!(!display.is_empty(), "Icon {} should have a display", name);
+        }
+    }
+
+    #[test]
+    fn icon_names_count_matches_display() {
+        assert_eq!(ICON_NAMES.len(), 39); // 39 known icons
+    }
+
+    // ── Request construction tests ──
+    #[test]
+    fn create_category_request_construction() {
+        use crate::models::category::CreateCategoryRequest;
+        let req = CreateCategoryRequest {
+            name: "Travel".into(),
+            icon: Some("Plane".into()),
+            color: Some("#3b82f6".into()),
+        };
+        assert_eq!(req.name, "Travel");
+        assert_eq!(req.icon.as_deref(), Some("Plane"));
+        assert_eq!(req.color.as_deref(), Some("#3b82f6"));
+    }
+
+    #[test]
+    fn update_category_request_construction() {
+        use crate::models::category::UpdateCategoryRequest;
+        let req = UpdateCategoryRequest {
+            name: Some("New Name".into()),
+            icon: Some("Tag".into()),
+            color: Some("#ef4444".into()),
+        };
+        assert_eq!(req.name.as_deref(), Some("New Name"));
+    }
 }

@@ -215,4 +215,158 @@ mod tests {
         assert_eq!(due.len(), 1);
         assert_eq!(due[0].name, "Due");
     }
+
+    #[test]
+    fn due_this_month() {
+        use chrono::{Local, Days, Datelike};
+        let now = Local::now().date_naive();
+        let this_month = now;
+        let next_month = now.checked_add_days(Days::new(32)).unwrap();
+
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("ThisMonth", dec!(10), "monthly", true, Some(this_month)),
+            make_sub("NextMonth", dec!(10), "monthly", true, Some(next_month)),
+            make_sub("NoDate", dec!(10), "monthly", true, None),
+        ];
+
+        let due = state.due_this_month();
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].name, "ThisMonth");
+    }
+
+    #[test]
+    fn due_this_month_ignores_inactive() {
+        use chrono::Local;
+        let now = Local::now().date_naive();
+
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("Active", dec!(10), "monthly", true, Some(now)),
+            make_sub("Inactive", dec!(10), "monthly", false, Some(now)),
+        ];
+
+        let due = state.due_this_month();
+        assert_eq!(due.len(), 1);
+    }
+
+    #[test]
+    fn monthly_total_weekly_frequency() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("Weekly", dec!(5), "weekly", true, None),
+        ];
+        assert_eq!(state.monthly_total(), dec!(20));
+    }
+
+    #[test]
+    fn monthly_total_quarterly_frequency() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("Quarterly", dec!(30), "quarterly", true, None),
+        ];
+        assert_eq!(state.monthly_total(), dec!(10));
+    }
+
+    #[test]
+    fn monthly_total_yearly_frequency() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("Yearly", dec!(120), "yearly", true, None),
+        ];
+        assert_eq!(state.monthly_total(), dec!(10));
+    }
+
+    #[test]
+    fn monthly_total_empty() {
+        let state = SubscriptionsState::default();
+        assert_eq!(state.monthly_total(), dec!(0));
+    }
+
+    #[test]
+    fn yearly_total_empty() {
+        let state = SubscriptionsState::default();
+        assert_eq!(state.yearly_total(), dec!(0));
+    }
+
+    #[test]
+    fn set_data_replaces_subscriptions() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![make_sub("Old", dec!(5), "monthly", true, None)];
+        state.set_data(vec![make_sub("New", dec!(10), "monthly", true, None)]);
+        assert_eq!(state.subscriptions.len(), 1);
+        assert_eq!(state.subscriptions[0].name, "New");
+    }
+
+    #[test]
+    fn set_error_clears_error_then_sets_new() {
+        let mut state = SubscriptionsState::default();
+        state.set_error("First error".into());
+        assert_eq!(state.error, Some("First error".into()));
+        state.set_error("Second error".into());
+        assert_eq!(state.error, Some("Second error".into()));
+    }
+
+    #[test]
+    fn set_loading_clears_error() {
+        let mut state = SubscriptionsState::default();
+        state.set_error("Some error".into());
+        state.set_loading();
+        assert!(state.is_loading);
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn monthly_total_unknown_frequency() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("Custom", dec!(10), "biweekly", true, None),
+        ];
+        // Unknown frequency falls through to just use the amount as-is
+        assert_eq!(state.monthly_total(), dec!(10));
+    }
+
+    #[test]
+    fn yearly_total_mixed_frequencies() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("A", dec!(10), "monthly", true, None),   // 10*12 = 120
+            make_sub("B", dec!(5), "weekly", true, None),     // 20*12 = 240
+        ];
+        assert_eq!(state.yearly_total(), dec!(360));
+    }
+
+    #[test]
+    fn active_empty_when_all_inactive() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("A", dec!(10), "monthly", false, None),
+            make_sub("B", dec!(20), "monthly", false, None),
+        ];
+        assert!(state.active().is_empty());
+    }
+
+    #[test]
+    fn due_this_week_none_due() {
+        use chrono::{Local, Days};
+        let now = Local::now().date_naive();
+        let in_30_days = now.checked_add_days(Days::new(30)).unwrap();
+
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("Far", dec!(10), "monthly", true, Some(in_30_days)),
+        ];
+        let due = state.due_this_week();
+        assert!(due.is_empty());
+    }
+
+    #[test]
+    fn due_this_month_no_dates_set() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("NoDate", dec!(10), "monthly", true, None),
+        ];
+        let due = state.due_this_month();
+        assert!(due.is_empty());
+    }
 }

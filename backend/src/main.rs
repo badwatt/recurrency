@@ -148,3 +148,14 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
 async fn health_check() -> &'static str {
     "OK"
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_health_check() {
+        let result = health_check().await;
+        assert_eq!(result, "OK");
+    }
+}

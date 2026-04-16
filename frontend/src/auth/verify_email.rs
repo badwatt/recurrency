@@ -199,4 +199,39 @@ mod tests {
         let truncated: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
         assert_eq!(truncated, "123456");
     }
+
+    #[test]
+    fn code_non_digit_filtering() {
+        let raw = "abc123def456ghi";
+        let filtered: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(filtered, "123456");
+    }
+
+    #[test]
+    fn code_exactly_six_digits() {
+        let raw = "654321";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(result.len(), 6);
+        assert_eq!(result, "654321");
+    }
+
+    #[test]
+    fn code_less_than_six_digits() {
+        let raw = "12";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn resend_format() {
+        let err_msg = "Too many requests";
+        let formatted = format!("Failed to resend: {}", err_msg);
+        assert_eq!(formatted, "Failed to resend: Too many requests");
+    }
+
+    #[test]
+    fn verify_error_code_length() {
+        let code = "123";
+        assert!(code.len() != 6);
+    }
 }

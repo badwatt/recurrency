@@ -142,6 +142,87 @@ mod tests {
 
     #[test]
     fn get_symbol_usd() {
-        assert_eq!(get_currency_symbol("USD"), "$");
+        assert_eq!(get_currency_symbol("USD"), "$"  );
+    }
+
+    // ── Additional format tests ──
+    #[test]
+    fn format_cad() {
+        assert_eq!(format_currency(dec!(10), "CAD"), "$10.00");
+    }
+
+    #[test]
+    fn format_aud() {
+        assert_eq!(format_currency(dec!(10), "AUD"), "$10.00");
+    }
+
+    #[test]
+    fn format_small_decimal() {
+        assert_eq!(format_currency(dec!(0.01), "EUR"), "€0.01");
+    }
+
+    #[test]
+    fn format_large_thousands() {
+        assert_eq!(format_currency(dec!(100000), "USD"), "$100,000.00");
+    }
+
+    #[test]
+    fn get_symbol_gbp() {
+        assert_eq!(get_currency_symbol("GBP"), "£");
+    }
+
+    #[test]
+    fn get_symbol_jpy() {
+        assert_eq!(get_currency_symbol("JPY"), "¥");
+    }
+
+    #[test]
+    fn get_symbol_cad() {
+        assert_eq!(get_currency_symbol("CAD"), "$");
+    }
+
+    #[test]
+    fn get_symbol_aud() {
+        assert_eq!(get_currency_symbol("AUD"), "$");
+    }
+
+    #[test]
+    fn get_symbol_unknown() {
+        assert_eq!(get_currency_symbol("BRL"), "?");
+    }
+
+    #[test]
+    fn format_decimal_no_fraction() {
+        assert_eq!(format_currency(dec!(100), "EUR"), "€100.00");
+    }
+
+    #[test]
+    fn add_thousands_separators_single_digit() {
+        assert_eq!(add_thousands_separators("5"), "5");
+    }
+
+    #[test]
+    fn add_thousands_separators_two_digits() {
+        assert_eq!(add_thousands_separators("50"), "50");
+    }
+
+    #[test]
+    fn add_thousands_separators_three_digits() {
+        assert_eq!(add_thousands_separators("500"), "500");
+    }
+
+    #[test]
+    fn add_thousands_separators_four_digits() {
+        assert_eq!(add_thousands_separators("5000"), "5,000");
+    }
+
+    #[test]
+    fn add_thousands_separators_seven_digits() {
+        assert_eq!(add_thousands_separators("5000000"), "5,000,000");
+    }
+
+    #[test]
+    fn format_decimal_no_decimals_jpy() {
+        assert_eq!(format_currency(dec!(1234), "JPY"), "¥1,234");
     }
 }

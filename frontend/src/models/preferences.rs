@@ -42,4 +42,64 @@ mod tests {
         let back: PreferencesResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(prefs, back);
     }
+
+    #[test]
+    fn update_request_all_none() {
+        let req = UpdatePreferencesRequest {
+            theme: None,
+            subscriptions_view: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
+        assert!(back.theme.is_none());
+        assert!(back.subscriptions_view.is_none());
+    }
+
+    #[test]
+    fn update_request_partial_theme() {
+        let req = UpdatePreferencesRequest {
+            theme: Some("dark".into()),
+            subscriptions_view: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.theme, Some("dark".into()));
+        assert!(back.subscriptions_view.is_none());
+    }
+
+    #[test]
+    fn update_request_view_only() {
+        let req = UpdatePreferencesRequest {
+            theme: None,
+            subscriptions_view: Some("list".into()),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
+        assert!(back.theme.is_none());
+        assert_eq!(back.subscriptions_view, Some("list".into()));
+    }
+
+    #[test]
+    fn update_request_both() {
+        let req = UpdatePreferencesRequest {
+            theme: Some("light".into()),
+            subscriptions_view: Some("grid".into()),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.theme, Some("light".into()));
+        assert_eq!(back.subscriptions_view, Some("grid".into()));
+    }
+
+    #[test]
+    fn preferences_custom_values() {
+        let prefs = PreferencesResponse {
+            theme: "catppuccin-mocha".into(),
+            subscriptions_view: "table".into(),
+        };
+        let json = serde_json::to_string(&prefs).unwrap();
+        let back: PreferencesResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.theme, "catppuccin-mocha");
+        assert_eq!(back.subscriptions_view, "table");
+    }
 }

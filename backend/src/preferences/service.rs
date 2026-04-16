@@ -6,6 +6,15 @@ use crate::shared::error::AppResult;
 
 pub struct PreferencesService;
 
+/// Apply a key-value preference to the response object.
+pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, value: &str) {
+    match key {
+        "theme" => response.theme = value.to_string(),
+        "subscriptions_view" => response.subscriptions_view = value.to_string(),
+        _ => {}
+    }
+}
+
 impl PreferencesService {
     pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<PreferencesResponse> {
         let prefs = sqlx::query_as::<_, (String, String)>(
@@ -18,11 +27,7 @@ impl PreferencesService {
         let mut response = PreferencesResponse::default();
 
         for (key, value) in prefs {
-            match key.as_str() {
-                "theme" => response.theme = value,
-                "subscriptions_view" => response.subscriptions_view = value,
-                _ => {}
-            }
+            apply_preference(&mut response, &key, &value);
         }
 
         Ok(response)
@@ -62,5 +67,51 @@ impl PreferencesService {
         }
 
         Self::get_preferences(pool, user_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_preference_theme() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "theme", "dark");
+        assert_eq!(response.theme, "dark");
+        assert_eq!(response.subscriptions_view, "grid"); // unchanged
+    }
+
+    #[test]
+    fn apply_preference_subscriptions_view() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "subscriptions_view", "list");
+        assert_eq!(response.theme, "system"); // unchanged
+        assert_eq!(response.subscriptions_view, "list");
+    }
+
+    #[test]
+    fn apply_preference_unknown_key_ignored() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "unknown_key", "value");
+        assert_eq!(response.theme, "system");
+        assert_eq!(response.subscriptions_view, "grid");
+    }
+
+    #[test]
+    fn apply_preference_both() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "theme", "dark");
+        apply_preference(&mut response, "subscriptions_view", "table");
+        assert_eq!(response.theme, "dark");
+        assert_eq!(response.subscriptions_view, "table");
+    }
+
+    #[test]
+    fn apply_preference_overwrite() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "theme", "dark");
+        apply_preference(&mut response, "theme", "light");
+        assert_eq!(response.theme, "light");
     }
 }

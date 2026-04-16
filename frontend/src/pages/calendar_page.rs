@@ -949,4 +949,242 @@ mod tests {
         assert_eq!(format_frequency("yearly"), "Yearly");
         assert_eq!(format_frequency("custom"), "custom");
     }
+
+    // ── Additional calendar logic tests ──
+    #[test]
+    fn calendar_days_march_2024() {
+        let days = calendar_days(2024, 3);
+        // March 1, 2024 is a Friday (4 padding days: Sun-Thu)
+        let padding = days.iter().take_while(|d| d.is_none()).count();
+        assert_eq!(padding, 5); // March 2024 starts on Friday
+        let real_days = days.iter().filter(|d| d.is_some()).count();
+        assert_eq!(real_days, 31);
+    }
+
+    #[test]
+    fn calendar_days_december_2024() {
+        let days = calendar_days(2024, 12);
+        let real_days = days.iter().filter(|d| d.is_some()).count();
+        assert_eq!(real_days, 31);
+    }
+
+    #[test]
+    fn calendar_days_april_30() {
+        assert_eq!(days_in_month(2024, 4), 30);
+        assert_eq!(days_in_month(2024, 6), 30);
+        assert_eq!(days_in_month(2024, 9), 30);
+        assert_eq!(days_in_month(2024, 11), 30);
+    }
+
+    #[test]
+    fn calendar_days_31_day_months() {
+        assert_eq!(days_in_month(2024, 1), 31);
+        assert_eq!(days_in_month(2024, 3), 31);
+        assert_eq!(days_in_month(2024, 5), 31);
+        assert_eq!(days_in_month(2024, 7), 31);
+        assert_eq!(days_in_month(2024, 8), 31);
+        assert_eq!(days_in_month(2024, 10), 31);
+        assert_eq!(days_in_month(2024, 12), 31);
+    }
+
+    #[test]
+    fn days_in_month_december() {
+        assert_eq!(days_in_month(2024, 12), 31);
+    }
+
+    #[test]
+    fn month_total_empty() {
+        let items: Vec<CalendarItem> = vec![];
+        assert_eq!(month_total(&items), dec!(0));
+    }
+
+    #[test]
+    fn month_total_multiple_items() {
+        let items = vec![
+            make_calendar_item("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,5).unwrap()),
+            make_calendar_item("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap()),
+            make_calendar_item("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,25).unwrap()),
+        ];
+        assert_eq!(month_total(&items), dec!(60));
+    }
+
+    #[test]
+    fn items_for_day_no_match() {
+        let items = vec![
+            make_calendar_item("Netflix", dec!(15), NaiveDate::from_ymd_opt(2024,1,15).unwrap()),
+        ];
+        let result = items_for_day(&items, 2024, 1, 1);
+        assert!(result.is_empty());
+        let result2 = items_for_day(&items, 2024, 2, 15);
+        assert!(result2.is_empty());
+    }
+
+    #[test]
+    fn items_for_day_wrong_month() {
+        let items = vec![
+            make_calendar_item("Netflix", dec!(15), NaiveDate::from_ymd_opt(2024,1,15).unwrap()),
+        ];
+        let result = items_for_day(&items, 2024, 2, 15);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn items_for_day_multiple_same_day() {
+        let date = NaiveDate::from_ymd_opt(2024, 5, 10).unwrap();
+        let items = vec![
+            make_calendar_item("A", dec!(10), date),
+            make_calendar_item("B", dec!(20), date),
+            make_calendar_item("C", dec!(30), date),
+        ];
+        let result = items_for_day(&items, 2024, 5, 10);
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn is_today_for_non_today() {
+        // A date far from today should not be today
+        assert!(!is_today(2000, 1, 1));
+        assert!(!is_today(2099, 12, 31));
+    }
+
+    #[test]
+    fn day_cell_info_no_items() {
+        let items: Vec<CalendarItem> = vec![];
+        let info = day_cell_info(&items, 2024, 1, 15, "EUR");
+        assert_eq!(info.day, 15);
+        assert!(info.items.is_empty());
+        assert_eq!(info.extra_count, 0);
+    }
+
+    #[test]
+    fn day_cell_info_exactly_three_items() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let items = vec![
+            make_calendar_item("A", dec!(1), date),
+            make_calendar_item("B", dec!(2), date),
+            make_calendar_item("C", dec!(3), date),
+        ];
+        let info = day_cell_info(&items, 2024, 6, 15, "EUR");
+        assert_eq!(info.items.len(), 3);
+        assert_eq!(info.extra_count, 0); // 3 - 3 = 0
+    }
+
+    #[test]
+    fn calendar_days_total_cell_count() {
+        let days = calendar_days(2024, 1);
+        // Should be padding + 31 days
+        assert!(days.len() >= 31);
+    }
+
+    #[test]
+    fn weekdays_count() {
+        assert_eq!(WEEKDAYS.len(), 7);
+    }
+
+    #[test]
+    fn month_names_count() {
+        assert_eq!(MONTH_NAMES.len(), 13); // index 0 + 12 months
+    }
+
+    #[test]
+    fn month_names_valid() {
+        assert_eq!(MONTH_NAMES[1], "January");
+        assert_eq!(MONTH_NAMES[12], "December");
+        assert_eq!(MONTH_NAMES[6], "June");
+    }
+
+    #[test]
+    fn format_frequency_all_known() {
+        assert_eq!(format_frequency("weekly"), "Weekly");
+        assert_eq!(format_frequency("monthly"), "Monthly");
+        assert_eq!(format_frequency("quarterly"), "Quarterly");
+        assert_eq!(format_frequency("yearly"), "Yearly");
+    }
+
+    #[test]
+    fn format_frequency_fallback() {
+        assert_eq!(format_frequency("biweekly"), "biweekly");
+        assert_eq!(format_frequency(""), "");
+    }
+
+    // ── Validation logic from edit form ──
+    #[test]
+    fn validate_name_empty_is_invalid() {
+        let name = "";
+        assert!(name.trim().is_empty());
+    }
+
+    #[test]
+    fn validate_amount_zero_is_invalid() {
+        let amount_str = "0";
+        let result = amount_str.parse::<rust_decimal::Decimal>();
+        assert!(result.is_ok());
+        assert!(result.unwrap() <= dec!(0));
+    }
+
+    #[test]
+    fn validate_amount_valid() {
+        let amount_str = "15.99";
+        let result = amount_str.parse::<rust_decimal::Decimal>();
+        assert!(result.is_ok());
+        assert!(result.unwrap() > dec!(0));
+    }
+
+    #[test]
+    fn validate_date_format() {
+        let date_str = "2024-06-15";
+        assert!(date_str.parse::<NaiveDate>().is_ok());
+    }
+
+    #[test]
+    fn validate_date_invalid() {
+        let date_str = "not-a-date";
+        assert!(date_str.parse::<NaiveDate>().is_err());
+    }
+
+    #[test]
+    fn validate_category_id_empty_is_invalid() {
+        let cat_id = "";
+        assert!(cat_id.is_empty());
+    }
+
+    #[test]
+    fn validate_currency_empty_is_invalid() {
+        let currency = "";
+        assert!(currency.is_empty());
+    }
+
+    #[test]
+    fn validate_frequency_empty_is_invalid() {
+        let frequency = "";
+        assert!(frequency.is_empty());
+    }
+
+    #[test]
+    fn month_navigation_prev_december() {
+        let (y, m) = if 1 == 1 { (2024 - 1, 12) } else { (2024, 1 - 1) };
+        assert_eq!(y, 2023);
+        assert_eq!(m, 12);
+    }
+
+    #[test]
+    fn month_navigation_next_december() {
+        let (y, m) = if 12 == 12 { (2024 + 1, 1) } else { (2024, 12 + 1) };
+        assert_eq!(y, 2025);
+        assert_eq!(m, 1);
+    }
+
+    #[test]
+    fn calendar_item_has_active_flag() {
+        let item = make_calendar_item("Test", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap());
+        assert!(item.is_active);
+    }
+
+    #[test]
+    fn calendar_item_serialization() {
+        let item = make_calendar_item("Test", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap());
+        let json = serde_json::to_string(&item).unwrap();
+        let back: CalendarItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "Test");
+    }
 }

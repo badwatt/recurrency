@@ -96,20 +96,10 @@ impl CategoryService {
         let name = req.name.unwrap_or(existing.name);
 
         // Handle icon: null = clear, string = set, absent = keep existing
-        let icon = match req.icon {
-            serde_json::Value::String(s) if s.is_empty() => None,
-            serde_json::Value::String(s) => Some(s),
-            serde_json::Value::Null => None,
-            _ => existing.icon,
-        };
+        let icon = resolve_optional_json_field(req.icon, existing.icon);
 
         // Handle color: null = clear, string = set, absent = keep existing
-        let color = match req.color {
-            serde_json::Value::String(s) if s.is_empty() => None,
-            serde_json::Value::String(s) => Some(s),
-            serde_json::Value::Null => None,
-            _ => existing.color,
-        };
+        let color = resolve_optional_json_field(req.color, existing.color);
 
         let category = sqlx::query_as::<_, Category>(
             r#"
@@ -257,4 +247,132 @@ pub struct CategoryWithCounts {
     pub category: crate::categories::models::CategoryResponse,
     pub subscription_count: i64,
     pub transaction_count: i64,
+}
+
+/// Resolve an optional JSON field against existing value.
+/// - String (non-empty): update to new value
+/// - String (empty) or Null: clear (set to None)
+/// - Other (Number, Bool, etc.): keep existing
+pub(crate) fn resolve_optional_json_field(
+    new_value: serde_json::Value,
+    existing: Option<String>,
+) -> Option<String> {
+    match new_value {
+        serde_json::Value::String(s) if !s.is_empty() => Some(s),
+        serde_json::Value::String(_) => None, // empty string = clear
+        serde_json::Value::Null => None,
+        _ => existing,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── resolve_optional_json_field ──
+
+    #[test]
+    fn json_field_string_updates() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("new-icon".to_string()),
+            Some("old-icon".to_string()),
+        );
+        assert_eq!(result, Some("new-icon".to_string()));
+    }
+
+    #[test]
+    fn json_field_empty_string_clears() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("".to_string()),
+            Some("old-icon".to_string()),
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn json_field_null_clears() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Null,
+            Some("old-icon".to_string()),
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn json_field_number_keeps_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Number(42.into()),
+            Some("existing".to_string()),
+        );
+        assert_eq!(result, Some("existing".to_string()));
+    }
+
+    #[test]
+    fn json_field_bool_keeps_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Bool(true),
+            Some("existing".to_string()),
+        );
+        assert_eq!(result, Some("existing".to_string()));
+    }
+
+    #[test]
+    fn json_field_string_no_existing_overwrite() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("new-value".to_string()),
+            None,
+        );
+        assert_eq!(result, Some("new-value".to_string()));
+    }
+
+    #[test]
+    fn json_field_null_no_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Null,
+            None,
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn json_field_number_no_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Number(0.into()),
+            None,
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn json_field_object_keeps_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::json!({"key": "val"}),
+            Some("keep".to_string()),
+        );
+        assert_eq!(result, Some("keep".to_string()));
+    }
+
+    // ── CategoryWithCounts construction ──
+
+    #[test]
+    fn category_with_counts_serialization() {
+        let cat_response = crate::categories::models::CategoryResponse {
+            id: uuid::Uuid::new_v4(),
+            user_id: uuid::Uuid::new_v4(),
+            name: "Test".to_string(),
+            icon: Some("star".to_string()),
+            color: Some("#fff".to_string()),
+            is_system: false,
+            is_default: true,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let with_counts = CategoryWithCounts {
+            category: cat_response,
+            subscription_count: 5,
+            transaction_count: 10,
+        };
+        assert_eq!(with_counts.subscription_count, 5);
+        assert_eq!(with_counts.transaction_count, 10);
+    }
 }

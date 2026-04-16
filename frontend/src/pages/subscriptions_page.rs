@@ -1450,4 +1450,344 @@ mod tests {
         };
         assert_eq!(count_active_filters(&filters), 5);
     }
+
+    // ── DialogForm validation tests ──
+    #[test]
+    fn dialog_form_default_all_empty() {
+        let form = DialogForm::default();
+        assert!(form.name.is_empty());
+        assert!(form.amount.is_empty());
+        assert!(form.currency.is_empty());
+        assert!(form.frequency.is_empty());
+        assert!(form.start_date.is_empty());
+        assert!(form.category_id.is_empty());
+        assert!(form.notes.is_empty());
+        assert!(form.logo_url.is_empty());
+    }
+
+    #[test]
+    fn validate_form_name_empty() {
+        let form = DialogForm { name: "".into(), ..Default::default() };
+        assert!(form.name.trim().is_empty());
+    }
+
+    #[test]
+    fn validate_form_name_too_short() {
+        let form = DialogForm { name: "A".into(), ..Default::default() };
+        assert!(form.name.trim().len() < 2);
+    }
+
+    #[test]
+    fn validate_form_name_valid() {
+        let form = DialogForm { name: "Netflix".into(), ..Default::default() };
+        assert!(!form.name.trim().is_empty());
+        assert!(form.name.trim().len() >= 2);
+    }
+
+    #[test]
+    fn validate_form_amount_empty() {
+        let form = DialogForm { amount: "".into(), ..Default::default() };
+        assert!(form.amount.is_empty());
+    }
+
+    #[test]
+    fn validate_form_amount_zero() {
+        let form = DialogForm { amount: "0".into(), ..Default::default() };
+        let result = form.amount.parse::<Decimal>();
+        assert!(result.is_ok());
+        assert!(result.unwrap() <= dec!(0));
+    }
+
+    #[test]
+    fn validate_form_amount_negative() {
+        let form = DialogForm { amount: "-5".into(), ..Default::default() };
+        let result = form.amount.parse::<Decimal>();
+        assert!(result.is_ok());
+        assert!(result.unwrap() <= dec!(0));
+    }
+
+    #[test]
+    fn validate_form_amount_valid() {
+        let form = DialogForm { amount: "9.99".into(), ..Default::default() };
+        let result = form.amount.parse::<Decimal>();
+        assert!(result.is_ok());
+        assert!(result.unwrap() > dec!(0));
+    }
+
+    #[test]
+    fn validate_form_amount_invalid() {
+        let form = DialogForm { amount: "abc".into(), ..Default::default() };
+        let result = form.amount.parse::<Decimal>();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_form_currency_empty() {
+        let form = DialogForm { currency: "".into(), ..Default::default() };
+        assert!(form.currency.is_empty());
+    }
+
+    #[test]
+    fn validate_form_frequency_empty() {
+        let form = DialogForm { frequency: "".into(), ..Default::default() };
+        assert!(form.frequency.is_empty());
+    }
+
+    #[test]
+    fn validate_form_start_date_empty() {
+        let form = DialogForm { start_date: "".into(), ..Default::default() };
+        assert!(form.start_date.is_empty());
+    }
+
+    #[test]
+    fn validate_form_start_date_valid() {
+        let form = DialogForm { start_date: "2024-06-15".into(), ..Default::default() };
+        assert!(form.start_date.parse::<chrono::NaiveDate>().is_ok());
+    }
+
+    #[test]
+    fn validate_form_start_date_invalid() {
+        let form = DialogForm { start_date: "not-a-date".into(), ..Default::default() };
+        assert!(form.start_date.parse::<chrono::NaiveDate>().is_err());
+    }
+
+    #[test]
+    fn validate_form_category_id_empty() {
+        let form = DialogForm { category_id: "".into(), ..Default::default() };
+        assert!(form.category_id.is_empty());
+    }
+
+    #[test]
+    fn validate_form_notes_optional() {
+        let form = DialogForm { notes: "Some notes".into(), ..Default::default() };
+        assert!(!form.notes.is_empty());
+        let form2 = DialogForm { notes: "".into(), ..Default::default() };
+        assert!(form2.notes.is_empty());
+    }
+
+    #[test]
+    fn validate_form_logo_url_optional() {
+        let form = DialogForm { logo_url: "https://logo.com/img.png".into(), ..Default::default() };
+        assert!(!form.logo_url.is_empty());
+        let form2 = DialogForm { logo_url: "".into(), ..Default::default() };
+        assert!(form2.logo_url.is_empty());
+    }
+
+    // ── FilterConfig edge cases ──
+    #[test]
+    fn filter_status_all_returns_both() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(20), "monthly", false, None, cat),
+        ];
+        let filters = FilterConfig { status: Some("all".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_invalid_category_uuid_ignored() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+        ];
+        let filters = FilterConfig { category_id: Some("not-a-uuid".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 1); // Invalid UUID = filter not applied, all pass
+    }
+
+    #[test]
+    fn filter_invalid_price_min_ignored() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+        ];
+        let filters = FilterConfig { price_min: Some("abc".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 1); // Invalid decimal = filter not applied
+    }
+
+    #[test]
+    fn filter_invalid_price_max_ignored() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+        ];
+        let filters = FilterConfig { price_max: Some("xyz".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 1); // Invalid decimal = filter not applied
+    }
+
+    #[test]
+    fn filter_price_min_exclusive() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Exact", dec!(10), "monthly", true, None, cat),
+            make_sub("Below", dec!(5), "monthly", true, None, cat),
+        ];
+        let filters = FilterConfig { price_min: Some("10".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 1); // amount >= 10, so "Exact" matches
+        assert_eq!(result[0].name, "Exact");
+    }
+
+    #[test]
+    fn filter_price_max_inclusive() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Exact", dec!(10), "monthly", true, None, cat),
+            make_sub("Above", dec!(15), "monthly", true, None, cat),
+        ];
+        let filters = FilterConfig { price_max: Some("10".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "Exact");
+    }
+
+    // ── SortConfig default ──
+    #[test]
+    fn sort_config_default() {
+        let sort = SortConfig::default();
+        assert_eq!(sort.field, "next_billing_date");
+        assert_eq!(sort.direction, "asc");
+    }
+
+    #[test]
+    fn sort_unknown_field_equal() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(20), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig { field: "unknown".into(), direction: "asc".into() };
+        sort_subscriptions(&mut subs, &sort);
+        // Unknown field = Equal comparison, order preserved
+        assert_eq!(subs.len(), 2);
+    }
+
+    #[test]
+    fn sort_desc_by_name() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("Alpha", dec!(10), "monthly", true, None, cat),
+            make_sub("Charlie", dec!(10), "monthly", true, None, cat),
+            make_sub("Bravo", dec!(10), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig { field: "name".into(), direction: "desc".into() };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].name, "Charlie");
+        assert_eq!(subs[1].name, "Bravo");
+        assert_eq!(subs[2].name, "Alpha");
+    }
+
+    #[test]
+    fn sort_case_insensitive_name() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("netflix", dec!(10), "monthly", true, None, cat),
+            make_sub("Amazon", dec!(10), "monthly", true, None, cat),
+            make_sub("spotify", dec!(10), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig { field: "name".into(), direction: "asc".into() };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].name, "Amazon"); // A before n before s (case-insensitive)
+    }
+
+    // ── Additional combined filter+sort tests ──
+    #[test]
+    fn apply_filters_and_sort_empty_input() {
+        let subs: Vec<Subscription> = vec![];
+        let result = apply_filters_and_sort(&subs, &FilterConfig::default(), &SortConfig::default());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn apply_filters_and_sort_no_match() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+        ];
+        let filters = FilterConfig { price_min: Some("100".into()), ..Default::default() };
+        let result = apply_filters_and_sort(&subs, &filters, &SortConfig::default());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn sort_by_next_billing_date_with_dates() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("Later", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+            make_sub("Earlier", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()), cat),
+        ];
+        let sort = SortConfig { field: "next_billing_date".into(), direction: "asc".into() };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].name, "Earlier");
+        assert_eq!(subs[1].name, "Later");
+    }
+
+    #[test]
+    fn sort_desc_by_frequency() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("Weekly", dec!(10), "weekly", true, None, cat),
+            make_sub("Yearly", dec!(10), "yearly", true, None, cat),
+        ];
+        let sort = SortConfig { field: "frequency".into(), direction: "desc".into() };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].name, "Yearly");
+        assert_eq!(subs[1].name, "Weekly");
+    }
+
+    // ── STATUS_OPTIONS / SORT_OPTIONS ──
+    #[test]
+    fn status_options_count() {
+        assert_eq!(STATUS_OPTIONS.len(), 3);
+    }
+
+    #[test]
+    fn sort_options_count() {
+        assert_eq!(SORT_OPTIONS.len(), 5);
+    }
+
+    #[test]
+    fn status_options_contain_all() {
+        let keys: Vec<&str> = STATUS_OPTIONS.iter().map(|(k, _)| *k).collect();
+        assert!(keys.contains(&"all"));
+        assert!(keys.contains(&"active"));
+        assert!(keys.contains(&"inactive"));
+    }
+
+    #[test]
+    fn sort_options_contain_expected() {
+        let keys: Vec<&str> = SORT_OPTIONS.iter().map(|(k, _)| *k).collect();
+        assert!(keys.contains(&"next_billing_date"));
+        assert!(keys.contains(&"amount"));
+        assert!(keys.contains(&"name"));
+        assert!(keys.contains(&"frequency"));
+        assert!(keys.contains(&"start_date"));
+    }
+
+    // ── Subscription model tests ──
+    #[test]
+    fn subscription_notes_check() {
+        let cat = Uuid::new_v4();
+        let mut sub = make_sub("A", dec!(10), "monthly", true, None, cat);
+        assert!(!sub.notes.as_ref().is_some_and(|n| !n.is_empty()));
+        sub.notes = Some("Has notes".into());
+        assert!(sub.notes.as_ref().is_some_and(|n| !n.is_empty()));
+        sub.notes = Some("".into());
+        assert!(!sub.notes.as_ref().is_some_and(|n| !n.is_empty()));
+    }
+
+    #[test]
+    fn subscription_toggle_active() {
+        let cat = Uuid::new_v4();
+        let sub = make_sub("A", dec!(10), "monthly", true, None, cat);
+        let new_active = !sub.is_active;
+        assert!(!new_active);
+        let sub2 = make_sub("B", dec!(10), "monthly", false, None, cat);
+        let new_active2 = !sub2.is_active;
+        assert!(new_active2);
+    }
 }

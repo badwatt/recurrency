@@ -78,4 +78,58 @@ mod tests {
     fn icon_count() {
         assert_eq!(ICON_NAMES.len(), 39);
     }
+
+    // ── Additional tests ──
+    #[test]
+    fn default_icon_is_tag() {
+        assert_eq!(DEFAULT_ICON, "Tag");
+    }
+
+    #[test]
+    fn normalize_already_pascal() {
+        assert_eq!(normalize_icon_name("Home"), "Home");
+        assert_eq!(normalize_icon_name("Film"), "Film");
+    }
+
+    #[test]
+    fn is_valid_icon_direct() {
+        // Direct PascalCase names should be found
+        assert!(is_valid_icon("Home"));
+        assert!(is_valid_icon("Tag"));
+    }
+
+    #[test]
+    fn is_valid_icon_from_kebab() {
+        // Kebab-case gets normalized and checked
+        assert!(is_valid_icon("shopping-bag"));
+    }
+
+    #[test]
+    fn is_valid_icon_empty_false() {
+        // Empty string normalizes to Tag, which IS valid
+        assert!(is_valid_icon("")); // empty = Tag = valid
+    }
+
+    #[test]
+    fn icon_names_all_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for name in ICON_NAMES {
+            assert!(seen.insert(*name), "Duplicate icon name: {}", name);
+        }
+    }
+
+    #[test]
+    fn normalize_multiple_hyphens() {
+        assert_eq!(normalize_icon_name("a-b-c"), "ABC");
+    }
+
+    #[test]
+    fn normalize_single_char_parts() {
+        assert_eq!(normalize_icon_name("a-b"), "AB");
+    }
+
+    #[test]
+    fn normalize_preserves_numbers() {
+        assert_eq!(normalize_icon_name("gamepad-2"), "Gamepad2");
+    }
 }

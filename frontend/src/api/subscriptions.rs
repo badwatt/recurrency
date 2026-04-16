@@ -28,3 +28,41 @@ pub async fn upcoming() -> Result<Vec<Subscription>, ApiError> {
 pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, ApiError> {
     api_get(&format!("/api/subscriptions/calendar?year={}&month={}", year, month)).await
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn subscription_api_paths() {
+        // Verify URL patterns are correctly formed
+        let base = "/api/subscriptions";
+        assert!(base.starts_with("/api/"));
+
+        let id = uuid::Uuid::new_v4();
+        let detail = format!("/api/subscriptions/{}", id);
+        assert!(detail.starts_with("/api/subscriptions/"));
+
+        let upcoming = "/api/subscriptions/upcoming";
+        assert!(upcoming.contains("upcoming"));
+
+        let calendar = format!("/api/subscriptions/calendar?year={}&month={}", 2024, 6);
+        assert!(calendar.contains("calendar"));
+        assert!(calendar.contains("year=2024"));
+        assert!(calendar.contains("month=6"));
+    }
+
+    #[test]
+    fn calendar_url_for_various_months() {
+        for (y, m) in [(2024, 1), (2024, 12), (2025, 6)] {
+            let url = format!("/api/subscriptions/calendar?year={}&month={}", y, m);
+            assert!(url.contains(&format!("year={}", y)));
+            assert!(url.contains(&format!("month={}", m)));
+        }
+    }
+
+    #[test]
+    fn subscription_id_url_format() {
+        let id = uuid::Uuid::new_v4();
+        let path = format!("/api/subscriptions/{}", id);
+        assert_eq!(path.len(), "/api/subscriptions/".len() + 36); // UUID is 36 chars
+    }
+}

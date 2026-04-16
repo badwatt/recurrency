@@ -75,4 +75,25 @@ mod tests {
         assert!(state.initialized);
         assert_eq!(state.theme(), "mocha");
     }
+
+    #[test]
+    fn set_loading_state() {
+        let mut state = PreferencesState::default();
+        state.set_loading();
+        assert!(state.is_loading);
+    }
+
+    #[test]
+    fn set_data_clears_loading() {
+        let mut state = PreferencesState::default();
+        state.set_loading();
+        state.set_data(PreferencesResponse::default());
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn default_not_initialized() {
+        let state = PreferencesState::default();
+        assert!(!state.initialized);
+    }
 }

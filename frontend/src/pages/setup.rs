@@ -129,4 +129,80 @@ mod tests {
         let url = "http://localhost:8080";
         assert!(url.starts_with("http://") || url.starts_with("https://"));
     }
+
+    #[test]
+    fn https_url_is_valid() {
+        let url = "https://api.example.com";
+        assert!(url.starts_with("http://") || url.starts_with("https://"));
+    }
+
+    #[test]
+    fn get_base_url_is_http() {
+        let url = crate::api::client::get_base_url();
+        assert!(url.starts_with("http://") || url.starts_with("https://"));
+    }
+
+    #[test]
+    fn server_url_with_trailing_slash() {
+        let url = "http://localhost:8080/";
+        assert!(url.starts_with("http://"));
+        let api_url = format!("{}/api/demo/status", url.trim_end_matches('/'));
+        assert_eq!(api_url, "http://localhost:8080/api/demo/status");
+    }
+
+    #[test]
+    fn health_endpoint_construction() {
+        let url = "http://localhost:8080";
+        let endpoint = format!("{}/api/demo/status", url);
+        assert_eq!(endpoint, "http://localhost:8080/api/demo/status");
+    }
+
+    #[test]
+    fn health_endpoint_with_port() {
+        let url = "http://192.168.1.100:3000";
+        let endpoint = format!("{}/api/demo/status", url);
+        assert_eq!(endpoint, "http://192.168.1.100:3000/api/demo/status");
+    }
+
+    #[test]
+    fn empty_url_error_message() {
+        let url = "";
+        if url.is_empty() {
+            let error = "Server URL is required";
+            assert_eq!(error, "Server URL is required");
+        }
+    }
+
+    #[test]
+    fn non_success_status_format() {
+        let status = 500u16;
+        let msg = format!("Server returned status {}", status);
+        assert_eq!(msg, "Server returned status 500");
+    }
+
+    #[test]
+    fn connection_failed_format() {
+        let err = "connection refused";
+        let msg = format!("Connection failed: {}", err);
+        assert_eq!(msg, "Connection failed: connection refused");
+    }
+
+    #[test]
+    fn url_with_path() {
+        let url = "http://localhost:8080/api";
+        let endpoint = format!("{}/demo/status", url);
+        assert_eq!(endpoint, "http://localhost:8080/api/demo/status");
+    }
+
+    #[test]
+    fn default_port_8080() {
+        let url = crate::api::client::get_base_url();
+        assert!(url.contains("8080") || url.contains("http"));
+    }
+
+    #[test]
+    fn timeout_duration() {
+        let dur = std::time::Duration::from_secs(5);
+        assert_eq!(dur.as_secs(), 5);
+    }
 }

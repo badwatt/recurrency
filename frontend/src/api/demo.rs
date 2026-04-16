@@ -30,3 +30,48 @@ pub async fn init() -> Result<DemoInitResponse, ApiError> {
 pub async fn reset() -> Result<DemoResetResponse, ApiError> {
     api_post("/api/demo/reset", &serde_json::json!({})).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn demo_status_deserialize() {
+        let json = r#"{"enabled":true,"email":"demo@test.com"}"#;
+        let status: DemoStatus = serde_json::from_str(json).unwrap();
+        assert!(status.enabled);
+        assert_eq!(status.email, "demo@test.com");
+    }
+
+    #[test]
+    fn demo_status_disabled() {
+        let json = r#"{"enabled":false,"email":""}"#;
+        let status: DemoStatus = serde_json::from_str(json).unwrap();
+        assert!(!status.enabled);
+        assert!(status.email.is_empty());
+    }
+
+    #[test]
+    fn demo_init_response_deserialize() {
+        let json = r#"{"email":"demo@recurrency.com","password":"secret123"}"#;
+        let resp: DemoInitResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.email, "demo@recurrency.com");
+        assert_eq!(resp.password, "secret123");
+    }
+
+    #[test]
+    fn demo_reset_response_deserialize() {
+        let json = r#"{"success":true,"message":"Demo data reset."}"#;
+        let resp: DemoResetResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.success);
+        assert_eq!(resp.message, "Demo data reset.");
+    }
+
+    #[test]
+    fn demo_reset_response_failure() {
+        let json = r#"{"success":false,"message":"Demo mode not enabled."}"#;
+        let resp: DemoResetResponse = serde_json::from_str(json).unwrap();
+        assert!(!resp.success);
+        assert_eq!(resp.message, "Demo mode not enabled.");
+    }
+}

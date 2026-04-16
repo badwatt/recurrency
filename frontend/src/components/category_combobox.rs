@@ -318,3 +318,159 @@ pub fn CategoryCombobox(
         }
     }
 }
+
+/// Pure function: filter categories by search text (case-insensitive).
+/// Returns indices of matching categories.
+pub fn filter_categories(cats: &[crate::models::category::Category], search: &str) -> Vec<usize> {
+    let search_lower = search.to_lowercase();
+    cats.iter()
+        .enumerate()
+        .filter(|(_, c)| c.name.to_lowercase().contains(&search_lower))
+        .map(|(i, _)| i)
+        .collect()
+}
+
+/// Pure function: check if search text matches an existing category exactly (case-insensitive).
+pub fn is_exact_match(cats: &[crate::models::category::Category], search: &str) -> bool {
+    let search_lower = search.to_lowercase();
+    cats.iter().any(|c| c.name.to_lowercase() == search_lower)
+}
+
+/// Pure function: determine whether to show the "Create..." option.
+pub fn should_show_create(cats: &[crate::models::category::Category], search: &str) -> bool {
+    !search.is_empty() && !is_exact_match(cats, search)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::category::Category;
+    use chrono::{DateTime, Utc};
+    use uuid::Uuid;
+
+    fn make_cat(name: &str) -> Category {
+        Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: name.into(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: false,
+            created_at: DateTime::UNIX_EPOCH,
+            updated_at: DateTime::UNIX_EPOCH,
+        }
+    }
+
+    #[test]
+    fn filter_categories_empty_search() {
+        let cats = vec![make_cat("Food"), make_cat("Transport")];
+        let result = filter_categories(&cats, "");
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_categories_partial_match() {
+        let cats = vec![make_cat("Food"), make_cat("Transport"), make_cat("Entertainment")];
+        let result = filter_categories(&cats, "ood");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], 0);
+    }
+
+    #[test]
+    fn filter_categories_case_insensitive() {
+        let cats = vec![make_cat("Food"), make_cat("Transport")];
+        let result = filter_categories(&cats, "food");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], 0);
+    }
+
+    #[test]
+    fn filter_categories_no_match() {
+        let cats = vec![make_cat("Food"), make_cat("Transport")];
+        let result = filter_categories(&cats, "xyz");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_categories_multiple_matches() {
+        let cats = vec![make_cat("Food"), make_cat("Food Delivery"), make_cat("Transport")];
+        let result = filter_categories(&cats, "food");
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn is_exact_match_true() {
+        let cats = vec![make_cat("Food")];
+        assert!(is_exact_match(&cats, "Food"));
+        assert!(is_exact_match(&cats, "food")); // case insensitive
+    }
+
+    #[test]
+    fn is_exact_match_false() {
+        let cats = vec![make_cat("Food")];
+        assert!(!is_exact_match(&cats, "Foo"));
+        assert!(!is_exact_match(&cats, "Transport"));
+    }
+
+    #[test]
+    fn is_exact_match_empty_search() {
+        let cats = vec![make_cat("Food")];
+        assert!(!is_exact_match(&cats, ""));
+    }
+
+    #[test]
+    fn should_show_create_no_search() {
+        let cats = vec![make_cat("Food")];
+        assert!(!should_show_create(&cats, ""));
+    }
+
+    #[test]
+    fn should_show_create_no_exact_match() {
+        let cats = vec![make_cat("Food")];
+        assert!(should_show_create(&cats, "Transport")); // doesn't exist
+    }
+
+    #[test]
+    fn should_show_create_exact_match_exists() {
+        let cats = vec![make_cat("Food")];
+        assert!(!should_show_create(&cats, "Food")); // exact match exists
+    }
+
+    #[test]
+    fn should_show_create_case_insensitive() {
+        let cats = vec![make_cat("Food")];
+        assert!(!should_show_create(&cats, "food")); // case-insensitive exact match
+    }
+
+    #[test]
+    fn should_show_create_partial_no_match() {
+        let cats = vec![make_cat("Food")];
+        assert!(should_show_create(&cats, "Foo")); // partial, not exact
+    }
+
+    #[test]
+    fn create_category_request_construction() {
+        let req = CreateCategoryRequest {
+            name: "NewCat".into(),
+            icon: None,
+            color: None,
+        };
+        assert_eq!(req.name, "NewCat");
+        assert!(req.icon.is_none());
+        assert!(req.color.is_none());
+    }
+
+    #[test]
+    fn selected_id_empty_shows_placeholder() {
+        let selected_id = "";
+        assert!(selected_id.is_empty());
+        // In the component, this shows "Select category..."
+    }
+
+    #[test]
+    fn selected_id_non_empty_shows_category() {
+        let cat_id = Uuid::new_v4().to_string();
+        assert!(!cat_id.is_empty());
+    }
+}

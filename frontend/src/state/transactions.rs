@@ -109,4 +109,90 @@ mod tests {
         assert!(!state.is_loading);
         assert_eq!(state.error, Some("fail".into()));
     }
+
+    #[test]
+    fn set_loading_clears_error() {
+        let mut state = TransactionsState::default();
+        state.set_error("error".into());
+        state.set_loading();
+        assert!(state.is_loading);
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn set_data_clears_error() {
+        let mut state = TransactionsState::default();
+        state.set_error("error".into());
+        state.set_data(vec![make_txn("A", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        assert!(state.error.is_none());
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn set_error_clears_loading() {
+        let mut state = TransactionsState::default();
+        state.set_loading();
+        state.set_error("fail".into());
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn set_data_replaces_transactions() {
+        let mut state = TransactionsState::default();
+        state.transactions = vec![make_txn("Old", NaiveDate::from_ymd_opt(2023, 1, 1).unwrap())];
+        state.set_data(vec![make_txn("New", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        assert_eq!(state.transactions.len(), 1);
+        assert_eq!(state.transactions[0].name, "New");
+    }
+
+    #[test]
+    fn grouped_by_month_empty() {
+        let state = TransactionsState::default();
+        let groups = state.grouped_by_month();
+        assert!(groups.is_empty());
+    }
+
+    #[test]
+    fn grouped_by_month_single_month() {
+        let mut state = TransactionsState::default();
+        state.transactions = vec![
+            make_txn("A", NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()),
+            make_txn("B", NaiveDate::from_ymd_opt(2024, 3, 15).unwrap()),
+        ];
+        let groups = state.grouped_by_month();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].0, "2024-03");
+        assert_eq!(groups[0].1.len(), 2);
+    }
+
+    #[test]
+    fn grouped_by_month_cross_year() {
+        let mut state = TransactionsState::default();
+        state.transactions = vec![
+            make_txn("Jan24", NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()),
+            make_txn("Dec23", NaiveDate::from_ymd_opt(2023, 12, 1).unwrap()),
+        ];
+        let groups = state.grouped_by_month();
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].0, "2024-01"); // Most recent first
+        assert_eq!(groups[1].0, "2023-12");
+    }
+
+    #[test]
+    fn set_error_after_loading_clears_it() {
+        let mut state = TransactionsState::default();
+        state.set_loading();
+        state.set_error("error".into());
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn set_data_with_empty_vec() {
+        let mut state = TransactionsState::default();
+        state.set_loading();
+        state.set_data(vec![]);
+        assert!(!state.is_loading);
+        assert!(state.transactions.is_empty());
+        assert!(state.error.is_none());
+    }
 }

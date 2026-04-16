@@ -224,4 +224,55 @@ mod tests {
         let error = String::new();
         assert!(error.is_empty());
     }
+
+    #[test]
+    fn email_format_validation() {
+        let email = "user@example.com";
+        assert!(email.contains('@'));
+        let invalid = "userexample.com";
+        assert!(!invalid.contains('@'));
+    }
+
+    #[test]
+    fn password_min_length() {
+        let short = "1234567"; // 7 chars
+        assert!(short.len() < 8);
+        let valid = "12345678"; // 8 chars
+        assert!(valid.len() >= 8);
+    }
+
+    #[test]
+    fn api_error_display_for_login() {
+        let err = crate::api::client::ApiError::Http(401, "Invalid credentials".into());
+        assert!(err.to_string().contains("401"));
+        assert!(err.to_string().contains("Invalid credentials"));
+    }
+
+    #[test]
+    fn api_network_error_display() {
+        let err = crate::api::client::ApiError::Network("Connection refused".into());
+        assert!(err.to_string().contains("Connection refused"));
+    }
+
+    #[test]
+    fn demo_flow_state_transition() {
+        let mut state = AuthState::default();
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "demo@test.com".into(),
+            name: Some("Demo".into()),
+            currency: "EUR".into(),
+            verified: true,
+        };
+        // Before: not authenticated
+        assert!(!state.is_authenticated);
+        // After demo login
+        state.set_authenticated("demo-token".into(), user, false);
+        assert!(state.is_authenticated);
+        assert_eq!(state.token, Some("demo-token".into()));
+        // After logout
+        state.logout();
+        assert!(!state.is_authenticated);
+        assert!(state.token.is_none());
+    }
 }

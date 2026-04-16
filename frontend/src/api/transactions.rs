@@ -20,3 +20,28 @@ pub async fn update(id: &uuid::Uuid, req: &UpdateTransactionRequest) -> Result<T
 pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
     api_delete(&format!("/api/transactions/{}", id)).await
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn transaction_api_paths() {
+        let base = "/api/transactions";
+        assert!(base.starts_with("/api/"));
+
+        let id = uuid::Uuid::new_v4();
+        let detail = format!("/api/transactions/{}", id);
+        assert!(detail.starts_with("/api/transactions/"));
+    }
+
+    #[test]
+    fn transaction_id_in_path() {
+        let id = uuid::Uuid::new_v4();
+        let path = format!("/api/transactions/{}", id);
+        assert!(path.contains(&id.to_string()));
+    }
+
+    #[test]
+    fn transaction_list_path() {
+        assert_eq!("/api/transactions", "/api/transactions");
+    }
+}

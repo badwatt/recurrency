@@ -115,4 +115,39 @@ mod tests {
     fn themes_list() {
         assert_eq!(THEMES.len(), 4);
     }
+
+    // ── Additional tests ──
+    #[test]
+    fn cycle_theme_sequence() {
+        let mut current = "light";
+        current = cycle_theme(current);
+        assert_eq!(current, "dark");
+        current = cycle_theme(current);
+        assert_eq!(current, "mocha");
+        current = cycle_theme(current);
+        assert_eq!(current, "system");
+        current = cycle_theme(current);
+        assert_eq!(current, "light");
+    }
+
+    #[test]
+    fn resolve_unknown_theme_falls_to_light() {
+        assert_eq!(resolve_theme_class("unknown"), "light");
+        assert_eq!(resolve_theme_class(""), "light");
+        assert_eq!(resolve_theme_class("foo"), "light");
+    }
+
+    #[test]
+    fn resolve_system_theme_default_light() {
+        // In test/non-web context, system resolves to light
+        assert_eq!(resolve_theme_class("system"), "light");
+    }
+
+    #[test]
+    fn themes_contains_all_values() {
+        assert!(THEMES.contains(&"light"));
+        assert!(THEMES.contains(&"dark"));
+        assert!(THEMES.contains(&"mocha"));
+        assert!(THEMES.contains(&"system"));
+    }
 }

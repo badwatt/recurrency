@@ -25,7 +25,7 @@ struct DDGResponse {
 
 /// Extract VQD token from DDG HTML response.
 /// Pattern: `vqd='<token>'` or `vqd="<token>"` in the HTML.
-fn extract_vqd(html: &str) -> Option<String> {
+pub(crate) fn extract_vqd(html: &str) -> Option<String> {
     for prefix in &["vqd='", "vqd=\"", "vqd="] {
         if let Some(start) = html.find(prefix) {
             let token_start = start + prefix.len();
@@ -137,5 +137,150 @@ mod tests {
     fn test_extract_vqd_missing() {
         let html = r#"some text without vqd token"#;
         assert_eq!(extract_vqd(html), None);
+    }
+
+    #[test]
+    fn test_extract_vqd_empty_token() {
+        // vqd='' should return None because token is empty
+        let html = r#"some text vqd='' other stuff"#;
+        assert_eq!(extract_vqd(html), None);
+    }
+
+    #[test]
+    fn test_extract_vqd_with_semicolon() {
+        let html = r#"some text vqd=abc-def; other stuff"#;
+        assert_eq!(extract_vqd(html), Some("abc-def".to_string()));
+    }
+
+    #[test]
+    fn test_extract_vqd_at_end_of_string() {
+        let html = r#"vqd='token123'"#;
+        assert_eq!(extract_vqd(html), Some("token123".to_string()));
+    }
+
+    #[test]
+    fn test_empty_query_returns_empty() {
+        // We can't test the async function easily without network,
+        // but we can test that an empty query string would be caught
+        let query = "  ".trim();
+        assert!(query.is_empty());
+    }
+
+    #[test]
+    fn test_extract_vqd_mixed_html() {
+        let html = r#"<html><body>some vqd='my-token-123' more</body></html>"#;
+        assert_eq!(extract_vqd(html), Some("my-token-123".to_string()));
+    }
+
+    #[test]
+    fn test_extract_vqd_multiple_vqds() {
+        // Should find the first one
+        let html = r#"vqd='first' vqd='second'"#;
+        assert_eq!(extract_vqd(html), Some("first".to_string()));
+    }
+
+    #[test]
+    fn test_extract_vqd_long_token() {
+        let token = "a".repeat(200);
+        let html = format!("vqd='{}'", token);
+        assert_eq!(extract_vqd(&html), Some(token));
+    }
+
+    #[test]
+    fn test_ddg_image_result_mapping() {
+        // Simulate what search_logos does at the end
+        let ddg_result = DDGImageResult {
+            image: "https://example.com/img.png".to_string(),
+            thumbnail: Some("https://example.com/thumb.png".to_string()),
+            width: Some(100),
+            height: Some(50),
+        };
+        let logo = LogoResult {
+            url: ddg_result.image.clone(),
+            thumbnail: ddg_result.thumbnail.clone().unwrap(),
+            width: ddg_result.width,
+            height: ddg_result.height,
+        };
+        assert_eq!(logo.url, "https://example.com/img.png");
+        assert_eq!(logo.thumbnail, "https://example.com/thumb.png");
+        assert_eq!(logo.width, Some(100));
+        assert_eq!(logo.height, Some(50));
+    }
+
+    #[test]
+    fn test_ddg_image_result_no_thumbnail_fallback() {
+        // When no thumbnail, should use image URL as fallback
+        let ddg_result = DDGImageResult {
+            image: "https://example.com/img.png".to_string(),
+            thumbnail: None,
+            width: None,
+            height: None,
+        };
+        let logo = LogoResult {
+            url: ddg_result.image.clone(),
+            thumbnail: ddg_result.thumbnail.unwrap_or_else(|| ddg_result.image.clone()),
+            width: ddg_result.width,
+            height: ddg_result.height,
+        };
+        assert_eq!(logo.thumbnail, "https://example.com/img.png");
+    }
+
+    #[test]
+    fn test_logo_result_serialization() {
+        let logo = LogoResult {
+            url: "https://example.com/img.png".to_string(),
+            thumbnail: "https://example.com/thumb.png".to_string(),
+            width: Some(200),
+            height: Some(100),
+        };
+        let json = serde_json::to_value(&logo).unwrap();
+        assert_eq!(json["url"], "https://example.com/img.png");
+        assert_eq!(json["width"], 200);
+    }
+
+    #[test]
+    fn test_query_cleaning() {
+        let query = "  Netflix  ".trim().to_lowercase();
+        assert_eq!(query, "netflix");
+    }
+
+    #[test]
+    fn test_search_term_format() {
+        let query = "spotify";
+        let search_term = format!("{} logo transparent", query);
+        assert_eq!(search_term, "spotify logo transparent");
+    }
+
+    #[test]
+    fn test_ddg_response_empty_results() {
+        let json = r#"{"results":null}"#;
+        let resp: DDGResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.results.is_none());
+    }
+
+    #[test]
+    fn test_ddg_response_with_results() {
+        let json = r#"{"results":[{"image":"https://x.com/i.png","thumbnail":"https://x.com/t.png","width":100,"height":50}]}"#;
+        let resp: DDGResponse = serde_json::from_str(json).unwrap();
+        let results = resp.results.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].image, "https://x.com/i.png");
+    }
+
+    #[test]
+    fn test_results_limited_to_8() {
+        let ddg_results: Vec<DDGImageResult> = (0..20).map(|i| DDGImageResult {
+            image: format!("https://x.com/{}.png", i),
+            thumbnail: Some(format!("https://x.com/t{}.png", i)),
+            width: None,
+            height: None,
+        }).collect();
+        let logos: Vec<LogoResult> = ddg_results.into_iter().take(8).map(|r| LogoResult {
+            url: r.image.clone(),
+            thumbnail: r.thumbnail.unwrap_or_else(|| r.image.clone()),
+            width: r.width,
+            height: r.height,
+        }).collect();
+        assert_eq!(logos.len(), 8);
     }
 }

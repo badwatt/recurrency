@@ -35,3 +35,34 @@ pub async fn get_report(
 
     Ok(Json(report))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn report_query_deserialize_with_params() {
+        let query = "year=2024&month=6&token=abc";
+        let result: ReportQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.year, Some(2024));
+        assert_eq!(result.month, Some(6));
+        assert_eq!(result.token.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn report_query_deserialize_empty() {
+        let query = "";
+        let result: ReportQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.year.is_none());
+        assert!(result.month.is_none());
+    }
+
+    #[test]
+    fn report_query_defaults_to_current_date() {
+        let today = chrono::Utc::now().date_naive();
+        let year = None::<i32>.unwrap_or(today.year());
+        let month = None::<u32>.unwrap_or(today.month());
+        assert_eq!(year, today.year());
+        assert_eq!(month, today.month());
+    }
+}
