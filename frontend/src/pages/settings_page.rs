@@ -109,7 +109,7 @@ pub fn SettingsPage() -> Element {
 
 
     rsx! {
-        div { class: "p-4 md:p-6 space-y-6",
+        div { class: "p-4 md:p-6 flex flex-col gap-6",
             h1 { class: "text-3xl font-bold tracking-tight", "Settings" }
             p { class: "text-muted-foreground", "Manage your account and preferences" }
 

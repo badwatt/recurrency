@@ -22,7 +22,7 @@ pub fn AppLayout() -> Element {
     // Wait for initialization before deciding
     if !auth.initialized {
         return rsx! {
-            div { class: "flex min-h-dvh flex-col items-center justify-center gap-4 bg-background text-foreground",
+            div { class: "fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/85 backdrop-blur-xl text-foreground",
                 // Animated spinner — two rings spinning opposite directions
                 div { class: "relative h-12 w-12",
                     div { class: "absolute inset-0 animate-spin rounded-full border-4 border-muted border-t-primary" }
@@ -728,5 +728,28 @@ mod tests {
         });
         assert!(has_app_overlay,
             "Notification overlay must exist at App level using NOTIFICATIONS global signal");
+    }
+
+    #[test]
+    fn loading_spinner_is_backdrop_blur_overlay() {
+        // The !auth.initialized loading screen must be a semi-transparent
+        // overlay with backdrop-blur, not a solid opaque div.
+        // Bug: was a solid bg-background div replacing all content.
+        let src = include_str!("app_layout.rs");
+        let init_section = src.split("!auth.initialized").nth(1).unwrap_or("");
+        let return_block = init_section.split("return rsx!").nth(1).unwrap_or("");
+        // Take up to the next closing pattern (next fn or component)
+        let block = return_block.lines().take(15).collect::<Vec<_>>().join("\n");
+        let block_lower = block.to_lowercase();
+        // Must use backdrop-blur class
+        assert!(block_lower.contains("backdrop-blur"),
+            "Loading spinner must use backdrop-blur for semi-transparent overlay. Found: {}",
+            block.lines().take(3).collect::<Vec<_>>().join(" "));
+        // Must use semi-transparent background, not opaque bg-background
+        let has_opaque_bg = (block.contains("bg-background ") || block.contains("bg-background\""))
+            && !block.contains("bg-background/");
+        assert!(!has_opaque_bg,
+            "Loading spinner must NOT use opaque bg-background/bg-card. Use semi-transparent bg. Found: {}",
+            block.lines().take(3).collect::<Vec<_>>().join(" "));
     }
 }

@@ -7,11 +7,13 @@
     <title>Recurrency</title>
     <link rel="stylesheet" href="/tailwind.css" />
     <style>
-        /* Pre-WASM loading spinner — themed via CSS vars */
+        /* Pre-WASM loading overlay — themed + semi-transparent + backdrop-blur */
         #pre-wasm-loader {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            min-height: 100dvh; gap: 1rem;
+            position: fixed; inset: 0; z-index: 9999;
+            background-color: hsl(var(--background) / 0.85);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             color: hsl(var(--foreground));
         }
         #pre-wasm-loader .rings { position: relative; width: 3rem; height: 3rem; }

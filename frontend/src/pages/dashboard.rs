@@ -168,7 +168,7 @@ pub fn Dashboard() -> Element {
     };
 
     rsx! {
-        div { class: "p-4 md:p-6 space-y-6",
+        div { class: "p-4 md:p-6 flex flex-col gap-6",
             // Greeting
             div {
                 h1 { class: "text-3xl font-bold tracking-tight", "Dashboard" }
@@ -506,5 +506,30 @@ mod tests {
         ];
         let due = state.due_this_month();
         assert!(due.iter().all(|s| s.is_active));
+    }
+
+    #[test]
+    fn page_content_uses_gap_not_space_y() {
+        // space-y-6 adds unwanted margin-top to first child element.
+        // Must use flex flex-col gap-6 instead — gap doesn't add to first child.
+        // Bug: space-y-6 margin-top on greeting, first card, etc.
+        let bad = "space-y-6";
+        // Check page layout code only (before "mod tests")
+        let pages = [
+            (include_str!("dashboard.rs"), "dashboard"),
+            (include_str!("subscriptions_page.rs"), "subscriptions"),
+            (include_str!("transactions_page.rs"), "transactions"),
+            (include_str!("calendar_page.rs"), "calendar"),
+            (include_str!("categories_page.rs"), "categories"),
+            (include_str!("settings_page.rs"), "settings"),
+            (include_str!("reports_page.rs"), "reports"),
+        ];
+        for (src, name) in pages {
+            // Only check code before tests module to avoid false positives
+            let code = src.split("mod tests").next().unwrap_or(src);
+            assert!(!code.contains(bad),
+                "{} page must use flex flex-col gap-6 instead of space-y-6",
+                name);
+        }
     }
 }

@@ -125,7 +125,7 @@ pub fn ReportsPage() -> Element {
     };
 
     rsx! {
-        div { class: "p-4 md:p-6 space-y-6 overflow-x-hidden",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 overflow-x-hidden",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
                 div {
@@ -167,7 +167,7 @@ pub fn ReportsPage() -> Element {
                 }
             } else if let Some(r) = report() {
                 rsx! {
-                    div { class: "space-y-6",
+                    div { class: "flex flex-col gap-6",
                         // ── Summary Cards ─────────────────────────────
                         div { class: "grid gap-4 md:grid-cols-4",
                             // Total Spending

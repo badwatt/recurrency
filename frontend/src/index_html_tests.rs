@@ -216,3 +216,21 @@ fn index_html_has_loading_spinner_before_wasm() {
     assert!(has_css_vars,
         "Loading spinner must use CSS variables (--primary, --foreground) for theme adaptation");
 }
+
+#[test]
+fn index_html_loader_is_backdrop_blur_overlay() {
+    // Loading spinner must be a semi-transparent overlay with backdrop-blur,
+    // not a solid opaque div that hides page content.
+    // Bug: loader was a full-viewport solid div, no blur/semi-transparency.
+    let html = include_str!("../assets/index.html");
+    let style_section = html.split("<style>").nth(1).unwrap_or("").split("</style>").next().unwrap_or("");
+    let lower = style_section.to_lowercase();
+    // Must have backdrop-filter: blur or backdrop-blur class
+    assert!(lower.contains("backdrop-filter") || lower.contains("backdrop-blur"),
+        "#pre-wasm-loader style must include backdrop-filter:blur for semi-transparent overlay");
+    // Must have semi-transparent background (rgba or hsl with alpha < 1)
+    let has_semi_transparent = lower.contains("rgba") || lower.contains("hsla")
+        || (lower.contains("hsl(") && lower.contains("/"));  // hsl(var/alpha) syntax
+    assert!(has_semi_transparent,
+        "#pre-wasm-loader must have semi-transparent background (not opaque)");
+}
