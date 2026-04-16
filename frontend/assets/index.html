@@ -33,7 +33,7 @@
             align-items: center; justify-content: center;
             position: fixed; inset: 0; z-index: 9999;
             /* Semi-transparent — app behind visible through blur */
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.3);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             color: #fff;
         }
@@ -74,7 +74,7 @@
                 // Set loader bg via inline style (authoritative, no cascade)
                 var loader = document.getElementById('pre-wasm-loader');
                 if (loader) {
-                    loader.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                    loader.style.backgroundColor = 'rgba(0,0,0,0.3)';
                 }
                 // Update meta theme-color
                 var meta = document.querySelector('meta[name="theme-color"]');
