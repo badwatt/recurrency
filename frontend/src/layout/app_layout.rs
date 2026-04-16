@@ -343,7 +343,6 @@ fn NotificationBell() -> Element {
                 onclick: move |_| {
                     let next = !open();
                     if next {
-                        // Fetch notifications on open
                         spawn(async move {
                             match notifications::list().await {
                                 Ok(resp) => NOTIFICATIONS.write().set_data(resp.notifications, resp.unread_count),
@@ -375,45 +374,51 @@ fn NotificationBell() -> Element {
 
             // Dropdown panel
             if open() {
+                // Fixed overlay behind dropdown — click anywhere outside to close
                 div {
-                    class: "absolute right-0 top-full mt-2 w-80 rounded-md border border-border bg-card shadow-lg z-50 overflow-hidden",
-                    onclick: move |e| e.stop_propagation(),
+                    class: "fixed inset-0 z-40",
+                    onclick: move |_| open.set(false),
 
-                    // Header
-                    div { class: "flex items-center justify-between px-4 py-3 border-b border-border",
-                        span { class: "text-sm font-semibold text-foreground", "Notifications" }
-                        button {
-                            r#type: "button",
-                            class: "text-xs text-muted-foreground hover:text-foreground transition-colors",
-                            onclick: move |_| {
-                                spawn(async move {
-                                    if let Ok(_) = notifications::mark_all_as_read().await {
-                                        NOTIFICATIONS.write().mark_all_as_read();
-                                        // Re-fetch to sync
-                                        if let Ok(resp) = notifications::list().await {
-                                            NOTIFICATIONS.write().set_data(resp.notifications, resp.unread_count);
+                    // Panel (positioned above the bell)
+                    div {
+                        class: "absolute right-0 top-full mt-2 w-80 rounded-md border border-border bg-card shadow-lg z-50 overflow-hidden",
+                        onclick: move |e| e.stop_propagation(),
+
+                        // Header
+                        div { class: "flex items-center justify-between px-4 py-3 border-b border-border",
+                            span { class: "text-sm font-semibold text-foreground", "Notifications" }
+                            button {
+                                r#type: "button",
+                                class: "text-xs text-muted-foreground hover:text-foreground transition-colors",
+                                onclick: move |_| {
+                                    spawn(async move {
+                                        if let Ok(_) = notifications::mark_all_as_read().await {
+                                            NOTIFICATIONS.write().mark_all_as_read();
+                                            if let Ok(resp) = notifications::list().await {
+                                                NOTIFICATIONS.write().set_data(resp.notifications, resp.unread_count);
+                                            }
                                         }
-                                    }
-                                });
-                            },
-                            "Mark all read"
+                                    });
+                                },
+                                "Mark all read"
+                            }
                         }
-                    }
 
-                    // List
-                    div { class: "max-h-72 overflow-y-auto divide-y divide-border",
-                        {match NOTIFICATIONS().notifications.is_empty() {
-                            true => rsx! {
-                                div { class: "flex items-center justify-center py-8 text-sm text-muted-foreground",
-                                    "No notifications"
-                                }
-                            },
-                            false => rsx! {
-                                for n in NOTIFICATIONS().notifications.iter() {
-                                    NotificationItem { key: "{n.id}", notification: n.clone() }
-                                }
-                            },
-                        }}
+                        // List
+                        div { class: "max-h-72 overflow-y-auto divide-y divide-border",
+                            {match NOTIFICATIONS().notifications.is_empty() {
+                                true => rsx! {
+                                    div { class: "flex items-center justify-center py-8 text-sm text-muted-foreground",
+                                        "No notifications"
+                                    }
+                                },
+                                false => rsx! {
+                                    for n in NOTIFICATIONS().notifications.iter() {
+                                        NotificationItem { key: "{n.id}", notification: n.clone() }
+                                    }
+                                },
+                            }}
+                        }
                     }
                 }
             }
