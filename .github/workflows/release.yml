@@ -201,8 +201,10 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      - name: Build Android APK (debug)
-        run: cd frontend && dx bundle --platform android
+      # dx bundle auto-detects HOST arch (x86_64 on CI runner) → APK incompatible with ARM phones.
+      # Force aarch64-linux-android via --target flag (covers 95%+ devices).
+      - name: Build Android APK (aarch64 debug)
+        run: cd frontend && dx bundle --platform android --target aarch64-linux-android
 
       # Fix Dioxus #5251: generated AndroidManifest.xml has extractNativeLibs="false"
       # which prevents native lib extraction → "not compatible with phone" error.
@@ -222,7 +224,9 @@ jobs:
             # Fix 2: Java 8 → 17
             sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
             sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-            # Fix 3: Rebuild with patched files, skip lint
+            # Fix 3: Add jniLibs useLegacyPackaging for native libs
+            grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
+            # Fix 4: Rebuild with patched files, skip lint
             cd "$APP_DIR"
             ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
           fi

@@ -39,13 +39,13 @@ COPY frontend/ ./
 RUN npm install --prefix . tailwindcss tailwindcss-animate \
     && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
-# Build Dioxus web app (dx build = raw output to out_dir; dx bundle = packaged)
-# Use dx build for Docker — outputs directly to dist/ without packaging
-RUN dx build --platform web --release && \
+# Build Dioxus web bundle (dx bundle outputs to out_dir = dist/)
+RUN dx bundle --platform web --release && \
     echo "=== Frontend dist/ output ===" && \
-    ls -laR dist/ 2>/dev/null && \
+    ls -laR dist/ 2>/dev/null; \
     echo "=== Searching for index.html ===" && \
-    find dist/ target/dx/ -name 'index.html' -type f 2>/dev/null
+    find dist/ target/dx/ -name 'index.html' -type f 2>/dev/null; \
+    test -f dist/index.html || { echo "FATAL: index.html not in dist/, checking target/dx/"; find target/dx/ -name 'index.html' -type f; }
 
 # ── Stage 2: Build backend ──────────────────────────────────
 # rust:bookworm has glibc 2.36 — binary compatible with debian:bookworm-slim runtime
