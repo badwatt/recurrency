@@ -79,6 +79,14 @@ jobs:
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Tailwind CSS
+        run: cd frontend && npm ci && npm run build:css
+
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2
         with:
@@ -194,6 +202,14 @@ jobs:
 
       - name: Verify dx CLI
         run: which dx && dx --version
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Tailwind CSS
+        run: cd frontend && npm ci && npm run build:css
 
       - name: Ensure icon exists
         run: |
