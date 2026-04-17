@@ -55,28 +55,31 @@ fn get_base_url_impl() -> String {
             if let Ok(Some(storage)) = window.local_storage() {
                 if let Ok(Some(url)) = storage.get_item("RECURRENCY_API_URL") {
                     if !url.is_empty() {
+                        eprintln!("[get_base_url] WASM localStorage: {}", url);
                         return url;
                     }
                 }
             }
-            // No explicit config → use same origin (Docker/production)
             if let Ok(origin) = window.location().origin() {
                 if !origin.is_empty() {
+                    eprintln!("[get_base_url] WASM origin: {}", origin);
                     return origin;
                 }
             }
         }
+        eprintln!("[get_base_url] WASM fallback: localhost:8080");
         return "http://localhost:8080".to_string();
     }
 
-    // 2. On native (desktop/Android): check env var, then fallback
     #[cfg(not(target_arch = "wasm32"))]
     {
         if let Ok(url) = std::env::var("RECURRENCY_API_URL") {
             if !url.is_empty() {
+                eprintln!("[get_base_url] Native env var: {}", url);
                 return url;
             }
         }
+        eprintln!("[get_base_url] Native fallback: localhost:8080");
         "http://localhost:8080".to_string()
     }
 }

@@ -243,7 +243,7 @@ jobs:
             esac
             TARGET="$RES_DIR/$dir/ic_launcher.webp"
             if [ -f "$TARGET" ]; then
-              convert assets/icon.png -resize ${SIZE}x${SIZE} "$TARGET"
+              convert assets/icons/icon-1024.png -resize ${SIZE}x${SIZE} "$TARGET"
               echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
             fi
           done
@@ -285,8 +285,10 @@ jobs:
           fi
           echo "Found APK: $APK"
           mkdir -p frontend/dist
-          cp "$APK" frontend/dist/recurrency.apk
-          ls -la frontend/dist/recurrency.apk
+          APK_NAME="recurrency-$(cat VERSION)-aarch64.apk"
+          cp "$APK" "frontend/dist/$APK_NAME"
+          ls -la "frontend/dist/$APK_NAME"
+          echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -300,4 +302,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
-          files: frontend/dist/recurrency.apk
+          files: frontend/dist/${{ env.APK_NAME }}

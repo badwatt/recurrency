@@ -12,7 +12,7 @@ watch_path = ["src", "assets", "public"]
 
 [bundle]
 identifier = "com.alvaro17f.recurrency"
-icon = ["assets/icon.png"]
+icon = ["assets/icons/icon-1024.png"]
 
 [android]
 # arm64 covers 95%+ of devices; add "x86_64-linux-android" if needed for emulators

@@ -70,13 +70,21 @@ fn App() -> Element {
         // On Android/desktop, the user explicitly configured a URL.
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let result: serde_json::Value = dioxus::document::eval(
-                "localStorage.getItem('RECURRENCY_API_URL') || ''",
-            ).await.unwrap_or(serde_json::Value::Null);
-            if let Some(url) = result.as_str() {
-                if !url.is_empty() {
-                    crate::api::client::set_base_url(url);
+            use dioxus::document::eval;
+            eprintln!("[App] Restoring server URL from localStorage...");
+            match eval("localStorage.getItem('RECURRENCY_API_URL') || ''").await {
+                Ok(result) => {
+                    eprintln!("[App] localStorage result: {:?}", result);
+                    if let Some(url) = result.as_str() {
+                        if !url.is_empty() {
+                            crate::api::client::set_base_url(url);
+                            eprintln!("[App] Server URL restored: {}", url);
+                        } else {
+                            eprintln!("[App] No server URL in localStorage");
+                        }
+                    }
                 }
+                Err(e) => eprintln!("[App] localStorage read failed: {}", e),
             }
         }
     });
