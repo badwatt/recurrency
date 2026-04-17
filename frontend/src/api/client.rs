@@ -73,10 +73,22 @@ fn get_base_url_impl() -> String {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        // Check env var first, then app data file
         if let Ok(url) = std::env::var("RECURRENCY_API_URL") {
             if !url.is_empty() {
                 eprintln!("[get_base_url] Native env var: {}", url);
                 return url;
+            }
+        }
+        // Try app data file (persisted by SetupPage.save_server_url)
+        if let Some(data_dir) = dirs::data_dir() {
+            let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
+            if let Ok(url) = std::fs::read_to_string(&url_file) {
+                let url = url.trim().to_string();
+                if !url.is_empty() {
+                    eprintln!("[get_base_url] Native file: {}", url);
+                    return url;
+                }
             }
         }
         eprintln!("[get_base_url] Native fallback: localhost:8080");

@@ -65,26 +65,36 @@ fn App() -> Element {
         }
         PREFERENCES.write().hydrate_from_storage();
 
-        // Restore saved server URL from localStorage (persists across app restarts)
-        // On WASM (Docker), same-origin is used — no need to restore.
-        // On Android/desktop, the user explicitly configured a URL.
+        // Restore saved server URL from persistent storage.
+        // On WASM (Docker): same-origin is used, no restore needed.
+        // On Android: read from app data file (dioxus::document::eval hangs on Android).
+        // On desktop: read from env var or app data file.
+        #[cfg(target_arch = "wasm32")]
+        {
+            // WASM: localStorage is handled by get_base_url_impl() at call time.
+            // No async eval needed here since web_sys localStorage is synchronous.
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use dioxus::document::eval;
-            eprintln!("[App] Restoring server URL from localStorage...");
-            match eval("localStorage.getItem('RECURRENCY_API_URL') || ''").await {
-                Ok(result) => {
-                    eprintln!("[App] localStorage result: {:?}", result);
-                    if let Some(url) = result.as_str() {
+            // Desktop/Android: try env var first, then app data file
+            if let Ok(url) = std::env::var("RECURRENCY_API_URL") {
+                if !url.is_empty() {
+                    crate::api::client::set_base_url(&url);
+                    eprintln!("[App] Server URL from env: {}", url);
+                }
+            } else {
+                // Try reading from app data file
+                let data_dir: std::path::PathBuf = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+                let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
+                if url_file.exists() {
+                    if let Ok(url) = std::fs::read_to_string(&url_file) {
+                        let url = url.trim().to_string();
                         if !url.is_empty() {
-                            crate::api::client::set_base_url(url);
-                            eprintln!("[App] Server URL restored: {}", url);
-                        } else {
-                            eprintln!("[App] No server URL in localStorage");
+                            crate::api::client::set_base_url(&url);
+                            eprintln!("[App] Server URL from file: {}", url);
                         }
                     }
                 }
-                Err(e) => eprintln!("[App] localStorage read failed: {}", e),
             }
         }
     });
