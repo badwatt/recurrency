@@ -1,6 +1,7 @@
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 use serde::de::DeserializeOwned;
+use std::sync::RwLock;
 
 /// API error type.
 #[derive(Debug, Clone)]
@@ -22,12 +23,32 @@ impl std::fmt::Display for ApiError {
     }
 }
 
-/// Get the base URL for the API.
-/// On WASM (web): checks localStorage first, then uses same-origin.
-/// On native (desktop/mobile): reads from RECURRENCY_API_URL env var.
-/// Fallback: "http://localhost:8080"
+/// Runtime-overridable base URL. Set by SetupPage when user configures server URL.
+/// Uses RwLock for thread-safe mutability without Dioxus runtime dependency (works in tests).
+static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
+
+/// Returns the backend API base URL.
 pub fn get_base_url() -> String {
-    // 1. On WASM: check localStorage for explicit user config
+    if let Ok(lock) = BASE_URL_OVERRIDE.read() {
+        if let Some(url) = lock.as_ref() {
+            if !url.is_empty() {
+                return url.clone();
+            }
+        }
+    }
+    get_base_url_impl()
+}
+
+/// Update the base URL at runtime (called after user configures server URL).
+pub fn set_base_url(url: &str) {
+    if let Ok(mut lock) = BASE_URL_OVERRIDE.write() {
+        *lock = Some(url.to_string());
+    }
+}
+
+/// Implementation: resolve base URL from localStorage/env/origin.
+fn get_base_url_impl() -> String {
+    // 1. On WASM: check localStorage first, then same-origin
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
@@ -45,11 +66,10 @@ pub fn get_base_url() -> String {
                 }
             }
         }
-        // WASM fallback if window unavailable
         return "http://localhost:8080".to_string();
     }
 
-    // 2. On native: check env var
+    // 2. On native (desktop/Android): check env var, then fallback
     #[cfg(not(target_arch = "wasm32"))]
     {
         if let Ok(url) = std::env::var("RECURRENCY_API_URL") {

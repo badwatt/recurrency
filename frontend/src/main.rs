@@ -56,15 +56,29 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    // Hydrate auth state from localStorage on mount
+    // Hydrate auth state and preferences from localStorage on mount
+    // Also restore saved server URL on Android/desktop (where env var isn't persisted)
     use_future(move || async move {
         if !AUTH().initialized {
             AUTH.write().hydrate_from_storage();
-            // Always mark initialized so route guard doesn't loop forever
             AUTH.write().initialized = true;
         }
-        // Hydrate preferences (theme) from localStorage
         PREFERENCES.write().hydrate_from_storage();
+
+        // Restore saved server URL from localStorage (persists across app restarts)
+        // On WASM (Docker), same-origin is used — no need to restore.
+        // On Android/desktop, the user explicitly configured a URL.
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let result: serde_json::Value = dioxus::document::eval(
+                "localStorage.getItem('RECURRENCY_API_URL') || ''",
+            ).await.unwrap_or(serde_json::Value::Null);
+            if let Some(url) = result.as_str() {
+                if !url.is_empty() {
+                    crate::api::client::set_base_url(url);
+                }
+            }
+        }
     });
 
     rsx! {

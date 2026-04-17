@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::api::client::get_base_url;
+use crate::api::client::{get_base_url, set_base_url};
 use crate::Route;
 
 /// Setup page: server URL input and Connect button.
@@ -30,13 +30,15 @@ pub fn SetupPage() -> Element {
                 Ok(resp) if resp.status().is_success() => {
                     success.set(true);
                     connecting.set(false);
-                    // Store the URL in localStorage (works on WASM/Android)
+                    // Store the URL in localStorage (works on WASM/Android WebView)
                     let _ = dioxus::document::eval(&format!(
                         "localStorage.setItem('RECURRENCY_API_URL', '{}')",
                         url,
                     ));
-                    // Store in env var (only works on desktop native)
-                    #[cfg(not(target_arch = "wasm32"))]
+                    // Update the global base URL signal so subsequent API calls use it
+                    set_base_url(&url);
+                    // Store in env var (only on desktop — crashes on Android, no-op on WASM)
+                    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
                     std::env::set_var("RECURRENCY_API_URL", &url);
                     let nav = navigator();
                     nav.push(Route::Login {});
