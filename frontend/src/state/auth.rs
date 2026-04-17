@@ -3,6 +3,29 @@ use crate::models::auth::UserResponse;
 
 #[allow(dead_code)]
 const TOKEN_KEY: &str = "recurrency-auth-token";
+/// Returns the app data directory for native platforms.
+/// Tries dirs::data_dir() first, then falls back to Android-specific paths.
+#[cfg(not(target_arch = "wasm32"))]
+fn get_app_data_dir() -> Option<std::path::PathBuf> {
+    // 1. Try standard dirs (works on desktop Linux/macOS/Windows)
+    if let Some(dir) = dirs::data_dir() {
+        return Some(dir);
+    }
+    // 2. Android fallback: /data/data/<package>/files is the canonical private dir
+    //    The parent /data/data/<package> always exists for installed apps.
+    //    We just need to return a path so create_dir_all() can create the subdir.
+    let android_files = std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
+    if android_files.parent().map(|p| p.exists()).unwrap_or(false) {
+        return Some(android_files);
+    }
+    // 3. Fallback: HOME/.recurrency (works on desktop when dirs fails)
+    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        return Some(std::path::PathBuf::from(home).join(".recurrency"));
+    }
+    None
+}
+
+
 #[allow(dead_code)]
 const USER_KEY: &str = "recurrency-auth-user";
 
@@ -76,7 +99,7 @@ impl AuthState {
         #[cfg(not(target_arch = "wasm32"))]
         {
             if let (Some(token), Some(user)) = (&self.token, &self.user) {
-                if let Some(data_dir) = dirs::data_dir() {
+                if let Some(data_dir) = get_app_data_dir() {
                     let app_dir = data_dir.join("recurrency");
                     if let Err(e) = std::fs::create_dir_all(&app_dir) {
                         eprintln!("[Auth] Failed to create app dir {:?}: {}", app_dir, e);
@@ -90,7 +113,7 @@ impl AuthState {
                         }
                     }
                 } else {
-                    eprintln!("[Auth] dirs::data_dir() returned None — cannot persist auth");
+                    eprintln!("[Auth] get_app_data_dir() returned None — cannot persist auth");
                 }
             }
         }
@@ -110,7 +133,7 @@ impl AuthState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(data_dir) = dirs::data_dir() {
+            if let Some(data_dir) = get_app_data_dir() {
                 let app_dir = data_dir.join("recurrency");
                 let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
                 let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
@@ -141,7 +164,7 @@ impl AuthState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(data_dir) = dirs::data_dir() {
+            if let Some(data_dir) = get_app_data_dir() {
                 let app_dir = data_dir.join("recurrency");
                 let token_file = app_dir.join("auth-token.txt");
                 let user_file = app_dir.join("auth-user.json");
@@ -168,7 +191,7 @@ impl AuthState {
                     }
                 }
             } else {
-                eprintln!("[Auth] Hydrate: dirs::data_dir() returned None");
+                eprintln!("[Auth] Hydrate: get_app_data_dir() returned None");
             }
         }
         false
@@ -298,7 +321,7 @@ mod tests {
     fn test_persist_to_storage_writes_files_on_native() {
         // TDD: persist_to_storage must write auth-token.txt and auth-user.json
         // to dirs::data_dir()/recurrency/ on native platforms.
-        let data_dir = dirs::data_dir().expect("data dir should exist");
+        let data_dir = get_app_data_dir().expect("get_app_data_dir should return Some on native");
         let app_dir = data_dir.join("recurrency");
         // Clean up before test
         let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
