@@ -88,6 +88,7 @@ pub fn Dashboard() -> Element {
     // Fetch subscriptions on mount
     use_hook(move || {
         spawn(async move {
+            #[cfg(not(target_os = "android"))]
             SUBSCRIPTIONS.write().set_loading();
             match api_subs::list().await {
                 Ok(subs) => SUBSCRIPTIONS.write().set_data(subs),

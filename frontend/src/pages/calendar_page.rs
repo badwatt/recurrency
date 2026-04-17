@@ -200,6 +200,7 @@ pub fn CalendarPage() -> Element {
         let year = current_year();
         let month = current_month();
         spawn(async move {
+            #[cfg(not(target_os = "android"))]
             is_loading.set(true);
             match sub_api::calendar_month(year, month).await {
                 Ok(items) => calendar_items.set(items),
@@ -212,6 +213,7 @@ pub fn CalendarPage() -> Element {
     // Ensure subscriptions are loaded for category lookups and edit actions
     use_effect(move || {
         spawn(async move {
+            #[cfg(not(target_os = "android"))]
             let state = SUBSCRIPTIONS();
             if !state.is_loading && state.subscriptions.is_empty() && state.error.is_none() {
                 SUBSCRIPTIONS.write().set_loading();
@@ -226,6 +228,7 @@ pub fn CalendarPage() -> Element {
     // Ensure categories are loaded for category lookups
     use_effect(move || {
         spawn(async move {
+            #[cfg(not(target_os = "android"))]
             let state = CATEGORIES();
             if !state.is_loading && state.categories.is_empty() && state.error.is_none() {
                 CATEGORIES.write().set_loading();

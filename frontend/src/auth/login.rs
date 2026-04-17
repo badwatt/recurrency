@@ -25,6 +25,8 @@ pub fn LoginPage() -> Element {
     });
 
     // Check demo status on mount
+    // Skip demo status check on Android (reqwest hangs)
+    #[cfg(not(target_os = "android"))]
     use_future(move || async move {
         match demo::get_status().await {
             Ok(status) => demo_enabled.set(status.enabled),

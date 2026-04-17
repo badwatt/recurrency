@@ -223,6 +223,7 @@ pub fn TransactionsPage() -> Element {
 
     // Load data
     use_future(move || async move {
+        #[cfg(not(target_os = "android"))]
         if TRANSACTIONS().is_loading { return; }
         TRANSACTIONS.write().set_loading();
         match transactions::list().await {
@@ -232,6 +233,7 @@ pub fn TransactionsPage() -> Element {
     });
 
     use_future(move || async move {
+        #[cfg(not(target_os = "android"))]
         if !CATEGORIES().categories.is_empty() { return; }
         CATEGORIES.write().set_loading();
         match crate::api::categories::list().await {

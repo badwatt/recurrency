@@ -76,6 +76,7 @@ pub fn ReportsPage() -> Element {
 
     // Load categories
     use_future(move || async move {
+        #[cfg(not(target_os = "android"))]
         if !CATEGORIES().categories.is_empty() { return; }
         CATEGORIES.write().set_loading();
         match categories::list().await {

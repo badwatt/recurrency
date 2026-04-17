@@ -65,6 +65,7 @@ pub fn CategoriesPage() -> Element {
 
     // Load data
     use_future(move || async move {
+        #[cfg(not(target_os = "android"))]
         if !CATEGORIES().categories.is_empty() { return; }
         CATEGORIES.write().set_loading();
         match categories::list().await {

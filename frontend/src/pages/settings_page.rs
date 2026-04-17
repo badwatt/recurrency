@@ -32,6 +32,7 @@ pub fn SettingsPage() -> Element {
 
     // Load notification preferences
     use_future(move || async move {
+        #[cfg(not(target_os = "android"))]
         match notification_preferences::get().await {
             Ok(resp) => {
                 let mut map = std::collections::HashMap::new();
