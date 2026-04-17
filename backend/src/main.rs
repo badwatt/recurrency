@@ -82,6 +82,12 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         } else {
             tracing::error!("Directory {} does not exist or is empty", frontend_dist);
         }
+    } else {
+        tracing::info!("Frontend index.html found at: {}", index_path);
+        // List all files recursively for debugging WASM loading issues
+        let mut file_count = 0u32;
+        list_files_recursive(&frontend_dist, &mut file_count, 0);
+        tracing::info!("Frontend dist contains {} files", file_count);
     }
 
     Router::new()
@@ -159,6 +165,24 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
 
 async fn health_check() -> &'static str {
     "OK"
+}
+
+/// Recursively list files in a directory for startup diagnostics.
+fn list_files_recursive(dir: &str, count: &mut u32, depth: usize) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            *count += 1;
+            if depth < 4 { // Limit depth to avoid excessive logging
+                if path.is_dir() {
+                    tracing::info!("{}{}/", "  ".repeat(depth), path.file_name().unwrap_or_default().to_string_lossy());
+                    list_files_recursive(&path.to_string_lossy(), count, depth + 1);
+                } else {
+                    tracing::info!("{}{}", "  ".repeat(depth), path.file_name().unwrap_or_default().to_string_lossy());
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -39,10 +39,11 @@ COPY frontend/ ./
 RUN npm install --prefix . tailwindcss tailwindcss-animate \
     && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
 
-# Build Dioxus web bundle
-RUN dx bundle --platform web --release && \
-    echo "=== Frontend output ===" && \
-    ls -la dist/ 2>/dev/null && \
+# Build Dioxus web app (dx build = raw output to out_dir; dx bundle = packaged)
+# Use dx build for Docker — outputs directly to dist/ without packaging
+RUN dx build --platform web --release && \
+    echo "=== Frontend dist/ output ===" && \
+    ls -laR dist/ 2>/dev/null && \
     echo "=== Searching for index.html ===" && \
     find dist/ target/dx/ -name 'index.html' -type f 2>/dev/null
 
