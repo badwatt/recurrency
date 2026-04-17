@@ -164,12 +164,14 @@ pub fn LoginPage() -> Element {
                         }
                     }
 
-                    // Configure server URL
-                    p { class: "text-center text-sm text-muted-foreground",
-                        Link {
-                            to: Route::Setup {},
-                            class: "text-primary hover:underline",
-                            "Configure server URL"
+                    // Configure server URL (not needed on web — same-origin)
+                    if !cfg!(feature = "web") {
+                        p { class: "text-center text-sm text-muted-foreground",
+                            Link {
+                                to: Route::Setup {},
+                                class: "text-primary hover:underline",
+                                "Configure server URL"
+                            }
                         }
                     }
                 }

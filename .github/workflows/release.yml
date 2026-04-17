@@ -222,6 +222,32 @@ jobs:
       - name: Build Android APK (aarch64 debug)
         run: cd frontend && dx bundle --platform android --target aarch64-linux-android
 
+      # Dioxus uses generic ic_launcher.webp icons — replace with our app logo
+      - name: Replace Android icons with app logo
+        run: |
+          cd frontend
+          RES_DIR=$(find target/dx -name 'ic_launcher.webp' -path '*/mipmap-hdpi/*' -exec dirname {} \; | head -1 | xargs dirname)
+          if [ -z "$RES_DIR" ]; then
+            echo "Warning: Could not find Android res directory, skipping icon replacement"
+            exit 0
+          fi
+          echo "Found Android res directory: $RES_DIR"
+          # Generate mipmap icons from app icon at each density
+          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            case $dir in
+              mipmap-mdpi)     SIZE=48 ;;
+              mipmap-hdpi)     SIZE=72 ;;
+              mipmap-xhdpi)   SIZE=96 ;;
+              mipmap-xxhdpi)  SIZE=144 ;;
+              mipmap-xxxhdpi) SIZE=192 ;;
+            esac
+            TARGET="$RES_DIR/$dir/ic_launcher.webp"
+            if [ -f "$TARGET" ]; then
+              convert frontend/assets/icon.png -resize ${SIZE}x${SIZE} "$TARGET"
+              echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
+            fi
+          done
+
       # Fix Dioxus #5251: generated AndroidManifest.xml has extractNativeLibs="false"
       # which prevents native lib extraction → "not compatible with phone" error.
       # Also: Java 8 target obsolete, lint crashes with AGP 8.8+.

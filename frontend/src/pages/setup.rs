@@ -30,11 +30,13 @@ pub fn SetupPage() -> Element {
                 Ok(resp) if resp.status().is_success() => {
                     success.set(true);
                     connecting.set(false);
-                    // Store the URL in env / localStorage
+                    // Store the URL in localStorage (works on WASM/Android)
                     let _ = dioxus::document::eval(&format!(
                         "localStorage.setItem('RECURRENCY_API_URL', '{}')",
                         url,
                     ));
+                    // Store in env var (only works on desktop native)
+                    #[cfg(not(target_arch = "wasm32"))]
                     std::env::set_var("RECURRENCY_API_URL", &url);
                     let nav = navigator();
                     nav.push(Route::Login {});
