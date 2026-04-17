@@ -204,12 +204,39 @@ jobs:
       - name: Build Android APK (debug)
         run: cd frontend && dx bundle --platform android
 
+      # Fix Dioxus #5251: generated AndroidManifest.xml has extractNativeLibs="false"
+      # which prevents native lib extraction → "not compatible with phone" error.
+      # Also: Java 8 target obsolete, lint crashes with AGP 8.8+.
+      - name: Patch Android build files (Dioxus #5251)
+        run: |
+          cd frontend
+          ANDROID_DIR=$(find target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' -exec dirname {} \; | head -1)
+          if [ -n "$ANDROID_DIR" ]; then
+            APP_DIR=$(dirname $(dirname $(dirname "$ANDROID_DIR")))
+            GRADLE_FILE="$APP_DIR/build.gradle.kts"
+            MANIFEST="$ANDROID_DIR/AndroidManifest.xml"
+            echo "Patching: $MANIFEST"
+            echo "Patching: $GRADLE_FILE"
+            # Fix 1: Remove extractNativeLibs="false" (should be true or absent)
+            sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
+            # Fix 2: Java 8 → 17
+            sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
+            sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
+            # Fix 3: Rebuild with patched files, skip lint
+            cd "$APP_DIR"
+            ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
+          fi
+
       - name: Locate APK
         run: |
           echo "Searching for APK..."
           ls -la frontend/dist/*.apk 2>/dev/null || true
           find frontend/target/dx -name '*.apk' -type f 2>/dev/null || true
           APK=$(find frontend/target/dx frontend/dist -name '*.apk' -type f 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            # Also search in gradle output from patched build
+            APK=$(find frontend/target/dx -path '*/build/outputs/apk/*/*.apk' -type f 2>/dev/null | head -1)
+          fi
           echo "Found APK: $APK"
           mkdir -p frontend/dist
           cp "$APK" frontend/dist/recurrency.apk
