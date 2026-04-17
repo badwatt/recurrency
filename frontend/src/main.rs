@@ -12,6 +12,8 @@ mod pages;
 mod state;
 mod theme;
 mod utils;
+#[cfg(test)]
+mod android_icon_tests;
 
 #[cfg(test)]
 mod index_html_tests;

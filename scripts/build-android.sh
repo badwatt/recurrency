@@ -60,6 +60,21 @@ for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     fi
 done
 
+# Generate PNG foreground (108x108 = adaptive icon foreground canvas)
+# Replace the vector foreground XML with a bitmap drawable pointing to our PNG
+FOREGROUND="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
+if [ -f "$FOREGROUND" ]; then
+    # Generate PNG at 108x108
+    convert "$ICON" -resize 108x108 "$RES_DIR/drawable/ic_launcher_foreground.png"
+    # Replace XML with bitmap reference
+    cat > "$FOREGROUND" << 'XMLEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/ic_launcher_foreground" />
+XMLEOF
+    echo "--- Foreground drawable replaced with PNG bitmap ---"
+fi
+
 # Patch Gradle: extractNativeLibs=true + Java 17
 GRADLE_FILE="target/dx/recurrency/release/android/app/app/build.gradle.kts"
 if [ -f "$GRADLE_FILE" ]; then
