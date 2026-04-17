@@ -194,7 +194,6 @@ pub fn SubscriptionsPage() -> Element {
         let _ = subs_state;
         spawn(async move {
             // Skip on Android - reqwest crashes on auto-mount
-            if cfg!(target_os = "android") { return; }
             let state = SUBSCRIPTIONS();
             if !state.is_loading && state.subscriptions.is_empty() && state.error.is_none() {
                 SUBSCRIPTIONS.write().set_loading();
@@ -209,7 +208,6 @@ pub fn SubscriptionsPage() -> Element {
     use_effect(move || {
         let _ = cats_state;
         spawn(async move {
-            if cfg!(target_os = "android") { return; }
             let state = CATEGORIES();
             if !state.is_loading && state.categories.is_empty() && state.error.is_none() {
                 CATEGORIES.write().set_loading();
@@ -224,7 +222,6 @@ pub fn SubscriptionsPage() -> Element {
     use_effect(move || {
         let _ = prefs_state;
         spawn(async move {
-            if cfg!(target_os = "android") { return; }
             let state = PREFERENCES();
             if !state.initialized {
                 match api::preferences::get().await {

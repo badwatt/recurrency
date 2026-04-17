@@ -8,10 +8,13 @@ static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new()
 
 fn get_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .expect("Failed to create reqwest client")
+        let mut builder = reqwest::Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            builder = builder.timeout(std::time::Duration::from_secs(30));
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+        builder.build().expect("Failed to create reqwest client")
     })
 }
 

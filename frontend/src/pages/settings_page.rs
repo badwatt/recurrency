@@ -32,7 +32,6 @@ pub fn SettingsPage() -> Element {
 
     // Load notification preferences
     use_future(move || async move {
-        if cfg!(target_os = "android") { return; }
         // android guard removed
         match notification_preferences::get().await {
             Ok(resp) => {

@@ -223,7 +223,6 @@ pub fn TransactionsPage() -> Element {
 
     // Load data
     use_future(move || async move {
-        if cfg!(target_os = "android") { return; }
         // android guard removed
         if TRANSACTIONS().is_loading { return; }
         TRANSACTIONS.write().set_loading();
@@ -234,7 +233,6 @@ pub fn TransactionsPage() -> Element {
     });
 
     use_future(move || async move {
-        if cfg!(target_os = "android") { return; }
         // android guard removed
         if !CATEGORIES().categories.is_empty() { return; }
         CATEGORIES.write().set_loading();

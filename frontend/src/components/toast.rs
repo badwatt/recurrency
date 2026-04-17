@@ -67,7 +67,12 @@ fn ToastEntry(item: ToastItem) -> Element {
 
     // Auto-dismiss after 3s
     spawn(async move {
+        #[cfg(target_arch = "wasm32")]
         gloo_timers::future::TimeoutFuture::new(3000).await;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        }
         TOAST.write().remove(id);
     });
 
