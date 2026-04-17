@@ -3,6 +3,18 @@ use dioxus::prelude::*;
 use serde::de::DeserializeOwned;
 use std::sync::RwLock;
 
+// Static reqwest client for Android (Client::new() crashes on native Android)
+static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+
+fn get_client() -> &'static reqwest::Client {
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("Failed to create reqwest client")
+    })
+}
+
 /// API error type.
 #[derive(Debug, Clone)]
 pub enum ApiError {
@@ -129,7 +141,7 @@ pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
-    let client = reqwest::Client::new();
+    let client = get_client();
     let mut req = client.get(&url);
     for (k, v) in headers {
         req = req.header(k, v);
@@ -155,7 +167,7 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(path: &str, body
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
-    let client = reqwest::Client::new();
+    let client = get_client();
     let mut req = client.post(&url);
     for (k, v) in headers {
         req = req.header(k, v);
@@ -181,7 +193,7 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(path: &str, body:
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
-    let client = reqwest::Client::new();
+    let client = get_client();
     let mut req = client.put(&url);
     for (k, v) in headers {
         req = req.header(k, v);
@@ -207,7 +219,7 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
-    let client = reqwest::Client::new();
+    let client = get_client();
     let mut req = client.delete(&url);
     for (k, v) in headers {
         req = req.header(k, v);
