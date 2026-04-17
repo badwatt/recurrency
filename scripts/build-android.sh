@@ -7,10 +7,24 @@ JAVA_HOME="$(nix-shell -p jdk17 --run 'echo $JAVA_HOME')"
 export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# Resolve dx from rustup nightly
+# Resolve dx from rustup nightly - must set CARGO/RUSTC to force rustup toolchain
 export PATH="$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin:$HOME/.local/share/.dx/tools/wasm-bindgen-v0.2.100/bin:$HOME/.local/cargo/bin:$PATH"
+export CARGO="$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/cargo"
+export RUSTC="$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustc"
+export RUSTUP_TOOLCHAIN=nightly-x86_64-unknown-linux-gnu
 export ANDROID_HOME="$HOME/.android-sdk"
 export ANDROID_NDK_HOME="$HOME/.android-sdk/ndk/r27d"
+
+# Use NDK's clang as C/C++ compiler for native crates (aws-lc-sys)
+export AR="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+export CC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang"
+export CXX="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++"
+export CFLAGS="-target aarch64-linux-android28 -fPIC"
+export CXXFLAGS="-target aarch64-linux-android28 -fPIC"
+
+# Force linker to NDK linker for Android target
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang"
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUNNER="echo"
 
 ICON="assets/icons/icon-1024.png"
 VERSION=$(cat ../VERSION | tr -d '\n')
