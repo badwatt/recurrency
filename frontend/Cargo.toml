@@ -39,4 +39,3 @@ lto = "thin"
 codegen-units = 16
 strip = true
 opt-level = 2
-dirs = "6"

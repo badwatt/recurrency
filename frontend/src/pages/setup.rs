@@ -29,85 +29,88 @@ fn save_server_url(_url: &str) {
 pub fn SetupPage() -> Element {
     let mut server_url = use_signal(|| get_base_url());
     let mut connecting = use_signal(|| false);
-    let mut error = use_signal(String::new);
     let mut success = use_signal(|| false);
+    let mut error = use_signal(String::new);
 
     let handle_connect = move |_| {
-        let url = server_url();
+        let url = server_url().trim().to_string();
         if url.is_empty() {
-            error.set("Server URL is required".into());
+            error.set("Server URL is required".to_string());
+            return;
+        }
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            error.set("URL must start with http:// or https://".to_string());
             return;
         }
         error.set(String::new());
         connecting.set(true);
         let url_clone = url.clone();
         spawn(async move {
-            // Try to hit the health/demo endpoint to verify connectivity
-            let client = reqwest::Client::new();
-            match client.get(format!("{}/api/demo/status", &url_clone))
-                .timeout(std::time::Duration::from_secs(5))
-                .send()
-                .await
+            // On Android, reqwest hangs permanently (async runtime issue).
+            // Skip health check — save URL and navigate immediately.
+            // Login page will show error if URL is wrong.
+            #[cfg(target_os = "android")]
             {
-                Ok(resp) if resp.status().is_success() => {
-                    success.set(true);
-                    connecting.set(false);
-                    // Update runtime base URL
-                    set_base_url(&url_clone);
-                    // Persist for next app launch
-                    save_server_url(&url_clone);
-                    // On WASM: also store in localStorage for get_base_url_impl()
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        let js = format!("localStorage.setItem('RECURRENCY_API_URL', '{}')", url_clone);
-                        let _ = dioxus::document::eval(&js).await;
+                success.set(true);
+                connecting.set(false);
+                set_base_url(&url_clone);
+                save_server_url(&url_clone);
+                let nav = navigator();
+                nav.push(Route::Login {});
+            }
+
+            // On web/desktop, verify connectivity before navigating.
+            #[cfg(not(target_os = "android"))]
+            {
+                let client = reqwest::Client::new();
+                match client.get(format!("{}/api/demo/status", &url_clone))
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await
+                {
+                    Ok(resp) if resp.status().is_success() => {
+                        success.set(true);
+                        connecting.set(false);
+                        // Update runtime base URL
+                        set_base_url(&url_clone);
+                        // Persist for next app launch
+                        save_server_url(&url_clone);
+                        // On WASM: also store in localStorage for get_base_url_impl()
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let js = format!("localStorage.setItem('RECURRENCY_API_URL', '{}')", url_clone);
+                            let _ = dioxus::document::eval(&js).await;
+                        }
+                        // Desktop env var (crashes on Android — guarded)
+                        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+                        std::env::set_var("RECURRENCY_API_URL", &url_clone);
+                        let nav = navigator();
+                        nav.push(Route::Login {});
                     }
-                    // Desktop env var (crashes on Android — guarded)
-                    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-                    std::env::set_var("RECURRENCY_API_URL", &url_clone);
-                    let nav = navigator();
-                    nav.push(Route::Login {});
-                }
-                Ok(resp) => {
-                    error.set(format!("Server returned status {}", resp.status()));
-                    connecting.set(false);
-                }
-                Err(e) => {
-                    error.set(format!("Connection failed: {}", e));
-                    connecting.set(false);
+                    Ok(resp) => {
+                        connecting.set(false);
+                        error.set(format!("Server returned status {}", resp.status()));
+                    }
+                    Err(e) => {
+                        connecting.set(false);
+                        error.set(format!("Connection failed: {}", e));
+                    }
                 }
             }
         });
     };
 
     rsx! {
-        div { class: "flex min-h-dvh items-center justify-center bg-background p-4",
-            div { class: "w-full max-w-md rounded-lg border border-border bg-card shadow-sm",
-                // Header
-                div { class: "p-6 pb-0",
-                    h1 { class: "text-2xl font-bold text-center text-foreground",
-                        "Connect to Server"
-                    }
-                    p { class: "text-sm text-muted-foreground text-center mt-2",
-                        "Enter your Recurrency server URL to get started"
+        div { class: "flex min-h-screen items-center justify-center bg-background",
+            div { class: "w-full max-w-md space-y-6 p-8",
+                div { class: "flex flex-col gap-2 text-center",
+                    h1 { class: "text-2xl font-bold text-foreground", "Configure Server" }
+                    p { class: "text-sm text-muted-foreground",
+                        "Enter the URL of your Recurrency backend server"
                     }
                 }
-
-                // Form
-                div { class: "p-6 space-y-4",
-                    if !error().is_empty() {
-                        div { class: "rounded-md bg-destructive/10 p-3 text-sm text-destructive",
-                            {error()}
-                        }
-                    }
-
-                    if success() {
-                        div { class: "rounded-md bg-green-100 p-3 text-sm text-green-800",
-                            "Connected successfully! Redirecting..."
-                        }
-                    }
-
-                    div { class: "space-y-2",
+                div { class: "flex flex-col gap-4",
+                    div { class: "flex flex-col gap-2",
                         label {
                             r#for: "setup-server-url",
                             class: "text-sm font-medium text-foreground",
@@ -122,7 +125,12 @@ pub fn SetupPage() -> Element {
                             class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
                         }
                     }
-
+                    if !error().is_empty() {
+                        p { class: "text-sm text-destructive", "{error}" }
+                    }
+                    if success() {
+                        p { class: "text-sm text-green-500", "Connected successfully! Redirecting..." }
+                    }
                     button {
                         onclick: handle_connect,
                         disabled: connecting(),
