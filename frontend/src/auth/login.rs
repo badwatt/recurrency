@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use crate::state::auth::AUTH;
-use crate::api::auth;
-use crate::api::demo;
+use crate::api::{auth, demo, client::get_base_url};
 use crate::Route;
 
 #[component]
@@ -12,6 +11,18 @@ pub fn LoginPage() -> Element {
     let mut loading = use_signal(|| false);
     let mut demo_loading = use_signal(|| false);
     let mut demo_enabled = use_signal(|| false);
+    let nav = navigator();
+
+    // Check if server URL needs configuration (Android/desktop without env var)
+    // On first load after app restart, localStorage read may not have completed yet.
+    let needs_setup = get_base_url() == "http://localhost:8080";
+
+    // Auto-redirect to Setup if running locally without config
+    use_effect(move || {
+        if needs_setup {
+            eprintln!("[LoginPage] Using localhost - showing setup warning");
+        }
+    });
 
     // Check demo status on mount
     use_future(move || async move {
@@ -77,6 +88,26 @@ pub fn LoginPage() -> Element {
             class: "flex min-h-dvh items-center justify-center bg-background p-4",
             div {
                 class: "w-full max-w-md rounded-lg border border-border bg-card p-0 shadow-sm",
+
+                // Setup warning
+                if needs_setup {
+                    div {
+                        class: "flex items-start gap-3 rounded-t-lg bg-amber-50 p-4 text-amber-800",
+                        svg {
+                            class: "h-5 w-5 shrink-0",
+                            view_box: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            stroke_width: "2",
+                            path { d: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" }
+                        }
+                        div {
+                            class: "flex-1",
+                            p { class: "text-sm font-medium", "Using default server URL" }
+                            p { class: "text-xs text-amber-600 mt-1", "localhost:8080 — Configure your server URL in Settings if connecting to a remote server." }
+                        }
+                    }
+                }
 
                 // Header
                 div {
