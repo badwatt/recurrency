@@ -243,7 +243,7 @@ jobs:
             esac
             TARGET="$RES_DIR/$dir/ic_launcher.webp"
             if [ -f "$TARGET" ]; then
-              convert frontend/assets/icon.png -resize ${SIZE}x${SIZE} "$TARGET"
+              convert assets/icon.png -resize ${SIZE}x${SIZE} "$TARGET"
               echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
             fi
           done
