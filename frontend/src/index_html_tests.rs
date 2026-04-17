@@ -5,13 +5,20 @@ fn index_html_body_bgmap_matches_css_variables() {
     // index.html must define CSS variables for body background BEFORE tailwind.css loads.
     // Bug: <style> was AFTER <link> → tailwind.css body{background-color:hsl(var(--background))}
     // parsed with undefined vars → body defaulted to white on refresh.
-    // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE <link>.
+    // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE any stylesheet.
+    // Note: <link> for tailwind.css removed — CSS loaded via asset!() in main.rs
+    // (works on all platforms including Android).
     let html = include_str!("../assets/index.html");
 
-    // <style> must come BEFORE <link> so vars are defined when tailwind.css parses
-    let link_pos = html.find("<link rel=\"stylesheet\"").unwrap_or(usize::MAX);
+    // <style> with CSS vars must be present and BEFORE any <link> stylesheet
     let style_pos = html.find("<style>").unwrap_or(usize::MAX);
-    assert!(style_pos < link_pos, "<style> with CSS vars must appear BEFORE <link> to tailwind.css so body has themed bg.");
+    let link_pos = html.find("<link rel=\"stylesheet\"").unwrap_or(usize::MAX);
+    // If no <link rel=stylesheet> exists (removed), just check <style> exists
+    if link_pos != usize::MAX {
+        assert!(style_pos < link_pos, "<style> with CSS vars must appear BEFORE <link> stylesheet.");
+    } else {
+        assert!(style_pos != usize::MAX, "<style> with CSS vars must exist in index.html.");
+    }
     for selector in [":root", ".dark", ".mocha"] {
         assert!(html.contains(selector),
             "CSS variables for {} must be defined inline", selector);
