@@ -23,11 +23,42 @@ impl std::fmt::Display for ApiError {
 }
 
 /// Get the base URL for the API.
-/// On desktop/mobile: reads from RECURRENCY_API_URL env var.
-/// On web: same, plus localStorage support via JS eval.
+/// On WASM (web): checks localStorage first, then uses same-origin.
+/// On native (desktop/mobile): reads from RECURRENCY_API_URL env var.
+/// Fallback: "http://localhost:8080"
 pub fn get_base_url() -> String {
-    std::env::var("RECURRENCY_API_URL")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string())
+    // 1. On WASM: check localStorage for explicit user config
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                if let Ok(Some(url)) = storage.get_item("RECURRENCY_API_URL") {
+                    if !url.is_empty() {
+                        return url;
+                    }
+                }
+            }
+            // No explicit config → use same origin (Docker/production)
+            if let Ok(origin) = window.location().origin() {
+                if !origin.is_empty() {
+                    return origin;
+                }
+            }
+        }
+        // WASM fallback if window unavailable
+        return "http://localhost:8080".to_string();
+    }
+
+    // 2. On native: check env var
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(url) = std::env::var("RECURRENCY_API_URL") {
+            if !url.is_empty() {
+                return url;
+            }
+        }
+        "http://localhost:8080".to_string()
+    }
 }
 
 /// Get the auth token from the auth state.

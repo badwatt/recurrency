@@ -163,6 +163,15 @@ pub fn LoginPage() -> Element {
                             "Sign up"
                         }
                     }
+
+                    // Configure server URL
+                    p { class: "text-center text-sm text-muted-foreground",
+                        Link {
+                            to: Route::Setup {},
+                            class: "text-primary hover:underline",
+                            "Configure server URL"
+                        }
+                    }
                 }
             }
         }
