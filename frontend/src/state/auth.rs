@@ -78,11 +78,19 @@ impl AuthState {
             if let (Some(token), Some(user)) = (&self.token, &self.user) {
                 if let Some(data_dir) = dirs::data_dir() {
                     let app_dir = data_dir.join("recurrency");
-                    let _ = std::fs::create_dir_all(&app_dir);
-                    let _ = std::fs::write(app_dir.join("auth-token.txt"), token);
-                    if let Ok(user_json) = serde_json::to_string(user) {
-                        let _ = std::fs::write(app_dir.join("auth-user.json"), &user_json);
+                    if let Err(e) = std::fs::create_dir_all(&app_dir) {
+                        eprintln!("[Auth] Failed to create app dir {:?}: {}", app_dir, e);
                     }
+                    if let Err(e) = std::fs::write(app_dir.join("auth-token.txt"), token) {
+                        eprintln!("[Auth] Failed to write token: {}", e);
+                    }
+                    if let Ok(user_json) = serde_json::to_string(user) {
+                        if let Err(e) = std::fs::write(app_dir.join("auth-user.json"), &user_json) {
+                            eprintln!("[Auth] Failed to write user: {}", e);
+                        }
+                    }
+                } else {
+                    eprintln!("[Auth] dirs::data_dir() returned None — cannot persist auth");
                 }
             }
         }
@@ -137,17 +145,30 @@ impl AuthState {
                 let app_dir = data_dir.join("recurrency");
                 let token_file = app_dir.join("auth-token.txt");
                 let user_file = app_dir.join("auth-user.json");
-                if let (Ok(token), Ok(user_json)) = (std::fs::read_to_string(&token_file), std::fs::read_to_string(&user_file)) {
-                    if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json) {
-                        if !token.is_empty() {
-                            self.token = Some(token);
-                            self.user = Some(user);
-                            self.is_authenticated = true;
-                            self.initialized = true;
-                            return true;
+                eprintln!("[Auth] Hydrate: looking for files in {:?}", app_dir);
+                match (std::fs::read_to_string(&token_file), std::fs::read_to_string(&user_file)) {
+                    (Ok(token), Ok(user_json)) => {
+                        if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json) {
+                            if !token.is_empty() {
+                                eprintln!("[Auth] Hydrate: token found (length {}), user hydrated", token.len());
+                                self.token = Some(token);
+                                self.user = Some(user);
+                                self.is_authenticated = true;
+                                self.initialized = true;
+                                return true;
+                            }
                         }
+                        eprintln!("[Auth] Hydrate: files found but parse failed");
+                    }
+                    (Err(e1), e2) => {
+                        eprintln!("[Auth] Hydrate: token file error: {:?}, user file result: {:?}", e1, e2);
+                    }
+                    (Ok(_), Err(e2)) => {
+                        eprintln!("[Auth] Hydrate: user file error: {:?}", e2);
                     }
                 }
+            } else {
+                eprintln!("[Auth] Hydrate: dirs::data_dir() returned None");
             }
         }
         false
@@ -271,6 +292,113 @@ mod tests {
         assert_eq!(state.user.as_ref().unwrap().currency, "USD");
         assert_eq!(state.user.as_ref().unwrap().name, Some("New Name".into()));
         assert!(state.is_authenticated); // Still authenticated
+    }
+
+        #[test]
+    fn test_persist_to_storage_writes_files_on_native() {
+        // TDD: persist_to_storage must write auth-token.txt and auth-user.json
+        // to dirs::data_dir()/recurrency/ on native platforms.
+        let data_dir = dirs::data_dir().expect("data dir should exist");
+        let app_dir = data_dir.join("recurrency");
+        // Clean up before test
+        let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
+        let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+
+        let mut state = AuthState::default();
+        state.set_authenticated("my-jwt-token".into(), sample_user(), false);
+        state.persist_to_storage();
+
+        // Verify files were written
+        let data_dir = dirs::data_dir().expect("data dir should exist");
+        let app_dir = data_dir.join("recurrency");
+        let token_file = app_dir.join("auth-token.txt");
+        let user_file = app_dir.join("auth-user.json");
+
+        assert!(token_file.exists(), "auth-token.txt should be created by persist_to_storage");
+        assert!(user_file.exists(), "auth-user.json should be created by persist_to_storage");
+
+        let token_content = std::fs::read_to_string(&token_file).expect("should read token file");
+        assert_eq!(token_content, "my-jwt-token", "token file should contain the auth token");
+
+        let user_content = std::fs::read_to_string(&user_file).expect("should read user file");
+        assert!(user_content.contains("test@test.com"), "user file should contain user email");
+
+        // Clean up
+        let _ = std::fs::remove_file(&token_file);
+        let _ = std::fs::remove_file(&user_file);
+    }
+
+    #[test]
+    fn test_hydrate_from_storage_reads_files_on_native() {
+        // TDD: hydrate_from_storage must read auth-token.txt and auth-user.json
+        // from dirs::data_dir()/recurrency/ on native platforms.
+        // Write test data first, then verify hydration.
+        let data_dir = dirs::data_dir().expect("data dir should exist");
+        let app_dir = data_dir.join("recurrency");
+        let _ = std::fs::create_dir_all(&app_dir);
+        let token_file = app_dir.join("auth-token.txt");
+        let user_file = app_dir.join("auth-user.json");
+
+        // Write test data
+        let user = sample_user();
+        let user_json = serde_json::to_string(&user).expect("should serialize user");
+        std::fs::write(&token_file, "hydrate-test-token").expect("should write token");
+        std::fs::write(&user_file, &user_json).expect("should write user");
+
+        // Hydrate
+        let mut state = AuthState::default();
+        let result = state.hydrate_from_storage();
+
+        assert!(result, "hydrate_from_storage should return true when files exist");
+        assert!(state.is_authenticated, "should be authenticated after hydration");
+        assert!(state.initialized, "should be initialized after hydration");
+        assert_eq!(state.token, Some("hydrate-test-token".into()), "token should match");
+        assert_eq!(state.user.as_ref().unwrap().email, "test@test.com", "user email should match");
+
+        // Clean up
+        let _ = std::fs::remove_file(&token_file);
+        let _ = std::fs::remove_file(&user_file);
+    }
+
+    #[test]
+    fn test_clear_storage_removes_files_on_native() {
+        // TDD: logout should delete auth-token.txt and auth-user.json
+        let mut state = AuthState::default();
+        state.set_authenticated("clear-test-token".into(), sample_user(), false);
+        state.persist_to_storage();
+
+        let data_dir = dirs::data_dir().expect("data dir should exist");
+        let app_dir = data_dir.join("recurrency");
+        let token_file = app_dir.join("auth-token.txt");
+        let user_file = app_dir.join("auth-user.json");
+
+        assert!(token_file.exists(), "token file should exist before logout");
+        assert!(user_file.exists(), "user file should exist before logout");
+
+        state.logout();
+
+        assert!(!token_file.exists(), "token file should be removed after logout");
+        assert!(!user_file.exists(), "user file should be removed after logout");
+    }
+
+    #[test]
+    fn test_hydrate_returns_false_when_no_files() {
+        // TDD: hydrate_from_storage returns false when no auth files exist
+        let data_dir = dirs::data_dir().expect("data dir should exist");
+        let app_dir = data_dir.join("recurrency");
+        let token_file = app_dir.join("auth-token.txt");
+        let user_file = app_dir.join("auth-user.json");
+
+        // Ensure files don't exist
+        let _ = std::fs::remove_file(&token_file);
+        let _ = std::fs::remove_file(&user_file);
+
+        let mut state = AuthState::default();
+        let result = state.hydrate_from_storage();
+
+        assert!(!result, "hydrate_from_storage should return false when no files exist");
+        assert!(!state.is_authenticated, "should not be authenticated");
+        assert!(!state.initialized, "should not be initialized");
     }
 
     #[test]

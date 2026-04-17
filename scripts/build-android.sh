@@ -71,6 +71,8 @@ fi
 # Reassemble + sign APK
 echo "--- Building signed APK ---"
 cd target/dx/recurrency/release/android/app
+# Clean build cache so Gradle picks up replaced icons
+./gradlew clean 2>&1 | tail -1
 ./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1 | tail -3
 cd -
 
