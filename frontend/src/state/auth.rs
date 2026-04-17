@@ -57,7 +57,7 @@ impl AuthState {
         self.token = None;
     }
 
-    /// Persist token + user to localStorage.
+    /// Persist token + user to localStorage (WASM) or file (native).
     pub fn persist_to_storage(&self) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -73,9 +73,22 @@ impl AuthState {
                 }
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let (Some(token), Some(user)) = (&self.token, &self.user) {
+                if let Some(data_dir) = dirs::data_dir() {
+                    let app_dir = data_dir.join("recurrency");
+                    let _ = std::fs::create_dir_all(&app_dir);
+                    let _ = std::fs::write(app_dir.join("auth-token.txt"), token);
+                    if let Ok(user_json) = serde_json::to_string(user) {
+                        let _ = std::fs::write(app_dir.join("auth-user.json"), &user_json);
+                    }
+                }
+            }
+        }
     }
 
-    /// Remove auth keys from localStorage.
+    /// Remove auth keys from localStorage (WASM) or file (native).
     fn clear_storage() {
         #[cfg(target_arch = "wasm32")]
         {
@@ -87,9 +100,17 @@ impl AuthState {
                 let _ = storage.remove_item(USER_KEY);
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(data_dir) = dirs::data_dir() {
+                let app_dir = data_dir.join("recurrency");
+                let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
+                let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+            }
+        }
     }
 
-    /// Restore token + user from localStorage. Returns true if restored.
+    /// Restore token + user from localStorage (WASM) or file (native). Returns true if restored.
     pub fn hydrate_from_storage(&mut self) -> bool {
         #[cfg(target_arch = "wasm32")]
         {
@@ -112,7 +133,22 @@ impl AuthState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // No localStorage available outside wasm32 — nothing to hydrate
+            if let Some(data_dir) = dirs::data_dir() {
+                let app_dir = data_dir.join("recurrency");
+                let token_file = app_dir.join("auth-token.txt");
+                let user_file = app_dir.join("auth-user.json");
+                if let (Ok(token), Ok(user_json)) = (std::fs::read_to_string(&token_file), std::fs::read_to_string(&user_file)) {
+                    if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json) {
+                        if !token.is_empty() {
+                            self.token = Some(token);
+                            self.user = Some(user);
+                            self.is_authenticated = true;
+                            self.initialized = true;
+                            return true;
+                        }
+                    }
+                }
+            }
         }
         false
     }

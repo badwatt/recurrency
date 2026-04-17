@@ -35,6 +35,8 @@ desktop = ["dioxus/desktop", "tokio"]
 mobile = ["dioxus/mobile", "tokio"]
 server = ["dioxus/server"]
 
+test = ["tokio", "gloo-timers"]
+
 [profile.release]
 lto = "thin"
 codegen-units = 16
