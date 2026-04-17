@@ -1,14 +1,29 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/../frontend"
+
+# Resolve Java from nix-shell
+JAVA_HOME="$(nix-shell -p jdk17 --run 'echo $JAVA_HOME')"
+export JAVA_HOME
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Resolve dx from rustup nightly
 export PATH="$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin:$HOME/.local/share/.dx/tools/wasm-bindgen-v0.2.100/bin:$HOME/.local/cargo/bin:$PATH"
 export ANDROID_HOME="$HOME/.android-sdk"
 export ANDROID_NDK_HOME="$HOME/.android-sdk/ndk/r27d"
-export JAVA_HOME="/nix/store/nk7ra0997wd9pa517baq399kf9j5vgx3-openjdk-17.0.18+8/lib/openjdk"
-export PATH="$JAVA_HOME/bin:$PATH"
-ICON=assets/icons/icon-1024.png
+
+ICON="assets/icons/icon-1024.png"
 VERSION=$(cat ../VERSION | tr -d '\n')
 APK_NAME="recurrency-${VERSION}-aarch64.apk"
+KEYSTORE="debug.keystore"
+KEY_ALIAS="debug"
+KEY_PASS="android"
+
+# Generate debug keystore if missing
+if [ ! -f "$KEYSTORE" ]; then
+    echo "--- Generating debug keystore ---"
+    keytool -genkey -v -keystore "$KEYSTORE" -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -storepass "$KEY_PASS" -keypass "$KEY_PASS" -dname "CN=Debug,O=Recurrency,C=US"
+fi
 
 echo "--- Building Android APK (aarch64) ---"
 dx bundle --platform android --target aarch64-linux-android --release
@@ -27,42 +42,43 @@ for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     TARGET="$RES_DIR/$dir/ic_launcher.webp"
     if [ -f "$TARGET" ]; then
         convert "$ICON" -resize ${SIZE}x${SIZE} "$TARGET"
-        echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
+        echo "  ${SIZE}×${SIZE} icon replaced"
     fi
 done
 
-# Patch Gradle: extractNativeLibs + Java 17
+# Patch Gradle: extractNativeLibs=true + Java 17
 GRADLE_FILE="target/dx/recurrency/release/android/app/app/build.gradle.kts"
 if [ -f "$GRADLE_FILE" ]; then
     sed -i 's/extractNativeLibs="false"/extractNativeLibs="true"/g' "$GRADLE_FILE"
     sed -i 's/jvmTarget = "1\.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-    echo "--- Patched Gradle ---"
+    echo "--- Patched Gradle: extractNativeLibs=true, jvmTarget=17 ---"
 fi
 
-# Reassemble APK
-echo "--- Reassembling APK ---"
+# Reassemble + sign APK
+echo "--- Building signed APK ---"
 cd target/dx/recurrency/release/android/app
-./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1 | tail -5
+./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1 | tail -3
 cd -
 
-RELEASE_APK=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk -name "*-release*.apk" 2>/dev/null | grep -v universal | head -1)
-DEBUG_APK=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk -name "app-*.apk" 2>/dev/null | head -1)
-
-if [ -n "$RELEASE_APK" ]; then
-    cp "$RELEASE_APK" "dist/$APK_NAME"
-    echo "--- Release APK ---"
-elif [ -n "$DEBUG_APK" ]; then
-    cp "$DEBUG_APK" "dist/$APK_NAME"
-    echo "--- Debug APK (unsigned) ---"
-else
-    BUNDLETOOL="$HOME/.local/bin/bundletool"
-    AAB=$(ls dist/Recurrency-aarch64-linux-android.aab 2>/dev/null || ls dist/*.aab 2>/dev/null | head -1)
-    java -jar "$BUNDLETOOL" build-apks --bundle="$AAB" --output="dist/${APK_NAME}.apks" --mode=universal
-    unzip -o "dist/${APK_NAME}.apks" -d dist/ universal.apk
-    mv dist/universal.apk "dist/$APK_NAME"
-    rm "dist/${APK_NAME}.apks"
-    echo "--- Universal APK via bundletool ---"
+UNSIGNED=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk/release -name "*-unsigned.apk" | head -1)
+if [ -z "$UNSIGNED" ]; then
+    UNSIGNED=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk -name "*.apk" | head -1)
 fi
+echo "Unsigned APK: $UNSIGNED"
+
+mkdir -p dist
+
+# Sign with apksigner (JAR directly — NixOS has no /bin/bash)
+APKSIGNER_JAR="$ANDROID_HOME/build-tools/34.0.0/lib/apksigner.jar"
+java -jar "$APKSIGNER_JAR" sign \
+    --ks "$KEYSTORE" --ks-key-alias "$KEY_ALIAS" \
+    --ks-pass "pass:$KEY_PASS" --key-pass "pass:$KEY_PASS" \
+    "$UNSIGNED"
+
+cp "$UNSIGNED" "dist/$APK_NAME"
+
+# Verify
+java -jar "$APKSIGNER_JAR" verify "dist/$APK_NAME" && echo "--- APK signed and verified ---" || echo "--- WARNING: APK verification failed ---"
 
 ls -la "dist/$APK_NAME"
 echo "--- Done: dist/$APK_NAME ---"
