@@ -36,44 +36,35 @@ pub fn resolve_theme_class(theme: &str) -> &'static str {
 }
 
 /// Apply the current theme class to the document <html> element.
-/// Uses dioxus::document::eval() — works on all platforms (web, Android, desktop).
+/// Strategy:
+///   - "system": DO NOT set class. TailwindCSS @media handles OS dark mode automatically.
+///     Setting class via eval (async) applies AFTER first paint → system theme broken.
+///   - "dark"/"mocha"/"light": Set class via dioxus::document::eval (fire-and-forget).
+///     User explicitly chose these, so brief flash is acceptable.
 pub(crate) fn apply_theme_class(theme: &str) {
-    let class = match theme {
+    match theme {
         "system" => {
-            // Check OS preference via JS
-            "light" // Default; actual check done in JS below
+            // DO NOT set class via JS. TailwindCSS @media (prefers-color-scheme: dark)
+            // automatically applies dark mode when OS is in dark mode.
+            // Setting class via eval (async) applies AFTER first paint → wrong theme shown.
+            return;
         }
+        "dark" | "mocha" | "light" => {}
+        _ => {}
+    }
+
+    let class = match theme {
         "dark" => "dark",
         "mocha" => "mocha",
         _ => "light",
     };
 
-    let js = if theme == "system" {
-        format!(
-            "(function() {{ \
-                var cls = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; \
-                document.documentElement.className = cls; \
-                try {{ localStorage.setItem('recurrency-theme', '{}'); }} catch(e) {{}} \
-            }})()",
-            theme
-        )
-    } else {
-        format!(
-            "(function() {{ \
-                document.documentElement.className = '{}'; \
-                try {{ localStorage.setItem('recurrency-theme', '{}'); }} catch(e) {{}} \
-            }})()",
-            class, theme
-        )
-    };
-
-    // Use dioxus::document::eval — available on all Dioxus platforms (web, Android, desktop).
-    // This is async but we don't await — fire and forget. Theme applies within ms.
-    #[allow(clippy::redundant_closure_call)]
-    (|| {
-        let js_owned = js.clone();
-        dioxus::document::eval(&js_owned);
-    })();
+    // Call eval directly (fire-and-forget). Async but acceptable for explicit themes.
+    let js_owned = format!(
+        "(function() {{ document.documentElement.className = '{}'; }})()",
+        class
+    );
+    let _ = dioxus::document::eval(&js_owned);
 }
 
 /// Apply the current theme to the document element.

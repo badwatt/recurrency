@@ -1,8 +1,14 @@
 
-// TDD tests for Android theme startup bug.
-// Bug 1: AppLayout llama apply_theme_to_document gated #[cfg(feature=web)] en Android.
-//        → apply_theme_to_document body vacio en Android → tema no se aplica al cargar.
-// Fix: usar apply_theme_class (usa dioxus::document::eval, funciona en TODAS plataformas).
+// TDD tests for Android theme bugs.
+// Bug 1: AppLayout llama apply_theme_to_document gated #[cfg(feature=web)] → no-op Android.
+// Bug 2: apply_theme_class para "system" usaba window.matchMedia eval (async) → class aplica
+//        después del primer paint → OS dark mode nunca se detectaba.
+//        FIX: TailwindCSS @media maneja system theme automáticamente (sin JS).
+// Bug 3: Swipe sidebar gated #[cfg(feature=web)] → no-op Android.
+// Fixes:
+//  - AppLayout usa apply_theme_class (sin gate)
+//  - apply_theme_class: NO tokio::spawn, synchronous className assignment
+//  - use_swipe_sidebar: sin gate, JS detecta Android
 
 use crate::theme::hooks::{apply_theme_class, cycle_theme, THEMES};
 
@@ -71,6 +77,34 @@ fn test_swipe_sidebar_no_web_feature_gate() {
 }
 
 // ── Tests existentes ───────────────────────────────────────────────────────────
+
+/// TDD RED: apply_theme_class NO usa tokio::spawn.
+/// BUG: tokio::spawn causa delay → class aplica después del render.
+/// FIX: dioxus::document::eval directo (fire-and-forget).
+#[test]
+fn test_apply_theme_uses_sync_eval_no_spawn() {
+    let src = include_str!("theme/hooks.rs");
+    assert!(!src.contains("tokio::spawn"),
+        "apply_theme_class NO debe usar tokio::spawn (delay → system theme broken)");
+    assert!(src.contains("dioxus::document::eval"),
+        "apply_theme_class debe usar dioxus::document::eval");
+}
+
+/// TDD RED: system theme early return en apply_theme_class.
+/// BUG: matchMedia eval (async) → class aplica después del paint → OS dark no detectado.
+/// FIX: TailwindCSS @media (prefers-color-scheme: dark) maneja system theme automáticamente.
+/// apply_theme_class para "system" retorna inmediatamente (no JS).
+#[test]
+fn test_system_theme_no_match_media() {
+    let src = include_str!("theme/hooks.rs");
+    // apply_theme_class NO debe usar window.matchMedia en JS (causa delay → broken system theme)
+    // TailwindCSS @media (prefers-color-scheme: dark) maneja system theme automáticamente.
+    assert!(!src.contains("window.matchMedia"),
+        "apply_theme_class NO debe usar window.matchMedia (async → broken system theme)");
+    // debe usar dioxus::document::eval para themes explícitos
+    assert!(src.contains("dioxus::document::eval"),
+        "apply_theme_class debe usar dioxus::document::eval para dark/mocha/light");
+}
 
 #[test]
 fn test_cycle_theme_all_values() {
