@@ -37,7 +37,7 @@ pub fn resolve_theme_class(theme: &str) -> &'static str {
 
 /// Apply the current theme class to the document <html> element.
 /// Uses dioxus::document::eval() — works on all platforms (web, Android, desktop).
-fn apply_theme_class(theme: &str) {
+pub(crate) fn apply_theme_class(theme: &str) {
     let class = match theme {
         "system" => {
             // Check OS preference via JS

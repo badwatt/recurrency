@@ -3,7 +3,7 @@ use crate::hooks::use_swipe_sidebar::use_swipe_sidebar;
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
 use crate::api::notifications;
-use crate::theme::hooks::toggle_theme;
+use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::state::preferences::PREFERENCES;
 
 // ──────────────────────────────────────────────
@@ -49,17 +49,17 @@ pub fn AppLayout() -> Element {
         sidebar_open.set(false);
     });
 
-    // Apply theme from preferences on mount
+    // Apply theme from preferences on mount.
+    // apply_theme_class uses dioxus::document::eval — works on ALL platforms.
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
-        #[cfg(feature = "web")]
-        crate::theme::hooks::apply_theme_to_document(&theme);
-        #[cfg(not(feature = "web"))]
-        let _ = theme; // silence unused warning
+        apply_theme_class(&theme);
     });
 
     rsx! {
-        div { class: "flex h-screen bg-background",
+        div {
+            class: "flex h-screen bg-background",
+
             // ── Desktop sidebar (always visible lg+) ──
             aside { class: "hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 border-r border-border bg-card",
                 DesktopSidebar {}
