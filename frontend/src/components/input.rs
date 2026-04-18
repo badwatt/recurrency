@@ -9,7 +9,7 @@ pub fn Input(
 ) -> Element {
     rsx! {
         input {
-            r#type: "{r#type}",
+            r#type: r#type,
             value: "{value}",
             placeholder: "{placeholder}",
             oninput: move |e: FormEvent| on_input.call(e.value()),
