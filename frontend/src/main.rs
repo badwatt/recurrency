@@ -20,6 +20,8 @@ mod android_icon_tests;
 mod android_persistence_tests;
 #[cfg(test)]
 mod android_theme_tests;
+#[cfg(test)]
+mod android_setup_tests;
 
 #[cfg(test)]
 mod index_html_tests;

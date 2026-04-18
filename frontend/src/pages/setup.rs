@@ -5,7 +5,7 @@ use crate::Route;
 fn save_server_url(url: &str) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        if let Some(data_dir) = dirs::data_dir() {
+        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let app_dir = data_dir.join("recurrency");
             let _ = std::fs::create_dir_all(&app_dir);
             let url_file = app_dir.join("server_url.txt");
