@@ -50,7 +50,7 @@ impl PreferencesState {
         self.preferences.first_day_of_week = day;
     }
 
-    /// Persist theme to localStorage.
+    /// Persist theme to localStorage (WASM) or file (native).
     fn persist_theme(&self, theme: &str) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -61,9 +61,18 @@ impl PreferencesState {
                 let _ = storage.set_item(THEME_KEY, theme);
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
+                let app_dir = data_dir.join("recurrency");
+                if std::fs::create_dir_all(&app_dir).is_ok() {
+                    let _ = std::fs::write(app_dir.join("theme.txt"), theme);
+                }
+            }
+        }
     }
 
-    /// Hydrate theme from localStorage on startup.
+    /// Hydrate theme from localStorage (WASM) or file (native) on startup.
     pub fn hydrate_from_storage(&mut self) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -72,7 +81,6 @@ impl PreferencesState {
                 .flatten()
             {
                 if let Ok(Some(theme)) = storage.get_item(THEME_KEY) {
-                    // Only update if theme is valid
                     if ["light", "dark", "mocha", "system"].contains(&theme.as_str()) {
                         self.preferences.theme = theme;
                     }
@@ -81,7 +89,17 @@ impl PreferencesState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // No localStorage available outside wasm32
+            if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
+                let theme_file = data_dir.join("recurrency").join("theme.txt");
+                if theme_file.exists() {
+                    if let Ok(theme) = std::fs::read_to_string(&theme_file) {
+                        let theme = theme.trim().to_string();
+                        if ["light", "dark", "mocha", "system"].contains(&theme.as_str()) {
+                            self.preferences.theme = theme;
+                        }
+                    }
+                }
+            }
         }
     }
 }

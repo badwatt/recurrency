@@ -6,7 +6,8 @@ const TOKEN_KEY: &str = "recurrency-auth-token";
 /// Returns the app data directory for native platforms.
 /// Tries dirs::data_dir() first, then falls back to Android-specific paths.
 #[cfg(not(target_arch = "wasm32"))]
-fn get_app_data_dir() -> Option<std::path::PathBuf> {
+#[allow(dead_code)]
+pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
     // 1. Try standard dirs (works on desktop Linux/macOS/Windows)
     if let Some(dir) = dirs::data_dir() {
         return Some(dir);

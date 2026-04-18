@@ -16,6 +16,10 @@ mod utils;
 mod android_auth_tests;
 #[cfg(test)]
 mod android_icon_tests;
+#[cfg(test)]
+mod android_persistence_tests;
+#[cfg(test)]
+mod android_theme_tests;
 
 #[cfg(test)]
 mod index_html_tests;
@@ -88,7 +92,7 @@ fn App() -> Element {
                 }
             } else {
                 // Try reading from app data file
-                let data_dir: std::path::PathBuf = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+                let data_dir: std::path::PathBuf = crate::state::auth::get_app_data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
                 let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
                 if url_file.exists() {
                     if let Ok(url) = std::fs::read_to_string(&url_file) {
