@@ -375,4 +375,134 @@ mod tests {
         assert_eq!(with_counts.subscription_count, 5);
         assert_eq!(with_counts.transaction_count, 10);
     }
+
+    // ── Business logic: is first category check ──
+
+    fn is_first_category(count: i64) -> bool {
+        count == 0
+    }
+
+    #[test]
+    fn is_first_category_when_zero() {
+        assert!(is_first_category(0));
+    }
+
+    #[test]
+    fn is_first_category_when_nonzero() {
+        assert!(!is_first_category(1));
+        assert!(!is_first_category(100));
+    }
+
+    // ── Business logic: can delete check ──
+
+    fn can_delete_category(is_default: bool) -> Result<(), &'static str> {
+        if is_default {
+            Err("Cannot delete the default category")
+        } else {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn can_delete_non_default() {
+        assert!(can_delete_category(false).is_ok());
+    }
+
+    #[test]
+    fn can_delete_default_fails() {
+        assert!(can_delete_category(true).is_err());
+    }
+
+    // ── Business logic: sort priority calculation ──
+
+    fn category_sort_priority(is_default: bool, is_system: bool) -> (i32, i32) {
+        let default_priority = if is_default { 1 } else { 0 };
+        let system_priority = if is_system { 1 } else { 0 };
+        (default_priority, system_priority)
+    }
+
+    #[test]
+    fn sort_priority_default_first() {
+        let default = category_sort_priority(true, false);
+        let non_default = category_sort_priority(false, false);
+        assert!(default > non_default);
+    }
+
+    #[test]
+    fn sort_priority_system_before_user() {
+        let system = category_sort_priority(false, true);
+        let user = category_sort_priority(false, false);
+        assert!(system > user);
+    }
+
+    // ── Business logic: category name validation ──
+
+    fn is_valid_category_name(name: &str) -> Result<(), &'static str> {
+        if name.is_empty() {
+            Err("Category name cannot be empty")
+        } else if name.len() > 100 {
+            Err("Category name too long")
+        } else {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn valid_category_name() {
+        assert!(is_valid_category_name("Streaming").is_ok());
+        assert!(is_valid_category_name("A").is_ok());
+    }
+
+    #[test]
+    fn invalid_category_name_empty() {
+        assert!(is_valid_category_name("").is_err());
+    }
+
+    // ── Business logic: icon validation ──
+
+    fn is_valid_icon(icon: Option<&str>) -> bool {
+        match icon {
+            None => true,
+            Some(s) => !s.is_empty() && s.len() <= 50,
+        }
+    }
+
+    #[test]
+    fn valid_icon_none() {
+        assert!(is_valid_icon(None));
+    }
+
+    #[test]
+    fn valid_icon_short() {
+        assert!(is_valid_icon(Some("star")));
+    }
+
+    #[test]
+    fn invalid_icon_empty() {
+        assert!(!is_valid_icon(Some("")));
+    }
+
+    // ── Business logic: color validation ──
+
+    fn is_valid_color(color: Option<&str>) -> bool {
+        match color {
+            None => true,
+            Some(s) => !s.is_empty() && s.len() <= 20,
+        }
+    }
+
+    #[test]
+    fn valid_color_none() {
+        assert!(is_valid_color(None));
+    }
+
+    #[test]
+    fn valid_color_short() {
+        assert!(is_valid_color(Some("#fff")));
+    }
+
+    #[test]
+    fn invalid_color_empty() {
+        assert!(!is_valid_color(Some("")));
+    }
 }

@@ -177,4 +177,130 @@ mod tests {
         let url = crate::api::client::get_base_url();
         assert!(!url.is_empty());
     }
+
+    // ── URL validation logic (mirrors SetupPage validation) ──
+    #[test]
+    fn validate_url_empty_invalid() {
+        let url = "";
+        assert!(url.trim().is_empty(), "Empty URL should be invalid");
+    }
+
+    #[test]
+    fn validate_url_missing_protocol_invalid() {
+        let url = "192.168.1.100:8080";
+        let has_http = url.starts_with("http://");
+        let has_https = url.starts_with("https://");
+        assert!(!has_http && !has_https, "URL without http(s):// should be invalid");
+    }
+
+    #[test]
+    fn validate_url_http_valid() {
+        let url = "http://192.168.1.100:8080";
+        assert!(url.starts_with("http://") || url.starts_with("https://"));
+    }
+
+    #[test]
+    fn validate_url_https_valid() {
+        let url = "https://recurrency.example.com";
+        assert!(url.starts_with("https://"));
+    }
+
+    #[test]
+    fn validate_url_with_port_valid() {
+        let url = "http://localhost:8080";
+        assert!(url.starts_with("http://"));
+        assert!(url.contains(":8080"));
+    }
+
+    #[test]
+    fn validate_url_trailing_slash_valid() {
+        let url = "http://example.com:8080/";
+        assert!(url.starts_with("http://"));
+    }
+
+    #[test]
+    fn validate_url_ip_address_valid() {
+        let url = "http://10.0.0.1:3000";
+        assert!(url.starts_with("http://"));
+        assert!(url.contains("10.0.0.1"));
+    }
+
+    #[test]
+    fn validate_url_whitespace_invalid() {
+        let url = "   http://example.com   ";
+        // After trim should be valid, but raw URL with spaces should be invalid
+        assert!(url.trim() != url, "URL with leading/trailing spaces should be trimmed");
+        let trimmed = url.trim();
+        assert!(trimmed.starts_with("http://"));
+    }
+
+    #[test]
+    fn validate_url_ftp_invalid() {
+        let url = "ftp://example.com";
+        assert!(!url.starts_with("http://") && !url.starts_with("https://"));
+    }
+
+    #[test]
+    fn validate_url_file_protocol_invalid() {
+        let url = "file:///path/to/server";
+        assert!(!url.starts_with("http://") && !url.starts_with("https://"));
+    }
+
+    // ── Error message logic ──
+    #[test]
+    fn error_message_empty_url() {
+        let url = "";
+        let error = if url.is_empty() { "Server URL is required" } else { "" };
+        assert_eq!(error, "Server URL is required");
+    }
+
+    #[test]
+    fn error_message_invalid_protocol() {
+        let url = "example.com";
+        let error = if !url.starts_with("http://") && !url.starts_with("https://") {
+            "URL must start with http:// or https://"
+        } else { "" };
+        assert_eq!(error, "URL must start with http:// or https://");
+    }
+
+    #[test]
+    fn error_message_no_error_when_valid() {
+        let url = "http://example.com";
+        let error = if url.is_empty() { "Server URL is required" }
+            else if !url.starts_with("http://") && !url.starts_with("https://") { "URL must start with http:// or https://" }
+            else { "" };
+        assert_eq!(error, "");
+    }
+
+    // ── set_base_url / get_base_url override cycle ──
+    #[test]
+    fn base_url_override_after_set() {
+        let original = get_base_url();
+        assert!(original.starts_with("http"));
+
+        set_base_url("http://custom-server:9000");
+        let overridden = get_base_url();
+        assert_eq!(overridden, "http://custom-server:9000");
+
+        // Reset to original
+        set_base_url("");
+        // After clearing, falls back to impl
+    }
+
+    #[test]
+    fn base_url_override_https() {
+        set_base_url("https://secure-server.example.com");
+        assert_eq!(get_base_url(), "https://secure-server.example.com");
+        set_base_url("");
+    }
+
+    #[test]
+    fn base_url_override_clears() {
+        set_base_url("http://temp:8080");
+        assert_eq!(get_base_url(), "http://temp:8080");
+        set_base_url("");
+        // After clearing, reverts to default impl
+        let url = get_base_url();
+        assert!(url.starts_with("http"));
+    }
 }

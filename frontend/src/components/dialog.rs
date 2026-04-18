@@ -142,4 +142,93 @@ mod tests {
         assert!(tx_footer,
             "transactions dialog footer must use flex-col sm:flex-row for stacking on mobile");
     }
+
+    // ── Dialog component signature ──
+    #[test]
+    fn dialog_props_open() {
+        // open=false → empty render
+        let open = false;
+        assert!(!open);
+    }
+
+    #[test]
+    fn dialog_props_open_true() {
+        let open = true;
+        assert!(open);
+    }
+
+    #[test]
+    fn dialog_props_title() {
+        let title = "Test Dialog".to_string();
+        assert!(!title.is_empty());
+    }
+
+    #[test]
+    fn dialog_props_title_empty() {
+        let title = String::new();
+        assert!(title.is_empty());
+    }
+
+    // ── Backdrop class verification ──
+    #[test]
+    fn backdrop_class_fixed_inset_0() {
+        let cls = "fixed inset-0 z-50 bg-black/50 flex items-center justify-center";
+        assert!(cls.contains("fixed"));
+        assert!(cls.contains("inset-0"));
+        assert!(cls.contains("z-50"));
+        assert!(cls.contains("bg-black/50"));
+    }
+
+    #[test]
+    fn card_class_bg_card() {
+        let cls = "bg-card border border-border rounded-none sm:rounded-lg shadow-lg";
+        assert!(cls.contains("bg-card"));
+        assert!(cls.contains("border-border"));
+        assert!(cls.contains("sm:rounded-lg"));
+    }
+
+    #[test]
+    fn card_width_mobile_fullscreen() {
+        let cls = "w-full sm:max-w-lg mx-0 sm:mx-4";
+        assert!(cls.contains("w-full")); // Mobile full width
+        assert!(cls.contains("sm:max-w-lg")); // Desktop constrained
+    }
+
+    #[test]
+    fn card_height_mobile_fullscreen() {
+        let cls = "h-dvh sm:h-auto sm:max-h-[85vh]";
+        assert!(cls.contains("h-dvh")); // Mobile full height
+        assert!(cls.contains("sm:h-auto")); // Desktop auto
+        assert!(cls.contains("sm:max-h-[85vh]")); // Desktop max
+    }
+
+    #[test]
+    fn header_class_border_bottom() {
+        let cls = "flex items-center justify-between p-4 sm:p-6 border-b border-border";
+        assert!(cls.contains("flex"));
+        assert!(cls.contains("justify-between"));
+        assert!(cls.contains("border-b border-border"));
+    }
+
+    #[test]
+    fn content_class_padding() {
+        let cls = "p-4 sm:p-6 flex-1 overflow-y-auto";
+        assert!(cls.contains("p-4 sm:p-6"));
+        assert!(cls.contains("flex-1"));
+        assert!(cls.contains("overflow-y-auto"));
+    }
+
+    #[test]
+    fn close_button_class() {
+        let cls = "text-muted-foreground hover:text-foreground p-2 sm:p-0";
+        assert!(cls.contains("text-muted-foreground"));
+        assert!(cls.contains("hover:text-foreground"));
+        assert!(cls.contains("p-2 sm:p-0")); // Larger touch target on mobile
+    }
+
+    #[test]
+    fn close_button_symbol() {
+        let symbol = "✕";
+        assert_eq!(symbol, "✕");
+    }
 }

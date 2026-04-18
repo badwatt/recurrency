@@ -1867,4 +1867,436 @@ mod tests {
         assert!(has_correct_position,
             "Filters popover panel should use top-full mt-2 (below button), not top-10");
     }
+
+    // ── count_active_filters tests ──
+    #[test]
+    fn count_active_filters_zero() {
+        let f = FilterConfig {
+            status: None,
+            frequency: None,
+            category_id: None,
+            price_min: None,
+            price_max: None,
+        };
+        assert_eq!(count_active_filters(&f), 0);
+    }
+
+    #[test]
+    fn count_active_filters_one() {
+        let f = FilterConfig {
+            status: Some("active".into()),
+            frequency: None,
+            category_id: None,
+            price_min: None,
+            price_max: None,
+        };
+        assert_eq!(count_active_filters(&f), 1);
+    }
+
+    #[test]
+    fn count_active_filters_three_filters() {
+        let f = FilterConfig {
+            status: Some("active".into()),
+            frequency: Some("monthly".into()),
+            category_id: Some(Uuid::new_v4().to_string()),
+            price_min: None,
+            price_max: None,
+        };
+        assert_eq!(count_active_filters(&f), 3);
+    }
+
+    #[test]
+    fn count_active_filters_five_filters() {
+        let f = FilterConfig {
+            status: Some("inactive".into()),
+            frequency: Some("yearly".into()),
+            category_id: Some(Uuid::new_v4().to_string()),
+            price_min: Some("10".into()),
+            price_max: Some("100".into()),
+        };
+        assert_eq!(count_active_filters(&f), 5);
+    }
+
+    // ── filter_subscriptions tests ──
+    #[test]
+    fn filter_subscriptions_empty_input() {
+        let subs: Vec<Subscription> = vec![];
+        let f = FilterConfig::default();
+        let result = filter_subscriptions(&subs, &f);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_subscriptions_no_filters() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(20), "yearly", false, None, cat),
+        ];
+        let f = FilterConfig::default();
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_subscriptions_status_active() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Active1", dec!(10), "monthly", true, None, cat),
+            make_sub("Inactive1", dec!(20), "yearly", false, None, cat),
+        ];
+        let f = FilterConfig {
+            status: Some("active".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1);
+        assert!(result[0].is_active);
+    }
+
+    #[test]
+    fn filter_subscriptions_status_inactive() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Active1", dec!(10), "monthly", true, None, cat),
+            make_sub("Inactive1", dec!(20), "yearly", false, None, cat),
+        ];
+        let f = FilterConfig {
+            status: Some("inactive".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1);
+        assert!(!result[0].is_active);
+    }
+
+    #[test]
+    fn filter_subscriptions_frequency() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Monthly", dec!(10), "monthly", true, None, cat),
+            make_sub("Yearly", dec!(20), "yearly", true, None, cat),
+            make_sub("Weekly", dec!(5), "weekly", true, None, cat),
+        ];
+        let f = FilterConfig {
+            frequency: Some("monthly".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].frequency, "monthly");
+    }
+
+    #[test]
+    fn filter_subscriptions_category_id() {
+        let cat1 = Uuid::new_v4();
+        let cat2 = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Sub1", dec!(10), "monthly", true, None, cat1),
+            make_sub("Sub2", dec!(20), "monthly", true, None, cat2),
+        ];
+        let f = FilterConfig {
+            category_id: Some(cat1.to_string()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn filter_subscriptions_price_min() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(5), "monthly", true, None, cat),
+            make_sub("B", dec!(15), "monthly", true, None, cat),
+            make_sub("C", dec!(25), "monthly", true, None, cat),
+        ];
+        let f = FilterConfig {
+            price_min: Some("10".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_subscriptions_price_max() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(5), "monthly", true, None, cat),
+            make_sub("B", dec!(15), "monthly", true, None, cat),
+            make_sub("C", dec!(25), "monthly", true, None, cat),
+        ];
+        let f = FilterConfig {
+            price_max: Some("20".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_subscriptions_price_range() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(5), "monthly", true, None, cat),
+            make_sub("B", dec!(15), "monthly", true, None, cat),
+            make_sub("C", dec!(25), "monthly", true, None, cat),
+        ];
+        let f = FilterConfig {
+            price_min: Some("10".into()),
+            price_max: Some("20".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn filter_subscriptions_combined() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(20), "yearly", true, None, cat),
+            make_sub("C", dec!(10), "monthly", false, None, cat),
+        ];
+        let f = FilterConfig {
+            status: Some("active".into()),
+            frequency: Some("monthly".into()),
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn filter_subscriptions_invalid_price_ignored() {
+        let cat = Uuid::new_v4();
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let f = FilterConfig {
+            price_min: Some("abc".into()), // Invalid, should be ignored
+            ..Default::default()
+        };
+        let result = filter_subscriptions(&subs, &f);
+        assert_eq!(result.len(), 1); // All pass since filter is invalid
+    }
+
+    // ── sort_subscriptions tests ──
+    #[test]
+    fn sort_subscriptions_by_amount_asc() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("B", dec!(20), "monthly", true, None, cat),
+            make_sub("A", dec!(5), "monthly", true, None, cat),
+            make_sub("C", dec!(15), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].amount, dec!(5));
+        assert_eq!(subs[1].amount, dec!(15));
+        assert_eq!(subs[2].amount, dec!(20));
+    }
+
+    #[test]
+    fn sort_subscriptions_by_amount_desc() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("A", dec!(5), "monthly", true, None, cat),
+            make_sub("B", dec!(20), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "desc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].amount, dec!(20));
+        assert_eq!(subs[1].amount, dec!(5));
+    }
+
+    #[test]
+    fn sort_subscriptions_by_name() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("Zebra", dec!(10), "monthly", true, None, cat),
+            make_sub("Apple", dec!(10), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig {
+            field: "name".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs[0].name, "Apple");
+        assert_eq!(subs[1].name, "Zebra");
+    }
+
+    #[test]
+    fn sort_subscriptions_by_frequency() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(10), "weekly", true, None, cat),
+            make_sub("C", dec!(10), "yearly", true, None, cat),
+        ];
+        let sort = SortConfig {
+            field: "frequency".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        // weekly=0, monthly=1, yearly=3
+        assert_eq!(subs[0].frequency, "weekly");
+        assert_eq!(subs[1].frequency, "monthly");
+        assert_eq!(subs[2].frequency, "yearly");
+    }
+
+    #[test]
+    fn sort_subscriptions_by_start_date() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("A", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()), cat),
+            make_sub("B", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()), cat),
+        ];
+        let sort = SortConfig {
+            field: "start_date".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        // 2020 is before 2024, so A (2020) should come first
+        assert_eq!(subs[0].name, "A");
+        assert_eq!(subs[1].name, "B");
+    }
+
+    #[test]
+    fn sort_subscriptions_by_next_billing_date() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("June15", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()), cat),
+            make_sub("June1", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+        ];
+        let sort = SortConfig {
+            field: "next_billing_date".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        // June 1 should come before June 15
+        assert_eq!(subs[0].name, "June1");
+        assert_eq!(subs[1].name, "June15");
+    }
+
+    #[test]
+    fn sort_subscriptions_none_next_billing_last() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("HasDate", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+            make_sub("NoDate", dec!(10), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig {
+            field: "next_billing_date".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        // None should be last (i64::MAX)
+        assert_eq!(subs.last().unwrap().name, "NoDate");
+    }
+
+    #[test]
+    fn sort_subscriptions_unknown_field_equal() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(10), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig {
+            field: "unknown_field".into(),
+            direction: "asc".into(),
+        };
+        sort_subscriptions(&mut subs, &sort);
+        // Unknown field: all equal, order unchanged
+        assert_eq!(subs.len(), 2);
+    }
+
+    // ── apply_filters_and_sort tests ──
+    #[test]
+    fn apply_filters_and_sort_full_pipeline() {
+        let cat = Uuid::new_v4();
+        let subs = vec![
+            make_sub("Z1", dec!(20), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+            make_sub("A1", dec!(5), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()), cat),
+            make_sub("A2", dec!(5), "yearly", true, None, cat),
+        ];
+        let f = FilterConfig {
+            frequency: Some("monthly".into()),
+            ..Default::default()
+        };
+        let s = SortConfig {
+            field: "amount".into(),
+            direction: "asc".into(),
+        };
+        let result = apply_filters_and_sort(&subs, &f, &s);
+        // Only monthly, sorted by amount asc
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].amount, dec!(5));
+        assert_eq!(result[1].amount, dec!(20));
+    }
+
+    #[test]
+    fn apply_filters_and_sort_empty_result() {
+        let cat = Uuid::new_v4();
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let f = FilterConfig {
+            frequency: Some("weekly".into()), // No weekly subs
+            ..Default::default()
+        };
+        let s = SortConfig::default();
+        let result = apply_filters_and_sort(&subs, &f, &s);
+        assert!(result.is_empty());
+    }
+
+    // ── FilterConfig and SortConfig defaults ──
+    #[test]
+    fn filter_config_default() {
+        let f = FilterConfig::default();
+        assert!(f.status.is_none());
+        assert!(f.frequency.is_none());
+        assert!(f.category_id.is_none());
+        assert!(f.price_min.is_none());
+        assert!(f.price_max.is_none());
+    }
+
+    #[test]
+    fn filter_config_partial_equality() {
+        let f1 = FilterConfig {
+            status: Some("active".into()),
+            ..Default::default()
+        };
+        let f2 = FilterConfig {
+            status: Some("active".into()),
+            ..Default::default()
+        };
+        assert_eq!(f1.status, f2.status);
+        assert_ne!(f1.frequency, f2.status);
+    }
+
+    #[test]
+    fn sort_config_default_values() {
+        let s = SortConfig::default();
+        assert_eq!(s.field, "next_billing_date");
+        assert_eq!(s.direction, "asc");
+    }
+
+    // ── More status_options tests ──
+    #[test]
+    fn status_options_values() {
+        let expected = vec![("all", "All"), ("active", "Active"), ("inactive", "Inactive")];
+        assert_eq!(STATUS_OPTIONS, expected);
+    }
+
+    // ── More sort_options tests ──
+    #[test]
+    fn sort_options_values() {
+        assert!(SORT_OPTIONS.iter().any(|(k, v)| *k == "next_billing_date" && *v == "Upcoming date"));
+        assert!(SORT_OPTIONS.iter().any(|(k, v)| *k == "amount" && *v == "Price"));
+    }
 }

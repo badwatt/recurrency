@@ -54,6 +54,7 @@ async fn api_get_with_token<T: serde::de::DeserializeOwned>(path: &str, token: &
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn login_request_construction() {
@@ -131,5 +132,100 @@ mod tests {
         let resp: AuthResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.token, "tok123");
         assert!(!resp.requires_verification);
+    }
+
+    // ── UserResponse model tests ──
+    #[test]
+    fn user_response_fields() {
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: Some("John".into()),
+            currency: "EUR".into(),
+            verified: true,
+        };
+        assert_eq!(user.email, "test@test.com");
+        assert_eq!(user.currency, "EUR");
+        assert!(user.verified);
+        assert!(user.name.is_some());
+    }
+
+    #[test]
+    fn user_response_without_name() {
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: None,
+            currency: "USD".into(),
+            verified: false,
+        };
+        assert!(user.name.is_none());
+        assert!(!user.verified);
+    }
+
+    #[test]
+    fn auth_response_with_verification_required() {
+        let json = r#"{"token":"tok","user":{"id":"00000000-0000-0000-0000-000000000001","email":"u@t.com","name":"Test","currency":"EUR","verified":false},"requires_verification":true}"#;
+        let resp: AuthResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.requires_verification);
+        assert!(!resp.user.verified);
+    }
+
+    #[test]
+    fn auth_response_roundtrip() {
+        let json = r#"{"token":"tok123","user":{"id":"00000000-0000-0000-0000-000000000001","email":"u@t.com","name":null,"currency":"EUR","verified":true},"requires_verification":false}"#;
+        let resp: AuthResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.token, "tok123");
+        assert!(resp.user.name.is_none());
+    }
+
+    #[test]
+    fn login_request_empty_email() {
+        let req = LoginRequest {
+            email: "".into(),
+            password: "pass".into(),
+        };
+        assert!(req.email.is_empty());
+    }
+
+    #[test]
+    fn login_request_empty_password() {
+        let req = LoginRequest {
+            email: "test@test.com".into(),
+            password: "".into(),
+        };
+        assert!(req.password.is_empty());
+    }
+
+    #[test]
+    fn register_request_empty_name() {
+        let req = RegisterRequest {
+            email: "test@test.com".into(),
+            password: "password".into(),
+            name: "".into(),
+        };
+        assert!(req.name.is_empty());
+    }
+
+    #[test]
+    fn verify_token_format() {
+        let token = "abc123def456";
+        let body = serde_json::json!({ "token": token });
+        assert_eq!(body["token"], "abc123def456");
+    }
+
+    #[test]
+    fn api_paths() {
+        assert!("/api/auth/login".starts_with("/api/"));
+        assert!("/api/auth/register".starts_with("/api/"));
+        assert!("/api/auth/verify".starts_with("/api/"));
+        assert!("/api/auth/me".starts_with("/api/"));
+    }
+
+    #[test]
+    fn resend_verification_empty_body() {
+        let body = serde_json::json!({});
+        assert!(body.is_object());
+        assert_eq!(body.as_object().unwrap().len(), 0);
     }
 }

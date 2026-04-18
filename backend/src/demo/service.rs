@@ -86,23 +86,8 @@ impl DemoService {
         ];
 
         for (name, amount, months_ago, day) in subs {
-            let start_date = {
-                let (sy, sm) = if this_month as i32 - months_ago <= 0 {
-                    (this_year - 1, 12 + this_month as i32 - months_ago)
-                } else {
-                    (this_year, this_month as i32 - months_ago)
-                };
-                let sd = day.min(days_in_month(sy, sm as u32));
-                chrono::NaiveDate::from_ymd_opt(sy, sm as u32, sd).unwrap_or(today)
-            };
-            let next_date = chrono::NaiveDate::from_ymd_opt(
-                if day <= today_day { next_year } else { this_year },
-                if day <= today_day { next_month } else { this_month },
-                day.min(days_in_month(
-                    if day <= today_day { next_year } else { this_year },
-                    if day <= today_day { next_month } else { this_month },
-                ))
-            ).unwrap_or(today);
+            let start_date = calc_start_date(this_month, this_year, months_ago, day);
+            let next_date = calc_next_date(this_month, this_year, today_day, day);
 
             sqlx::query(
                 "INSERT INTO subscriptions (id, user_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active)
@@ -145,6 +130,113 @@ impl DemoService {
         }
 
         Ok(())
+    }
+}
+
+/// Calculate the start date given current month/year and months ago.
+pub(crate) fn calc_start_date(month: u32, year: i32, months_ago: u32, day: u32) -> chrono::NaiveDate {
+    let total_months = year * 12 + month as i32 - months_ago as i32 - 1;
+    let new_year = total_months / 12;
+    let new_month = ((total_months % 12) + 1) as u32;
+    let max_day = days_in_month(new_year, new_month);
+    let new_day = day.min(max_day);
+    chrono::NaiveDate::from_ymd_opt(new_year, new_month, new_day)
+        .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap())
+}
+
+/// Calculate next billing date from current date and billing day.
+pub(crate) fn calc_next_date(month: u32, year: i32, today_day: u32, billing_day: u32) -> chrono::NaiveDate {
+    let next_month = if billing_day > today_day { month } else { month + 1 };
+    let (next_year, next_month_normalized) = if next_month > 12 {
+        (year + 1, 1)
+    } else {
+        (year, next_month)
+    };
+    let max_day = days_in_month(next_year, next_month_normalized);
+    let final_day = billing_day.min(max_day);
+    chrono::NaiveDate::from_ymd_opt(next_year, next_month_normalized, final_day).unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn days_in_month_january() { assert_eq!(days_in_month(2024, 1), 31); }
+    #[test]
+    fn days_in_month_april() { assert_eq!(days_in_month(2024, 4), 30); }
+    #[test]
+    fn days_in_month_february_leap() { assert_eq!(days_in_month(2024, 2), 29); }
+    #[test]
+    fn days_in_month_february_non_leap() { assert_eq!(days_in_month(2023, 2), 28); }
+
+    #[test]
+    fn calc_start_date_same_month() {
+        let date = calc_start_date(6, 2024, 0, 15);
+        assert_eq!(date.month(), 6);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_start_date_one_month_ago() {
+        let date = calc_start_date(6, 2024, 1, 15);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_start_date_december_to_november() {
+        let date = calc_start_date(12, 2024, 1, 15);
+        assert_eq!(date.month(), 11);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_start_date_january_to_december() {
+        let date = calc_start_date(1, 2024, 1, 15);
+        assert_eq!(date.month(), 12);
+        assert_eq!(date.year(), 2023);
+    }
+
+    #[test]
+    fn calc_start_date_day_31_to_month_30() {
+        let date = calc_start_date(5, 2024, 1, 31);
+        assert_eq!(date.month(), 4);
+        assert_eq!(date.day(), 30);
+    }
+
+    #[test]
+    fn calc_next_date_future_day_same_month() {
+        let date = calc_next_date(6, 2024, 15, 20);
+        assert_eq!(date.month(), 6);
+        assert_eq!(date.day(), 20);
+    }
+
+    #[test]
+    fn calc_next_date_past_day_next_month() {
+        let date = calc_next_date(6, 2024, 15, 10);
+        assert_eq!(date.month(), 7);
+    }
+
+    #[test]
+    fn calc_next_date_december_to_january() {
+        let date = calc_next_date(12, 2024, 15, 10);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.year(), 2025);
+    }
+
+    #[test]
+    fn calc_next_date_day_clamp() {
+        let date = calc_next_date(4, 2024, 15, 31);
+        assert_eq!(date.month(), 4);
+        assert_eq!(date.day(), 30);
+    }
+
+    #[test]
+    fn calc_next_date_february_leap() {
+        let date = calc_next_date(1, 2024, 15, 31);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 31);
     }
 }
 

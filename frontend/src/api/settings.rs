@@ -73,4 +73,43 @@ mod tests {
         let parsed: SettingsResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.user.currency, "USD");
     }
+
+    #[test]
+    fn update_settings_request_currency_only() {
+        use crate::models::auth::UpdateSettingsRequest;
+        let req = UpdateSettingsRequest {
+            name: None,
+            currency: Some("EUR".into()),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("EUR"));
+    }
+
+    #[test]
+    fn update_settings_request_name_only() {
+        use crate::models::auth::UpdateSettingsRequest;
+        let req = UpdateSettingsRequest {
+            name: Some("Bob".into()),
+            currency: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("Bob"));
+    }
+
+    #[test]
+    fn settings_response_user_fields() {
+        let response = SettingsResponse {
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "test@test.com".into(),
+                name: None,
+                currency: "GBP".into(),
+                verified: false,
+            },
+        };
+        assert_eq!(response.user.email, "test@test.com");
+        assert_eq!(response.user.currency, "GBP");
+        assert!(response.user.name.is_none());
+        assert!(!response.user.verified);
+    }
 }

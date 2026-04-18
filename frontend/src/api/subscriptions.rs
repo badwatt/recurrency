@@ -33,6 +33,11 @@ pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, 
 
 #[cfg(test)]
 mod tests {
+    use crate::models::subscription::*;
+    use chrono::NaiveDate;
+    use uuid::Uuid;
+    use rust_decimal_macros::dec;
+
     #[test]
     fn subscription_api_paths() {
         // Verify URL patterns are correctly formed
@@ -66,5 +71,227 @@ mod tests {
         let id = uuid::Uuid::new_v4();
         let path = format!("/api/subscriptions/{}", id);
         assert_eq!(path.len(), "/api/subscriptions/".len() + 36); // UUID is 36 chars
+    }
+
+    #[test]
+    fn create_subscription_request_fields() {
+        let req = CreateSubscriptionRequest {
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            category_id: Some(Uuid::new_v4()),
+            notes: None,
+            logo_url: None,
+        };
+        assert_eq!(req.name, "Netflix");
+        assert_eq!(req.amount, dec!(15.99));
+        assert_eq!(req.currency, "USD");
+        assert_eq!(req.frequency, "monthly");
+        assert!(req.notes.is_none());
+    }
+
+    #[test]
+    fn create_subscription_request_with_notes() {
+        let req = CreateSubscriptionRequest {
+            name: "Spotify".into(),
+            amount: dec!(9.99),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            category_id: None,
+            notes: Some("Family plan".into()),
+            logo_url: Some("https://logo.com/spotify.png".into()),
+        };
+        assert!(req.notes.is_some());
+        assert!(req.logo_url.is_some());
+    }
+
+    #[test]
+    fn update_subscription_request_partial() {
+        let req = UpdateSubscriptionRequest {
+            name: Some("Netflix Premium".into()),
+            amount: Some(dec!(19.99)),
+            currency: None,
+            frequency: None,
+            start_date: None,
+            next_billing_date: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        };
+        assert_eq!(req.name.as_deref(), Some("Netflix Premium"));
+        assert_eq!(req.amount.as_ref().unwrap(), &dec!(19.99));
+        assert!(req.currency.is_none());
+        assert!(req.frequency.is_none());
+    }
+
+    #[test]
+    fn update_subscription_request_all_none() {
+        let req: UpdateSubscriptionRequest = Default::default();
+        assert!(req.name.is_none());
+        assert!(req.amount.is_none());
+        assert!(req.currency.is_none());
+        assert!(req.frequency.is_none());
+        assert!(req.start_date.is_none());
+        assert!(req.next_billing_date.is_none());
+        assert!(req.is_active.is_none());
+    }
+
+    #[test]
+    fn subscription_model_fields() {
+        let sub = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        };
+        assert_eq!(sub.name, "Netflix");
+        assert!(sub.is_active);
+        assert!(sub.next_billing_date.is_some());
+        assert!(sub.notes.is_none());
+    }
+
+    #[test]
+    fn subscription_inactive() {
+        let sub = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Old Service".into(),
+            amount: dec!(5.0),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            start_date: NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: false,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        };
+        assert!(!sub.is_active);
+        assert!(sub.next_billing_date.is_none());
+    }
+
+    #[test]
+    fn calendar_item_model() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert_eq!(item.name, "Netflix");
+        assert_eq!(item.billing_date, NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        assert!(item.is_active);
+    }
+
+    #[test]
+    fn calendar_item_inactive() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Canceled".into(),
+            amount: dec!(5.0),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            is_active: false,
+            logo_url: None,
+        };
+        assert!(!item.is_active);
+    }
+
+    #[test]
+    fn calendar_item_date_string() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(date.to_string(), "2024-06-15");
+    }
+
+    #[test]
+    fn frequency_options_all() {
+        let freqs = vec!["weekly", "monthly", "quarterly", "yearly"];
+        assert_eq!(freqs.len(), 4);
+    }
+
+    #[test]
+    fn subscription_serialization_roundtrip() {
+        let sub = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Test".into(),
+            amount: dec!(9.99),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        };
+        let json = serde_json::to_string(&sub).unwrap();
+        let back: Subscription = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "Test");
+    }
+
+    #[test]
+    fn create_request_serialization() {
+        let req = CreateSubscriptionRequest {
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("Netflix"));
+        assert!(json.contains("15.99"));
+    }
+
+    #[test]
+    fn update_request_serialization_partial() {
+        let req = UpdateSubscriptionRequest {
+            name: Some("Updated Name".into()),
+            amount: Some(dec!(20.00)),
+            currency: None,
+            frequency: None,
+            start_date: None,
+            next_billing_date: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("Updated Name"));
+        assert!(json.contains("20"));
+    }
+
+    #[test]
+    fn upcoming_path() {
+        let path = "/api/subscriptions/upcoming";
+        assert!(path.contains("upcoming"));
     }
 }

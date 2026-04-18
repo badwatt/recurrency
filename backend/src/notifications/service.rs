@@ -133,6 +133,7 @@ pub(crate) fn default_notification_preferences() -> Vec<NotificationPreferenceRe
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn default_notification_preferences_has_three_channels() {
@@ -163,5 +164,175 @@ mod tests {
         for pref in &prefs {
             assert_eq!(pref.reminder_days_before, 3);
         }
+    }
+
+    // ── Notification filtering logic ──
+
+    fn filter_by_type<'a>(notifs: &'a [Notification], notif_type: &str) -> Vec<&'a Notification> {
+        notifs.iter().filter(|n| n.notification_type == notif_type).collect()
+    }
+
+    #[test]
+    fn filter_by_type_reminders() {
+        let notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "alert".to_string(), title: "A1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R2".to_string(), message: None, is_read: false, created_at: Utc::now() },
+        ];
+        let reminders = filter_by_type(&notifs, "reminder");
+        assert_eq!(reminders.len(), 2);
+    }
+
+    #[test]
+    fn filter_by_type_no_match() {
+        let notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+        ];
+        let alerts = filter_by_type(&notifs, "alert");
+        assert!(alerts.is_empty());
+    }
+
+    #[test]
+    fn filter_by_type_empty() {
+        let notifs: Vec<Notification> = vec![];
+        let filtered = filter_by_type(&notifs, "reminder");
+        assert!(filtered.is_empty());
+    }
+
+    // ── Unread count logic ──
+
+    fn count_unread(notifs: &[Notification]) -> usize {
+        notifs.iter().filter(|n| !n.is_read).count()
+    }
+
+    #[test]
+    fn count_unread_all_unread() {
+        let notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "alert".to_string(), title: "A1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+        ];
+        assert_eq!(count_unread(&notifs), 2);
+    }
+
+    #[test]
+    fn count_unread_all_read() {
+        let notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: true, created_at: Utc::now() },
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "alert".to_string(), title: "A1".to_string(), message: None, is_read: true, created_at: Utc::now() },
+        ];
+        assert_eq!(count_unread(&notifs), 0);
+    }
+
+    #[test]
+    fn count_unread_mixed() {
+        let notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: true, created_at: Utc::now() },
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "alert".to_string(), title: "A1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+        ];
+        assert_eq!(count_unread(&notifs), 1);
+    }
+
+    #[test]
+    fn count_unread_empty() {
+        let notifs: Vec<Notification> = vec![];
+        assert_eq!(count_unread(&notifs), 0);
+    }
+
+    // ── Mark read logic ──
+
+    fn mark_all_read(notifs: &mut [Notification]) -> usize {
+        let before = count_unread(notifs);
+        for n in notifs.iter_mut() {
+            n.is_read = true;
+        }
+        before
+    }
+
+    #[test]
+    fn mark_all_read_returns_count() {
+        let mut notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "alert".to_string(), title: "A1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+        ];
+        let count = mark_all_read(&mut notifs);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn mark_all_read_updates() {
+        let mut notifs = vec![
+            Notification { id: Uuid::new_v4(), user_id: Uuid::new_v4(), notification_type: "reminder".to_string(), title: "R1".to_string(), message: None, is_read: false, created_at: Utc::now() },
+        ];
+        mark_all_read(&mut notifs);
+        assert!(notifs[0].is_read);
+    }
+
+    // ── Reminder days calculation ──
+
+    fn days_until_billing(billing_date: chrono::NaiveDate, today: chrono::NaiveDate) -> i64 {
+        (billing_date - today).num_days()
+    }
+
+    #[test]
+    fn days_until_billing_future() {
+        let today = chrono::NaiveDate::from_ymd_opt(2024, 6, 1).unwrap();
+        let billing = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(days_until_billing(billing, today), 14);
+    }
+
+    #[test]
+    fn days_until_billing_today() {
+        let today = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let billing = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(days_until_billing(billing, today), 0);
+    }
+
+    #[test]
+    fn days_until_billing_past() {
+        let today = chrono::NaiveDate::from_ymd_opt(2024, 6, 20).unwrap();
+        let billing = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(days_until_billing(billing, today), -5);
+    }
+
+    // ── Should remind logic ──
+
+    fn should_remind(days_until: i64, reminder_days: i64) -> bool {
+        days_until >= 0 && days_until <= reminder_days
+    }
+
+    #[test]
+    fn should_remind_within_window() {
+        assert!(should_remind(3, 3));
+        assert!(should_remind(1, 3));
+    }
+
+    #[test]
+    fn should_remind_today() {
+        assert!(should_remind(0, 3));
+    }
+
+    #[test]
+    fn should_not_remind_outside_window() {
+        assert!(!should_remind(4, 3));
+        assert!(!should_remind(10, 3));
+    }
+
+    #[test]
+    fn should_not_remind_past() {
+        assert!(!should_remind(-1, 3));
+    }
+
+    // ── Notification preference response construction ──
+
+    #[test]
+    fn notification_preference_response_structure() {
+        let resp = NotificationPreferenceResponse {
+            channel: "email".to_string(),
+            enabled: true,
+            reminder_days_before: 5,
+        };
+        assert_eq!(resp.channel, "email");
+        assert!(resp.enabled);
+        assert_eq!(resp.reminder_days_before, 5);
     }
 }

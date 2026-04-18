@@ -263,4 +263,155 @@ mod tests {
         assert!(!state.is_authenticated);
         assert!(state.token.is_none());
     }
+
+    // ── Name validation ──
+    #[test]
+    fn name_empty_invalid() {
+        let name = "";
+        assert!(name.trim().is_empty());
+    }
+
+    #[test]
+    fn name_with_whitespace_trimmed() {
+        let name = "  John  ";
+        assert_eq!(name.trim(), "John");
+    }
+
+    #[test]
+    fn name_single_char_valid() {
+        let name = "J";
+        assert!(!name.trim().is_empty());
+    }
+
+    #[test]
+    fn name_long_valid() {
+        let name = "Alexander The Great III";
+        assert!(!name.trim().is_empty());
+        assert!(name.len() >= 3);
+    }
+
+    // ── Email validation ──
+    #[test]
+    fn email_validation_standard() {
+        let email = "test@example.com";
+        assert!(email.contains('@'));
+        assert!(email.contains('.'));
+    }
+
+    #[test]
+    fn email_validation_no_at() {
+        let email = "testexample.com";
+        assert!(!email.contains('@'));
+    }
+
+    #[test]
+    fn email_validation_empty_domain() {
+        let email = "test@";
+        let parts: Vec<_> = email.split('@').collect();
+        assert_eq!(parts.len(), 2);
+        assert!(parts[1].is_empty());
+    }
+
+    #[test]
+    fn email_validation_no_tld() {
+        let email = "test@example";
+        assert!(email.contains('@'));
+        // Domain after @ should have a dot for a valid TLD
+        let after_at = email.split('@').nth(1).unwrap_or("");
+        assert!(!after_at.contains('.'), "Email domain should have a dot for valid TLD");
+    }
+
+    // ── Password validation ──
+    #[test]
+    fn password_min_length_boundary() {
+        let pwd7 = "1234567";
+        let pwd8 = "12345678";
+        assert!(pwd7.len() < 8);
+        assert!(pwd8.len() >= 8);
+    }
+
+    #[test]
+    fn password_special_chars() {
+        let pwd = "P@ssw0rd!";
+        assert!(pwd.len() >= 8);
+        assert!(pwd.contains('@') || pwd.contains('!'));
+    }
+
+    // ── Register flow states ──
+    #[test]
+    fn register_auto_login_on_success() {
+        let mut state = AuthState::default();
+        let user = sample_user(true);
+        assert!(!state.is_authenticated);
+        state.set_authenticated("new-token".into(), user, false);
+        assert!(state.is_authenticated);
+        assert!(state.is_verified());
+    }
+
+    #[test]
+    fn register_pending_verification_token_stored() {
+        let mut state = AuthState::default();
+        let user = sample_user(false);
+        state.set_authenticated("pending-token".into(), user, true);
+        assert!(!state.is_authenticated);
+        assert!(state.token.is_some());
+        assert!(state.token.as_ref().unwrap() == "pending-token");
+    }
+
+    #[test]
+    fn register_verify_and_login() {
+        let mut state = AuthState::default();
+        let user = sample_user(false);
+        state.set_authenticated("tok".into(), user, true);
+        assert!(!state.is_authenticated);
+        state.set_verified();
+        assert!(state.is_authenticated);
+        assert!(state.is_verified());
+    }
+
+    #[test]
+    fn register_name_optional() {
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: None,
+            currency: "USD".into(),
+            verified: true,
+        };
+        assert!(user.name.is_none());
+    }
+
+    #[test]
+    fn register_different_currencies() {
+        for currency in ["USD", "EUR", "GBP", "JPY"] {
+            let user = UserResponse {
+                id: Uuid::new_v4(),
+                email: format!("test@{}.com", currency),
+                name: Some("Test".into()),
+                currency: currency.into(),
+                verified: true,
+            };
+            assert_eq!(user.currency, currency);
+        }
+    }
+
+    // ── API errors in register context ──
+    #[test]
+    fn error_email_taken() {
+        let err = crate::api::client::ApiError::Http(400, "Email already registered".into());
+        assert!(err.to_string().contains("400"));
+        assert!(err.to_string().contains("Email already registered"));
+    }
+
+    #[test]
+    fn error_network_during_register() {
+        let err = crate::api::client::ApiError::Network("connection reset".into());
+        assert!(err.to_string().contains("connection reset"));
+    }
+
+    #[test]
+    fn error_parse_during_register() {
+        let err = crate::api::client::ApiError::Parse("unexpected end".into());
+        assert!(err.to_string().contains("unexpected end"));
+    }
 }

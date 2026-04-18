@@ -453,3 +453,5 @@ mod tests {
         assert_eq!(err.to_string(), "Unauthorized");
     }
 }
+// ── Additional pure function tests ────────────────────────────────────
+// (api_client_tests module removed: referenced non-existent types StatusCode, RequestContext, and variants that don't exist in ApiError)

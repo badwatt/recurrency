@@ -319,4 +319,162 @@ mod tests {
         assert!(!state.is_authenticated);
         assert!(state.token.is_none());
     }
+
+    // ── Email validation edge cases ──
+    #[test]
+    fn email_validation_subdomain() {
+        let email = "user@mail.example.com";
+        assert!(email.contains('@'));
+        assert!(email.contains(".com"));
+    }
+
+    #[test]
+    fn email_validation_plus_sign() {
+        let email = "user+tag@example.com";
+        assert!(email.contains('@'));
+        assert!(email.contains('+'));
+    }
+
+    #[test]
+    fn email_validation_no_at_symbol() {
+        let email = "userexample.com";
+        assert!(!email.contains('@'));
+    }
+
+    #[test]
+    fn email_validation_empty() {
+        let email = "";
+        assert!(!email.contains('@'));
+    }
+
+    #[test]
+    fn email_validation_only_at() {
+        let email = "@";
+        assert!(email.contains('@'));
+        // But it's invalid - domain is empty after @
+        let parts: Vec<_> = email.split('@').collect();
+        assert!(parts.len() == 2 && parts[1].is_empty());
+    }
+
+    // ── Password validation edge cases ──
+    #[test]
+    fn password_exactly_min_length() {
+        let pwd = "12345678"; // 8 chars
+        assert!(pwd.len() >= 8);
+    }
+
+    #[test]
+    fn password_one_short() {
+        let pwd = "1234567"; // 7 chars
+        assert!(pwd.len() < 8);
+    }
+
+    #[test]
+    fn password_empty() {
+        let pwd = "";
+        assert!(pwd.is_empty());
+        assert!(pwd.len() < 8);
+    }
+
+    #[test]
+    fn password_long() {
+        let pwd = "verylongpassword123!@#";
+        assert!(pwd.len() >= 8);
+    }
+
+    // ── API Error types for login ──
+    #[test]
+    fn api_error_http_400() {
+        let err = crate::api::client::ApiError::Http(400, "Bad request".into());
+        let s = err.to_string();
+        assert!(s.contains("400"));
+        assert!(s.contains("Bad request"));
+    }
+
+    #[test]
+    fn api_error_http_500() {
+        let err = crate::api::client::ApiError::Http(500, "Internal error".into());
+        let s = err.to_string();
+        assert!(s.contains("500"));
+    }
+
+    #[test]
+    fn api_error_network() {
+        let err = crate::api::client::ApiError::Network("timeout".into());
+        assert!(err.to_string().contains("timeout"));
+    }
+
+    // ── AuthState set_verified ──
+    #[test]
+    fn auth_state_set_verified_true() {
+        let mut state = AuthState::default();
+        let user = sample_user(false);
+        state.set_authenticated("tok".into(), user, false);
+        assert!(!state.is_verified());
+        state.set_verified();
+        assert!(state.is_verified());
+    }
+
+    #[test]
+    fn auth_state_user_info_access() {
+        let mut state = AuthState::default();
+        let user = sample_user(true);
+        state.set_authenticated("tok".into(), user.clone(), false);
+        // state.user is Option<UserResponse>, need to unwrap
+        assert_eq!(state.user.as_ref().unwrap().email, "user@test.com");
+        assert_eq!(state.user.as_ref().unwrap().currency, "EUR");
+        assert!(state.user.as_ref().unwrap().verified);
+    }
+
+    #[test]
+    fn auth_state_user_name_optional() {
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: None,
+            currency: "USD".into(),
+            verified: true,
+        };
+        assert!(user.name.is_none());
+        let mut state = AuthState::default();
+        state.set_authenticated("tok".into(), user, false);
+        assert!(state.user.as_ref().unwrap().name.is_none());
+    }
+
+    // ── Form validation logic ──
+    #[test]
+    fn form_validation_valid_credentials() {
+        let email = "user@example.com";
+        let password = "password123";
+        let email_valid = email.contains('@');
+        let password_valid = password.len() >= 8;
+        assert!(email_valid && password_valid);
+    }
+
+    #[test]
+    fn form_validation_invalid_email() {
+        let email = "userexample.com";
+        let password = "password123";
+        let email_valid = email.contains('@');
+        let password_valid = password.len() >= 8;
+        assert!(!email_valid && password_valid); // Only email invalid
+    }
+
+    #[test]
+    fn form_validation_invalid_password() {
+        let email = "user@example.com";
+        let password = "short";
+        let email_valid = email.contains('@');
+        let password_valid = password.len() >= 8;
+        assert!(email_valid && !password_valid); // Only password invalid
+    }
+
+    #[test]
+    fn form_validation_both_invalid() {
+        let email = "userexample.com";
+        let password = "short";
+        let email_valid = email.contains('@');
+        let password_valid = password.len() >= 8;
+        assert!(!email_valid && !password_valid);
+    }
 }

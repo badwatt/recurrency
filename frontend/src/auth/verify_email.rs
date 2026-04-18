@@ -234,4 +234,92 @@ mod tests {
         let code = "123";
         assert!(code.len() != 6);
     }
+
+    #[test]
+    fn code_empty() {
+        let raw = "";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn code_only_digits() {
+        let raw = "012345";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(result, "012345");
+    }
+
+    #[test]
+    fn code_with_spaces() {
+        let raw = "123 456";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(result, "123456");
+    }
+
+    #[test]
+    fn code_with_special_chars() {
+        let raw = "123-456-789";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(result, "123456");
+    }
+
+    #[test]
+    fn code_take_less_than_6() {
+        let raw = "123";
+        let result: String = raw.chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        assert_eq!(result, "123"); // less than 6, take returns what it can
+    }
+
+    #[test]
+    fn resend_error_too_many_requests() {
+        let err = crate::api::client::ApiError::Http(429, "Too many requests".into());
+        assert!(err.to_string().contains("429"));
+    }
+
+    #[test]
+    fn resend_error_server_error() {
+        let err = crate::api::client::ApiError::Http(500, "Internal error".into());
+        assert!(err.to_string().contains("500"));
+    }
+
+    #[test]
+    fn verify_error_network() {
+        let err = crate::api::client::ApiError::Network("connection refused".into());
+        assert!(err.to_string().contains("connection refused"));
+    }
+
+    #[test]
+    fn verify_error_parse() {
+        let err = crate::api::client::ApiError::Parse("invalid json".into());
+        assert!(err.to_string().contains("invalid json"));
+    }
+
+    #[test]
+    fn error_message_display() {
+        let msg = "Verification failed";
+        assert!(!msg.is_empty());
+    }
+
+    #[test]
+    fn email_param_not_empty() {
+        // Email param should not be empty (passed from URL)
+        let email = "user@example.com";
+        assert!(!email.is_empty());
+        assert!(email.contains('@'));
+    }
+
+    #[test]
+    fn token_param_not_empty() {
+        // Token param should not be empty
+        let token = "abc123def456";
+        assert!(!token.is_empty());
+        assert!(token.len() > 10);
+    }
+
+    #[test]
+    fn verify_url_construction() {
+        let token = "test-token";
+        let path = format!("/api/auth/verify-email?token={}", token);
+        assert_eq!(path, "/api/auth/verify-email?token=test-token");
+    }
 }

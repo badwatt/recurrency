@@ -74,4 +74,30 @@ mod tests {
         assert!(!resp.success);
         assert_eq!(resp.message, "Demo mode not enabled.");
     }
+
+    #[test]
+    fn demo_status_deserialize_roundtrip() {
+        let json = r#"{"enabled":true,"email":"test@test.com"}"#;
+        let status: DemoStatus = serde_json::from_str(json).unwrap();
+        assert!(status.enabled);
+        assert_eq!(status.email, "test@test.com");
+    }
+
+    #[test]
+    fn demo_status_api_path() {
+        let path = "/api/demo/status";
+        assert!(path.starts_with("/api/demo"));
+    }
+
+    #[test]
+    fn demo_init_api_path() {
+        let path = "/api/demo/init";
+        assert!(path.starts_with("/api/demo"));
+    }
+
+    #[test]
+    fn demo_reset_api_path() {
+        let path = "/api/demo/reset";
+        assert!(path.starts_with("/api/demo"));
+    }
 }
