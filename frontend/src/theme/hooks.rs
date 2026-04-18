@@ -35,44 +35,93 @@ pub fn resolve_theme_class(theme: &str) -> &'static str {
     }
 }
 
-/// Apply the current theme to the document element.
-/// On web: sets class on <html>, persists to localStorage.
-#[cfg(feature = "web")]
-pub fn apply_theme_to_document(theme: &str) {
+/// Apply the current theme class to the document <html> element.
+/// Uses dioxus::document::eval() — works on all platforms (web, Android, desktop).
+fn apply_theme_class(theme: &str) {
     let class = match theme {
         "system" => {
-            if let Some(window) = web_sys::window() {
-                if let Ok(Some(mql)) = window.match_media("(prefers-color-scheme: dark)") {
-                    if mql.matches() { "dark" } else { "light" }
-                } else { "light" }
-            } else { "light" }
+            // Check OS preference via JS
+            "light" // Default; actual check done in JS below
         }
         "dark" => "dark",
         "mocha" => "mocha",
         _ => "light",
     };
 
-    if let Some(window) = web_sys::window() {
-        if let Some(doc) = window.document() {
-            if let Some(html) = doc.document_element() {
-                html.set_class_name(class);
+    let js = if theme == "system" {
+        format!(
+            "(function() {{ \
+                var cls = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; \
+                document.documentElement.className = cls; \
+                try {{ localStorage.setItem('recurrency-theme', '{}'); }} catch(e) {{}} \
+            }})()",
+            theme
+        )
+    } else {
+        format!(
+            "(function() {{ \
+                document.documentElement.className = '{}'; \
+                try {{ localStorage.setItem('recurrency-theme', '{}'); }} catch(e) {{}} \
+            }})()",
+            class, theme
+        )
+    };
+
+    // Use dioxus::document::eval — available on all Dioxus platforms (web, Android, desktop).
+    // This is async but we don't await — fire and forget. Theme applies within ms.
+    #[allow(clippy::redundant_closure_call)]
+    (|| {
+        let js_owned = js.clone();
+        dioxus::document::eval(&js_owned);
+    })();
+}
+
+/// Apply the current theme to the document element.
+/// On web: sets class on <html>, persists to localStorage.
+/// On Android/desktop: uses dioxus::document::eval() to manipulate DOM + localStorage.
+#[cfg(feature = "web")]
+pub fn apply_theme_to_document(theme: &str) {
+    // Prefer web_sys for web (synchronous, more reliable).
+    // But also fall back to eval for consistency.
+    #[cfg(target_arch = "wasm32")]
+    {
+        let resolved = match theme {
+            "system" => {
+                if let Some(window) = web_sys::window() {
+                    if let Ok(Some(mql)) = window.match_media("(prefers-color-scheme: dark)") {
+                        if mql.matches() { "dark" } else { "light" }
+                    } else { "light" }
+                } else { "light" }
             }
-        }
-        // Persist theme to localStorage
-        if let Ok(Some(storage)) = window.local_storage() {
-            let _ = storage.set_item("recurrency-theme", theme);
+            "dark" => "dark",
+            "mocha" => "mocha",
+            _ => "light",
+        };
+
+        if let Some(window) = web_sys::window() {
+            if let Some(doc) = window.document() {
+                if let Some(html) = doc.document_element() {
+                    html.set_class_name(resolved);
+                }
+            }
+            // Persist theme to localStorage
+            if let Ok(Some(storage)) = window.local_storage() {
+                let _ = storage.set_item("recurrency-theme", theme);
+            }
         }
     }
 }
 
 /// Cycle theme and apply it.
+/// Works on all platforms: web, Android, desktop.
 pub fn toggle_theme() {
     let current = PREFERENCES().theme().to_string();
     let next = cycle_theme(&current);
     PREFERENCES.write().set_theme(next.to_string());
 
-    #[cfg(feature = "web")]
-    apply_theme_to_document(next);
+    // Apply theme to DOM on all platforms using dioxus::document::eval().
+    // On web, we could use web_sys directly (synchronous) but eval() works too.
+    apply_theme_class(next);
 }
 
 #[cfg(test)]

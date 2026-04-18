@@ -22,6 +22,8 @@ mod android_persistence_tests;
 mod android_theme_tests;
 #[cfg(test)]
 mod android_setup_tests;
+#[cfg(test)]
+mod android_theme_toggle_tests;
 
 #[cfg(test)]
 mod index_html_tests;
