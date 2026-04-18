@@ -161,8 +161,6 @@ jobs:
         run: |
           V="${{ needs.prepare.outputs.version }}"
           sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
-          # Also sync to Android build.gradle.kts
-          sed -i "s/versionName = \".*\"/versionName = \"$V\"/" frontend/target/dx/recurrency/release/android/app/app/build.gradle.kts
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
