@@ -147,9 +147,9 @@ mod tests {
 
     #[test]
     fn login_request_roundtrip() {
-        let req = LoginRequest { email: "t@t.com".into(), password: "secret".into() };
-        let rt: LoginRequest = serde_json::from_str(&serde_json::to_string(&req).unwrap()).unwrap();
-        assert_eq!(rt.email, req.email); assert_eq!(rt.password, req.password);
+        // LoginRequest is Deserialize but not Serialize (passwords should not serialize)
+        let req: LoginRequest = serde_json::from_str(r#"{"email":"t@t.com","password":"secret"}"#).unwrap();
+        assert_eq!(req.email, "t@t.com"); assert_eq!(req.password, "secret");
     }
 
     // UpdateSettingsRequest
