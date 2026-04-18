@@ -60,19 +60,22 @@ for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     fi
 done
 
-# Generate PNG foreground (108x108 = adaptive icon foreground canvas)
-# Replace the vector foreground XML with a bitmap drawable pointing to our PNG
-FOREGROUND="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
-if [ -f "$FOREGROUND" ]; then
-    # Generate PNG at 108x108
-    convert "$ICON" -resize 108x108 "$RES_DIR/drawable/ic_launcher_foreground.png"
-    # Replace XML with bitmap reference
-    cat > "$FOREGROUND" << 'XMLEOF'
+# Generate PNG foreground in drawable-nodpi/ (survives gradlew clean)
+# RENAME to ic_launcher_fg to avoid circular reference with ic_launcher_foreground.xml
+FOREGROUND_XML="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
+FOREGROUND_PNG="$RES_DIR/drawable-nodpi/ic_launcher_fg.png"
+if [ -f "$FOREGROUND_XML" ]; then
+    mkdir -p "$RES_DIR/drawable-nodpi"
+    # Remove old drawable/ PNG if exists (avoid name collision)
+    rm -f "$RES_DIR/drawable/ic_launcher_foreground.png" 2>/dev/null || true
+    convert "$ICON" -resize 108x108 "$FOREGROUND_PNG"
+    # Reference ic_launcher_fg (NOT ic_launcher_foreground → avoids lint cycle error)
+    cat > "$FOREGROUND_XML" << 'XMLEOF'
 <?xml version="1.0" encoding="utf-8"?>
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/ic_launcher_foreground" />
+    android:src="@drawable/ic_launcher_fg" />
 XMLEOF
-    echo "--- Foreground drawable replaced with PNG bitmap ---"
+    echo "--- Foreground PNG: drawable-nodpi/ic_launcher_fg.png (108×108) ---"
 fi
 
 # Patch Gradle: extractNativeLibs=true + Java 17
