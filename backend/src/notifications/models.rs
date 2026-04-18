@@ -125,3 +125,45 @@ mod tests {
         assert!(result.is_err());
     }
 }
+
+    #[test]
+    fn update_preference_request_email() {
+        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"email","enabled":true}"#).unwrap();
+        assert_eq!(req.channel, "email");
+        assert!(req.enabled);
+    }
+
+    #[test]
+    fn update_preference_request_push() {
+        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"push","enabled":false}"#).unwrap();
+        assert_eq!(req.channel, "push");
+        assert!(!req.enabled);
+    }
+
+    #[test]
+    fn update_notification_preferences_wrap() {
+        let req = UpdateNotificationPreferencesRequest {
+            preferences: vec![
+                UpdatePreferenceRequest { channel: "email".to_string(), enabled: true },
+                UpdatePreferenceRequest { channel: "push".to_string(), enabled: false },
+            ],
+        };
+        assert_eq!(req.preferences.len(), 2);
+    }
+
+    #[test]
+    fn notification_preferences_response_empty() {
+        let resp = NotificationPreferencesResponse { preferences: vec![] };
+        assert!(resp.preferences.is_empty());
+    }
+
+    #[test]
+    fn notification_preferences_response_single() {
+        let resp = NotificationPreferencesResponse {
+            preferences: vec![
+                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 5 },
+            ],
+        };
+        assert_eq!(resp.preferences.len(), 1);
+        assert!(resp.preferences[0].enabled);
+    }

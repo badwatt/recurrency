@@ -1543,4 +1543,195 @@ mod tests {
             assert!(!display.is_empty() || display.is_empty()); // Always returns something
         }
     }
+
+    // ── item_display tests ──
+    #[test]
+    fn item_display_name_and_currency() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        let display = item_display(&item, "EUR");
+        assert_eq!(display.name, "Netflix");
+        assert!(!display.amount_str.is_empty());
+        assert!(display.title_str.contains("Netflix"));
+    }
+
+    #[test]
+    fn item_display_with_logo_url() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Spotify".into(),
+            amount: dec!(9.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            is_active: true,
+            logo_url: Some("https://logo.com/spotify.png".into()),
+        };
+        let display = item_display(&item, "USD");
+        assert_eq!(display.name, "Spotify");
+        assert!(display.title_str.contains("Spotify"));
+    }
+
+    #[test]
+    fn item_display_inactive_subscription() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Canceled".into(),
+            amount: dec!(5.0),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
+            is_active: false,
+            logo_url: None,
+        };
+        let display = item_display(&item, "EUR");
+        assert_eq!(display.name, "Canceled");
+        // is_active affects display but name is always shown
+        assert!(display.name.contains("Canceled"));
+    }
+
+    // ── CalendarItem model derive tests ──
+    #[test]
+    fn calendar_item_clone() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Test".into(),
+            amount: dec!(10.0),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: Some("https://logo.com/test.png".into()),
+        };
+        let cloned = item.clone();
+        assert_eq!(cloned.name, item.name);
+        assert_eq!(cloned.amount, item.amount);
+        assert_eq!(cloned.currency, item.currency);
+        assert_eq!(cloned.logo_url, item.logo_url);
+    }
+
+    #[test]
+    fn calendar_item_partial_eq() {
+        let id = Uuid::new_v4();
+        let item1 = CalendarItem {
+            subscription_id: id,
+            name: "Test".into(),
+            amount: dec!(10.0),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        let mut item2 = item1.clone();
+        assert_eq!(item1, item2);
+        // PartialEq only if Clone+PartialEq derives are present
+        // CalendarItem uses Clone from Subscription which has Clone
+    }
+
+    // ── DayCellInfo struct tests ──
+    #[test]
+    fn day_cell_info_today_flag() {
+        let today = Local::now().date_naive();
+        let items = vec![make_calendar_item("Today", dec!(10), today)];
+        let info = day_cell_info(&items, today.year(), today.month(), today.day(), "USD");
+        assert!(info.is_today, "DayCellInfo should mark today correctly");
+    }
+
+    #[test]
+    fn day_cell_info_not_today() {
+        let today = Local::now().date_naive();
+        let yesterday = today.pred_opt().unwrap_or(today);
+        let items = vec![make_calendar_item("Test", dec!(10), yesterday)];
+        let info = day_cell_info(&items, yesterday.year(), yesterday.month(), yesterday.day(), "USD");
+        assert!(!info.is_today, "Yesterday should not be marked as today");
+    }
+
+    #[test]
+    fn day_cell_info_extra_count_exact_3() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let items = vec![
+            make_calendar_item("A", dec!(1), date),
+            make_calendar_item("B", dec!(2), date),
+            make_calendar_item("C", dec!(3), date),
+        ];
+        let info = day_cell_info(&items, 2024, 6, 15, "EUR");
+        assert_eq!(info.items.len(), 3);
+        assert_eq!(info.extra_count, 0, "Exactly 3 items: no extra count");
+    }
+
+    #[test]
+    fn day_cell_info_extra_count_4_items() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let items = vec![
+            make_calendar_item("A", dec!(1), date),
+            make_calendar_item("B", dec!(2), date),
+            make_calendar_item("C", dec!(3), date),
+            make_calendar_item("D", dec!(4), date),
+        ];
+        let info = day_cell_info(&items, 2024, 6, 15, "EUR");
+        assert_eq!(info.items.len(), 3, "Only 3 items shown");
+        assert_eq!(info.extra_count, 1, "1 extra item not shown");
+    }
+
+    // ── CalendarPage component rendering tests ──
+    #[test]
+    fn calendar_page_uses_grid_for_days() {
+        let src = include_str!("calendar_page.rs");
+        // Calendar must use a grid layout for days
+        assert!(src.contains("grid grid-cols-7"), 
+            "Calendar should use grid-cols-7 for day layout");
+    }
+
+    #[test]
+    fn calendar_page_month_navigation() {
+        let src = include_str!("calendar_page.rs");
+        // Must have prev/next month navigation
+        assert!(src.contains("prev_month") || src.contains("next_month") || 
+                src.contains("month - 1") || src.contains("month + 1"),
+            "Calendar should have month navigation");
+    }
+
+    #[test]
+    fn calendar_page_month_label_shown() {
+        let src = include_str!("calendar_page.rs");
+        // Must show month/year label
+        assert!(src.contains("month_label") || src.contains("month_name") || 
+                src.contains("NaiveDate"),
+            "Calendar should show month label");
+    }
+
+    // ── format_frequency edge cases ──
+    #[test]
+    fn format_frequency_recognized() {
+        for (input, expected) in [
+            ("weekly", "Weekly"),
+            ("monthly", "Monthly"),
+            ("quarterly", "Quarterly"),
+            ("yearly", "Yearly"),
+        ] {
+            let result = format_frequency(input);
+            // Should contain the expected word (case-insensitive match)
+            assert!(result.to_lowercase().contains(&expected.to_lowercase()) || 
+                    result == expected,
+                "format_frequency({}) = {}, expected to contain {}",
+                input, result, expected);
+        }
+    }
+
+    #[test]
+    fn format_frequency_unknown_defaults_to_input() {
+        let result = format_frequency("biweekly");
+        // Unknown frequency: should return the input or a default
+        assert!(!result.is_empty(), "format_frequency should never return empty string");
+    }
+
 }

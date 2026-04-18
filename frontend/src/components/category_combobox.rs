@@ -321,6 +321,7 @@ pub fn CategoryCombobox(
 
 /// Pure function: filter categories by search text (case-insensitive).
 /// Returns indices of matching categories.
+#[inline(never)]
 pub fn filter_categories(cats: &[crate::models::category::Category], search: &str) -> Vec<usize> {
     let search_lower = search.to_lowercase();
     cats.iter()
@@ -331,12 +332,14 @@ pub fn filter_categories(cats: &[crate::models::category::Category], search: &st
 }
 
 /// Pure function: check if search text matches an existing category exactly (case-insensitive).
+#[inline(never)]
 pub fn is_exact_match(cats: &[crate::models::category::Category], search: &str) -> bool {
     let search_lower = search.to_lowercase();
     cats.iter().any(|c| c.name.to_lowercase() == search_lower)
 }
 
 /// Pure function: determine whether to show the "Create..." option.
+#[inline(never)]
 pub fn should_show_create(cats: &[crate::models::category::Category], search: &str) -> bool {
     !search.is_empty() && !is_exact_match(cats, search)
 }

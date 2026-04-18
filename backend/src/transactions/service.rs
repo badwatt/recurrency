@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{Datelike, NaiveDate, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -8,13 +8,29 @@ use crate::categories::service::CategoryService;
 
 pub struct TransactionService;
 
+/// Resolve updated fields from an existing transaction + update request.
+/// Returns tuple: (name, amount, currency, date, category_id, notes, logo_url).
+pub fn resolve_update_fields(
+    existing: &Transaction,
+    req: &UpdateTransactionRequest,
+) -> (String, rust_decimal::Decimal, String, NaiveDate, Uuid, Option<String>, Option<String>) {
+    (
+        req.name.clone().unwrap_or_else(|| existing.name.clone()),
+        req.amount.unwrap_or(existing.amount),
+        req.currency.clone().unwrap_or_else(|| existing.currency.clone()),
+        req.date.unwrap_or(existing.date),
+        req.category_id.unwrap_or(existing.category_id),
+        req.notes.clone().or_else(|| existing.notes.clone()),
+        req.logo_url.clone().or_else(|| existing.logo_url.clone()),
+    )
+}
+
 impl TransactionService {
     pub async fn create(
         pool: &PgPool,
         user_id: Uuid,
         req: CreateTransactionRequest,
     ) -> AppResult<Transaction> {
-        // Auto-assign default category if none provided
         let category_id = match req.category_id {
             Some(id) => id,
             None => CategoryService::get_default(pool, user_id).await?.id,
@@ -76,14 +92,7 @@ impl TransactionService {
         req: UpdateTransactionRequest,
     ) -> AppResult<Transaction> {
         let existing = Self::get_by_id(pool, user_id, id).await?;
-
-        let name = req.name.unwrap_or(existing.name);
-        let amount = req.amount.unwrap_or(existing.amount);
-        let currency = req.currency.unwrap_or(existing.currency);
-        let date = req.date.unwrap_or(existing.date);
-        let category_id = req.category_id.unwrap_or(existing.category_id);
-        let notes = req.notes.or(existing.notes);
-        let logo_url = req.logo_url.or(existing.logo_url);
+        let (name, amount, currency, date, category_id, notes, logo_url) = resolve_update_fields(&existing, &req);
 
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
@@ -126,8 +135,8 @@ impl TransactionService {
     pub async fn get_by_date_range(
         pool: &PgPool,
         user_id: Uuid,
-        from_date: chrono::NaiveDate,
-        to_date: chrono::NaiveDate,
+        from_date: NaiveDate,
+        to_date: NaiveDate,
     ) -> AppResult<Vec<Transaction>> {
         let transactions = sqlx::query_as::<_, Transaction>(
             r#"
@@ -144,5 +153,175 @@ impl TransactionService {
         .await?;
 
         Ok(transactions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_transaction(name: &str, amount: rust_decimal::Decimal, date: NaiveDate, notes: Option<&str>, logo_url: Option<&str>) -> Transaction {
+        Transaction {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: name.to_string(),
+            amount,
+            currency: "USD".to_string(),
+            date,
+            notes: notes.map(String::from),
+            logo_url: logo_url.map(String::from),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    fn make_update(
+        name: Option<&str>,
+        amount: Option<rust_decimal::Decimal>,
+        currency: Option<&str>,
+        date: Option<NaiveDate>,
+        notes: Option<&str>,
+        logo_url: Option<&str>,
+    ) -> UpdateTransactionRequest {
+        UpdateTransactionRequest {
+            name: name.map(String::from),
+            amount,
+            currency: currency.map(String::from),
+            date,
+            category_id: None,
+            notes: notes.map(String::from),
+            logo_url: logo_url.map(String::from),
+        }
+    }
+
+    // ── resolve_update_fields ──
+
+    #[test]
+    fn resolve_update_all_fields_replaced() {
+        let existing = make_transaction("Old", rust_decimal::Decimal::TEN, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(Some("New"), Some(rust_decimal::Decimal::from(20)), Some("EUR"), Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()), Some("new notes"), Some("http://new.png"));
+        let (name, amount, currency, date, _, notes, logo_url) = resolve_update_fields(&existing, &req);
+        assert_eq!(name, "New");
+        assert_eq!(amount, rust_decimal::Decimal::from(20));
+        assert_eq!(currency, "EUR");
+        assert_eq!(date, NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        assert_eq!(notes, Some("new notes".to_string()));
+        assert_eq!(logo_url, Some("http://new.png".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_partial_name_only() {
+        let existing = make_transaction("Keep", rust_decimal::Decimal::from(50), NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(), Some("note"), None);
+        let req = make_update(Some("New Name"), None, None, None, None, None);
+        let (name, amount, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(name, "New Name");
+        assert_eq!(amount, rust_decimal::Decimal::from(50));
+    }
+
+    #[test]
+    fn resolve_update_partial_amount_only() {
+        let existing = make_transaction("X", rust_decimal::Decimal::from(100), NaiveDate::from_ymd_opt(2024, 5, 1).unwrap(), None, None);
+        let req = make_update(None, Some(rust_decimal::Decimal::from(75)), None, None, None, None);
+        let (_, amount, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(amount, rust_decimal::Decimal::from(75));
+    }
+
+    #[test]
+    fn resolve_update_preserves_existing_when_req_fields_none() {
+        let existing = make_transaction("Stay", rust_decimal::Decimal::from(30), NaiveDate::from_ymd_opt(2024, 7, 20).unwrap(), Some("keep notes"), Some("http://logo.png"));
+        let req = UpdateTransactionRequest {
+            name: Some("Changed".to_string()),
+            amount: None,
+            currency: None,
+            date: None,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        };
+        let (_, amount, currency, date, _, notes, logo_url) = resolve_update_fields(&existing, &req);
+        assert_eq!(amount, rust_decimal::Decimal::from(30));
+        assert_eq!(currency, "USD");
+        assert_eq!(date, NaiveDate::from_ymd_opt(2024, 7, 20).unwrap());
+        assert_eq!(notes, Some("keep notes".to_string()));
+        assert_eq!(logo_url, Some("http://logo.png".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_preserves_notes_when_req_none() {
+        let existing = make_transaction("A", rust_decimal::Decimal::ONE, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), Some("existing"), None);
+        let req = make_update(None, None, None, None, None, None);
+        let (_, _, _, _, _, notes, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(notes, Some("existing".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_replaces_notes() {
+        let existing = make_transaction("C", rust_decimal::Decimal::ONE, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), Some("old"), None);
+        let req = make_update(None, None, None, None, Some("new"), None);
+        let (_, _, _, _, _, notes, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(notes, Some("new".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_preserves_logo_when_req_none() {
+        let existing = make_transaction("D", rust_decimal::Decimal::ONE, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, Some("http://logo.png"));
+        let req = make_update(None, None, None, None, None, None);
+        let (_, _, _, _, _, _, logo_url) = resolve_update_fields(&existing, &req);
+        assert_eq!(logo_url, Some("http://logo.png".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_replaces_logo() {
+        let existing = make_transaction("E", rust_decimal::Decimal::ONE, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, Some("http://old.png"));
+        let req = make_update(None, None, None, None, None, Some("http://new.png"));
+        let (_, _, _, _, _, _, logo_url) = resolve_update_fields(&existing, &req);
+        assert_eq!(logo_url, Some("http://new.png".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_preserves_category_id() {
+        let cat_id = Uuid::new_v4();
+        let existing = Transaction {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: cat_id,
+            name: "F".to_string(),
+            amount: rust_decimal::Decimal::ONE,
+            currency: "USD".to_string(),
+            date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let req = make_update(None, None, None, None, None, None);
+        let (_, _, _, _, preserved_cat, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(preserved_cat, cat_id);
+    }
+
+    #[test]
+    fn resolve_update_preserves_decimal_precision() {
+        let existing = make_transaction("G", rust_decimal::Decimal::new(1999, 2), NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None); // 19.99
+        let req = UpdateTransactionRequest {
+            name: None,
+            amount: Some(rust_decimal::Decimal::new(2999, 2)),
+            currency: None,
+            date: None,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        };
+        let (_, amount, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(amount, rust_decimal::Decimal::new(2999, 2));
+        assert_eq!(existing.amount, rust_decimal::Decimal::new(1999, 2));
+    }
+
+    #[test]
+    fn resolve_update_name_unicode() {
+        let existing = make_transaction("Test", rust_decimal::Decimal::ONE, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(Some("Café Premium 日本語"), None, None, None, None, None);
+        let (name, _, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(name, "Café Premium 日本語");
     }
 }

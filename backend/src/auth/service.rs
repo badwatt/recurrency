@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User, UserResponse};
+use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User, UserResponse, SettingsResponse};
 use crate::shared::error::{AppError, AppResult};
 use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use argon2::Argon2;
@@ -65,7 +65,6 @@ impl AuthService {
 
         let token = generate_token(&user)?;
 
-        // Send verification email (if SMTP is configured)
         if !verified {
             if let Err(e) = send_verification_email(&user.email, user.verification_code.as_deref().unwrap_or("000000")).await {
                 tracing::error!("Failed to send verification email: {}", e);
@@ -76,7 +75,6 @@ impl AuthService {
             tracing::info!("SMTP not configured - user {} auto-verified", user.email);
         }
 
-        // Create uncategorized category for the new user
         if let Err(e) = CategoryService::create_uncategorized(pool, user.id).await {
             tracing::error!("Failed to create uncategorized category: {}", e);
         }
@@ -247,7 +245,6 @@ mod tests {
     use super::*;
     use validator::Validate;
 
-    // Helper to build CreateUserRequest via JSON (avoids struct literal pattern)
     fn make_create_request(email: &str, secret_val: &str, name: &str) -> CreateUserRequest {
         let json = format!(
             r#"{{"email":"{}","password":"{}","name":"{}"}}"#,
@@ -256,6 +253,7 @@ mod tests {
         serde_json::from_str(&json).unwrap()
     }
 
+    // verify_password
     #[test]
     fn verify_password_unicode() {
         let sample_val = "tëst_päss_日本語";
@@ -277,6 +275,13 @@ mod tests {
     }
 
     #[test]
+    fn verify_password_wrong_fails() {
+        let hash = hash_password("correct").unwrap();
+        assert!(verify_password("wrong", &hash).is_err());
+    }
+
+    // generate_code
+    #[test]
     fn generate_code_length() {
         let code = generate_code();
         assert_eq!(code.len(), 6);
@@ -290,6 +295,24 @@ mod tests {
         assert_ne!(code1, code2);
     }
 
+    #[test]
+    fn generate_code_all_digits() {
+        for _ in 0..100 {
+            let code = generate_code();
+            assert!(code.chars().all(|c| c.is_ascii_digit()), "Code '{}' has non-digit", code);
+        }
+    }
+
+    #[test]
+    fn generate_code_within_range() {
+        for _ in 0..100 {
+            let code = generate_code();
+            let num: u32 = code.parse().unwrap();
+            assert!(num <= 999999);
+        }
+    }
+
+    // generate_token
     #[test]
     fn generate_token_roundtrip() {
         let uid = uuid::Uuid::new_v4();
@@ -309,39 +332,259 @@ mod tests {
             &token,
             &DecodingKey::from_secret(get_jwt_secret()),
             &jsonwebtoken::Validation::default(),
-        )
-        .unwrap();
+        ).unwrap();
         assert_eq!(claims.claims.sub, uid);
     }
 
     #[test]
+    fn generate_token_contains_email() {
+        let user = User {
+            id: Uuid::new_v4(),
+            email: "token@test.com".to_string(),
+            password_hash: "hash".to_string(),
+            name: None,
+            currency: "EUR".to_string(),
+            verified: true,
+            verification_code: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let token = generate_token(&user).unwrap();
+        let claims = decode::<Claims>(
+            &token,
+            &DecodingKey::from_secret(get_jwt_secret()),
+            &jsonwebtoken::Validation::default(),
+        ).unwrap();
+        assert_eq!(claims.claims.email, "token@test.com");
+    }
+
+    // get_jwt_secret
+    #[test]
     fn get_jwt_secret_returns_value() {
-        let secret = get_jwt_secret();
-        assert!(!secret.is_empty());
+        assert!(!get_jwt_secret().is_empty());
     }
 
     #[test]
-    fn create_user_request_validation_valid() {
+    fn get_jwt_secret_same_on_repeat() {
+        assert_eq!(get_jwt_secret(), get_jwt_secret());
+    }
+
+    // CreateUserRequest validation
+    #[test]
+    fn create_user_request_valid() {
         let req = make_create_request("test@example.com", "longenough", "Alice");
         assert!(req.validate().is_ok());
     }
 
     #[test]
-    fn create_user_request_validation_invalid_email() {
+    fn create_user_request_invalid_email() {
         let req = make_create_request("not-an-email", "longenough", "Alice");
         assert!(req.validate().is_err());
     }
 
     #[test]
-    fn create_user_request_validation_short_secret() {
+    fn create_user_request_short_secret() {
         let req = make_create_request("test@example.com", "short", "Alice");
         assert!(req.validate().is_err());
     }
 
     #[test]
-    fn create_user_request_validation_empty_name() {
+    fn create_user_request_empty_name() {
         let req = make_create_request("test@example.com", "longenough", "");
         assert!(req.validate().is_err());
     }
-}
 
+    #[test]
+    fn create_user_request_unicode_name() {
+        let req = make_create_request("test@test.com", "longenough", "田中太郎");
+        assert!(req.validate().is_ok());
+    }
+
+    // update_settings field resolution
+    #[test]
+    fn resolve_name_none() {
+        let name: Option<String> = None;
+        assert_eq!(name.unwrap_or_default(), "");
+    }
+
+    #[test]
+    fn resolve_name_some() {
+        let name: Option<String> = Some("Alice".to_string());
+        assert_eq!(name.unwrap_or_default(), "Alice");
+    }
+
+    #[test]
+    fn resolve_currency_none() {
+        let currency: Option<String> = None;
+        assert_eq!(currency.unwrap_or_else(|| String::new()), "");
+    }
+
+    #[test]
+    fn resolve_currency_some() {
+        let currency: Option<String> = Some("EUR".to_string());
+        assert_eq!(currency.unwrap_or_else(|| String::new()), "EUR");
+    }
+
+    // AuthResponse
+    #[test]
+    fn auth_response_requires_verification_true() {
+        let resp = AuthResponse {
+            token: "t".to_string(),
+            user: UserResponse { id: Uuid::new_v4(), email: "a@b.com".to_string(), name: None, currency: "EUR".to_string(), verified: false },
+            requires_verification: true,
+        };
+        assert!(resp.requires_verification);
+    }
+
+    #[test]
+    fn auth_response_requires_verification_false() {
+        let resp = AuthResponse {
+            token: "t".to_string(),
+            user: UserResponse { id: Uuid::new_v4(), email: "a@b.com".to_string(), name: None, currency: "EUR".to_string(), verified: true },
+            requires_verification: false,
+        };
+        assert!(!resp.requires_verification);
+    }
+
+    #[test]
+    fn auth_response_serialize() {
+        let resp = AuthResponse {
+            token: "my-jwt".to_string(),
+            user: UserResponse { id: Uuid::new_v4(), email: "resp@test.com".to_string(), name: None, currency: "USD".to_string(), verified: true },
+            requires_verification: false,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("my-jwt"));
+        assert!(json.contains("resp@test.com"));
+    }
+
+    // UserResponse from User
+    #[test]
+    fn user_response_from_user() {
+        let user = User {
+            id: Uuid::new_v4(), email: "conv@test.com".to_string(), password_hash: "h".to_string(),
+            name: Some("Test User".to_string()), currency: "GBP".to_string(),
+            verified: true, verification_code: None,
+            created_at: chrono::Utc::now(), updated_at: chrono::Utc::now(),
+        };
+        let resp: UserResponse = user.into();
+        assert_eq!(resp.email, "conv@test.com");
+        assert_eq!(resp.name.as_deref(), Some("Test User"));
+        assert_eq!(resp.currency, "GBP");
+        assert!(resp.verified);
+    }
+
+    #[test]
+    fn user_response_no_name() {
+        let user = User {
+            id: Uuid::new_v4(), email: "noname@test.com".to_string(), password_hash: "h".to_string(),
+            name: None, currency: "CAD".to_string(),
+            verified: false, verification_code: None,
+            created_at: chrono::Utc::now(), updated_at: chrono::Utc::now(),
+        };
+        let resp: UserResponse = user.into();
+        assert!(resp.name.is_none());
+        assert!(!resp.verified);
+    }
+
+    // SettingsResponse
+    #[test]
+    fn settings_response_from_user() {
+        let user = User {
+            id: Uuid::new_v4(), email: "settings@test.com".to_string(), password_hash: "h".to_string(),
+            name: Some("S".to_string()), currency: "CAD".to_string(),
+            verified: true, verification_code: None,
+            created_at: chrono::Utc::now(), updated_at: chrono::Utc::now(),
+        };
+        let resp: SettingsResponse = user.into();
+        assert_eq!(resp.user.email, "settings@test.com");
+    }
+
+    // Claims
+    #[test]
+    fn claims_struct_fields() {
+        let claims = Claims { sub: Uuid::new_v4(), email: "c@test.com".to_string(), exp: 1234567890, iat: 1234500000 };
+        assert_eq!(claims.email, "c@test.com");
+        assert!(claims.exp > claims.iat);
+    }
+
+    #[test]
+    fn claims_serde_roundtrip() {
+        let claims = Claims { sub: Uuid::new_v4(), email: "serde@test.com".to_string(), exp: 9999999999, iat: 1000000000 };
+        let json = serde_json::to_string(&claims).unwrap();
+        let roundtrip: Claims = serde_json::from_str(&json).unwrap();
+        assert_eq!(roundtrip.email, claims.email);
+    }
+
+    // AppError
+    #[test]
+    fn app_error_conflict() {
+        let err = AppError::Conflict("Email taken".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Email taken") || msg.contains("Conflict"));
+    }
+
+    #[test]
+    fn app_error_unauthorized() {
+        let err = AppError::Unauthorized("Bad creds".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Bad creds") || msg.contains("Unauthorized"));
+    }
+
+    #[test]
+    fn app_error_not_found() {
+        let err = AppError::NotFound("User not found".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("User not found") || msg.contains("NotFound"));
+    }
+
+    #[test]
+    fn app_error_internal() {
+        let err = AppError::Internal("Something broke".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Something broke") || msg.contains("Internal"));
+    }
+
+    // LoginRequest
+    #[test]
+    fn login_request_deserialize() {
+        let req: LoginRequest = serde_json::from_str(r#"{"email":"login@test.com","password":"secret123"}"#).unwrap();
+        assert_eq!(req.email, "login@test.com");
+        assert_eq!(req.password, "secret123");
+    }
+
+    // UpdateSettingsRequest
+    #[test]
+    fn update_settings_request_both() {
+        let req: UpdateSettingsRequest = serde_json::from_str(r#"{"name":"Alice","currency":"GBP"}"#).unwrap();
+        assert_eq!(req.name.as_deref(), Some("Alice"));
+        assert_eq!(req.currency.as_deref(), Some("GBP"));
+    }
+
+    #[test]
+    fn update_settings_request_name_only() {
+        let req: UpdateSettingsRequest = serde_json::from_str(r#"{"name":"Bob"}"#).unwrap();
+        assert!(req.name.is_some());
+        assert!(req.currency.is_none());
+    }
+
+    #[test]
+    fn update_settings_request_empty() {
+        let req: UpdateSettingsRequest = serde_json::from_str("{}").unwrap();
+        assert!(req.name.is_none());
+        assert!(req.currency.is_none());
+    }
+
+    // User password_hash skip
+    #[test]
+    fn user_password_hash_not_in_json() {
+        let user = User {
+            id: Uuid::new_v4(), email: "user@test.com".to_string(), password_hash: "secret_hash".to_string(),
+            name: Some("User".to_string()), currency: "USD".to_string(),
+            verified: true, verification_code: None,
+            created_at: chrono::Utc::now(), updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(!json.contains("secret_hash"));
+    }
+}

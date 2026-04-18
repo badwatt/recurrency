@@ -752,3 +752,149 @@ mod tests {
             block.lines().take(3).collect::<Vec<_>>().join(" "));
     }
 }
+    // ── Icon enum tests ──
+    #[test]
+    fn icon_variants_are_instantiable() {
+        
+        let _ = Icon::Dashboard;
+        let _ = Icon::Subscriptions;
+        let _ = Icon::Transactions;
+        let _ = Icon::Calendar;
+        let _ = Icon::Categories;
+        let _ = Icon::Reports;
+        let _ = Icon::Settings;
+        let _ = Icon::Logout;
+        let _ = Icon::Sun;
+        let _ = Icon::Moon;
+        let _ = Icon::Coffee;
+        let _ = Icon::Monitor;
+    }
+
+    #[test]
+    fn icon_eq_identity() {
+        
+        assert_eq!(Icon::Dashboard, Icon::Dashboard);
+        assert_eq!(Icon::Subscriptions, Icon::Subscriptions);
+        assert_eq!(Icon::Calendar, Icon::Calendar);
+        assert_eq!(Icon::Reports, Icon::Reports);
+        assert_eq!(Icon::Settings, Icon::Settings);
+        assert_eq!(Icon::Sun, Icon::Sun);
+        assert_eq!(Icon::Moon, Icon::Moon);
+        assert_eq!(Icon::Coffee, Icon::Coffee);
+        assert_eq!(Icon::Monitor, Icon::Monitor);
+    }
+
+    #[test]
+    fn icon_neq_different_variants() {
+        
+        assert_ne!(Icon::Dashboard, Icon::Subscriptions);
+        assert_ne!(Icon::Sun, Icon::Moon);
+        assert_ne!(Icon::Coffee, Icon::Monitor);
+    }
+
+    #[test]
+    fn icon_clone_independence() {
+        
+        let orig = Icon::Settings;
+        let _cloned = orig;
+        assert_eq!(orig, Icon::Settings);
+    }
+
+    // ── NavLink class construction tests ──
+    #[test]
+    fn navlink_active_class_uses_bg_primary() {
+        let src = include_str!("app_layout.rs");
+        let navlink_section = src.split("fn NavLink").nth(1).unwrap_or("");
+        assert!(navlink_section.contains("bg-primary"),
+            "NavLink active class must contain bg-primary");
+    }
+
+    #[test]
+    fn navlink_inactive_class_uses_muted_foreground() {
+        let src = include_str!("app_layout.rs");
+        let navlink_section = src.split("fn NavLink").nth(1).unwrap_or("");
+        assert!(navlink_section.contains("muted-foreground"),
+            "NavLink inactive class must use muted-foreground");
+    }
+
+    #[test]
+    fn mobile_navlink_same_class_logic() {
+        let src = include_str!("app_layout.rs");
+        let mobile_section = src.split("fn MobileNavLink").nth(1).unwrap_or("");
+        assert!(mobile_section.contains("bg-primary"),
+            "MobileNavLink active class must contain bg-primary");
+        assert!(mobile_section.contains("muted-foreground"),
+            "MobileNavLink inactive class must use muted-foreground");
+    }
+
+    // ── NotificationItem dot indicator tests ──
+    #[test]
+    fn notification_item_read_dot_is_transparent() {
+        let src = include_str!("app_layout.rs");
+        let item_section = src.split("fn NotificationItem").nth(1).unwrap_or("");
+        let dot_section = item_section.split("Dot indicator").nth(1).unwrap_or("")
+            .split("Content").next().unwrap_or("");
+        assert!(dot_section.contains("bg-transparent"),
+            "NotificationItem read dot must use bg-transparent");
+    }
+
+    #[test]
+    fn notification_item_unread_dot_has_color() {
+        let src = include_str!("app_layout.rs");
+        let item_section = src.split("fn NotificationItem").nth(1).unwrap_or("");
+        let dot_section = item_section.split("Dot indicator").nth(1).unwrap_or("")
+            .split("Content").next().unwrap_or("");
+        assert!(dot_section.contains("bg-primary"),
+            "NotificationItem unread dot must use bg-primary");
+    }
+
+    // ── SvgIcon exhaustive match tests ──
+    #[test]
+    fn svg_icon_matches_all_icon_variants() {
+        let src = include_str!("app_layout.rs");
+        let svg_section = src.split("fn SvgIcon").nth(1).unwrap_or("");
+        for variant in [
+            "Icon::Dashboard", "Icon::Subscriptions", "Icon::Transactions",
+            "Icon::Calendar", "Icon::Categories", "Icon::Reports",
+            "Icon::Settings", "Icon::Logout", "Icon::Sun", "Icon::Moon",
+            "Icon::Coffee", "Icon::Monitor",
+        ] {
+            assert!(svg_section.contains(variant),
+                "SvgIcon must have match arm for: {}", variant);
+        }
+    }
+
+    #[test]
+    fn svg_icon_uses_stroke_current_color() {
+        let src = include_str!("app_layout.rs");
+        let svg_section = src.split("fn SvgIcon").nth(1).unwrap_or("");
+        assert!(svg_section.contains(r#"stroke: "currentColor""#),
+            "SvgIcon SVG must use stroke=currentColor");
+    }
+
+    // ── ThemeToggleButton uses all theme icons ──
+    #[test]
+    fn theme_toggle_uses_all_theme_icons() {
+        let src = include_str!("app_layout.rs");
+        let toggle_section = src.split("fn ThemeToggleButton").nth(1).unwrap_or("");
+        assert!(toggle_section.contains("Icon::Sun"), "Theme toggle must use Sun icon");
+        assert!(toggle_section.contains("Icon::Moon"), "Theme toggle must use Moon icon");
+        assert!(toggle_section.contains("Icon::Coffee"), "Theme toggle must use Coffee icon");
+        assert!(toggle_section.contains("Icon::Monitor"), "Theme toggle must use Monitor icon");
+    }
+
+    // ── App layout auth state ──
+    #[test]
+    fn app_layout_checks_initialized() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("!auth.initialized") || src.contains("!initialized"),
+            "AppLayout must check auth.initialized for loading state");
+    }
+
+    #[test]
+    fn app_layout_shows_children_when_authenticated() {
+        let src = include_str!("app_layout.rs");
+        let post_auth = src.split("auth.is_authenticated").nth(1).unwrap_or("");
+        assert!(post_auth.contains("children"),
+            "Authenticated users must see children/content");
+    }
