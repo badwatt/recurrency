@@ -37,7 +37,7 @@ pub struct SetDefaultRequest {
     pub id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategoryResponse {
     pub id: Uuid,
     pub user_id: Uuid,

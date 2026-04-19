@@ -645,4 +645,273 @@ mod tests {
         sort_calendar_items(&mut items);
         assert_eq!(items.len(), 1);
     }
+
+    // ── CalendarItem construction & billing loop logic ──
+
+    #[test]
+    fn calendar_item_construction_with_logo() {
+        let uid = Uuid::new_v4();
+        let item = CalendarItem {
+            subscription_id: uid,
+            name: "Netflix".to_string(),
+            amount: Decimal::new(1599, 2),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            is_active: true,
+            logo_url: Some("https://logo.com/netflix.png".to_string()),
+        };
+        assert_eq!(item.name, "Netflix");
+        assert_eq!(item.logo_url.as_deref(), Some("https://logo.com/netflix.png"));
+    }
+
+    #[test]
+    fn calendar_item_construction_no_logo() {
+        let uid = Uuid::new_v4();
+        let item = CalendarItem {
+            subscription_id: uid,
+            name: "Spotify".to_string(),
+            amount: Decimal::new(999, 2),
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert!(item.logo_url.is_none());
+    }
+
+    #[test]
+    fn calendar_item_inactive() {
+        let uid = Uuid::new_v4();
+        let item = CalendarItem {
+            subscription_id: uid,
+            name: "Old Sub".to_string(),
+            amount: Decimal::ONE,
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: false,
+            logo_url: None,
+        };
+        assert!(!item.is_active);
+    }
+
+    #[test]
+    fn calendar_item_serialize() {
+        let uid = Uuid::new_v4();
+        let item = CalendarItem {
+            subscription_id: uid,
+            name: "Test".to_string(),
+            amount: Decimal::TEN,
+            currency: "USD".to_string(),
+            frequency: "weekly".to_string(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        let json = serde_json::to_value(&item).unwrap();
+        assert_eq!(json["name"], "Test");
+        assert_eq!(json["currency"], "USD");
+        assert_eq!(json["is_active"], true);
+    }
+
+    #[test]
+    fn calendar_billing_loop_monthly_single_date() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            "monthly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0], NaiveDate::from_ymd_opt(2024, 1, 15).unwrap());
+    }
+
+    #[test]
+    fn calendar_billing_loop_weekly_five_dates_in_jan() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            "weekly",
+            month_start,
+            month_end,
+        );
+        // 1, 8, 15, 22, 29 = 5 dates
+        assert_eq!(dates.len(), 5);
+    }
+
+    #[test]
+    fn calendar_billing_loop_weekly_end_of_february_leap() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 2, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 29).unwrap(),
+            "weekly",
+            month_start,
+            month_end,
+        );
+        // Feb: 5, 12, 19, 26 = 4 dates
+        assert_eq!(dates.len(), 4);
+        for d in &dates {
+            assert!(*d >= month_start && *d <= month_end);
+        }
+    }
+
+    #[test]
+    fn calendar_billing_loop_quarterly_in_month() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 4, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 4, 30).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            "quarterly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0].month(), 4);
+    }
+
+    #[test]
+    fn calendar_billing_loop_yearly_in_month() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 6, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 6, 30).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            "yearly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0], NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+    }
+
+    #[test]
+    fn calendar_billing_loop_same_day_as_month_end() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
+            "monthly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0], NaiveDate::from_ymd_opt(2024, 1, 31).unwrap());
+    }
+
+    #[test]
+    fn calendar_billing_loop_february_short_month() {
+        let month_start = NaiveDate::from_ymd_opt(2023, 2, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2023, 2, 28).unwrap();
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2023, 1, 31).unwrap(),
+            "monthly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0].day(), 28);
+    }
+
+    #[test]
+    fn advance_date_monthly_crosses_year_boundary() {
+        // Nov 15 + 1 month = Dec 15 (advance_date adds 1 month)
+        let d = NaiveDate::from_ymd_opt(2024, 11, 15).unwrap();
+        let next = advance_date(d, "monthly");
+        assert_eq!(next, NaiveDate::from_ymd_opt(2024, 12, 15).unwrap());
+    }
+
+    #[test]
+    fn advance_date_monthly_from_jan_30_to_feb_28() {
+        let d = NaiveDate::from_ymd_opt(2023, 1, 30).unwrap();
+        let next = advance_date(d, "monthly");
+        assert_eq!(next, NaiveDate::from_ymd_opt(2023, 2, 28).unwrap());
+    }
+
+    #[test]
+    fn add_months_24_months_two_years() {
+        let d = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = add_months(d, 24);
+        assert_eq!(result, NaiveDate::from_ymd_opt(2026, 6, 15).unwrap());
+    }
+
+    #[test]
+    fn add_months_jan_1_to_december() {
+        let d = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let result = add_months(d, 11);
+        assert_eq!(result, NaiveDate::from_ymd_opt(2024, 12, 1).unwrap());
+    }
+
+    #[test]
+    fn add_months_feb_29_leap_to_mar_29() {
+        let d = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
+        let result = add_months(d, 1);
+        assert_eq!(result, NaiveDate::from_ymd_opt(2024, 3, 29).unwrap());
+    }
+
+    #[test]
+    fn add_months_dec_15_to_jan_next_year() {
+        let d = NaiveDate::from_ymd_opt(2024, 12, 15).unwrap();
+        let result = add_months(d, 1);
+        assert_eq!(result, NaiveDate::from_ymd_opt(2025, 1, 15).unwrap());
+    }
+
+    #[test]
+    fn sort_calendar_items_multiple_dates_out_of_order() {
+        let uid = Uuid::new_v4();
+        let mut items = vec![
+            CalendarItem {
+                subscription_id: uid,
+                name: "C".to_string(),
+                amount: Decimal::TEN,
+                currency: "USD".to_string(),
+                frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 25).unwrap(),
+                is_active: true,
+                logo_url: None,
+            },
+            CalendarItem {
+                subscription_id: uid,
+                name: "A".to_string(),
+                amount: Decimal::TEN,
+                currency: "USD".to_string(),
+                frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 5).unwrap(),
+                is_active: true,
+                logo_url: None,
+            },
+            CalendarItem {
+                subscription_id: uid,
+                name: "B".to_string(),
+                amount: Decimal::TEN,
+                currency: "USD".to_string(),
+                frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                is_active: true,
+                logo_url: None,
+            },
+        ];
+        sort_calendar_items(&mut items);
+        assert_eq!(items[0].name, "A");
+        assert_eq!(items[1].name, "B");
+        assert_eq!(items[2].name, "C");
+    }
+
+    #[test]
+    fn calculate_next_billing_date_quarterly_future() {
+        let future = NaiveDate::from_ymd_opt(2099, 1, 15).unwrap();
+        let result = calculate_next_billing_date(future, "quarterly");
+        assert_eq!(result, future);
+    }
+
+    #[test]
+    fn calculate_next_billing_date_past_quarterly_advances() {
+        let past = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+        let result = calculate_next_billing_date(past, "quarterly");
+        assert!(result > chrono::Utc::now().date_naive());
+    }
 }

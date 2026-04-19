@@ -25,7 +25,7 @@ pub fn get_config() -> Option<SmtpConfig> {
     }
     Some(SmtpConfig {
         host: std::env::var("SMTP_HOST").unwrap(),
-        port: std::env::var("SMTP_PORT").unwrap_or_else(|_| "587".to_string()).parse().unwrap(),
+        port: std::env::var("SMTP_PORT").unwrap_or_else(|_| "587".to_string()).parse().unwrap_or(587),
         user: std::env::var("SMTP_USER").unwrap(),
         password: std::env::var("SMTP_PASSWORD").unwrap(),
         from: std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
@@ -247,5 +247,22 @@ mod tests {
         let cloned = cfg.clone();
         assert_eq!(cfg.host, cloned.host);
         assert_eq!(cfg.port, cloned.port);
+}
+
+    #[test]
+    #[serial]
+    fn test_get_config_invalid_port_defaults_to_587() {
+        std::env::set_var("SMTP_HOST", "smtp.test.com");
+        std::env::set_var("SMTP_USER", "test@test.com");
+        std::env::set_var("SMTP_PASSWORD", "pass");
+        std::env::set_var("SMTP_PORT", "not_a_number");
+
+        let config = get_config().unwrap();
+        assert_eq!(config.port, 587);
+
+        std::env::remove_var("SMTP_HOST");
+        std::env::remove_var("SMTP_USER");
+        std::env::remove_var("SMTP_PASSWORD");
+        std::env::remove_var("SMTP_PORT");
     }
 }

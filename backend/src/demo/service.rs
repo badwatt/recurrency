@@ -238,5 +238,89 @@ mod tests {
         assert_eq!(date.month(), 1);
         assert_eq!(date.day(), 31);
     }
-}
 
+    // ── Additional calc_start_date edge cases ──
+
+    #[test]
+    fn calc_start_date_january_to_december_year_boundary() {
+        let date = calc_start_date(1, 2024, 1, 15);
+        assert_eq!(date.month(), 12);
+        assert_eq!(date.year(), 2023);
+    }
+
+    #[test]
+    fn calc_start_date_12_months_ago() {
+        let date = calc_start_date(6, 2024, 12, 15);
+        assert_eq!(date.month(), 6);
+        assert_eq!(date.year(), 2023);
+    }
+
+    #[test]
+    fn calc_start_date_6_months_ago() {
+        let date = calc_start_date(8, 2024, 6, 10);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_start_date_march_to_feb_non_leap() {
+        // Mar 31, 1 month ago -> Feb 28 2023 (clamped from 31 to 28 for Feb non-leap)
+        let date = calc_start_date(3, 2023, 1, 31);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.day(), 28);
+    }
+
+    #[test]
+    fn calc_start_date_day_clamp_april() {
+        let date = calc_start_date(4, 2024, 1, 30);
+        assert_eq!(date.month(), 3);
+        assert_eq!(date.day(), 30);
+    }
+
+    #[test]
+    fn calc_start_date_multiple_years_ago() {
+        let date = calc_start_date(6, 2025, 24, 15);
+        assert_eq!(date.month(), 6);
+        assert_eq!(date.year(), 2023);
+    }
+
+    #[test]
+    fn calc_start_date_day_clamp_feb_leap() {
+        let date = calc_start_date(2, 2024, 1, 29);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 29);
+    }
+
+    // ── Additional calc_next_date edge cases ──
+
+    #[test]
+    fn calc_next_date_same_day_different_month() {
+        let date = calc_next_date(6, 2024, 14, 15);
+        assert!(date.day() <= 15);
+    }
+
+    #[test]
+    fn calc_next_date_year_end_to_january() {
+        // Dec 20, billing day 25 -> billing_day(25) > today_day(20) = true, stays Dec
+        let date = calc_next_date(12, 2024, 20, 25);
+        assert_eq!(date.month(), 12);
+        assert_eq!(date.year(), 2024);
+        assert_eq!(date.day(), 25);
+    }
+
+    #[test]
+    fn calc_next_date_day_1_past() {
+        // Day 1, today 1 -> billing_day > today_day: 1 > 1 is false -> next month
+        let date = calc_next_date(6, 2024, 1, 1);
+        assert_eq!(date.month(), 7);
+    }
+
+    #[test]
+    fn calc_next_date_month_end_short_month() {
+        // June (30 days), billing day 31 -> clamped to 30
+        let date = calc_next_date(6, 2024, 15, 31);
+        assert_eq!(date.month(), 6);
+        assert_eq!(date.day(), 30);
+    }
+}

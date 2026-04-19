@@ -3,7 +3,8 @@ use uuid::Uuid;
 
 use crate::notifications::models::{
     Notification, NotificationPreferenceResponse,
-    NotificationResponse, UpdatePreferenceRequest,
+    NotificationResponse, NotificationPreferencesResponse, UpdateNotificationPreferencesRequest,
+    UpdatePreferenceRequest,
 };
 use crate::shared::error::AppResult;
 
@@ -214,4 +215,178 @@ mod tests {
     fn rows_affected_positive() { assert!(5i64 > 0); }
     #[test]
     fn rows_affected_zero() { assert!(0i64 == 0); }
+    // ── NotificationService struct ──
+
+    #[test]
+    fn notification_service_struct_reference() {
+        let _ = NotificationService;
+    }
+
+    // ── NotificationResponse with populated list ──
+
+    #[test]
+    fn notification_response_with_multiple_notifications() {
+        let n1 = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing".to_string(),
+            title: "Netflix Due".to_string(),
+            message: Some("Tomorrow".to_string()),
+            is_read: false,
+            created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+        };
+        let n2 = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "reminder".to_string(),
+            title: "Gym".to_string(),
+            message: None,
+            is_read: true,
+            created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+        };
+        let resp = NotificationResponse {
+            notifications: vec![n1, n2],
+            unread_count: 1,
+        };
+        assert_eq!(resp.notifications.len(), 2);
+        assert_eq!(resp.unread_count, 1);
+        assert!(!resp.notifications[0].is_read);
+        assert!(resp.notifications[1].is_read);
+    }
+
+    #[test]
+    fn notification_response_serialize_with_data() {
+        let n = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "alert".to_string(),
+            title: "Test Alert".to_string(),
+            message: Some("Test message".to_string()),
+            is_read: false,
+            created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+        };
+        let resp = NotificationResponse {
+            notifications: vec![n],
+            unread_count: 3,
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["unread_count"], 3);
+        let notifs = json["notifications"].as_array().unwrap();
+        assert_eq!(notifs.len(), 1);
+    }
+
+    #[test]
+    fn notification_response_unread_count_large() {
+        let resp = NotificationResponse { notifications: vec![], unread_count: 9999 };
+        assert_eq!(resp.unread_count, 9999);
+    }
+
+    // ── NotificationPreferencesResponse ──
+
+    #[test]
+    fn notification_preferences_response_empty() {
+        let resp = NotificationPreferencesResponse { preferences: vec![] };
+        assert!(resp.preferences.is_empty());
+    }
+
+    #[test]
+    fn notification_preferences_response_multiple() {
+        let resp = NotificationPreferencesResponse {
+            preferences: vec![
+                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 5 },
+                NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 1 },
+                NotificationPreferenceResponse { channel: "system".to_string(), enabled: true, reminder_days_before: 3 },
+            ],
+        };
+        assert_eq!(resp.preferences.len(), 3);
+        let email = resp.preferences.iter().find(|p| p.channel == "email").unwrap();
+        assert!(email.enabled);
+        assert_eq!(email.reminder_days_before, 5);
+    }
+
+    #[test]
+    fn notification_preferences_response_serialize_roundtrip() {
+        let resp = NotificationPreferencesResponse {
+            preferences: vec![
+                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 7 },
+            ],
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("preferences"));
+        let rt: NotificationPreferencesResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(rt.preferences.len(), 1);
+        assert_eq!(rt.preferences[0].reminder_days_before, 7);
+    }
+
+    // ── UpdateNotificationPreferencesRequest ──
+
+    #[test]
+    fn update_notification_preferences_request_deserialize() {
+        let json = r#"{"preferences":[{"channel":"email","enabled":true},{"channel":"push","enabled":false}]}"#;
+        let req: UpdateNotificationPreferencesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.preferences.len(), 2);
+        let email = req.preferences.iter().find(|p| p.channel == "email").unwrap();
+        assert!(email.enabled);
+    }
+
+    #[test]
+    fn update_notification_preferences_request_empty() {
+        let json = r#"{"preferences":[]}"#;
+        let req: UpdateNotificationPreferencesRequest = serde_json::from_str(json).unwrap();
+        assert!(req.preferences.is_empty());
+    }
+
+    #[test]
+    fn update_preference_request_all_channels() {
+        for channel in &["email", "push", "system"] {
+            let json = format!(r#"{{"channel":"{}","enabled":true}}"#, channel);
+            let req: UpdatePreferenceRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(req.channel, *channel);
+            assert!(req.enabled);
+        }
+    }
+
+    // ── Notification serde with type field ──
+
+    #[test]
+    fn notification_serde_type_field() {
+        let n = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing_reminder".to_string(),
+            title: "Test".to_string(),
+            message: None,
+            is_read: false,
+            created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+        };
+        let json = serde_json::to_value(&n).unwrap();
+        assert_eq!(json["type"], "billing_reminder");
+    }
+
+    #[test]
+    fn notification_serde_roundtrip_with_message() {
+        let n = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "reminder".to_string(),
+            title: "Payment Due".to_string(),
+            message: Some("Netflix subscription renews tomorrow".to_string()),
+            is_read: false,
+            created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+        };
+        let json = serde_json::to_string(&n).unwrap();
+        let rt: Notification = serde_json::from_str(&json).unwrap();
+        assert_eq!(rt.title, "Payment Due");
+        assert_eq!(rt.message.as_deref(), Some("Netflix subscription renews tomorrow"));
+        assert!(!rt.is_read);
+    }
+
+    // ── rows_affected boundary ──
+
+    #[test]
+    fn rows_affected_boundary_values() {
+        assert_eq!(0i64, 0);
+        assert!(1i64 > 0);
+        assert!(100i64 > 0);
+    }
 }

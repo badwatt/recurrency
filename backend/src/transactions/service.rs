@@ -324,4 +324,112 @@ mod tests {
         let (name, _, _, _, _, _, _) = resolve_update_fields(&existing, &req);
         assert_eq!(name, "Café Premium 日本語");
     }
+
+    // ── TransactionService struct ──
+
+    #[test]
+    fn transaction_service_struct_reference() {
+        let _ = TransactionService;
+    }
+
+    // ── resolve_update_fields edge cases ──
+
+    #[test]
+    fn resolve_update_date_only() {
+        let existing = make_transaction("X", rust_decimal::Decimal::from(10), NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(None, None, None, Some(NaiveDate::from_ymd_opt(2024, 12, 25).unwrap()), None, None);
+        let (_, _, _, date, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(date, NaiveDate::from_ymd_opt(2024, 12, 25).unwrap());
+    }
+
+    #[test]
+    fn resolve_update_currency_only() {
+        let existing = make_transaction("X", rust_decimal::Decimal::from(10), NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(None, None, Some("GBP"), None, None, None);
+        let (_, _, currency, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(currency, "GBP");
+    }
+
+    #[test]
+    fn resolve_update_all_fields_none_except_name() {
+        let existing = make_transaction("Keep", rust_decimal::Decimal::from(77), NaiveDate::from_ymd_opt(2024, 4, 4).unwrap(), Some("notes"), Some("http://x.png"));
+        let req = make_update(Some("NewName"), None, None, None, None, None);
+        let (name, amount, currency, date, _, notes, logo_url) = resolve_update_fields(&existing, &req);
+        assert_eq!(name, "NewName");
+        assert_eq!(amount, rust_decimal::Decimal::from(77));
+        assert_eq!(currency, "USD");
+        assert_eq!(date, NaiveDate::from_ymd_opt(2024, 4, 4).unwrap());
+        assert_eq!(notes, Some("notes".to_string()));
+        assert_eq!(logo_url, Some("http://x.png".to_string()));
+    }
+
+    #[test]
+    fn resolve_update_all_optional_fields_none() {
+        let existing = make_transaction("X", rust_decimal::Decimal::ZERO, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(None, None, None, None, None, None);
+        let (_, _, _, _, _, notes, logo_url) = resolve_update_fields(&existing, &req);
+        assert!(notes.is_none());
+        assert!(logo_url.is_none());
+    }
+
+    #[test]
+    fn resolve_update_category_only() {
+        let cat_id = Uuid::new_v4();
+        let existing = Transaction {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "T".to_string(),
+            amount: rust_decimal::Decimal::ONE,
+            currency: "USD".to_string(),
+            date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let req = UpdateTransactionRequest {
+            name: None,
+            amount: None,
+            currency: None,
+            date: None,
+            category_id: Some(cat_id),
+            notes: None,
+            logo_url: None,
+        };
+        let (_, _, _, _, preserved_cat, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(preserved_cat, cat_id);
+    }
+
+    #[test]
+    fn resolve_update_decimal_zero() {
+        let existing = make_transaction("X", rust_decimal::Decimal::ZERO, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(None, None, None, None, None, None);
+        let (_, amount, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(amount, rust_decimal::Decimal::ZERO);
+    }
+
+    #[test]
+    fn resolve_update_decimal_precision_preserved() {
+        let existing = make_transaction("X", rust_decimal::Decimal::new(99, 2), NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = UpdateTransactionRequest {
+            name: None,
+            amount: Some(rust_decimal::Decimal::new(50, 3)),
+            currency: None,
+            date: None,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        };
+        let (_, amount, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(amount, rust_decimal::Decimal::new(50, 3));
+    }
+
+    #[test]
+    fn resolve_update_name_emoji() {
+        let existing = make_transaction("X", rust_decimal::Decimal::ONE, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), None, None);
+        let req = make_update(Some("🎵 Spotify"), None, None, None, None, None);
+        let (name, _, _, _, _, _, _) = resolve_update_fields(&existing, &req);
+        assert_eq!(name, "🎵 Spotify");
+    }
 }

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Notification {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -15,20 +15,20 @@ pub struct Notification {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationResponse {
     pub notifications: Vec<Notification>,
     pub unread_count: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationPreferenceResponse {
     pub channel: String,
     pub enabled: bool,
     pub reminder_days_before: i32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationPreferencesResponse {
     pub preferences: Vec<NotificationPreferenceResponse>,
 }
@@ -125,45 +125,3 @@ mod tests {
         assert!(result.is_err());
     }
 }
-
-    #[test]
-    fn update_preference_request_email() {
-        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"email","enabled":true}"#).unwrap();
-        assert_eq!(req.channel, "email");
-        assert!(req.enabled);
-    }
-
-    #[test]
-    fn update_preference_request_push() {
-        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"push","enabled":false}"#).unwrap();
-        assert_eq!(req.channel, "push");
-        assert!(!req.enabled);
-    }
-
-    #[test]
-    fn update_notification_preferences_wrap() {
-        let req = UpdateNotificationPreferencesRequest {
-            preferences: vec![
-                UpdatePreferenceRequest { channel: "email".to_string(), enabled: true },
-                UpdatePreferenceRequest { channel: "push".to_string(), enabled: false },
-            ],
-        };
-        assert_eq!(req.preferences.len(), 2);
-    }
-
-    #[test]
-    fn notification_preferences_response_empty() {
-        let resp = NotificationPreferencesResponse { preferences: vec![] };
-        assert!(resp.preferences.is_empty());
-    }
-
-    #[test]
-    fn notification_preferences_response_single() {
-        let resp = NotificationPreferencesResponse {
-            preferences: vec![
-                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 5 },
-            ],
-        };
-        assert_eq!(resp.preferences.len(), 1);
-        assert!(resp.preferences[0].enabled);
-    }

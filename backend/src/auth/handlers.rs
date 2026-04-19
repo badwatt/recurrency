@@ -170,4 +170,65 @@ mod tests {
         assert_eq!(req.name.as_deref(), Some("New Name"));
         assert_eq!(req.currency.as_deref(), Some("GBP"));
     }
+
+    // verify handler response structure
+    #[test]
+    fn verify_response_structure() {
+        let response = serde_json::json!({
+            "valid": true,
+            "user_id": "123e4567-e89b-12d3-a456-426614174000",
+            "email": "test@example.com"
+        });
+        assert!(response.get("valid").unwrap().as_bool().unwrap());
+        assert!(response.get("user_id").is_some());
+        assert_eq!(response.get("email").unwrap().as_str().unwrap(), "test@example.com");
+    }
+
+    // resend_verification response structure
+    #[test]
+    fn resend_verification_response_structure() {
+        let response = serde_json::json!({"message": "Verification code sent"});
+        assert_eq!(response.get("message").unwrap().as_str().unwrap(), "Verification code sent");
+    }
+
+    // Validation failures for register
+    #[test]
+    fn register_validation_fails_short_password() {
+        let req = make_create_request("test@example.com", "short", "Test");
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn register_validation_fails_empty_email() {
+        let req = make_create_request("", "validpassword123", "Test");
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn register_validation_fails_no_name() {
+        let req = make_create_request("test@example.com", "validpassword123", "");
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn settings_query_empty_string_token() {
+        let query = "token=";
+        let result: SettingsQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.token.is_some());
+        assert!(result.token.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn settings_query_special_chars_token() {
+        let query = "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+        let result: SettingsQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.token.as_deref(), Some("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
+    }
+
+    #[test]
+    fn verify_email_query_deserialize_token() {
+        let query = "token=test-token-123";
+        let decoded: VerifyEmailQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(decoded.token, "test-token-123");
+    }
 }

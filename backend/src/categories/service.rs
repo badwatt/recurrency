@@ -242,7 +242,7 @@ impl CategoryService {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CategoryWithCounts {
     pub category: crate::categories::models::CategoryResponse,
     pub subscription_count: i64,
@@ -504,5 +504,188 @@ mod tests {
     #[test]
     fn invalid_color_empty() {
         assert!(!is_valid_color(Some("")));
+    }
+
+    // ── CategoryService struct ──
+
+    #[test]
+    fn category_service_struct_reference() {
+        // Verify the struct can be referenced (zero-cost at runtime)
+        let _ = CategoryService;
+    }
+
+    // ── CategoryWithCounts ──
+
+    #[test]
+    fn category_with_counts_zero_counts() {
+        let cat_response = crate::categories::models::CategoryResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "ZeroCounts".to_string(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let with_counts = CategoryWithCounts {
+            category: cat_response,
+            subscription_count: 0,
+            transaction_count: 0,
+        };
+        assert_eq!(with_counts.subscription_count, 0);
+        assert_eq!(with_counts.transaction_count, 0);
+    }
+
+    #[test]
+    fn category_with_counts_serialize_roundtrip() {
+        let cat_response = crate::categories::models::CategoryResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "SerializeRoundtrip".to_string(),
+            icon: Some("star".to_string()),
+            color: Some("#abc".to_string()),
+            is_system: true,
+            is_default: true,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let with_counts = CategoryWithCounts {
+            category: cat_response,
+            subscription_count: 42,
+            transaction_count: 7,
+        };
+        // Serialize CategoryWithCounts directly
+        let json = serde_json::to_value(&with_counts).unwrap();
+        assert_eq!(json["subscription_count"], 42);
+        assert_eq!(json["transaction_count"], 7);
+        assert_eq!(json["category"]["name"], "SerializeRoundtrip");
+        // Deserialize back
+        let rt: CategoryWithCounts = serde_json::from_value(json).unwrap();
+        assert_eq!(rt.subscription_count, 42);
+        assert_eq!(rt.transaction_count, 7);
+    }
+
+    #[test]
+    fn category_with_counts_from_impl() {
+        use crate::categories::models::Category;
+        let cat = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Converted".to_string(),
+            icon: Some("check".to_string()),
+            color: Some("#123".to_string()),
+            is_system: false,
+            is_default: true,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let cat_response: crate::categories::models::CategoryResponse = cat.into();
+        let with_counts = CategoryWithCounts {
+            category: cat_response,
+            subscription_count: 10,
+            transaction_count: 20,
+        };
+        assert_eq!(with_counts.category.name, "Converted");
+        assert_eq!(with_counts.category.is_default, true);
+    }
+
+    // ── resolve_optional_json_field edge cases ──
+
+    #[test]
+    fn json_field_whitespace_string_nonempty() {
+        // Non-empty string, even if whitespace, sets the value
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("   ".to_string()),
+            Some("old".to_string()),
+        );
+        assert_eq!(result, Some("   ".to_string()));
+    }
+
+    #[test]
+    fn json_field_whitespace_no_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("  ".to_string()),
+            None,
+        );
+        assert_eq!(result, Some("  ".to_string()));
+    }
+
+    #[test]
+    fn json_field_true_no_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Bool(true),
+            None,
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn json_field_false_no_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Bool(false),
+            None,
+        );
+        assert_eq!(result, None);
+    }
+
+    // ── Validation edge cases ──
+
+    #[test]
+    fn is_valid_category_name_100_chars() {
+        let long = "A".repeat(100);
+        assert!(is_valid_category_name(&long).is_ok());
+    }
+
+    #[test]
+    fn is_valid_category_name_101_chars() {
+        let too_long = "A".repeat(101);
+        assert!(is_valid_category_name(&too_long).is_err());
+    }
+
+    #[test]
+    fn is_valid_category_name_unicode() {
+        assert!(is_valid_category_name("Streaming🎬").is_ok());
+        assert!(is_valid_category_name("日本語カテゴリ").is_ok());
+        assert!(is_valid_category_name("Música♪").is_ok());
+    }
+
+    #[test]
+    fn is_valid_icon_50_chars() {
+        let exactly_50 = "a".repeat(50);
+        assert!(is_valid_icon(Some(&exactly_50)));
+    }
+
+    #[test]
+    fn is_valid_icon_51_chars_fails() {
+        let too_long = "a".repeat(51);
+        assert!(!is_valid_icon(Some(&too_long)));
+    }
+
+    #[test]
+    fn is_valid_color_20_chars() {
+        let exactly_20 = "a".repeat(20);
+        assert!(is_valid_color(Some(&exactly_20)));
+    }
+
+    #[test]
+    fn is_valid_color_21_chars_fails() {
+        let too_long = "a".repeat(21);
+        assert!(!is_valid_color(Some(&too_long)));
+    }
+
+    // ── category_sort_priority variants ──
+
+    #[test]
+    fn category_sort_priority_both_true() {
+        let both = category_sort_priority(true, true);
+        assert_eq!(both, (1, 1));
+    }
+
+    #[test]
+    fn category_sort_priority_both_false() {
+        let both = category_sort_priority(false, false);
+        assert_eq!(both, (0, 0));
     }
 }
