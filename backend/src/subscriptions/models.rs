@@ -247,4 +247,126 @@ mod tests {
             assert!(req.validate().is_ok());
         }
     }
+
+    #[test]
+    fn subscription_with_logo_url_roundtrip() {
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Netflix".to_string(),
+            amount: Decimal::from(1599),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: Some("https://logo.clearbit.com/netflix.com".to_string()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert!(json.get("logo_url").is_some());
+        assert!(json["logo_url"].is_string());
+    }
+
+    #[test]
+    fn subscription_inactive_status() {
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Cancelled".to_string(),
+            amount: Decimal::from(999),
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            is_active: false,
+            notes: Some("Cancelled in December".to_string()),
+            logo_url: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        assert!(!resp.is_active);
+        assert!(resp.notes.is_some());
+    }
+
+    #[test]
+    fn create_subscription_with_category_id() {
+        let cat_id = Uuid::new_v4();
+        let req = CreateSubscriptionRequest {
+            name: "Spotify".to_string(),
+            amount: Decimal::from(999),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            category_id: Some(cat_id),
+            notes: None,
+            logo_url: None,
+        };
+        assert!(req.validate().is_ok());
+        assert_eq!(req.category_id, Some(cat_id));
+    }
+
+    #[test]
+    fn update_subscription_with_next_billing_date() {
+        let req = UpdateSubscriptionRequest {
+            name: None,
+            amount: None,
+            currency: None,
+            frequency: None,
+            start_date: None,
+            next_billing_date: Some(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()),
+            category_id: None,
+            is_active: Some(true),
+            notes: None,
+            logo_url: None,
+        };
+        assert!(req.next_billing_date.is_some());
+        assert_eq!(req.is_active, Some(true));
+    }
+
+    #[test]
+    fn subscription_response_next_billing_date_some() {
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Active Sub".to_string(),
+            amount: Decimal::TEN,
+            currency: "GBP".to_string(),
+            frequency: "weekly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 20).unwrap()),
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        assert!(resp.next_billing_date.is_some());
+    }
+
+    #[test]
+    fn subscription_response_next_billing_date_none() {
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "No Next Date".to_string(),
+            amount: Decimal::ONE,
+            currency: "JPY".to_string(),
+            frequency: "yearly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        assert!(resp.next_billing_date.is_none());
+    }
 }

@@ -6,6 +6,7 @@ pub mod auth;
 pub mod categories;
 pub mod demo;
 pub mod email;
+pub mod integration_tests;
 pub mod logos;
 pub mod notifications;
 pub mod preferences;

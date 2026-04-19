@@ -265,7 +265,6 @@ pub(crate) fn subtract_months_from_date(date: chrono::NaiveDate, months: i32) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Datelike;
     use rust_decimal::Decimal;
     use std::str::FromStr;
 
@@ -424,7 +423,7 @@ mod tests {
 
     #[test]
     fn month_date_range_february_non_leap() {
-        let (from, to) = month_date_range(2023, 2);
+        let (_from, to) = month_date_range(2023, 2);
         assert_eq!(to, chrono::NaiveDate::from_ymd_opt(2023, 2, 28).unwrap());
     }
 
@@ -582,5 +581,76 @@ mod tests {
             total: dec("100"),
         };
         assert_eq!(trend.period, "6/24");
+    }
+
+    // ── normalize_to_monthly ──
+
+    #[test]
+    fn normalize_monthly_is_unchanged() {
+        let result = normalize_to_monthly(dec("10.00"), "monthly");
+        assert_eq!(result, dec("10.00"));
+    }
+
+    #[test]
+    fn normalize_weekly_to_monthly() {
+        // weekly * 4.33 ≈ monthly
+        let result = normalize_to_monthly(dec("10.00"), "weekly");
+        assert_eq!(result, dec("43.30")); // 10 * 52 / 12
+    }
+
+    #[test]
+    fn normalize_quarterly_to_monthly() {
+        let result = normalize_to_monthly(dec("30.00"), "quarterly");
+        assert_eq!(result, dec("10.00")); // 30 / 3
+    }
+
+    #[test]
+    fn normalize_yearly_to_monthly() {
+        let result = normalize_to_monthly(dec("120.00"), "yearly");
+        assert_eq!(result, dec("10.00")); // 120 / 12
+    }
+
+    #[test]
+    fn normalize_unknown_frequency() {
+        let result = normalize_to_monthly(dec("50.00"), "biweekly");
+        assert_eq!(result, dec("50.00")); // fallback: unchanged
+    }
+
+    // ── subtract_months_from_date additional coverage ──
+
+    #[test]
+    fn subtract_months_one_month() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = subtract_months_from_date(d, 1);
+        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 5, 15).unwrap());
+    }
+
+    #[test]
+    fn subtract_months_to_previous_year() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let result = subtract_months_from_date(d, 1);
+        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 12, 15).unwrap());
+    }
+
+    #[test]
+    fn subtract_months_multiple_years() {
+        let d = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        let result = subtract_months_from_date(d, 24);
+        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 3, 1).unwrap());
+    }
+
+    #[test]
+    fn subtract_months_zero_unchanged() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 20).unwrap();
+        let result = subtract_months_from_date(d, 0);
+        assert_eq!(result, d);
+    }
+
+    #[test]
+    fn subtract_months_jan_to_dec() {
+        // Jan 31 - 1 month = Dec 31
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let result = subtract_months_from_date(d, 1);
+        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 12, 31).unwrap());
     }
 }

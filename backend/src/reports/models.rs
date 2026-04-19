@@ -103,4 +103,94 @@ mod tests {
         assert!(json.get("category_breakdown").unwrap().is_array());
         assert!(json.get("recent_trends").unwrap().is_array());
     }
+
+    #[test]
+    fn monthly_summary_counts_positive() {
+        let summary = MonthlySummary {
+            year: 2024,
+            month: 3,
+            subscriptions_total: dec("300.00"),
+            transactions_total: dec("100.00"),
+            overall_total: dec("400.00"),
+            subscriptions_count: 5,
+            transactions_count: 20,
+        };
+        assert_eq!(summary.subscriptions_count, 5);
+        assert_eq!(summary.transactions_count, 20);
+    }
+
+    #[test]
+    fn category_breakdown_with_null_id() {
+        let bd = CategoryBreakdown {
+            category_id: None,
+            category_name: "Uncategorized".to_string(),
+            total: dec("50.00"),
+            count: 2,
+            percentage: 25.0,
+        };
+        assert!(bd.category_id.is_none());
+        assert_eq!(bd.category_name, "Uncategorized");
+        assert_eq!(bd.percentage, 25.0);
+    }
+
+    #[test]
+    fn category_breakdown_zero_count() {
+        let bd = CategoryBreakdown {
+            category_id: Some("cat-1".to_string()),
+            category_name: "Empty".to_string(),
+            total: dec("0.00"),
+            count: 0,
+            percentage: 0.0,
+        };
+        assert_eq!(bd.count, 0);
+        assert_eq!(bd.total, Decimal::ZERO);
+    }
+
+    #[test]
+    fn spending_trend_with_large_total() {
+        let trend = SpendingTrend {
+            period: "12/25".to_string(),
+            total: dec("999999.99"),
+        };
+        assert_eq!(trend.period, "12/25");
+    }
+
+    #[test]
+    fn report_response_full_structure() {
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 6,
+                subscriptions_total: dec("1000.00"),
+                transactions_total: dec("500.00"),
+                overall_total: dec("1500.00"),
+                subscriptions_count: 10,
+                transactions_count: 30,
+            },
+            category_breakdown: vec![
+                CategoryBreakdown {
+                    category_id: Some("1".to_string()),
+                    category_name: "Entertainment".to_string(),
+                    total: dec("1000.00"),
+                    count: 5,
+                    percentage: 66.7,
+                },
+                CategoryBreakdown {
+                    category_id: Some("2".to_string()),
+                    category_name: "Food".to_string(),
+                    total: dec("500.00"),
+                    count: 10,
+                    percentage: 33.3,
+                },
+            ],
+            recent_trends: vec![
+                SpendingTrend { period: "6/24".to_string(), total: dec("1500.00") },
+                SpendingTrend { period: "5/24".to_string(), total: dec("1400.00") },
+            ],
+        };
+        let json = serde_json::to_value(&report).unwrap();
+        assert_eq!(json["category_breakdown"].as_array().unwrap().len(), 2);
+        assert_eq!(json["recent_trends"].as_array().unwrap().len(), 2);
+        assert_eq!(json["monthly_summary"]["overall_total"], "1500.00");
+    }
 }

@@ -482,7 +482,7 @@ mod tests {
     fn calendar_billing_loop_within_month() {
         // Simulate weekly frequency billing dates within a specific month
         // Use advance_date directly to avoid calculate_next_billing_date going to future
-        let month_start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let _month_start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let month_end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
 
         // Start from the first billing in January
@@ -913,5 +913,140 @@ mod tests {
         let past = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
         let result = calculate_next_billing_date(past, "quarterly");
         assert!(result > chrono::Utc::now().date_naive());
+    }
+
+    // ── advance_date all frequency branches ──
+
+    #[test]
+    fn advance_date_weekly() {
+        let d = NaiveDate::from_ymd_opt(2024, 6, 20).unwrap();
+        let next = advance_date(d, "weekly");
+        assert_eq!(next, d + chrono::Duration::weeks(1));
+    }
+
+    #[test]
+    fn advance_date_quarterly() {
+        let d = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let next = advance_date(d, "quarterly");
+        assert_eq!(next, add_months(d, 3));
+    }
+
+    #[test]
+    fn advance_date_default_fallback() {
+        let d = NaiveDate::from_ymd_opt(2024, 3, 1).unwrap();
+        let next = advance_date(d, "biweekly"); // unknown frequency
+        assert_eq!(next, d + chrono::Duration::days(30)); // fallback
+    }
+
+    // ── add_months edge cases ──
+
+    #[test]
+    fn add_months_negative() {
+        let d = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = add_months(d, -3);
+        assert_eq!(result, NaiveDate::from_ymd_opt(2024, 3, 15).unwrap());
+    }
+
+    #[test]
+    fn add_months_large_positive() {
+        let d = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let result = add_months(d, 120); // 10 years
+        assert_eq!(result, NaiveDate::from_ymd_opt(2034, 1, 1).unwrap());
+    }
+
+    // ── calculate_next_billing_date edge cases ──
+
+    #[test]
+    fn next_billing_date_yesterday_advances_once() {
+        let yesterday = chrono::Utc::now().date_naive() - chrono::Duration::days(1);
+        let result = calculate_next_billing_date(yesterday, "monthly");
+        assert!(result > yesterday);
+    }
+
+    #[test]
+    fn next_billing_date_past_weekly() {
+        let past = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let result = calculate_next_billing_date(past, "weekly");
+        assert!(result >= chrono::Utc::now().date_naive());
+    }
+
+    // ── sort_calendar_items additional cases ──
+
+    #[test]
+    fn sort_calendar_items_equal_dates() {
+        let uid1 = Uuid::new_v4();
+        let uid2 = Uuid::new_v4();
+        let mut items = vec![
+            CalendarItem {
+                subscription_id: uid2,
+                name: "B".to_string(),
+                amount: Decimal::ONE,
+                currency: "USD".to_string(),
+                frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                is_active: true,
+                logo_url: None,
+            },
+            CalendarItem {
+                subscription_id: uid1,
+                name: "A".to_string(),
+                amount: Decimal::ONE,
+                currency: "USD".to_string(),
+                frequency: "weekly".to_string(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                is_active: true,
+                logo_url: None,
+            },
+        ];
+        sort_calendar_items(&mut items);
+        assert_eq!(items.len(), 2);
+    }
+
+    // ── generate_billing_dates additional cases ──
+
+    #[test]
+    fn generate_billing_dates_multiple_months_covered() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 3, 31).unwrap();
+        // Jan 15 starting, monthly → Jan 15, Feb 15, Mar 15
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            "monthly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 3);
+        assert_eq!(dates[0].month(), 1);
+        assert_eq!(dates[1].month(), 2);
+        assert_eq!(dates[2].month(), 3);
+    }
+
+    #[test]
+    fn generate_billing_dates_before_month_start_advances_multiple() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 4, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 4, 30).unwrap();
+        // Jan 15 → Apr 15 (advances past Feb and Mar)
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            "monthly",
+            month_start,
+            month_end,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0], NaiveDate::from_ymd_opt(2024, 4, 15).unwrap());
+    }
+
+    #[test]
+    fn generate_billing_dates_yearly_no_match() {
+        let month_start = NaiveDate::from_ymd_opt(2024, 7, 1).unwrap();
+        let month_end = NaiveDate::from_ymd_opt(2024, 7, 31).unwrap();
+        // Yearly billing in Jan → no occurrence in July
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            "yearly",
+            month_start,
+            month_end,
+        );
+        assert!(dates.is_empty());
     }
 }

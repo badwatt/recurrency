@@ -135,4 +135,111 @@ mod tests {
         let req = SetDefaultRequest { id };
         assert_eq!(req.id, id);
     }
+
+    #[test]
+    fn category_response_system_flag() {
+        let cat = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "SystemCat".to_string(),
+            icon: Some("star".to_string()),
+            color: Some("#abc".to_string()),
+            is_system: true,
+            is_default: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let resp = CategoryResponse::from(cat);
+        assert!(resp.is_system);
+        assert!(!resp.is_default);
+    }
+
+    #[test]
+    fn category_response_non_system() {
+        let cat = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "UserCat".to_string(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let resp = CategoryResponse::from(cat);
+        assert!(!resp.is_system);
+        assert!(resp.is_default);
+        assert!(resp.icon.is_none());
+        assert!(resp.color.is_none());
+    }
+
+    #[test]
+    fn create_category_without_optional() {
+        let req = CreateCategoryRequest {
+            name: "Minimal".to_string(),
+            icon: None,
+            color: None,
+        };
+        assert_eq!(req.name, "Minimal");
+        assert!(req.icon.is_none());
+        assert!(req.color.is_none());
+    }
+
+    #[test]
+    fn update_category_with_name_and_color() {
+        let req = UpdateCategoryRequest {
+            name: Some("New Name".to_string()),
+            icon: serde_json::Value::Null,
+            color: serde_json::Value::String("#ff0000".to_string()),
+        };
+        assert_eq!(req.name.as_deref(), Some("New Name"));
+        assert!(req.color.is_string());
+        assert_eq!(req.color.as_str().unwrap(), "#ff0000");
+    }
+
+    #[test]
+    fn update_category_icon_as_string() {
+        let req = UpdateCategoryRequest {
+            name: None,
+            icon: serde_json::Value::String("heart".to_string()),
+            color: serde_json::Value::Null,
+        };
+        assert!(req.icon.is_string());
+        assert_eq!(req.icon.as_str().unwrap(), "heart");
+    }
+
+    #[test]
+    fn category_response_serialize_roundtrip() {
+        let cat = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Roundtrip".to_string(),
+            icon: Some("check".to_string()),
+            color: Some("#123".to_string()),
+            is_system: false,
+            is_default: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let resp: CategoryResponse = cat.into();
+        let json = serde_json::to_value(&resp).unwrap();
+        assert!(json.get("id").is_some());
+        assert!(json.get("user_id").is_some());
+        assert_eq!(json["name"], "Roundtrip");
+        assert_eq!(json["icon"], "check");
+        assert_eq!(json["color"], "#123");
+        assert!(json["is_system"].is_boolean());
+        assert!(json["is_default"].is_boolean());
+    }
+
+    #[test]
+    fn category_name_with_unicode() {
+        let req = CreateCategoryRequest {
+            name: "カテゴリ 日本語".to_string(),
+            icon: Some("flag".to_string()),
+            color: Some("#00ff00".to_string()),
+        };
+        assert_eq!(req.name, "カテゴリ 日本語");
+    }
 }
