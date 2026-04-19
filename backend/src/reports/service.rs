@@ -653,4 +653,59 @@ mod tests {
         let result = subtract_months_from_date(d, 1);
         assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 12, 31).unwrap());
     }
+
+    // calculate_percentage edge cases
+    #[test]
+    fn calculate_percentage_zero_previous() {
+        let result = calculate_percentage(dec("100.00"), dec("0.00"));
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn calculate_percentage_negative_previous() {
+        let result = calculate_percentage(dec("100.00"), dec("-50.00"));
+        assert_eq!(result, 0.0); // invalid previous
+    }
+
+    #[test]
+    fn calculate_percentage_100_percent() {
+        let result = calculate_percentage(dec("100.00"), dec("100.00"));
+        assert_eq!(result, 100.0);
+    }
+
+    #[test]
+    fn calculate_percentage_200_percent() {
+        let result = calculate_percentage(dec("200.00"), dec("100.00"));
+        assert_eq!(result, 200.0);
+    }
+
+    // combine_category_totals edge cases
+    #[test]
+    fn combine_category_totals_empty() {
+        let existing: Vec<(Option<String>, String, Decimal)> = vec![];
+        let incoming: Vec<(Option<String>, String, Decimal)> = vec![];
+        let result = combine_category_totals(existing, incoming);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn combine_category_totals_merge_same() {
+        let existing = vec![(None, "Food".to_string(), dec("50.00"))];
+        let incoming = vec![(None, "Food".to_string(), dec("30.00"))];
+        let result = combine_category_totals(existing, incoming);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].total, dec("80.00"));
+    }
+
+    #[test]
+    fn combine_category_totals_different_categories() {
+        let existing = vec![(None, "Food".to_string(), dec("50.00"))];
+        let incoming = vec![(Some("cat2".to_string()), "Transport".to_string(), dec("25.00"))];
+        let result = combine_category_totals(existing, incoming);
+        assert_eq!(result.len(), 2);
+    }
+
+    // ReportService struct
+    #[test]
+    fn report_service_struct() { let _ = ReportService; }
 }

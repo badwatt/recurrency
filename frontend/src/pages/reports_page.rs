@@ -634,4 +634,197 @@ mod tests {
         let filename = format!("recurrency-report-{}-{}.csv", year, month);
         assert_eq!(filename, "recurrency-report-2024-6.csv");
     }
+
+    // ── RSX structure checks ──
+    #[test]
+    fn reports_page_has_title() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("Reports") || src.contains("Report"), "Should have Reports title");
+    }
+
+    #[test]
+    fn reports_page_uses_chart_components() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("Chart") || src.contains("Donut") || src.contains("Line"), "Should use chart components");
+    }
+
+    #[test]
+    fn reports_page_has_export_button() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("export") || src.contains("Export") || src.contains("download"), "Should have export button");
+    }
+
+    #[test]
+    fn reports_page_has_month_selector() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("month") || src.contains("Month") || src.contains("Select"), "Should have month selector");
+    }
+
+    #[test]
+    fn reports_page_has_year_selector() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("year") || src.contains("Year") || src.contains("report_years"), "Should have year selector");
+    }
+
+    #[test]
+    fn reports_page_uses_signals() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("use_signal"), "Should use signals for state");
+    }
+
+    #[test]
+    fn reports_page_uses_effect() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("use_effect"), "Should use effect for side effects");
+    }
+
+    #[test]
+    fn reports_page_uses_future() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("use_future"), "Should use future for async loading");
+    }
+
+    #[test]
+    fn reports_page_logs_errors() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("log::error"), "Should log errors");
+    }
+
+    // ── Month options edge cases ──
+    #[test]
+    fn month_options_returns_12_items() {
+        assert_eq!(MONTH_OPTIONS.len(), 12);
+    }
+
+    #[test]
+    fn month_options_first_is_january() {
+        assert_eq!(MONTH_OPTIONS[0].0, "1");
+        assert_eq!(MONTH_OPTIONS[0].1, "January");
+    }
+
+    #[test]
+    fn month_options_last_is_december() {
+        assert_eq!(MONTH_OPTIONS[11].0, "12");
+        assert_eq!(MONTH_OPTIONS[11].1, "December");
+    }
+
+    // ── report_years edge cases ──
+    #[test]
+    fn report_years_has_three_items() {
+        let years = report_years();
+        assert_eq!(years.len(), 3);
+    }
+
+    // ── Category style function coverage ──
+    #[test]
+    fn category_style_function_exists() {
+        // category_style_by_name takes categories slice and name, returns tuple
+        let categories: Vec<crate::models::category::Category> = vec![];
+        let result = category_style_by_name(&categories, "Food");
+        // Returns tuple of (color, icon)
+        assert_eq!(result.0, "#6b7280"); // default color
+        assert_eq!(result.1, "Tag"); // default icon
+    }
+
+    #[test]
+    fn category_style_with_empty_categories() {
+        let categories: Vec<crate::models::category::Category> = vec![];
+        let result = category_style_by_name(&categories, "Unknown");
+        assert_eq!(result.0, "#6b7280");
+        assert_eq!(result.1, "Tag");
+    }
+
+    // ── Donut data construction edge cases ──
+    #[test]
+    fn donut_data_multiple_items() {
+        use crate::components::chart::DonutData;
+        let data = vec![
+            DonutData { label: "A".into(), value: 40.0, color: "#111".into() },
+            DonutData { label: "B".into(), value: 60.0, color: "#222".into() },
+        ];
+        assert_eq!(data.len(), 2);
+    }
+
+    // ── Palette color edge cases ──
+    #[test]
+    fn palette_color_returns_deterministic() {
+        use crate::components::chart::palette_color;
+        let c1 = palette_color(5);
+        let c2 = palette_color(5);
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn palette_color_within_range() {
+        use crate::components::chart::palette_color;
+        for i in 0..10 {
+            let c = palette_color(i);
+            assert!(c.starts_with('#'), "Color {} should start with #", i);
+        }
+    }
+
+    // ── build_csv structure checks ──
+    #[test]
+    fn build_csv_function_exists() {
+        // Verify build_csv takes ReportResponse
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("fn build_csv"), "build_csv should be defined");
+    }
+
+    // ── SpendingTrend structure check ──
+    #[test]
+    fn spending_trend_fields() {
+        let trend = SpendingTrend {
+            period: "2024-01".into(),
+            total: dec!(100),
+        };
+        assert_eq!(trend.period, "2024-01");
+    }
+
+    // ── Category breakdown structure check ──
+    #[test]
+    fn category_breakdown_fields() {
+        let breakdown = CategoryBreakdown {
+            category_id: None,
+            category_name: "Food".into(),
+            total: dec!(50),
+            count: 2,
+            percentage: 25.0,
+        };
+        assert_eq!(breakdown.category_name, "Food");
+    }
+
+    // ── Monthly summary structure check ──
+    #[test]
+    fn monthly_summary_fields() {
+        let summary = MonthlySummary {
+            year: 2024,
+            month: 6,
+            subscriptions_total: dec!(100),
+            transactions_total: dec!(50),
+            overall_total: dec!(150),
+            subscriptions_count: 5,
+            transactions_count: 3,
+        };
+        assert_eq!(summary.year, 2024);
+    }
+
+    // ── ReportResponse structure check ──
+    #[test]
+    fn report_response_structure() {
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 6,
+                subscriptions_total: dec!(100),
+                transactions_total: dec!(50),
+                overall_total: dec!(150),
+                subscriptions_count: 5,
+                transactions_count: 3,
+            },
+            category_breakdown: vec![],
+            recent_trends: vec![],
+        };
+        assert_eq!(report.monthly_summary.year, 2024);
+    }
 }

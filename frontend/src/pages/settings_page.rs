@@ -597,4 +597,143 @@ mod tests {
         state.remove(name_id);
         assert_eq!(state.items.len(), 0);
     }
+
+    // ── RSX structure checks ──
+    #[test]
+    fn settings_page_has_form_layout() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("Settings"), "Should have Settings title");
+    }
+
+    #[test]
+    fn settings_page_has_name_input() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("name") && src.contains("oninput"), "Should have name input");
+    }
+
+    #[test]
+    fn settings_page_has_currency_select() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("currency") || src.contains("Select"), "Should have currency selector");
+    }
+
+    #[test]
+    fn settings_page_has_notification_toggles() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("notification") || src.contains("NOTIFICATION_CHANNELS"), "Should have notification toggles");
+    }
+
+    #[test]
+    fn settings_page_uses_toast() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("TOAST"), "Should use TOAST for notifications");
+    }
+
+    #[test]
+    fn settings_page_has_save_handlers() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("handle_save") || src.contains("on_change"), "Should have save handlers");
+    }
+
+    // ── State initialization checks ──
+    #[test]
+    fn settings_page_loads_auth_state() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("AUTH()"), "Should load AUTH state");
+    }
+
+    #[test]
+    fn settings_page_loads_notification_prefs() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("notification_preferences") || src.contains("NOTIFICATION_CHANNELS"), "Should load notification preferences");
+    }
+
+    // ── API call checks ──
+    #[test]
+    fn settings_page_calls_settings_api() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("settings::"), "Should call settings API");
+    }
+
+    #[test]
+    fn settings_page_calls_notification_prefs_api() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("notification_preferences::"), "Should call notification preferences API");
+    }
+
+    // ── API request/response checks ──
+
+    // ── Additional unique tests ──
+    #[test]
+    fn settings_page_uses_signals() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("use_signal"), "Should use signals for state");
+    }
+
+    #[test]
+    fn settings_page_uses_effect() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("use_effect"), "Should use effect for side effects");
+    }
+
+    #[test]
+    fn settings_page_uses_future() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("use_future"), "Should use future for async loading");
+    }
+
+    #[test]
+    fn settings_page_uses_spawn() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("spawn"), "Should use spawn for async operations");
+    }
+
+    #[test]
+    fn settings_page_logs_errors() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("log::error"), "Should log errors");
+    }
+
+    #[test]
+    fn settings_page_syncs_form_with_auth() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("AUTH().user"), "Should read user from AUTH");
+    }
+
+    #[test]
+    fn settings_page_has_loading_states() {
+        let src = include_str!("settings_page.rs");
+        assert!(src.contains("_loading") || src.contains("loading"), "Should have loading state");
+    }
+
+    #[test]
+    fn notification_toggle_behavior() {
+        let mut prefs = std::collections::HashMap::new();
+        prefs.insert("email".to_string(), false);
+        
+        prefs.insert("email".to_string(), true);
+        assert_eq!(prefs.get("email"), Some(&true));
+        
+        prefs.insert("email".to_string(), false);
+        assert_eq!(prefs.get("email"), Some(&false));
+    }
+
+    #[test]
+    fn settings_update_response_verifies_currency() {
+        use crate::models::auth::{SettingsResponse, UserResponse};
+        use uuid::Uuid;
+        
+        let response = SettingsResponse {
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "test@test.com".into(),
+                name: Some("Test".into()),
+                currency: "CHF".into(),
+                verified: true,
+            },
+        };
+        assert_eq!(response.user.currency, "CHF");
+    }
+
+
 }

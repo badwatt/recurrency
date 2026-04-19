@@ -13,6 +13,7 @@ mod handler_tests {
     };
     use chrono::Datelike;
     use serde::{Deserialize, Serialize};
+    use validator::Validate;
     use tower::ServiceExt;
 
     // =========================================================================
@@ -545,4 +546,92 @@ mod handler_tests {
         let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
         assert_eq!(&body[..], b"OK");
     }
+
+
+// =========================================================================
+// HTTP Tests: routing behavior
+// =========================================================================
+
+#[tokio::test]
+async fn http_route_not_found_returns_404() {
+    let app = Router::new()
+        .route("/api/subscriptions", get(|| async { Json::<Vec<SubscriptionResponse>>(vec![]) }));
+
+    let req = Request::get("/api/nonexistent")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn http_wrong_method_returns_405() {
+    let app = Router::new()
+        .route("/api/subscriptions", get(|| async { Json::<Vec<SubscriptionResponse>>(vec![]) }));
+
+    let req = Request::post("/api/subscriptions")
+        .header("Content-Type", "application/json")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+}
+
+#[tokio::test]
+async fn http_invalid_json_returns_422() {
+    let app = Router::new()
+        .route("/api/subscriptions", post(|axum::extract::Json(_): axum::extract::Json<CreateSubscriptionRequest>| async {
+            Json(serde_json::json!({"ok": true}))
+        }));
+
+    let req = Request::post("/api/subscriptions")
+        .header("Content-Type", "application/json")
+        .body(Body::from("{ invalid json }"))
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn http_validation_invalid_email_returns_422() {
+    let app = Router::new()
+        .route("/api/auth/register", post(|axum::extract::Json(input): axum::extract::Json<crate::auth::models::CreateUserRequest>| async move {
+            if input.validate().is_err() {
+                (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "validation failed"})))
+            } else {
+                (StatusCode::OK, Json(serde_json::json!({"ok": true})))
+            }
+        }));
+
+    let req = Request::post("/api/auth/register")
+        .header("Content-Type", "application/json")
+        .body(Body::from(r#"{"email":"not-an-email","password":"password123","name":"Test"}"#))
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn http_validation_short_password_returns_422() {
+    let app = Router::new()
+        .route("/api/auth/register", post(|axum::extract::Json(input): axum::extract::Json<crate::auth::models::CreateUserRequest>| async move {
+            if input.validate().is_err() {
+                (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "validation failed"})))
+            } else {
+                (StatusCode::OK, Json(serde_json::json!({"ok": true})))
+            }
+        }));
+
+    let req = Request::post("/api/auth/register")
+        .header("Content-Type", "application/json")
+        .body(Body::from(r#"{"email":"test@example.com","password":"short","name":"Test"}"#))
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
 }

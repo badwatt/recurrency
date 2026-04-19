@@ -617,6 +617,46 @@ mod tests {
         assert_eq!(req.name.as_deref(), Some("New Name"));
     }
 
+    // ── Icon display function additional tests ──
+    #[test]
+    fn icon_display_returns_emoji_for_known() {
+        // Known icon names return specific emoji
+        assert_eq!(icon_display("Tag"), "🏷");
+        assert_eq!(icon_display("Star"), "⭐");
+        // Heart may have variation selector
+        assert_eq!(icon_display("Heart"), "❤");
+        assert_eq!(icon_display("Plane"), "✈");
+    }
+
+    #[test]
+    fn icon_display_fallback_for_unknown() {
+        // Unknown icons fall back to tag
+        assert_eq!(icon_display("UnknownIcon"), "🏷");
+        assert_eq!(icon_display(""), "🏷");
+    }
+
+    #[test]
+    fn icon_display_non_empty_result() {
+        let result = icon_display("Tag");
+        assert!(!result.is_empty());
+    }
+
+    // ── Icon display sample mappings test ──
+    #[test]
+    fn icon_display_sample_no_panic() {
+        // Test a sample of icon names - ensure no panics
+        let test_icons = ["Tag", "Star", "Home", "Plane", "Heart", "Music", "Car"];
+        for icon in test_icons {
+            let _ = icon_display(icon);
+        }
+    }
+
+    // ── Color palette non-empty test ──
+    #[test]
+    fn color_palette_has_elements() {
+        assert!(!COLOR_PALETTE.is_empty());
+    }
+
     // ── TDD: Modal click-outside ──
     #[test]
     fn category_dialog_uses_click_outside_component() {

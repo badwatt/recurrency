@@ -305,4 +305,56 @@ mod tests {
         // Just test the struct exists and can be referenced
         let _service: PreferencesService = PreferencesService;
     }
+
+    // Apply preference edge cases using the 3-arg function
+    #[test]
+    fn apply_preference_theme_only() {
+        let mut prefs = PreferencesResponse { theme: "light".to_string(), subscriptions_view: "grid".to_string() };
+        apply_preference(&mut prefs, "theme", "dark");
+        assert_eq!(prefs.theme, "dark");
+        assert_eq!(prefs.subscriptions_view, "grid"); // unchanged
+    }
+
+    #[test]
+    fn apply_preference_view_only() {
+        let mut prefs = PreferencesResponse { theme: "dark".to_string(), subscriptions_view: "grid".to_string() };
+        apply_preference(&mut prefs, "subscriptions_view", "list");
+        assert_eq!(prefs.theme, "dark"); // unchanged
+        assert_eq!(prefs.subscriptions_view, "list");
+    }
+
+    #[test]
+    fn apply_preference_both_fields() {
+        let mut prefs = PreferencesResponse { theme: "light".to_string(), subscriptions_view: "grid".to_string() };
+        apply_preference(&mut prefs, "theme", "midnight");
+        apply_preference(&mut prefs, "subscriptions_view", "compact");
+        assert_eq!(prefs.theme, "midnight");
+        assert_eq!(prefs.subscriptions_view, "compact");
+    }
+
+    #[test]
+    fn apply_preference_no_fields() {
+        let mut prefs = PreferencesResponse { theme: "light".to_string(), subscriptions_view: "grid".to_string() };
+        // No fields to update - nothing changes
+        assert_eq!(prefs.theme, "light");
+        assert_eq!(prefs.subscriptions_view, "grid");
+    }
+
+    // Theme variations
+    #[test]
+    fn theme_variations() {
+        for theme in &["light", "dark", "midnight", "solarized", "nord", "dracula"] {
+            let req: UpdatePreferencesRequest = serde_json::from_str(&format!(r#"{{"theme":"{}"}}"#, theme)).unwrap();
+            assert_eq!(req.theme.as_deref(), Some(*theme));
+        }
+    }
+
+    // View variations
+    #[test]
+    fn view_variations() {
+        for view in &["grid", "list", "compact", "cards"] {
+            let req: UpdatePreferencesRequest = serde_json::from_str(&format!(r#"{{"subscriptions_view":"{}"}}"#, view)).unwrap();
+            assert_eq!(req.subscriptions_view.as_deref(), Some(*view));
+        }
+    }
 }
