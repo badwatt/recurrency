@@ -70,7 +70,7 @@ impl DemoService {
         let today_day = today.day();
 
         // next month
-        let (next_year, next_month) = if this_month == 12 {
+        let (_next_year, _next_month) = if this_month == 12 {
             (this_year + 1, 1)
         } else {
             (this_year, this_month + 1)
@@ -322,5 +322,153 @@ mod tests {
         let date = calc_next_date(6, 2024, 15, 31);
         assert_eq!(date.month(), 6);
         assert_eq!(date.day(), 30);
+    }
+
+    // ── days_in_month additional edge cases ──
+
+    #[test]
+    fn days_in_month_march() { assert_eq!(days_in_month(2024, 3), 31); }
+    #[test]
+    fn days_in_month_may() { assert_eq!(days_in_month(2024, 5), 31); }
+    #[test]
+    fn days_in_month_june() { assert_eq!(days_in_month(2024, 6), 30); }
+    #[test]
+    fn days_in_month_july() { assert_eq!(days_in_month(2024, 7), 31); }
+    #[test]
+    fn days_in_month_august() { assert_eq!(days_in_month(2024, 8), 31); }
+    #[test]
+    fn days_in_month_september() { assert_eq!(days_in_month(2024, 9), 30); }
+    #[test]
+    fn days_in_month_october() { assert_eq!(days_in_month(2024, 10), 31); }
+    #[test]
+    fn days_in_month_november() { assert_eq!(days_in_month(2024, 11), 30); }
+    #[test]
+    fn days_in_month_december() { assert_eq!(days_in_month(2024, 12), 31); }
+
+    // ── calc_start_date additional edge cases ──
+
+    #[test]
+    fn calc_start_date_day_1() {
+        let date = calc_start_date(6, 2024, 1, 1);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 1);
+    }
+
+    #[test]
+    fn calc_start_date_february_to_january_leap_year() {
+        let date = calc_start_date(2, 2024, 1, 29);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 29);
+    }
+
+    #[test]
+    fn calc_start_date_december_31_to_november() {
+        let date = calc_start_date(12, 2023, 1, 31);
+        assert_eq!(date.month(), 11);
+        assert_eq!(date.day(), 30);
+    }
+
+    #[test]
+    fn calc_start_date_october_31_to_september() {
+        let date = calc_start_date(10, 2024, 1, 31);
+        assert_eq!(date.month(), 9);
+        assert_eq!(date.day(), 30);
+    }
+
+    #[test]
+    fn calc_start_date_mid_year() {
+        let date = calc_start_date(6, 2024, 3, 15);
+        assert_eq!(date.month(), 3);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_start_date_2_years_ago() {
+        let date = calc_start_date(6, 2024, 24, 20);
+        assert_eq!(date.month(), 6);
+        assert_eq!(date.year(), 2022);
+    }
+
+    #[test]
+    fn calc_start_date_leap_year_february() {
+        // March 1 -> Feb 29 in leap year (day 29 is valid in Feb 2024)
+        let date = calc_start_date(3, 2024, 1, 29);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 29);
+    }
+
+    // ── calc_next_date additional edge cases ──
+
+    #[test]
+    fn calc_next_date_day_1_same_month() {
+        let date = calc_next_date(6, 2024, 15, 1);
+        // 1 <= 15, so next month
+        assert_eq!(date.month(), 7);
+    }
+
+    #[test]
+    fn calc_next_date_exact_today() {
+        let date = calc_next_date(6, 2024, 15, 15);
+        // 15 <= 15 is false (not >), so next month
+        assert_eq!(date.month(), 7);
+    }
+
+    #[test]
+    fn calc_next_date_november_to_december() {
+        let date = calc_next_date(11, 2024, 15, 20);
+        assert_eq!(date.month(), 11);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_next_date_november_to_december_past_day() {
+        let date = calc_next_date(11, 2024, 25, 20);
+        assert_eq!(date.month(), 12);
+        assert_eq!(date.year(), 2024);
+    }
+
+    #[test]
+    fn calc_next_date_february_leap_year() {
+        // From Jan 31, billing day 31 > today 31 → false → next month (Feb), clamped to 29
+        let date = calc_next_date(1, 2024, 31, 31);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 29); // Feb 2024 has 29 days, clamped from 31
+    }
+
+    #[test]
+    fn calc_next_date_february_non_leap_year() {
+        // From Jan 31, billing day 31 > today 31 → false → next month (Feb), clamped to 28
+        let date = calc_next_date(1, 2023, 31, 31);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 28); // Feb 2023 has 28 days, clamped from 31
+    }
+
+    #[test]
+    fn calc_next_date_all_months_shortened() {
+        // Billing day 31 should clamp to actual days
+        assert_eq!(calc_next_date(4, 2024, 15, 31).day(), 30); // April
+        assert_eq!(calc_next_date(6, 2024, 15, 31).day(), 30); // June
+        assert_eq!(calc_next_date(9, 2024, 15, 31).day(), 30); // September
+        assert_eq!(calc_next_date(11, 2024, 15, 31).day(), 30); // November
+    }
+
+    #[test]
+    fn calc_next_date_all_months_31_days() {
+        // Billing day 31 should stay 31 for 31-day months
+        assert_eq!(calc_next_date(1, 2024, 15, 31).day(), 31); // Jan
+        assert_eq!(calc_next_date(3, 2024, 15, 31).day(), 31); // Mar
+        assert_eq!(calc_next_date(5, 2024, 15, 31).day(), 31); // May
+        assert_eq!(calc_next_date(7, 2024, 15, 31).day(), 31); // July
+        assert_eq!(calc_next_date(8, 2024, 15, 31).day(), 31); // Aug
+        assert_eq!(calc_next_date(10, 2024, 15, 31).day(), 31); // Oct
+        assert_eq!(calc_next_date(12, 2024, 15, 31).day(), 31); // Dec
+    }
+
+    // ── DemoService struct reference ──
+
+    #[test]
+    fn demo_service_can_be_referenced() {
+        // Just test the struct exists and can be referenced
+        let _service: DemoService = DemoService;
     }
 }

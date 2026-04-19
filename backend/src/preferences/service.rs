@@ -177,7 +177,6 @@ mod tests {
         assert!(req.theme.is_none());
         assert!(req.subscriptions_view.is_none());
     }
-}
 
     #[test]
     fn preferences_response_clone_preserves() {
@@ -186,3 +185,124 @@ mod tests {
         assert_eq!(cloned.theme, resp.theme);
         assert_eq!(cloned.subscriptions_view, resp.subscriptions_view);
     }
+
+    // ── More apply_preference edge cases ──
+
+    #[test]
+    fn apply_preference_theme_case_sensitive() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "Theme", "dark"); // Wrong case
+        assert_eq!(response.theme, "system"); // Should not change
+    }
+
+    #[test]
+    fn apply_preference_subscriptions_view_case_sensitive() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "SUBSCRIPTIONS_VIEW", "list"); // Wrong case
+        assert_eq!(response.subscriptions_view, "grid"); // Should not change
+    }
+
+    #[test]
+    fn apply_preference_empty_string_values() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "theme", "");
+        assert_eq!(response.theme, "");
+    }
+
+    #[test]
+    fn apply_preference_unicode_values() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "theme", "ダーク");
+        assert_eq!(response.theme, "ダーク");
+    }
+
+    #[test]
+    fn apply_preference_multiple_unknown_keys() {
+        let mut response = PreferencesResponse::default();
+        apply_preference(&mut response, "lang", "en");
+        apply_preference(&mut response, "region", "US");
+        apply_preference(&mut response, "timezone", "UTC");
+        // All should be ignored
+        assert_eq!(response.theme, "system");
+        assert_eq!(response.subscriptions_view, "grid");
+    }
+
+    // ── More PreferencesResponse edge cases ──
+
+    #[test]
+    fn preferences_response_with_empty_strings() {
+        let resp = PreferencesResponse {
+            theme: "".to_string(),
+            subscriptions_view: "".to_string(),
+        };
+        assert_eq!(resp.theme, "");
+        assert_eq!(resp.subscriptions_view, "");
+    }
+
+    #[test]
+    fn preferences_response_with_unicode() {
+        let resp = PreferencesResponse {
+            theme: "テーマ".to_string(),
+            subscriptions_view: "列表".to_string(),
+        };
+        assert_eq!(resp.theme, "テーマ");
+        assert_eq!(resp.subscriptions_view, "列表");
+    }
+
+    #[test]
+    fn preferences_response_roundtrip() {
+        let resp = PreferencesResponse {
+            theme: "midnight".to_string(),
+            subscriptions_view: "compact".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: PreferencesResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.theme, resp.theme);
+        assert_eq!(parsed.subscriptions_view, resp.subscriptions_view);
+    }
+
+    #[test]
+    fn preferences_response_complete_deserialize() {
+        // PreferencesResponse requires all fields
+        let json = r#"{"theme":"light","subscriptions_view":"list"}"#;
+        let resp: PreferencesResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.theme, "light");
+        assert_eq!(resp.subscriptions_view, "list");
+    }
+
+    // ── UpdatePreferencesRequest edge cases ──
+
+    #[test]
+    fn update_preferences_request_both_empty_strings() {
+        let json = r#"{"theme":"","subscriptions_view":""}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert!(req.theme.is_some()); // Empty string is still Some
+        assert!(req.subscriptions_view.is_some());
+    }
+
+    #[test]
+    fn update_preferences_request_with_unicode() {
+        let json = r#"{"theme":"テーマ","subscriptions_view":"视图"}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.theme.as_deref(), Some("テーマ"));
+        assert_eq!(req.subscriptions_view.as_deref(), Some("视图"));
+    }
+
+    #[test]
+    fn update_preferences_request_order_independent() {
+        // subscriptions_view first
+        let req1: UpdatePreferencesRequest = serde_json::from_str(r#"{"subscriptions_view":"list","theme":"dark"}"#).unwrap();
+        // theme first
+        let req2: UpdatePreferencesRequest = serde_json::from_str(r#"{"theme":"dark","subscriptions_view":"list"}"#).unwrap();
+        assert_eq!(req1.theme, req2.theme);
+        assert_eq!(req1.subscriptions_view, req2.subscriptions_view);
+    }
+
+    // ── PreferencesService struct ──
+
+    #[test]
+    fn preferences_service_can_be_referenced() {
+        // Just test the struct exists and can be referenced
+        let _service: PreferencesService = PreferencesService;
+    }
+}

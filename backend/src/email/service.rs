@@ -247,7 +247,7 @@ mod tests {
         let cloned = cfg.clone();
         assert_eq!(cfg.host, cloned.host);
         assert_eq!(cfg.port, cloned.port);
-}
+    }
 
     #[test]
     #[serial]

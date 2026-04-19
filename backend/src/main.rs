@@ -15,6 +15,7 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use shared::app_utils::{build_index_path, get_frontend_dist, index_html_exists, list_files_recursive, parse_port};
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
@@ -47,10 +48,7 @@ async fn main() -> anyhow::Result<()> {
     let app = build_app(db_pool);
 
     // Start server - use PORT env var or default 8080 (dev) / 80 (prod)
-    let port: u16 = std::env::var("APP_PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8080);
+    let port = parse_port();
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("Server listening on {}", addr);
 
@@ -68,11 +66,11 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .allow_headers(Any);
 
     // Frontend dist path
-    let frontend_dist = std::env::var("FRONTEND_DIST").unwrap_or_else(|_| "/frontend/dist".to_string());
+    let frontend_dist = get_frontend_dist();
     tracing::info!("Serving frontend from: {}", frontend_dist);
 
-    let index_path = format!("{}/index.html", frontend_dist);
-    if !std::path::Path::new(&index_path).exists() {
+    let index_path = build_index_path(&frontend_dist);
+    if !index_html_exists(&frontend_dist) {
         tracing::error!("Frontend index.html not found at: {}", index_path);
         tracing::error!("Ensure FRONTEND_DIST points to a directory containing index.html");
         if let Ok(entries) = std::fs::read_dir(&frontend_dist) {
@@ -166,24 +164,6 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
 
 async fn health_check() -> &'static str {
     "OK"
-}
-
-/// Recursively list files in a directory for startup diagnostics.
-fn list_files_recursive(dir: &str, count: &mut u32, depth: usize) {
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            *count += 1;
-            if depth < 4 { // Limit depth to avoid excessive logging
-                if path.is_dir() {
-                    tracing::info!("{}{}/", "  ".repeat(depth), path.file_name().unwrap_or_default().to_string_lossy());
-                    list_files_recursive(&path.to_string_lossy(), count, depth + 1);
-                } else {
-                    tracing::info!("{}{}", "  ".repeat(depth), path.file_name().unwrap_or_default().to_string_lossy());
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]

@@ -2,9 +2,8 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::notifications::models::{
-    Notification, NotificationPreferenceResponse,
-    NotificationResponse, NotificationPreferencesResponse, UpdateNotificationPreferencesRequest,
-    UpdatePreferenceRequest,
+    Notification, NotificationPreferenceResponse, NotificationPreferencesResponse,
+    NotificationResponse, UpdateNotificationPreferencesRequest, UpdatePreferenceRequest,
 };
 use crate::shared::error::AppResult;
 
