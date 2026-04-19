@@ -367,4 +367,208 @@ mod tests {
             assert_eq!(result.unwrap().year(), *year);
         }
     }
+
+    // ── Additional edge case tests ──
+    #[test]
+    fn create_transaction_name_special_chars_edge() {
+        let json = r##"{"name":"Lunch & Dinner #1","amount":"25.50","currency":"USD","date":"2024-06-15"}"##;
+        let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "Lunch & Dinner #1");
+    }
+
+    #[test]
+    fn create_transaction_name_unicode_edge() {
+        let json = r#"{"name":"café ☕","amount":"5.00","currency":"EUR","date":"2024-06-15"}"#;
+        let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.name.contains("café"));
+    }
+
+    #[test]
+    fn create_transaction_all_currencies_edge() {
+        for currency in &["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF"] {
+            let json = format!(r#"{{"name":"Test","amount":"10.00","currency":"{}","date":"2024-06-15"}}"#, currency);
+            let req: CreateTransactionRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(req.currency, *currency);
+        }
+    }
+
+    #[test]
+    fn create_transaction_large_amount_edge() {
+        let json = r#"{"name":"Big Purchase","amount":"999999.99","currency":"USD","date":"2024-06-15"}"#;
+        let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.amount > rust_decimal::Decimal::from(100000));
+    }
+
+    #[test]
+    fn create_transaction_small_amount_edge() {
+        let json = r#"{"name":"Tiny","amount":"0.01","currency":"USD","date":"2024-06-15"}"#;
+        let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.amount < rust_decimal::Decimal::from(1));
+    }
+
+    #[test]
+    fn create_transaction_negative_amount_edge() {
+        let json = r#"{"name":"Test","amount":"-10.00","currency":"USD","date":"2024-06-15"}"#;
+        let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.amount < rust_decimal::Decimal::ZERO);
+    }
+
+    #[test]
+    fn create_transaction_with_category_edge() {
+        let cat_id = Uuid::new_v4();
+        let json = serde_json::json!({
+            "name": "Test",
+            "amount": "10.00",
+            "currency": "USD",
+            "date": "2024-06-15",
+            "category_id": cat_id.to_string()
+        }).to_string();
+        let req: CreateTransactionRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(req.category_id, Some(cat_id));
+    }
+
+    #[test]
+    fn create_transaction_with_logo_edge() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","date":"2024-06-15","logo_url":"https://example.com/logo.png"}"#;
+        let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.logo_url, Some("https://example.com/logo.png".to_string()));
+    }
+
+    #[test]
+    fn update_transaction_partial_amount_edge() {
+        let json = r#"{"amount":"99.99"}"#;
+        let req: UpdateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.amount.is_some());
+        assert!(req.name.is_none());
+        assert!(req.date.is_none());
+    }
+
+    #[test]
+    fn update_transaction_partial_name_edge() {
+        let json = r#"{"name":"New Name"}"#;
+        let req: UpdateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.as_deref(), Some("New Name"));
+        assert!(req.amount.is_none());
+    }
+
+    #[test]
+    fn update_transaction_partial_date_edge() {
+        let json = r#"{"date":"2025-01-01"}"#;
+        let req: UpdateTransactionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.date.is_some());
+        assert!(req.name.is_none());
+    }
+
+    #[test]
+    fn update_transaction_all_fields_edge() {
+        let json = serde_json::json!({
+            "name": "Updated",
+            "amount": "50.00",
+            "currency": "EUR",
+            "date": "2025-01-01",
+            "notes": "Updated notes",
+            "category_id": Uuid::new_v4().to_string()
+        }).to_string();
+        let req: UpdateTransactionRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(req.name.as_deref(), Some("Updated"));
+        assert!(req.amount.is_some());
+        assert_eq!(req.currency.as_deref(), Some("EUR"));
+    }
+
+    #[test]
+    fn transaction_response_large_amount_edge() {
+        let resp = TransactionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Expensive".to_string(),
+            amount: rust_decimal::Decimal::new(99999999, 2),
+            currency: "USD".to_string(),
+            date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("999999.99") || json.contains("99999999"));
+    }
+
+    #[test]
+    fn transaction_response_zero_amount_edge() {
+        let resp = TransactionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Free".to_string(),
+            amount: rust_decimal::Decimal::ZERO,
+            currency: "USD".to_string(),
+            date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        assert_eq!(resp.amount, rust_decimal::Decimal::ZERO);
+    }
+
+    #[test]
+    fn transaction_response_long_notes_edge() {
+        let long_notes = "A".repeat(1000);
+        let resp = TransactionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Test".to_string(),
+            amount: rust_decimal::Decimal::new(100, 2),
+            currency: "USD".to_string(),
+            date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            notes: Some(long_notes.clone()),
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        assert_eq!(resp.notes.unwrap().len(), 1000);
+    }
+
+    #[test]
+    fn transaction_response_long_logo_edge() {
+        let long_url = format!("https://example.com/{}", "a".repeat(200));
+        let resp = TransactionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Test".to_string(),
+            amount: rust_decimal::Decimal::new(100, 2),
+            currency: "USD".to_string(),
+            date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            notes: None,
+            logo_url: Some(long_url.clone()),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        assert_eq!(resp.logo_url.unwrap().len(), long_url.len());
+    }
+
+    #[test]
+    fn date_range_query_token_edge() {
+        let json = serde_json::json!({"token": "abc123"}).to_string();
+        let query: DateRangeQuery = serde_json::from_str(&json).unwrap();
+        assert_eq!(query.token, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn date_range_query_empty_edge() {
+        let json = "{}";
+        let query: DateRangeQuery = serde_json::from_str(json).unwrap();
+        assert!(query.token.is_none());
+    }
+
+    #[test]
+    fn date_range_query_large_token_edge() {
+        let long_token = "a".repeat(500);
+        let json = serde_json::json!({"token": long_token}).to_string();
+        let query: DateRangeQuery = serde_json::from_str(&json).unwrap();
+        assert_eq!(query.token.unwrap().len(), 500);
+    }
 }

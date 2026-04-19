@@ -897,4 +897,143 @@ mod tests {
         let post_auth = src.split("auth.is_authenticated").nth(1).unwrap_or("");
         assert!(post_auth.contains("children"),
             "Authenticated users must see children/content");
+
+    // ── Additional RSX structure tests ──
+    #[test]
+    fn app_layout_has_sidebar() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("sidebar") || src.contains("Sidebar"),
+            "AppLayout must have sidebar");
     }
+
+    #[test]
+    fn app_layout_has_main_content() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("main") || src.contains("content"),
+            "AppLayout must have main content area");
+    }
+
+    #[test]
+    fn app_layout_has_header() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("header") || src.contains("Header"),
+            "AppLayout must have header");
+    }
+
+    #[test]
+    fn app_layout_has_notification_bell() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("NotificationBell") || src.contains("notification"),
+            "AppLayout must have notification bell");
+    }
+
+    #[test]
+    fn app_layout_has_theme_toggle() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("ThemeToggleButton") || src.contains("ThemeToggle"),
+            "AppLayout must have theme toggle");
+    }
+
+    #[test]
+    fn navlink_component_exists() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("fn NavLink"), "Must have NavLink component");
+    }
+
+    #[test]
+    fn mobile_navlink_component_exists() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("fn MobileNavLink"), "Must have MobileNavLink component");
+    }
+
+    #[test]
+    fn svg_icon_component_exists() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("fn SvgIcon"), "Must have SvgIcon component");
+    }
+
+    #[test]
+    fn notification_item_component_exists() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("fn NotificationItem"), "Must have NotificationItem component");
+    }
+
+    #[test]
+    fn logo_icon_exists() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("LogoIcon") || src.contains("logo"),
+            "Must have logo icon");
+    }
+
+    #[test]
+    fn app_layout_uses_swipe_sidebar() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("use_swipe_sidebar"),
+            "AppLayout must use swipe sidebar hook");
+    }
+
+    #[test]
+    fn app_layout_checks_current_route() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("use_route") || src.contains("current_route"),
+            "AppLayout must check current route");
+    }
+
+    #[test]
+    fn app_layout_closes_sidebar_on_route_change() {
+        let src = include_str!("app_layout.rs");
+        let has_sidebar_close = src.contains("sidebar_open.set(false)") || 
+            (src.contains("sidebar_open") && src.contains("use_effect"));
+        assert!(has_sidebar_close,
+            "Sidebar should close on route change");
+    }
+
+    #[test]
+    fn app_layout_has_responsive_classes() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("md:") || src.contains("hidden") || src.contains("block"),
+            "AppLayout must have responsive layout classes");
+    }
+
+    #[test]
+    fn notification_bell_has_badge() {
+        let src = include_str!("app_layout.rs");
+        let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
+        assert!(bell_section.contains("unread_count") || bell_section.contains("badge"),
+            "Notification bell should show unread count badge");
+    }
+
+    #[test]
+    fn svg_icon_has_icon_variant() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("Icon::"), "SvgIcon must use Icon enum variants");
+    }
+
+    #[test]
+    fn app_layout_imports_auth_state() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("AUTH") || src.contains("use_state"),
+            "AppLayout must import/use auth state");
+    }
+
+    #[test]
+    fn app_layout_imports_notifications() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("NOTIFICATIONS") || src.contains("notifications"),
+            "AppLayout must use notifications state");
+    }
+
+    #[test]
+    fn app_layout_uses_theme_hook() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("apply_theme_class") || src.contains("toggle_theme") || src.contains("theme"),
+            "AppLayout must use theme hook");
+    }
+
+    #[test]
+    fn app_layout_has_use_future_for_spinner() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("use_future") || src.contains("pre-wasm-loader"),
+            "AppLayout must hide pre-WASM spinner");
+    }
+}

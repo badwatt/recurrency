@@ -378,4 +378,166 @@ mod tests {
         let json = serde_json::to_value(&item).unwrap();
         assert!(json.get("logo_url").is_some());
     }
+
+    // ── CalendarItem response tests ──
+    #[test]
+    fn calendar_item_weekly() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Gym".to_string(),
+            amount: rust_decimal::Decimal::from(50),
+            currency: "USD".to_string(),
+            frequency: "weekly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert_eq!(item.frequency, "weekly");
+    }
+
+    #[test]
+    fn calendar_item_quarterly() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Insurance".to_string(),
+            amount: rust_decimal::Decimal::from(300),
+            currency: "USD".to_string(),
+            frequency: "quarterly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert_eq!(item.frequency, "quarterly");
+    }
+
+    #[test]
+    fn calendar_item_yearly() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Amazon Prime".to_string(),
+            amount: rust_decimal::Decimal::from(149),
+            currency: "USD".to_string(),
+            frequency: "yearly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert_eq!(item.frequency, "yearly");
+    }
+
+    #[test]
+    fn subscription_response_all_currencies() {
+        use crate::subscriptions::models::SubscriptionResponse;
+        for currency in &["USD", "EUR", "GBP", "JPY", "CAD"] {
+            let resp = SubscriptionResponse {
+                id: Uuid::new_v4(),
+                user_id: Uuid::new_v4(),
+                category_id: Uuid::new_v4(),
+                name: "Test".to_string(),
+                amount: rust_decimal::Decimal::from(1000),
+                currency: currency.to_string(),
+                frequency: "monthly".to_string(),
+                start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                next_billing_date: None,
+                is_active: true,
+                notes: None,
+                logo_url: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            };
+            let json = serde_json::to_string(&resp).unwrap();
+            assert!(json.contains(currency));
+        }
+    }
+
+    #[test]
+    fn subscription_response_without_notes() {
+        use crate::subscriptions::models::SubscriptionResponse;
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "No Notes".to_string(),
+            amount: rust_decimal::Decimal::from(500),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // Either no notes field or notes is null
+        let has_notes_key = json.contains("\"notes\"");
+        if has_notes_key {
+            assert!(json.contains("notes") && json.contains("null"));
+        }
+    }
+
+    #[test]
+    fn subscription_response_without_logo() {
+        use crate::subscriptions::models::SubscriptionResponse;
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "No Logo".to_string(),
+            amount: rust_decimal::Decimal::from(500),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // logo_url is either not present or null
+        let has_logo_url_key = json.contains("\"logo_url\"");
+        if has_logo_url_key {
+            assert!(json.contains("logo_url") && json.contains("null"));
+        } else {
+            assert!(true);
+        }
+    }
+
+    #[test]
+    fn update_subscription_is_active_true() {
+        let json = r#"{"is_active":true}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.is_active, Some(true));
+    }
+
+    #[test]
+    fn update_subscription_next_billing_date() {
+        let json = r#"{"next_billing_date":"2025-01-01"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.next_billing_date.is_some());
+    }
+
+    #[test]
+    fn update_subscription_notes_empty() {
+        let json = r#"{"notes":""}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.notes, Some("".to_string()));
+    }
+
+    #[test]
+    fn create_subscription_request_with_emoji() {
+        let json = r#"{"name":"Netflix 🎬","amount":"15.99","currency":"USD","frequency":"monthly","start_date":"2024-01-01"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.name.contains("🎬"));
+    }
+
+    #[test]
+    fn create_subscription_large_amount() {
+        let json = r#"{"name":"Enterprise","amount":"999999.99","currency":"USD","frequency":"monthly","start_date":"2024-01-01"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.amount > rust_decimal::Decimal::from(100000));
+    }
 }

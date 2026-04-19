@@ -293,4 +293,155 @@ mod tests {
         let req: UpdateNotificationPreferencesRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.preferences.len(), 3);
     }
+
+    #[test]
+    fn notification_response_empty_notifications() {
+        let resp = NotificationResponse {
+            notifications: vec![],
+            unread_count: 0,
+        };
+        assert!(resp.notifications.is_empty());
+        assert_eq!(resp.unread_count, 0);
+    }
+
+    #[test]
+    fn notification_response_multiple_unread() {
+        let item1 = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing_reminder".to_string(),
+            title: "Test 1".to_string(),
+            message: None,
+            is_read: false,
+            created_at: chrono::Utc::now(),
+        };
+        let item2 = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing_reminder".to_string(),
+            title: "Test 2".to_string(),
+            message: None,
+            is_read: false,
+            created_at: chrono::Utc::now(),
+        };
+        let resp = NotificationResponse {
+            notifications: vec![item1, item2],
+            unread_count: 2,
+        };
+        assert_eq!(resp.notifications.len(), 2);
+        assert_eq!(resp.unread_count, 2);
+    }
+
+    #[test]
+    fn notification_preference_response_email() {
+        let pref = NotificationPreferenceResponse {
+            channel: "email".to_string(),
+            enabled: true,
+            reminder_days_before: 1,
+        };
+        assert_eq!(pref.channel, "email");
+        assert!(pref.enabled);
+        assert_eq!(pref.reminder_days_before, 1);
+    }
+
+    #[test]
+    fn notification_preference_response_push() {
+        let pref = NotificationPreferenceResponse {
+            channel: "push".to_string(),
+            enabled: false,
+            reminder_days_before: 7,
+        };
+        assert_eq!(pref.channel, "push");
+        assert!(!pref.enabled);
+        assert_eq!(pref.reminder_days_before, 7);
+    }
+
+    #[test]
+    fn notification_preference_response_system() {
+        let pref = NotificationPreferenceResponse {
+            channel: "system".to_string(),
+            enabled: true,
+            reminder_days_before: 3,
+        };
+        assert_eq!(pref.channel, "system");
+        assert!(pref.enabled);
+    }
+
+    #[test]
+    fn update_preference_request_all_channels() {
+        let channels = ["email", "push", "system", "in_app"];
+        for channel in channels.iter() {
+            let json = serde_json::json!({"channel": channel, "enabled": true}).to_string();
+            let req: UpdatePreferenceRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(req.channel, *channel);
+        }
+    }
+
+    #[test]
+    fn notification_with_long_message() {
+        let long_msg = "A".repeat(1000);
+        let item = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing_reminder".to_string(),
+            title: "Test".to_string(),
+            message: Some(long_msg.clone()),
+            is_read: false,
+            created_at: chrono::Utc::now(),
+        };
+        assert!(item.message.is_some());
+        assert_eq!(item.message.unwrap().len(), 1000);
+    }
+
+    #[test]
+    fn notification_with_emoji_in_title() {
+        let item = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing_reminder".to_string(),
+            title: "🎉 Your subscription renews!".to_string(),
+            message: None,
+            is_read: false,
+            created_at: chrono::Utc::now(),
+        };
+        assert!(item.title.contains("🎉"));
+    }
+
+    #[test]
+    fn notification_query_with_token() {
+        let query = "token=abc123";
+        let result: NotificationQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.token, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn notification_query_without_token() {
+        let query = "";
+        let result: NotificationQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.token.is_none());
+    }
+
+    #[test]
+    fn mark_read_success_true() {
+        let response = serde_json::json!({"success": true});
+        assert!(response["success"].as_bool().unwrap());
+    }
+
+    #[test]
+    fn mark_read_success_false() {
+        let response = serde_json::json!({"success": false});
+        assert!(!response["success"].as_bool().unwrap());
+    }
+
+    #[test]
+    fn mark_all_read_zero() {
+        let response = serde_json::json!({"marked_count": 0});
+        assert_eq!(response["marked_count"].as_i64().unwrap(), 0);
+    }
+
+    #[test]
+    fn mark_all_read_large_count() {
+        let response = serde_json::json!({"marked_count": 9999});
+        assert_eq!(response["marked_count"].as_i64().unwrap(), 9999);
+    }
 }
