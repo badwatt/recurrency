@@ -123,6 +123,16 @@ pub async fn calendar(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::subscriptions::models::{CreateSubscriptionRequest, UpdateSubscriptionRequest};
+    use validator::Validate;
+
+    fn make_create_request(name: &str, amount: &str, currency: &str, frequency: &str, start_date: &str) -> CreateSubscriptionRequest {
+        let json = format!(
+            r#"{{"name":"{}","amount":"{}","currency":"{}","frequency":"{}","start_date":"{}"}}"#,
+            name, amount, currency, frequency, start_date
+        );
+        serde_json::from_str(&json).unwrap()
+    }
 
     #[test]
     fn calendar_query_deserialize() {
@@ -151,6 +161,21 @@ mod tests {
     }
 
     #[test]
+    fn calendar_query_partial_month_only() {
+        let query = "month=12";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.year.is_none());
+        assert_eq!(result.month, Some(12));
+    }
+
+    #[test]
+    fn calendar_query_token_only() {
+        let query = "token=only-token";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.token.as_deref(), Some("only-token"));
+    }
+
+    #[test]
     fn calendar_defaults_to_current_date() {
         let today = chrono::Utc::now().date_naive();
         let year = None::<i32>.unwrap_or(today.year());
@@ -176,5 +201,181 @@ mod tests {
         assert!(json.get("billing_date").is_some(), "Should have billing_date field, got: {:?}", json);
         assert!(json.get("is_active").is_some(), "Should have is_active field");
         assert!(json.get("date").is_none(), "Should NOT have 'date' field");
+    }
+
+    #[test]
+    fn create_subscription_request_valid() {
+        let req = make_create_request("Netflix", "15.99", "USD", "monthly", "2024-01-01");
+        assert!(req.validate().is_ok());
+    }
+
+    #[test]
+    fn create_subscription_request_all_frequencies() {
+        for freq in &["weekly", "monthly", "quarterly", "yearly"] {
+            let req = make_create_request("Test", "10.00", "USD", freq, "2024-01-01");
+            assert!(req.validate().is_ok(), "Frequency {} should be valid", freq);
+        }
+    }
+
+    #[test]
+    fn create_subscription_request_invalid_frequency() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"invalid","start_date":"2024-01-01"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        // Frequency validation may allow any string or validate
+        // We just verify it deserializes
+        assert_eq!(req.frequency, "invalid");
+    }
+
+    #[test]
+    fn create_subscription_request_empty_name() {
+        let req = make_create_request("", "10.00", "USD", "monthly", "2024-01-01");
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn create_subscription_request_negative_amount() {
+        // Negative amounts should be handled by validation
+        let json = r#"{"name":"Test","amount":"-10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        // Amount is parsed as-is
+        assert_eq!(req.amount.to_string().starts_with("-"), true);
+    }
+
+    #[test]
+    fn create_subscription_request_invalid_date() {
+        // Invalid date format will fail validation
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"invalid-date"}"#;
+        let result: Result<CreateSubscriptionRequest, _> = serde_json::from_str(json);
+        // Either parsing fails or validation fails
+        assert!(result.is_err() || result.unwrap().validate().is_err());
+    }
+
+    #[test]
+    fn create_subscription_request_with_category() {
+        let cat_id = Uuid::new_v4();
+        let json = format!(
+            r#"{{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01","category_id":"{}"}}"#,
+            cat_id
+        );
+        let req: CreateSubscriptionRequest = serde_json::from_str(&json).unwrap();
+        assert!(req.category_id.is_some());
+    }
+
+    #[test]
+    fn create_subscription_request_with_notes() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01","notes":"Monthly subscription"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.notes.as_deref(), Some("Monthly subscription"));
+    }
+
+    #[test]
+    fn create_subscription_request_with_logo_url() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01","logo_url":"https://logo.test.com"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.logo_url.as_deref(), Some("https://logo.test.com"));
+    }
+
+    #[test]
+    fn update_subscription_request_name_only() {
+        let json = r#"{"name":"Updated"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.as_deref(), Some("Updated"));
+        assert!(req.amount.is_none());
+    }
+
+    #[test]
+    fn update_subscription_request_amount_only() {
+        let json = r#"{"amount":"25.00"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.amount.is_some());
+        assert!(req.name.is_none());
+    }
+
+    #[test]
+    fn update_subscription_request_frequency() {
+        let json = r#"{"frequency":"yearly"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.frequency.as_deref(), Some("yearly"));
+    }
+
+    #[test]
+    fn update_subscription_request_is_active() {
+        let json = r#"{"is_active":false}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.is_active, Some(false));
+    }
+
+    #[test]
+    fn update_subscription_request_empty() {
+        let json = r#"{}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.name.is_none());
+        assert!(req.amount.is_none());
+    }
+
+    #[test]
+    fn update_subscription_request_all_fields() {
+        let json = r#"{"name":"Updated","amount":"20.00","currency":"EUR","frequency":"quarterly","is_active":false}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.as_deref(), Some("Updated"));
+        assert!(req.amount.is_some());
+        assert_eq!(req.currency.as_deref(), Some("EUR"));
+        assert_eq!(req.frequency.as_deref(), Some("quarterly"));
+    }
+
+    #[test]
+    fn subscription_response_serialization() {
+        use crate::subscriptions::models::SubscriptionResponse;
+        let resp = SubscriptionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Netflix".to_string(),
+            amount: rust_decimal::Decimal::new(1599, 2),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: Some(chrono::NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()),
+            is_active: true,
+            notes: Some("Family plan".to_string()),
+            logo_url: Some("https://logo.netflix.com".to_string()),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("Netflix"));
+        assert!(json.contains("15.99"));
+    }
+
+    #[test]
+    fn calendar_item_inactive() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Cancelled".to_string(),
+            amount: rust_decimal::Decimal::from(999),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            is_active: false,
+            logo_url: None,
+        };
+        let json = serde_json::to_value(&item).unwrap();
+        assert_eq!(json["is_active"], false);
+    }
+
+    #[test]
+    fn calendar_item_with_logo() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Spotify".to_string(),
+            amount: rust_decimal::Decimal::from(999),
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            is_active: true,
+            logo_url: Some("https://logo.spotify.com".to_string()),
+        };
+        let json = serde_json::to_value(&item).unwrap();
+        assert!(json.get("logo_url").is_some());
     }
 }

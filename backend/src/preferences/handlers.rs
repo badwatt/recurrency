@@ -40,6 +40,7 @@ pub async fn update_preferences(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 
     #[test]
     fn preferences_query_deserialize() {
@@ -56,6 +57,14 @@ mod tests {
     }
 
     #[test]
+    fn preferences_query_empty_token() {
+        let query = "token=";
+        let result: PreferencesQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.token.is_some());
+        assert!(result.token.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
     fn update_preferences_request_deserialize() {
         let json = r#"{"theme":"dark","subscriptions_view":"list"}"#;
         let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
@@ -69,5 +78,87 @@ mod tests {
         let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.theme.as_deref(), Some("light"));
         assert!(req.subscriptions_view.is_none());
+    }
+
+    #[test]
+    fn update_preferences_request_empty() {
+        let json = r#"{}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert!(req.theme.is_none());
+        assert!(req.subscriptions_view.is_none());
+    }
+
+    #[test]
+    fn update_preferences_request_view_only() {
+        let json = r#"{"subscriptions_view":"compact"}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert!(req.theme.is_none());
+        assert_eq!(req.subscriptions_view.as_deref(), Some("compact"));
+    }
+
+    #[test]
+    fn update_preferences_all_theme_values() {
+        for theme in &["system", "light", "dark", "midnight"] {
+            let json = format!(r#"{{"theme":"{}"}}"#, theme);
+            let req: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(req.theme.as_deref(), Some(*theme));
+        }
+    }
+
+    #[test]
+    fn update_preferences_all_view_values() {
+        for view in &["grid", "list", "compact", "table"] {
+            let json = format!(r#"{{"subscriptions_view":"{}"}}"#, view);
+            let req: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(req.subscriptions_view.as_deref(), Some(*view));
+        }
+    }
+
+    #[test]
+    fn preferences_response_serialization() {
+        let resp = PreferencesResponse {
+            theme: "dark".to_string(),
+            subscriptions_view: "list".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("dark"));
+        assert!(json.contains("list"));
+    }
+
+    #[test]
+    fn preferences_response_default_values() {
+        let resp = PreferencesResponse::default();
+        assert_eq!(resp.theme, "system");
+        assert_eq!(resp.subscriptions_view, "grid");
+    }
+
+    #[test]
+    fn preferences_response_clone() {
+        let resp = PreferencesResponse::default();
+        let cloned = resp.clone();
+        assert_eq!(cloned.theme, resp.theme);
+        assert_eq!(cloned.subscriptions_view, resp.subscriptions_view);
+    }
+
+    #[test]
+    fn update_preferences_empty_strings() {
+        let json = r#"{"theme":"","subscriptions_view":""}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert!(req.theme.is_some()); // empty string is still a value
+        assert!(req.subscriptions_view.is_some());
+    }
+
+    #[test]
+    fn update_preferences_unicode_theme() {
+        let json = r#"{"theme":"テーマ"}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.theme.as_deref(), Some("テーマ"));
+    }
+
+    #[test]
+    fn update_preferences_unicode_view() {
+        let json = r#"{"subscriptions_view":"视图"}"#;
+        let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.subscriptions_view.as_deref(), Some("视图"));
     }
 }

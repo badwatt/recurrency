@@ -181,6 +181,9 @@ mod tests {
         let _resp = AppError::NotFound("test".into()).into_response();
         let _resp = AppError::Conflict("test".into()).into_response();
         let _resp = AppError::Internal("test".into()).into_response();
+        let _resp = AppError::Database(sqlx::Error::PoolTimedOut).into_response();
+        let _resp = AppError::Validation(validator::ValidationErrors::new()).into_response();
+        let _resp = AppError::Jwt(jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken)).into_response();
     }
 
     #[test]
@@ -201,24 +204,16 @@ mod tests {
 
     #[test]
     fn app_error_from_sqlx() {
-        // Verify that the From<sqlx::Error> impl exists
-        // We can create a sqlx error from a connection error message
         let sqlx_err = sqlx::Error::PoolTimedOut;
         let app_err: AppError = sqlx_err.into();
-        match app_err {
-            AppError::Database(_) => {},
-            _ => panic!("Expected Database variant"),
-        }
+        assert!(matches!(app_err, AppError::Database(_)));
     }
 
     #[test]
     fn app_error_from_jwt() {
         let jwt_err = jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken);
         let app_err: AppError = jwt_err.into();
-        match app_err {
-            AppError::Jwt(_) => {},
-            _ => panic!("Expected Jwt variant"),
-        }
+        assert!(matches!(app_err, AppError::Jwt(_)));
     }
 
     // ── AppResult type alias ──

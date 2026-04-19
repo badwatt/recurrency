@@ -116,6 +116,13 @@ mod tests {
     }
 
     #[test]
+    fn set_default_request_invalid_uuid() {
+        let json = r#"{"id":"not-a-uuid"}"#;
+        let result: Result<SetDefaultRequest, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn create_category_request_deserialize() {
         let json = "{\"name\":\"Streaming\",\"icon\":\"tv\",\"color\":\"#ff0000\"}";
         let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
@@ -125,8 +132,40 @@ mod tests {
     }
 
     #[test]
+    fn create_category_request_minimal() {
+        let json = r#"{"name":"Utilities"}"#;
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "Utilities");
+        assert!(req.icon.is_none());
+        assert!(req.color.is_none());
+    }
+
+    #[test]
+    fn create_category_request_empty_name() {
+        let json = r#"{"name":""}"#;
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "");
+    }
+
+    #[test]
+    fn create_category_request_unicode() {
+        let json = "{\"name\":\"娱乐\",\"icon\":\"🎮\",\"color\":\"#中文\"}";
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "娱乐");
+        assert_eq!(req.icon.as_deref(), Some("🎮"));
+    }
+
+    #[test]
+    fn create_category_request_empty_icon_color() {
+        let json = r#"{"name":"Test","icon":"","color":""}"#;
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.icon.as_deref(), Some(""));
+        assert_eq!(req.color.as_deref(), Some(""));
+    }
+
+    #[test]
     fn update_category_request_deserialize_all_fields() {
-        let json = "{\"name\":\"Updated\",\"icon\":\"star\",\"color\":\"#00ff00\"}";
+        let json = "{\"name\":\"Updated\",\"icon\":\"star\",\"color\":\"#00FF00\"}";
         let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.name.as_deref(), Some("Updated"));
         assert!(req.icon.is_string());
@@ -143,6 +182,23 @@ mod tests {
     }
 
     #[test]
+    fn update_category_request_empty_json() {
+        let json = r#"{}"#;
+        let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert!(req.name.is_none());
+        assert!(req.icon.is_null());
+        assert!(req.color.is_null());
+    }
+
+    #[test]
+    fn update_category_request_name_only() {
+        let json = r#"{"name":"NewName"}"#;
+        let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.as_deref(), Some("NewName"));
+        assert!(req.icon.is_null());
+    }
+
+    #[test]
     fn update_category_icon_resolution() {
         let req = UpdateCategoryRequest {
             name: None,
@@ -151,5 +207,111 @@ mod tests {
         };
         let icon = resolve_optional_json_field(req.icon, Some("old".to_string()));
         assert_eq!(icon, Some("new-icon".to_string()));
+    }
+
+    #[test]
+    fn update_category_icon_null_fallback() {
+        let req = UpdateCategoryRequest {
+            name: None,
+            icon: serde_json::Value::Null,
+            color: serde_json::Value::Null,
+        };
+        let icon = resolve_optional_json_field(req.icon, Some("old".to_string()));
+        assert_eq!(icon, None);
+    }
+
+    #[test]
+    fn update_category_icon_not_null_fallback() {
+        let req = UpdateCategoryRequest {
+            name: None,
+            icon: serde_json::Value::Null,
+            color: serde_json::Value::Null,
+        };
+        let icon = resolve_optional_json_field(req.icon, None);
+        assert_eq!(icon, None);
+    }
+
+    #[test]
+    fn update_category_color_resolution() {
+        let req = UpdateCategoryRequest {
+            name: None,
+            icon: serde_json::Value::Null,
+            color: serde_json::Value::String("#FF00FF".to_string()),
+        };
+        let color = resolve_optional_json_field(req.color, Some("#000000".to_string()));
+        assert_eq!(color, Some("#FF00FF".to_string()));
+    }
+
+    #[test]
+    fn category_response_serialization() {
+        let resp = CategoryResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Test Category".to_string(),
+            icon: Some("💰".to_string()),
+            color: Some("#123456".to_string()),
+            is_system: false,
+            is_default: true,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("Test Category"));
+        assert!(json.contains("is_default"));
+    }
+
+    #[test]
+    fn category_response_without_optional_fields() {
+        let resp = CategoryResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Basic".to_string(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("Basic"));
+    }
+
+    #[test]
+    fn category_with_counts_serialization() {
+        let resp = CategoryWithCounts {
+            category: CategoryResponse {
+                id: Uuid::new_v4(),
+                user_id: Uuid::new_v4(),
+                name: "Counts Test".to_string(),
+                icon: Some("📊".to_string()),
+                color: Some("#ABCDEF".to_string()),
+                is_system: false,
+                is_default: false,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
+            subscription_count: 5,
+            transaction_count: 10,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("subscription_count"));
+        assert!(json.contains("transaction_count"));
+        assert!(json.contains("Counts Test"));
+    }
+
+    #[test]
+    fn set_default_request_zero_count() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000000"}"#;
+        let req: SetDefaultRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.id, Uuid::nil());
+    }
+
+    #[test]
+    fn create_category_request_long_name() {
+        let long_name = "A".repeat(100);
+        let json = serde_json::json!({"name": long_name}).to_string();
+        let req: CreateCategoryRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(req.name.len(), 100);
     }
 }

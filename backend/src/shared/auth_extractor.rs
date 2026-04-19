@@ -89,4 +89,18 @@ mod tests {
         let result = extract_token_from_request(token, &headers).unwrap();
         assert_eq!(result, "from-query");
     }
+
+    #[test]
+    fn non_utf8_auth_header_falls_through_to_error() {
+        // HeaderValue with invalid UTF-8 bytes -> to_str() returns Err -> falls through.
+        let token: Option<&String> = None;
+        let mut headers = HeaderMap::new();
+        // HeaderValue::from_bytes creates a value that may not be valid UTF-8.
+        // For visible ASCII, from_str will succeed but non-ASCII bytes fail to_str.
+        // Use a header with raw bytes that aren't valid UTF-8.
+        let non_utf8 = axum::http::HeaderValue::from_bytes(b"\xff\xfeBearer token").unwrap();
+        headers.insert("authorization", non_utf8);
+        let result = extract_token_from_request(token, &headers);
+        assert!(result.is_err());
+    }
 }
