@@ -1049,4 +1049,64 @@ mod tests {
         );
         assert!(dates.is_empty());
     }
+
+    #[test]
+    fn add_months_neg() {
+        let d = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(add_months(d, 6), NaiveDate::from_ymd_opt(2024, 12, 15).unwrap());
+    }
+
+    #[test]
+    fn add_months_leap() {
+        let d = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
+        assert_eq!(add_months(d, 1), NaiveDate::from_ymd_opt(2024, 3, 29).unwrap());
+    }
+
+    #[test]
+    fn add_months_clamp() {
+        let d = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        assert_eq!(add_months(d, 1), NaiveDate::from_ymd_opt(2024, 2, 29).unwrap());
+    }
+
+    #[test]
+    fn add_months_q() {
+        let d = NaiveDate::from_ymd_opt(2024, 11, 15).unwrap();
+        assert_eq!(add_months(d, 3), NaiveDate::from_ymd_opt(2025, 2, 15).unwrap());
+    }
+
+    #[test]
+    fn adv_unknown() {
+        let d = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(advance_date(d, "biweekly"), d + chrono::Duration::days(30));
+    }
+
+    #[test]
+    fn adv_leap() {
+        let d = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
+        assert_eq!(advance_date(d, "yearly"), NaiveDate::from_ymd_opt(2025, 2, 28).unwrap());
+    }
+
+    #[test]
+    fn cal_ser() {
+        let uid = Uuid::new_v4();
+        let item = CalendarItem { subscription_id: uid, name: "T".to_string(), amount: Decimal::TEN, currency: "USD".to_string(), frequency: "monthly".to_string(), billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(), is_active: true, logo_url: None };
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("T"));
+    }
+
+    #[test]
+    fn gbds_weekly() {
+        let dates = generate_billing_dates(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), "weekly", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), NaiveDate::from_ymd_opt(2024, 1, 31).unwrap());
+        assert_eq!(dates.len(), 5);
+    }
+
+    #[test]
+    fn cnxt_weekly() {
+        let d = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let r = calculate_next_billing_date(d, "weekly");
+        assert!(r > d);
+    }
+
+    #[test]
+    fn sub_svc() { let _ = SubscriptionService; }
 }

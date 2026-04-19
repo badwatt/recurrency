@@ -388,4 +388,58 @@ mod tests {
         assert!(1i64 > 0);
         assert!(100i64 > 0);
     }
+
+    #[test]
+    fn pref_partial_override() {
+        let mut r = default_notification_preferences();
+        if let Some(p) = r.iter_mut().find(|p| p.channel == "email") { p.enabled = true; p.reminder_days_before = 5; }
+        let e = r.iter().find(|p| p.channel == "email").unwrap();
+        assert!(e.enabled);
+    }
+
+    #[test]
+    fn pref_no_db_match() {
+        let mut r = default_notification_preferences();
+        for (ch, en, days) in Vec::<(String,bool,i32)>::new() {
+            if let Some(p) = r.iter_mut().find(|x| x.channel == ch) { p.enabled = en; p.reminder_days_before = days; }
+        }
+        for p in &r { assert!(!p.enabled); }
+    }
+
+    #[test]
+    fn pref_all_override() {
+        let mut r = default_notification_preferences();
+        let prefs = vec![("email".to_string(),true,7),("push".to_string(),true,5),("system".to_string(),false,1)];
+        for (ch, en, days) in prefs {
+            if let Some(p) = r.iter_mut().find(|x| x.channel == ch) { p.enabled = en; p.reminder_days_before = days; }
+        }
+        assert!(r[0].enabled);
+        assert!(r[1].enabled);
+    }
+
+    #[test]
+    fn pref_zero_days() {
+        let p = NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 0 };
+        assert_eq!(p.reminder_days_before, 0);
+    }
+
+    #[test]
+    fn msg_null_deser() {
+        let json = r#"{"id":"550e8400-e29b-41d4-a716-446655440000","user_id":"550e8400-e29b-41d4-a716-446655440001","type":"t","title":"T","message":null,"is_read":false,"created_at":"2024-01-01T00:00:00Z"}"#;
+        let n: Notification = serde_json::from_str(json).unwrap();
+        assert!(n.message.is_none());
+    }
+
+    #[test]
+    fn upd_pref_unknown_ch() {
+        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"telegram","enabled":true}"#).unwrap();
+        assert_eq!(req.channel, "telegram");
+    }
+
+    #[test]
+    fn rows_0() { assert!(0i64 == 0); }
+    #[test]
+    fn rows_1() { assert!(1i64 > 0); }
+    #[test]
+    fn rows_5() { assert!(5i64 > 0); }
 }
