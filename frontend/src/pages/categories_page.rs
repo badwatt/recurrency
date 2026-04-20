@@ -818,4 +818,73 @@ mod tests {
         let invalid2 = "#FFF";
         assert_ne!(invalid2.len(), 7);
     }
+
+    // ── validate_category_form tests ──
+    #[test]
+    fn validate_category_form_valid() {
+        let r = validate_category_form("Food", "Home", "#ef4444");
+        assert!(r.is_valid());
+        assert!(r.name_error.is_none());
+        assert!(r.icon_error.is_none());
+        assert!(r.color_error.is_none());
+    }
+
+    #[test]
+    fn validate_category_form_empty_name() {
+        let r = validate_category_form("", "Home", "#ef4444");
+        assert!(!r.is_valid());
+        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+    }
+
+    #[test]
+    fn validate_category_form_whitespace_name() {
+        let r = validate_category_form("   ", "Home", "#ef4444");
+        assert!(!r.is_valid());
+        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+    }
+
+    #[test]
+    fn validate_category_form_short_name() {
+        let r = validate_category_form("A", "Home", "#ef4444");
+        assert!(!r.is_valid());
+        assert_eq!(r.name_error.as_deref(), Some("Name must be at least 2 characters"));
+    }
+
+    #[test]
+    fn validate_category_form_empty_icon() {
+        let r = validate_category_form("Food", "", "#ef4444");
+        assert!(!r.is_valid());
+        assert_eq!(r.icon_error.as_deref(), Some("Icon is required"));
+    }
+
+    #[test]
+    fn validate_category_form_empty_color() {
+        let r = validate_category_form("Food", "Home", "");
+        assert!(!r.is_valid());
+        assert_eq!(r.color_error.as_deref(), Some("Color is required"));
+    }
+
+    #[test]
+    fn validate_category_form_invalid_color() {
+        let r = validate_category_form("Food", "Home", "red");
+        assert!(!r.is_valid());
+        assert_eq!(r.color_error.as_deref(), Some("Invalid color"));
+    }
+
+    #[test]
+    fn validate_category_form_multiple_errors() {
+        let r = validate_category_form("", "", "");
+        assert!(!r.is_valid());
+        assert!(r.name_error.is_some());
+        assert!(r.icon_error.is_some());
+        assert!(r.color_error.is_some());
+    }
+
+    #[test]
+    fn validate_category_form_name_error_takes_precedence() {
+        // Empty name is "required" not "too short"
+        let r = validate_category_form("", "Home", "#ef4444");
+        assert!(!r.is_valid());
+        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+    }
 }

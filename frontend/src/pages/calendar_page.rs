@@ -1735,5 +1735,82 @@ mod tests {
         // Unknown frequency: should return the input or a default
         assert!(!result.is_empty(), "format_frequency should never return empty string");
     }
+
+    // ── calendar_days tests ──
+    #[test]
+    fn calendar_days_sunday_start() {
+        let days = calendar_days(2024, 1, "sunday");
+        // January 2024 starts on Monday
+        // Sunday start means 1 padding day (Monday)
+        assert_eq!(days[0], None); // Sunday before month
+        assert_eq!(days[1], Some(1)); // First day of month
+    }
+
+    #[test]
+    fn calendar_days_monday_start() {
+        let days = calendar_days(2024, 1, "monday");
+        // January 2024 starts on Monday
+        // Monday start means 0 padding days
+        assert_eq!(days[0], Some(1));
+    }
+
+    #[test]
+    fn calendar_days_february_leap_year() {
+        let days = calendar_days(2024, 2, "sunday");
+        // February 2024 has 29 days
+        let day_count = days.iter().filter_map(|d| *d).count();
+        assert_eq!(day_count, 29);
+    }
+
+    #[test]
+    fn calendar_days_june_2024() {
+        let days = calendar_days(2024, 6, "sunday");
+        // June 2024 has 30 days
+        let day_count = days.iter().filter_map(|d| *d).count();
+        assert_eq!(day_count, 30);
+    }
+
+    #[test]
+    fn calendar_days_total_length() {
+        let days = calendar_days(2024, 1, "sunday");
+        // Total length should be padding + days in month
+        // January 2024: 1 (Monday) + 31 = 32
+        let expected = 1 + 31;
+        assert!(days.len() >= expected);
+    }
+
+    // ── items_for_day additional tests ──
+    #[test]
+    fn items_for_day_multiple_items_same_day() {
+        let d1 = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let d2 = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let items = vec![
+            make_calendar_item("Netflix", dec!(15.99), d1),
+            make_calendar_item("Spotify", dec!(9.99), d2),
+        ];
+        let result = items_for_day(&items, 2024, 1, 15);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn items_for_day_different_days() {
+        let d1 = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let d2 = NaiveDate::from_ymd_opt(2024, 1, 20).unwrap();
+        let items = vec![
+            make_calendar_item("Netflix", dec!(15.99), d1),
+            make_calendar_item("Spotify", dec!(9.99), d2),
+        ];
+        let result15 = items_for_day(&items, 2024, 1, 15);
+        let result20 = items_for_day(&items, 2024, 1, 20);
+        assert_eq!(result15.len(), 1);
+        assert_eq!(result20.len(), 1);
+    }
+
+    #[test]
+    fn items_for_day_empty_items() {
+        let items: Vec<CalendarItem> = vec![];
+        let result = items_for_day(&items, 2024, 1, 15);
+        assert!(result.is_empty());
+    }
 }
 

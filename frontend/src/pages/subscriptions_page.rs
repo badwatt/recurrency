@@ -784,6 +784,29 @@ pub fn SubscriptionsPage() -> Element {
     }
 }
 
+// ── Card display helpers (pure, testable) ────────────────────────────
+
+/// Returns CSS opacity class based on active status.
+pub fn subscription_card_opacity(is_active: bool) -> &'static str {
+    if is_active { "" } else { "opacity-60" }
+}
+
+/// Formats next billing date text.
+pub fn subscription_next_text(is_active: bool, next_billing_date: Option<chrono::NaiveDate>) -> String {
+    if is_active {
+        next_billing_date
+            .map(|d| format!("Next: {}", d))
+            .unwrap_or_else(|| "No billing date".into())
+    } else {
+        "Inactive".into()
+    }
+}
+
+/// Returns true if subscription has non-empty notes.
+pub fn subscription_has_notes(notes: &Option<String>) -> bool {
+    notes.as_ref().is_some_and(|n| !n.is_empty())
+}
+
 // ── Grid card ────────────────────────────────────────────────────────
 
 fn render_grid_card(
@@ -793,15 +816,9 @@ fn render_grid_card(
     on_toggle: Callback<Subscription>,
     on_notes: Callback<Subscription>,
 ) -> Element {
-    let opacity = if sub.is_active { "" } else { "opacity-60" };
+    let opacity = subscription_card_opacity(sub.is_active);
     let formatted = format_currency(sub.amount, &sub.currency);
-    let next_text = if sub.is_active {
-        sub.next_billing_date
-            .map(|d| format!("Next: {}", d))
-            .unwrap_or_else(|| "No billing date".into())
-    } else {
-        "Inactive".into()
-    };
+    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date);
 
     let (color, _icon, cat_name) = {
         let cats = CATEGORIES();
@@ -819,7 +836,7 @@ fn render_grid_card(
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
     let sub_for_notes = sub.clone();
-    let has_notes = sub.notes.as_ref().is_some_and(|n| !n.is_empty());
+    let has_notes = subscription_has_notes(&sub.notes);
 
     rsx! {
         div { class: "group relative flex flex-col h-full rounded-lg border bg-card {opacity}",
@@ -880,15 +897,9 @@ fn render_list_card(
     on_toggle: Callback<Subscription>,
     on_notes: Callback<Subscription>,
 ) -> Element {
-    let opacity = if sub.is_active { "" } else { "opacity-60" };
+    let opacity = subscription_card_opacity(sub.is_active);
     let formatted = format_currency(sub.amount, &sub.currency);
-    let next_text = if sub.is_active {
-        sub.next_billing_date
-            .map(|d| format!("Next: {}", d))
-            .unwrap_or_else(|| "No billing date".into())
-    } else {
-        "Inactive".into()
-    };
+    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date);
 
     let (color, _icon, cat_name) = {
         let cats = CATEGORIES();
@@ -906,7 +917,7 @@ fn render_list_card(
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
     let sub_for_notes = sub.clone();
-    let has_notes = sub.notes.as_ref().is_some_and(|n| !n.is_empty());
+    let has_notes = subscription_has_notes(&sub.notes);
 
     rsx! {
         div { class: "rounded-lg border bg-card {opacity} min-w-0",
@@ -2803,5 +2814,57 @@ mod dialog_form_tests {
         assert!(!v.is_valid());
         assert!(v.name_error.is_none());
         assert!(v.amount_error.is_some());
+    }
+
+    // ── Card display helpers tests ──
+    #[test]
+    fn subscription_card_opacity_active() {
+        assert_eq!(subscription_card_opacity(true), "");
+    }
+
+    #[test]
+    fn subscription_card_opacity_inactive() {
+        assert_eq!(subscription_card_opacity(false), "opacity-60");
+    }
+
+    #[test]
+    fn subscription_next_text_active_with_date() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = subscription_next_text(true, Some(date));
+        assert_eq!(result, "Next: 2024-06-15");
+    }
+
+    #[test]
+    fn subscription_next_text_active_no_date() {
+        let result = subscription_next_text(true, None);
+        assert_eq!(result, "No billing date");
+    }
+
+    #[test]
+    fn subscription_next_text_inactive() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = subscription_next_text(false, Some(date));
+        assert_eq!(result, "Inactive");
+    }
+
+    #[test]
+    fn subscription_next_text_inactive_no_date() {
+        let result = subscription_next_text(false, None);
+        assert_eq!(result, "Inactive");
+    }
+
+    #[test]
+    fn subscription_has_notes_some() {
+        assert!(subscription_has_notes(&Some("Some notes".into())));
+    }
+
+    #[test]
+    fn subscription_has_notes_empty() {
+        assert!(!subscription_has_notes(&Some("".into())));
+    }
+
+    #[test]
+    fn subscription_has_notes_none() {
+        assert!(!subscription_has_notes(&None));
     }
 }

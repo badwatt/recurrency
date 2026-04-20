@@ -972,4 +972,81 @@ mod tests {
         let years = report_years();
         assert_eq!(years.len(), 3);
     }
+
+    // ── build_csv additional tests ──
+    #[test]
+    fn build_csv_header() {
+        use crate::models::report::{CategoryBreakdown, MonthlySummary, SpendingTrend};
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 1,
+                subscriptions_total: dec!(100),
+                transactions_total: dec!(50),
+                overall_total: dec!(150),
+                subscriptions_count: 5,
+                transactions_count: 10,
+            },
+            category_breakdown: vec![],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        assert!(csv.starts_with("Category,Amount,Count,Percentage"));
+    }
+
+    #[test]
+    fn build_csv_single_category() {
+        use crate::models::report::CategoryBreakdown;
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 1,
+                subscriptions_total: dec!(100),
+                transactions_total: dec!(50),
+                overall_total: dec!(150),
+                subscriptions_count: 5,
+                transactions_count: 10,
+            },
+            category_breakdown: vec![
+                CategoryBreakdown {
+                    category_id: Some(Uuid::new_v4().to_string()),
+                    category_name: "Food".into(),
+                    total: dec!(50),
+                    count: 5,
+                    percentage: 50.0,
+                },
+            ],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        assert!(csv.contains("Food"));
+    }
+
+    #[test]
+    fn build_csv_decimal_amount() {
+        use crate::models::report::CategoryBreakdown;
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 1,
+                subscriptions_total: dec!(100),
+                transactions_total: dec!(50),
+                overall_total: dec!(150),
+                subscriptions_count: 5,
+                transactions_count: 10,
+            },
+            category_breakdown: vec![
+                CategoryBreakdown {
+                    category_id: Some(Uuid::new_v4().to_string()),
+                    category_name: "Coffee".into(),
+                    total: dec!(15.99),
+                    count: 10,
+                    percentage: 15.99,
+                },
+            ],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        assert!(csv.contains("Coffee"));
+    }
 }
