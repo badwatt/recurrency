@@ -939,7 +939,8 @@ mod tests {
         let post_auth = src.split("auth.is_authenticated").nth(1).unwrap_or("");
         assert!(post_auth.contains("children"),
             "Authenticated users must see children/content");
-
+    }
+    
     // ── Additional RSX structure tests ──
     #[test]
     fn app_layout_has_sidebar() {

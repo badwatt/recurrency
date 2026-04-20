@@ -692,6 +692,18 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         if let Some(amount) = req.amount {
             sub.amount = amount;
         }
+        if let Some(currency) = req.currency {
+            sub.currency = currency;
+        }
+        if let Some(frequency) = req.frequency {
+            sub.frequency = frequency;
+        }
+        if let Some(start_date) = req.start_date {
+            sub.start_date = start_date;
+        }
+        if let Some(next_billing) = req.next_billing_date {
+            sub.next_billing_date = Some(next_billing);
+        }
         if let Some(active) = req.is_active {
             sub.is_active = active;
         }
@@ -3051,6 +3063,16 @@ mod tests {
     // ── Clone Derive Tests ─────────────────────────────────────────────────
 
     mod model_clone_derive {
+        use super::*;
+        use crate::auth::models::User;
+        use crate::categories::models::Category;
+        use crate::subscriptions::models::Subscription;
+        use crate::transactions::models::Transaction;
+        use crate::notifications::models::Notification;
+        use uuid::Uuid;
+        use sqlx::types::chrono::Utc;
+        use rust_decimal::Decimal;
+        use chrono::NaiveDate;
 
         #[test]
         fn user_clone_preserves_fields() {
@@ -3417,12 +3439,8 @@ mod tests {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
             let req = UpdatePreferencesRequest {
-                currency: Some("EUR".to_string()),
-                name: Some("Test User".to_string()),
-                notification_email: Some(true),
-                notification_push: Some(false),
-                notification_system: Some(true),
-                reminder_days: Some(5),
+                theme: Some("dark".to_string()),
+                subscriptions_view: Some("list".to_string()),
             };
             let result = mock.update_preferences(user_id, req).await;
             assert!(result.is_ok());
@@ -3432,12 +3450,8 @@ mod tests {
         async fn preferences_update_failure() {
             let mock = MockPreferencesService::failure("update failed");
             let req = UpdatePreferencesRequest {
-                currency: Some("GBP".to_string()),
-                name: None,
-                notification_email: None,
-                notification_push: None,
-                notification_system: None,
-                reminder_days: None,
+                theme: Some("light".to_string()),
+                subscriptions_view: Some("grid".to_string()),
             };
             let result = mock.update_preferences(Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -3471,7 +3485,22 @@ mod tests {
         async fn notification_mark_read_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
-            let notif_id = Uuid::new_v4();
+            
+            // Pre-populate with notification
+            {
+                let mut notifs = mock.notifications.lock().unwrap();
+                notifs.push(Notification {
+                    id: Uuid::new_v4(),
+                    user_id,
+                    notification_type: "test".to_string(),
+                    title: "Test".to_string(),
+                    message: Some("msg".to_string()),
+                    is_read: false,
+                    created_at: Utc::now(),
+                });
+            }
+            
+            let notif_id = mock.notifications.lock().unwrap()[0].id;
             let result = mock.mark_read(user_id, notif_id).await;
             assert!(result.is_ok());
         }
@@ -3502,7 +3531,22 @@ mod tests {
         async fn notification_delete_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
-            let notif_id = Uuid::new_v4();
+            
+            // Pre-populate with notification
+            {
+                let mut notifs = mock.notifications.lock().unwrap();
+                notifs.push(Notification {
+                    id: Uuid::new_v4(),
+                    user_id,
+                    notification_type: "test".to_string(),
+                    title: "Test".to_string(),
+                    message: Some("msg".to_string()),
+                    is_read: false,
+                    created_at: Utc::now(),
+                });
+            }
+            
+            let notif_id = mock.notifications.lock().unwrap()[0].id;
             let result = mock.delete(user_id, notif_id).await;
             assert!(result.is_ok());
         }
@@ -3539,7 +3583,6 @@ mod tests {
                 UpdatePreferenceRequest {
                     channel: "email".to_string(),
                     enabled: true,
-                    reminder_days_before: 5,
                 },
             ];
             let result = mock.update_notification_preferences(user_id, prefs).await;
@@ -3554,7 +3597,6 @@ mod tests {
                 vec![UpdatePreferenceRequest {
                     channel: "push".to_string(),
                     enabled: false,
-                    reminder_days_before: 3,
                 }],
             ).await;
             assert!(result.is_err());
@@ -3730,8 +3772,8 @@ mod tests {
             let user_id = Uuid::new_v4();
             let cat = mock.create(user_id, CreateCategoryRequest {
                 name: "Original".to_string(),
-                icon: serde_json::Value::Null,
-                color: serde_json::Value::Null,
+                icon: None,
+                color: None,
             }).await.unwrap();
 
             let req = UpdateCategoryRequest {
@@ -3744,5 +3786,4 @@ mod tests {
             assert_eq!(result.unwrap().name, "New Name");
         }
     }
-}
 }
