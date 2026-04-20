@@ -139,9 +139,11 @@ mod tests {
     #[test]
     fn demo_email_custom() {
         env::set_var("DEMO_EMAIL", "custom@demo.com");
+        env::set_var("ENABLE_DEMO", "true");
         let email = demo_email();
         assert_eq!(email, "custom@demo.com");
         env::remove_var("DEMO_EMAIL");
+        env::remove_var("ENABLE_DEMO");
     }
 
     #[test]

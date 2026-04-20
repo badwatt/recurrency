@@ -206,7 +206,7 @@ mod tests {
             "OK"
         }
         
-        let app = Router::new()
+        let app: Router = Router::new()
             .route("/health", get(test_handler));
 
         let req = Request::builder()
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn router_has_health_endpoint() {
-        let app = Router::new().route("/health", get(health_check));
+        let app: Router = Router::new().route("/health", get(health_check));
         // Route exists - verified by compilation
         assert!(true);
     }
@@ -481,7 +481,7 @@ mod tests {
     fn socket_addr_localhost() {
         let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
         assert_eq!(addr.port(), 3000);
-        assert!(addr.is_loopback());
+        assert!(addr.ip().is_loopback());
     }
 
     // ── health_check response ──
@@ -527,7 +527,7 @@ mod tests {
     fn router_can_add_layer() {
         // Router::layer takes a layer
         let cors = CorsLayer::new();
-        let _layered = Router::new().layer(cors);
+        let _layered: Router = Router::new().layer(cors);
         assert!(true);
     }
 
@@ -559,25 +559,25 @@ mod tests {
 
     #[test]
     fn axum_get_macro_works() {
-        let router = Router::new().route("/test", get(|| async { "test" }));
+        let router: Router = Router::new().route("/test", get(|| async { "test" }));
         assert!(true);
     }
 
     #[test]
     fn axum_post_macro_works() {
-        let router = Router::new().route("/test", post(|| async { "test" }));
+        let router: Router = Router::new().route("/test", post(|| async { "test" }));
         assert!(true);
     }
 
     #[test]
     fn axum_put_macro_works() {
-        let router = Router::new().route("/test", put(|| async { "test" }));
+        let router: Router = Router::new().route("/test", put(|| async { "test" }));
         assert!(true);
     }
 
     #[test]
     fn axum_delete_macro_works() {
-        let router = Router::new().route("/test", delete(|| async { "test" }));
+        let router: Router = Router::new().route("/test", delete(|| async { "test" }));
         assert!(true);
     }
 
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn router_merge_concept() {
         // Router can be nested/merged
-        let _nested = Router::new()
+        let _nested: Router = Router::new()
             .route("/a", get(|| async { "a" }))
             .route("/b", get(|| async { "b" }));
         assert!(true);
