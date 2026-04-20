@@ -249,3 +249,49 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }
+
+    // ── Error type branch coverage ──
+    #[test]
+    fn unauthorized_error_into_response() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let err = AppError::Unauthorized("test".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn not_found_error_into_response() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let err = AppError::NotFound("not found".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn conflict_error_into_response() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let err = AppError::Conflict("conflict".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+    }
+
+    #[test]
+    fn internal_error_into_response() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let err = AppError::Internal("internal error".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn bad_request_error_into_response() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let err = AppError::BadRequest("bad request".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }

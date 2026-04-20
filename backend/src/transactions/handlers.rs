@@ -572,3 +572,59 @@ mod tests {
         assert_eq!(query.token.unwrap().len(), 500);
     }
 }
+    // ── DateRangeQuery from_date/to_date ──
+    #[test]
+    fn date_range_query_from_to_date() {
+        let query = "from_date=2024-01-01&to_date=2024-06-30";
+        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.from_date, Some("2024-01-01".to_string()));
+        assert_eq!(result.to_date, Some("2024-06-30".to_string()));
+    }
+
+    #[test]
+    fn date_range_query_all_params() {
+        let query = "token=abc&from_date=2024-01-01&to_date=2024-12-31";
+        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+        assert!(result.token.is_some());
+        assert!(result.from_date.is_some());
+        assert!(result.to_date.is_some());
+    }
+
+    // ── TransactionResponse edge cases ──
+    #[test]
+    fn transaction_response_zero_amount() {
+        use crate::transactions::models::TransactionResponse;
+        let resp = TransactionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Zero".to_string(),
+            amount: rust_decimal::Decimal::ZERO,
+            currency: "USD".to_string(),
+            date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        assert_eq!(resp.amount, rust_decimal::Decimal::ZERO);
+    }
+
+    #[test]
+    fn transaction_response_negative_amount() {
+        use crate::transactions::models::TransactionResponse;
+        let resp = TransactionResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Refund".to_string(),
+            amount: rust_decimal::Decimal::new(-5000, 2),
+            currency: "USD".to_string(),
+            date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        assert!(resp.amount < rust_decimal::Decimal::ZERO);
+    }

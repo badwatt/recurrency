@@ -237,3 +237,25 @@ mod tests {
         }
     }
 }
+    // ── ReportQuery serde tests ──
+    #[test]
+    fn report_query_token_only() {
+        let json = r#"{"token":"abc123"}"#;
+        let query: ReportQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.token, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn report_query_empty() {
+        let json = r#"{}"#;
+        let query: ReportQuery = serde_json::from_str(json).unwrap();
+        assert!(query.token.is_none());
+    }
+
+    #[test]
+    fn report_query_with_year() {
+        let json = r#"{"year":2024}"#;
+        let query: ReportQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(query.year, Some(2024));
+    }
+

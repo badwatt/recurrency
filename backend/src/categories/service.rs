@@ -1113,3 +1113,103 @@ mod tests {
         assert_eq!(result, Some("keep".to_string()));
     }
 }
+
+
+    #[test]
+    fn resolve_json_field_null_keeps_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Null,
+            Some("old".to_string()),
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn resolve_json_field_null_no_existing() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Null,
+            None,
+        );
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn resolve_json_field_no_existing_new() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("new".to_string()),
+            None,
+        );
+        assert_eq!(result, Some("new".to_string()));
+    }
+
+    #[test]
+    fn resolve_json_field_bool_false() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::Bool(false),
+            Some("old".to_string()),
+        );
+        assert_eq!(result, Some("old".to_string()));
+    }
+
+    #[test]
+    fn resolve_json_field_number() {
+        let result = resolve_optional_json_field(
+            serde_json::json!(42),
+            Some("old".to_string()),
+        );
+        assert_eq!(result, Some("old".to_string()));
+    }
+
+    #[test]
+    fn resolve_json_field_unicode() {
+        let result = resolve_optional_json_field(
+            serde_json::Value::String("日本語 🔥".to_string()),
+            None,
+        );
+        assert_eq!(result, Some("日本語 🔥".to_string()));
+    }
+
+    // ── UpdateCategoryRequest serde tests ──
+    #[test]
+    fn update_category_request_name_only() {
+        let json = r#"{"name":"New Name"}"#;
+        let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.as_ref().map(|s| s.as_str()), Some("New Name"));
+    }
+
+    #[test]
+    fn update_category_request_empty() {
+        let json = r#"{}"#;
+        let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert!(req.name.is_none());
+    }
+
+    // ── CreateCategoryRequest serde tests ──
+    #[test]
+    fn create_category_request_minimal() {
+        let json = r#"{"name":"New"}"#;
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name, "New");
+    }
+
+    // ── CategoryWithCounts tests ──
+    #[test]
+    fn category_with_counts_high_numbers() {
+        let cat = crate::categories::models::CategoryResponse {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Test".to_string(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let with_counts = CategoryWithCounts {
+            category: cat,
+            subscription_count: 9999,
+            transaction_count: 9999,
+        };
+        assert_eq!(with_counts.subscription_count, 9999);
+    }

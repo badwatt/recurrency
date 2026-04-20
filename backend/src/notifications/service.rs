@@ -443,3 +443,46 @@ mod tests {
     #[test]
     fn rows_5() { assert!(5i64 > 0); }
 }
+
+
+mod serde_tests {
+    use super::*;
+
+    #[test]
+    fn notification_response_unread_count_serde() {
+        let resp = NotificationResponse {
+            notifications: vec![],
+            unread_count: 5,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("unread_count"));
+    }
+
+    #[test]
+    fn notification_response_with_notifications() {
+        let item = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing".to_string(),
+            title: "Test".to_string(),
+            message: None,
+            is_read: false,
+            created_at: chrono::Utc::now(),
+        };
+        let resp = NotificationResponse {
+            notifications: vec![item],
+            unread_count: 1,
+        };
+        assert_eq!(resp.notifications.len(), 1);
+        assert_eq!(resp.unread_count, 1);
+    }
+
+    #[test]
+    fn update_preference_request_serde() {
+        let json = r#"{"channel":"email","enabled":true,"reminder_days_before":5}"#;
+        let req: UpdatePreferenceRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.channel, "email");
+        assert!(req.enabled);
+    }
+
+}

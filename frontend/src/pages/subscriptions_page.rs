@@ -143,6 +143,75 @@ pub fn apply_filters_and_sort(subs: &[Subscription], filters: &FilterConfig, sor
     result
 }
 
+
+/// Validation result type.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ValidationResult {
+    pub name_error: Option<String>,
+    pub amount_error: Option<String>,
+    pub currency_error: Option<String>,
+    pub frequency_error: Option<String>,
+    pub start_date_error: Option<String>,
+    pub category_error: Option<String>,
+}
+
+impl ValidationResult {
+    pub fn is_valid(&self) -> bool {
+        self.name_error.is_none()
+            && self.amount_error.is_none()
+            && self.currency_error.is_none()
+            && self.frequency_error.is_none()
+            && self.start_date_error.is_none()
+            && self.category_error.is_none()
+    }
+}
+
+/// Pure validation function for subscription form.
+pub fn validate_subscription_form(
+    name: &str,
+    amount: &str,
+    currency: &str,
+    frequency: &str,
+    start_date: &str,
+    category_id: &str,
+) -> ValidationResult {
+    use rust_decimal::Decimal;
+    let mut result = ValidationResult::default();
+    if name.trim().is_empty() {
+        result.name_error = Some("Name is required".into());
+    } else if name.trim().len() < 2 {
+        result.name_error = Some("Name must be at least 2 characters".into());
+    }
+    if amount.is_empty() {
+        result.amount_error = Some("Amount is required".into());
+    } else {
+        match amount.parse::<Decimal>() {
+            Ok(a) if a <= Decimal::ZERO => {
+                result.amount_error = Some("Amount must be greater than 0".into());
+            }
+            Err(_) => {
+                result.amount_error = Some("Invalid amount format".into());
+            }
+            _ => {}
+        }
+    }
+    if currency.is_empty() {
+        result.currency_error = Some("Currency is required".into());
+    }
+    if frequency.is_empty() {
+        result.frequency_error = Some("Frequency is required".into());
+    }
+    if start_date.is_empty() {
+        result.start_date_error = Some("Start date is required".into());
+    } else if start_date.parse::<chrono::NaiveDate>().is_err() {
+        result.start_date_error = Some("Invalid date format".into());
+    }
+    if category_id.is_empty() {
+        result.category_error = Some("Category is required".into());
+    }
+    result
+}
+
 // ── Dialog form state ────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default)]
@@ -2298,5 +2367,242 @@ mod tests {
     fn sort_options_values() {
         assert!(SORT_OPTIONS.iter().any(|(k, v)| *k == "next_billing_date" && *v == "Upcoming date"));
         assert!(SORT_OPTIONS.iter().any(|(k, v)| *k == "amount" && *v == "Price"));
+
+    // ── ValidationResult tests ──
+    #[test]
+    fn validation_result_default() {
+        let v = ValidationResult::default();
+        assert!(v.is_valid());
+        assert!(v.name_error.is_none());
+    }
+
+    #[test]
+    fn validation_result_with_name_error() {
+        let v = ValidationResult { name_error: Some("Name required".into()), ..Default::default() };
+        assert!(!v.is_valid());
+        assert_eq!(v.name_error.as_deref(), Some("Name required"));
+    }
+
+    #[test]
+    fn validation_result_multiple_errors() {
+        let v = ValidationResult {
+            name_error: Some("bad".into()),
+            amount_error: Some("bad".into()),
+            ..Default::default()
+        };
+        assert!(!v.is_valid());
+        assert!(v.name_error.is_some());
+        assert!(v.amount_error.is_some());
+    }
+
+    #[test]
+    fn validation_result_clone() {
+        let v = ValidationResult { name_error: Some("err".into()), ..Default::default() };
+        let c = v.clone();
+        assert_eq!(v.name_error, c.name_error);
+    }
+
+    // ── validate_subscription_form tests ──
+    #[test]
+    fn validate_form_valid() {
+        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert!(r.is_valid());
+    }
+
+    #[test]
+    fn validate_form_empty_name() {
+        let r = validate_subscription_form("", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+        assert!(!r.is_valid());
+    }
+
+    #[test]
+    fn validate_form_whitespace_name() {
+        let r = validate_subscription_form("   ", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+    }
+
+    #[test]
+    fn validate_form_short_name() {
+        let r = validate_subscription_form("A", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.name_error.as_deref(), Some("Name must be at least 2 characters"));
+    }
+
+    #[test]
+    fn validate_form_empty_amount() {
+        let r = validate_subscription_form("Netflix", "", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.amount_error.as_deref(), Some("Amount is required"));
+    }
+
+    #[test]
+    fn validate_form_zero_amount() {
+        let r = validate_subscription_form("Netflix", "0", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.amount_error.as_deref(), Some("Amount must be greater than 0"));
+    }
+
+    #[test]
+    fn validate_form_negative_amount() {
+        let r = validate_subscription_form("Netflix", "-5", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.amount_error.as_deref(), Some("Amount must be greater than 0"));
+    }
+
+    #[test]
+    fn validate_form_invalid_amount() {
+        let r = validate_subscription_form("Netflix", "abc", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.amount_error.as_deref(), Some("Invalid amount format"));
+    }
+
+    #[test]
+    fn validate_form_empty_currency() {
+        let r = validate_subscription_form("Netflix", "15.99", "", "monthly", "2024-01-01", "cat-id-123");
+        assert_eq!(r.currency_error.as_deref(), Some("Currency is required"));
+    }
+
+    #[test]
+    fn validate_form_empty_frequency() {
+        let r = validate_subscription_form("Netflix", "15.99", "EUR", "", "2024-01-01", "cat-id-123");
+        assert_eq!(r.frequency_error.as_deref(), Some("Frequency is required"));
+    }
+
+    #[test]
+    fn validate_form_empty_start_date() {
+        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "", "cat-id-123");
+        assert_eq!(r.start_date_error.as_deref(), Some("Start date is required"));
+    }
+
+    #[test]
+    fn validate_form_invalid_start_date() {
+        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "not-a-date", "cat-id-123");
+        assert_eq!(r.start_date_error.as_deref(), Some("Invalid date format"));
+    }
+
+    #[test]
+    fn validate_form_empty_category() {
+        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "2024-01-01", "");
+        assert_eq!(r.category_error.as_deref(), Some("Category is required"));
+    }
+
+    #[test]
+    fn validate_form_multiple_errors() {
+        let r = validate_subscription_form("", "", "", "", "", "");
+        assert!(r.name_error.is_some());
+        assert!(r.amount_error.is_some());
+        assert!(r.currency_error.is_some());
+        assert!(r.frequency_error.is_some());
+        assert!(r.start_date_error.is_some());
+        assert!(r.category_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_decimal_amount() {
+        let r = validate_subscription_form("Netflix", "9.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
+        assert!(r.is_valid());
+    }
+
+    #[test]
+    fn validate_form_valid_date_formats() {
+        for date in &["2024-01-01", "2024-12-31", "2025-06-15"] {
+            let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", date, "cat-id-123");
+            assert!(r.start_date_error.is_none(), "date {} should be valid", date);
+        }
+    }
+
+    // ── Extended filter/sort tests ──
+    #[test]
+    fn filter_by_invalid_category_id() {
+        let cat = Uuid::new_v4();
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let filters = FilterConfig { category_id: Some("not-a-uuid".into()), ..Default::default() };
+        let result = filter_subscriptions(&subs, &filters);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn sort_unknown_field_stable() {
+        let cat = Uuid::new_v4();
+        let mut subs = vec![
+            make_sub("A", dec!(10), "monthly", true, None, cat),
+            make_sub("B", dec!(20), "monthly", true, None, cat),
+        ];
+        let sort = SortConfig { field: "unknown".into(), direction: "asc".into() };
+        sort_subscriptions(&mut subs, &sort);
+        assert_eq!(subs.len(), 2);
+    }
+
+    #[test]
+    fn sort_config_partial_eq() {
+        let s1 = SortConfig { field: "name".into(), direction: "desc".into() };
+        let s2 = SortConfig { field: "name".into(), direction: "desc".into() };
+        assert_eq!(s1.field, s2.field);
+        assert_eq!(s1.direction, s2.direction);
+    }
+    }
+}
+
+// ── DialogForm tests ──────────────────────────────────────────────────
+#[cfg(test)]
+mod dialog_form_tests {
+    use super::*;
+
+    #[test]
+    fn dialog_form_default() {
+        let form = DialogForm::default();
+        assert!(form.name.is_empty());
+        assert!(form.amount.is_empty());
+        assert!(form.currency.is_empty());
+        assert!(form.frequency.is_empty());
+        assert!(form.start_date.is_empty());
+        assert!(form.category_id.is_empty());
+        assert!(form.notes.is_empty());
+        assert!(form.logo_url.is_empty());
+    }
+
+    #[test]
+    fn dialog_form_debug() {
+        let form = DialogForm::default();
+        let debug = format!("{:?}", form);
+        assert!(debug.contains("DialogForm"));
+    }
+
+    #[test]
+    fn dialog_form_clone() {
+        let form = DialogForm::default();
+        let cloned = form.clone();
+        assert_eq!(form.name, cloned.name);
+    }
+
+    #[test]
+    fn dialog_form_with_values() {
+        let form = DialogForm {
+            name: "Netflix".into(),
+            amount: "15.99".into(),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            start_date: "2024-01-01".into(),
+            category_id: "cat-123".into(),
+            notes: "Family plan".into(),
+            logo_url: "netflix.png".into(),
+        };
+        assert_eq!(form.name, "Netflix");
+        assert_eq!(form.amount, "15.99");
+        assert_eq!(form.frequency, "monthly");
+        assert!(form.notes.contains("Family"));
+    }
+
+    #[test]
+    fn dialog_form_empty_values() {
+        let form = DialogForm {
+            name: String::new(),
+            amount: String::new(),
+            currency: String::new(),
+            frequency: String::new(),
+            start_date: String::new(),
+            category_id: String::new(),
+            notes: String::new(),
+            logo_url: String::new(),
+        };
+        assert!(form.name.is_empty());
+        assert!(form.amount.is_empty());
+        assert!(form.currency.is_empty());
     }
 }

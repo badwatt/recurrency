@@ -995,8 +995,8 @@ mod tests {
     fn calendar_days_march_2024() {
         let days = calendar_days(2024, 3, "sunday");
         // March 1, 2024 is a Friday (4 padding days: Sun-Thu)
-        let padding = days.iter().take_while(|d| d.is_none()).count();
-        assert_eq!(padding, 5); // March 2024 starts on Friday
+        let _padding = days.iter().take_while(|d| d.is_none()).count();
+        assert_eq!(_padding, 5); // March 2024 starts on Friday
         let real_days = days.iter().filter(|d| d.is_some()).count();
         assert_eq!(real_days, 31);
     }
@@ -1633,7 +1633,7 @@ mod tests {
             is_active: true,
             logo_url: None,
         };
-        let mut item2 = item1.clone();
+        let item2 = item1.clone();
         assert_eq!(item1, item2);
         // PartialEq only if Clone+PartialEq derives are present
         // CalendarItem uses Clone from Subscription which has Clone
@@ -1737,3 +1737,4 @@ mod tests {
     }
 
 }
+

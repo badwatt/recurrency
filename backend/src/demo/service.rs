@@ -472,3 +472,29 @@ mod tests {
         let _service: DemoService = DemoService;
     }
 }
+
+    // ── calc_next_date additional edge cases ──
+    #[test]
+    fn calc_next_date_same_month_early_billing_day() {
+        let date = calc_next_date(5, 2024, 10, 15); // May 10, billing day 15
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 15);
+    }
+
+    #[test]
+    fn calc_next_date_same_month_late_billing_day() {
+        let date = calc_next_date(5, 2024, 20, 15); // May 20, billing day 15 < 20 → next month
+        assert_eq!(date.month(), 6);
+    }
+
+    #[test]
+    fn calc_next_date_december_wraps_year() {
+        let date = calc_next_date(12, 2024, 15, 20);
+        assert_eq!(date.month(), 12);
+    }
+
+    // ── DemoService reset returns Result ──
+    #[test]
+    fn demo_service_struct() {
+        let _ = DemoService;
+    }

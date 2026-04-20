@@ -407,6 +407,39 @@ fn icon_display(name: &str) -> String {
     }.to_string()
 }
 
+/// Validation result for category form.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CategoryValidationResult {
+    pub name_error: Option<String>,
+    pub icon_error: Option<String>,
+    pub color_error: Option<String>,
+}
+
+impl CategoryValidationResult {
+    pub fn is_valid(&self) -> bool {
+        self.name_error.is_none() && self.icon_error.is_none() && self.color_error.is_none()
+    }
+}
+
+/// Pure validation function for category form.
+pub fn validate_category_form(name: &str, icon: &str, color: &str) -> CategoryValidationResult {
+    let mut result = CategoryValidationResult::default();
+    if name.trim().is_empty() {
+        result.name_error = Some("Name is required".into());
+    } else if name.trim().len() < 2 {
+        result.name_error = Some("Name must be at least 2 characters".into());
+    }
+    if icon.trim().is_empty() {
+        result.icon_error = Some("Icon is required".into());
+    }
+    if color.trim().is_empty() {
+        result.color_error = Some("Color is required".into());
+    } else if !COLOR_PALETTE.contains(&color) {
+        result.color_error = Some("Invalid color".into());
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -106,6 +106,7 @@ impl PreferencesState {
 
 pub static PREFERENCES: GlobalSignal<PreferencesState> = Signal::global(|| PreferencesState::default());
 
+
 #[cfg(test)]
 mod tests {
     use super::*;

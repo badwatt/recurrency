@@ -541,3 +541,293 @@ mod tests {
         assert!(req.amount > rust_decimal::Decimal::from(100000));
     }
 }
+    #[test]
+    fn calendar_query_special_chars_in_token() {
+        let query = "token=eyJhbGciOiJIUzI1NiJ9.abc123";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.token.as_deref(), Some("eyJhbGciOiJIUzI1NiJ9.abc123"));
+    }
+
+    #[test]
+    fn calendar_query_negative_year() {
+        let query = "year=-2024";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.year, Some(-2024));
+    }
+
+    #[test]
+    fn calendar_query_zero_month() {
+        let query = "month=0";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.month, Some(0));
+    }
+
+    #[test]
+    fn calendar_query_month_13() {
+        let query = "month=13";
+        let result: CalendarQuery = serde_urlencoded::from_str(query).unwrap();
+        assert_eq!(result.month, Some(13));
+    }
+
+    #[test]
+    fn calendar_item_micro_amount() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Micro".to_string(),
+            amount: rust_decimal::Decimal::new(1, 4),
+            currency: "BTC".to_string(),
+            frequency: "weekly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert!(item.amount < rust_decimal::Decimal::ONE);
+    }
+
+    #[test]
+    fn calendar_item_currency_jpy() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Japanese".to_string(),
+            amount: rust_decimal::Decimal::from(5000),
+            currency: "JPY".to_string(),
+            frequency: "yearly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert_eq!(item.currency, "JPY");
+    }
+
+    #[test]
+    fn calendar_item_name_with_special_chars() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix & Spotify™".to_string(),
+            amount: rust_decimal::Decimal::from(2000),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert!(item.name.contains('™'));
+    }
+
+    #[test]
+    fn calendar_item_billing_date_far_future() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Far".to_string(),
+            amount: rust_decimal::Decimal::from(100),
+            currency: "USD".to_string(),
+            frequency: "yearly".to_string(),
+            billing_date: chrono::NaiveDate::from_ymd_opt(2099, 12, 31).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
+        assert!(item.billing_date > chrono::Utc::now().date_naive());
+    }
+
+    #[test]
+    fn create_subscription_start_date_feb_29_leap_year() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-02-29"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.start_date.month(), 2);
+        assert_eq!(req.start_date.day(), 29);
+    }
+
+    #[test]
+    fn create_subscription_notes_with_newlines() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01","notes":"Line1\nLine2\nLine3"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.notes.unwrap().contains('\n'));
+    }
+
+    #[test]
+    fn create_subscription_logo_url_https() {
+        let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01","logo_url":"https://logo.example.com/foo.png"}"#;
+        let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert!(req.logo_url.unwrap().starts_with("https://"));
+    }
+
+    #[test]
+    fn update_subscription_currency_change() {
+        let json = r#"{"currency":"GBP"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.currency.unwrap(), "GBP");
+    }
+
+    #[test]
+    fn update_subscription_frequency_to_yearly() {
+        let json = r#"{"frequency":"yearly"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.frequency.unwrap(), "yearly");
+    }
+
+    #[test]
+    fn update_subscription_deactivate() {
+        let json = r#"{"is_active":false}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.is_active, Some(false));
+    }
+
+    #[test]
+    fn update_subscription_category_id_reassign() {
+        let cat_id = Uuid::new_v4();
+        let json = format!(r#"{{"category_id":"{}"}}"#, cat_id);
+        let req: UpdateSubscriptionRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(req.category_id, Some(cat_id));
+    }
+
+    #[test]
+    fn update_subscription_multiple_fields() {
+        let json = r#"{"name":"New","amount":"20.00","is_active":false,"notes":"Updated"}"#;
+        let req: UpdateSubscriptionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.name.unwrap(), "New");
+        assert_eq!(req.amount.unwrap().to_string(), "20.00");
+        assert_eq!(req.is_active, Some(false));
+    }
+
+    // ── SubscriptionService resolve_update_fields ──
+    #[test]
+    fn resolve_subscription_name_unicode() {
+        use crate::subscriptions::models::Subscription;
+        let existing = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Café Premium 日本語".to_string(),
+            amount: rust_decimal::Decimal::TEN,
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let req = UpdateSubscriptionRequest {
+            name: Some("New Name".to_string()),
+            amount: None,
+            currency: None,
+            frequency: None,
+            start_date: None,
+            next_billing_date: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        };
+        let (name, ..) = crate::subscriptions::service::resolve_update_fields(&existing, &req);
+        assert_eq!(name, "New Name");
+    }
+
+    #[test]
+    fn resolve_subscription_all_none_preserves_existing() {
+        use crate::subscriptions::models::Subscription;
+        let existing = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Keep".to_string(),
+            amount: rust_decimal::Decimal::new(1999, 2),
+            currency: "EUR".to_string(),
+            frequency: "quarterly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: Some(chrono::NaiveDate::from_ymd_opt(2024, 4, 1).unwrap()),
+            is_active: true,
+            notes: Some("keep notes".to_string()),
+            logo_url: Some("https://old.png".to_string()),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let req = UpdateSubscriptionRequest {
+            name: None,
+            amount: None,
+            currency: None,
+            frequency: None,
+            start_date: None,
+            next_billing_date: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        };
+        let resolved = crate::subscriptions::service::resolve_update_fields(&existing, &req);
+        assert_eq!(resolved.0, "Keep");
+        assert_eq!(resolved.2, "EUR");
+    }
+
+    #[test]
+    fn resolve_subscription_partial_update_amount_only() {
+        use crate::subscriptions::models::Subscription;
+        let existing = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Sub".to_string(),
+            amount: rust_decimal::Decimal::from(1000),
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let req = UpdateSubscriptionRequest {
+            name: None,
+            amount: Some(rust_decimal::Decimal::from(2000)),
+            currency: None,
+            frequency: None,
+            start_date: None,
+            next_billing_date: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        };
+        let resolved = crate::subscriptions::service::resolve_update_fields(&existing, &req);
+        assert_eq!(resolved.0, "Sub");
+        assert_eq!(resolved.1, rust_decimal::Decimal::from(2000));
+    }
+
+    #[test]
+    fn resolve_subscription_start_date_change() {
+        use crate::subscriptions::models::Subscription;
+        let existing = Subscription {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            category_id: Uuid::new_v4(),
+            name: "Sub".to_string(),
+            amount: rust_decimal::Decimal::TEN,
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let req = UpdateSubscriptionRequest {
+            name: None,
+            amount: None,
+            currency: None,
+            frequency: None,
+            start_date: Some(chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+            next_billing_date: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        };
+        let resolved = crate::subscriptions::service::resolve_update_fields(&existing, &req);
+        assert_eq!(resolved.4, chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+    }

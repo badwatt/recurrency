@@ -201,6 +201,7 @@ impl AuthState {
 
 pub static AUTH: GlobalSignal<AuthState> = Signal::global(|| AuthState::default());
 
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -709,3 +709,96 @@ mod tests {
     #[test]
     fn report_service_struct() { let _ = ReportService; }
 }
+
+    // ── calculate_percentage edge cases ──
+    #[test]
+    fn calc_percentage_zero_total() {
+        let result = calculate_percentage(Decimal::from(100), Decimal::ZERO);
+        assert!(result.is_nan() || result == 0.0);
+    }
+
+    #[test]
+    fn calc_percentage_zero_overall() {
+        let result = calculate_percentage(Decimal::ZERO, Decimal::from(100));
+        assert!(result.is_nan() || result == 0.0);
+    }
+
+    #[test]
+    fn calc_percentage_both_zero() {
+        let result = calculate_percentage(Decimal::ZERO, Decimal::ZERO);
+        assert!(result.is_nan() || result == 0.0);
+    }
+
+    #[test]
+    fn calc_percentage_100_percent() {
+        let result = calculate_percentage(Decimal::from(50), Decimal::from(50));
+        assert!((result - 100.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn calc_percentage_50_percent() {
+        let result = calculate_percentage(Decimal::from(25), Decimal::from(50));
+        assert!((result - 50.0).abs() < 0.001);
+    }
+
+    // ── month_date_range tests ──
+    #[test]
+    fn month_date_range_january() {
+        let (start, end) = month_date_range(2024, 1);
+        assert_eq!(start.month(), 1);
+        assert_eq!(end.month(), 1);
+        assert_eq!(start.day(), 1);
+    }
+
+    #[test]
+    fn month_date_range_february_leap() {
+        let (start, end) = month_date_range(2024, 2);
+        assert_eq!(start.month(), 2);
+        assert_eq!(end.day(), 29);
+    }
+
+    #[test]
+    fn month_date_range_february_non_leap() {
+        let (start, end) = month_date_range(2023, 2);
+        assert_eq!(start.month(), 2);
+        assert_eq!(end.day(), 28);
+    }
+
+    #[test]
+    fn month_date_range_all_months() {
+        for m in 1..=12 {
+            let (start, end) = month_date_range(2024, m);
+            assert_eq!(start.month(), m);
+            assert_eq!(end.month(), m);
+            assert!(end >= start);
+        }
+    }
+
+    // ── normalize_to_monthly edge cases ──
+    #[test]
+    fn normalize_weekly_precise() {
+        let result = normalize_to_monthly(Decimal::from(52), "weekly");
+        assert!(result > Decimal::ZERO);
+    }
+
+    #[test]
+    fn normalize_monthly_large() {
+        let result = normalize_to_monthly(Decimal::from(999999), "monthly");
+        assert_eq!(result, Decimal::from(999999));
+    }
+
+    // ── subtract_months edge cases ──
+    #[test]
+    fn subtract_months_many() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = subtract_months_from_date(date, 12);
+        assert!(result < date);
+    }
+
+    #[test]
+    fn subtract_months_january_to_december() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let result = subtract_months_from_date(date, 1);
+        assert_eq!(result.month(), 12);
+        assert_eq!(result.year(), 2023);
+    }
