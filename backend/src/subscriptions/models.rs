@@ -5,7 +5,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Subscription {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -23,7 +23,7 @@ pub struct Subscription {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Clone, Deserialize, Validate)]
 pub struct CreateSubscriptionRequest {
     #[validate(length(min = 1, message = "Name is required"))]
     pub name: String,
@@ -37,7 +37,7 @@ pub struct CreateSubscriptionRequest {
     pub logo_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct UpdateSubscriptionRequest {
     pub name: Option<String>,
     pub amount: Option<Decimal>,

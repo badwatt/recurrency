@@ -6,6 +6,7 @@ pub mod auth_extractor;
 pub mod date_utils;
 pub mod db;
 pub mod error;
+pub mod mocks;
 pub mod password_utils;
 pub mod app_state;
 

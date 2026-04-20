@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Transaction {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -19,7 +19,7 @@ pub struct Transaction {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CreateTransactionRequest {
     pub name: String,
     pub amount: Decimal,
@@ -30,7 +30,7 @@ pub struct CreateTransactionRequest {
     pub logo_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct UpdateTransactionRequest {
     pub name: Option<String>,
     pub amount: Option<Decimal>,

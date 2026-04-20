@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Category {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -16,14 +16,14 @@ pub struct Category {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CreateCategoryRequest {
     pub name: String,
     pub icon: Option<String>,
     pub color: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct UpdateCategoryRequest {
     pub name: Option<String>,
     #[serde(default)]

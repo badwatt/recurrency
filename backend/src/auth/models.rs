@@ -4,7 +4,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -18,7 +18,7 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Clone, Deserialize, Validate)]
 pub struct CreateUserRequest {
     #[validate(email(message = "Invalid email"))]
     pub email: String,
@@ -28,13 +28,13 @@ pub struct CreateUserRequest {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct UpdateSettingsRequest {
     pub name: Option<String>,
     pub currency: Option<String>,
