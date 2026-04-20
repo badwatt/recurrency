@@ -2715,4 +2715,93 @@ mod dialog_form_tests {
         // Cloned should still have old value
         assert_eq!(cloned.name, "Spotify");
     }
+
+    // ── SortConfig additional tests ──
+    #[test]
+    fn sort_config_default_field() {
+        let s = SortConfig::default();
+        assert_eq!(s.field, "next_billing_date");
+        assert_eq!(s.direction, "asc");
+    }
+
+    #[test]
+    fn sort_config_custom() {
+        let s = SortConfig { field: "amount".into(), direction: "desc".into() };
+        assert_eq!(s.field, "amount");
+        assert_eq!(s.direction, "desc");
+    }
+
+    #[test]
+    fn sort_config_debug() {
+        let s = SortConfig::default();
+        let debug = format!("{:?}", s);
+        assert!(debug.contains("SortConfig"));
+    }
+
+    #[test]
+    fn sort_config_partial_eq() {
+        let a = SortConfig { field: "name".into(), direction: "asc".into() };
+        let b = SortConfig { field: "name".into(), direction: "asc".into() };
+        assert_eq!(a.field, b.field);
+        assert_eq!(a.direction, b.direction);
+    }
+
+    // ── FilterConfig additional tests ──
+    #[test]
+    fn filter_config_default_all_none() {
+        let f = FilterConfig::default();
+        assert!(f.status.is_none());
+        assert!(f.frequency.is_none());
+        assert!(f.category_id.is_none());
+        assert!(f.price_min.is_none());
+        assert!(f.price_max.is_none());
+    }
+
+    #[test]
+    fn filter_config_debug() {
+        let f = FilterConfig::default();
+        let debug = format!("{:?}", f);
+        assert!(debug.contains("FilterConfig"));
+    }
+
+    #[test]
+    fn filter_config_clone() {
+        let f = FilterConfig {
+            status: Some("active".into()),
+            ..Default::default()
+        };
+        let cloned = f.clone();
+        assert_eq!(f.status, cloned.status);
+    }
+
+    // ── ValidationResult additional tests ──
+    #[test]
+    fn validation_result_all_errors() {
+        let v = ValidationResult {
+            name_error: Some("a".into()),
+            amount_error: Some("b".into()),
+            currency_error: Some("c".into()),
+            frequency_error: Some("d".into()),
+            start_date_error: Some("e".into()),
+            category_error: Some("f".into()),
+        };
+        assert!(!v.is_valid());
+        assert!(v.name_error.is_some());
+        assert!(v.amount_error.is_some());
+        assert!(v.currency_error.is_some());
+        assert!(v.frequency_error.is_some());
+        assert!(v.start_date_error.is_some());
+        assert!(v.category_error.is_some());
+    }
+
+    #[test]
+    fn validation_result_partial_errors() {
+        let v = ValidationResult {
+            amount_error: Some("bad".into()),
+            ..Default::default()
+        };
+        assert!(!v.is_valid());
+        assert!(v.name_error.is_none());
+        assert!(v.amount_error.is_some());
+    }
 }

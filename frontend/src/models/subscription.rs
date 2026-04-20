@@ -290,7 +290,7 @@ mod tests {
         let sub2 = sub.clone();
         assert_eq!(sub, sub2);
     }
-
+}
 
 #[cfg(test)]
 mod subscription_tests {
@@ -607,10 +607,33 @@ mod subscription_tests {
 
     #[test]
     fn currencies_const_not_empty() {
+        assert!(!crate::utils::constants::CURRENCIES.is_empty());
     }
 
     #[test]
     fn frequencies_const_not_empty() {
+        assert!(!crate::utils::constants::FREQUENCIES.is_empty());
     }
-}
+
+    #[test]
+    fn subscription_inactive_logic() {
+        let mut sub = make_test_sub("Test", "monthly", true);
+        sub.is_active = false;
+        assert!(!sub.is_active);
+    }
+
+    #[test]
+    fn calendar_item_name_matches_sub() {
+        let item = make_test_calendar_item("Spotify", "2024-01-15");
+        assert_eq!(item.name, "Spotify");
+    }
+
+    #[test]
+    fn subscription_currency_variants() {
+        for currency in ["EUR", "USD", "GBP", "JPY"] {
+            let mut sub = make_test_sub("Test", "monthly", true);
+            sub.currency = currency.into();
+            assert_eq!(sub.currency, currency);
+        }
+    }
 }

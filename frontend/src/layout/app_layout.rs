@@ -6,6 +6,25 @@ use crate::api::notifications;
 use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::state::preferences::PREFERENCES;
 
+// ── Pure helper functions (testable without Dioxus) ──────────────────────────
+
+/// Icon enum for sidebar/theme icons.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Icon {
+    Dashboard,
+    Subscriptions,
+    Transactions,
+    Calendar,
+    Categories,
+    Reports,
+    Settings,
+    Logout,
+    Sun,
+    Moon,
+    Coffee,
+    Monitor,
+}
+
 // ──────────────────────────────────────────────
 // Main layout
 // ──────────────────────────────────────────────
@@ -76,11 +95,7 @@ pub fn AppLayout() -> Element {
             // ── Mobile sidebar panel ──
             aside {
                 id: "mobile-sidebar",
-                class: if sidebar_open() {
-                    "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 transform translate-x-0 sidebar-open"
-                } else {
-                    "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 -translate-x-full"
-                },
+                class: mobile_sidebar_class(sidebar_open()),
                 onclick: move |e| e.stop_propagation(),
                 MobileSidebar { on_close: move |_| sidebar_open.set(false) }
             }
@@ -327,12 +342,7 @@ fn MobileNavLink(to: crate::Route, label: String, active: bool, icon: Icon, on_c
 #[component]
 fn ThemeToggleButton() -> Element {
     let theme = PREFERENCES().theme().to_string();
-    let (icon, label) = match theme.as_str() {
-        "light" => (Icon::Sun, "Light"),
-        "dark" => (Icon::Moon, "Dark"),
-        "mocha" => (Icon::Coffee, "Mocha"),
-        _ => (Icon::Monitor, "System"),
-    };
+    let (icon, label) = theme_icon_and_label(&theme);
 
     rsx! {
         button {
@@ -553,20 +563,53 @@ fn LogoIcon() -> Element {
 // Icon enum + SVG renderer
 // ──────────────────────────────────────────────
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Icon {
-    Dashboard,
-    Subscriptions,
-    Transactions,
-    Calendar,
-    Categories,
-    Reports,
-    Settings,
-    Logout,
-    Sun,
-    Moon,
-    Coffee,
-    Monitor,
+// ── Icon definition moved to module scope above ──
+
+/// Compose the CSS class string for the mobile sidebar panel.
+pub fn mobile_sidebar_class(is_open: bool) -> &'static str {
+    if is_open {
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 transform translate-x-0 sidebar-open"
+    } else {
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border lg:hidden transition-transform duration-200 -translate-x-full"
+    }
+}
+
+/// Determine the icon and label for a given theme name.
+pub fn theme_icon_and_label(theme: &str) -> (Icon, &'static str) {
+    match theme {
+        "light" => (Icon::Sun, "Light"),
+        "dark" => (Icon::Moon, "Dark"),
+        "mocha" => (Icon::Coffee, "Mocha"),
+        _ => (Icon::Monitor, "System"),
+    }
+}
+
+/// Build the CSS class string for a NavLink based on active state.
+pub fn navlink_class(active: bool) -> &'static str {
+    if active {
+        "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground"
+    } else {
+        "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+    }
+}
+
+/// Format the notification badge text: 99+ for large counts.
+pub fn notification_badge_text(count: usize) -> String {
+    if count > 99 { "99+".to_string() } else { count.to_string() }
+}
+
+/// CSS class for notification item row based on read status.
+pub fn notification_item_classes(is_read: bool) -> &'static str {
+    if is_read {
+        "flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors"
+    } else {
+        "flex items-start gap-3 px-4 py-3 bg-primary/5 hover:bg-accent/50 transition-colors"
+    }
+}
+
+/// CSS class for notification unread dot.
+pub fn notification_dot_class(is_read: bool) -> &'static str {
+    if is_read { "w-2 h-2 rounded-full bg-transparent" } else { "w-2 h-2 rounded-full bg-primary" }
 }
 
 #[component]
@@ -670,8 +713,7 @@ fn SvgIcon(icon: Icon, size: i32) -> Element {
 
 #[cfg(test)]
 mod tests {
-
-    // ── Logo navigation tests ──
+    use super::*;
     #[test]
     fn logo_area_navigates_to_dashboard() {
         // Logo area must wrap LogoIcon + "Recurrency" in a Link to Dashboard.
@@ -751,7 +793,7 @@ mod tests {
             "Loading spinner must NOT use opaque bg-background/bg-card. Use semi-transparent bg. Found: {}",
             block.lines().take(3).collect::<Vec<_>>().join(" "));
     }
-}
+
     // ── Icon enum tests ──
     #[test]
     fn icon_variants_are_instantiable() {
@@ -1035,5 +1077,187 @@ mod tests {
         let src = include_str!("app_layout.rs");
         assert!(src.contains("use_future") || src.contains("pre-wasm-loader"),
             "AppLayout must hide pre-WASM spinner");
+    }
+
+    // ── Pure function tests: mobile_sidebar_class ──
+    #[test]
+    fn mobile_sidebar_class_open() {
+        let class = mobile_sidebar_class(true);
+        assert!(class.contains("translate-x-0"));
+        assert!(class.contains("sidebar-open"));
+        assert!(!class.contains("-translate-x-full"));
+    }
+
+    #[test]
+    fn mobile_sidebar_class_closed() {
+        let class = mobile_sidebar_class(false);
+        assert!(class.contains("-translate-x-full"));
+        assert!(!class.contains("translate-x-0"));
+        assert!(!class.contains("sidebar-open"));
+    }
+
+    #[test]
+    fn mobile_sidebar_class_both_have_common_classes() {
+        let open = mobile_sidebar_class(true);
+        let closed = mobile_sidebar_class(false);
+        for cls in ["fixed", "inset-y-0", "left-0", "w-64", "bg-card", "border-r", "border-border", "lg:hidden", "transition-transform", "duration-200"] {
+            assert!(open.contains(cls), "open class should contain {}", cls);
+            assert!(closed.contains(cls), "closed class should contain {}", cls);
+        }
+    }
+
+    // ── Pure function tests: theme_icon_and_label ──
+    #[test]
+    fn theme_icon_and_label_light() {
+        let (icon, label) = theme_icon_and_label("light");
+        assert_eq!(icon, Icon::Sun);
+        assert_eq!(label, "Light");
+    }
+
+    #[test]
+    fn theme_icon_and_label_dark() {
+        let (icon, label) = theme_icon_and_label("dark");
+        assert_eq!(icon, Icon::Moon);
+        assert_eq!(label, "Dark");
+    }
+
+    #[test]
+    fn theme_icon_and_label_mocha() {
+        let (icon, label) = theme_icon_and_label("mocha");
+        assert_eq!(icon, Icon::Coffee);
+        assert_eq!(label, "Mocha");
+    }
+
+    #[test]
+    fn theme_icon_and_label_system() {
+        let (icon, label) = theme_icon_and_label("system");
+        assert_eq!(icon, Icon::Monitor);
+        assert_eq!(label, "System");
+    }
+
+    #[test]
+    fn theme_icon_and_label_unknown() {
+        let (icon, label) = theme_icon_and_label("unknown");
+        assert_eq!(icon, Icon::Monitor);
+        assert_eq!(label, "System");
+    }
+
+    #[test]
+    fn theme_icon_and_label_empty() {
+        let (icon, label) = theme_icon_and_label("");
+        assert_eq!(icon, Icon::Monitor);
+        assert_eq!(label, "System");
+    }
+
+    #[test]
+    fn theme_icon_and_label_cycle_consistency() {
+        // Each theme maps to a different icon
+        let themes = ["light", "dark", "mocha", "system"];
+        let icons: Vec<Icon> = themes.iter().map(|t| theme_icon_and_label(t).0).collect();
+        for i in 0..icons.len() {
+            for j in (i+1)..icons.len() {
+                assert_ne!(icons[i], icons[j], "theme {} and {} should have different icons", themes[i], themes[j]);
+            }
+        }
+    }
+
+    // ── navlink_class tests ──
+    #[test]
+    fn navlink_class_active() {
+        let class = navlink_class(true);
+        assert!(class.contains("bg-primary"));
+        assert!(class.contains("text-primary-foreground"));
+        assert!(!class.contains("muted-foreground"));
+    }
+
+    #[test]
+    fn navlink_class_inactive() {
+        let class = navlink_class(false);
+        assert!(class.contains("muted-foreground"));
+        assert!(class.contains("hover:bg-accent"));
+        assert!(!class.contains("bg-primary"));
+    }
+
+    #[test]
+    fn navlink_class_both_have_gap_and_padding() {
+        for active in [true, false] {
+            let class = navlink_class(active);
+            assert!(class.contains("flex items-center"));
+            assert!(class.contains("gap-3"));
+            assert!(class.contains("px-3 py-2"));
+        }
+    }
+
+    // ── notification_badge_text tests ──
+    #[test]
+    fn notification_badge_text_zero() {
+        assert_eq!(notification_badge_text(0), "0");
+    }
+
+    #[test]
+    fn notification_badge_text_small() {
+        assert_eq!(notification_badge_text(1), "1");
+        assert_eq!(notification_badge_text(5), "5");
+        assert_eq!(notification_badge_text(50), "50");
+        assert_eq!(notification_badge_text(99), "99");
+    }
+
+    #[test]
+    fn notification_badge_text_overflow() {
+        assert_eq!(notification_badge_text(100), "99+");
+        assert_eq!(notification_badge_text(999), "99+");
+        assert_eq!(notification_badge_text(usize::MAX), "99+");
+    }
+
+    #[test]
+    fn notification_badge_text_boundary() {
+        assert_eq!(notification_badge_text(99), "99");
+        assert_eq!(notification_badge_text(100), "99+");
+    }
+
+    // ── notification_item_classes tests ──
+    #[test]
+    fn notification_item_classes_read() {
+        let class = notification_item_classes(true);
+        assert!(!class.contains("bg-primary/5"));
+        assert!(class.contains("hover:bg-accent"));
+        assert!(class.contains("px-4 py-3"));
+    }
+
+    #[test]
+    fn notification_item_classes_unread() {
+        let class = notification_item_classes(false);
+        assert!(class.contains("bg-primary/5"));
+        assert!(class.contains("hover:bg-accent"));
+        assert!(class.contains("px-4 py-3"));
+    }
+
+    #[test]
+    fn notification_item_classes_differ() {
+        let read = notification_item_classes(true);
+        let unread = notification_item_classes(false);
+        assert_ne!(read, unread);
+    }
+
+    // ── notification_dot_class tests ──
+    #[test]
+    fn notification_dot_class_read() {
+        let class = notification_dot_class(true);
+        assert!(class.contains("bg-transparent"));
+        assert!(class.contains("w-2"));
+        assert!(class.contains("h-2"));
+    }
+
+    #[test]
+    fn notification_dot_class_unread() {
+        let class = notification_dot_class(false);
+        assert!(class.contains("bg-primary"));
+        assert!(class.contains("w-2"));
+        assert!(class.contains("h-2"));
+    }
+
+    #[test]
+    fn notification_dot_class_differ() {
+        assert_ne!(notification_dot_class(true), notification_dot_class(false));
     }
 }

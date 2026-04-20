@@ -885,4 +885,91 @@ mod tests {
     }
 
     // Tests for category_style_by_name would require mock categories - skipped
+
+    // ── Additional report_years tests ──
+    #[test]
+    fn report_years_are_recent() {
+        let years = report_years();
+        let this_year = chrono::Local::now().year();
+        assert_eq!(years.len(), 3);
+        assert!(years.contains(&(this_year - 2)));
+        assert!(years.contains(&(this_year - 1)));
+        assert!(years.contains(&this_year));
+    }
+
+    #[test]
+    fn report_years_ordered() {
+        let years = report_years();
+        assert!(years[0] < years[1]);
+        assert!(years[1] < years[2]);
+    }
+
+    // ── Additional build_csv tests ──
+    #[test]
+    fn build_csv_multiple_categories() {
+        let report = ReportResponse {
+            monthly_summary: crate::models::report::MonthlySummary {
+                year: 2024, month: 6,
+                subscriptions_total: dec!(200),
+                transactions_total: dec!(300),
+                overall_total: dec!(500),
+                subscriptions_count: 10,
+                transactions_count: 15,
+            },
+            category_breakdown: vec![
+                crate::models::report::CategoryBreakdown {
+                    category_id: None,
+                    category_name: "Food".into(),
+                    total: dec!(200),
+                    count: 10,
+                    percentage: 40.0,
+                },
+                crate::models::report::CategoryBreakdown {
+                    category_id: None,
+                    category_name: "Transport".into(),
+                    total: dec!(300),
+                    count: 15,
+                    percentage: 60.0,
+                },
+            ],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        let lines: Vec<&str> = csv.lines().collect();
+        assert_eq!(lines.len(), 3); // header + 2 categories
+        assert!(lines[0].starts_with("Category,Amount,Count,Percentage"));
+        assert!(lines[1].contains("Food"));
+        assert!(lines[2].contains("Transport"));
+    }
+
+    // ── Additional category_style_by_name tests ──
+    #[test]
+    fn category_style_by_name_exact_match() {
+        let cats = vec![make_cat("Entertainment", "#ff0000", "Film")];
+        let (color, icon) = category_style_by_name(&cats, "Entertainment");
+        assert_eq!(color, "#ff0000");
+        assert_eq!(icon, "Film");
+    }
+
+    #[test]
+    fn category_style_by_name_no_match_returns_default() {
+        let cats = vec![make_cat("Food", "#ef4444", "Coffee")];
+        let (color, icon) = category_style_by_name(&cats, "Entertainment");
+        assert_eq!(color, "#6b7280");
+        assert_eq!(icon, "Tag");
+    }
+
+    #[test]
+    fn category_style_by_name_empty_list() {
+        let cats: Vec<Category> = vec![];
+        let (color, icon) = category_style_by_name(&cats, "Anything");
+        assert_eq!(color, "#6b7280");
+        assert_eq!(icon, "Tag");
+    }
+
+    #[test]
+    fn report_years_values() {
+        let years = report_years();
+        assert_eq!(years.len(), 3);
+    }
 }

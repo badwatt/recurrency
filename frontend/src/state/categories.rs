@@ -135,4 +135,48 @@ mod tests {
         state.categories = vec![make_cat("A", false), make_cat("B", false)];
         assert!(state.default_category().is_none());
     }
+
+    // ── Additional CategoriesState tests ──
+    #[test]
+    fn categories_state_clone() {
+        let state = CategoriesState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn categories_state_debug() {
+        let state = CategoriesState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("CategoriesState"));
+    }
+
+    #[test]
+    fn categories_state_default_values() {
+        let state = CategoriesState::default();
+        assert!(state.categories.is_empty());
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn set_error_then_loading_clears_it() {
+        let mut state = CategoriesState::default();
+        state.set_error("fail".into());
+        state.set_loading();
+        assert!(state.is_loading);
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn get_by_id_multiple_categories() {
+        let mut state = CategoriesState::default();
+        let cat_a = make_cat("A", false);
+        let cat_b = make_cat("B", true);
+        let id_a = cat_a.id;
+        let id_b = cat_b.id;
+        state.categories = vec![cat_a, cat_b];
+        assert_eq!(state.get_by_id(&id_a).unwrap().name, "A");
+        assert_eq!(state.get_by_id(&id_b).unwrap().name, "B");
+    }
 }

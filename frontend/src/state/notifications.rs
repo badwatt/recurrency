@@ -327,4 +327,41 @@ mod tests {
         state.mark_as_read(&id);
         assert_eq!(state.unread_count, 0);
     }
+
+    // ── Additional NotificationsState tests ──
+    #[test]
+    fn notifications_state_non_open_default() {
+        let state = NotificationsState::default();
+        assert!(state.notifications.is_empty());
+        assert_eq!(state.unread_count, 0);
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+        assert!(!state.is_open);
+    }
+
+    #[test]
+    fn notifications_state_clone_eq() {
+        let state = NotificationsState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn set_data_recomputes_unread() {
+        let mut state = NotificationsState::default();
+        let n1 = make_notification(false);
+        let n2 = make_notification(true);
+        let n3 = make_notification(false);
+        state.set_data(vec![n1, n2, n3], 2);
+        assert_eq!(state.unread_count, 2);
+        assert_eq!(state.notifications.len(), 3);
+    }
+
+    #[test]
+    fn set_error_state() {
+        let mut state = NotificationsState::default();
+        state.is_loading = true;
+        state.error = Some("network".into());
+        assert_eq!(state.error, Some("network".into()));
+    }
 }

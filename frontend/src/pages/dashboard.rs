@@ -7,6 +7,35 @@ use crate::api::subscriptions as api_subs;
 use crate::utils::format::format_currency;
 use crate::components::logo_image_with_fallback;
 
+// ── Pure helper functions (testable without Dioxus) ──────────────────────────
+
+/// Format a billing date into a human-readable relative string.
+pub fn next_billing_days_text(date: Option<chrono::NaiveDate>) -> Option<String> {
+    date.map(|d| {
+        let now = Local::now().date_naive();
+        let diff = (d - now).num_days();
+        if diff == 0 { "Today".into() }
+        else if diff == 1 { "Tomorrow".into() }
+        else if diff < 0 { "Overdue".into() }
+        else { format!("{} days", diff) }
+    })
+}
+
+/// Format a date as "Mon, Jan 5" style short string.
+pub fn format_date_short_fn(d: chrono::NaiveDate) -> String {
+    d.format("%a, %b %-d").to_string()
+}
+
+/// Check if a date is overdue (before today).
+pub fn is_overdue_fn(d: chrono::NaiveDate) -> bool {
+    d < Local::now().date_naive()
+}
+
+/// Check if a date is today.
+pub fn is_today_fn(d: chrono::NaiveDate) -> bool {
+    d == Local::now().date_naive()
+}
+
 // ── SVG Icon Components ──────────────────────────────────────────────────────
 
 fn icon_credit_card() -> Element {
@@ -127,28 +156,21 @@ pub fn Dashboard() -> Element {
         .or_else(|| auth_state.user.as_ref().map(|u| u.email.clone()))
         .unwrap_or_default();
 
-    // Helpers — we compute these inline so we don't need additional signals
+    // Helpers — delegate to pure functions for testability
     let next_billing_days = |date: Option<chrono::NaiveDate>| -> Option<String> {
-        date.map(|d| {
-            let now = Local::now().date_naive();
-            let diff = (d - now).num_days();
-            if diff == 0 { "Today".into() }
-            else if diff == 1 { "Tomorrow".into() }
-            else if diff < 0 { "Overdue".into() }
-            else { format!("{} days", diff) }
-        })
+        next_billing_days_text(date)
     };
 
     let format_date_short = |d: chrono::NaiveDate| -> String {
-        d.format("%a, %b %-d").to_string()
+        format_date_short_fn(d)
     };
 
     let is_overdue = |d: chrono::NaiveDate| -> bool {
-        d < Local::now().date_naive()
+        is_overdue_fn(d)
     };
 
     let is_today = |d: chrono::NaiveDate| -> bool {
-        d == Local::now().date_naive()
+        is_today_fn(d)
     };
 
     rsx! {
@@ -544,5 +566,163 @@ mod tests {
         let src = include_str!("dashboard.rs");
         assert!(src.contains("svg"),
             "Dashboard should use SVG icons");
+    }
+
+    // ── Pure function tests: next_billing_days_text ──
+    #[test]
+    fn next_billing_days_text_none() {
+        assert_eq!(super::next_billing_days_text(None), None);
+    }
+
+    #[test]
+    fn next_billing_days_text_today() {
+        let today = Local::now().date_naive();
+        assert_eq!(super::next_billing_days_text(Some(today)), Some("Today".to_string()));
+    }
+
+    #[test]
+    fn next_billing_days_text_tomorrow() {
+        let tomorrow = Local::now().date_naive() + Days::new(1);
+        assert_eq!(super::next_billing_days_text(Some(tomorrow)), Some("Tomorrow".to_string()));
+    }
+
+    #[test]
+    fn next_billing_days_text_overdue() {
+        let yesterday = Local::now().date_naive() - Days::new(1);
+        assert_eq!(super::next_billing_days_text(Some(yesterday)), Some("Overdue".to_string()));
+    }
+
+    #[test]
+    fn next_billing_days_text_future() {
+        let in_5_days = Local::now().date_naive() + Days::new(5);
+        let result = super::next_billing_days_text(Some(in_5_days)).unwrap();
+        assert_eq!(result, "5 days");
+    }
+
+    #[test]
+    fn next_billing_days_text_far_future() {
+        let in_30_days = Local::now().date_naive() + Days::new(30);
+        let result = super::next_billing_days_text(Some(in_30_days)).unwrap();
+        assert_eq!(result, "30 days");
+    }
+
+    // ── Pure function tests: format_date_short_fn ──
+    #[test]
+    fn format_date_short_basic() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let result = super::format_date_short_fn(d);
+        assert!(result.contains("Jun"));
+        assert!(result.contains("15"));
+    }
+
+    #[test]
+    fn format_date_short_january() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let result = super::format_date_short_fn(d);
+        assert!(result.contains("Jan"));
+        assert!(result.contains("1"));
+    }
+
+    #[test]
+    fn format_date_short_december() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
+        let result = super::format_date_short_fn(d);
+        assert!(result.contains("Dec"));
+        assert!(result.contains("31"));
+    }
+
+    // ── Pure function tests: is_overdue_fn ──
+    #[test]
+    fn is_overdue_past_date() {
+        let yesterday = Local::now().date_naive() - Days::new(1);
+        assert!(super::is_overdue_fn(yesterday));
+    }
+
+    #[test]
+    fn is_overdue_today_is_not_overdue() {
+        let today = Local::now().date_naive();
+        assert!(!super::is_overdue_fn(today));
+    }
+
+    #[test]
+    fn is_overdue_future_date() {
+        let tomorrow = Local::now().date_naive() + Days::new(1);
+        assert!(!super::is_overdue_fn(tomorrow));
+    }
+
+    #[test]
+    fn is_overdue_far_past() {
+        let far_past = Local::now().date_naive() - Days::new(365);
+        assert!(super::is_overdue_fn(far_past));
+    }
+
+    // ── Pure function tests: is_today_fn ──
+    #[test]
+    fn is_today_actual_today() {
+        let today = Local::now().date_naive();
+        assert!(super::is_today_fn(today));
+    }
+
+    #[test]
+    fn is_today_yesterday_is_not() {
+        let yesterday = Local::now().date_naive() - Days::new(1);
+        assert!(!super::is_today_fn(yesterday));
+    }
+
+    #[test]
+    fn is_today_tomorrow_is_not() {
+        let tomorrow = Local::now().date_naive() + Days::new(1);
+        assert!(!super::is_today_fn(tomorrow));
+    }
+
+    // ── Additional next_billing_days_text edge cases ──
+    #[test]
+    fn next_billing_days_text_yesterday() {
+        let yesterday = Local::now().date_naive() - Days::new(1);
+        assert_eq!(super::next_billing_days_text(Some(yesterday)), Some("Overdue".to_string()));
+    }
+
+    #[test]
+    fn next_billing_days_text_distant_past() {
+        let distant_past = Local::now().date_naive() - Days::new(100);
+        assert_eq!(super::next_billing_days_text(Some(distant_past)), Some("Overdue".to_string()));
+    }
+
+    #[test]
+    fn next_billing_days_text_two_days() {
+        let in_2_days = Local::now().date_naive() + Days::new(2);
+        let result = super::next_billing_days_text(Some(in_2_days)).unwrap();
+        assert_eq!(result, "2 days");
+    }
+
+    #[test]
+    fn next_billing_days_text_seven_days() {
+        let in_7_days = Local::now().date_naive() + Days::new(7);
+        let result = super::next_billing_days_text(Some(in_7_days)).unwrap();
+        assert_eq!(result, "7 days");
+    }
+
+    // ── Additional format_date_short_fn edge cases ──
+    #[test]
+    fn format_date_short_february_29() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
+        let result = super::format_date_short_fn(d);
+        assert!(result.contains("Feb"));
+        assert!(result.contains("29"));
+    }
+
+    #[test]
+    fn format_date_short_mid_year() {
+        let d = chrono::NaiveDate::from_ymd_opt(2024, 7, 4).unwrap();
+        let result = super::format_date_short_fn(d);
+        assert!(result.contains("Jul"));
+        assert!(result.contains("4"));
+    }
+
+    // ── Additional is_overdue edge cases ──
+    #[test]
+    fn is_overdue_distant_future_not() {
+        let far_future = Local::now().date_naive() + Days::new(365);
+        assert!(!super::is_overdue_fn(far_future));
     }
 }

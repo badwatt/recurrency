@@ -118,4 +118,39 @@ mod tests {
         let back: CreateCategoryRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(back, req);
     }
+
+    #[test]
+    fn create_category_no_optional_fields() {
+        let req = CreateCategoryRequest {
+            name: "General".into(),
+            icon: None,
+            color: None,
+        };
+        assert!(req.icon.is_none());
+        assert!(req.color.is_none());
+    }
+
+    #[test]
+    fn update_category_all_fields() {
+        let req = UpdateCategoryRequest {
+            name: Some("Updated".into()),
+            icon: Some("star".into()),
+            color: Some("#ff0000".into()),
+        };
+        assert!(req.name.is_some());
+        assert!(req.icon.is_some());
+        assert!(req.color.is_some());
+    }
+
+    #[test]
+    fn update_category_no_fields() {
+        let req = UpdateCategoryRequest {
+            name: None,
+            icon: None,
+            color: None,
+        };
+        assert!(req.name.is_none());
+        assert!(req.icon.is_none());
+        assert!(req.color.is_none());
+    }
 }

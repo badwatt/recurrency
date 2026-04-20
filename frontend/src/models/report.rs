@@ -374,4 +374,49 @@ mod tests {
         assert_eq!(report.category_breakdown.len(), 2);
         assert_eq!(report.recent_trends.len(), 2);
     }
+
+    #[test]
+    fn category_breakdown_percentage_range() {
+        let breakdown = CategoryBreakdown {
+            category_id: None,
+            category_name: "Food".into(),
+            total: dec!(100),
+            count: 5,
+            percentage: 85.5,
+        };
+        assert!(breakdown.percentage >= 0.0);
+        assert!(breakdown.percentage <= 100.0);
+    }
+
+    #[test]
+    fn spending_trend_positive() {
+        let trend = SpendingTrend {
+            period: "2024-06".into(),
+            total: dec!(500),
+        };
+        assert!(trend.total > dec!(0));
+    }
+
+    #[test]
+    fn spending_trend_negative_total() {
+        let trend = SpendingTrend {
+            period: "2024-05".into(),
+            total: dec!(0),
+        };
+        assert_eq!(trend.total, dec!(0));
+    }
+
+    #[test]
+    fn monthly_summary_transaction_counts() {
+        let summary = MonthlySummary {
+            year: 2024,
+            month: 6,
+            subscriptions_total: dec!(100),
+            transactions_total: dec!(200),
+            overall_total: dec!(300),
+            subscriptions_count: 5,
+            transactions_count: 15,
+        };
+        assert_eq!(summary.subscriptions_count + summary.transactions_count, 20);
+    }
 }

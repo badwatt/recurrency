@@ -494,4 +494,42 @@ mod tests {
             // Should not create any files
         }
     }
+
+    // ── Additional AuthState tests ──
+    #[test]
+    fn auth_state_eq_default() {
+        let state = AuthState::default();
+        let state2 = AuthState::default();
+        assert_eq!(state, state2);
+    }
+
+    #[test]
+    fn auth_state_set_authenticated_sets_fields() {
+        let mut state = AuthState::default();
+        let user = crate::models::auth::UserResponse {
+            id: uuid::Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: Some("Test".into()),
+            currency: "EUR".into(),
+            verified: true,
+        };
+        state.set_authenticated("test-token".into(), user, false);
+        assert_eq!(state.token, Some("test-token".into()));
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn auth_state_logout_clears_token() {
+        let mut state = AuthState::default();
+        let user = crate::models::auth::UserResponse {
+            id: uuid::Uuid::new_v4(),
+            email: "test@test.com".into(),
+            name: Some("Test".into()),
+            currency: "EUR".into(),
+            verified: true,
+        };
+        state.set_authenticated("test-token".into(), user, false);
+        state.logout();
+        assert!(state.token.is_none());
+    }
 }

@@ -195,4 +195,61 @@ mod tests {
         assert!(state.transactions.is_empty());
         assert!(state.error.is_none());
     }
+
+    // ── Additional TransactionsState tests ──
+    #[test]
+    fn transactions_state_default_values() {
+        let state = TransactionsState::default();
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+        assert!(state.transactions.is_empty());
+    }
+
+    #[test]
+    fn transactions_state_clone() {
+        let state = TransactionsState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn transactions_state_debug() {
+        let state = TransactionsState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("TransactionsState"));
+    }
+
+    #[test]
+    fn grouped_by_month_same_month_different_days() {
+        let mut state = TransactionsState::default();
+        state.transactions = vec![
+            make_txn("A", NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+            make_txn("B", NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+            make_txn("C", NaiveDate::from_ymd_opt(2024, 6, 30).unwrap()),
+        ];
+        let groups = state.grouped_by_month();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].1.len(), 3);
+    }
+
+    #[test]
+    fn set_error_replaces_previous_error() {
+        let mut state = TransactionsState::default();
+        state.set_error("first error".into());
+        assert_eq!(state.error, Some("first error".into()));
+        state.set_error("second error".into());
+        assert_eq!(state.error, Some("second error".into()));
+    }
+
+    #[test]
+    fn set_loading_then_data_then_error() {
+        let mut state = TransactionsState::default();
+        state.set_loading();
+        assert!(state.is_loading);
+        state.set_data(vec![make_txn("A", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        assert!(!state.is_loading);
+        state.set_error("fail".into());
+        assert!(!state.is_loading);
+        assert_eq!(state.error, Some("fail".into()));
+    }
 }

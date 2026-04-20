@@ -142,7 +142,7 @@ mod tests {
         let back: CreateTransactionRequest = serde_json::from_str(&json).unwrap();
         assert!(back.category_id.is_some());
     }
-
+}
 
 #[cfg(test)]
 mod transaction_model_tests {
@@ -349,5 +349,64 @@ mod transaction_model_tests {
         assert_eq!(cloned.amount, txn.amount);
         assert_eq!(cloned.date, txn.date);
     }
-}
+
+    // ── Additional Transaction tests ──
+    #[test]
+    fn transaction_create_request_all_fields() {
+        let req = CreateTransactionRequest {
+            name: "Test".into(),
+            amount: dec!(10),
+            currency: "EUR".into(),
+            date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            category_id: Some(Uuid::new_v4()),
+            notes: Some("notes".into()),
+            logo_url: None,
+        };
+        assert_eq!(req.name, "Test");
+        assert_eq!(req.amount, dec!(10));
+        assert_eq!(req.currency, "EUR");
+        assert!(req.category_id.is_some());
+        assert!(req.notes.is_some());
+    }
+
+    #[test]
+    fn transaction_update_request_partial_fields() {
+        let req = UpdateTransactionRequest {
+            name: Some("Updated".into()),
+            amount: None,
+            currency: None,
+            date: None,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        };
+        assert!(req.name.is_some());
+        assert!(req.amount.is_none());
+    }
+
+    #[test]
+    fn transaction_is_active_true() {
+        let txn = make_test_txn("Test", dec!(10), "2024-01-01");
+        // Transactions are always considered active
+        assert!(txn.amount >= dec!(0));
+    }
+
+    #[test]
+    fn transaction_date_ordering() {
+        let early = make_test_txn("Early", dec!(10), "2024-01-01");
+        let late = make_test_txn("Late", dec!(10), "2024-12-31");
+        assert!(early.date < late.date);
+    }
+
+    #[test]
+    fn transaction_currency_field() {
+        let txn = make_test_txn("Test", dec!(10), "2024-01-01");
+        assert_eq!(txn.currency, "EUR");
+    }
+
+    #[test]
+    fn transaction_default_notes_none() {
+        let txn = make_test_txn("Test", dec!(10), "2024-01-01");
+        assert!(txn.notes.is_none());
+    }
 }

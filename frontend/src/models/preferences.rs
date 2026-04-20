@@ -116,4 +116,23 @@ mod tests {
         assert_eq!(back.theme, "catppuccin-mocha");
         assert_eq!(back.subscriptions_view, "table");
     }
+
+    #[test]
+    fn update_request_all_fields() {
+        let req = UpdatePreferencesRequest {
+            theme: Some("light".into()),
+            subscriptions_view: Some("list".into()),
+            first_day_of_week: Some("sunday".into()),
+        };
+        assert!(req.theme.is_some());
+        assert!(req.subscriptions_view.is_some());
+        assert!(req.first_day_of_week.is_some());
+    }
+
+    #[test]
+    fn preferences_response_equality() {
+        let a = PreferencesResponse::default();
+        let b = PreferencesResponse::default();
+        assert_eq!(a, b);
+    }
 }

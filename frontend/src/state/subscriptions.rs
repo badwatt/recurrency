@@ -369,4 +369,76 @@ mod tests {
         let due = state.due_this_month();
         assert!(due.is_empty());
     }
+
+    // ── Additional SubscriptionsState tests ──
+    #[test]
+    fn subscriptions_state_default_values() {
+        let state = SubscriptionsState::default();
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+        assert!(state.subscriptions.is_empty());
+    }
+
+    #[test]
+    fn subscriptions_state_clone() {
+        let state = SubscriptionsState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn subscriptions_state_debug() {
+        let state = SubscriptionsState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("SubscriptionsState"));
+    }
+
+    #[test]
+    fn monthly_total_with_no_active() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("A", dec!(10), "monthly", false, None),
+            make_sub("B", dec!(20), "monthly", false, None),
+        ];
+        assert_eq!(state.monthly_total(), dec!(0));
+    }
+
+    #[test]
+    fn active_returns_correct_count() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("A", dec!(10), "monthly", true, None),
+            make_sub("B", dec!(20), "monthly", false, None),
+            make_sub("C", dec!(30), "monthly", true, None),
+        ];
+        assert_eq!(state.active().len(), 2);
+    }
+
+    #[test]
+    fn set_error_replaces_previous() {
+        let mut state = SubscriptionsState::default();
+        state.set_error("first".into());
+        state.set_error("second".into());
+        assert_eq!(state.error, Some("second".into()));
+    }
+
+    #[test]
+    fn set_data_then_set_error() {
+        let mut state = SubscriptionsState::default();
+        state.set_data(vec![make_sub("A", dec!(10), "monthly", true, None)]);
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+        state.set_error("fail".into());
+        assert!(!state.is_loading);
+        assert_eq!(state.error, Some("fail".into()));
+    }
+
+    #[test]
+    fn yearly_total_with_no_active() {
+        let mut state = SubscriptionsState::default();
+        state.subscriptions = vec![
+            make_sub("A", dec!(10), "monthly", false, None),
+        ];
+        assert_eq!(state.yearly_total(), dec!(0));
+    }
 }

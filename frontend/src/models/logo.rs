@@ -64,4 +64,20 @@ mod tests {
         assert_eq!(back.results.len(), 3);
         assert_eq!(back.results[1].name, "Spotify");
     }
+
+    #[test]
+    fn logo_result_name_and_url() {
+        let result = LogoResult {
+            name: "Netflix".into(),
+            url: "https://logo.com/n.png".into(),
+        };
+        assert_eq!(result.name, "Netflix");
+        assert!(result.url.starts_with("https://"));
+    }
+
+    #[test]
+    fn logo_search_response_empty() {
+        let resp = LogoSearchResponse { results: vec![] };
+        assert!(resp.results.is_empty());
+    }
 }

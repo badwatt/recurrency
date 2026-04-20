@@ -190,4 +190,52 @@ mod tests {
         assert!(THEMES.contains(&"mocha"));
         assert!(THEMES.contains(&"system"));
     }
+
+    // ── Extended cycle_theme tests ──
+    #[test]
+    fn cycle_theme_returns_valid_theme() {
+        for theme in ["light", "dark", "mocha", "system", "unknown", ""] {
+            let next = cycle_theme(theme);
+            assert!(THEMES.contains(&next), "cycle_theme({:?}) = {:?}, not in THEMES", theme, next);
+        }
+    }
+
+    #[test]
+    fn cycle_theme_full_loop() {
+        let mut current = "light";
+        let mut seen = vec![current];
+        for _ in 0..3 {
+            current = cycle_theme(current);
+            seen.push(current);
+        }
+        // After 4 cycles (including initial), we should be back to light
+        let final_theme = cycle_theme(current);
+        assert_eq!(final_theme, "light");
+        assert_eq!(seen, vec!["light", "dark", "mocha", "system"]);
+    }
+
+    // ── Extended resolve_theme_class tests ──
+    #[test]
+    fn resolve_theme_class_all_valid() {
+        for theme in ["light", "dark", "mocha"] {
+            let resolved = resolve_theme_class(theme);
+            assert_eq!(resolved, theme, "resolve_theme_class({:?}) should equal {:?}", theme, theme);
+        }
+    }
+
+    #[test]
+    fn resolve_theme_class_various_invalid() {
+        for invalid in ["", "foo", "bar", "DARK", "Light", "SYSTEM"] {
+            assert_eq!(resolve_theme_class(invalid), "light",
+                "resolve_theme_class({:?}) should default to light", invalid);
+        }
+    }
+
+    #[test]
+    fn themes_no_duplicates() {
+        let mut seen = std::collections::HashSet::new();
+        for theme in THEMES {
+            assert!(seen.insert(*theme), "duplicate theme: {:?}", theme);
+        }
+    }
 }

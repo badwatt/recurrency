@@ -247,4 +247,49 @@ mod tests {
         state.set_first_day_of_week("sunday".into());
         assert_eq!(state.first_day_of_week(), "sunday");
     }
+
+    // ── Additional PreferencesState tests ──
+    #[test]
+    fn preferences_state_debug() {
+        let state = PreferencesState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("PreferencesState"));
+    }
+
+    #[test]
+    fn preferences_state_default_not_loading() {
+        let state = PreferencesState::default();
+        assert!(!state.is_loading);
+        assert!(!state.initialized);
+    }
+
+    #[test]
+    fn preferences_state_theme_cycle() {
+        let mut state = PreferencesState::default();
+        assert_eq!(state.theme(), "system");
+        state.set_theme("light".into());
+        assert_eq!(state.theme(), "light");
+        state.set_theme("dark".into());
+        assert_eq!(state.theme(), "dark");
+        state.set_theme("mocha".into());
+        assert_eq!(state.theme(), "mocha");
+        state.set_theme("system".into());
+        assert_eq!(state.theme(), "system");
+    }
+
+    #[test]
+    fn preferences_state_set_data_marks_initialized() {
+        let mut state = PreferencesState::default();
+        assert!(!state.initialized);
+        state.set_data(PreferencesResponse::default());
+        assert!(state.initialized);
+    }
+
+    #[test]
+    fn preferences_response_default_values() {
+        let resp = PreferencesResponse::default();
+        assert_eq!(resp.theme, "system");
+        assert_eq!(resp.subscriptions_view, "grid");
+        assert_eq!(resp.first_day_of_week, "monday");
+    }
 }

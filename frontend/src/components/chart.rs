@@ -517,4 +517,88 @@ mod tests {
             assert_eq!(color.len(), 7);
         }
     }
+
+    // ── Additional compute_donut_segments tests ──
+    #[test]
+    fn donut_segments_equal_values() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 33.33, color: "#f00".into() },
+            DonutData { label: "B".into(), value: 33.33, color: "#0f0".into() },
+            DonutData { label: "C".into(), value: 33.34, color: "#00f".into() },
+        ];
+        let total: f64 = data.iter().map(|d| d.value).sum();
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        assert_eq!(segs.len(), 3);
+        // Each segment approx 1/3 of circumference, minus gap
+        let per_seg = circ / 3.0;
+        for seg in &segs {
+            assert!((seg.dash_len - (per_seg - 2.0)).abs() < 5.0, "segment len should be ~{}", per_seg - 2.0);
+        }
+    }
+
+    #[test]
+    fn donut_segments_cumulative_offsets() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 70.0, color: "#f00".into() },
+            DonutData { label: "B".into(), value: 20.0, color: "#0f0".into() },
+            DonutData { label: "C".into(), value: 10.0, color: "#00f".into() },
+        ];
+        let total: f64 = 100.0;
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        // Offsets should be cumulative: 0, 70% * circ, 90% * circ
+        assert!((segs[0].offset - 0.0).abs() < 0.01);
+        assert!((segs[1].offset - 0.7 * circ).abs() < 0.01);
+        assert!((segs[2].offset - 0.9 * circ).abs() < 0.01);
+    }
+
+    #[test]
+    fn donut_segments_no_gap_single_item() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 100.0, color: "#f00".into() },
+        ];
+        let total: f64 = 100.0;
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        assert_eq!(segs.len(), 1);
+        // Single item: full circumference, no gap
+        assert!((segs[0].dash_len - circ).abs() < 0.01);
+    }
+
+    #[test]
+    fn donut_segments_many_items() {
+        let data: Vec<DonutData> = (0..10).map(|i| {
+            DonutData { label: format!("{}", i), value: 10.0, color: "#f00".into() }
+        }).collect();
+        let total: f64 = 100.0;
+        let circ = 2.0 * std::f64::consts::PI * 40.0;
+        let segs = compute_donut_segments(&data, total, circ);
+        assert_eq!(segs.len(), 10);
+    }
+
+    // ── Additional palette_color tests ──
+    #[test]
+    fn palette_color_sequential() {
+        let expected = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
+                       "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16",
+                       "#e11d48", "#64748b"];
+        for (i, &expected_color) in expected.iter().enumerate() {
+            assert_eq!(palette_color(i), expected_color, "palette_color({}) should be {}", i, expected_color);
+        }
+    }
+
+    #[test]
+    fn palette_color_wrap_around() {
+        // After 12 colors, it wraps
+        for i in 0..12 {
+            assert_eq!(palette_color(i + 12), palette_color(i),
+                "palette_color({}) should equal palette_color({})", i + 12, i);
+        }
+    }
+
+    #[test]
+    fn palette_color_large_index() {
+        assert_eq!(palette_color(1000), palette_color(1000 % 12));
+    }
 }

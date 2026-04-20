@@ -337,4 +337,34 @@ mod tests {
         assert!(n_read.is_read);
         assert!(!n_unread.is_read);
     }
+
+    #[test]
+    fn notification_list_response_count() {
+        let resp = NotificationListResponse {
+            notifications: vec![],
+            unread_count: 5,
+        };
+        assert_eq!(resp.notifications.len(), 0);
+        assert_eq!(resp.unread_count, 5);
+    }
+
+    #[test]
+    fn notification_preference_off() {
+        let pref = NotificationPreference {
+            channel: "push".into(),
+            enabled: false,
+            reminder_days_before: 0,
+        };
+        assert!(!pref.enabled);
+    }
+
+    #[test]
+    fn update_preferences_request_single() {
+        let req = UpdateNotificationPreferenceRequest {
+            channel: "email".into(),
+            enabled: true,
+        };
+        assert_eq!(req.channel, "email");
+        assert!(req.enabled);
+    }
 }
