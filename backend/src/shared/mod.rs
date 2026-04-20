@@ -7,6 +7,7 @@ pub mod date_utils;
 pub mod db;
 pub mod error;
 pub mod password_utils;
+pub mod app_state;
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;

@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::auth::service::AuthService;
 use crate::demo::service::DemoService;
 use crate::shared::auth_extractor::extract_token_from_request;
+use crate::shared::app_state::AppState;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
 use crate::shared::OptionalQuery;
@@ -61,7 +62,7 @@ pub async fn status() -> AppResult<Json<serde_json::Value>> {
     })))
 }
 
-pub async fn init(State(pool): State<PgPool>) -> AppResult<Json<serde_json::Value>> {
+pub async fn init(State(state): State<AppState>) -> AppResult<Json<serde_json::Value>> {
     if !is_demo_enabled() {
         return Err(AppError::BadRequest("Demo mode is not enabled".to_string()));
     }
@@ -84,7 +85,7 @@ pub async fn init(State(pool): State<PgPool>) -> AppResult<Json<serde_json::Valu
     .bind(Uuid::new_v4())
     .bind(&email)
     .bind(&hash)
-    .execute(&pool)
+    .execute(&state.pool)
     .await
     .map_err(|e| AppError::Internal(format!("Failed to init demo user: {}", e)))?;
 
@@ -100,7 +101,7 @@ pub struct DemoQuery {
 }
 
 pub async fn reset(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<DemoQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
@@ -110,7 +111,7 @@ pub async fn reset(
 
     let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
-    match DemoService::reset_demo_data(&pool, claims.sub).await {
+    match DemoService::reset_demo_data(&state.pool, claims.sub).await {
         Ok(()) => Ok(Json(serde_json::json!({
             "success": true,
             "message": "Demo data has been reset successfully"

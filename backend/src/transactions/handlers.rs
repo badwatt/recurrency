@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::auth::service::AuthService;
+use crate::shared::app_state::AppState;
 use crate::shared::error::AppResult;
 use crate::transactions::models::{CreateTransactionRequest, TransactionResponse, UpdateTransactionRequest};
 use crate::transactions::service::TransactionService;
@@ -22,45 +23,45 @@ pub struct DateRangeQuery {
 }
 
 pub async fn create(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
     Json(req): Json<CreateTransactionRequest>,
 ) -> AppResult<(StatusCode, Json<TransactionResponse>)> {
     let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
-    let transaction = TransactionService::create(&pool, claims.sub, req).await?;
+    let transaction = TransactionService::create(&state.pool, claims.sub, req).await?;
 
     Ok((StatusCode::CREATED, Json(transaction.into())))
 }
 
 pub async fn list(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
     let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
-    let transactions = TransactionService::get_all(&pool, claims.sub).await?;
+    let transactions = TransactionService::get_all(&state.pool, claims.sub).await?;
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }
 
 pub async fn get(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<TransactionResponse>> {
     let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
-    let transaction = TransactionService::get_by_id(&pool, claims.sub, id).await?;
+    let transaction = TransactionService::get_by_id(&state.pool, claims.sub, id).await?;
 
     Ok(Json(transaction.into()))
 }
 
 pub async fn update(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
@@ -68,26 +69,26 @@ pub async fn update(
 ) -> AppResult<Json<TransactionResponse>> {
     let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
-    let transaction = TransactionService::update(&pool, claims.sub, id, req).await?;
+    let transaction = TransactionService::update(&state.pool, claims.sub, id, req).await?;
 
     Ok(Json(transaction.into()))
 }
 
 pub async fn delete(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
     let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
 
-    TransactionService::delete(&pool, claims.sub, id).await?;
+    TransactionService::delete(&state.pool, claims.sub, id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn by_date_range(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<DateRangeQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
@@ -103,7 +104,7 @@ pub async fn by_date_range(
         .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::Utc::now().date_naive());
 
-    let transactions = TransactionService::get_by_date_range(&pool, claims.sub, from_date, to_date).await?;
+    let transactions = TransactionService::get_by_date_range(&state.pool, claims.sub, from_date, to_date).await?;
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }

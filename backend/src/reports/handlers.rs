@@ -10,6 +10,7 @@ use crate::auth::service::AuthService;
 use crate::reports::models::ReportResponse;
 use crate::reports::service::ReportService;
 use crate::shared::auth_extractor::extract_token_from_request;
+use crate::shared::app_state::AppState;
 use crate::shared::error::AppResult;
 use crate::shared::OptionalQuery;
 
@@ -21,7 +22,7 @@ pub struct ReportQuery {
 }
 
 pub async fn get_report(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<ReportQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<ReportResponse>> {
@@ -31,7 +32,7 @@ pub async fn get_report(
     let year = query.as_ref().and_then(|q| q.year).unwrap_or(today.year());
     let month = query.as_ref().and_then(|q| q.month).unwrap_or(today.month());
 
-    let report = ReportService::get_full_report(&pool, claims.sub, year, month).await;
+    let report = ReportService::get_full_report(&state.pool, claims.sub, year, month).await;
 
     Ok(Json(report))
 }
