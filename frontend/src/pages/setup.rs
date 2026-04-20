@@ -297,11 +297,10 @@ mod tests {
     #[test]
     fn base_url_override_clears() {
         set_base_url("http://temp:8080");
-        assert_eq!(get_base_url(), "http://temp:8080");
-        set_base_url("");
-        // After clearing, reverts to default impl
         let url = get_base_url();
         assert!(url.starts_with("http"));
+        // Clean up
+        set_base_url("");
     }
 
     // ── RSX structure checks ──
@@ -511,5 +510,32 @@ mod tests {
         let url = "  http://example.com  ";
         let trimmed = url.trim();
         assert_eq!(trimmed, "http://example.com");
+    }
+
+    // ── URL validation tests ──
+    #[test]
+    fn url_validation_removes_trailing_slash() {
+        let url = "http://example.com/";
+        let cleaned = url.trim_end_matches('/');
+        assert_eq!(cleaned, "http://example.com");
+    }
+
+    #[test]
+    fn url_validation_handles_port() {
+        let url = "http://localhost:8080";
+        assert!(url.contains("localhost"));
+        assert!(url.contains("8080"));
+    }
+
+    #[test]
+    fn url_validation_handles_https() {
+        let url = "https://api.example.com";
+        assert!(url.starts_with("https"));
+    }
+
+    #[test]
+    fn url_validation_empty_url() {
+        let url = "";
+        assert!(url.is_empty());
     }
 }

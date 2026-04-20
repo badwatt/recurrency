@@ -516,4 +516,33 @@ mod tests {
                 name);
         }
     }
+
+    // ── Additional dashboard page structure tests ──
+    #[test]
+    fn dashboard_uses_state_subscriptions() {
+        let src = include_str!("dashboard.rs");
+        assert!(src.contains("SUBSCRIPTIONS") || src.contains("subscriptions"),
+            "Dashboard should use subscriptions state");
+    }
+
+    #[test]
+    fn dashboard_uses_auth_state() {
+        let src = include_str!("dashboard.rs");
+        assert!(src.contains("AUTH") || src.contains("auth"),
+            "Dashboard should use auth state");
+    }
+
+    #[test]
+    fn dashboard_uses_currency_format() {
+        let src = include_str!("dashboard.rs");
+        assert!(src.contains("format_currency") || src.contains("currency"),
+            "Dashboard should format currencies");
+    }
+
+    #[test]
+    fn dashboard_has_svg_icons() {
+        let src = include_str!("dashboard.rs");
+        assert!(src.contains("svg"),
+            "Dashboard should use SVG icons");
+    }
 }

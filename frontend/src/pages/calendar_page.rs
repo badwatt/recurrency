@@ -1735,6 +1735,5 @@ mod tests {
         // Unknown frequency: should return the input or a default
         assert!(!result.is_empty(), "format_frequency should never return empty string");
     }
-
 }
 

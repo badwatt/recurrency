@@ -39,8 +39,42 @@ mod tests {
     }
 
     #[test]
+    fn currencies_contains_all_expected() {
+        let codes: Vec<&str> = CURRENCIES.iter().map(|(k, _)| *k).collect();
+        assert!(codes.contains(&"EUR"));
+        assert!(codes.contains(&"USD"));
+        assert!(codes.contains(&"GBP"));
+        assert!(codes.contains(&"JPY"));
+        assert!(codes.contains(&"CAD"));
+        assert!(codes.contains(&"AUD"));
+    }
+
+    #[test]
+    fn currencies_labels_match_codes() {
+        for (code, label) in CURRENCIES {
+            assert!(label.contains(code));
+        }
+    }
+
+    #[test]
     fn frequencies_count() {
         assert_eq!(FREQUENCIES.len(), 4);
+    }
+
+    #[test]
+    fn frequencies_contains_all_expected() {
+        let freqs: Vec<&str> = FREQUENCIES.iter().map(|(k, _)| *k).collect();
+        assert!(freqs.contains(&"weekly"));
+        assert!(freqs.contains(&"monthly"));
+        assert!(freqs.contains(&"quarterly"));
+        assert!(freqs.contains(&"yearly"));
+    }
+
+    #[test]
+    fn frequencies_labels_capitalized() {
+        for (_, label) in FREQUENCIES {
+            assert!(label.chars().next().unwrap().is_uppercase());
+        }
     }
 
     #[test]
@@ -52,5 +86,10 @@ mod tests {
     fn currency_labels() {
         assert_eq!(CURRENCIES[0].1, "EUR (€)");
         assert_eq!(CURRENCIES[1].1, "USD ($)");
+    }
+
+    #[test]
+    fn app_version_is_set() {
+        assert!(!APP_VERSION.is_empty());
     }
 }

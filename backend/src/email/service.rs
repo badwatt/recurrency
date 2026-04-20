@@ -265,4 +265,51 @@ mod tests {
         std::env::remove_var("SMTP_PASSWORD");
         std::env::remove_var("SMTP_PORT");
     }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_send_verification_email_no_config() {
+        // Clear SMTP config
+        std::env::remove_var("SMTP_HOST");
+        std::env::remove_var("SMTP_USER");
+        std::env::remove_var("SMTP_PASSWORD");
+        let result = send_verification_email("test@example.com", "123456").await;
+        assert!(result.is_err(), "Should fail without SMTP config");
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("SMTP not configured"), "Error should mention SMTP config");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_send_verification_email_invalid_to_address() {
+        // Set SMTP config but use invalid email address
+        std::env::set_var("SMTP_HOST", "smtp.test.com");
+        std::env::set_var("SMTP_USER", "test@test.com");
+        std::env::set_var("SMTP_PASSWORD", "pass");
+        let result = send_verification_email("not-an-email", "123456").await;
+        assert!(result.is_err(), "Should fail with invalid email");
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("Invalid to address"), "Error should mention invalid to address");
+        std::env::remove_var("SMTP_HOST");
+        std::env::remove_var("SMTP_USER");
+        std::env::remove_var("SMTP_PASSWORD");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_send_verification_email_invalid_from_address() {
+        // Set SMTP config with invalid from address
+        std::env::set_var("SMTP_HOST", "smtp.test.com");
+        std::env::set_var("SMTP_USER", "test@test.com");
+        std::env::set_var("SMTP_PASSWORD", "pass");
+        std::env::set_var("SMTP_FROM", "invalid from addr");
+        let result = send_verification_email("valid@example.com", "123456").await;
+        assert!(result.is_err(), "Should fail with invalid from address");
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("Invalid from address"), "Error should mention invalid from address");
+        std::env::remove_var("SMTP_HOST");
+        std::env::remove_var("SMTP_USER");
+        std::env::remove_var("SMTP_PASSWORD");
+        std::env::remove_var("SMTP_FROM");
+    }
 }

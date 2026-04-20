@@ -735,5 +735,38 @@ mod tests {
         assert_eq!(response.user.currency, "CHF");
     }
 
+    // ── SettingsResponse additional tests ──
+    #[test]
+    fn settings_response_user_name() {
+        use crate::models::auth::{SettingsResponse, UserResponse};
+        use uuid::Uuid;
+        
+        let response = SettingsResponse {
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "test@test.com".into(),
+                name: Some("John Doe".into()),
+                currency: "EUR".into(),
+                verified: true,
+            },
+        };
+        assert_eq!(response.user.name.as_deref(), Some("John Doe"));
+    }
 
+    #[test]
+    fn settings_response_user_verified() {
+        use crate::models::auth::{SettingsResponse, UserResponse};
+        use uuid::Uuid;
+        
+        let response = SettingsResponse {
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "test@test.com".into(),
+                name: None,
+                currency: "USD".into(),
+                verified: false,
+            },
+        };
+        assert!(!response.user.verified);
+    }
 }

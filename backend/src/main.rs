@@ -75,7 +75,8 @@ use shared::app_state::AppState;
         .route("/health", get(health_check))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
-        .route("/api/auth/verify", post(auth::handlers::verify))
+        .route("/api/auth/verify", get(auth::handlers::verify))
+        .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))
         .route("/api/auth/resend-verification", post(auth::handlers::resend_verification))
         .route("/api/settings", get(auth::handlers::get_settings))
@@ -143,7 +144,7 @@ mod tests {
         async fn test_handler() -> &'static str {
             "OK"
         }
-        
+
         let app = Router::new()
             .route("/health", get(test_handler));
 
@@ -164,5 +165,100 @@ mod tests {
             .allow_methods(Any)
             .allow_headers(Any);
         assert!(true);
+    }
+
+    #[test]
+    fn cors_layer_allow_credentials() {
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+            .allow_credentials(true);
+        assert!(true); // Layer creation succeeds
+    }
+
+    #[test]
+    fn cors_layer_expose_headers() {
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .expose_headers(Any);
+        assert!(true);
+    }
+
+    #[tokio::test]
+    async fn router_rejects_unknown_routes() {
+        // Test that the router returns NOT_FOUND for unknown routes
+        // We use a minimal router to test the pattern
+        let app = Router::new()
+            .route("/health", get(|| async { "OK" }));
+
+        let req = Request::builder()
+            .method("GET")
+            .uri("/unknown-route")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn router_multiple_methods_same_path() {
+        // Test that GET and POST on same path are distinct
+        let app = Router::new()
+            .route("/api/items", get(|| async { "GET" }))
+            .route("/api/items", post(|| async { "POST" }));
+
+        let get_req = Request::builder()
+            .method("GET")
+            .uri("/api/items")
+            .body(Body::empty())
+            .unwrap();
+        let get_resp = app.clone().oneshot(get_req).await.unwrap();
+        assert_eq!(get_resp.status(), StatusCode::OK);
+
+        let post_req = Request::builder()
+            .method("POST")
+            .uri("/api/items")
+            .body(Body::empty())
+            .unwrap();
+        let post_resp = app.oneshot(post_req).await.unwrap();
+        assert_eq!(post_resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn router_path_parameters() {
+        let app = Router::new()
+            .route("/api/items/{id}", get(|axum::extract::Path(id): axum::extract::Path<String>| async move {
+                id
+            }));
+
+        let req = Request::builder()
+            .method("GET")
+            .uri("/api/items/123")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
+        assert_eq!(&body[..], b"123");
+    }
+
+    #[tokio::test]
+    async fn router_query_parameters() {
+        async fn handler(query: axum::extract::Query<std::collections::HashMap<String, String>>) -> axum::Json<serde_json::Value> {
+            axum::Json(serde_json::json!({"q": query.0.get("q").cloned().unwrap_or_default()}))
+        }
+
+        let app = Router::new()
+            .route("/api/search", get(handler));
+
+        let req = Request::builder()
+            .method("GET")
+            .uri("/api/search?q=test")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }

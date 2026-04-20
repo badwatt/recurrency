@@ -2605,4 +2605,114 @@ mod dialog_form_tests {
         assert!(form.amount.is_empty());
         assert!(form.currency.is_empty());
     }
+
+    // ── DialogForm additional tests ──
+    #[test]
+    fn dialog_form_debug_extended() {
+        let form = DialogForm::default();
+        let debug = format!("{:?}", form);
+        assert!(debug.contains("DialogForm"));
+    }
+
+    #[test]
+    fn dialog_form_name_set() {
+        let mut form = DialogForm::default();
+        form.name = "Spotify".into();
+        assert_eq!(form.name, "Spotify");
+    }
+
+    #[test]
+    fn dialog_form_amount_set() {
+        let mut form = DialogForm::default();
+        form.amount = "9.99".into();
+        assert_eq!(form.amount, "9.99");
+    }
+
+    #[test]
+    fn dialog_form_currency_set() {
+        let mut form = DialogForm::default();
+        form.currency = "USD".into();
+        assert_eq!(form.currency, "USD");
+    }
+
+    #[test]
+    fn dialog_form_frequency_set() {
+        let mut form = DialogForm::default();
+        form.frequency = "yearly".into();
+        assert_eq!(form.frequency, "yearly");
+    }
+
+    #[test]
+    fn dialog_form_start_date_set() {
+        let mut form = DialogForm::default();
+        form.start_date = "2024-06-15".into();
+        assert_eq!(form.start_date, "2024-06-15");
+    }
+
+    #[test]
+    fn dialog_form_category_id_set() {
+        let mut form = DialogForm::default();
+        form.category_id = "cat-id-123".into();
+        assert_eq!(form.category_id, "cat-id-123");
+    }
+
+    #[test]
+    fn dialog_form_notes_set() {
+        let mut form = DialogForm::default();
+        form.notes = "Monthly payment".into();
+        assert_eq!(form.notes, "Monthly payment");
+    }
+
+    #[test]
+    fn dialog_form_logo_url_set() {
+        let mut form = DialogForm::default();
+        form.logo_url = "https://logo.com/spotify.png".into();
+        assert_eq!(form.logo_url, "https://logo.com/spotify.png");
+    }
+
+    #[test]
+    fn dialog_form_multiple_fields() {
+        let form = DialogForm {
+            name: "Netflix".into(),
+            amount: "15.99".into(),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            start_date: "2024-01-01".into(),
+            category_id: "cat-123".into(),
+            notes: "Family plan".into(),
+            logo_url: "netflix.png".into(),
+        };
+        assert_eq!(form.name, "Netflix");
+        assert_eq!(form.amount, "15.99");
+        assert_eq!(form.currency, "EUR");
+        assert_eq!(form.frequency, "monthly");
+        assert_eq!(form.start_date, "2024-01-01");
+        assert_eq!(form.category_id, "cat-123");
+        assert_eq!(form.notes, "Family plan");
+        assert_eq!(form.logo_url, "netflix.png");
+    }
+
+    #[test]
+    fn dialog_form_empty_notes() {
+        let form = DialogForm::default();
+        assert!(form.notes.is_empty());
+    }
+
+    #[test]
+    fn dialog_form_empty_logo_url() {
+        let form = DialogForm::default();
+        assert!(form.logo_url.is_empty());
+    }
+
+    #[test]
+    fn dialog_form_clone_independent() {
+        let mut form = DialogForm::default();
+        form.name = "Spotify".into();
+        let cloned = form.clone();
+        assert_eq!(cloned.name, "Spotify");
+        // Modify original
+        form.name = "Netflix".into();
+        // Cloned should still have old value
+        assert_eq!(cloned.name, "Spotify");
+    }
 }

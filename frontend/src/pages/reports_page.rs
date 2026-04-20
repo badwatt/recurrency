@@ -827,4 +827,62 @@ mod tests {
         };
         assert_eq!(report.monthly_summary.year, 2024);
     }
+
+    // ── build_csv tests ──
+    #[test]
+    fn build_csv_empty_report() {
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 6,
+                subscriptions_total: dec!(0),
+                transactions_total: dec!(0),
+                overall_total: dec!(0),
+                subscriptions_count: 0,
+                transactions_count: 0,
+            },
+            category_breakdown: vec![],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        // CSV should be non-empty
+        assert!(!csv.is_empty());
+    }
+
+    #[test]
+    fn build_csv_with_breakdown() {
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2024,
+                month: 6,
+                subscriptions_total: dec!(100),
+                transactions_total: dec!(50),
+                overall_total: dec!(150),
+                subscriptions_count: 5,
+                transactions_count: 3,
+            },
+            category_breakdown: vec![
+                CategoryBreakdown {
+                    category_id: Some("cat-1".into()),
+                    category_name: "Entertainment".into(),
+                    total: dec!(100),
+                    count: 5,
+                    percentage: 66.67,
+                },
+                CategoryBreakdown {
+                    category_id: Some("cat-2".into()),
+                    category_name: "Food".into(),
+                    total: dec!(50),
+                    count: 3,
+                    percentage: 33.33,
+                },
+            ],
+            recent_trends: vec![],
+        };
+        let csv = build_csv(&report);
+        // CSV should contain data
+        assert!(!csv.is_empty());
+    }
+
+    // Tests for category_style_by_name would require mock categories - skipped
 }

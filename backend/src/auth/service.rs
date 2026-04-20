@@ -616,4 +616,113 @@ mod tests {
         fn accepts_service(_: SqlxAuthService) {}
         assert!(true);
     }
+
+    // verify_token_internal - expired token
+    #[test]
+    fn verify_token_expired_fails() {
+        use jsonwebtoken::{encode, Header, EncodingKey, Validation};
+        use chrono::Duration;
+
+        let uid = Uuid::new_v4();
+        let past = Utc::now() - Duration::hours(25 * 7);
+        let claims = Claims {
+            sub: uid,
+            email: "expired@test.com".to_string(),
+            exp: past.timestamp() as usize,
+            iat: past.timestamp() as usize,
+        };
+        let secret = get_jwt_secret();
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)).unwrap();
+        let result = verify_token_internal(&token);
+        assert!(result.is_err(), "Expired token should fail verification");
+    }
+
+    // verify_token_internal - wrong secret
+    #[test]
+    fn verify_token_wrong_secret_fails() {
+        use jsonwebtoken::{encode, Header, EncodingKey};
+
+        let uid = Uuid::new_v4();
+        let future = Utc::now() + Duration::hours(24);
+        let claims = Claims {
+            sub: uid,
+            email: "wrong@test.com".to_string(),
+            exp: future.timestamp() as usize,
+            iat: future.timestamp() as usize,
+        };
+        // Encode with wrong secret
+        let wrong_secret = b"wrong_secret_key";
+        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(wrong_secret)).unwrap();
+        let result = verify_token_internal(&token);
+        assert!(result.is_err(), "Token with wrong secret should fail");
+    }
+
+    // verify_token_internal - malformed token
+    #[test]
+    fn verify_token_malformed_string() {
+        let result = verify_token_internal("not-even-close");
+        assert!(result.is_err());
+    }
+
+    // verify_password - hash with invalid format
+    #[test]
+    fn verify_password_completely_invalid_hash() {
+        let result = verify_password("password", "x");
+        assert!(result.is_err());
+    }
+
+    // generate_token - special characters in email
+    #[test]
+    fn generate_token_special_email() {
+        let user = User {
+            id: Uuid::new_v4(),
+            email: "user+tag@domain.co.uk".to_string(),
+            password_hash: "hash".to_string(),
+            name: Some("Special Email User".to_string()),
+            currency: "EUR".to_string(),
+            verified: true,
+            verification_code: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let token = generate_token(&user).unwrap();
+        let claims = verify_token_internal(&token).unwrap();
+        assert_eq!(claims.email, "user+tag@domain.co.uk");
+    }
+
+    // Claims structure
+    #[test]
+    fn claims_creation() {
+        let uid = Uuid::new_v4();
+        let claims = Claims {
+            sub: uid,
+            email: "claims@test.com".to_string(),
+            exp: 9999999999,
+            iat: 1000000000,
+        };
+        assert_eq!(claims.sub, uid);
+        assert_eq!(claims.email, "claims@test.com");
+        assert!(claims.exp > claims.iat);
+    }
+
+    // UserResponse from User
+    #[test]
+    fn user_response_from_user() {
+        let user = User {
+            id: Uuid::new_v4(),
+            email: "response@test.com".to_string(),
+            password_hash: "secret".to_string(),
+            name: None,
+            currency: "JPY".to_string(),
+            verified: false,
+            verification_code: Some("654321".to_string()),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let response: UserResponse = user.into();
+        assert_eq!(response.email, "response@test.com");
+        assert!(response.name.is_none());
+        assert_eq!(response.currency, "JPY");
+        assert!(!response.verified);
+    }
 }

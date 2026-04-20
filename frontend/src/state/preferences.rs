@@ -203,4 +203,48 @@ mod tests {
         state.set_theme("system".into());
         assert_eq!(state.theme(), "system");
     }
+
+    #[test]
+    fn preferences_state_clone() {
+        let state = PreferencesState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn preferences_state_partial_eq() {
+        let s1 = PreferencesState::default();
+        let s2 = PreferencesState::default();
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn preferences_state_set_data() {
+        let mut state = PreferencesState::default();
+        let resp = PreferencesResponse {
+            theme: "catppuccin-mocha".into(),
+            subscriptions_view: "table".into(),
+            first_day_of_week: "sunday".into(),
+        };
+        state.set_data(resp);
+        assert_eq!(state.theme(), "catppuccin-mocha");
+        assert_eq!(state.subscriptions_view(), "table");
+        assert_eq!(state.first_day_of_week(), "sunday");
+        assert!(state.initialized);
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn preferences_state_set_subscriptions_view() {
+        let mut state = PreferencesState::default();
+        state.set_subscriptions_view("list".into());
+        assert_eq!(state.subscriptions_view(), "list");
+    }
+
+    #[test]
+    fn preferences_state_set_first_day_of_week() {
+        let mut state = PreferencesState::default();
+        state.set_first_day_of_week("sunday".into());
+        assert_eq!(state.first_day_of_week(), "sunday");
+    }
 }

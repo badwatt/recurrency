@@ -158,4 +158,183 @@ mod tests {
         let back: Notification = serde_json::from_str(&json).unwrap();
         assert_eq!(back.message.as_deref(), Some("Your subscription is due"));
     }
+
+    // ── Notification additional tests ──
+    #[test]
+    fn notification_debug() {
+        let n = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "test".into(),
+            title: "Test".into(),
+            message: None,
+            is_read: false,
+            created_at: DateTime::UNIX_EPOCH,
+        };
+        let debug = format!("{:?}", n);
+        assert!(debug.contains("Notification"));
+    }
+
+    #[test]
+    fn notification_clone() {
+        let n = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "test".into(),
+            title: "Test".into(),
+            message: Some("msg".into()),
+            is_read: true,
+            created_at: DateTime::UNIX_EPOCH,
+        };
+        let cloned = n.clone();
+        assert_eq!(n, cloned);
+    }
+
+    #[test]
+    fn notification_list_response_empty() {
+        let resp = NotificationListResponse {
+            notifications: vec![],
+            unread_count: 0,
+        };
+        assert!(resp.notifications.is_empty());
+        assert_eq!(resp.unread_count, 0);
+    }
+
+    #[test]
+    fn notification_list_response_with_notifications() {
+        let n = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "test".into(),
+            title: "Test".into(),
+            message: None,
+            is_read: false,
+            created_at: DateTime::UNIX_EPOCH,
+        };
+        let resp = NotificationListResponse {
+            notifications: vec![n.clone(), n],
+            unread_count: 2,
+        };
+        assert_eq!(resp.notifications.len(), 2);
+        assert_eq!(resp.unread_count, 2);
+    }
+
+    #[test]
+    fn notification_preference_disabled() {
+        let pref = NotificationPreference {
+            channel: "push".into(),
+            enabled: false,
+            reminder_days_before: 0,
+        };
+        assert!(!pref.enabled);
+        assert_eq!(pref.reminder_days_before, 0);
+    }
+
+    #[test]
+    fn notification_preference_different_days() {
+        for days in &[0, 1, 3, 7, 14, 30] {
+            let pref = NotificationPreference {
+                channel: "email".into(),
+                enabled: true,
+                reminder_days_before: *days,
+            };
+            assert_eq!(pref.reminder_days_before, *days as i32);
+        }
+    }
+
+    #[test]
+    fn notification_preference_debug() {
+        let pref = NotificationPreference {
+            channel: "email".into(),
+            enabled: true,
+            reminder_days_before: 3,
+        };
+        let debug = format!("{:?}", pref);
+        assert!(debug.contains("NotificationPreference"));
+    }
+
+    #[test]
+    fn notification_preference_clone() {
+        let pref = NotificationPreference {
+            channel: "email".into(),
+            enabled: true,
+            reminder_days_before: 3,
+        };
+        let cloned = pref.clone();
+        assert_eq!(pref, cloned);
+    }
+
+    #[test]
+    fn notification_preferences_response_empty() {
+        let resp = NotificationPreferencesResponse {
+            preferences: vec![],
+        };
+        assert!(resp.preferences.is_empty());
+    }
+
+    #[test]
+    fn notification_preferences_response_debug() {
+        let resp = NotificationPreferencesResponse {
+            preferences: vec![],
+        };
+        let debug = format!("{:?}", resp);
+        assert!(debug.contains("NotificationPreferencesResponse"));
+    }
+
+    #[test]
+    fn update_notification_preference_request() {
+        let req = UpdateNotificationPreferenceRequest {
+            channel: "email".into(),
+            enabled: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: UpdateNotificationPreferenceRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.channel, "email");
+        assert!(!back.enabled);
+    }
+
+    #[test]
+    fn update_notification_preferences_multiple() {
+        let req = UpdateNotificationPreferencesRequest {
+            preferences: vec![
+                UpdateNotificationPreferenceRequest {
+                    channel: "email".into(),
+                    enabled: true,
+                },
+                UpdateNotificationPreferenceRequest {
+                    channel: "push".into(),
+                    enabled: false,
+                },
+                UpdateNotificationPreferenceRequest {
+                    channel: "in_app".into(),
+                    enabled: true,
+                },
+            ],
+        };
+        assert_eq!(req.preferences.len(), 3);
+    }
+
+    #[test]
+    fn notification_is_read_status() {
+        let n_read = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "test".into(),
+            title: "Test".into(),
+            message: None,
+            is_read: true,
+            created_at: DateTime::UNIX_EPOCH,
+        };
+        let n_unread = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "test".into(),
+            title: "Test".into(),
+            message: None,
+            is_read: false,
+            created_at: DateTime::UNIX_EPOCH,
+        };
+        assert!(n_read.is_read);
+        assert!(!n_unread.is_read);
+    }
 }

@@ -200,4 +200,97 @@ mod tests {
         let body_str = String::from_utf8_lossy(&body_bytes);
         assert!(body_str.contains("my-token-123"));
     }
+
+    #[tokio::test]
+    async fn helper_put_json_works() {
+        use crate::shared::test_helpers::put_json;
+        use axum::routing::put;
+
+        async fn handler(axum::extract::Json(payload): axum::extract::Json<serde_json::Value>) -> impl axum::response::IntoResponse {
+            axum::Json(payload)
+        }
+
+        let app = Router::new().route("/test", put(handler));
+        let payload = serde_json::json!({"key": "value", "num": 42});
+
+        let (status, body): (StatusCode, serde_json::Value) = put_json(app, "/test", &payload, None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, payload);
+    }
+
+    #[tokio::test]
+    async fn helper_put_json_error() {
+        use crate::shared::test_helpers::put_json;
+        use axum::routing::put;
+
+        async fn handler() -> impl axum::response::IntoResponse {
+            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": "bad"})))
+        }
+
+        let app = Router::new().route("/test", put(handler));
+        let payload = serde_json::json!({"invalid": true});
+
+        let (status, _body) = put_json::<_, serde_json::Value>(app, "/test", &payload, None).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn helper_put_json_with_auth() {
+        use crate::shared::test_helpers::put_json;
+        use axum::routing::put;
+
+        async fn handler(axum::extract::Json(payload): axum::extract::Json<serde_json::Value>) -> impl axum::response::IntoResponse {
+            axum::Json(payload)
+        }
+
+        let app = Router::new().route("/test", put(handler));
+        let payload = serde_json::json!({"name": "test"});
+
+        let (status, body): (StatusCode, serde_json::Value) = put_json(app, "/test", &payload, Some("Bearer token123")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, payload);
+    }
+
+    #[tokio::test]
+    async fn helper_delete_request_works() {
+        use crate::shared::test_helpers::delete_request;
+        use axum::routing::delete;
+
+        async fn handler() -> impl axum::response::IntoResponse {
+            axum::Json(serde_json::json!({"deleted": true}))
+        }
+
+        let app = Router::new().route("/test", delete(handler));
+
+        let status = delete_request(app, "/test", None).await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn helper_delete_request_not_found() {
+        use crate::shared::test_helpers::delete_request;
+        use axum::routing::delete;
+
+        async fn handler() -> impl axum::response::IntoResponse {
+            (StatusCode::NOT_FOUND, axum::Json(serde_json::json!({"error": "not found"})))
+        }
+
+        let app = Router::new().route("/test", delete(handler));
+        let status = delete_request(app, "/test", None).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn helper_delete_request_with_auth() {
+        use crate::shared::test_helpers::delete_request;
+        use axum::routing::delete;
+
+        async fn handler() -> impl axum::response::IntoResponse {
+            axum::Json(serde_json::json!({"deleted": true}))
+        }
+
+        let app = Router::new().route("/test", delete(handler));
+        let status = delete_request(app, "/test", Some("Bearer mytoken")).await;
+        assert_eq!(status, StatusCode::OK);
+    }
 }

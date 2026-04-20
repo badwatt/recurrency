@@ -319,19 +319,179 @@ mod tests {
         assert!(state.is_authenticated); // Still authenticated
     }
 
-        #[test]
-    fn test_persist_to_storage_writes_files_on_native() {
-        // TDD: persist_to_storage must write auth-token.txt and auth-user.json
-        // to dirs::data_dir()/recurrency/ on native platforms.
-        let data_dir = get_app_data_dir().expect("get_app_data_dir should return Some on native");
-        let app_dir = data_dir.join("recurrency");
-        // Clean up before test
-        let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
-        let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+    // ── AuthState additional tests ──
+    #[test]
+    fn auth_state_debug() {
+        let state = AuthState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("AuthState"));
+    }
 
+    #[test]
+    fn auth_state_clone() {
+        let state = AuthState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn auth_state_set_authenticated_sets_loading_false() {
         let mut state = AuthState::default();
-        state.set_authenticated("my-jwt-token".into(), sample_user(), false);
-        state.persist_to_storage();
+        state.is_loading = true;
+        assert!(state.is_loading);
+        state.set_authenticated("token".into(), sample_user(), false);
+        assert!(!state.is_loading);
+    }
 
+    #[test]
+    fn auth_state_is_verified_with_no_user() {
+        let state = AuthState::default();
+        assert!(!state.is_verified());
+    }
+
+    #[test]
+    fn auth_state_is_verified_with_none_user() {
+        let mut state = AuthState::default();
+        state.user = None;
+        assert!(!state.is_verified());
+    }
+
+    #[test]
+    fn auth_state_currency_no_user() {
+        let state = AuthState::default();
+        assert_eq!(state.currency(), "EUR");
+    }
+
+    #[test]
+    fn auth_state_is_authenticated_after_set_auth() {
+        let mut state = AuthState::default();
+        assert!(!state.is_authenticated);
+        state.set_authenticated("tok".into(), sample_user(), false);
+        assert!(state.is_authenticated);
+    }
+
+    #[test]
+    fn auth_state_is_authenticated_after_set_verified() {
+        let mut state = AuthState::default();
+        let mut user = sample_user();
+        user.verified = false;
+        state.set_authenticated("tok".into(), user, true);
+        assert!(!state.is_authenticated);
+        state.set_verified();
+        assert!(state.is_authenticated);
+    }
+
+    #[test]
+    fn auth_state_logout_clears_loading() {
+        let mut state = AuthState::default();
+        state.is_loading = true;
+        state.set_authenticated("tok".into(), sample_user(), false);
+        assert!(!state.is_loading);
+        state.logout();
+        assert!(!state.is_loading);
+    }
+
+    #[test]
+    fn auth_state_set_verified_updates_user() {
+        let mut state = AuthState::default();
+        let mut user = sample_user();
+        user.verified = false;
+        state.set_authenticated("tok".into(), user, true);
+        assert!(!state.user.as_ref().unwrap().verified);
+        state.set_verified();
+        assert!(state.user.as_ref().unwrap().verified);
+    }
+
+    #[test]
+    fn auth_state_set_authenticated_requires_verification_false() {
+        let mut state = AuthState::default();
+        state.set_authenticated("tok".into(), sample_user(), false);
+        assert!(state.is_authenticated);
+    }
+
+    #[test]
+    fn auth_state_set_authenticated_requires_verification_true() {
+        let mut state = AuthState::default();
+        let mut user = sample_user();
+        user.verified = false;
+        state.set_authenticated("tok".into(), user, true);
+        assert!(!state.is_authenticated);
+        assert!(state.token.is_some());
+        assert!(state.initialized);
+    }
+
+    #[test]
+    fn auth_state_multiple_logouts() {
+        let mut state = AuthState::default();
+        state.set_authenticated("tok".into(), sample_user(), false);
+        state.logout();
+        assert!(!state.is_authenticated);
+        // Second logout should be safe
+        state.logout();
+        assert!(!state.is_authenticated);
+    }
+
+    #[test]
+    fn auth_state_multiple_verifications() {
+        let mut state = AuthState::default();
+        let mut user = sample_user();
+        user.verified = false;
+        state.set_authenticated("tok".into(), user, true);
+        state.set_verified();
+        // Second verification should be safe
+        state.set_verified();
+        assert!(state.is_authenticated);
+    }
+
+    // ── get_app_data_dir tests ──
+    #[test]
+    fn get_app_data_dir_returns_some_on_native() {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let result = get_app_data_dir();
+            assert!(result.is_some());
+        }
+    }
+
+    // ── persist_to_storage tests (native) ──
+    #[test]
+    fn persist_to_storage_writes_files_on_native() {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let data_dir = get_app_data_dir().expect("get_app_data_dir should return Some on native");
+            let app_dir = data_dir.join("recurrency");
+            // Clean up before test - ensure fresh state
+            let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
+            let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+            // Wait a bit for file system
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            let mut state = AuthState::default();
+            state.set_authenticated("unique-token-xyz123".into(), sample_user(), false);
+            state.persist_to_storage();
+
+            // Verify files exist
+            assert!(app_dir.join("auth-token.txt").exists(), "Token file should exist");
+            assert!(app_dir.join("auth-user.json").exists(), "User file should exist");
+
+            // Verify content
+            let token_content = std::fs::read_to_string(app_dir.join("auth-token.txt")).unwrap();
+            assert_eq!(token_content, "unique-token-xyz123", "Token content should match");
+
+            // Clean up
+            let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
+            let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+        }
+    }
+
+    #[test]
+    fn persist_to_storage_no_op_without_token() {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut state = AuthState::default();
+            // No token set, should not fail
+            state.persist_to_storage();
+            // Should not create any files
+        }
     }
 }

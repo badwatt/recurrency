@@ -209,4 +209,122 @@ mod tests {
         assert!(state.error.is_none());
         assert!(!state.is_loading);
     }
+
+    #[test]
+    fn notifications_state_clone() {
+        let state = NotificationsState::default();
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn notifications_state_debug() {
+        let state = NotificationsState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("NotificationsState"));
+    }
+
+    #[test]
+    fn notifications_state_partial_eq() {
+        let s1 = NotificationsState::default();
+        let s2 = NotificationsState::default();
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn notifications_state_default_values() {
+        let state = NotificationsState::default();
+        assert!(state.notifications.is_empty());
+        assert_eq!(state.unread_count, 0);
+        assert!(!state.is_loading);
+        assert!(state.error.is_none());
+        assert!(!state.is_open);
+    }
+
+    #[test]
+    fn mark_all_as_read_when_empty() {
+        let mut state = NotificationsState::default();
+        state.mark_all_as_read();
+        assert_eq!(state.unread_count, 0);
+    }
+
+    #[test]
+    fn set_data_with_zero_notifications() {
+        let mut state = NotificationsState::default();
+        state.set_data(vec![], 0);
+        assert!(state.notifications.is_empty());
+        assert_eq!(state.unread_count, 0);
+    }
+
+    #[test]
+    fn set_data_with_many_notifications() {
+        let mut state = NotificationsState::default();
+        let notifications: Vec<_> = (0..10).map(|_| make_notification(false)).collect();
+        state.set_data(notifications.clone(), 10);
+        assert_eq!(state.notifications.len(), 10);
+        assert_eq!(state.unread_count, 10);
+    }
+
+    #[test]
+    fn delete_all_notifications() {
+        let mut state = NotificationsState::default();
+        let n1 = make_notification(false);
+        let n2 = make_notification(true);
+        let id1 = n1.id;
+        let id2 = n2.id;
+        state.notifications = vec![n1, n2];
+        state.unread_count = 1;
+        state.delete(&id1);
+        state.delete(&id2);
+        assert!(state.notifications.is_empty());
+        assert_eq!(state.unread_count, 0);
+    }
+
+    #[test]
+    fn set_loading_sets_loading_flag() {
+        let mut state = NotificationsState::default();
+        assert!(!state.is_loading);
+        state.set_loading();
+        assert!(state.is_loading);
+    }
+
+    #[test]
+    fn toggle_opens_panel() {
+        let mut state = NotificationsState::default();
+        assert!(!state.is_open);
+        state.toggle();
+        assert!(state.is_open);
+    }
+
+    #[test]
+    fn toggle_closes_panel() {
+        let mut state = NotificationsState::default();
+        state.is_open = true;
+        state.toggle();
+        assert!(!state.is_open);
+    }
+
+    #[test]
+    fn delete_preserves_other_notifications() {
+        let mut state = NotificationsState::default();
+        let n1 = make_notification(false);
+        let n2 = make_notification(false);
+        let n3 = make_notification(false);
+        let id2 = n2.id;
+        state.notifications = vec![n1, n2, n3];
+        state.unread_count = 3;
+        state.delete(&id2);
+        assert_eq!(state.notifications.len(), 2);
+    }
+
+    #[test]
+    fn mark_as_read_updates_unread_count() {
+        let mut state = NotificationsState::default();
+        let n = make_notification(false);
+        let id = n.id;
+        state.notifications = vec![n];
+        state.unread_count = 1;
+        state.mark_as_read(&id);
+        assert_eq!(state.unread_count, 0);
+    }
 }

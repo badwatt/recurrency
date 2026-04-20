@@ -698,4 +698,124 @@ mod tests {
         // After fix: uses Dialog component with backdrop close + card stop_propagation.
         assert!(true); // structural check
     }
+
+    // ── Color palette additional tests ──
+    #[test]
+    fn color_palette_has_multiple_colors() {
+        assert!(COLOR_PALETTE.len() > 5, "Palette should have multiple colors");
+    }
+
+    #[test]
+    fn color_palette_colors_are_valid() {
+        for color in COLOR_PALETTE {
+            assert!(color.starts_with('#'), "Colors should be hex format");
+            assert_eq!(color.len(), 7, "Hex colors should be 7 chars");
+        }
+    }
+
+    // Icon tests check that function doesn't panic
+    #[test]
+    fn icon_display_known_icons_no_panic() {
+        let icons = ["Home", "Car", "Coffee", "Film", "Gamepad2", "ShoppingBag", "Smartphone", "Utensils"];
+        for icon in icons {
+            let result = icon_display(icon);
+            assert!(!result.is_empty(), "icon_display({}) should not return empty", icon);
+        }
+    }
+
+    #[test]
+    fn icon_display_food_and_drink_no_panic() {
+        for icon in ["Coffee", "Pizza", "Apple", "Beer", "Wine"] {
+            let result = icon_display(icon);
+            assert!(!result.is_empty());
+        }
+    }
+
+    #[test]
+    fn icon_display_transport_no_panic() {
+        for icon in ["Car", "Plane", "Train", "Bike"] {
+            let result = icon_display(icon);
+            assert!(!result.is_empty());
+        }
+    }
+
+    #[test]
+    fn icon_display_tech_no_panic() {
+        for icon in ["Smartphone", "Laptop", "Tv", "Headphones"] {
+            let result = icon_display(icon);
+            assert!(!result.is_empty());
+        }
+    }
+
+    #[test]
+    fn icon_display_finance_no_panic() {
+        for icon in ["CreditCard", "Wallet", "DollarSign"] {
+            let result = icon_display(icon);
+            assert!(!result.is_empty());
+        }
+    }
+
+    #[test]
+    fn icon_display_entertainment_no_panic() {
+        for icon in ["Film", "Gamepad2", "Music", "Book"] {
+            let result = icon_display(icon);
+            assert!(!result.is_empty());
+        }
+    }
+
+    #[test]
+    fn icon_display_health() {
+        assert_eq!(icon_display("Heart"), "❤");
+        assert_eq!(icon_display("Activity"), "📈");
+        assert_eq!(icon_display("Pill"), "💊");
+        assert_eq!(icon_display("Stethoscope"), "🩺");
+    }
+
+    #[test]
+    fn icon_display_nature() {
+        assert_eq!(icon_display("TreePine"), "🌲");
+        assert_eq!(icon_display("Flower"), "🌸");
+        assert_eq!(icon_display("CloudRain"), "🌧");
+    }
+
+    #[test]
+    fn icon_display_weather() {
+        assert_eq!(icon_display("Sun"), "☀");
+        assert_eq!(icon_display("Moon"), "🌙");
+        assert_eq!(icon_display("CloudRain"), "🌧");
+        assert_eq!(icon_display("Thermometer"), "🌡");
+    }
+
+    #[test]
+    fn validate_name_minimum_length() {
+        // Simulates validate logic: 2 chars is valid (>= 2 required)
+        let name = "AB";
+        assert!(name.trim().len() >= 2);
+        // Single char is too short
+        let short = "A";
+        assert!(short.trim().len() < 2);
+    }
+
+    #[test]
+    fn validate_name_whitespace() {
+        // Whitespace-only should be invalid
+        let ws = "   ";
+        assert!(ws.trim().is_empty());
+        // Name with whitespace around should be valid
+        let name = "   A   ";
+        assert!(!name.trim().is_empty());
+    }
+
+    #[test]
+    fn validate_color_format() {
+        // Valid hex colors start with # and have 6 hex digits
+        let valid = "#FF5733";
+        assert!(valid.starts_with('#'));
+        assert_eq!(valid.len(), 7);
+        // Invalid colors
+        let invalid1 = "red";
+        assert!(!invalid1.starts_with('#'));
+        let invalid2 = "#FFF";
+        assert_ne!(invalid2.len(), 7);
+    }
 }

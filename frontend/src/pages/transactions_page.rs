@@ -935,6 +935,210 @@ mod tests {
         }
     }
 
+    // ── FilterConfig tests ──
+    #[test]
+    fn filter_config_default() {
+        let f = FilterConfig::default();
+        assert!(f.category_id.is_none());
+        assert!(f.price_min.is_none());
+        assert!(f.price_max.is_none());
+    }
+
+    #[test]
+    fn filter_config_partial_eq() {
+        let f1 = FilterConfig { category_id: Some(Uuid::new_v4()), ..Default::default() };
+        let f2 = FilterConfig { category_id: f1.category_id, ..Default::default() };
+        assert_eq!(f1.category_id, f2.category_id);
+    }
+
+    #[test]
+    fn filter_config_clone() {
+        let f = FilterConfig::default();
+        let cloned = f.clone();
+        assert_eq!(f, cloned);
+    }
+
+    // ── SortConfig tests ──
+    #[test]
+    fn sort_config_debug() {
+        let s = SortConfig { field: "amount".into(), direction: "asc".into() };
+        let debug = format!("{:?}", s);
+        assert!(debug.contains("SortConfig"));
+    }
+
+    // ── MonthGroup tests ──
+    #[test]
+    fn month_group_debug() {
+        let c = Uuid::new_v4();
+        let group = MonthGroup {
+            key: "2024-01".into(),
+            label: "January 2024".into(),
+            transactions: vec![make_txn("Test", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c)],
+            total: dec!(10),
+        };
+        let debug = format!("{:?}", group);
+        assert!(debug.contains("MonthGroup"));
+    }
+
+    // ── TransactionValidationResult tests ──
+    #[test]
+    fn validation_result_default_is_valid() {
+        let result = TransactionValidationResult::default();
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn validation_result_with_name_error_invalid() {
+        let mut result = TransactionValidationResult::default();
+        result.name_error = Some("Name required".into());
+        assert!(!result.is_valid());
+    }
+
+    #[test]
+    fn validation_result_with_amount_error_invalid() {
+        let mut result = TransactionValidationResult::default();
+        result.amount_error = Some("Amount required".into());
+        assert!(!result.is_valid());
+    }
+
+    #[test]
+    fn validation_result_with_currency_error_invalid() {
+        let mut result = TransactionValidationResult::default();
+        result.currency_error = Some("Currency required".into());
+        assert!(!result.is_valid());
+    }
+
+    #[test]
+    fn validation_result_with_date_error_invalid() {
+        let mut result = TransactionValidationResult::default();
+        result.date_error = Some("Date required".into());
+        assert!(!result.is_valid());
+    }
+
+    #[test]
+    fn validation_result_with_category_error_invalid() {
+        let mut result = TransactionValidationResult::default();
+        result.category_error = Some("Category required".into());
+        assert!(!result.is_valid());
+    }
+
+    #[test]
+    fn validation_result_multiple_errors() {
+        let mut result = TransactionValidationResult::default();
+        result.name_error = Some("Name required".into());
+        result.amount_error = Some("Amount required".into());
+        assert!(!result.is_valid());
+        assert!(result.name_error.is_some());
+        assert!(result.amount_error.is_some());
+    }
+
+    #[test]
+    fn validation_result_clone() {
+        let mut result = TransactionValidationResult::default();
+        result.name_error = Some("err".into());
+        let cloned = result.clone();
+        assert_eq!(result.name_error, cloned.name_error);
+    }
+
+    // ── validate_transaction_form tests ──
+    #[test]
+    fn validate_form_all_valid() {
+        let result = validate_transaction_form("Netflix", "15.99", "EUR", "2024-01-01", "cat-id");
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn validate_form_empty_name() {
+        let result = validate_transaction_form("", "15.99", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.name_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_whitespace_name() {
+        let result = validate_transaction_form("   ", "15.99", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.name_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_short_name() {
+        let result = validate_transaction_form("A", "15.99", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.name_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_empty_amount() {
+        let result = validate_transaction_form("Netflix", "", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.amount_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_zero_amount() {
+        let result = validate_transaction_form("Netflix", "0", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.amount_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_negative_amount() {
+        let result = validate_transaction_form("Netflix", "-5", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.amount_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_invalid_amount() {
+        let result = validate_transaction_form("Netflix", "abc", "EUR", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.amount_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_empty_currency() {
+        let result = validate_transaction_form("Netflix", "15.99", "", "2024-01-01", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.currency_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_empty_date() {
+        let result = validate_transaction_form("Netflix", "15.99", "EUR", "", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.date_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_invalid_date() {
+        let result = validate_transaction_form("Netflix", "15.99", "EUR", "not-a-date", "cat-id");
+        assert!(!result.is_valid());
+        assert!(result.date_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_empty_category() {
+        let result = validate_transaction_form("Netflix", "15.99", "EUR", "2024-01-01", "");
+        assert!(!result.is_valid());
+        assert!(result.category_error.is_some());
+    }
+
+    #[test]
+    fn validate_form_decimal_amount() {
+        let result = validate_transaction_form("Netflix", "9.99", "EUR", "2024-01-01", "cat-id");
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn validate_form_valid_dates() {
+        for date in &["2024-01-01", "2024-12-31", "2025-06-15"] {
+            let result = validate_transaction_form("Test", "10", "EUR", date, "cat-id");
+            assert!(result.date_error.is_none(), "Date {} should be valid", date);
+        }
+    }
+
+    // ── filter_sort_group tests ──
     #[test]
     fn filter_by_category() {
         let c1 = Uuid::new_v4();
