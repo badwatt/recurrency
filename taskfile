@@ -14,6 +14,7 @@ set -euo pipefail
 #   frontend  Start frontend only
 #   db        Start PostgreSQL only
 #   css       Build Tailwind CSS
+#   android:build  Build Android APK (auto-setup SDK if needed)
 #   help      Show this help
 
 # ── Colors ──────────────────────────────────────────────
@@ -122,6 +123,30 @@ cmd_frontend() { cd "$ROOT/frontend" && nix develop "$ROOT" -c dx serve --platfo
 cmd_db()       { cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d && ok "DB running on 5432"; }
 cmd_css()      { cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify && ok "CSS built"; }
 
+# ── Android ────────────────────────────────────────────
+_check_android_env() {
+  if [ -z "$ANDROID_HOME" ] && [ -z "$ANDROID_SDK_ROOT" ]; then
+    ANDROID_HOME="${HOME}/.android-sdk"
+    if [ ! -d "$ANDROID_HOME/platforms" ]; then
+      info "Android SDK not found. Running setup..."
+      bash "$ROOT/scripts/setup-android-env.sh"
+    fi
+  fi
+}
+
+cmd_android_build() {
+  _check_android_env
+  info "Building Android APK..."
+  cd "$ROOT" && bash scripts/build-android.sh
+}
+
+cmd_android_clean() {
+  info "Cleaning Android build..."
+  cd "$ROOT/frontend"
+  rm -rf android android-studio .gradle app/build build 2>/dev/null || true
+  ok "Android build cleaned"
+}
+
 # ── Help ───────────────────────────────────────────────
 cmd_help() {
   cat <<EOF
@@ -142,24 +167,32 @@ ${G}Individual:${N}
   db        Start PostgreSQL only (port 5432)
   css       Build Tailwind CSS once
 
+${G}Android:${N}
+  android:build  Build Android APK (auto-setup SDK if needed)
+  android:clean  Clean Android build artifacts
+
 ${Y}Examples:${N}
-  ./taskfile up        # Start all
-  ./taskfile test      # Run tests
-  ./taskfile coverage  # Check coverage
-  ./taskfile reset     # Clean database
+  ./taskfile up           # Start all
+  ./taskfile test         # Run tests
+  ./taskfile coverage     # Check coverage
+  ./taskfile reset        # Clean database
+  ./taskfile android:build  # Build APK
 EOF
 }
 
 # ── Dispatch ──────────────────────────────────────────
 case "${1:-help}" in
-  up)        cmd_up ;;
-  down|stop) cmd_down ;;
-  test)      cmd_test ;;
-  coverage)  cmd_coverage ;;
-  reset)     cmd_reset ;;
-  backend)   cmd_backend ;;
-  frontend)  cmd_frontend ;;
-  db)        cmd_db ;;
-  css)       cmd_css ;;
-  help|*)     cmd_help ;;
+  up)           cmd_up ;;
+  down|stop)    cmd_down ;;
+  test)         cmd_test ;;
+  coverage)     cmd_coverage ;;
+  reset)        cmd_reset ;;
+  backend)      cmd_backend ;;
+  frontend)     cmd_frontend ;;
+  db)           cmd_db ;;
+  css)          cmd_css ;;
+  android)      cmd_android_build ;;
+  android:build) cmd_android_build ;;
+  android:clean) cmd_android_clean ;;
+  help|*)       cmd_help ;;
 esac
