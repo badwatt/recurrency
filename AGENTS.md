@@ -25,63 +25,341 @@
 
 ---
 
-## TDD (Test-Driven Development) - OBLIGATORIO
+## TDD (Test-Driven Development) - OBLIGATORIO SIN EXCEPCIONES
 
-**Este proyecto requiere TDD para TODOS los cambios.**
+**CADA commit debe tener tests.
+CADA cambio empieza con test ROJO.
+NUNCA código sin test.**
 
-### Ciclo Red-Green-Refactor
+### Reglas de hierro
+
+- ⛔ **SIEMPRE** escribir test ANTES de implementar. Sin excepciones.
+- ⛔ **NUNCA** modificar código sin test que verifique el cambio.
+- ⛔ **NUNCA** commit de código sin tests incluidos.
+- ⛔ **SIEMPRE** test rojo primero. Luego código. Luego refactor.
+- ⛔ **NUNCA** avanzar a siguiente feature si tests actuales no pasan.
+- ⛔ **NUNCA** bajar cobertura global con cambios nuevos.
+
+### Ciclo Red-Green-Refactor (obligatorio)
 
 ```
-1. RED    → Escribir el test PRIMERO. El test debe fallar.
-2. GREEN  → Implementar/alterar código mínimo para que el test pase.
-3. REFACTOR → Mejorar código manteniendo tests verdes.
+1. RED    → Escribir test. Ejecutar. Debe FALLAR.
+2. GREEN  → Escribir MÍNIMO código para que pase.
+3. REFACTOR → Limpiar código. Tests siguen verdes.
+4. REPETIR  → Siguiente test.
 ```
 
-### Reglas
+### Cobertura mínima: 80%
 
-- [ ] **SIEMPRE** escribir tests ANTES de implementar features
-- [ ] **SIEMPRE** escribir tests ANTES de corregir bugs
-- [ ] **SIEMPRE** actualizar tests cuando se modifica funcionalidad existente
-- [ ] **SIEMPRE** mantener tests actualizados (no dejar tests rotos o outdated)
-- [ ] Coverage mínimo: **70%** en ambos proyectos
-- [ ] Tests deben ser deterministas (no flaky)
-- [ ] Nombrar tests descriptivamente: `fn test_[subject]_[scenario]_[expected]`
+| Proyecto | Líneas | Estado |
+|----------|--------|--------|
+| Backend  | **86.88%** | ✅ 1294 tests |
+| Frontend | **80.22%** | ✅ 1491 tests |
 
-### Ejecución de Tests
+**Reglas:**
+- Mínimo **80%** líneas para cualquier módulo nuevo
+- Mínimo **90%** para módulos críticos (auth, payments, seguridad)
+- **100%** condicionales en handlers
+- Si un cambio baja cobertura global → agregar más tests antes de commit
+
+### Convenciones de tests
+
+```rust
+#[test]
+fn validate_empty_name_fails() {
+    let result = validate_subscription_form(&empty_sub);
+    assert!(result.is_err());
+}
+```
+
+- Nombre: `fn test_[subject]_[scenario]_[expected]()`
+- Un concepto por test. Un assert por test.
+- Tests deterministas (no aleatorios, no timestamps, no network)
+
+### Pre-commit hook obligatorio
 
 ```bash
-# Backend
-cd backend && nix-shell -p pkg-config openssl --run "cargo test"
+# Antes de CUALQUIER commit, ejecutar:
+nix develop .. -c cargo test --lib
 
-# Frontend
-cd frontend && cargo test
+# Si falla → arreglar antes de commit.
+# Si pasa → commit permitido.
+```
 
-# Coverage (NixOS)
-cd backend && nix shell github:NixOS/nixpkgs/nixos-unstable#llvmPackages_22.llvm -c \
-  bash -c 'export LLVM_COV=$(which llvm-cov); export LLVM_PROFDATA=$(which llvm-profdata); cargo llvm-cov test'
+### Qué es testeable / No testeable
+
+| Testeable ✅ | No testeable ⛔ |
+|-------------|----------------|
+| Pure functions (validate, format, calc) | RSX macro-generated VDOM |
+| Model operations (serde, clone, eq) | async DB operations sin mock |
+| Trait implementations | WASM-specific (localStorage) |
+| Mock services | Integration sin PostgreSQL |
+| Handler validation (request/response) | — |
+
+Cuando NO hay test, documentar:
+```rust
+// No test: async DB operation. Covered by integration tests.
+// No test: RSX macro. Requires Dioxus WASM runtime.
+```
+
+### Ejecución
+
+```bash
+# Tests
+nix develop .. -c cargo test --lib
+
+# Coverage
+nix develop .. -c cargo llvm-cov test --lib
 ```
 
 ---
 
-## Development
+## Architecture
+
+### Backend Structure (Rust)
+
+```
+backend/
+├── src/
+│   ├── auth/            # JWT validation, handlers, service trait
+│   ├── categories/     # Category CRUD, service trait
+│   ├── demo/           # Demo mode
+│   ├── email/          # Email service
+│   ├── logos/          # Logo search (DuckDuckGo)
+│   ├── notifications/  # Push/in-app notifications, service trait
+│   ├── preferences/    # User preferences, service trait
+│   ├── reports/        # Reports & statistics, service trait
+│   ├── shared/        # Shared utilities, mocks, app_state
+│   ├── subscriptions/ # Subscription CRUD, service trait
+│   ├── transactions/  # Transaction CRUD, service trait
+│   └── main.rs
+├── migrations/          # SQL migrations
+└── Cargo.toml
+```
+
+### Frontend Structure (Dioxus)
+
+```
+frontend/
+├── src/
+│   ├── auth/            # Auth pages & state
+│   ├── components/     # Shared UI components
+│   ├── pages/          # Route pages
+│   ├── api/            # API client
+│   ├── state/          # Signals/state
+│   └── main.rs
+├── Cargo.toml
+└── dioxensus.toml
+```
+
+---
+
+## Trait Injection (Obligatorio)
+
+Cada servicio DEBE tener trait para testabilidad:
+
+```rust
+#[async_trait]
+pub trait SubscriptionServiceTrait: Send + Sync {
+    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<SubscriptionResponse>;
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<SubscriptionResponse>>;
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<SubscriptionResponse>;
+    async fn update(&self, user_id: Uuid, id: Uuid, req: UpdateSubscriptionRequest) -> AppResult<SubscriptionResponse>;
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
+}
+
+pub struct SqlxSubscriptionService {
+    pool: PgPool,
+}
+
+impl SqlxSubscriptionService {
+    pub fn new(pool: PgPool) -> Self { Self { pool } }
+}
+
+#[async_trait]
+impl SubscriptionServiceTrait for SqlxSubscriptionService {
+    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<SubscriptionResponse> {
+        // DB operations...
+    }
+    // ...
+}
+```
+
+### AppState con traits
+
+```rust
+#[derive(Clone)]
+pub struct AppState {
+    pub pool: PgPool,
+    pub auth_service: Arc<dyn AuthServiceTrait>,
+    pub subscription_service: Arc<dyn SubscriptionServiceTrait>,
+    pub transaction_service: Arc<dyn TransactionServiceTrait>,
+    pub category_service: Arc<dyn CategoryServiceTrait>,
+    pub notification_service: Arc<dyn NotificationServiceTrait>,
+    pub report_service: Arc<dyn ReportServiceTrait>,
+    pub preferences_service: Arc<dyn PreferencesServiceTrait>,
+}
+```
+
+### Mock services para tests
+
+```rust
+pub struct MockSubscriptionService {
+    pub should_fail: bool,
+    pub mock_subscriptions: Mutex<Vec<Subscription>>,
+}
+
+#[async_trait]
+impl SubscriptionServiceTrait for MockSubscriptionService {
+    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<SubscriptionResponse> {
+        if self.should_fail {
+            return Err(AppError::Internal("mock error".into()));
+        }
+        let sub = Subscription { /* ... */ };
+        self.mock_subscriptions.lock().unwrap().push(sub.clone());
+        Ok(sub.into())
+    }
+    // ...
+}
+```
+
+Mock services viven en `src/shared/mocks.rs`.
+
+---
+
+## Integration Tests
+
+### Requisitos
+
+- Docker Compose con PostgreSQL para tests de integración
+- Tests en `tests/integration/` o módulo `integration_tests`
+
+### Docker Compose (tests)
+
+```yaml
+# docker-compose.test.yml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: recurrency_test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+```
+
+### Ejecución
+
+```bash
+# Iniciar DB de test
+docker compose -f docker-compose.test.yml up -d
+
+# Variable de entorno
+export DATABASE_URL="postgres://test:test@localhost:5433/recurrency_test"
+
+# Ejecutar migraciones
+nix develop .. -c sqlx migrate run
+
+# Tests de integración
+nix develop .. -c cargo test --test integration_tests
+```
+
+### Coverage con integración
+
+```bash
+# Unit tests solos (rápido)
+nix develop .. -c cargo llvm-cov test --lib
+
+# Unit + integration (completo)
+nix develop .. -c cargo llvm-cov test
+```
+
+---
+
+## CI/CD (GitHub Actions)
+
+### `.github/workflows/test.yml`
+
+```yaml
+name: Test & Coverage
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v25
+      - run: nix develop .. -c cargo test --lib
+      - run: nix develop .. -c cargo llvm-cov test --lib
+      - name: Verify coverage
+        run: |
+          nix develop .. -c cargo llvm-cov report | grep "TOTAL" | awk '{if($4 < 80) exit 1}'
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v25
+      - run: cd frontend && nix develop .. -c cargo test
+      - run: cd frontend && nix develop .. -c cargo llvm-cov test
+      - name: Verify coverage
+        run: |
+          cd frontend && nix develop .. -c cargo llvm-cov report | grep "TOTAL" | awk '{if($4 < 80) exit 1}'
+```
+
+---
+
+## Git & Commits
+
+### Commit messages
+
+- **Auto-commit tests**: SÍ permitido si tests pasan y coverage ≥ 80%
+- **Push**: PREGUNTAR siempre antes de `git push`
+- Format: `type(scope): description`
+- Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 
 ### Workflow
 
-- **TDD (obligatorio)**: Red-Green-Refactor para cada cambio
-- **Conventional Commits**: `type(scope): description`
-  - Types: feat, fix, docs, style, refactor, test, chore
+```bash
+# 1. Escribir test (rojo)
+nix develop .. -c cargo test --lib  # falla
 
-### Git & Commits
+# 2. Implementar (verde)
+nix develop .. -c cargo test --lib  # pasa
 
-- ⚠️ **IMPORTANT**: Preguntar al usuario antes de hacer commit
-- Commit message format: `type(scope): description` (Conventional Commits)
-- Types: feat, fix, docs, style, refactor, test, chore
+# 3. Commit (auto-permitido)
+git add -A && git commit -m "feat(scope): description"
 
-### Code Quality
+# 4. Push → PREGUNTAR usuario
+# git push  (no sin permiso)
+```
 
-- **Dead code elimination**: Eliminar siempre código no usado, imports, variables
+---
+
+## Code Quality
+
+- **Dead code elimination**: Eliminar siempre código no usado
 - No dejar código comentado u obsoleto
 - Verificar con `cargo check` / `cargo clippy` antes de terminar
+- `cargo fmt` antes de commit
 
 ---
 
@@ -141,46 +419,6 @@ cd backend && nix shell github:NixOS/nixpkgs/nixos-unstable#llvmPackages_22.llvm
 - [x] Currency preference
 - [x] Notification preferences (per channel)
 - [x] Category management
-
----
-
-## Architecture
-
-### Backend Structure (Rust)
-
-```
-backend/
-├── src/
-│   ├── auth/            # JWT validation, handlers
-│   ├── categories/     # Category CRUD
-│   ├── demo/           # Demo mode
-│   ├── email/          # Email service
-│   ├── logos/          # Logo search (DuckDuckGo)
-│   ├── notifications/  # Push/in-app notifications
-│   ├── preferences/    # User preferences
-│   ├── reports/        # Reports & statistics
-│   ├── shared/        # Shared utilities
-│   ├── subscriptions/ # Subscription CRUD
-│   ├── transactions/  # Transaction CRUD
-│   └── main.rs
-├── migrations/          # SQL migrations
-└── Cargo.toml
-```
-
-### Frontend Structure (Dioxus)
-
-```
-frontend/
-├── src/
-│   ├── auth/            # Auth pages & state
-│   ├── components/     # Shared UI components
-│   ├── pages/          # Route pages (Dashboard, Calendar, etc.)
-│   ├── api/            # API client
-│   ├── hooks/          # Shared hooks
-│   └── main.rs
-├── Cargo.toml
-└── dioxensus.toml
-```
 
 ---
 
@@ -349,7 +587,9 @@ notifications (
 - [x] Write unit tests (TDD)
 - [x] Demo mode
 - [ ] Add unusual spending alerts
-- [ ] Docker Compose setup for PostgreSQL
+- [ ] Docker Compose setup for PostgreSQL tests
+- [ ] GitHub Actions CI/CD
+- [ ] Complete trait injection in all service modules
 
 ---
 
@@ -359,3 +599,4 @@ notifications (
 - Export: Frontend generates CSV/PDF client-side
 - Self-hosted: User runs their own PostgreSQL instance
 - Notifications: Resend for email, OneSignal for push
+- Coverage: `cargo llvm-cov` via `nix develop`
