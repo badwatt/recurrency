@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 set -e
+
+# Parse --out-dir argument
+OUT_DIR=""
+for arg in "$@"; do
+  case $arg in
+    --out-dir=*) OUT_DIR="${arg#--out-dir=}" ;;
+    --out-dir) OUT_DIR="$2" ; shift ;;
+  esac
+done
+
 cd "$(dirname "$0")/../frontend"
 
 # Resolve Java from nix-shell
@@ -61,15 +71,12 @@ for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
 done
 
 # Generate PNG foreground in drawable-nodpi/ (survives gradlew clean)
-# RENAME to ic_launcher_fg to avoid circular reference with ic_launcher_foreground.xml
 FOREGROUND_XML="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
 FOREGROUND_PNG="$RES_DIR/drawable-nodpi/ic_launcher_fg.png"
 if [ -f "$FOREGROUND_XML" ]; then
     mkdir -p "$RES_DIR/drawable-nodpi"
-    # Remove old drawable/ PNG if exists (avoid name collision)
     rm -f "$RES_DIR/drawable/ic_launcher_foreground.png" 2>/dev/null || true
     convert "$ICON" -resize 108x108 "$FOREGROUND_PNG"
-    # Reference ic_launcher_fg (NOT ic_launcher_foreground → avoids lint cycle error)
     cat > "$FOREGROUND_XML" << 'XMLEOF'
 <?xml version="1.0" encoding="utf-8"?>
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
@@ -89,7 +96,6 @@ fi
 # Reassemble + sign APK
 echo "--- Building signed APK ---"
 cd target/dx/recurrency/release/android/app
-# Clean build cache so Gradle picks up replaced icons
 ./gradlew clean 2>&1 | tail -1
 ./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1 | tail -3
 cd -
@@ -100,19 +106,21 @@ if [ -z "$UNSIGNED" ]; then
 fi
 echo "Unsigned APK: $UNSIGNED"
 
-mkdir -p dist
+# Create output directory
+mkdir -p "$OUT_DIR"
 
-# Sign with apksigner (JAR directly — NixOS has no /bin/bash)
+# Sign with apksigner (sign in place, then move to output)
 APKSIGNER_JAR="$ANDROID_HOME/build-tools/34.0.0/lib/apksigner.jar"
 java -jar "$APKSIGNER_JAR" sign \
     --ks "$KEYSTORE" --ks-key-alias "$KEY_ALIAS" \
     --ks-pass "pass:$KEY_PASS" --key-pass "pass:$KEY_PASS" \
     "$UNSIGNED"
 
-cp "$UNSIGNED" "dist/$APK_NAME"
+# Verify original
+java -jar "$APKSIGNER_JAR" verify "$UNSIGNED" && echo "--- APK signed and verified ---" || echo "--- WARNING: APK verification failed ---"
 
-# Verify
-java -jar "$APKSIGNER_JAR" verify "dist/$APK_NAME" && echo "--- APK signed and verified ---" || echo "--- WARNING: APK verification failed ---"
+# Move to output
+mv "$UNSIGNED" "$OUT_DIR/$APK_NAME"
 
-ls -la "dist/$APK_NAME"
-echo "--- Done: dist/$APK_NAME ---"
+ls -la "$OUT_DIR/$APK_NAME"
+echo "--- Done: $OUT_DIR/$APK_NAME ---"

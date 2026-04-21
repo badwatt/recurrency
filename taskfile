@@ -128,40 +128,44 @@ cmd_build() {
   info "Building all..."
   cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
   cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform android --release
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release 2>/dev/null || true
-  ok "Build complete: backend + web + android + desktop"
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release --out-dir ../bin/desktop 2>/dev/null || true
+  ok "Build complete: backend + web + desktop"
+  info "For Android APK: use build:android"
 }
 
 cmd_build_app() {
   info "Building web + api (all-in-one)..."
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  mkdir -p "$ROOT/bin"
   cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
-  ok "Build complete: backend + web (all-in-one)"
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  cp "$ROOT/backend/target/release/recurrency-api" "$ROOT/bin/recurrency-aio"
+  ok "Build complete: bin/recurrency-aio"
 }
 
 cmd_build_api() {
   info "Building API..."
+  mkdir -p "$ROOT/bin"
   cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
-  ok "API built: backend/target/release/recurrency-api"
+  cp "$ROOT/backend/target/release/recurrency-api" "$ROOT/bin/recurrency-aio"
+  ok "API built: bin/recurrency-aio"
 }
 
 cmd_build_web() {
   info "Building web frontend..."
   cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
   ok "Web built: frontend/dist/"
+  info "Embed in all-in-one: use build:app"
 }
 
 cmd_build_android() {
   _check_android_env
   info "Building Android APK..."
-  cd "$ROOT" && bash scripts/build-android.sh
+  cd "$ROOT" && bash scripts/build-android.sh --out-dir "$PWD/bin/android"
 }
 
 cmd_build_desktop() {
   info "Building desktop app..."
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release
-  ok "Desktop built: bin/desktop/"
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release --out-dir ../bin/desktop
 }
 
 cmd_clear() {
@@ -183,12 +187,6 @@ _check_android_env() {
       bash "$ROOT/scripts/setup-android-env.sh"
     fi
   fi
-}
-
-cmd_build_android() {
-  _check_android_env
-  info "Building Android APK..."
-  cd "$ROOT" && bash scripts/build-android.sh
 }
 
 cmd_clear_android() {
