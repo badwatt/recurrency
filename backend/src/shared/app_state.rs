@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::auth::service::AuthServiceTrait;
+use std::sync::Arc;
 
 /// Application state - holds DB pool and injectable services
 #[derive(Clone)]
@@ -27,8 +27,8 @@ impl std::ops::Deref for AppState {
 /// Returns None if DATABASE_URL is not set or connection fails.
 #[cfg(test)]
 pub async fn create_test_app_state() -> Option<AppState> {
-    use crate::shared::mocks::MockAuthService;
     use crate::auth::models::CreateUserRequest;
+    use crate::shared::mocks::MockAuthService;
     use chrono::Utc;
 
     let database_url = std::env::var("DATABASE_URL").ok()?;
@@ -76,7 +76,9 @@ mod tests {
     #[ignore] // Requires running database
     async fn app_state_verify_token_mock() {
         use crate::auth::service::AuthServiceTrait;
-        let state = create_test_app_state().await.expect("DATABASE_URL required");
+        let state = create_test_app_state()
+            .await
+            .expect("DATABASE_URL required");
         let result = state.auth_service.verify_token("any_token").await;
         assert!(result.is_err());
     }
@@ -85,10 +87,13 @@ mod tests {
     #[ignore] // Requires running database
     async fn app_state_verify_mock_token() {
         use crate::auth::service::AuthServiceTrait;
-        let state = create_test_app_state().await.expect("DATABASE_URL required");
-        let result = state.auth_service.verify_token(
-            "mock_token_00000000-0000-0000-0000-000000000001"
-        ).await;
+        let state = create_test_app_state()
+            .await
+            .expect("DATABASE_URL required");
+        let result = state
+            .auth_service
+            .verify_token("mock_token_00000000-0000-0000-0000-000000000001")
+            .await;
         assert!(result.is_ok());
     }
 }

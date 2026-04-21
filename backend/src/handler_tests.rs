@@ -3,7 +3,9 @@
 
 #[cfg(test)]
 mod auth_model_tests {
-    use crate::auth::models::{CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse};
+    use crate::auth::models::{
+        CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse,
+    };
     use validator::Validate;
 
     #[test]
@@ -156,7 +158,10 @@ mod subscription_model_tests {
     #[test]
     fn create_subscription_frequencies() {
         for freq in ["daily", "weekly", "monthly", "quarterly", "yearly"] {
-            let json = format!(r#"{{"name":"Test","amount":"10.00","currency":"USD","frequency":"{}","start_date":"2024-01-01"}}"#, freq);
+            let json = format!(
+                r#"{{"name":"Test","amount":"10.00","currency":"USD","frequency":"{}","start_date":"2024-01-01"}}"#,
+                freq
+            );
             let req: CreateSubscriptionRequest = serde_json::from_str(&json).unwrap();
             assert_eq!(req.frequency, freq);
         }
@@ -166,7 +171,10 @@ mod subscription_model_tests {
     fn create_subscription_currencies() {
         let currencies = ["USD", "EUR", "GBP", "JPY"];
         for currency in currencies {
-            let json = format!(r#"{{"name":"Test","amount":"10.00","currency":"{}","frequency":"monthly","start_date":"2024-01-01"}}"#, currency);
+            let json = format!(
+                r#"{{"name":"Test","amount":"10.00","currency":"{}","frequency":"monthly","start_date":"2024-01-01"}}"#,
+                currency
+            );
             let req: CreateSubscriptionRequest = serde_json::from_str(&json).unwrap();
             assert_eq!(req.currency, currency);
         }
@@ -219,7 +227,10 @@ mod transaction_model_tests {
     fn create_transaction_currencies() {
         let currencies = ["USD", "EUR", "GBP", "JPY"];
         for currency in currencies {
-            let json = format!(r#"{{"name":"Test","amount":"10.00","currency":"{}","date":"2024-01-01"}}"#, currency);
+            let json = format!(
+                r#"{{"name":"Test","amount":"10.00","currency":"{}","date":"2024-01-01"}}"#,
+                currency
+            );
             let req: CreateTransactionRequest = serde_json::from_str(&json).unwrap();
             assert_eq!(req.currency, currency);
         }
@@ -305,7 +316,7 @@ mod notification_model_tests {
 
 #[cfg(test)]
 mod report_model_tests {
-    use crate::reports::models::{MonthlySummary, CategoryBreakdown, SpendingTrend};
+    use crate::reports::models::{CategoryBreakdown, MonthlySummary, SpendingTrend};
     use rust_decimal::Decimal;
 
     #[test]
@@ -471,7 +482,8 @@ mod auth_extractor_tests {
     fn extract_token_query_param_precedence() {
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer header_token".parse().unwrap());
-        let result = extract_token_from_request(Some(&"query_token".to_string()), &headers).unwrap();
+        let result =
+            extract_token_from_request(Some(&"query_token".to_string()), &headers).unwrap();
         assert_eq!(result, "query_token");
     }
 

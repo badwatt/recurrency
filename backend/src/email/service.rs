@@ -25,7 +25,10 @@ pub fn get_config() -> Option<SmtpConfig> {
     }
     Some(SmtpConfig {
         host: std::env::var("SMTP_HOST").unwrap(),
-        port: std::env::var("SMTP_PORT").unwrap_or_else(|_| "587".to_string()).parse().unwrap_or(587),
+        port: std::env::var("SMTP_PORT")
+            .unwrap_or_else(|_| "587".to_string())
+            .parse()
+            .unwrap_or(587),
         user: std::env::var("SMTP_USER").unwrap(),
         password: std::env::var("SMTP_PASSWORD").unwrap(),
         from: std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
@@ -65,7 +68,8 @@ fn build_html(email: &str, code: &str) -> String {
 }
 
 pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()> {
-    let config = get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
+    let config =
+        get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
 
     let from_addr = format!("{} <{}>", config.app_name, config.from);
     let subject = format!("{} - Verify your email", config.app_name);
@@ -101,7 +105,9 @@ pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()
         .tls(lettre::transport::smtp::client::Tls::Wrapper(tls_params))
         .build();
 
-    mailer.send(email).await
+    mailer
+        .send(email)
+        .await
         .map_err(|e| AppError::Internal(format!("Failed to send email: {}", e)))?;
 
     tracing::info!("Verification email sent to {}", to_email);
@@ -120,7 +126,10 @@ mod tests {
         std::env::remove_var("SMTP_HOST");
         std::env::remove_var("SMTP_USER");
         std::env::remove_var("SMTP_PASSWORD");
-        assert!(!is_configured(), "Should not be configured without SMTP env vars");
+        assert!(
+            !is_configured(),
+            "Should not be configured without SMTP env vars"
+        );
 
         // Should return true with SMTP env vars
         std::env::set_var("SMTP_HOST", "smtp.example.com");
@@ -155,7 +164,10 @@ mod tests {
         std::env::remove_var("APP_NAME");
 
         // Should return None without env vars
-        assert!(get_config().is_none(), "get_config should return None without env vars");
+        assert!(
+            get_config().is_none(),
+            "get_config should return None without env vars"
+        );
 
         // Set all env vars
         std::env::set_var("SMTP_HOST", "smtp.gmail.com");
@@ -167,7 +179,10 @@ mod tests {
 
         // Should return Some with all env vars
         let config = get_config();
-        assert!(config.is_some(), "get_config should return Some with all env vars");
+        assert!(
+            config.is_some(),
+            "get_config should return Some with all env vars"
+        );
 
         let cfg = config.unwrap();
         assert_eq!(cfg.host, "smtp.gmail.com");
@@ -276,7 +291,10 @@ mod tests {
         let result = send_verification_email("test@example.com", "123456").await;
         assert!(result.is_err(), "Should fail without SMTP config");
         let err = result.unwrap_err();
-        assert!(err.to_string().contains("SMTP not configured"), "Error should mention SMTP config");
+        assert!(
+            err.to_string().contains("SMTP not configured"),
+            "Error should mention SMTP config"
+        );
     }
 
     #[tokio::test]
@@ -289,7 +307,10 @@ mod tests {
         let result = send_verification_email("not-an-email", "123456").await;
         assert!(result.is_err(), "Should fail with invalid email");
         let err = result.unwrap_err();
-        assert!(err.to_string().contains("Invalid to address"), "Error should mention invalid to address");
+        assert!(
+            err.to_string().contains("Invalid to address"),
+            "Error should mention invalid to address"
+        );
         std::env::remove_var("SMTP_HOST");
         std::env::remove_var("SMTP_USER");
         std::env::remove_var("SMTP_PASSWORD");
@@ -306,7 +327,10 @@ mod tests {
         let result = send_verification_email("valid@example.com", "123456").await;
         assert!(result.is_err(), "Should fail with invalid from address");
         let err = result.unwrap_err();
-        assert!(err.to_string().contains("Invalid from address"), "Error should mention invalid from address");
+        assert!(
+            err.to_string().contains("Invalid from address"),
+            "Error should mention invalid from address"
+        );
         std::env::remove_var("SMTP_HOST");
         std::env::remove_var("SMTP_USER");
         std::env::remove_var("SMTP_PASSWORD");

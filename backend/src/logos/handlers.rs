@@ -1,16 +1,9 @@
-use axum::{
-    extract::Query,
-    Json,
-};
-use serde::Deserialize;
 use crate::logos::service::search_logos;
+use axum::{extract::Query, Json};
+use serde::Deserialize;
 
 #[cfg(test)]
-use axum::{
-    body::Body,
-    routing::get,
-    Router,
-};
+use axum::{body::Body, routing::get, Router};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchQuery {
@@ -144,7 +137,9 @@ mod tests {
         let response = app.oneshot(req).await.unwrap();
         assert!(response.status().is_success());
 
-        let body = axum::body::to_bytes(response.into_body(), 4096).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json.is_array() || json.is_object());
     }
@@ -219,7 +214,10 @@ mod tests {
 
             let response = app.clone().oneshot(req).await.unwrap();
             // Rate limiting: allow success or 429 (rate limited)
-            assert!(response.status().is_success() || response.status() == StatusCode::TOO_MANY_REQUESTS);
+            assert!(
+                response.status().is_success()
+                    || response.status() == StatusCode::TOO_MANY_REQUESTS
+            );
             // Small delay to avoid rate limiting between requests
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
@@ -239,9 +237,11 @@ mod tests {
             .unwrap();
 
         let response = app.oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(response.into_body(), 4096).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
         let logos: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap_or_default();
-        
+
         // Each logo should have certain fields
         for logo in logos.iter().take(1) {
             // Just verify it's valid JSON with expected structure

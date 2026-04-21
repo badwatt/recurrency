@@ -218,7 +218,9 @@ mod tests {
         };
         let logo = LogoResult {
             url: ddg_result.image.clone(),
-            thumbnail: ddg_result.thumbnail.unwrap_or_else(|| ddg_result.image.clone()),
+            thumbnail: ddg_result
+                .thumbnail
+                .unwrap_or_else(|| ddg_result.image.clone()),
             width: ddg_result.width,
             height: ddg_result.height,
         };
@@ -269,18 +271,24 @@ mod tests {
 
     #[test]
     fn test_results_limited_to_8() {
-        let ddg_results: Vec<DDGImageResult> = (0..20).map(|i| DDGImageResult {
-            image: format!("https://x.com/{}.png", i),
-            thumbnail: Some(format!("https://x.com/t{}.png", i)),
-            width: None,
-            height: None,
-        }).collect();
-        let logos: Vec<LogoResult> = ddg_results.into_iter().take(8).map(|r| LogoResult {
-            url: r.image.clone(),
-            thumbnail: r.thumbnail.unwrap_or_else(|| r.image.clone()),
-            width: r.width,
-            height: r.height,
-        }).collect();
+        let ddg_results: Vec<DDGImageResult> = (0..20)
+            .map(|i| DDGImageResult {
+                image: format!("https://x.com/{}.png", i),
+                thumbnail: Some(format!("https://x.com/t{}.png", i)),
+                width: None,
+                height: None,
+            })
+            .collect();
+        let logos: Vec<LogoResult> = ddg_results
+            .into_iter()
+            .take(8)
+            .map(|r| LogoResult {
+                url: r.image.clone(),
+                thumbnail: r.thumbnail.unwrap_or_else(|| r.image.clone()),
+                width: r.width,
+                height: r.height,
+            })
+            .collect();
         assert_eq!(logos.len(), 8);
     }
 }

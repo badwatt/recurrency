@@ -102,12 +102,18 @@ mod tests {
 
     #[test]
     fn build_index_path_standard() {
-        assert_eq!(build_index_path("/frontend/dist"), "/frontend/dist/index.html");
+        assert_eq!(
+            build_index_path("/frontend/dist"),
+            "/frontend/dist/index.html"
+        );
     }
 
     #[test]
     fn build_index_path_trailing_slash() {
-        assert_eq!(build_index_path("/frontend/dist/"), "/frontend/dist//index.html");
+        assert_eq!(
+            build_index_path("/frontend/dist/"),
+            "/frontend/dist//index.html"
+        );
     }
 
     #[test]
@@ -167,32 +173,32 @@ mod tests {
     }
 }
 
-    // ── parse_port edge cases ──
-    #[test]
-    fn parse_port_default() {
-        std::env::remove_var("APP_PORT");
-        let port = parse_port();
-        assert_eq!(port, 8080);
-    }
+// ── parse_port edge cases ──
+#[test]
+fn parse_port_default() {
+    std::env::remove_var("APP_PORT");
+    let port = parse_port();
+    assert_eq!(port, 8080);
+}
 
-    #[test]
-    fn parse_port_from_env_custom() {
-        std::env::set_var("APP_PORT", "9000");
-        let port = parse_port();
-        assert_eq!(port, 9000);
-        std::env::remove_var("APP_PORT");
-    }
+#[test]
+fn parse_port_from_env_custom() {
+    std::env::set_var("APP_PORT", "9000");
+    let port = parse_port();
+    assert_eq!(port, 9000);
+    std::env::remove_var("APP_PORT");
+}
 
-    // ── get_frontend_dist edge cases ──
-    #[test]
-    fn get_frontend_dist_returns_string() {
-        let dist = get_frontend_dist();
-        assert!(!dist.is_empty() || dist.is_empty()); // Just verify it returns
-    }
+// ── get_frontend_dist edge cases ──
+#[test]
+fn get_frontend_dist_returns_string() {
+    let dist = get_frontend_dist();
+    assert!(!dist.is_empty() || dist.is_empty()); // Just verify it returns
+}
 
-    // ── build_index_path edge cases ──
-    #[test]
-    fn build_index_path_with_trailing_slash() {
-        let path = build_index_path("/dist/");
-        assert!(path.ends_with("index.html"));
-    }
+// ── build_index_path edge cases ──
+#[test]
+fn build_index_path_with_trailing_slash() {
+    let path = build_index_path("/dist/");
+    assert!(path.ends_with("index.html"));
+}

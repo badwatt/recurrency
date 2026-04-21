@@ -29,18 +29,24 @@ impl NotificationService {
         .fetch_all(pool)
         .await?;
 
-        Ok(NotificationResponse { notifications, unread_count: unread_count.0 })
+        Ok(NotificationResponse {
+            notifications,
+            unread_count: unread_count.0,
+        })
     }
 
     pub async fn mark_read(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<bool> {
-        let result = sqlx::query(
-            "UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2",
-        )
-        .bind(id).bind(user_id)
-        .execute(pool).await?;
+        let result =
+            sqlx::query("UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2")
+                .bind(id)
+                .bind(user_id)
+                .execute(pool)
+                .await?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::error::AppError::NotFound("Notification not found".to_string()));
+            return Err(crate::shared::error::AppError::NotFound(
+                "Notification not found".to_string(),
+            ));
         }
         Ok(true)
     }
@@ -50,22 +56,30 @@ impl NotificationService {
             "UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false",
         )
         .bind(user_id)
-        .execute(pool).await?;
+        .execute(pool)
+        .await?;
         Ok(result.rows_affected() as i64)
     }
 
     pub async fn delete(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<bool> {
         let result = sqlx::query("DELETE FROM notifications WHERE id = $1 AND user_id = $2")
-            .bind(id).bind(user_id)
-            .execute(pool).await?;
+            .bind(id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
 
         if result.rows_affected() == 0 {
-            return Err(crate::shared::error::AppError::NotFound("Notification not found".to_string()));
+            return Err(crate::shared::error::AppError::NotFound(
+                "Notification not found".to_string(),
+            ));
         }
         Ok(true)
     }
 
-    pub async fn get_notification_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<NotificationPreferenceResponse>> {
+    pub async fn get_notification_preferences(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>> {
         let prefs = sqlx::query_as::<_, (String, bool, i32)>(
             "SELECT channel, enabled, reminder_days_before FROM notification_preferences WHERE user_id = $1",
         )
@@ -82,7 +96,11 @@ impl NotificationService {
         Ok(result)
     }
 
-    pub async fn update_notification_preferences(pool: &PgPool, user_id: Uuid, prefs: Vec<UpdatePreferenceRequest>) -> AppResult<Vec<NotificationPreferenceResponse>> {
+    pub async fn update_notification_preferences(
+        pool: &PgPool,
+        user_id: Uuid,
+        prefs: Vec<UpdatePreferenceRequest>,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>> {
         for req in prefs {
             sqlx::query(
                 "INSERT INTO notification_preferences (user_id, channel, enabled, reminder_days_before) VALUES ($1, $2, $3, 3) ON CONFLICT (user_id, channel) DO UPDATE SET enabled = $3",
@@ -96,9 +114,21 @@ impl NotificationService {
 
 pub fn default_notification_preferences() -> Vec<NotificationPreferenceResponse> {
     vec![
-        NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 },
-        NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 3 },
-        NotificationPreferenceResponse { channel: "system".to_string(), enabled: false, reminder_days_before: 3 },
+        NotificationPreferenceResponse {
+            channel: "email".to_string(),
+            enabled: false,
+            reminder_days_before: 3,
+        },
+        NotificationPreferenceResponse {
+            channel: "push".to_string(),
+            enabled: false,
+            reminder_days_before: 3,
+        },
+        NotificationPreferenceResponse {
+            channel: "system".to_string(),
+            enabled: false,
+            reminder_days_before: 3,
+        },
     ]
 }
 
@@ -115,20 +145,29 @@ mod tests {
 
     #[test]
     fn default_preferences_email_disabled() {
-        let p = default_notification_preferences().into_iter().find(|p| p.channel == "email").unwrap();
+        let p = default_notification_preferences()
+            .into_iter()
+            .find(|p| p.channel == "email")
+            .unwrap();
         assert!(!p.enabled);
         assert_eq!(p.reminder_days_before, 3);
     }
 
     #[test]
     fn default_preferences_push_disabled() {
-        let p = default_notification_preferences().into_iter().find(|p| p.channel == "push").unwrap();
+        let p = default_notification_preferences()
+            .into_iter()
+            .find(|p| p.channel == "push")
+            .unwrap();
         assert!(!p.enabled);
     }
 
     #[test]
     fn default_preferences_system_disabled() {
-        let p = default_notification_preferences().into_iter().find(|p| p.channel == "system").unwrap();
+        let p = default_notification_preferences()
+            .into_iter()
+            .find(|p| p.channel == "system")
+            .unwrap();
         assert!(!p.enabled);
     }
 
@@ -141,22 +180,31 @@ mod tests {
 
     #[test]
     fn notification_response_unread_count() {
-        let resp = NotificationResponse { notifications: vec![], unread_count: 5 };
+        let resp = NotificationResponse {
+            notifications: vec![],
+            unread_count: 5,
+        };
         assert_eq!(resp.unread_count, 5);
     }
 
     #[test]
     fn notification_response_empty() {
-        let resp = NotificationResponse { notifications: vec![], unread_count: 0 };
+        let resp = NotificationResponse {
+            notifications: vec![],
+            unread_count: 0,
+        };
         assert!(resp.notifications.is_empty());
     }
 
     #[test]
     fn notification_unread() {
         let n = Notification {
-            id: Uuid::new_v4(), user_id: Uuid::new_v4(),
-            notification_type: "billing".to_string(), title: "Test".to_string(),
-            message: Some("msg".to_string()), is_read: false,
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "billing".to_string(),
+            title: "Test".to_string(),
+            message: Some("msg".to_string()),
+            is_read: false,
             created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
         };
         assert!(!n.is_read);
@@ -165,9 +213,12 @@ mod tests {
     #[test]
     fn notification_read() {
         let n = Notification {
-            id: Uuid::new_v4(), user_id: Uuid::new_v4(),
-            notification_type: "alert".to_string(), title: "R".to_string(),
-            message: None, is_read: true,
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "alert".to_string(),
+            title: "R".to_string(),
+            message: None,
+            is_read: true,
             created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
         };
         assert!(n.is_read);
@@ -176,9 +227,12 @@ mod tests {
     #[test]
     fn notification_serde() {
         let n = Notification {
-            id: Uuid::new_v4(), user_id: Uuid::new_v4(),
-            notification_type: "alert".to_string(), title: "Ser".to_string(),
-            message: None, is_read: true,
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            notification_type: "alert".to_string(),
+            title: "Ser".to_string(),
+            message: None,
+            is_read: true,
             created_at: chrono::DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
         };
         let json = serde_json::to_string(&n).unwrap();
@@ -188,35 +242,49 @@ mod tests {
 
     #[test]
     fn update_preference_email_enabled() {
-        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"email","enabled":true}"#).unwrap();
+        let req: UpdatePreferenceRequest =
+            serde_json::from_str(r#"{"channel":"email","enabled":true}"#).unwrap();
         assert_eq!(req.channel, "email");
         assert!(req.enabled);
     }
 
     #[test]
     fn update_preference_push_disabled() {
-        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"push","enabled":false}"#).unwrap();
+        let req: UpdatePreferenceRequest =
+            serde_json::from_str(r#"{"channel":"push","enabled":false}"#).unwrap();
         assert_eq!(req.channel, "push");
         assert!(!req.enabled);
     }
 
     #[test]
     fn preference_response_fields() {
-        let p = NotificationPreferenceResponse { channel: "e".to_string(), enabled: true, reminder_days_before: 5 };
+        let p = NotificationPreferenceResponse {
+            channel: "e".to_string(),
+            enabled: true,
+            reminder_days_before: 5,
+        };
         assert_eq!(p.reminder_days_before, 5);
     }
 
     #[test]
     fn preference_response_serialize() {
-        let p = NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 };
+        let p = NotificationPreferenceResponse {
+            channel: "email".to_string(),
+            enabled: false,
+            reminder_days_before: 3,
+        };
         let json = serde_json::to_string(&p).unwrap();
         assert!(json.contains("email"));
     }
 
     #[test]
-    fn rows_affected_positive() { assert!(5i64 > 0); }
+    fn rows_affected_positive() {
+        assert!(5i64 > 0);
+    }
     #[test]
-    fn rows_affected_zero() { assert!(0i64 == 0); }
+    fn rows_affected_zero() {
+        assert!(0i64 == 0);
+    }
     // ── NotificationService struct ──
 
     #[test]
@@ -279,7 +347,10 @@ mod tests {
 
     #[test]
     fn notification_response_unread_count_large() {
-        let resp = NotificationResponse { notifications: vec![], unread_count: 9999 };
+        let resp = NotificationResponse {
+            notifications: vec![],
+            unread_count: 9999,
+        };
         assert_eq!(resp.unread_count, 9999);
     }
 
@@ -287,7 +358,9 @@ mod tests {
 
     #[test]
     fn notification_preferences_response_empty() {
-        let resp = NotificationPreferencesResponse { preferences: vec![] };
+        let resp = NotificationPreferencesResponse {
+            preferences: vec![],
+        };
         assert!(resp.preferences.is_empty());
     }
 
@@ -295,13 +368,29 @@ mod tests {
     fn notification_preferences_response_multiple() {
         let resp = NotificationPreferencesResponse {
             preferences: vec![
-                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 5 },
-                NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 1 },
-                NotificationPreferenceResponse { channel: "system".to_string(), enabled: true, reminder_days_before: 3 },
+                NotificationPreferenceResponse {
+                    channel: "email".to_string(),
+                    enabled: true,
+                    reminder_days_before: 5,
+                },
+                NotificationPreferenceResponse {
+                    channel: "push".to_string(),
+                    enabled: false,
+                    reminder_days_before: 1,
+                },
+                NotificationPreferenceResponse {
+                    channel: "system".to_string(),
+                    enabled: true,
+                    reminder_days_before: 3,
+                },
             ],
         };
         assert_eq!(resp.preferences.len(), 3);
-        let email = resp.preferences.iter().find(|p| p.channel == "email").unwrap();
+        let email = resp
+            .preferences
+            .iter()
+            .find(|p| p.channel == "email")
+            .unwrap();
         assert!(email.enabled);
         assert_eq!(email.reminder_days_before, 5);
     }
@@ -309,9 +398,11 @@ mod tests {
     #[test]
     fn notification_preferences_response_serialize_roundtrip() {
         let resp = NotificationPreferencesResponse {
-            preferences: vec![
-                NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 7 },
-            ],
+            preferences: vec![NotificationPreferenceResponse {
+                channel: "email".to_string(),
+                enabled: true,
+                reminder_days_before: 7,
+            }],
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("preferences"));
@@ -327,7 +418,11 @@ mod tests {
         let json = r#"{"preferences":[{"channel":"email","enabled":true},{"channel":"push","enabled":false}]}"#;
         let req: UpdateNotificationPreferencesRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.preferences.len(), 2);
-        let email = req.preferences.iter().find(|p| p.channel == "email").unwrap();
+        let email = req
+            .preferences
+            .iter()
+            .find(|p| p.channel == "email")
+            .unwrap();
         assert!(email.enabled);
     }
 
@@ -379,7 +474,10 @@ mod tests {
         let json = serde_json::to_string(&n).unwrap();
         let rt: Notification = serde_json::from_str(&json).unwrap();
         assert_eq!(rt.title, "Payment Due");
-        assert_eq!(rt.message.as_deref(), Some("Netflix subscription renews tomorrow"));
+        assert_eq!(
+            rt.message.as_deref(),
+            Some("Netflix subscription renews tomorrow")
+        );
         assert!(!rt.is_read);
     }
 
@@ -395,7 +493,10 @@ mod tests {
     #[test]
     fn pref_partial_override() {
         let mut r = default_notification_preferences();
-        if let Some(p) = r.iter_mut().find(|p| p.channel == "email") { p.enabled = true; p.reminder_days_before = 5; }
+        if let Some(p) = r.iter_mut().find(|p| p.channel == "email") {
+            p.enabled = true;
+            p.reminder_days_before = 5;
+        }
         let e = r.iter().find(|p| p.channel == "email").unwrap();
         assert!(e.enabled);
     }
@@ -403,18 +504,30 @@ mod tests {
     #[test]
     fn pref_no_db_match() {
         let mut r = default_notification_preferences();
-        for (ch, en, days) in Vec::<(String,bool,i32)>::new() {
-            if let Some(p) = r.iter_mut().find(|x| x.channel == ch) { p.enabled = en; p.reminder_days_before = days; }
+        for (ch, en, days) in Vec::<(String, bool, i32)>::new() {
+            if let Some(p) = r.iter_mut().find(|x| x.channel == ch) {
+                p.enabled = en;
+                p.reminder_days_before = days;
+            }
         }
-        for p in &r { assert!(!p.enabled); }
+        for p in &r {
+            assert!(!p.enabled);
+        }
     }
 
     #[test]
     fn pref_all_override() {
         let mut r = default_notification_preferences();
-        let prefs = vec![("email".to_string(),true,7),("push".to_string(),true,5),("system".to_string(),false,1)];
+        let prefs = vec![
+            ("email".to_string(), true, 7),
+            ("push".to_string(), true, 5),
+            ("system".to_string(), false, 1),
+        ];
         for (ch, en, days) in prefs {
-            if let Some(p) = r.iter_mut().find(|x| x.channel == ch) { p.enabled = en; p.reminder_days_before = days; }
+            if let Some(p) = r.iter_mut().find(|x| x.channel == ch) {
+                p.enabled = en;
+                p.reminder_days_before = days;
+            }
         }
         assert!(r[0].enabled);
         assert!(r[1].enabled);
@@ -422,7 +535,11 @@ mod tests {
 
     #[test]
     fn pref_zero_days() {
-        let p = NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 0 };
+        let p = NotificationPreferenceResponse {
+            channel: "email".to_string(),
+            enabled: false,
+            reminder_days_before: 0,
+        };
         assert_eq!(p.reminder_days_before, 0);
     }
 
@@ -435,24 +552,32 @@ mod tests {
 
     #[test]
     fn upd_pref_unknown_ch() {
-        let req: UpdatePreferenceRequest = serde_json::from_str(r#"{"channel":"telegram","enabled":true}"#).unwrap();
+        let req: UpdatePreferenceRequest =
+            serde_json::from_str(r#"{"channel":"telegram","enabled":true}"#).unwrap();
         assert_eq!(req.channel, "telegram");
     }
 
     #[test]
-    fn rows_0() { assert!(0i64 == 0); }
+    fn rows_0() {
+        assert!(0i64 == 0);
+    }
     #[test]
-    fn rows_1() { assert!(1i64 > 0); }
+    fn rows_1() {
+        assert!(1i64 > 0);
+    }
     #[test]
-    fn rows_5() { assert!(5i64 > 0); }
+    fn rows_5() {
+        assert!(5i64 > 0);
+    }
 }
-
 
 #[cfg(test)]
 mod serde_tests {
-    use crate::notifications::models::{Notification, NotificationResponse, UpdatePreferenceRequest};
+    use crate::notifications::models::{
+        Notification, NotificationResponse, UpdatePreferenceRequest,
+    };
     use uuid::Uuid;
-    
+
     #[test]
     fn notification_response_unread_count_serde() {
         let resp = NotificationResponse {
@@ -489,5 +614,4 @@ mod serde_tests {
         assert_eq!(req.channel, "email");
         assert!(req.enabled);
     }
-
 }

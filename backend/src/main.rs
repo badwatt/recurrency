@@ -11,13 +11,15 @@ mod subscriptions;
 mod test_utils;
 mod transactions;
 
-use std::sync::Arc;
 use axum::{
     routing::{delete, get, post, put},
     Router,
 };
-use shared::app_utils::{build_index_path, get_frontend_dist, index_html_exists, list_files_recursive, parse_port};
+use shared::app_utils::{
+    build_index_path, get_frontend_dist, index_html_exists, list_files_recursive, parse_port,
+};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -50,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
 
 fn build_app(db_pool: sqlx::PgPool) -> Router {
     use auth::service::{AuthServiceTrait, SqlxAuthService};
-use shared::app_state::AppState;
+    use shared::app_state::AppState;
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -68,7 +70,7 @@ use shared::app_state::AppState;
     // Create app state with DB pool and injectable services
     let app_state = AppState::new(
         db_pool.clone(),
-        Arc::new(SqlxAuthService::new(db_pool.clone())) as Arc<dyn AuthServiceTrait>
+        Arc::new(SqlxAuthService::new(db_pool.clone())) as Arc<dyn AuthServiceTrait>,
     );
 
     Router::new()
@@ -78,48 +80,96 @@ use shared::app_state::AppState;
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))
-        .route("/api/auth/resend-verification", post(auth::handlers::resend_verification))
+        .route(
+            "/api/auth/resend-verification",
+            post(auth::handlers::resend_verification),
+        )
         .route("/api/settings", get(auth::handlers::get_settings))
         .route("/api/settings", put(auth::handlers::update_settings))
         .route("/api/subscriptions", post(subscriptions::handlers::create))
         .route("/api/subscriptions", get(subscriptions::handlers::list))
         .route("/api/subscriptions/{id}", get(subscriptions::handlers::get))
-        .route("/api/subscriptions/{id}", put(subscriptions::handlers::update))
-        .route("/api/subscriptions/{id}", delete(subscriptions::handlers::delete))
-        .route("/api/subscriptions/upcoming", get(subscriptions::handlers::upcoming))
-        .route("/api/subscriptions/calendar", get(subscriptions::handlers::calendar))
+        .route(
+            "/api/subscriptions/{id}",
+            put(subscriptions::handlers::update),
+        )
+        .route(
+            "/api/subscriptions/{id}",
+            delete(subscriptions::handlers::delete),
+        )
+        .route(
+            "/api/subscriptions/upcoming",
+            get(subscriptions::handlers::upcoming),
+        )
+        .route(
+            "/api/subscriptions/calendar",
+            get(subscriptions::handlers::calendar),
+        )
         .route("/api/transactions", post(transactions::handlers::create))
         .route("/api/transactions", get(transactions::handlers::list))
-        .route("/api/transactions/date-range", get(transactions::handlers::by_date_range))
+        .route(
+            "/api/transactions/date-range",
+            get(transactions::handlers::by_date_range),
+        )
         .route("/api/transactions/{id}", get(transactions::handlers::get))
-        .route("/api/transactions/{id}", put(transactions::handlers::update))
-        .route("/api/transactions/{id}", delete(transactions::handlers::delete))
+        .route(
+            "/api/transactions/{id}",
+            put(transactions::handlers::update),
+        )
+        .route(
+            "/api/transactions/{id}",
+            delete(transactions::handlers::delete),
+        )
         .route("/api/categories", post(categories::handlers::create))
         .route("/api/categories", get(categories::handlers::list))
-        .route("/api/categories/with-counts", get(categories::handlers::list_with_counts))
+        .route(
+            "/api/categories/with-counts",
+            get(categories::handlers::list_with_counts),
+        )
         .route("/api/categories/{id}", get(categories::handlers::get))
         .route("/api/categories/{id}", put(categories::handlers::update))
         .route("/api/categories/{id}", delete(categories::handlers::delete))
-        .route("/api/categories/default", put(categories::handlers::set_default))
+        .route(
+            "/api/categories/default",
+            put(categories::handlers::set_default),
+        )
         .route("/api/reports/summary", get(reports::handlers::get_report))
         .route("/api/notifications", get(notifications::handlers::list))
-        .route("/api/notifications/read-all", post(notifications::handlers::mark_all_read))
-        .route("/api/notifications/{id}/read", post(notifications::handlers::mark_read))
-        .route("/api/notifications/{id}", delete(notifications::handlers::delete))
-        .route("/api/settings/notifications", get(notifications::handlers::get_notification_preferences))
-        .route("/api/settings/notifications", put(notifications::handlers::update_notification_preferences))
-        .route("/api/preferences", get(preferences::handlers::get_preferences))
-        .route("/api/preferences", put(preferences::handlers::update_preferences))
+        .route(
+            "/api/notifications/read-all",
+            post(notifications::handlers::mark_all_read),
+        )
+        .route(
+            "/api/notifications/{id}/read",
+            post(notifications::handlers::mark_read),
+        )
+        .route(
+            "/api/notifications/{id}",
+            delete(notifications::handlers::delete),
+        )
+        .route(
+            "/api/settings/notifications",
+            get(notifications::handlers::get_notification_preferences),
+        )
+        .route(
+            "/api/settings/notifications",
+            put(notifications::handlers::update_notification_preferences),
+        )
+        .route(
+            "/api/preferences",
+            get(preferences::handlers::get_preferences),
+        )
+        .route(
+            "/api/preferences",
+            put(preferences::handlers::update_preferences),
+        )
         .route("/api/demo/status", get(demo::handlers::status))
         .route("/api/demo/init", get(demo::handlers::init))
         .route("/api/demo/reset", post(demo::handlers::reset))
         .route("/api/logos/search", get(logos::handlers::search))
         .with_state(app_state)
         .layer(cors)
-        .fallback_service(
-            ServeDir::new(&frontend_dist)
-                .fallback(ServeFile::new(&index_path))
-        )
+        .fallback_service(ServeDir::new(&frontend_dist).fallback(ServeFile::new(&index_path)))
 }
 
 async fn health_check() -> &'static str {
@@ -145,8 +195,7 @@ mod tests {
             "OK"
         }
 
-        let app = Router::new()
-            .route("/health", get(test_handler));
+        let app = Router::new().route("/health", get(test_handler));
 
         let req = Request::builder()
             .method("GET")
@@ -179,9 +228,7 @@ mod tests {
 
     #[test]
     fn cors_layer_expose_headers() {
-        let cors = CorsLayer::new()
-            .allow_origin(Any)
-            .expose_headers(Any);
+        let cors = CorsLayer::new().allow_origin(Any).expose_headers(Any);
         assert!(true);
     }
 
@@ -189,8 +236,7 @@ mod tests {
     async fn router_rejects_unknown_routes() {
         // Test that the router returns NOT_FOUND for unknown routes
         // We use a minimal router to test the pattern
-        let app = Router::new()
-            .route("/health", get(|| async { "OK" }));
+        let app = Router::new().route("/health", get(|| async { "OK" }));
 
         let req = Request::builder()
             .method("GET")
@@ -228,10 +274,10 @@ mod tests {
 
     #[tokio::test]
     async fn router_path_parameters() {
-        let app = Router::new()
-            .route("/api/items/{id}", get(|axum::extract::Path(id): axum::extract::Path<String>| async move {
-                id
-            }));
+        let app = Router::new().route(
+            "/api/items/{id}",
+            get(|axum::extract::Path(id): axum::extract::Path<String>| async move { id }),
+        );
 
         let req = Request::builder()
             .method("GET")
@@ -246,12 +292,13 @@ mod tests {
 
     #[tokio::test]
     async fn router_query_parameters() {
-        async fn handler(query: axum::extract::Query<std::collections::HashMap<String, String>>) -> axum::Json<serde_json::Value> {
+        async fn handler(
+            query: axum::extract::Query<std::collections::HashMap<String, String>>,
+        ) -> axum::Json<serde_json::Value> {
             axum::Json(serde_json::json!({"q": query.0.get("q").cloned().unwrap_or_default()}))
         }
 
-        let app = Router::new()
-            .route("/api/search", get(handler));
+        let app = Router::new().route("/api/search", get(handler));
 
         let req = Request::builder()
             .method("GET")

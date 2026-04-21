@@ -7,11 +7,10 @@ use uuid::Uuid;
 
 use crate::auth::service::AuthService;
 use crate::notifications::models::{
-    NotificationPreferencesResponse, NotificationResponse,
-    UpdateNotificationPreferencesRequest,
+    NotificationPreferencesResponse, NotificationResponse, UpdateNotificationPreferencesRequest,
 };
-use crate::shared::app_state::AppState;
 use crate::notifications::service::NotificationService;
+use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::OptionalQuery;
@@ -26,7 +25,11 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<NotificationResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
     let notifications = NotificationService::list(&state.pool, claims.sub).await?;
     Ok(Json(notifications))
 }
@@ -37,7 +40,11 @@ pub async fn mark_read(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
     let notification_id = Uuid::parse_str(&id)
         .map_err(|_| AppError::NotFound("Invalid notification ID".to_string()))?;
     let success = NotificationService::mark_read(&state.pool, claims.sub, notification_id).await?;
@@ -49,7 +56,11 @@ pub async fn mark_all_read(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
     let count = NotificationService::mark_all_read(&state.pool, claims.sub).await?;
     Ok(Json(serde_json::json!({ "marked_count": count })))
 }
@@ -60,7 +71,11 @@ pub async fn delete(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
     let notification_id = Uuid::parse_str(&id)
         .map_err(|_| AppError::NotFound("Invalid notification ID".to_string()))?;
     let success = NotificationService::delete(&state.pool, claims.sub, notification_id).await?;
@@ -73,8 +88,13 @@ pub async fn get_notification_preferences(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
-    let preferences = NotificationService::get_notification_preferences(&state.pool, claims.sub).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
+    let preferences =
+        NotificationService::get_notification_preferences(&state.pool, claims.sub).await?;
     Ok(Json(NotificationPreferencesResponse { preferences }))
 }
 
@@ -84,8 +104,17 @@ pub async fn update_notification_preferences(
     headers: HeaderMap,
     Json(req): Json<UpdateNotificationPreferencesRequest>,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
-    let preferences = NotificationService::update_notification_preferences(&state.pool, claims.sub, req.preferences).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
+    let preferences = NotificationService::update_notification_preferences(
+        &state.pool,
+        claims.sub,
+        req.preferences,
+    )
+    .await?;
     Ok(Json(NotificationPreferencesResponse { preferences }))
 }
 
@@ -93,9 +122,8 @@ pub async fn update_notification_preferences(
 mod tests {
     use super::*;
     use crate::notifications::models::{
-        Notification, NotificationPreferenceResponse,
-        NotificationPreferencesResponse, NotificationResponse,
-        UpdateNotificationPreferencesRequest, UpdatePreferenceRequest,
+        Notification, NotificationPreferenceResponse, NotificationPreferencesResponse,
+        NotificationResponse, UpdateNotificationPreferencesRequest, UpdatePreferenceRequest,
     };
     use uuid::Uuid;
 
@@ -178,13 +206,11 @@ mod tests {
     #[test]
     fn notification_preferences_response_serialization() {
         let resp = NotificationPreferencesResponse {
-            preferences: vec![
-                NotificationPreferenceResponse {
-                    channel: "email".to_string(),
-                    enabled: true,
-                    reminder_days_before: 3,
-                },
-            ],
+            preferences: vec![NotificationPreferenceResponse {
+                channel: "email".to_string(),
+                enabled: true,
+                reminder_days_before: 3,
+            }],
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("email"));
@@ -239,7 +265,7 @@ mod tests {
             is_read: false,
             created_at: chrono::Utc::now(),
         };
-        
+
         let resp = NotificationResponse {
             notifications: vec![item],
             unread_count: 1,
@@ -260,14 +286,19 @@ mod tests {
             is_read: true,
             created_at: chrono::Utc::now(),
         };
-        
+
         let json = serde_json::to_value(&item).unwrap();
         assert!(json.get("message").is_none() || json["message"].is_null());
     }
 
     #[test]
     fn notification_type_various_values() {
-        for ntype in &["billing_reminder", "new_subscription", "payment_due", "system"] {
+        for ntype in &[
+            "billing_reminder",
+            "new_subscription",
+            "payment_due",
+            "system",
+        ] {
             let item = Notification {
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),

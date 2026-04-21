@@ -4,12 +4,12 @@ use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::categories::service::CategoryService;
 use crate::shared::date_utils::days_in_month;
 use crate::shared::error::{AppError, AppResult};
 use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
-use crate::categories::service::CategoryService;
 
 // ── resolve_update_fields: pure function for testability ──
 pub fn resolve_update_fields(
@@ -32,14 +32,26 @@ pub fn resolve_update_fields(
     let currency = req.currency.clone().unwrap_or(existing.currency.clone());
     let frequency = req.frequency.clone().unwrap_or(existing.frequency.clone());
     let start_date = req.start_date.unwrap_or(existing.start_date);
-    let next_billing_date = req.next_billing_date
+    let next_billing_date = req
+        .next_billing_date
         .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency));
     let category_id = req.category_id.unwrap_or(existing.category_id);
     let is_active = req.is_active.unwrap_or(existing.is_active);
     let notes = req.notes.clone().or(existing.notes.clone());
     let logo_url = req.logo_url.clone().or(existing.logo_url.clone());
 
-    (name, amount, currency, frequency, start_date, next_billing_date, category_id, is_active, notes, logo_url)
+    (
+        name,
+        amount,
+        currency,
+        frequency,
+        start_date,
+        next_billing_date,
+        category_id,
+        is_active,
+        notes,
+        logo_url,
+    )
 }
 
 pub struct SubscriptionService;
@@ -121,7 +133,8 @@ impl SubscriptionService {
         let currency = req.currency.unwrap_or(existing.currency);
         let frequency = req.frequency.unwrap_or(existing.frequency.clone());
         let start_date = req.start_date.unwrap_or(existing.start_date);
-        let next_billing_date = req.next_billing_date
+        let next_billing_date = req
+            .next_billing_date
             .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency));
         let category_id = req.category_id.unwrap_or(existing.category_id);
         let is_active = req.is_active.unwrap_or(existing.is_active);
@@ -170,7 +183,11 @@ impl SubscriptionService {
         Ok(())
     }
 
-    pub async fn get_upcoming(pool: &PgPool, user_id: Uuid, days: i64) -> AppResult<Vec<Subscription>> {
+    pub async fn get_upcoming(
+        pool: &PgPool,
+        user_id: Uuid,
+        days: i64,
+    ) -> AppResult<Vec<Subscription>> {
         let from_date = Utc::now().date_naive();
         let to_date = from_date + chrono::Duration::days(days);
 
@@ -526,7 +543,11 @@ mod tests {
         }
 
         // Weekly in January 2024 should have at least 3 billing dates
-        assert!(dates.len() >= 3, "Expected at least 3 weekly dates, got {}", dates.len());
+        assert!(
+            dates.len() >= 3,
+            "Expected at least 3 weekly dates, got {}",
+            dates.len()
+        );
         for &dt in &dates {
             assert!(dt.year() == 2024 && dt.month() == 1);
         }
@@ -661,18 +682,16 @@ mod tests {
     #[test]
     fn sort_calendar_items_single() {
         let uid = Uuid::new_v4();
-        let mut items = vec![
-            CalendarItem {
-                subscription_id: uid,
-                name: "Solo".to_string(),
-                amount: Decimal::ONE,
-                currency: "EUR".to_string(),
-                frequency: "monthly".to_string(),
-                billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-                is_active: true,
-                logo_url: None,
-            },
-        ];
+        let mut items = vec![CalendarItem {
+            subscription_id: uid,
+            name: "Solo".to_string(),
+            amount: Decimal::ONE,
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            is_active: true,
+            logo_url: None,
+        }];
         sort_calendar_items(&mut items);
         assert_eq!(items.len(), 1);
     }
@@ -693,7 +712,10 @@ mod tests {
             logo_url: Some("https://logo.com/netflix.png".to_string()),
         };
         assert_eq!(item.name, "Netflix");
-        assert_eq!(item.logo_url.as_deref(), Some("https://logo.com/netflix.png"));
+        assert_eq!(
+            item.logo_url.as_deref(),
+            Some("https://logo.com/netflix.png")
+        );
     }
 
     #[test]
@@ -1084,25 +1106,37 @@ mod tests {
     #[test]
     fn add_months_neg() {
         let d = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        assert_eq!(add_months(d, 6), NaiveDate::from_ymd_opt(2024, 12, 15).unwrap());
+        assert_eq!(
+            add_months(d, 6),
+            NaiveDate::from_ymd_opt(2024, 12, 15).unwrap()
+        );
     }
 
     #[test]
     fn add_months_leap() {
         let d = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
-        assert_eq!(add_months(d, 1), NaiveDate::from_ymd_opt(2024, 3, 29).unwrap());
+        assert_eq!(
+            add_months(d, 1),
+            NaiveDate::from_ymd_opt(2024, 3, 29).unwrap()
+        );
     }
 
     #[test]
     fn add_months_clamp() {
         let d = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
-        assert_eq!(add_months(d, 1), NaiveDate::from_ymd_opt(2024, 2, 29).unwrap());
+        assert_eq!(
+            add_months(d, 1),
+            NaiveDate::from_ymd_opt(2024, 2, 29).unwrap()
+        );
     }
 
     #[test]
     fn add_months_q() {
         let d = NaiveDate::from_ymd_opt(2024, 11, 15).unwrap();
-        assert_eq!(add_months(d, 3), NaiveDate::from_ymd_opt(2025, 2, 15).unwrap());
+        assert_eq!(
+            add_months(d, 3),
+            NaiveDate::from_ymd_opt(2025, 2, 15).unwrap()
+        );
     }
 
     #[test]
@@ -1114,20 +1148,37 @@ mod tests {
     #[test]
     fn adv_leap() {
         let d = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
-        assert_eq!(advance_date(d, "yearly"), NaiveDate::from_ymd_opt(2025, 2, 28).unwrap());
+        assert_eq!(
+            advance_date(d, "yearly"),
+            NaiveDate::from_ymd_opt(2025, 2, 28).unwrap()
+        );
     }
 
     #[test]
     fn cal_ser() {
         let uid = Uuid::new_v4();
-        let item = CalendarItem { subscription_id: uid, name: "T".to_string(), amount: Decimal::TEN, currency: "USD".to_string(), frequency: "monthly".to_string(), billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(), is_active: true, logo_url: None };
+        let item = CalendarItem {
+            subscription_id: uid,
+            name: "T".to_string(),
+            amount: Decimal::TEN,
+            currency: "USD".to_string(),
+            frequency: "monthly".to_string(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            is_active: true,
+            logo_url: None,
+        };
         let json = serde_json::to_string(&item).unwrap();
         assert!(json.contains("T"));
     }
 
     #[test]
     fn gbds_weekly() {
-        let dates = generate_billing_dates(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), "weekly", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), NaiveDate::from_ymd_opt(2024, 1, 31).unwrap());
+        let dates = generate_billing_dates(
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            "weekly",
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
+        );
         assert_eq!(dates.len(), 5);
     }
 
@@ -1139,5 +1190,7 @@ mod tests {
     }
 
     #[test]
-    fn sub_svc() { let _ = SubscriptionService; }
+    fn sub_svc() {
+        let _ = SubscriptionService;
+    }
 }

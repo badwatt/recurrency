@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
-use async_trait::async_trait;
 
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::shared::error::AppResult;
@@ -8,7 +8,11 @@ use crate::shared::error::AppResult;
 #[async_trait]
 pub trait PreferencesServiceTrait: Send + Sync {
     async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse>;
-    async fn update_preferences(&self, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse>;
+    async fn update_preferences(
+        &self,
+        user_id: Uuid,
+        req: UpdatePreferencesRequest,
+    ) -> AppResult<PreferencesResponse>;
 }
 
 pub struct SqlxPreferencesService {
@@ -49,7 +53,11 @@ impl PreferencesServiceTrait for SqlxPreferencesService {
         Ok(response)
     }
 
-    async fn update_preferences(&self, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse> {
+    async fn update_preferences(
+        &self,
+        user_id: Uuid,
+        req: UpdatePreferencesRequest,
+    ) -> AppResult<PreferencesResponse> {
         if let Some(theme) = req.theme {
             sqlx::query(
                 r#"
@@ -87,11 +95,19 @@ pub struct PreferencesService;
 
 impl PreferencesService {
     pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<PreferencesResponse> {
-        SqlxPreferencesService::new(pool.clone()).get_preferences(user_id).await
+        SqlxPreferencesService::new(pool.clone())
+            .get_preferences(user_id)
+            .await
     }
 
-    pub async fn update_preferences(pool: &PgPool, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse> {
-        SqlxPreferencesService::new(pool.clone()).update_preferences(user_id, req).await
+    pub async fn update_preferences(
+        pool: &PgPool,
+        user_id: Uuid,
+        req: UpdatePreferencesRequest,
+    ) -> AppResult<PreferencesResponse> {
+        SqlxPreferencesService::new(pool.clone())
+            .update_preferences(user_id, req)
+            .await
     }
 }
 
@@ -191,7 +207,8 @@ mod tests {
 
     #[test]
     fn update_preferences_request_subscriptions_view_only() {
-        let req: UpdatePreferencesRequest = serde_json::from_str(r#"{"subscriptions_view":"compact"}"#).unwrap();
+        let req: UpdatePreferencesRequest =
+            serde_json::from_str(r#"{"subscriptions_view":"compact"}"#).unwrap();
         assert!(req.theme.is_none());
         assert_eq!(req.subscriptions_view.as_deref(), Some("compact"));
     }
@@ -316,9 +333,11 @@ mod tests {
     #[test]
     fn update_preferences_request_order_independent() {
         // subscriptions_view first
-        let req1: UpdatePreferencesRequest = serde_json::from_str(r#"{"subscriptions_view":"list","theme":"dark"}"#).unwrap();
+        let req1: UpdatePreferencesRequest =
+            serde_json::from_str(r#"{"subscriptions_view":"list","theme":"dark"}"#).unwrap();
         // theme first
-        let req2: UpdatePreferencesRequest = serde_json::from_str(r#"{"theme":"dark","subscriptions_view":"list"}"#).unwrap();
+        let req2: UpdatePreferencesRequest =
+            serde_json::from_str(r#"{"theme":"dark","subscriptions_view":"list"}"#).unwrap();
         assert_eq!(req1.theme, req2.theme);
         assert_eq!(req1.subscriptions_view, req2.subscriptions_view);
     }
@@ -334,7 +353,10 @@ mod tests {
     // Apply preference edge cases using the 3-arg function
     #[test]
     fn apply_preference_theme_only() {
-        let mut prefs = PreferencesResponse { theme: "light".to_string(), subscriptions_view: "grid".to_string() };
+        let mut prefs = PreferencesResponse {
+            theme: "light".to_string(),
+            subscriptions_view: "grid".to_string(),
+        };
         apply_preference(&mut prefs, "theme", "dark");
         assert_eq!(prefs.theme, "dark");
         assert_eq!(prefs.subscriptions_view, "grid"); // unchanged
@@ -342,7 +364,10 @@ mod tests {
 
     #[test]
     fn apply_preference_view_only() {
-        let mut prefs = PreferencesResponse { theme: "dark".to_string(), subscriptions_view: "grid".to_string() };
+        let mut prefs = PreferencesResponse {
+            theme: "dark".to_string(),
+            subscriptions_view: "grid".to_string(),
+        };
         apply_preference(&mut prefs, "subscriptions_view", "list");
         assert_eq!(prefs.theme, "dark"); // unchanged
         assert_eq!(prefs.subscriptions_view, "list");
@@ -350,7 +375,10 @@ mod tests {
 
     #[test]
     fn apply_preference_both_fields() {
-        let mut prefs = PreferencesResponse { theme: "light".to_string(), subscriptions_view: "grid".to_string() };
+        let mut prefs = PreferencesResponse {
+            theme: "light".to_string(),
+            subscriptions_view: "grid".to_string(),
+        };
         apply_preference(&mut prefs, "theme", "midnight");
         apply_preference(&mut prefs, "subscriptions_view", "compact");
         assert_eq!(prefs.theme, "midnight");
@@ -359,7 +387,10 @@ mod tests {
 
     #[test]
     fn apply_preference_no_fields() {
-        let mut prefs = PreferencesResponse { theme: "light".to_string(), subscriptions_view: "grid".to_string() };
+        let mut prefs = PreferencesResponse {
+            theme: "light".to_string(),
+            subscriptions_view: "grid".to_string(),
+        };
         // No fields to update - nothing changes
         assert_eq!(prefs.theme, "light");
         assert_eq!(prefs.subscriptions_view, "grid");
@@ -369,7 +400,8 @@ mod tests {
     #[test]
     fn theme_variations() {
         for theme in &["light", "dark", "midnight", "solarized", "nord", "dracula"] {
-            let req: UpdatePreferencesRequest = serde_json::from_str(&format!(r#"{{"theme":"{}"}}"#, theme)).unwrap();
+            let req: UpdatePreferencesRequest =
+                serde_json::from_str(&format!(r#"{{"theme":"{}"}}"#, theme)).unwrap();
             assert_eq!(req.theme.as_deref(), Some(*theme));
         }
     }
@@ -378,7 +410,8 @@ mod tests {
     #[test]
     fn view_variations() {
         for view in &["grid", "list", "compact", "cards"] {
-            let req: UpdatePreferencesRequest = serde_json::from_str(&format!(r#"{{"subscriptions_view":"{}"}}"#, view)).unwrap();
+            let req: UpdatePreferencesRequest =
+                serde_json::from_str(&format!(r#"{{"subscriptions_view":"{}"}}"#, view)).unwrap();
             assert_eq!(req.subscriptions_view.as_deref(), Some(*view));
         }
     }

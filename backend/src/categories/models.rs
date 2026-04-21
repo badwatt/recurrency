@@ -121,8 +121,8 @@ mod tests {
     fn update_category_request_default_values() {
         let req = UpdateCategoryRequest {
             name: None,
-            icon: serde_json::Value::Null,   // serde default
-            color: serde_json::Value::Null,  // serde default
+            icon: serde_json::Value::Null,  // serde default
+            color: serde_json::Value::Null, // serde default
         };
         assert!(req.name.is_none());
         assert!(req.icon.is_null());

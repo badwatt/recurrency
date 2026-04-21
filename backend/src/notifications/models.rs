@@ -98,13 +98,11 @@ mod tests {
     #[test]
     fn notification_preferences_response_serialization() {
         let resp = NotificationPreferencesResponse {
-            preferences: vec![
-                NotificationPreferenceResponse {
-                    channel: "email".to_string(),
-                    enabled: false,
-                    reminder_days_before: 3,
-                },
-            ],
+            preferences: vec![NotificationPreferenceResponse {
+                channel: "email".to_string(),
+                enabled: false,
+                reminder_days_before: 3,
+            }],
         };
         let json = serde_json::to_value(&resp).unwrap();
         assert!(json.get("preferences").is_some());

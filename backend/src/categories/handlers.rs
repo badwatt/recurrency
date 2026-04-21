@@ -6,13 +6,15 @@ use axum::{
 use uuid::Uuid;
 
 use crate::auth::service::AuthService;
+use crate::categories::models::{
+    CategoryResponse, CreateCategoryRequest, SetDefaultRequest, UpdateCategoryRequest,
+};
+use crate::categories::service::{CategoryService, CategoryWithCounts};
 use crate::shared::app_state::AppState;
 use crate::shared::error::AppResult;
-use crate::categories::models::{CreateCategoryRequest, CategoryResponse, UpdateCategoryRequest, SetDefaultRequest};
-use crate::categories::service::{CategoryService, CategoryWithCounts};
 
-use crate::shared::{AuthQuery, OptionalQuery};
 use crate::shared::auth_extractor::extract_token_from_request;
+use crate::shared::{AuthQuery, OptionalQuery};
 
 pub async fn create(
     State(state): State<AppState>,
@@ -20,7 +22,11 @@ pub async fn create(
     headers: HeaderMap,
     Json(req): Json<CreateCategoryRequest>,
 ) -> AppResult<(StatusCode, Json<CategoryResponse>)> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let category = CategoryService::create(&state.pool, claims.sub, req).await?;
 
@@ -32,7 +38,11 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<CategoryResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let categories = CategoryService::get_all(&state.pool, claims.sub).await?;
 
@@ -44,7 +54,11 @@ pub async fn list_with_counts(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<CategoryWithCounts>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let categories = CategoryService::get_with_counts(&state.pool, claims.sub).await?;
 
@@ -57,7 +71,11 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<CategoryResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let category = CategoryService::get_by_id(&state.pool, claims.sub, id).await?;
 
@@ -71,7 +89,11 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateCategoryRequest>,
 ) -> AppResult<Json<CategoryResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let category = CategoryService::update(&state.pool, claims.sub, id, req).await?;
 
@@ -84,7 +106,11 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     CategoryService::delete(&state.pool, claims.sub, id).await?;
 
@@ -97,7 +123,11 @@ pub async fn set_default(
     headers: HeaderMap,
     Json(req): Json<SetDefaultRequest>,
 ) -> AppResult<Json<CategoryResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let category = CategoryService::set_default(&state.pool, claims.sub, req.id).await?;
 
@@ -112,7 +142,10 @@ mod tests {
     fn set_default_request_deserialize() {
         let json = r#"{"id":"550e8400-e29b-41d4-a716-446655440000"}"#;
         let req: SetDefaultRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(req.id, Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap());
+        assert_eq!(
+            req.id,
+            Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap()
+        );
     }
 
     #[test]

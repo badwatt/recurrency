@@ -1,15 +1,11 @@
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Json,
-};
+use axum::{extract::State, http::HeaderMap, Json};
 use chrono::Datelike;
 
 use crate::auth::service::AuthService;
 use crate::reports::models::ReportResponse;
 use crate::reports::service::ReportService;
-use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::app_state::AppState;
+use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
 use crate::shared::OptionalQuery;
 
@@ -25,11 +21,18 @@ pub async fn get_report(
     OptionalQuery(query): OptionalQuery<ReportQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<ReportResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let today = chrono::Utc::now().date_naive();
     let year = query.as_ref().and_then(|q| q.year).unwrap_or(today.year());
-    let month = query.as_ref().and_then(|q| q.month).unwrap_or(today.month());
+    let month = query
+        .as_ref()
+        .and_then(|q| q.month)
+        .unwrap_or(today.month());
 
     let report = ReportService::get_full_report(&state.pool, claims.sub, year, month).await;
 
@@ -39,7 +42,9 @@ pub async fn get_report(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
+    use crate::reports::models::{
+        CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend,
+    };
     use rust_decimal::Decimal;
 
     #[test]
@@ -237,25 +242,24 @@ mod tests {
         }
     }
 }
-    // ── ReportQuery serde tests ──
-    #[test]
-    fn report_query_token_only() {
-        let json = r#"{"token":"abc123"}"#;
-        let query: ReportQuery = serde_json::from_str(json).unwrap();
-        assert_eq!(query.token, Some("abc123".to_string()));
-    }
+// ── ReportQuery serde tests ──
+#[test]
+fn report_query_token_only() {
+    let json = r#"{"token":"abc123"}"#;
+    let query: ReportQuery = serde_json::from_str(json).unwrap();
+    assert_eq!(query.token, Some("abc123".to_string()));
+}
 
-    #[test]
-    fn report_query_empty() {
-        let json = r#"{}"#;
-        let query: ReportQuery = serde_json::from_str(json).unwrap();
-        assert!(query.token.is_none());
-    }
+#[test]
+fn report_query_empty() {
+    let json = r#"{}"#;
+    let query: ReportQuery = serde_json::from_str(json).unwrap();
+    assert!(query.token.is_none());
+}
 
-    #[test]
-    fn report_query_with_year() {
-        let json = r#"{"year":2024}"#;
-        let query: ReportQuery = serde_json::from_str(json).unwrap();
-        assert_eq!(query.year, Some(2024));
-    }
-
+#[test]
+fn report_query_with_year() {
+    let json = r#"{"year":2024}"#;
+    let query: ReportQuery = serde_json::from_str(json).unwrap();
+    assert_eq!(query.year, Some(2024));
+}

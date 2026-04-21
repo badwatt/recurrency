@@ -4,7 +4,10 @@ use axum::{
 };
 use validator::Validate;
 
-use crate::auth::models::{AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest, UserResponse};
+use crate::auth::models::{
+    AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest,
+    UserResponse,
+};
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
 use crate::shared::OptionalQuery;
@@ -27,9 +30,7 @@ pub async fn login(
 }
 
 /// GET /api/auth/verify - uses static JWT token (no State needed)
-pub async fn verify(
-    Json(token): Json<String>,
-) -> AppResult<Json<serde_json::Value>> {
+pub async fn verify(Json(token): Json<String>) -> AppResult<Json<serde_json::Value>> {
     let claims = crate::auth::service::verify_token_internal(&token)?;
     Ok(Json(serde_json::json!({
         "valid": true,
@@ -61,7 +62,8 @@ pub async fn get_settings(
     OptionalQuery(query): OptionalQuery<SettingsQuery>,
     headers: axum::http::HeaderMap,
 ) -> AppResult<Json<UserResponse>> {
-    let token = extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
+    let token =
+        extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
     let claims = state.auth_service.verify_token(&token).await?;
     let user = state.auth_service.get_settings(claims.sub).await?;
     Ok(Json(user))
@@ -73,7 +75,8 @@ pub async fn update_settings(
     headers: axum::http::HeaderMap,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> AppResult<Json<SettingsResponse>> {
-    let token = extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
+    let token =
+        extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
     let claims = state.auth_service.verify_token(&token).await?;
     let user = state.auth_service.update_settings(claims.sub, req).await?;
     Ok(Json(user.into()))
@@ -95,7 +98,10 @@ pub async fn verify_email(
     Json(body): Json<VerifyEmailBody>,
 ) -> AppResult<Json<UserResponse>> {
     let claims = state.auth_service.verify_token(&query.token).await?;
-    let user = state.auth_service.verify_email(claims.sub, body.code).await?;
+    let user = state
+        .auth_service
+        .verify_email(claims.sub, body.code)
+        .await?;
     Ok(Json(user))
 }
 
@@ -105,7 +111,9 @@ pub async fn resend_verification(
 ) -> AppResult<Json<serde_json::Value>> {
     let claims = state.auth_service.verify_token(&query.token).await?;
     let _ = state.auth_service.resend_verification(claims.sub).await?;
-    Ok(Json(serde_json::json!({"message": "Verification code sent"})))
+    Ok(Json(
+        serde_json::json!({"message": "Verification code sent"}),
+    ))
 }
 
 #[cfg(test)]
@@ -187,13 +195,19 @@ mod tests {
         });
         assert!(response.get("valid").unwrap().as_bool().unwrap());
         assert!(response.get("user_id").is_some());
-        assert_eq!(response.get("email").unwrap().as_str().unwrap(), "test@example.com");
+        assert_eq!(
+            response.get("email").unwrap().as_str().unwrap(),
+            "test@example.com"
+        );
     }
 
     #[test]
     fn resend_verification_response_structure() {
         let response = serde_json::json!({"message": "Verification code sent"});
-        assert_eq!(response.get("message").unwrap().as_str().unwrap(), "Verification code sent");
+        assert_eq!(
+            response.get("message").unwrap().as_str().unwrap(),
+            "Verification code sent"
+        );
     }
 
     #[test]
@@ -319,47 +333,52 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_register_success() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let body = serde_json::json!({
             "email": "new@test.com",
             "password": "password123",
             "name": "New User"
         });
-        let (status, _body) = post_json::<_, serde_json::Value>(
-            &app, "/api/auth/register", &body
-        ).await;
+        let (status, _body) =
+            post_json::<_, serde_json::Value>(&app, "/api/auth/register", &body).await;
         assert_eq!(status, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_register_validation_empty_email() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         // Axum returns 400 for validation errors from the validator derive
         let body = serde_json::json!({"email": "", "password": "short", "name": "Test"});
-        let (status, _body) = post_json::<_, serde_json::Value>(
-            &app, "/api/auth/register", &body
-        ).await;
+        let (status, _body) =
+            post_json::<_, serde_json::Value>(&app, "/api/auth/register", &body).await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
     async fn handler_register_invalid_email_format() {
-        let Some(mut app) = make_app().await else { return; };
-        let body = serde_json::json!({"email": "not-an-email", "password": "password123", "name": "Test"});
-        let (status, _body) = post_json::<_, serde_json::Value>(
-            &app, "/api/auth/register", &body
-        ).await;
+        let Some(mut app) = make_app().await else {
+            return;
+        };
+        let body =
+            serde_json::json!({"email": "not-an-email", "password": "password123", "name": "Test"});
+        let (status, _body) =
+            post_json::<_, serde_json::Value>(&app, "/api/auth/register", &body).await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
     async fn handler_register_duplicate_email() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let body = serde_json::json!({"email": "dup@test.com", "password": "password123", "name": "First"});
         post_json::<_, serde_json::Value>(&app, "/api/auth/register", &body).await;
-        let (status, _body) = post_json::<_, serde_json::Value>(
-            &app, "/api/auth/register", &body
-        ).await;
+        let (status, _body) =
+            post_json::<_, serde_json::Value>(&app, "/api/auth/register", &body).await;
         assert_eq!(status, StatusCode::CONFLICT);
     }
 
@@ -367,19 +386,25 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_login_success() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let reg = serde_json::json!({"email": "login@test.com", "password": "password123", "name": "Login User"});
         post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
         let login = serde_json::json!({"email": "login@test.com", "password": "password123"});
-        let (status, _body) = post_json::<_, serde_json::Value>(&app, "/api/auth/login", &login).await;
+        let (status, _body) =
+            post_json::<_, serde_json::Value>(&app, "/api/auth/login", &login).await;
         assert_eq!(status, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_login_unknown_user() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let body = serde_json::json!({"email": "nobody@test.com", "password": "password123"});
-        let (status, _body) = post_json::<_, serde_json::Value>(&app, "/api/auth/login", &body).await;
+        let (status, _body) =
+            post_json::<_, serde_json::Value>(&app, "/api/auth/login", &body).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
 
@@ -387,26 +412,34 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_verify_valid_mock_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let token_str = VALID_MOCK_TOKEN.to_string();
         let body = serde_json::to_string(&token_str).unwrap();
         let req = Request::builder()
-            .method("POST").uri("/api/auth/verify")
+            .method("POST")
+            .uri("/api/auth/verify")
             .header("Content-Type", "application/json")
-            .body(Body::from(body)).unwrap();
+            .body(Body::from(body))
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_verify_invalid_mock_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let token_str = "not-a-valid-mock-token".to_string();
         let body = serde_json::to_string(&token_str).unwrap();
         let req = Request::builder()
-            .method("POST").uri("/api/auth/verify")
+            .method("POST")
+            .uri("/api/auth/verify")
             .header("Content-Type", "application/json")
-            .body(Body::from(body)).unwrap();
+            .body(Body::from(body))
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
@@ -415,38 +448,56 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_get_settings_success() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         // Register user first so mock has it
         let reg = serde_json::json!({"email": "settings@test.com", "password": "password123", "name": "Settings"});
         let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
         // Now call get_settings using Authorization header (query param approach is flaky)
         let req = Request::builder()
-            .method("GET").uri("/api/settings")
+            .method("GET")
+            .uri("/api/settings")
             .header("Authorization", format!("Bearer {}", VALID_MOCK_TOKEN))
-            .body(Body::empty()).unwrap();
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         let status = response.status();
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
-        eprintln!("get_settings: status={} body={:?}", status, String::from_utf8_lossy(&body));
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
+        eprintln!(
+            "get_settings: status={} body={:?}",
+            status,
+            String::from_utf8_lossy(&body)
+        );
         assert_eq!(status, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_get_settings_invalid_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let req = Request::builder()
-            .method("GET").uri("/api/settings?token=bad_token")
-            .body(Body::empty()).unwrap();
+            .method("GET")
+            .uri("/api/settings?token=bad_token")
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
     async fn handler_get_settings_no_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let req = Request::builder()
-            .method("GET").uri("/api/settings")
-            .body(Body::empty()).unwrap();
+            .method("GET")
+            .uri("/api/settings")
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
@@ -455,28 +506,33 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_update_settings_success() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         // Register user first so mock has it
         let reg = serde_json::json!({"email": "update@test.com", "password": "password123", "name": "Update"});
         let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
         // Now call update_settings using Authorization header
         let body = serde_json::json!({"name": "Updated Name", "currency": "GBP"});
         let req = Request::builder()
-            .method("PUT").uri("/api/settings")
+            .method("PUT")
+            .uri("/api/settings")
             .header("Authorization", format!("Bearer {}", VALID_MOCK_TOKEN))
             .header("Content-Type", "application/json")
-            .body(Body::from(serde_json::to_string(&body).unwrap())).unwrap();
+            .body(Body::from(serde_json::to_string(&body).unwrap()))
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_update_settings_invalid_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let body = serde_json::json!({"name": "New Name"});
-        let (status, _body) = put_json::<_, serde_json::Value>(
-            &app, "/api/settings?token=invalid", &body
-        ).await;
+        let (status, _body) =
+            put_json::<_, serde_json::Value>(&app, "/api/settings?token=invalid", &body).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
 
@@ -484,32 +540,46 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_verify_email_success() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         // Register user first so mock has it
         let reg = serde_json::json!({"email": "verify@test.com", "password": "password123", "name": "Verify"});
         let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
         // Now call verify_email with mock token (user should be in mock's registered_users)
         let uri = format!("/api/auth/verify-email?token={}", VALID_MOCK_TOKEN);
         let req = Request::builder()
-            .method("POST").uri(&uri)
+            .method("POST")
+            .uri(&uri)
             .header("Content-Type", "application/json")
-            .body(Body::from(r#"{"code":"123456"}"#)).unwrap();
+            .body(Body::from(r#"{"code":"123456"}"#))
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         let status = response.status();
         if status != StatusCode::OK {
-            let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
-            eprintln!("verify_email: status={} body={:?}", status, String::from_utf8_lossy(&body));
+            let body = axum::body::to_bytes(response.into_body(), 1024)
+                .await
+                .unwrap();
+            eprintln!(
+                "verify_email: status={} body={:?}",
+                status,
+                String::from_utf8_lossy(&body)
+            );
         }
         assert_eq!(status, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_verify_email_invalid_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let req = Request::builder()
-            .method("POST").uri("/api/auth/verify-email?token=invalid")
+            .method("POST")
+            .uri("/api/auth/verify-email?token=invalid")
             .header("Content-Type", "application/json")
-            .body(Body::from(r#"{"code":"123456"}"#)).unwrap();
+            .body(Body::from(r#"{"code":"123456"}"#))
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
@@ -518,25 +588,33 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_resend_verification_success() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         // Register user first so mock has it
         let reg = serde_json::json!({"email": "resend@test.com", "password": "password123", "name": "Resend"});
         let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
         // Now call resend_verification
         let uri = format!("/api/auth/resend-verification?token={}", VALID_MOCK_TOKEN);
         let req = Request::builder()
-            .method("POST").uri(&uri)
-            .body(Body::empty()).unwrap();
+            .method("POST")
+            .uri(&uri)
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn handler_resend_verification_invalid_token() {
-        let Some(mut app) = make_app().await else { return; };
+        let Some(mut app) = make_app().await else {
+            return;
+        };
         let req = Request::builder()
-            .method("POST").uri("/api/auth/resend-verification?token=invalid")
-            .body(Body::empty()).unwrap();
+            .method("POST")
+            .uri("/api/auth/resend-verification?token=invalid")
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
@@ -550,14 +628,21 @@ mod handler_integration_tests {
     ) -> (StatusCode, R) {
         let json_body = serde_json::to_string(body).unwrap();
         let req = Request::builder()
-            .method("POST").uri(uri)
+            .method("POST")
+            .uri(uri)
             .header("Content-Type", "application/json")
-            .body(Body::from(json_body)).unwrap();
+            .body(Body::from(json_body))
+            .unwrap();
         let response = app.clone().oneshot(req).await.unwrap();
         let status = response.status();
-        let body_bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let body_bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
         let body: R = serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-            panic!("Failed to parse response: {:?}", String::from_utf8_lossy(&body_bytes))
+            panic!(
+                "Failed to parse response: {:?}",
+                String::from_utf8_lossy(&body_bytes)
+            )
         });
         (status, body)
     }
@@ -569,14 +654,21 @@ mod handler_integration_tests {
     ) -> (StatusCode, R) {
         let json_body = serde_json::to_string(body).unwrap();
         let req = Request::builder()
-            .method("PUT").uri(uri)
+            .method("PUT")
+            .uri(uri)
             .header("Content-Type", "application/json")
-            .body(Body::from(json_body)).unwrap();
+            .body(Body::from(json_body))
+            .unwrap();
         let response = app.clone().oneshot(req).await.unwrap();
         let status = response.status();
-        let body_bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let body_bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
         let body: R = serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-            panic!("Failed to parse response: {:?}", String::from_utf8_lossy(&body_bytes))
+            panic!(
+                "Failed to parse response: {:?}",
+                String::from_utf8_lossy(&body_bytes)
+            )
         });
         (status, body)
     }

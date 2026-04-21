@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use chrono::{NaiveDate, Datelike};
+    use chrono::{Datelike, NaiveDate};
     use rust_decimal::Decimal;
 
     // Helper to calculate next billing date (mirrors backend logic)
@@ -40,8 +40,7 @@ mod tests {
                 let day = current_date.day();
                 let new_year = year + 1;
                 let max_day = days_in_month(new_year, month);
-                NaiveDate::from_ymd_opt(new_year, month, day.min(max_day))
-                    .unwrap_or(current_date)
+                NaiveDate::from_ymd_opt(new_year, month, day.min(max_day)).unwrap_or(current_date)
             }
             _ => current_date,
         }

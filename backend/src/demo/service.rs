@@ -41,13 +41,12 @@ impl DemoService {
         .map_err(|e| e.to_string())?;
 
         // Get the default category for the user
-        let default_category: (Uuid,) = sqlx::query_as(
-            "SELECT id FROM categories WHERE user_id = $1 AND is_default = true"
-        )
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        let default_category: (Uuid,) =
+            sqlx::query_as("SELECT id FROM categories WHERE user_id = $1 AND is_default = true")
+                .bind(user_id)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| e.to_string())?;
         let default_category_id = default_category.0;
 
         sqlx::query("DELETE FROM user_preferences WHERE user_id = $1")
@@ -78,11 +77,11 @@ impl DemoService {
 
         // subs: (name, amount, start_date_months_ago, billing_day)
         let subs = [
-            ("Netflix",        "15.99", 3, 15),  // started 3 months ago on the 15th
-            ("Spotify",         "9.99", 1, 1),   // started 1 month ago on the 1st
-            ("iCloud",          "2.99", 6, 10),  // started 6 months ago on the 10th
-            ("Gym Membership",  "49.99", 2, 5),  // started 2 months ago on the 5th
-            ("Adobe CC",        "54.99", 4, 18),  // started 4 months ago on the 18th
+            ("Netflix", "15.99", 3, 15),       // started 3 months ago on the 15th
+            ("Spotify", "9.99", 1, 1),         // started 1 month ago on the 1st
+            ("iCloud", "2.99", 6, 10),         // started 6 months ago on the 10th
+            ("Gym Membership", "49.99", 2, 5), // started 2 months ago on the 5th
+            ("Adobe CC", "54.99", 4, 18),      // started 4 months ago on the 18th
         ];
 
         for (name, amount, months_ago, day) in subs {
@@ -107,26 +106,26 @@ impl DemoService {
 
         // transactions spread over last week
         let txns = [
-            ("Coffee",     "4.50",  0),
-            ("Groceries",  "85.00", 2),
-            ("Gas",        "45.00", 4),
+            ("Coffee", "4.50", 0),
+            ("Groceries", "85.00", 2),
+            ("Gas", "45.00", 4),
             ("Restaurant", "35.00", 6),
         ];
         for (name, amount, ago) in txns {
             let date = today - chrono::Duration::days(ago);
             sqlx::query(
                 "INSERT INTO transactions (id, user_id, category_id, name, amount, currency, date)
-                 VALUES ($1, $2, $3, $4, $5, 'EUR', $6)"
+                 VALUES ($1, $2, $3, $4, $5, 'EUR', $6)",
             )
-                .bind(Uuid::new_v4())
-                .bind(user_id)
-                .bind(default_category_id)
-                .bind(name)
-                .bind(Decimal::from_str_exact(amount).unwrap_or(Decimal::ZERO))
-                .bind(date)
-                .execute(pool)
-                .await
-                .map_err(|e| e.to_string())?;
+            .bind(Uuid::new_v4())
+            .bind(user_id)
+            .bind(default_category_id)
+            .bind(name)
+            .bind(Decimal::from_str_exact(amount).unwrap_or(Decimal::ZERO))
+            .bind(date)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
         }
 
         Ok(())
@@ -134,7 +133,12 @@ impl DemoService {
 }
 
 /// Calculate the start date given current month/year and months ago.
-pub(crate) fn calc_start_date(month: u32, year: i32, months_ago: u32, day: u32) -> chrono::NaiveDate {
+pub(crate) fn calc_start_date(
+    month: u32,
+    year: i32,
+    months_ago: u32,
+    day: u32,
+) -> chrono::NaiveDate {
     let total_months = year * 12 + month as i32 - months_ago as i32 - 1;
     let new_year = total_months / 12;
     let new_month = ((total_months % 12) + 1) as u32;
@@ -145,8 +149,17 @@ pub(crate) fn calc_start_date(month: u32, year: i32, months_ago: u32, day: u32) 
 }
 
 /// Calculate next billing date from current date and billing day.
-pub(crate) fn calc_next_date(month: u32, year: i32, today_day: u32, billing_day: u32) -> chrono::NaiveDate {
-    let next_month = if billing_day > today_day { month } else { month + 1 };
+pub(crate) fn calc_next_date(
+    month: u32,
+    year: i32,
+    today_day: u32,
+    billing_day: u32,
+) -> chrono::NaiveDate {
+    let next_month = if billing_day > today_day {
+        month
+    } else {
+        month + 1
+    };
     let (next_year, next_month_normalized) = if next_month > 12 {
         (year + 1, 1)
     } else {
@@ -162,13 +175,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn days_in_month_january() { assert_eq!(days_in_month(2024, 1), 31); }
+    fn days_in_month_january() {
+        assert_eq!(days_in_month(2024, 1), 31);
+    }
     #[test]
-    fn days_in_month_april() { assert_eq!(days_in_month(2024, 4), 30); }
+    fn days_in_month_april() {
+        assert_eq!(days_in_month(2024, 4), 30);
+    }
     #[test]
-    fn days_in_month_february_leap() { assert_eq!(days_in_month(2024, 2), 29); }
+    fn days_in_month_february_leap() {
+        assert_eq!(days_in_month(2024, 2), 29);
+    }
     #[test]
-    fn days_in_month_february_non_leap() { assert_eq!(days_in_month(2023, 2), 28); }
+    fn days_in_month_february_non_leap() {
+        assert_eq!(days_in_month(2023, 2), 28);
+    }
 
     #[test]
     fn calc_start_date_same_month() {
@@ -327,23 +348,41 @@ mod tests {
     // ── days_in_month additional edge cases ──
 
     #[test]
-    fn days_in_month_march() { assert_eq!(days_in_month(2024, 3), 31); }
+    fn days_in_month_march() {
+        assert_eq!(days_in_month(2024, 3), 31);
+    }
     #[test]
-    fn days_in_month_may() { assert_eq!(days_in_month(2024, 5), 31); }
+    fn days_in_month_may() {
+        assert_eq!(days_in_month(2024, 5), 31);
+    }
     #[test]
-    fn days_in_month_june() { assert_eq!(days_in_month(2024, 6), 30); }
+    fn days_in_month_june() {
+        assert_eq!(days_in_month(2024, 6), 30);
+    }
     #[test]
-    fn days_in_month_july() { assert_eq!(days_in_month(2024, 7), 31); }
+    fn days_in_month_july() {
+        assert_eq!(days_in_month(2024, 7), 31);
+    }
     #[test]
-    fn days_in_month_august() { assert_eq!(days_in_month(2024, 8), 31); }
+    fn days_in_month_august() {
+        assert_eq!(days_in_month(2024, 8), 31);
+    }
     #[test]
-    fn days_in_month_september() { assert_eq!(days_in_month(2024, 9), 30); }
+    fn days_in_month_september() {
+        assert_eq!(days_in_month(2024, 9), 30);
+    }
     #[test]
-    fn days_in_month_october() { assert_eq!(days_in_month(2024, 10), 31); }
+    fn days_in_month_october() {
+        assert_eq!(days_in_month(2024, 10), 31);
+    }
     #[test]
-    fn days_in_month_november() { assert_eq!(days_in_month(2024, 11), 30); }
+    fn days_in_month_november() {
+        assert_eq!(days_in_month(2024, 11), 30);
+    }
     #[test]
-    fn days_in_month_december() { assert_eq!(days_in_month(2024, 12), 31); }
+    fn days_in_month_december() {
+        assert_eq!(days_in_month(2024, 12), 31);
+    }
 
     // ── calc_start_date additional edge cases ──
 
@@ -473,28 +512,28 @@ mod tests {
     }
 }
 
-    // ── calc_next_date additional edge cases ──
-    #[test]
-    fn calc_next_date_same_month_early_billing_day() {
-        let date = calc_next_date(5, 2024, 10, 15); // May 10, billing day 15
-        assert_eq!(date.month(), 5);
-        assert_eq!(date.day(), 15);
-    }
+// ── calc_next_date additional edge cases ──
+#[test]
+fn calc_next_date_same_month_early_billing_day() {
+    let date = calc_next_date(5, 2024, 10, 15); // May 10, billing day 15
+    assert_eq!(date.month(), 5);
+    assert_eq!(date.day(), 15);
+}
 
-    #[test]
-    fn calc_next_date_same_month_late_billing_day() {
-        let date = calc_next_date(5, 2024, 20, 15); // May 20, billing day 15 < 20 → next month
-        assert_eq!(date.month(), 6);
-    }
+#[test]
+fn calc_next_date_same_month_late_billing_day() {
+    let date = calc_next_date(5, 2024, 20, 15); // May 20, billing day 15 < 20 → next month
+    assert_eq!(date.month(), 6);
+}
 
-    #[test]
-    fn calc_next_date_december_wraps_year() {
-        let date = calc_next_date(12, 2024, 15, 20);
-        assert_eq!(date.month(), 12);
-    }
+#[test]
+fn calc_next_date_december_wraps_year() {
+    let date = calc_next_date(12, 2024, 15, 20);
+    assert_eq!(date.month(), 12);
+}
 
-    // ── DemoService reset returns Result ──
-    #[test]
-    fn demo_service_struct() {
-        let _ = DemoService;
-    }
+// ── DemoService reset returns Result ──
+#[test]
+fn demo_service_struct() {
+    let _ = DemoService;
+}

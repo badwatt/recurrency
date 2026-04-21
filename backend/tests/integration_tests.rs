@@ -67,7 +67,9 @@ async fn create_subscription(
         notes: None,
         logo_url: None,
     };
-    SubscriptionService::create(pool, user_id, req).await.unwrap()
+    SubscriptionService::create(pool, user_id, req)
+        .await
+        .unwrap()
 }
 
 // ── Auth Tests ─────────────────────────────────────────────────────────────────
@@ -98,11 +100,15 @@ async fn auth_register_duplicate_email_fails(pool: PgPool) {
     };
 
     AuthService::register(&pool, req).await.unwrap();
-    let result = AuthService::register(&pool, CreateUserRequest {
-        email,
-        password: "otherpassword123".to_string(),
-        name: "Other".to_string(),
-    }).await;
+    let result = AuthService::register(
+        &pool,
+        CreateUserRequest {
+            email,
+            password: "otherpassword123".to_string(),
+            name: "Other".to_string(),
+        },
+    )
+    .await;
 
     assert!(matches!(result, Err(AppError::Conflict(_))));
 }
@@ -121,20 +127,28 @@ async fn auth_login_invalid_password_fails(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     let user = AuthService::get_user_by_id(&pool, user_id).await.unwrap();
 
-    let result = AuthService::login(&pool, LoginRequest {
-        email: user.email,
-        password: "wrongpassword123".to_string(),
-    }).await;
+    let result = AuthService::login(
+        &pool,
+        LoginRequest {
+            email: user.email,
+            password: "wrongpassword123".to_string(),
+        },
+    )
+    .await;
 
     assert!(matches!(result, Err(AppError::Unauthorized(_))));
 }
 
 #[sqlx::test]
 async fn auth_login_nonexistent_user_fails(pool: PgPool) {
-    let result = AuthService::login(&pool, LoginRequest {
-        email: "nonexistent@test.com".to_string(),
-        password: "anypassword123".to_string(),
-    }).await;
+    let result = AuthService::login(
+        &pool,
+        LoginRequest {
+            email: "nonexistent@test.com".to_string(),
+            password: "anypassword123".to_string(),
+        },
+    )
+    .await;
 
     assert!(matches!(result, Err(AppError::Unauthorized(_))));
 }
@@ -183,8 +197,10 @@ async fn subscription_create(pool: PgPool) {
 async fn subscription_create_multiple(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
 
-    let netflix = create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
-    let spotify = create_subscription(&pool, user_id, "Spotify", Decimal::from(999), "monthly").await;
+    let netflix =
+        create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
+    let spotify =
+        create_subscription(&pool, user_id, "Spotify", Decimal::from(999), "monthly").await;
     let gym = create_subscription(&pool, user_id, "Gym", Decimal::from(5000), "yearly").await;
 
     assert_ne!(netflix.id, spotify.id);
@@ -229,9 +245,12 @@ async fn subscription_get_all_user_isolation(pool: PgPool) {
 #[sqlx::test]
 async fn subscription_get_by_id(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
-    let created = create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
+    let created =
+        create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
 
-    let sub = SubscriptionService::get_by_id(&pool, user_id, created.id).await.unwrap();
+    let sub = SubscriptionService::get_by_id(&pool, user_id, created.id)
+        .await
+        .unwrap();
     assert_eq!(sub.id, created.id);
 }
 
@@ -262,7 +281,9 @@ async fn subscription_update_name(pool: PgPool) {
         notes: None,
         logo_url: None,
     };
-    let updated = SubscriptionService::update(&pool, user_id, sub.id, req).await.unwrap();
+    let updated = SubscriptionService::update(&pool, user_id, sub.id, req)
+        .await
+        .unwrap();
     assert_eq!(updated.name, "Disney+");
 }
 
@@ -272,11 +293,20 @@ async fn subscription_update_deactivate(pool: PgPool) {
     let sub = create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
 
     let req = UpdateSubscriptionRequest {
-        name: None, amount: None, currency: None, frequency: None,
-        start_date: None, next_billing_date: None, category_id: None,
-        is_active: Some(false), notes: None, logo_url: None,
+        name: None,
+        amount: None,
+        currency: None,
+        frequency: None,
+        start_date: None,
+        next_billing_date: None,
+        category_id: None,
+        is_active: Some(false),
+        notes: None,
+        logo_url: None,
     };
-    let updated = SubscriptionService::update(&pool, user_id, sub.id, req).await.unwrap();
+    let updated = SubscriptionService::update(&pool, user_id, sub.id, req)
+        .await
+        .unwrap();
     assert!(!updated.is_active);
 }
 
@@ -285,7 +315,9 @@ async fn subscription_delete(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     let sub = create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
 
-    SubscriptionService::delete(&pool, user_id, sub.id).await.unwrap();
+    SubscriptionService::delete(&pool, user_id, sub.id)
+        .await
+        .unwrap();
 
     let result = SubscriptionService::get_by_id(&pool, user_id, sub.id).await;
     assert!(result.is_err());
@@ -301,7 +333,9 @@ async fn subscription_delete_wrong_user(pool: PgPool) {
     assert!(matches!(result, Err(AppError::NotFound(_))));
 
     // Verify still exists for user1
-    assert!(SubscriptionService::get_by_id(&pool, user1_id, sub.id).await.is_ok());
+    assert!(SubscriptionService::get_by_id(&pool, user1_id, sub.id)
+        .await
+        .is_ok());
 }
 
 #[sqlx::test]
@@ -309,7 +343,9 @@ async fn subscription_get_upcoming(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
 
-    let upcoming = SubscriptionService::get_upcoming(&pool, user_id, 30).await.unwrap();
+    let upcoming = SubscriptionService::get_upcoming(&pool, user_id, 30)
+        .await
+        .unwrap();
     assert!(!upcoming.is_empty());
     assert!(upcoming.iter().all(|s| s.is_active));
 }
@@ -317,16 +353,28 @@ async fn subscription_get_upcoming(pool: PgPool) {
 #[sqlx::test]
 async fn subscription_get_upcoming_excludes_inactive(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
-    let inactive = create_subscription(&pool, user_id, "Canceled", Decimal::from(1000), "monthly").await;
+    let inactive =
+        create_subscription(&pool, user_id, "Canceled", Decimal::from(1000), "monthly").await;
 
     let req = UpdateSubscriptionRequest {
-        name: None, amount: None, currency: None, frequency: None,
-        start_date: None, next_billing_date: None, category_id: None,
-        is_active: Some(false), notes: None, logo_url: None,
+        name: None,
+        amount: None,
+        currency: None,
+        frequency: None,
+        start_date: None,
+        next_billing_date: None,
+        category_id: None,
+        is_active: Some(false),
+        notes: None,
+        logo_url: None,
     };
-    SubscriptionService::update(&pool, user_id, inactive.id, req).await.unwrap();
+    SubscriptionService::update(&pool, user_id, inactive.id, req)
+        .await
+        .unwrap();
 
-    let upcoming = SubscriptionService::get_upcoming(&pool, user_id, 365).await.unwrap();
+    let upcoming = SubscriptionService::get_upcoming(&pool, user_id, 365)
+        .await
+        .unwrap();
     assert!(upcoming.iter().all(|s| s.is_active));
 }
 
@@ -335,7 +383,9 @@ async fn subscription_get_calendar(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
 
-    let calendar = SubscriptionService::get_calendar(&pool, user_id, 2024, 6).await.unwrap();
+    let calendar = SubscriptionService::get_calendar(&pool, user_id, 2024, 6)
+        .await
+        .unwrap();
     assert!(!calendar.is_empty());
     for item in &calendar {
         assert!(item.billing_date.year() == 2024 && item.billing_date.month() == 6);
@@ -345,7 +395,9 @@ async fn subscription_get_calendar(pool: PgPool) {
 #[sqlx::test]
 async fn subscription_get_calendar_empty(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
-    let calendar = SubscriptionService::get_calendar(&pool, user_id, 2024, 6).await.unwrap();
+    let calendar = SubscriptionService::get_calendar(&pool, user_id, 2024, 6)
+        .await
+        .unwrap();
     assert!(calendar.is_empty());
 }
 
@@ -401,7 +453,9 @@ async fn category_delete_custom(pool: PgPool) {
     };
     let cat = CategoryService::create(&pool, user_id, req).await.unwrap();
 
-    CategoryService::delete(&pool, user_id, cat.id).await.unwrap();
+    CategoryService::delete(&pool, user_id, cat.id)
+        .await
+        .unwrap();
 
     let result = CategoryService::get_by_id(&pool, user_id, cat.id).await;
     assert!(result.is_err());

@@ -1,16 +1,12 @@
 use std::env;
 
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Json,
-};
+use axum::{extract::State, http::HeaderMap, Json};
 use uuid::Uuid;
 
 use crate::auth::service::AuthService;
 use crate::demo::service::DemoService;
-use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::app_state::AppState;
+use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
 use crate::shared::OptionalQuery;
@@ -108,7 +104,11 @@ pub async fn reset(
         return Err(AppError::BadRequest("Demo mode is not enabled".to_string()));
     }
 
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     match DemoService::reset_demo_data(&state.pool, claims.sub).await {
         Ok(()) => Ok(Json(serde_json::json!({
@@ -202,7 +202,7 @@ mod tests {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "yes");
         let enabled = is_demo_enabled();
-        assert!(!enabled);  // "yes" not in "true" set
+        assert!(!enabled); // "yes" not in "true" set
         env::remove_var("ENABLE_DEMO");
     }
 
@@ -224,7 +224,7 @@ mod tests {
         env::remove_var("DEMO_EMAIL");
         env::remove_var("DEMO_PASSWORD");
         env::remove_var("DEMO_PASSWORD_HASH");
-        
+
         let email = demo_email();
         assert_eq!(email, "");
     }
@@ -235,7 +235,7 @@ mod tests {
         env::remove_var("DEMO_EMAIL");
         env::remove_var("DEMO_PASSWORD");
         env::remove_var("DEMO_PASSWORD_HASH");
-        
+
         env::set_var("ENABLE_DEMO", "true");
         env::set_var("DEMO_EMAIL", "custom@demo.com");
         let email = demo_email();
@@ -251,7 +251,7 @@ mod tests {
         env::remove_var("DEMO_EMAIL");
         env::remove_var("DEMO_PASSWORD");
         env::remove_var("DEMO_PASSWORD_HASH");
-        
+
         env::set_var("ENABLE_DEMO", "true");
         let email1 = demo_email();
         let email2 = demo_email();
@@ -318,10 +318,10 @@ mod tests {
         env::remove_var("ENABLE_DEMO");
         let enabled = is_demo_enabled();
         let email = if enabled { demo_email() } else { String::new() };
-        
+
         assert!(!enabled);
         assert_eq!(email, "");
-        
+
         // Verify the response structure that status() would return
         let response = serde_json::json!({
             "enabled": enabled,
@@ -339,13 +339,13 @@ mod tests {
         env::remove_var("DEMO_PASSWORD_HASH");
         env::set_var("ENABLE_DEMO", "true");
         env::set_var("DEMO_EMAIL", "status@demo.com");
-        
+
         let enabled = is_demo_enabled();
         let email = demo_email();
-        
+
         assert!(enabled);
         assert_eq!(email, "status@demo.com");
-        
+
         env::remove_var("ENABLE_DEMO");
         env::remove_var("DEMO_EMAIL");
     }

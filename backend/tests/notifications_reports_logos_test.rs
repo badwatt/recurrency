@@ -68,9 +68,21 @@ mod notifications_tests {
 
     fn default_notification_preferences() -> Vec<NotificationPreferenceResponse> {
         vec![
-            NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 },
-            NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 3 },
-            NotificationPreferenceResponse { channel: "system".to_string(), enabled: false, reminder_days_before: 3 },
+            NotificationPreferenceResponse {
+                channel: "email".to_string(),
+                enabled: false,
+                reminder_days_before: 3,
+            },
+            NotificationPreferenceResponse {
+                channel: "push".to_string(),
+                enabled: false,
+                reminder_days_before: 3,
+            },
+            NotificationPreferenceResponse {
+                channel: "system".to_string(),
+                enabled: false,
+                reminder_days_before: 3,
+            },
         ]
     }
 
@@ -83,7 +95,11 @@ mod notifications_tests {
                 title: "Netflix Due Tomorrow".to_string(),
                 message: Some("Your Netflix subscription renews tomorrow".to_string()),
                 is_read: false,
-                created_at: chrono::DateTime::<Utc>::from_timestamp(Utc::now().timestamp() - 3600, 0).unwrap(),
+                created_at: chrono::DateTime::<Utc>::from_timestamp(
+                    Utc::now().timestamp() - 3600,
+                    0,
+                )
+                .unwrap(),
             },
             Notification {
                 id: Uuid::new_v4(),
@@ -92,10 +108,17 @@ mod notifications_tests {
                 title: "Spotify Payment".to_string(),
                 message: None,
                 is_read: true,
-                created_at: chrono::DateTime::<Utc>::from_timestamp(Utc::now().timestamp() - 86400, 0).unwrap(),
+                created_at: chrono::DateTime::<Utc>::from_timestamp(
+                    Utc::now().timestamp() - 86400,
+                    0,
+                )
+                .unwrap(),
             },
         ];
-        NotificationResponse { notifications, unread_count: 1 }
+        NotificationResponse {
+            notifications,
+            unread_count: 1,
+        }
     }
 
     fn mock_mark_read(notification_id: Uuid, user_id: Uuid) -> bool {
@@ -103,14 +126,21 @@ mod notifications_tests {
     }
 
     fn mock_mark_all_read(user_id: Uuid) -> i64 {
-        if !user_id.is_nil() { 5 } else { 0 }
+        if !user_id.is_nil() {
+            5
+        } else {
+            0
+        }
     }
 
     fn mock_delete_notification(notification_id: Uuid, user_id: Uuid) -> bool {
         !notification_id.is_nil() && !user_id.is_nil()
     }
 
-    fn mock_update_preferences(_user_id: Uuid, updates: Vec<UpdatePreferenceRequest>) -> Vec<NotificationPreferenceResponse> {
+    fn mock_update_preferences(
+        _user_id: Uuid,
+        updates: Vec<UpdatePreferenceRequest>,
+    ) -> Vec<NotificationPreferenceResponse> {
         let mut prefs = default_notification_preferences();
         for req in updates {
             if let Some(p) = prefs.iter_mut().find(|p| p.channel == req.channel) {
@@ -182,7 +212,11 @@ mod notifications_tests {
     fn test_mock_list_notifications_unread_count() {
         let user_id = Uuid::new_v4();
         let response = mock_list_notifications(user_id);
-        let unread: Vec<_> = response.notifications.iter().filter(|n| !n.is_read).collect();
+        let unread: Vec<_> = response
+            .notifications
+            .iter()
+            .filter(|n| !n.is_read)
+            .collect();
         assert_eq!(unread.len(), response.unread_count as usize);
     }
 
@@ -233,7 +267,10 @@ mod notifications_tests {
     #[test]
     fn test_update_preferences_enable_email() {
         let user_id = Uuid::new_v4();
-        let updates = vec![UpdatePreferenceRequest { channel: "email".to_string(), enabled: true }];
+        let updates = vec![UpdatePreferenceRequest {
+            channel: "email".to_string(),
+            enabled: true,
+        }];
         let result = mock_update_preferences(user_id, updates);
         let email = result.iter().find(|p| p.channel == "email").unwrap();
         assert!(email.enabled);
@@ -242,7 +279,10 @@ mod notifications_tests {
     #[test]
     fn test_update_preferences_disable_push() {
         let user_id = Uuid::new_v4();
-        let updates = vec![UpdatePreferenceRequest { channel: "push".to_string(), enabled: false }];
+        let updates = vec![UpdatePreferenceRequest {
+            channel: "push".to_string(),
+            enabled: false,
+        }];
         let result = mock_update_preferences(user_id, updates);
         let push = result.iter().find(|p| p.channel == "push").unwrap();
         assert!(!push.enabled);
@@ -252,14 +292,35 @@ mod notifications_tests {
     fn test_update_multiple_preferences() {
         let user_id = Uuid::new_v4();
         let updates = vec![
-            UpdatePreferenceRequest { channel: "email".to_string(), enabled: true },
-            UpdatePreferenceRequest { channel: "push".to_string(), enabled: true },
-            UpdatePreferenceRequest { channel: "system".to_string(), enabled: false },
+            UpdatePreferenceRequest {
+                channel: "email".to_string(),
+                enabled: true,
+            },
+            UpdatePreferenceRequest {
+                channel: "push".to_string(),
+                enabled: true,
+            },
+            UpdatePreferenceRequest {
+                channel: "system".to_string(),
+                enabled: false,
+            },
         ];
         let result = mock_update_preferences(user_id, updates);
-        assert!(result.iter().find(|p| p.channel == "email").unwrap().enabled);
+        assert!(
+            result
+                .iter()
+                .find(|p| p.channel == "email")
+                .unwrap()
+                .enabled
+        );
         assert!(result.iter().find(|p| p.channel == "push").unwrap().enabled);
-        assert!(!result.iter().find(|p| p.channel == "system").unwrap().enabled);
+        assert!(
+            !result
+                .iter()
+                .find(|p| p.channel == "system")
+                .unwrap()
+                .enabled
+        );
     }
 
     // Serialization Tests
@@ -299,7 +360,9 @@ mod notifications_tests {
 
     #[test]
     fn test_notification_preferences_response_serialization() {
-        let response = NotificationPreferencesResponse { preferences: default_notification_preferences() };
+        let response = NotificationPreferencesResponse {
+            preferences: default_notification_preferences(),
+        };
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"preferences\""));
     }
@@ -332,8 +395,16 @@ mod notifications_tests {
     #[test]
     fn test_preferences_reminder_days_range() {
         let prefs = vec![
-            NotificationPreferenceResponse { channel: "email".to_string(), enabled: true, reminder_days_before: 0 },
-            NotificationPreferenceResponse { channel: "push".to_string(), enabled: true, reminder_days_before: 7 },
+            NotificationPreferenceResponse {
+                channel: "email".to_string(),
+                enabled: true,
+                reminder_days_before: 0,
+            },
+            NotificationPreferenceResponse {
+                channel: "push".to_string(),
+                enabled: true,
+                reminder_days_before: 7,
+            },
         ];
         for p in prefs {
             assert!(p.reminder_days_before >= 0);
@@ -399,7 +470,9 @@ mod reports_tests {
         pub month: Option<u32>,
     }
 
-    fn dec(s: &str) -> Decimal { Decimal::from_str(s).unwrap() }
+    fn dec(s: &str) -> Decimal {
+        Decimal::from_str(s).unwrap()
+    }
 
     fn month_date_range(year: i32, month: u32) -> (NaiveDate, NaiveDate) {
         let from_date = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
@@ -413,7 +486,11 @@ mod reports_tests {
 
     fn calculate_percentage(total: Decimal, overall_total: Decimal) -> f64 {
         if overall_total > Decimal::ZERO {
-            (total / overall_total * Decimal::from(100)).round_dp(1).to_string().parse().unwrap_or(0.0)
+            (total / overall_total * Decimal::from(100))
+                .round_dp(1)
+                .to_string()
+                .parse()
+                .unwrap_or(0.0)
         } else {
             0.0
         }
@@ -463,14 +540,17 @@ mod reports_tests {
     }
 
     fn days_in_month(year: i32, month: u32) -> u32 {
-        if month == 12 { 31 } else {
+        if month == 12 {
+            31
+        } else {
             (NaiveDate::from_ymd_opt(year, month + 1, 1).unwrap() - chrono::Duration::days(1)).day()
         }
     }
 
     fn mock_generate_report(_user_id: Uuid, year: i32, month: u32) -> ReportResponse {
         let summary = MonthlySummary {
-            year, month,
+            year,
+            month,
             subscriptions_total: dec("500.00"),
             transactions_total: dec("200.00"),
             overall_total: dec("700.00"),
@@ -478,15 +558,40 @@ mod reports_tests {
             transactions_count: 10,
         };
         let breakdown = vec![
-            CategoryBreakdown { category_id: Some("cat-1".to_string()), category_name: "Streaming".to_string(), total: dec("150.00"), count: 3, percentage: 21.4 },
-            CategoryBreakdown { category_id: Some("cat-2".to_string()), category_name: "Software".to_string(), total: dec("100.00"), count: 2, percentage: 14.3 },
+            CategoryBreakdown {
+                category_id: Some("cat-1".to_string()),
+                category_name: "Streaming".to_string(),
+                total: dec("150.00"),
+                count: 3,
+                percentage: 21.4,
+            },
+            CategoryBreakdown {
+                category_id: Some("cat-2".to_string()),
+                category_name: "Software".to_string(),
+                total: dec("100.00"),
+                count: 2,
+                percentage: 14.3,
+            },
         ];
         let trends = vec![
-            SpendingTrend { period: "3/26".to_string(), total: dec("650.00") },
-            SpendingTrend { period: "2/26".to_string(), total: dec("620.00") },
-            SpendingTrend { period: "1/26".to_string(), total: dec("580.00") },
+            SpendingTrend {
+                period: "3/26".to_string(),
+                total: dec("650.00"),
+            },
+            SpendingTrend {
+                period: "2/26".to_string(),
+                total: dec("620.00"),
+            },
+            SpendingTrend {
+                period: "1/26".to_string(),
+                total: dec("580.00"),
+            },
         ];
-        ReportResponse { monthly_summary: summary, category_breakdown: breakdown, recent_trends: trends }
+        ReportResponse {
+            monthly_summary: summary,
+            category_breakdown: breakdown,
+            recent_trends: trends,
+        }
     }
 
     // Handler Query Parsing Tests
@@ -588,7 +693,11 @@ mod reports_tests {
 
     #[test]
     fn test_combine_subscriptions_only() {
-        let subs = vec![(Some("cat-1".to_string()), "Streaming".to_string(), dec("50"))];
+        let subs = vec![(
+            Some("cat-1".to_string()),
+            "Streaming".to_string(),
+            dec("50"),
+        )];
         let txns: Vec<(Option<String>, String, Decimal)> = vec![];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 1);
@@ -600,7 +709,11 @@ mod reports_tests {
     #[test]
     fn test_combine_transactions_only() {
         let subs: Vec<(Option<String>, String, Decimal)> = vec![];
-        let txns = vec![(Some("cat-2".to_string()), "Groceries".to_string(), dec("200"))];
+        let txns = vec![(
+            Some("cat-2".to_string()),
+            "Groceries".to_string(),
+            dec("200"),
+        )];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].category_name, "Groceries");
@@ -608,7 +721,11 @@ mod reports_tests {
 
     #[test]
     fn test_combine_same_category_merges() {
-        let subs = vec![(Some("cat-1".to_string()), "Entertainment".to_string(), dec("30"))];
+        let subs = vec![(
+            Some("cat-1".to_string()),
+            "Entertainment".to_string(),
+            dec("30"),
+        )];
         let txns = vec![(None, "Entertainment".to_string(), dec("20"))];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 1);
@@ -653,7 +770,10 @@ mod reports_tests {
     fn test_mock_report_overall_total() {
         let user_id = Uuid::new_v4();
         let report = mock_generate_report(user_id, 2024, 6);
-        assert_eq!(report.monthly_summary.overall_total, report.monthly_summary.subscriptions_total + report.monthly_summary.transactions_total);
+        assert_eq!(
+            report.monthly_summary.overall_total,
+            report.monthly_summary.subscriptions_total + report.monthly_summary.transactions_total
+        );
     }
 
     #[test]
@@ -678,11 +798,13 @@ mod reports_tests {
     #[test]
     fn test_monthly_summary_serialization() {
         let summary = MonthlySummary {
-            year: 2024, month: 6,
+            year: 2024,
+            month: 6,
             subscriptions_total: dec("500.00"),
             transactions_total: dec("200.00"),
             overall_total: dec("700.00"),
-            subscriptions_count: 5, transactions_count: 10,
+            subscriptions_count: 5,
+            transactions_count: 10,
         };
         let json = serde_json::to_value(&summary).unwrap();
         assert_eq!(json["year"], 2024);
@@ -744,8 +866,18 @@ mod logos_tests {
             return vec![];
         }
         vec![
-            LogoResult { url: format!("https://example.com/{}.png", query), thumbnail: format!("https://example.com/{}_thumb.png", query), width: Some(200), height: Some(100) },
-            LogoResult { url: format!("https://cdn.example.com/{}-logo.png", query), thumbnail: format!("https://cdn.example.com/{}-logo_thumb.png", query), width: Some(300), height: Some(150) },
+            LogoResult {
+                url: format!("https://example.com/{}.png", query),
+                thumbnail: format!("https://example.com/{}_thumb.png", query),
+                width: Some(200),
+                height: Some(100),
+            },
+            LogoResult {
+                url: format!("https://cdn.example.com/{}-logo.png", query),
+                thumbnail: format!("https://cdn.example.com/{}-logo_thumb.png", query),
+                width: Some(300),
+                height: Some(150),
+            },
         ]
     }
 
@@ -874,7 +1006,12 @@ mod logos_tests {
     // Serialization Tests
     #[test]
     fn test_logo_result_serialization() {
-        let logo = LogoResult { url: "https://example.com/img.png".to_string(), thumbnail: "https://example.com/thumb.png".to_string(), width: Some(200), height: Some(100) };
+        let logo = LogoResult {
+            url: "https://example.com/img.png".to_string(),
+            thumbnail: "https://example.com/thumb.png".to_string(),
+            width: Some(200),
+            height: Some(100),
+        };
         let json = serde_json::to_value(&logo).unwrap();
         assert_eq!(json["url"], "https://example.com/img.png");
         assert_eq!(json["width"], 200);
@@ -882,14 +1019,26 @@ mod logos_tests {
 
     #[test]
     fn test_logo_result_no_dimensions() {
-        let logo = LogoResult { url: "https://example.com/img.png".to_string(), thumbnail: "https://example.com/thumb.png".to_string(), width: None, height: None };
+        let logo = LogoResult {
+            url: "https://example.com/img.png".to_string(),
+            thumbnail: "https://example.com/thumb.png".to_string(),
+            width: None,
+            height: None,
+        };
         let json = serde_json::to_value(&logo).unwrap();
         assert!(json["width"].is_null());
     }
 
     #[test]
     fn test_logo_search_response_serialization() {
-        let response = LogoSearchResponse { results: vec![LogoResult { url: "https://x.com/1.png".to_string(), thumbnail: "https://x.com/t1.png".to_string(), width: Some(100), height: Some(50) }] };
+        let response = LogoSearchResponse {
+            results: vec![LogoResult {
+                url: "https://x.com/1.png".to_string(),
+                thumbnail: "https://x.com/t1.png".to_string(),
+                width: Some(100),
+                height: Some(50),
+            }],
+        };
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"results\""));
     }
@@ -911,7 +1060,12 @@ mod logos_tests {
     #[test]
     fn test_results_take_limit() {
         let all_results: Vec<LogoResult> = (0..20)
-            .map(|i| LogoResult { url: format!("https://x.com/{}.png", i), thumbnail: format!("https://x.com/t{}.png", i), width: None, height: None })
+            .map(|i| LogoResult {
+                url: format!("https://x.com/{}.png", i),
+                thumbnail: format!("https://x.com/t{}.png", i),
+                width: None,
+                height: None,
+            })
             .collect();
         let limited: Vec<LogoResult> = all_results.into_iter().take(8).collect();
         assert_eq!(limited.len(), 8);
@@ -919,7 +1073,12 @@ mod logos_tests {
 
     #[test]
     fn test_thumbnail_uses_url_when_missing() {
-        let logo = LogoResult { url: "https://example.com/img.png".to_string(), thumbnail: "https://example.com/img.png".to_string(), width: None, height: None };
+        let logo = LogoResult {
+            url: "https://example.com/img.png".to_string(),
+            thumbnail: "https://example.com/img.png".to_string(),
+            width: None,
+            height: None,
+        };
         assert_eq!(logo.url, logo.thumbnail);
     }
 }
@@ -933,31 +1092,47 @@ mod integration_tests {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Notification {
-        pub id: Uuid, pub user_id: Uuid,
+        pub id: Uuid,
+        pub user_id: Uuid,
         #[serde(rename = "type")]
         pub notification_type: String,
-        pub title: String, pub message: Option<String>,
-        pub is_read: bool, pub created_at: chrono::DateTime<Utc>,
+        pub title: String,
+        pub message: Option<String>,
+        pub is_read: bool,
+        pub created_at: chrono::DateTime<Utc>,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct NotificationResponse { pub notifications: Vec<Notification>, pub unread_count: i64 }
+    pub struct NotificationResponse {
+        pub notifications: Vec<Notification>,
+        pub unread_count: i64,
+    }
 
     #[derive(Debug, Serialize)]
     pub struct MonthlySummary {
-        pub year: i32, pub month: u32,
-        pub subscriptions_total: Decimal, pub transactions_total: Decimal,
-        pub overall_total: Decimal, pub subscriptions_count: i64, pub transactions_count: i64,
+        pub year: i32,
+        pub month: u32,
+        pub subscriptions_total: Decimal,
+        pub transactions_total: Decimal,
+        pub overall_total: Decimal,
+        pub subscriptions_count: i64,
+        pub transactions_count: i64,
     }
 
     #[derive(Debug, Serialize)]
     pub struct CategoryBreakdown {
-        pub category_id: Option<String>, pub category_name: String,
-        pub total: Decimal, pub count: i64, pub percentage: f64,
+        pub category_id: Option<String>,
+        pub category_name: String,
+        pub total: Decimal,
+        pub count: i64,
+        pub percentage: f64,
     }
 
     #[derive(Debug, Serialize)]
-    pub struct SpendingTrend { pub period: String, pub total: Decimal }
+    pub struct SpendingTrend {
+        pub period: String,
+        pub total: Decimal,
+    }
 
     #[derive(Debug, Serialize)]
     pub struct ReportResponse {
@@ -967,44 +1142,97 @@ mod integration_tests {
     }
 
     #[derive(Debug, Serialize)]
-    pub struct LogoResult { pub url: String, pub thumbnail: String, pub width: Option<i32>, pub height: Option<i32> }
+    pub struct LogoResult {
+        pub url: String,
+        pub thumbnail: String,
+        pub width: Option<i32>,
+        pub height: Option<i32>,
+    }
 
     #[derive(Debug, Serialize)]
-    pub struct LogoSearchResponse { pub results: Vec<LogoResult> }
+    pub struct LogoSearchResponse {
+        pub results: Vec<LogoResult>,
+    }
 
     #[derive(Debug, Deserialize)]
-    pub struct LogoSearchQuery { pub q: String }
+    pub struct LogoSearchQuery {
+        pub q: String,
+    }
 
     fn extract_vqd(html: &str) -> Option<String> {
         for prefix in &["vqd='", "vqd=\"", "vqd="] {
             if let Some(start) = html.find(prefix) {
                 let token_start = start + prefix.len();
-                let token_end = html[token_start..].find(|c: char| c == '\'' || c == '"' || c == '&' || c == ';').map(|i| token_start + i).unwrap_or(html.len());
+                let token_end = html[token_start..]
+                    .find(|c: char| c == '\'' || c == '"' || c == '&' || c == ';')
+                    .map(|i| token_start + i)
+                    .unwrap_or(html.len());
                 let token = &html[token_start..token_end];
-                if !token.is_empty() { return Some(token.to_string()); }
+                if !token.is_empty() {
+                    return Some(token.to_string());
+                }
             }
         }
         None
     }
 
     fn mock_generate_report(_user_id: Uuid, year: i32, month: u32) -> ReportResponse {
-        let summary = MonthlySummary { year, month, subscriptions_total: Decimal::from_str("500.00").unwrap(), transactions_total: Decimal::from_str("200.00").unwrap(), overall_total: Decimal::from_str("700.00").unwrap(), subscriptions_count: 5, transactions_count: 10 };
-        let breakdown = vec![CategoryBreakdown { category_id: Some("cat-1".to_string()), category_name: "Streaming".to_string(), total: Decimal::from_str("150.00").unwrap(), count: 3, percentage: 21.4 }];
-        let trends = vec![SpendingTrend { period: "3/26".to_string(), total: Decimal::from_str("650.00").unwrap() }];
-        ReportResponse { monthly_summary: summary, category_breakdown: breakdown, recent_trends: trends }
+        let summary = MonthlySummary {
+            year,
+            month,
+            subscriptions_total: Decimal::from_str("500.00").unwrap(),
+            transactions_total: Decimal::from_str("200.00").unwrap(),
+            overall_total: Decimal::from_str("700.00").unwrap(),
+            subscriptions_count: 5,
+            transactions_count: 10,
+        };
+        let breakdown = vec![CategoryBreakdown {
+            category_id: Some("cat-1".to_string()),
+            category_name: "Streaming".to_string(),
+            total: Decimal::from_str("150.00").unwrap(),
+            count: 3,
+            percentage: 21.4,
+        }];
+        let trends = vec![SpendingTrend {
+            period: "3/26".to_string(),
+            total: Decimal::from_str("650.00").unwrap(),
+        }];
+        ReportResponse {
+            monthly_summary: summary,
+            category_breakdown: breakdown,
+            recent_trends: trends,
+        }
     }
 
     fn mock_logo_results(query: &str) -> Vec<LogoResult> {
         let query = query.trim().to_lowercase();
-        if query.is_empty() { return vec![]; }
-        vec![LogoResult { url: format!("https://example.com/{}.png", query), thumbnail: format!("https://example.com/{}_thumb.png", query), width: Some(200), height: Some(100) }]
+        if query.is_empty() {
+            return vec![];
+        }
+        vec![LogoResult {
+            url: format!("https://example.com/{}.png", query),
+            thumbnail: format!("https://example.com/{}_thumb.png", query),
+            width: Some(200),
+            height: Some(100),
+        }]
     }
 
     #[test]
     fn test_notification_end_to_end_flow() {
         let user_id = Uuid::new_v4();
-        let notifications = vec![Notification { id: Uuid::new_v4(), user_id, notification_type: "billing".to_string(), title: "Test".to_string(), message: None, is_read: false, created_at: Utc::now() }];
-        let response = NotificationResponse { notifications, unread_count: 1 };
+        let notifications = vec![Notification {
+            id: Uuid::new_v4(),
+            user_id,
+            notification_type: "billing".to_string(),
+            title: "Test".to_string(),
+            message: None,
+            is_read: false,
+            created_at: Utc::now(),
+        }];
+        let response = NotificationResponse {
+            notifications,
+            unread_count: 1,
+        };
         let json = serde_json::to_value(&response).unwrap();
         assert!(json.get("notifications").unwrap().is_array());
         assert_eq!(json["unread_count"], 1);
@@ -1017,7 +1245,10 @@ mod integration_tests {
         let report = mock_generate_report(user_id, today.year(), today.month());
         let json = serde_json::to_value(&report).unwrap();
         assert!(json.get("monthly_summary").is_some());
-        assert_eq!(report.monthly_summary.overall_total, report.monthly_summary.subscriptions_total + report.monthly_summary.transactions_total);
+        assert_eq!(
+            report.monthly_summary.overall_total,
+            report.monthly_summary.subscriptions_total + report.monthly_summary.transactions_total
+        );
     }
 
     #[test]

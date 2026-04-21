@@ -16,14 +16,14 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::auth::models::{
-    AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User, UserResponse,
+    AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User,
+    UserResponse,
 };
 use crate::auth::service::AuthServiceTrait;
 use crate::categories::models::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::categories::service::CategoryWithCounts;
 use crate::notifications::models::{
-    Notification, NotificationPreferenceResponse,
-    NotificationResponse, UpdatePreferenceRequest,
+    Notification, NotificationPreferenceResponse, NotificationResponse, UpdatePreferenceRequest,
 };
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
@@ -123,7 +123,11 @@ impl MockAuthService {
             name: Some(name.to_string()),
             currency: "USD".to_string(),
             verified,
-            verification_code: if verified { None } else { Some("123456".to_string()) },
+            verification_code: if verified {
+                None
+            } else {
+                Some("123456".to_string())
+            },
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -210,7 +214,9 @@ impl AuthServiceTrait for MockAuthService {
         }
 
         if user.verification_code.as_ref() != Some(&code) {
-            return Err(AppError::BadRequest("Invalid verification code".to_string()));
+            return Err(AppError::BadRequest(
+                "Invalid verification code".to_string(),
+            ));
         }
 
         user.verified = true;
@@ -313,7 +319,12 @@ pub trait CategoryServiceTrait: Send + Sync {
     async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category>;
     async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Category>>;
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category>;
-    async fn update(&self, user_id: Uuid, id: Uuid, req: UpdateCategoryRequest) -> AppResult<Category>;
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateCategoryRequest,
+    ) -> AppResult<Category>;
     async fn get_default(&self, user_id: Uuid) -> AppResult<Category>;
     async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
     async fn set_default(&self, user_id: Uuid, id: Uuid) -> AppResult<Category>;
@@ -404,12 +415,11 @@ impl CategoryServiceTrait for MockCategoryService {
         Ok(())
     }
 
-    async fn create(
-        &self,
-        user_id: Uuid,
-        req: CreateCategoryRequest,
-    ) -> AppResult<Category> {
-        self.create_calls.lock().unwrap().push((user_id, req.clone()));
+    async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category> {
+        self.create_calls
+            .lock()
+            .unwrap()
+            .push((user_id, req.clone()));
 
         if self.config.should_fail {
             return Err(AppError::BadRequest(self.config.error_message.clone()));
@@ -440,7 +450,11 @@ impl CategoryServiceTrait for MockCategoryService {
         }
 
         let cats = self.categories.lock().unwrap();
-        Ok(cats.iter().filter(|c| c.user_id == user_id).cloned().collect())
+        Ok(cats
+            .iter()
+            .filter(|c| c.user_id == user_id)
+            .cloned()
+            .collect())
     }
 
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
@@ -461,7 +475,10 @@ impl CategoryServiceTrait for MockCategoryService {
         id: Uuid,
         req: UpdateCategoryRequest,
     ) -> AppResult<Category> {
-        self.update_calls.lock().unwrap().push((user_id, id, req.clone()));
+        self.update_calls
+            .lock()
+            .unwrap()
+            .push((user_id, id, req.clone()));
 
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
@@ -509,7 +526,9 @@ impl CategoryServiceTrait for MockCategoryService {
             .ok_or_else(|| AppError::NotFound("Category not found".to_string()))?;
 
         if cat.is_default {
-            return Err(AppError::BadRequest("Cannot delete the default category".to_string()));
+            return Err(AppError::BadRequest(
+                "Cannot delete the default category".to_string(),
+            ));
         }
 
         cats.retain(|c| !(c.id == id && c.user_id == user_id));
@@ -548,7 +567,11 @@ impl CategoryServiceTrait for MockCategoryService {
         }
 
         let cats = self.categories.lock().unwrap();
-        let user_cats: Vec<_> = cats.iter().filter(|c| c.user_id == user_id).cloned().collect();
+        let user_cats: Vec<_> = cats
+            .iter()
+            .filter(|c| c.user_id == user_id)
+            .cloned()
+            .collect();
         Ok(user_cats
             .into_iter()
             .map(|c| CategoryWithCounts {
@@ -566,13 +589,27 @@ impl CategoryServiceTrait for MockCategoryService {
 
 #[async_trait]
 pub trait SubscriptionServiceTrait: Send + Sync {
-    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<Subscription>;
+    async fn create(
+        &self,
+        user_id: Uuid,
+        req: CreateSubscriptionRequest,
+    ) -> AppResult<Subscription>;
     async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>>;
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription>;
-    async fn update(&self, user_id: Uuid, id: Uuid, req: UpdateSubscriptionRequest) -> AppResult<Subscription>;
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateSubscriptionRequest,
+    ) -> AppResult<Subscription>;
     async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
     async fn get_upcoming(&self, user_id: Uuid, days: i64) -> AppResult<Vec<Subscription>>;
-    async fn get_calendar(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<Vec<CalendarItem>>;
+    async fn get_calendar(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CalendarItem>>;
 }
 
 pub struct MockSubscriptionService {
@@ -622,7 +659,10 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         user_id: Uuid,
         req: CreateSubscriptionRequest,
     ) -> AppResult<Subscription> {
-        self.create_calls.lock().unwrap().push((user_id, req.clone()));
+        self.create_calls
+            .lock()
+            .unwrap()
+            .push((user_id, req.clone()));
 
         if self.config.should_fail {
             return Err(AppError::BadRequest(self.config.error_message.clone()));
@@ -645,7 +685,10 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
             updated_at: Utc::now(),
         };
 
-        self.subscriptions.lock().unwrap().push(subscription.clone());
+        self.subscriptions
+            .lock()
+            .unwrap()
+            .push(subscription.clone());
         Ok(subscription)
     }
 
@@ -655,7 +698,11 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         }
 
         let subs = self.subscriptions.lock().unwrap();
-        Ok(subs.iter().filter(|s| s.user_id == user_id).cloned().collect())
+        Ok(subs
+            .iter()
+            .filter(|s| s.user_id == user_id)
+            .cloned()
+            .collect())
     }
 
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
@@ -733,10 +780,19 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         }
 
         let subs = self.subscriptions.lock().unwrap();
-        Ok(subs.iter().filter(|s| s.user_id == user_id && s.is_active).cloned().collect())
+        Ok(subs
+            .iter()
+            .filter(|s| s.user_id == user_id && s.is_active)
+            .cloned()
+            .collect())
     }
 
-    async fn get_calendar(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<Vec<CalendarItem>> {
+    async fn get_calendar(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CalendarItem>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -751,7 +807,8 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
                 amount: s.amount,
                 currency: s.currency.clone(),
                 frequency: s.frequency.clone(),
-                billing_date: NaiveDate::from_ymd_opt(year, month, 15).unwrap_or_else(|| NaiveDate::from_ymd_opt(year, 1, 1).unwrap()),
+                billing_date: NaiveDate::from_ymd_opt(year, month, 15)
+                    .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, 1, 1).unwrap()),
                 is_active: s.is_active,
                 logo_url: s.logo_url.clone(),
             })
@@ -768,9 +825,19 @@ pub trait TransactionServiceTrait: Send + Sync {
     async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction>;
     async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Transaction>>;
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction>;
-    async fn update(&self, user_id: Uuid, id: Uuid, req: UpdateTransactionRequest) -> AppResult<Transaction>;
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateTransactionRequest,
+    ) -> AppResult<Transaction>;
     async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
-    async fn get_by_date_range(&self, user_id: Uuid, from: NaiveDate, to: NaiveDate) -> AppResult<Vec<Transaction>>;
+    async fn get_by_date_range(
+        &self,
+        user_id: Uuid,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> AppResult<Vec<Transaction>>;
 }
 
 pub struct MockTransactionService {
@@ -815,12 +882,11 @@ impl MockTransactionService {
 
 #[async_trait]
 impl TransactionServiceTrait for MockTransactionService {
-    async fn create(
-        &self,
-        user_id: Uuid,
-        req: CreateTransactionRequest,
-    ) -> AppResult<Transaction> {
-        self.create_calls.lock().unwrap().push((user_id, req.clone()));
+    async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction> {
+        self.create_calls
+            .lock()
+            .unwrap()
+            .push((user_id, req.clone()));
 
         if self.config.should_fail {
             return Err(AppError::BadRequest(self.config.error_message.clone()));
@@ -850,7 +916,11 @@ impl TransactionServiceTrait for MockTransactionService {
         }
 
         let trans = self.transactions.lock().unwrap();
-        Ok(trans.iter().filter(|t| t.user_id == user_id).cloned().collect())
+        Ok(trans
+            .iter()
+            .filter(|t| t.user_id == user_id)
+            .cloned()
+            .collect())
     }
 
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction> {
@@ -859,7 +929,8 @@ impl TransactionServiceTrait for MockTransactionService {
         }
 
         let trans = self.transactions.lock().unwrap();
-        trans.iter()
+        trans
+            .iter()
             .find(|t| t.id == id && t.user_id == user_id)
             .cloned()
             .ok_or_else(|| AppError::NotFound("Transaction not found".to_string()))
@@ -907,7 +978,12 @@ impl TransactionServiceTrait for MockTransactionService {
         Ok(())
     }
 
-    async fn get_by_date_range(&self, user_id: Uuid, from: NaiveDate, to: NaiveDate) -> AppResult<Vec<Transaction>> {
+    async fn get_by_date_range(
+        &self,
+        user_id: Uuid,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> AppResult<Vec<Transaction>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -931,8 +1007,15 @@ pub trait NotificationServiceTrait: Send + Sync {
     async fn mark_read(&self, user_id: Uuid, id: Uuid) -> AppResult<bool>;
     async fn mark_all_read(&self, user_id: Uuid) -> AppResult<i64>;
     async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<bool>;
-    async fn get_notification_preferences(&self, user_id: Uuid) -> AppResult<Vec<NotificationPreferenceResponse>>;
-    async fn update_notification_preferences(&self, user_id: Uuid, prefs: Vec<UpdatePreferenceRequest>) -> AppResult<Vec<NotificationPreferenceResponse>>;
+    async fn get_notification_preferences(
+        &self,
+        user_id: Uuid,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>>;
+    async fn update_notification_preferences(
+        &self,
+        user_id: Uuid,
+        prefs: Vec<UpdatePreferenceRequest>,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>>;
 }
 
 pub struct MockNotificationService {
@@ -953,9 +1036,21 @@ impl MockNotificationService {
             config,
             notifications: Arc::new(std::sync::Mutex::new(Vec::new())),
             preferences: Arc::new(std::sync::Mutex::new(vec![
-                NotificationPreferenceResponse { channel: "email".to_string(), enabled: false, reminder_days_before: 3 },
-                NotificationPreferenceResponse { channel: "push".to_string(), enabled: false, reminder_days_before: 3 },
-                NotificationPreferenceResponse { channel: "system".to_string(), enabled: false, reminder_days_before: 3 },
+                NotificationPreferenceResponse {
+                    channel: "email".to_string(),
+                    enabled: false,
+                    reminder_days_before: 3,
+                },
+                NotificationPreferenceResponse {
+                    channel: "push".to_string(),
+                    enabled: false,
+                    reminder_days_before: 3,
+                },
+                NotificationPreferenceResponse {
+                    channel: "system".to_string(),
+                    enabled: false,
+                    reminder_days_before: 3,
+                },
             ])),
         }
     }
@@ -987,7 +1082,11 @@ impl NotificationServiceTrait for MockNotificationService {
         }
 
         let notifs = self.notifications.lock().unwrap();
-        let user_notifs: Vec<_> = notifs.iter().filter(|n| n.user_id == user_id).cloned().collect();
+        let user_notifs: Vec<_> = notifs
+            .iter()
+            .filter(|n| n.user_id == user_id)
+            .cloned()
+            .collect();
         let unread_count = user_notifs.iter().filter(|n| !n.is_read).count() as i64;
 
         Ok(NotificationResponse {
@@ -1042,7 +1141,10 @@ impl NotificationServiceTrait for MockNotificationService {
         Ok(true)
     }
 
-    async fn get_notification_preferences(&self, _user_id: Uuid) -> AppResult<Vec<NotificationPreferenceResponse>> {
+    async fn get_notification_preferences(
+        &self,
+        _user_id: Uuid,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1051,7 +1153,11 @@ impl NotificationServiceTrait for MockNotificationService {
         Ok(prefs.clone())
     }
 
-    async fn update_notification_preferences(&self, _user_id: Uuid, updates: Vec<UpdatePreferenceRequest>) -> AppResult<Vec<NotificationPreferenceResponse>> {
+    async fn update_notification_preferences(
+        &self,
+        _user_id: Uuid,
+        updates: Vec<UpdatePreferenceRequest>,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1072,10 +1178,29 @@ impl NotificationServiceTrait for MockNotificationService {
 
 #[async_trait]
 pub trait ReportServiceTrait: Send + Sync {
-    async fn get_monthly_summary(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<MonthlySummary>;
-    async fn get_category_breakdown(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<Vec<CategoryBreakdown>>;
-    async fn get_recent_trends(&self, user_id: Uuid, months_count: i32) -> AppResult<Vec<SpendingTrend>>;
-    async fn get_full_report(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<ReportResponse>;
+    async fn get_monthly_summary(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<MonthlySummary>;
+    async fn get_category_breakdown(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CategoryBreakdown>>;
+    async fn get_recent_trends(
+        &self,
+        user_id: Uuid,
+        months_count: i32,
+    ) -> AppResult<Vec<SpendingTrend>>;
+    async fn get_full_report(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<ReportResponse>;
 }
 
 pub struct MockReportService {
@@ -1148,7 +1273,12 @@ fn make_mock_trends(month: u32, year: i32, count: i32) -> Vec<SpendingTrend> {
 
 #[async_trait]
 impl ReportServiceTrait for MockReportService {
-    async fn get_monthly_summary(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<MonthlySummary> {
+    async fn get_monthly_summary(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<MonthlySummary> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1156,7 +1286,12 @@ impl ReportServiceTrait for MockReportService {
         Ok(make_mock_summary(year, month))
     }
 
-    async fn get_category_breakdown(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<Vec<CategoryBreakdown>> {
+    async fn get_category_breakdown(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CategoryBreakdown>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1164,7 +1299,11 @@ impl ReportServiceTrait for MockReportService {
         Ok(make_mock_breakdown())
     }
 
-    async fn get_recent_trends(&self, user_id: Uuid, months_count: i32) -> AppResult<Vec<SpendingTrend>> {
+    async fn get_recent_trends(
+        &self,
+        user_id: Uuid,
+        months_count: i32,
+    ) -> AppResult<Vec<SpendingTrend>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1172,7 +1311,12 @@ impl ReportServiceTrait for MockReportService {
         Ok(make_mock_trends(6, 2024, months_count))
     }
 
-    async fn get_full_report(&self, user_id: Uuid, year: i32, month: u32) -> AppResult<ReportResponse> {
+    async fn get_full_report(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<ReportResponse> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1192,7 +1336,11 @@ impl ReportServiceTrait for MockReportService {
 #[async_trait]
 pub trait PreferencesServiceTrait: Send + Sync {
     async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse>;
-    async fn update_preferences(&self, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse>;
+    async fn update_preferences(
+        &self,
+        user_id: Uuid,
+        req: UpdatePreferencesRequest,
+    ) -> AppResult<PreferencesResponse>;
 }
 
 pub struct MockPreferencesService {
@@ -1441,7 +1589,9 @@ mod tests {
         #[tokio::test]
         async fn verify_email_invalid_user() {
             let mock = MockAuthService::success();
-            let result = mock.verify_email(Uuid::new_v4(), "123456".to_string()).await;
+            let result = mock
+                .verify_email(Uuid::new_v4(), "123456".to_string())
+                .await;
             assert!(result.is_err());
             assert!(matches!(result.unwrap_err(), AppError::NotFound(_)));
         }
@@ -1462,7 +1612,9 @@ mod tests {
             let mock = MockAuthService::success();
             let req = make_register_request("alreadyv@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
-            mock.verify_email(user_id, "123456".to_string()).await.unwrap();
+            mock.verify_email(user_id, "123456".to_string())
+                .await
+                .unwrap();
 
             let result = mock.verify_email(user_id, "123456".to_string()).await;
             assert!(result.is_err());
@@ -1472,7 +1624,9 @@ mod tests {
         #[tokio::test]
         async fn verify_email_failure_config() {
             let mock = MockAuthService::failure("Verify failed");
-            let result = mock.verify_email(Uuid::new_v4(), "123456".to_string()).await;
+            let result = mock
+                .verify_email(Uuid::new_v4(), "123456".to_string())
+                .await;
             assert!(result.is_err());
         }
 
@@ -1582,7 +1736,9 @@ mod tests {
             let mock = MockAuthService::success();
             let req = make_register_request("already@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
-            mock.verify_email(user_id, "123456".to_string()).await.unwrap();
+            mock.verify_email(user_id, "123456".to_string())
+                .await
+                .unwrap();
 
             let result = mock.resend_verification(user_id).await;
             assert!(result.is_err());
@@ -1666,8 +1822,13 @@ mod tests {
         async fn create_second_not_default() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_category_request("First")).await.unwrap();
-            let second = mock.create(user_id, make_category_request("Second")).await.unwrap();
+            mock.create(user_id, make_category_request("First"))
+                .await
+                .unwrap();
+            let second = mock
+                .create(user_id, make_category_request("Second"))
+                .await
+                .unwrap();
             assert!(!second.is_default);
         }
 
@@ -1683,7 +1844,9 @@ mod tests {
         async fn create_records_call() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_category_request("Rec")).await.unwrap();
+            mock.create(user_id, make_category_request("Rec"))
+                .await
+                .unwrap();
             let calls = mock.create_calls.lock().unwrap();
             assert_eq!(calls.len(), 1);
             assert_eq!(calls[0].0, user_id);
@@ -1728,8 +1891,12 @@ mod tests {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
 
-            mock.create(user_id, make_category_request("Cat 1")).await.unwrap();
-            mock.create(user_id, make_category_request("Cat 2")).await.unwrap();
+            mock.create(user_id, make_category_request("Cat 1"))
+                .await
+                .unwrap();
+            mock.create(user_id, make_category_request("Cat 2"))
+                .await
+                .unwrap();
 
             let result = mock.get_all(user_id).await;
             assert!(result.is_ok());
@@ -1742,8 +1909,12 @@ mod tests {
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
 
-            mock.create(user1, make_category_request("U1 Cat")).await.unwrap();
-            mock.create(user2, make_category_request("U2 Cat")).await.unwrap();
+            mock.create(user1, make_category_request("U1 Cat"))
+                .await
+                .unwrap();
+            mock.create(user2, make_category_request("U2 Cat"))
+                .await
+                .unwrap();
 
             let result = mock.get_all(user1).await.unwrap();
             assert_eq!(result.len(), 1);
@@ -1761,7 +1932,10 @@ mod tests {
         async fn get_by_id_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat = mock.create(user_id, make_category_request("Find Me")).await.unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("Find Me"))
+                .await
+                .unwrap();
 
             let result = mock.get_by_id(user_id, cat.id).await;
             assert!(result.is_ok());
@@ -1786,7 +1960,10 @@ mod tests {
         async fn update_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat = mock.create(user_id, make_category_request("Original")).await.unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("Original"))
+                .await
+                .unwrap();
 
             let req = UpdateCategoryRequest {
                 name: Some("Updated".to_string()),
@@ -1802,7 +1979,10 @@ mod tests {
         async fn update_records_call() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat = mock.create(user_id, make_category_request("Orig")).await.unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("Orig"))
+                .await
+                .unwrap();
 
             let req = UpdateCategoryRequest {
                 name: Some("New".to_string()),
@@ -1830,7 +2010,10 @@ mod tests {
         async fn get_default_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat = mock.create(user_id, make_category_request("Default")).await.unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("Default"))
+                .await
+                .unwrap();
 
             let result = mock.get_default(user_id).await;
             assert!(result.is_ok());
@@ -1841,8 +2024,14 @@ mod tests {
         async fn get_default_after_set_default() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat1 = mock.create(user_id, make_category_request("First")).await.unwrap();
-            let cat2 = mock.create(user_id, make_category_request("Second")).await.unwrap();
+            let cat1 = mock
+                .create(user_id, make_category_request("First"))
+                .await
+                .unwrap();
+            let cat2 = mock
+                .create(user_id, make_category_request("Second"))
+                .await
+                .unwrap();
             mock.set_default(user_id, cat2.id).await.unwrap();
 
             let default = mock.get_default(user_id).await.unwrap();
@@ -1867,8 +2056,13 @@ mod tests {
         async fn delete_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_category_request("Default")).await.unwrap();
-            let cat = mock.create(user_id, make_category_request("To Delete")).await.unwrap();
+            mock.create(user_id, make_category_request("Default"))
+                .await
+                .unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("To Delete"))
+                .await
+                .unwrap();
             assert!(!cat.is_default);
 
             let result = mock.delete(user_id, cat.id).await;
@@ -1880,7 +2074,10 @@ mod tests {
         async fn delete_default_fails() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat = mock.create(user_id, make_category_request("Default")).await.unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("Default"))
+                .await
+                .unwrap();
 
             let result = mock.delete(user_id, cat.id).await;
             assert!(result.is_err());
@@ -1898,8 +2095,13 @@ mod tests {
         async fn delete_records_call() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_category_request("Default")).await.unwrap();
-            let cat = mock.create(user_id, make_category_request("Del")).await.unwrap();
+            mock.create(user_id, make_category_request("Default"))
+                .await
+                .unwrap();
+            let cat = mock
+                .create(user_id, make_category_request("Del"))
+                .await
+                .unwrap();
             mock.delete(user_id, cat.id).await.unwrap();
             let calls = mock.delete_calls.lock().unwrap();
             assert_eq!(calls.len(), 1);
@@ -1910,8 +2112,14 @@ mod tests {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
 
-            let cat1 = mock.create(user_id, make_category_request("First")).await.unwrap();
-            let cat2 = mock.create(user_id, make_category_request("Second")).await.unwrap();
+            let cat1 = mock
+                .create(user_id, make_category_request("First"))
+                .await
+                .unwrap();
+            let cat2 = mock
+                .create(user_id, make_category_request("Second"))
+                .await
+                .unwrap();
 
             let result = mock.set_default(user_id, cat2.id).await;
             assert!(result.is_ok());
@@ -1939,8 +2147,12 @@ mod tests {
         async fn get_with_counts_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_category_request("Cat1")).await.unwrap();
-            mock.create(user_id, make_category_request("Cat2")).await.unwrap();
+            mock.create(user_id, make_category_request("Cat1"))
+                .await
+                .unwrap();
+            mock.create(user_id, make_category_request("Cat2"))
+                .await
+                .unwrap();
 
             let result = mock.get_with_counts(user_id).await;
             assert!(result.is_ok());
@@ -2060,7 +2272,9 @@ mod tests {
         async fn create_records_call() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_subscription_request("Rec")).await.unwrap();
+            mock.create(user_id, make_subscription_request("Rec"))
+                .await
+                .unwrap();
             let calls = mock.create_calls.lock().unwrap();
             assert_eq!(calls.len(), 1);
         }
@@ -2070,8 +2284,12 @@ mod tests {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
 
-            mock.create(user_id, make_subscription_request("Sub 1")).await.unwrap();
-            mock.create(user_id, make_subscription_request("Sub 2")).await.unwrap();
+            mock.create(user_id, make_subscription_request("Sub 1"))
+                .await
+                .unwrap();
+            mock.create(user_id, make_subscription_request("Sub 2"))
+                .await
+                .unwrap();
 
             let result = mock.get_all(user_id).await;
             assert!(result.is_ok());
@@ -2084,8 +2302,12 @@ mod tests {
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
 
-            mock.create(user1, make_subscription_request("U1")).await.unwrap();
-            mock.create(user2, make_subscription_request("U2")).await.unwrap();
+            mock.create(user1, make_subscription_request("U1"))
+                .await
+                .unwrap();
+            mock.create(user2, make_subscription_request("U2"))
+                .await
+                .unwrap();
 
             let result = mock.get_all(user1).await.unwrap();
             assert_eq!(result.len(), 1);
@@ -2102,7 +2324,10 @@ mod tests {
         async fn get_by_id_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, make_subscription_request("Find Me")).await.unwrap();
+            let sub = mock
+                .create(user_id, make_subscription_request("Find Me"))
+                .await
+                .unwrap();
 
             let result = mock.get_by_id(user_id, sub.id).await;
             assert!(result.is_ok());
@@ -2120,7 +2345,10 @@ mod tests {
         async fn update_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, make_subscription_request("Original")).await.unwrap();
+            let sub = mock
+                .create(user_id, make_subscription_request("Original"))
+                .await
+                .unwrap();
 
             let req = UpdateSubscriptionRequest {
                 name: Some("Updated".to_string()),
@@ -2164,9 +2392,16 @@ mod tests {
         async fn update_failure() {
             let mock = MockSubscriptionService::failure("DB error");
             let req = UpdateSubscriptionRequest {
-                name: None, amount: None, currency: None, frequency: None,
-                start_date: None, next_billing_date: None, category_id: None,
-                is_active: None, notes: None, logo_url: None,
+                name: None,
+                amount: None,
+                currency: None,
+                frequency: None,
+                start_date: None,
+                next_billing_date: None,
+                category_id: None,
+                is_active: None,
+                notes: None,
+                logo_url: None,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2176,7 +2411,10 @@ mod tests {
         async fn delete_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, make_subscription_request("To Delete")).await.unwrap();
+            let sub = mock
+                .create(user_id, make_subscription_request("To Delete"))
+                .await
+                .unwrap();
 
             let result = mock.delete(user_id, sub.id).await;
             assert!(result.is_ok());
@@ -2194,7 +2432,10 @@ mod tests {
         async fn get_upcoming_returns_active_subs() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, make_subscription_request("Active")).await.unwrap();
+            let sub = mock
+                .create(user_id, make_subscription_request("Active"))
+                .await
+                .unwrap();
             assert!(sub.is_active);
 
             let result = mock.get_upcoming(user_id, 7).await;
@@ -2223,7 +2464,9 @@ mod tests {
         async fn get_calendar_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_subscription_request("Cal")).await.unwrap();
+            mock.create(user_id, make_subscription_request("Cal"))
+                .await
+                .unwrap();
 
             let result = mock.get_calendar(user_id, 2024, 6).await;
             assert!(result.is_ok());
@@ -2339,7 +2582,9 @@ mod tests {
         async fn create_records_call() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
-            mock.create(user_id, make_transaction_request("Rec")).await.unwrap();
+            mock.create(user_id, make_transaction_request("Rec"))
+                .await
+                .unwrap();
             let calls = mock.create_calls.lock().unwrap();
             assert_eq!(calls.len(), 1);
         }
@@ -2349,8 +2594,12 @@ mod tests {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
 
-            mock.create(user_id, make_transaction_request("Trans 1")).await.unwrap();
-            mock.create(user_id, make_transaction_request("Trans 2")).await.unwrap();
+            mock.create(user_id, make_transaction_request("Trans 1"))
+                .await
+                .unwrap();
+            mock.create(user_id, make_transaction_request("Trans 2"))
+                .await
+                .unwrap();
 
             let result = mock.get_all(user_id).await;
             assert!(result.is_ok());
@@ -2363,8 +2612,12 @@ mod tests {
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
 
-            mock.create(user1, make_transaction_request("U1")).await.unwrap();
-            mock.create(user2, make_transaction_request("U2")).await.unwrap();
+            mock.create(user1, make_transaction_request("U1"))
+                .await
+                .unwrap();
+            mock.create(user2, make_transaction_request("U2"))
+                .await
+                .unwrap();
 
             let result = mock.get_all(user1).await.unwrap();
             assert_eq!(result.len(), 1);
@@ -2381,7 +2634,10 @@ mod tests {
         async fn get_by_id_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
-            let trans = mock.create(user_id, make_transaction_request("Find Me")).await.unwrap();
+            let trans = mock
+                .create(user_id, make_transaction_request("Find Me"))
+                .await
+                .unwrap();
 
             let result = mock.get_by_id(user_id, trans.id).await;
             assert!(result.is_ok());
@@ -2406,7 +2662,10 @@ mod tests {
         async fn update_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
-            let trans = mock.create(user_id, make_transaction_request("Original")).await.unwrap();
+            let trans = mock
+                .create(user_id, make_transaction_request("Original"))
+                .await
+                .unwrap();
 
             let req = UpdateTransactionRequest {
                 name: Some("Updated".to_string()),
@@ -2428,8 +2687,12 @@ mod tests {
             let mock = MockTransactionService::success();
             let req = UpdateTransactionRequest {
                 name: Some("X".to_string()),
-                amount: None, currency: None, date: None,
-                category_id: None, notes: None, logo_url: None,
+                amount: None,
+                currency: None,
+                date: None,
+                category_id: None,
+                notes: None,
+                logo_url: None,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2439,8 +2702,13 @@ mod tests {
         async fn update_failure() {
             let mock = MockTransactionService::failure("DB error");
             let req = UpdateTransactionRequest {
-                name: None, amount: None, currency: None, date: None,
-                category_id: None, notes: None, logo_url: None,
+                name: None,
+                amount: None,
+                currency: None,
+                date: None,
+                category_id: None,
+                notes: None,
+                logo_url: None,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2450,7 +2718,10 @@ mod tests {
         async fn delete_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
-            let trans = mock.create(user_id, make_transaction_request("To Delete")).await.unwrap();
+            let trans = mock
+                .create(user_id, make_transaction_request("To Delete"))
+                .await
+                .unwrap();
 
             let result = mock.delete(user_id, trans.id).await;
             assert!(result.is_ok());
@@ -2644,7 +2915,11 @@ mod tests {
             assert!(result.unwrap());
 
             let resp = mock.list(user_id).await.unwrap();
-            let marked = resp.notifications.iter().find(|n| n.id == notif_id).unwrap();
+            let marked = resp
+                .notifications
+                .iter()
+                .find(|n| n.id == notif_id)
+                .unwrap();
             assert!(marked.is_read);
         }
 
@@ -2765,8 +3040,14 @@ mod tests {
             let user_id = Uuid::new_v4();
 
             let updates = vec![
-                UpdatePreferenceRequest { channel: "email".to_string(), enabled: true },
-                UpdatePreferenceRequest { channel: "push".to_string(), enabled: true },
+                UpdatePreferenceRequest {
+                    channel: "email".to_string(),
+                    enabled: true,
+                },
+                UpdatePreferenceRequest {
+                    channel: "push".to_string(),
+                    enabled: true,
+                },
             ];
             let result = mock.update_notification_preferences(user_id, updates).await;
             assert!(result.is_ok());
@@ -2774,14 +3055,25 @@ mod tests {
             let prefs = result.unwrap();
             assert!(prefs.iter().find(|p| p.channel == "email").unwrap().enabled);
             assert!(prefs.iter().find(|p| p.channel == "push").unwrap().enabled);
-            assert!(!prefs.iter().find(|p| p.channel == "system").unwrap().enabled);
+            assert!(
+                !prefs
+                    .iter()
+                    .find(|p| p.channel == "system")
+                    .unwrap()
+                    .enabled
+            );
         }
 
         #[tokio::test]
         async fn update_notification_preferences_failure() {
             let mock = MockNotificationService::failure("DB error");
-            let updates = vec![UpdatePreferenceRequest { channel: "email".to_string(), enabled: true }];
-            let result = mock.update_notification_preferences(Uuid::new_v4(), updates).await;
+            let updates = vec![UpdatePreferenceRequest {
+                channel: "email".to_string(),
+                enabled: true,
+            }];
+            let result = mock
+                .update_notification_preferences(Uuid::new_v4(), updates)
+                .await;
             assert!(result.is_err());
         }
 
@@ -2832,8 +3124,14 @@ mod tests {
             let summary = result.unwrap();
             assert_eq!(summary.year, 2024);
             assert_eq!(summary.month, 6);
-            assert_eq!(summary.subscriptions_total, Decimal::from_str("500.00").unwrap());
-            assert_eq!(summary.transactions_total, Decimal::from_str("200.00").unwrap());
+            assert_eq!(
+                summary.subscriptions_total,
+                Decimal::from_str("500.00").unwrap()
+            );
+            assert_eq!(
+                summary.transactions_total,
+                Decimal::from_str("200.00").unwrap()
+            );
             assert_eq!(summary.overall_total, Decimal::from_str("700.00").unwrap());
         }
 
@@ -3044,14 +3342,24 @@ mod tests {
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
 
-            mock.update_preferences(user1, UpdatePreferencesRequest {
-                theme: Some("dark".to_string()),
-                subscriptions_view: None,
-            }).await.unwrap();
-            mock.update_preferences(user2, UpdatePreferencesRequest {
-                theme: Some("light".to_string()),
-                subscriptions_view: None,
-            }).await.unwrap();
+            mock.update_preferences(
+                user1,
+                UpdatePreferencesRequest {
+                    theme: Some("dark".to_string()),
+                    subscriptions_view: None,
+                },
+            )
+            .await
+            .unwrap();
+            mock.update_preferences(
+                user2,
+                UpdatePreferencesRequest {
+                    theme: Some("light".to_string()),
+                    subscriptions_view: None,
+                },
+            )
+            .await
+            .unwrap();
 
             let p1 = mock.get_preferences(user1).await.unwrap();
             let p2 = mock.get_preferences(user2).await.unwrap();
@@ -3066,13 +3374,13 @@ mod tests {
         use super::*;
         use crate::auth::models::User;
         use crate::categories::models::Category;
+        use crate::notifications::models::Notification;
         use crate::subscriptions::models::Subscription;
         use crate::transactions::models::Transaction;
-        use crate::notifications::models::Notification;
-        use uuid::Uuid;
-        use sqlx::types::chrono::Utc;
-        use rust_decimal::Decimal;
         use chrono::NaiveDate;
+        use rust_decimal::Decimal;
+        use sqlx::types::chrono::Utc;
+        use uuid::Uuid;
 
         #[test]
         fn user_clone_preserves_fields() {
@@ -3282,16 +3590,22 @@ mod tests {
         async fn subscription_update_amount() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, CreateSubscriptionRequest {
-                name: "Netflix".to_string(),
-                amount: Decimal::from_str("9.99").unwrap(),
-                currency: "USD".to_string(),
-                frequency: "monthly".to_string(),
-                start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                category_id: None,
-                notes: None,
-                logo_url: None,
-            }).await.unwrap();
+            let sub = mock
+                .create(
+                    user_id,
+                    CreateSubscriptionRequest {
+                        name: "Netflix".to_string(),
+                        amount: Decimal::from_str("9.99").unwrap(),
+                        currency: "USD".to_string(),
+                        frequency: "monthly".to_string(),
+                        start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        category_id: None,
+                        notes: None,
+                        logo_url: None,
+                    },
+                )
+                .await
+                .unwrap();
 
             let req = UpdateSubscriptionRequest {
                 name: None,
@@ -3485,7 +3799,7 @@ mod tests {
         async fn notification_mark_read_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
-            
+
             // Pre-populate with notification
             {
                 let mut notifs = mock.notifications.lock().unwrap();
@@ -3499,7 +3813,7 @@ mod tests {
                     created_at: Utc::now(),
                 });
             }
-            
+
             let notif_id = mock.notifications.lock().unwrap()[0].id;
             let result = mock.mark_read(user_id, notif_id).await;
             assert!(result.is_ok());
@@ -3531,7 +3845,7 @@ mod tests {
         async fn notification_delete_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
-            
+
             // Pre-populate with notification
             {
                 let mut notifs = mock.notifications.lock().unwrap();
@@ -3545,7 +3859,7 @@ mod tests {
                     created_at: Utc::now(),
                 });
             }
-            
+
             let notif_id = mock.notifications.lock().unwrap()[0].id;
             let result = mock.delete(user_id, notif_id).await;
             assert!(result.is_ok());
@@ -3579,12 +3893,10 @@ mod tests {
         async fn notification_update_preferences_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
-            let prefs = vec![
-                UpdatePreferenceRequest {
-                    channel: "email".to_string(),
-                    enabled: true,
-                },
-            ];
+            let prefs = vec![UpdatePreferenceRequest {
+                channel: "email".to_string(),
+                enabled: true,
+            }];
             let result = mock.update_notification_preferences(user_id, prefs).await;
             assert!(result.is_ok());
         }
@@ -3592,13 +3904,15 @@ mod tests {
         #[tokio::test]
         async fn notification_update_preferences_failure() {
             let mock = MockNotificationService::failure("update prefs failed");
-            let result = mock.update_notification_preferences(
-                Uuid::new_v4(),
-                vec![UpdatePreferenceRequest {
-                    channel: "push".to_string(),
-                    enabled: false,
-                }],
-            ).await;
+            let result = mock
+                .update_notification_preferences(
+                    Uuid::new_v4(),
+                    vec![UpdatePreferenceRequest {
+                        channel: "push".to_string(),
+                        enabled: false,
+                    }],
+                )
+                .await;
             assert!(result.is_err());
         }
 
@@ -3630,16 +3944,22 @@ mod tests {
         async fn subscription_update_frequency() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, CreateSubscriptionRequest {
-                name: "Test".to_string(),
-                amount: Decimal::from_str("10.00").unwrap(),
-                currency: "USD".to_string(),
-                frequency: "monthly".to_string(),
-                start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                category_id: None,
-                notes: None,
-                logo_url: None,
-            }).await.unwrap();
+            let sub = mock
+                .create(
+                    user_id,
+                    CreateSubscriptionRequest {
+                        name: "Test".to_string(),
+                        amount: Decimal::from_str("10.00").unwrap(),
+                        currency: "USD".to_string(),
+                        frequency: "monthly".to_string(),
+                        start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        category_id: None,
+                        notes: None,
+                        logo_url: None,
+                    },
+                )
+                .await
+                .unwrap();
 
             let req = UpdateSubscriptionRequest {
                 name: None,
@@ -3662,16 +3982,22 @@ mod tests {
         async fn subscription_update_next_billing_date() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, CreateSubscriptionRequest {
-                name: "Test".to_string(),
-                amount: Decimal::from_str("10.00").unwrap(),
-                currency: "USD".to_string(),
-                frequency: "monthly".to_string(),
-                start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                category_id: None,
-                notes: None,
-                logo_url: None,
-            }).await.unwrap();
+            let sub = mock
+                .create(
+                    user_id,
+                    CreateSubscriptionRequest {
+                        name: "Test".to_string(),
+                        amount: Decimal::from_str("10.00").unwrap(),
+                        currency: "USD".to_string(),
+                        frequency: "monthly".to_string(),
+                        start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        category_id: None,
+                        notes: None,
+                        logo_url: None,
+                    },
+                )
+                .await
+                .unwrap();
 
             let req = UpdateSubscriptionRequest {
                 name: None,
@@ -3693,16 +4019,22 @@ mod tests {
         async fn subscription_update_deactivate() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
-            let sub = mock.create(user_id, CreateSubscriptionRequest {
-                name: "Active".to_string(),
-                amount: Decimal::from_str("10.00").unwrap(),
-                currency: "USD".to_string(),
-                frequency: "monthly".to_string(),
-                start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                category_id: None,
-                notes: None,
-                logo_url: None,
-            }).await.unwrap();
+            let sub = mock
+                .create(
+                    user_id,
+                    CreateSubscriptionRequest {
+                        name: "Active".to_string(),
+                        amount: Decimal::from_str("10.00").unwrap(),
+                        currency: "USD".to_string(),
+                        frequency: "monthly".to_string(),
+                        start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        category_id: None,
+                        notes: None,
+                        logo_url: None,
+                    },
+                )
+                .await
+                .unwrap();
             assert!(sub.is_active);
 
             let req = UpdateSubscriptionRequest {
@@ -3741,11 +4073,13 @@ mod tests {
         #[tokio::test]
         async fn transaction_get_by_date_range_failure() {
             let mock = MockTransactionService::failure("db error");
-            let result = mock.get_by_date_range(
-                Uuid::new_v4(),
-                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2024, 12, 31).unwrap(),
-            ).await;
+            let result = mock
+                .get_by_date_range(
+                    Uuid::new_v4(),
+                    NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                    NaiveDate::from_ymd_opt(2024, 12, 31).unwrap(),
+                )
+                .await;
             assert!(result.is_err());
         }
     }
@@ -3770,11 +4104,17 @@ mod tests {
         async fn category_update_only_name() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat = mock.create(user_id, CreateCategoryRequest {
-                name: "Original".to_string(),
-                icon: None,
-                color: None,
-            }).await.unwrap();
+            let cat = mock
+                .create(
+                    user_id,
+                    CreateCategoryRequest {
+                        name: "Original".to_string(),
+                        icon: None,
+                        color: None,
+                    },
+                )
+                .await
+                .unwrap();
 
             let req = UpdateCategoryRequest {
                 name: Some("New Name".to_string()),

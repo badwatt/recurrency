@@ -43,7 +43,10 @@ impl IntoResponse for AppError {
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::Database(e) => {
                 tracing::error!("Database error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                )
             }
             AppError::Validation(e) => {
                 return (
@@ -183,7 +186,10 @@ mod tests {
         let _resp = AppError::Internal("test".into()).into_response();
         let _resp = AppError::Database(sqlx::Error::PoolTimedOut).into_response();
         let _resp = AppError::Validation(validator::ValidationErrors::new()).into_response();
-        let _resp = AppError::Jwt(jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken)).into_response();
+        let _resp = AppError::Jwt(jsonwebtoken::errors::Error::from(
+            jsonwebtoken::errors::ErrorKind::InvalidToken,
+        ))
+        .into_response();
     }
 
     #[test]
@@ -195,11 +201,20 @@ mod tests {
 
     #[test]
     fn all_error_display_messages() {
-        assert_eq!(AppError::Unauthorized("x".into()).to_string(), "Unauthorized: x");
-        assert_eq!(AppError::BadRequest("x".into()).to_string(), "Bad request: x");
+        assert_eq!(
+            AppError::Unauthorized("x".into()).to_string(),
+            "Unauthorized: x"
+        );
+        assert_eq!(
+            AppError::BadRequest("x".into()).to_string(),
+            "Bad request: x"
+        );
         assert_eq!(AppError::NotFound("x".into()).to_string(), "Not found: x");
         assert_eq!(AppError::Conflict("x".into()).to_string(), "Conflict: x");
-        assert_eq!(AppError::Internal("x".into()).to_string(), "Internal server error: x");
+        assert_eq!(
+            AppError::Internal("x".into()).to_string(),
+            "Internal server error: x"
+        );
     }
 
     #[test]
@@ -211,7 +226,8 @@ mod tests {
 
     #[test]
     fn app_error_from_jwt() {
-        let jwt_err = jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken);
+        let jwt_err =
+            jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken);
         let app_err: AppError = jwt_err.into();
         assert!(matches!(app_err, AppError::Jwt(_)));
     }
@@ -250,48 +266,48 @@ mod tests {
     }
 }
 
-    // ── Error type branch coverage ──
-    #[test]
-    fn unauthorized_error_into_response() {
-        use axum::http::StatusCode;
-        use axum::response::IntoResponse;
-        let err = AppError::Unauthorized("test".to_string());
-        let response = err.into_response();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    }
+// ── Error type branch coverage ──
+#[test]
+fn unauthorized_error_into_response() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    let err = AppError::Unauthorized("test".to_string());
+    let response = err.into_response();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
 
-    #[test]
-    fn not_found_error_into_response() {
-        use axum::http::StatusCode;
-        use axum::response::IntoResponse;
-        let err = AppError::NotFound("not found".to_string());
-        let response = err.into_response();
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
+#[test]
+fn not_found_error_into_response() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    let err = AppError::NotFound("not found".to_string());
+    let response = err.into_response();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
 
-    #[test]
-    fn conflict_error_into_response() {
-        use axum::http::StatusCode;
-        use axum::response::IntoResponse;
-        let err = AppError::Conflict("conflict".to_string());
-        let response = err.into_response();
-        assert_eq!(response.status(), StatusCode::CONFLICT);
-    }
+#[test]
+fn conflict_error_into_response() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    let err = AppError::Conflict("conflict".to_string());
+    let response = err.into_response();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
 
-    #[test]
-    fn internal_error_into_response() {
-        use axum::http::StatusCode;
-        use axum::response::IntoResponse;
-        let err = AppError::Internal("internal error".to_string());
-        let response = err.into_response();
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    }
+#[test]
+fn internal_error_into_response() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    let err = AppError::Internal("internal error".to_string());
+    let response = err.into_response();
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
 
-    #[test]
-    fn bad_request_error_into_response() {
-        use axum::http::StatusCode;
-        use axum::response::IntoResponse;
-        let err = AppError::BadRequest("bad request".to_string());
-        let response = err.into_response();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    }
+#[test]
+fn bad_request_error_into_response() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    let err = AppError::BadRequest("bad request".to_string());
+    let response = err.into_response();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}

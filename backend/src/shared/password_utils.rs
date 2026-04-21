@@ -46,8 +46,7 @@ mod tests {
     fn wrong_password_fails_verification() {
         let hash = hash_password("correct").unwrap();
         let parsed = argon2::PasswordHash::new(&hash).unwrap();
-        let result = Argon2::default()
-            .verify_password("wrong".as_bytes(), &parsed);
+        let result = Argon2::default().verify_password("wrong".as_bytes(), &parsed);
         assert!(result.is_err());
     }
 

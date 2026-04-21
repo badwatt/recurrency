@@ -1,27 +1,32 @@
 use std::sync::OnceLock;
 
-use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User, UserResponse};
+use crate::auth::models::{
+    AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User,
+    UserResponse,
+};
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::password_utils::hash_password;
 use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use argon2::Argon2;
-use crate::shared::password_utils::hash_password;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::email::{is_configured, send_verification_email};
 use crate::categories::service::CategoryService;
+use crate::email::{is_configured, send_verification_email};
 use async_trait::async_trait;
 
 static JWT_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
 
 fn get_jwt_secret() -> &'static [u8] {
-    JWT_SECRET.get_or_init(|| {
-        std::env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "super_secret_jwt_key_change_in_production".to_string())
-            .into_bytes()
-    }).as_slice()
+    JWT_SECRET
+        .get_or_init(|| {
+            std::env::var("JWT_SECRET")
+                .unwrap_or_else(|_| "super_secret_jwt_key_change_in_production".to_string())
+                .into_bytes()
+        })
+        .as_slice()
 }
 
 fn generate_code() -> String {
@@ -65,7 +70,11 @@ impl SqlxAuthService {
 
         let password_hash = hash_password(&req.password)?;
         let verified = !is_configured();
-        let code = if verified { None } else { Some(generate_code()) };
+        let code = if verified {
+            None
+        } else {
+            Some(generate_code())
+        };
 
         let user = sqlx::query_as::<_, User>(
             r#"
@@ -87,7 +96,12 @@ impl SqlxAuthService {
         let token = generate_token(&user)?;
 
         if !verified {
-            if let Err(e) = send_verification_email(&user.email, user.verification_code.as_deref().unwrap_or("000000")).await {
+            if let Err(e) = send_verification_email(
+                &user.email,
+                user.verification_code.as_deref().unwrap_or("000000"),
+            )
+            .await
+            {
                 tracing::error!("Failed to send verification email: {}", e);
             } else {
                 tracing::info!("Verification email sent to {}", user.email);
@@ -119,7 +133,9 @@ impl SqlxAuthService {
         verify_password(&req.password, &user.password_hash)?;
 
         if !user.verified && is_configured() {
-            return Err(AppError::Unauthorized("Please verify your email before logging in".to_string()));
+            return Err(AppError::Unauthorized(
+                "Please verify your email before logging in".to_string(),
+            ));
         }
 
         let token = generate_token(&user)?;
@@ -145,7 +161,9 @@ impl SqlxAuthService {
         }
 
         if user.verification_code.as_deref() != Some(&code) {
-            return Err(AppError::BadRequest("Invalid verification code".to_string()));
+            return Err(AppError::BadRequest(
+                "Invalid verification code".to_string(),
+            ));
         }
 
         let user = sqlx::query_as::<_, User>(
@@ -161,7 +179,9 @@ impl SqlxAuthService {
 
     async fn resend_verification_impl(&self, user_id: Uuid) -> AppResult<String> {
         if !is_configured() {
-            return Err(AppError::BadRequest("SMTP not configured - cannot resend verification".to_string()));
+            return Err(AppError::BadRequest(
+                "SMTP not configured - cannot resend verification".to_string(),
+            ));
         }
 
         let user = self.get_user_by_id_impl(user_id).await?;
@@ -170,13 +190,11 @@ impl SqlxAuthService {
         }
 
         let code = generate_code();
-        sqlx::query(
-            "UPDATE users SET verification_code = $1, updated_at = NOW() WHERE id = $2"
-        )
-        .bind(&code)
-        .bind(user_id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE users SET verification_code = $1, updated_at = NOW() WHERE id = $2")
+            .bind(&code)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
 
         if let Err(e) = send_verification_email(&user.email, &code).await {
             tracing::error!("Failed to resend verification email: {}", e);
@@ -196,7 +214,11 @@ impl SqlxAuthService {
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))
     }
 
-    async fn update_settings_impl(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+    async fn update_settings_impl(
+        &self,
+        user_id: Uuid,
+        req: UpdateSettingsRequest,
+    ) -> AppResult<User> {
         let name = req.name.unwrap_or_default();
         let currency = req.currency.unwrap_or_else(|| String::new());
 
@@ -233,7 +255,9 @@ impl AuthServiceTrait for SqlxAuthService {
 
     async fn verify_token(&self, _token: &str) -> AppResult<Claims> {
         // This is a no-op for SQLx service - used only by mock in tests
-        Err(AppError::Internal("Use verify_token_internal directly".into()))
+        Err(AppError::Internal(
+            "Use verify_token_internal directly".into(),
+        ))
     }
 
     async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
@@ -273,7 +297,11 @@ impl AuthService {
         svc.login_impl(req).await
     }
 
-    pub async fn verify_email(pool: &PgPool, user_id: Uuid, code: String) -> AppResult<UserResponse> {
+    pub async fn verify_email(
+        pool: &PgPool,
+        user_id: Uuid,
+        code: String,
+    ) -> AppResult<UserResponse> {
         let svc = SqlxAuthService::new(pool.clone());
         svc.verify_email_impl(user_id, code).await
     }
@@ -288,7 +316,11 @@ impl AuthService {
         svc.get_user_by_id_impl(user_id).await
     }
 
-    pub async fn update_settings(pool: &PgPool, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+    pub async fn update_settings(
+        pool: &PgPool,
+        user_id: Uuid,
+        req: UpdateSettingsRequest,
+    ) -> AppResult<User> {
         let svc = SqlxAuthService::new(pool.clone());
         svc.update_settings_impl(user_id, req).await
     }
@@ -343,7 +375,9 @@ fn generate_token(user: &User) -> AppResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse};
+    use crate::auth::models::{
+        AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse,
+    };
     use validator::Validate;
 
     fn make_create_request(email: &str, secret_val: &str, name: &str) -> CreateUserRequest {
@@ -399,7 +433,11 @@ mod tests {
     fn generate_code_all_digits() {
         for _ in 0..100 {
             let code = generate_code();
-            assert!(code.chars().all(|c| c.is_ascii_digit()), "Code '{}' has non-digit", code);
+            assert!(
+                code.chars().all(|c| c.is_ascii_digit()),
+                "Code '{}' has non-digit",
+                code
+            );
         }
     }
 
@@ -432,7 +470,8 @@ mod tests {
             &token,
             &DecodingKey::from_secret(get_jwt_secret()),
             &jsonwebtoken::Validation::default(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(token_data.claims.sub, uid);
     }
 
@@ -454,7 +493,8 @@ mod tests {
             &token,
             &DecodingKey::from_secret(get_jwt_secret()),
             &jsonwebtoken::Validation::default(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(token_data.claims.email, "token@test.com");
     }
 
@@ -499,7 +539,13 @@ mod tests {
     fn auth_response_requires_verification_true() {
         let resp = AuthResponse {
             token: "t".to_string(),
-            user: UserResponse { id: Uuid::new_v4(), email: "a@b.com".to_string(), name: None, currency: "EUR".to_string(), verified: false },
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "a@b.com".to_string(),
+                name: None,
+                currency: "EUR".to_string(),
+                verified: false,
+            },
             requires_verification: true,
         };
         assert!(resp.requires_verification);
@@ -509,7 +555,13 @@ mod tests {
     fn auth_response_requires_verification_false() {
         let resp = AuthResponse {
             token: "t".to_string(),
-            user: UserResponse { id: Uuid::new_v4(), email: "a@b.com".to_string(), name: None, currency: "EUR".to_string(), verified: true },
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "a@b.com".to_string(),
+                name: None,
+                currency: "EUR".to_string(),
+                verified: true,
+            },
             requires_verification: false,
         };
         assert!(!resp.requires_verification);
@@ -519,7 +571,13 @@ mod tests {
     fn auth_response_serialize() {
         let resp = AuthResponse {
             token: "my-jwt".to_string(),
-            user: UserResponse { id: Uuid::new_v4(), email: "resp@test.com".to_string(), name: None, currency: "USD".to_string(), verified: true },
+            user: UserResponse {
+                id: Uuid::new_v4(),
+                email: "resp@test.com".to_string(),
+                name: None,
+                currency: "USD".to_string(),
+                verified: true,
+            },
             requires_verification: false,
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -543,7 +601,8 @@ mod tests {
     // LoginRequest
     #[test]
     fn login_request_deserialize() {
-        let req: LoginRequest = serde_json::from_str(r#"{"email":"login@test.com","password":"secret123"}"#).unwrap();
+        let req: LoginRequest =
+            serde_json::from_str(r#"{"email":"login@test.com","password":"secret123"}"#).unwrap();
         assert_eq!(req.email, "login@test.com");
         assert_eq!(req.password, "secret123");
     }
@@ -551,7 +610,8 @@ mod tests {
     // UpdateSettingsRequest
     #[test]
     fn update_settings_request_both() {
-        let req: UpdateSettingsRequest = serde_json::from_str(r#"{"name":"Alice","currency":"GBP"}"#).unwrap();
+        let req: UpdateSettingsRequest =
+            serde_json::from_str(r#"{"name":"Alice","currency":"GBP"}"#).unwrap();
         assert_eq!(req.name.as_deref(), Some("Alice"));
         assert_eq!(req.currency.as_deref(), Some("GBP"));
     }
@@ -606,7 +666,11 @@ mod tests {
         let total: u32 = counts.iter().sum();
         for count in counts.iter() {
             let pct = (*count as f64) / (total as f64) * 100.0;
-            assert!(pct > 5.0 && pct < 20.0, "Digit distribution seems off: {}%", pct);
+            assert!(
+                pct > 5.0 && pct < 20.0,
+                "Digit distribution seems off: {}%",
+                pct
+            );
         }
     }
 
@@ -620,8 +684,8 @@ mod tests {
     // verify_token_internal - expired token
     #[test]
     fn verify_token_expired_fails() {
-        use jsonwebtoken::{encode, Header, EncodingKey, Validation};
         use chrono::Duration;
+        use jsonwebtoken::{encode, EncodingKey, Header, Validation};
 
         let uid = Uuid::new_v4();
         let past = Utc::now() - Duration::hours(25 * 7);
@@ -632,7 +696,12 @@ mod tests {
             iat: past.timestamp() as usize,
         };
         let secret = get_jwt_secret();
-        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)).unwrap();
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(secret),
+        )
+        .unwrap();
         let result = verify_token_internal(&token);
         assert!(result.is_err(), "Expired token should fail verification");
     }
@@ -640,7 +709,7 @@ mod tests {
     // verify_token_internal - wrong secret
     #[test]
     fn verify_token_wrong_secret_fails() {
-        use jsonwebtoken::{encode, Header, EncodingKey};
+        use jsonwebtoken::{encode, EncodingKey, Header};
 
         let uid = Uuid::new_v4();
         let future = Utc::now() + Duration::hours(24);
@@ -652,7 +721,12 @@ mod tests {
         };
         // Encode with wrong secret
         let wrong_secret = b"wrong_secret_key";
-        let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(wrong_secret)).unwrap();
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(wrong_secret),
+        )
+        .unwrap();
         let result = verify_token_internal(&token);
         assert!(result.is_err(), "Token with wrong secret should fail");
     }

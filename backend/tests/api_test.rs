@@ -74,12 +74,7 @@ mod tests {
         #[test]
         fn test_amount_precision() {
             // Amounts should support 2 decimal places
-            let amounts = vec![
-                "9.99",
-                "100.00",
-                "1234.56",
-                "0.01",
-            ];
+            let amounts = vec!["9.99", "100.00", "1234.56", "0.01"];
             for amount in amounts {
                 let parts: Vec<&str> = amount.split('.').collect();
                 if parts.len() == 2 {

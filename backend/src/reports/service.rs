@@ -1,11 +1,11 @@
+use chrono::Datelike;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
-use uuid::Uuid;
 use std::collections::HashMap;
-use chrono::Datelike;
+use uuid::Uuid;
 
-use crate::shared::date_utils::days_in_month;
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
+use crate::shared::date_utils::days_in_month;
 
 pub struct ReportService;
 
@@ -23,7 +23,11 @@ pub(crate) fn month_date_range(year: i32, month: u32) -> (chrono::NaiveDate, chr
 /// Calculate percentage from total, rounded to 1 decimal place.
 pub(crate) fn calculate_percentage(total: Decimal, overall_total: Decimal) -> f64 {
     if overall_total > Decimal::ZERO {
-        (total / overall_total * Decimal::from(100)).round_dp(1).to_string().parse().unwrap_or(0.0)
+        (total / overall_total * Decimal::from(100))
+            .round_dp(1)
+            .to_string()
+            .parse()
+            .unwrap_or(0.0)
     } else {
         0.0
     }
@@ -127,7 +131,7 @@ impl ReportService {
 
         // Count active subscriptions
         let subscription_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM subscriptions WHERE user_id = $1 AND is_active = true"
+            "SELECT COUNT(*) FROM subscriptions WHERE user_id = $1 AND is_active = true",
         )
         .bind(user_id)
         .fetch_one(pool)
@@ -313,8 +317,14 @@ mod tests {
     #[test]
     fn normalize_zero_amount() {
         assert_eq!(normalize_to_monthly(Decimal::ZERO, "weekly"), Decimal::ZERO);
-        assert_eq!(normalize_to_monthly(Decimal::ZERO, "monthly"), Decimal::ZERO);
-        assert_eq!(normalize_to_monthly(Decimal::ZERO, "quarterly"), Decimal::ZERO);
+        assert_eq!(
+            normalize_to_monthly(Decimal::ZERO, "monthly"),
+            Decimal::ZERO
+        );
+        assert_eq!(
+            normalize_to_monthly(Decimal::ZERO, "quarterly"),
+            Decimal::ZERO
+        );
         assert_eq!(normalize_to_monthly(Decimal::ZERO, "yearly"), Decimal::ZERO);
     }
 
@@ -324,14 +334,20 @@ mod tests {
     fn subtract_months_simple() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 5, 15).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2024, 5, 15).unwrap()
+        );
     }
 
     #[test]
     fn subtract_months_cross_year() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
         let result = subtract_months_from_date(d, 3);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 11, 15).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2023, 11, 15).unwrap()
+        );
     }
 
     #[test]
@@ -346,35 +362,50 @@ mod tests {
         // March 31 - 1 month = Feb 28/29
         let d = chrono::NaiveDate::from_ymd_opt(2024, 3, 31).unwrap(); // leap year
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 2, 29).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2024, 2, 29).unwrap()
+        );
     }
 
     #[test]
     fn subtract_months_day_clamping_non_leap() {
         let d = chrono::NaiveDate::from_ymd_opt(2023, 3, 31).unwrap(); // non-leap
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 2, 28).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2023, 2, 28).unwrap()
+        );
     }
 
     #[test]
     fn subtract_months_many_years() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
         let result = subtract_months_from_date(d, 24);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2022, 6, 15).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2022, 6, 15).unwrap()
+        );
     }
 
     #[test]
     fn subtract_months_may_31_to_april() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 5, 31).unwrap();
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 4, 30).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2024, 4, 30).unwrap()
+        );
     }
 
     #[test]
     fn subtract_months_preserves_day_within_bounds() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 8, 15).unwrap();
         let result = subtract_months_from_date(d, 5);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 3, 15).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2024, 3, 15).unwrap()
+        );
     }
 
     // ── Category percentage calculation (mirrors get_category_breakdown logic) ──
@@ -386,12 +417,20 @@ mod tests {
         let total = cat_a + cat_b;
 
         let pct_a = if total > Decimal::ZERO {
-            (cat_a / total * Decimal::from(100)).round_dp(1).to_string().parse::<f64>().unwrap_or(0.0)
+            (cat_a / total * Decimal::from(100))
+                .round_dp(1)
+                .to_string()
+                .parse::<f64>()
+                .unwrap_or(0.0)
         } else {
             0.0
         };
         let pct_b = if total > Decimal::ZERO {
-            (cat_b / total * Decimal::from(100)).round_dp(1).to_string().parse::<f64>().unwrap_or(0.0)
+            (cat_b / total * Decimal::from(100))
+                .round_dp(1)
+                .to_string()
+                .parse::<f64>()
+                .unwrap_or(0.0)
         } else {
             0.0
         };
@@ -493,9 +532,11 @@ mod tests {
 
     #[test]
     fn combine_subs_only() {
-        let subs = vec![
-            (Some("cat-1".to_string()), "Streaming".to_string(), dec("50")),
-        ];
+        let subs = vec![(
+            Some("cat-1".to_string()),
+            "Streaming".to_string(),
+            dec("50"),
+        )];
         let txns: Vec<(Option<String>, String, Decimal)> = vec![];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 1);
@@ -507,9 +548,11 @@ mod tests {
     #[test]
     fn combine_txns_only() {
         let subs: Vec<(Option<String>, String, Decimal)> = vec![];
-        let txns = vec![
-            (Some("cat-2".to_string()), "Groceries".to_string(), dec("200")),
-        ];
+        let txns = vec![(
+            Some("cat-2".to_string()),
+            "Groceries".to_string(),
+            dec("200"),
+        )];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].category_name, "Groceries");
@@ -519,12 +562,16 @@ mod tests {
 
     #[test]
     fn combine_subs_and_txns() {
-        let subs = vec![
-            (Some("cat-1".to_string()), "Streaming".to_string(), dec("60")),
-        ];
-        let txns = vec![
-            (Some("cat-2".to_string()), "Groceries".to_string(), dec("40")),
-        ];
+        let subs = vec![(
+            Some("cat-1".to_string()),
+            "Streaming".to_string(),
+            dec("60"),
+        )];
+        let txns = vec![(
+            Some("cat-2".to_string()),
+            "Groceries".to_string(),
+            dec("40"),
+        )];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 2);
         // Sorted by total descending
@@ -536,12 +583,12 @@ mod tests {
 
     #[test]
     fn combine_same_category_merges() {
-        let subs = vec![
-            (Some("cat-1".to_string()), "Entertainment".to_string(), dec("30")),
-        ];
-        let txns = vec![
-            (None, "Entertainment".to_string(), dec("20")),
-        ];
+        let subs = vec![(
+            Some("cat-1".to_string()),
+            "Entertainment".to_string(),
+            dec("30"),
+        )];
+        let txns = vec![(None, "Entertainment".to_string(), dec("20"))];
         let result = combine_category_totals(subs, txns);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].category_name, "Entertainment");
@@ -563,12 +610,8 @@ mod tests {
 
     #[test]
     fn combine_category_id_from_txns_when_subs_missing() {
-        let subs = vec![
-            (None, "Stuff".to_string(), dec("50")),
-        ];
-        let txns = vec![
-            (Some("cat-t".to_string()), "Stuff".to_string(), dec("25")),
-        ];
+        let subs = vec![(None, "Stuff".to_string(), dec("50"))];
+        let txns = vec![(Some("cat-t".to_string()), "Stuff".to_string(), dec("25"))];
         let result = combine_category_totals(subs, txns);
         // Subs have None for cat_id, txns have Some - the first one wins
         assert_eq!(result[0].category_id, None); // Subs set it first with None
@@ -622,14 +665,20 @@ mod tests {
     fn subtract_months_one_month() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2024, 5, 15).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2024, 5, 15).unwrap()
+        );
     }
 
     #[test]
     fn subtract_months_to_previous_year() {
         let d = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 12, 15).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2023, 12, 15).unwrap()
+        );
     }
 
     #[test]
@@ -651,7 +700,10 @@ mod tests {
         // Jan 31 - 1 month = Dec 31
         let d = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
         let result = subtract_months_from_date(d, 1);
-        assert_eq!(result, chrono::NaiveDate::from_ymd_opt(2023, 12, 31).unwrap());
+        assert_eq!(
+            result,
+            chrono::NaiveDate::from_ymd_opt(2023, 12, 31).unwrap()
+        );
     }
 
     // calculate_percentage edge cases
@@ -700,105 +752,111 @@ mod tests {
     #[test]
     fn combine_category_totals_different_categories() {
         let existing = vec![(None, "Food".to_string(), dec("50.00"))];
-        let incoming = vec![(Some("cat2".to_string()), "Transport".to_string(), dec("25.00"))];
+        let incoming = vec![(
+            Some("cat2".to_string()),
+            "Transport".to_string(),
+            dec("25.00"),
+        )];
         let result = combine_category_totals(existing, incoming);
         assert_eq!(result.len(), 2);
     }
 
     // ReportService struct
     #[test]
-    fn report_service_struct() { let _ = ReportService; }
+    fn report_service_struct() {
+        let _ = ReportService;
+    }
 }
 
-    // ── calculate_percentage edge cases ──
-    #[test]
-    fn calc_percentage_zero_total() {
-        let result = calculate_percentage(Decimal::from(100), Decimal::ZERO);
-        assert!(result.is_nan() || result == 0.0);
-    }
+// ── calculate_percentage edge cases ──
+#[test]
+fn calc_percentage_zero_total() {
+    let result = calculate_percentage(Decimal::from(100), Decimal::ZERO);
+    assert!(result.is_nan() || result == 0.0);
+}
 
-    #[test]
-    fn calc_percentage_zero_overall() {
-        let result = calculate_percentage(Decimal::ZERO, Decimal::from(100));
-        assert!(result.is_nan() || result == 0.0);
-    }
+#[test]
+fn calc_percentage_zero_overall() {
+    let result = calculate_percentage(Decimal::ZERO, Decimal::from(100));
+    assert!(result.is_nan() || result == 0.0);
+}
 
-    #[test]
-    fn calc_percentage_both_zero() {
-        let result = calculate_percentage(Decimal::ZERO, Decimal::ZERO);
-        assert!(result.is_nan() || result == 0.0);
-    }
+#[test]
+fn calc_percentage_both_zero() {
+    let result = calculate_percentage(Decimal::ZERO, Decimal::ZERO);
+    assert!(result.is_nan() || result == 0.0);
+}
 
-    #[test]
-    fn calc_percentage_100_percent() {
-        let result = calculate_percentage(Decimal::from(50), Decimal::from(50));
-        assert!((result - 100.0).abs() < 0.001);
-    }
+#[test]
+fn calc_percentage_100_percent() {
+    let result = calculate_percentage(Decimal::from(50), Decimal::from(50));
+    assert!((result - 100.0).abs() < 0.001);
+}
 
-    #[test]
-    fn calc_percentage_50_percent() {
-        let result = calculate_percentage(Decimal::from(25), Decimal::from(50));
-        assert!((result - 50.0).abs() < 0.001);
-    }
+#[test]
+fn calc_percentage_50_percent() {
+    let result = calculate_percentage(Decimal::from(25), Decimal::from(50));
+    assert!((result - 50.0).abs() < 0.001);
+}
 
-    // ── month_date_range tests ──
-    #[test]
-    fn month_date_range_january() {
-        let (start, end) = month_date_range(2024, 1);
-        assert_eq!(start.month(), 1);
-        assert_eq!(end.month(), 1);
-        assert_eq!(start.day(), 1);
-    }
+// ── month_date_range tests ──
+#[test]
+fn month_date_range_january() {
+    let (start, end) = month_date_range(2024, 1);
+    assert_eq!(start.month(), 1);
+    assert_eq!(end.month(), 1);
+    assert_eq!(start.day(), 1);
+}
 
-    #[test]
-    fn month_date_range_february_leap() {
-        let (start, end) = month_date_range(2024, 2);
-        assert_eq!(start.month(), 2);
-        assert_eq!(end.day(), 29);
-    }
+#[test]
+fn month_date_range_february_leap() {
+    let (start, end) = month_date_range(2024, 2);
+    assert_eq!(start.month(), 2);
+    assert_eq!(end.day(), 29);
+}
 
-    #[test]
-    fn month_date_range_february_non_leap() {
-        let (start, end) = month_date_range(2023, 2);
-        assert_eq!(start.month(), 2);
-        assert_eq!(end.day(), 28);
-    }
+#[test]
+fn month_date_range_february_non_leap() {
+    let (start, end) = month_date_range(2023, 2);
+    assert_eq!(start.month(), 2);
+    assert_eq!(end.day(), 28);
+}
 
-    #[test]
-    fn month_date_range_all_months() {
-        for m in 1..=12 {
-            let (start, end) = month_date_range(2024, m);
-            assert_eq!(start.month(), m);
-            assert_eq!(end.month(), m);
-            assert!(end >= start);
-        }
+#[test]
+fn month_date_range_all_months() {
+    for m in 1..=12 {
+        let (start, end) = month_date_range(2024, m);
+        assert_eq!(start.month(), m);
+        assert_eq!(end.month(), m);
+        assert!(end >= start);
     }
+}
 
-    // ── normalize_to_monthly edge cases ──
-    #[test]
-    fn normalize_weekly_precise() {
-        let result = normalize_to_monthly(Decimal::from(52), "weekly");
-        assert!(result > Decimal::ZERO);
-    }
+// ── normalize_to_monthly edge cases ──
+#[test]
+fn normalize_weekly_precise() {
+    let result = normalize_to_monthly(Decimal::from(52), "weekly");
+    assert!(result > Decimal::ZERO);
+}
 
-    #[test]
-    fn normalize_monthly_large() {
-        let result = normalize_to_monthly(Decimal::from(999999), "monthly");
-        assert_eq!(result, Decimal::from(999999));
-    }
+#[test]
+fn normalize_monthly_large() {
+    let result = normalize_to_monthly(Decimal::from(999999), "monthly");
+    assert_eq!(result, Decimal::from(999999));
+}
 
-    // ── subtract_months edge cases ──
-    #[test]
-    fn subtract_months_many() {
-        let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let result = subtract_months_from_date(date, 12);
-        assert!(result < date);
-    }
+// ── subtract_months edge cases ──
+#[test]
+fn subtract_months_many() {
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+    let result = subtract_months_from_date(date, 12);
+    assert!(result < date);
+}
 
-    #[test]
-    fn subtract_months_january_to_december() {
-        let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
-        let result = subtract_months_from_date(date, 1);
-        assert_eq!(result.month(), 12);
-        assert_eq!(result.year(), 2023);
-    }
+#[test]
+fn subtract_months_january_to_december() {
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+    let result = subtract_months_from_date(date, 1);
+    assert_eq!(result.month(), 12);
+    assert_eq!(result.year(), 2023);
+}

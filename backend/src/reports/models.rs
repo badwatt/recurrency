@@ -184,8 +184,14 @@ mod tests {
                 },
             ],
             recent_trends: vec![
-                SpendingTrend { period: "6/24".to_string(), total: dec("1500.00") },
-                SpendingTrend { period: "5/24".to_string(), total: dec("1400.00") },
+                SpendingTrend {
+                    period: "6/24".to_string(),
+                    total: dec("1500.00"),
+                },
+                SpendingTrend {
+                    period: "5/24".to_string(),
+                    total: dec("1400.00"),
+                },
             ],
         };
         let json = serde_json::to_value(&report).unwrap();

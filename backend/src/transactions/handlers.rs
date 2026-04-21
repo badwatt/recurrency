@@ -8,11 +8,13 @@ use uuid::Uuid;
 use crate::auth::service::AuthService;
 use crate::shared::app_state::AppState;
 use crate::shared::error::AppResult;
-use crate::transactions::models::{CreateTransactionRequest, TransactionResponse, UpdateTransactionRequest};
+use crate::transactions::models::{
+    CreateTransactionRequest, TransactionResponse, UpdateTransactionRequest,
+};
 use crate::transactions::service::TransactionService;
 
-use crate::shared::{AuthQuery, OptionalQuery};
 use crate::shared::auth_extractor::extract_token_from_request;
+use crate::shared::{AuthQuery, OptionalQuery};
 
 #[derive(serde::Deserialize)]
 pub struct DateRangeQuery {
@@ -27,7 +29,11 @@ pub async fn create(
     headers: HeaderMap,
     Json(req): Json<CreateTransactionRequest>,
 ) -> AppResult<(StatusCode, Json<TransactionResponse>)> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let transaction = TransactionService::create(&state.pool, claims.sub, req).await?;
 
@@ -39,7 +45,11 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let transactions = TransactionService::get_all(&state.pool, claims.sub).await?;
 
@@ -52,7 +62,11 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<TransactionResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let transaction = TransactionService::get_by_id(&state.pool, claims.sub, id).await?;
 
@@ -66,7 +80,11 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateTransactionRequest>,
 ) -> AppResult<Json<TransactionResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     let transaction = TransactionService::update(&state.pool, claims.sub, id, req).await?;
 
@@ -79,7 +97,11 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
     TransactionService::delete(&state.pool, claims.sub, id).await?;
 
@@ -91,19 +113,26 @@ pub async fn by_date_range(
     OptionalQuery(query): OptionalQuery<DateRangeQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?).await?;
+    let claims = AuthService::verify_token(&extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?)
+    .await?;
 
-    let from_date = query.as_ref()
+    let from_date = query
+        .as_ref()
         .and_then(|q| q.from_date.as_ref())
         .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::Utc::now().date_naive());
 
-    let to_date = query.as_ref()
+    let to_date = query
+        .as_ref()
         .and_then(|q| q.to_date.as_ref())
         .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::Utc::now().date_naive());
 
-    let transactions = TransactionService::get_by_date_range(&state.pool, claims.sub, from_date, to_date).await?;
+    let transactions =
+        TransactionService::get_by_date_range(&state.pool, claims.sub, from_date, to_date).await?;
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }
@@ -120,7 +149,12 @@ mod tests {
     use crate::transactions::models::{CreateTransactionRequest, UpdateTransactionRequest};
     use chrono::Datelike;
 
-    fn make_create_request(name: &str, amount: &str, currency: &str, date: &str) -> CreateTransactionRequest {
+    fn make_create_request(
+        name: &str,
+        amount: &str,
+        currency: &str,
+        date: &str,
+    ) -> CreateTransactionRequest {
         let json = format!(
             r#"{{"name":"{}","amount":"{}","currency":"{}","date":"{}"}}"#,
             name, amount, currency, date
@@ -386,7 +420,10 @@ mod tests {
     #[test]
     fn create_transaction_all_currencies_edge() {
         for currency in &["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF"] {
-            let json = format!(r#"{{"name":"Test","amount":"10.00","currency":"{}","date":"2024-06-15"}}"#, currency);
+            let json = format!(
+                r#"{{"name":"Test","amount":"10.00","currency":"{}","date":"2024-06-15"}}"#,
+                currency
+            );
             let req: CreateTransactionRequest = serde_json::from_str(&json).unwrap();
             assert_eq!(req.currency, *currency);
         }
@@ -394,7 +431,8 @@ mod tests {
 
     #[test]
     fn create_transaction_large_amount_edge() {
-        let json = r#"{"name":"Big Purchase","amount":"999999.99","currency":"USD","date":"2024-06-15"}"#;
+        let json =
+            r#"{"name":"Big Purchase","amount":"999999.99","currency":"USD","date":"2024-06-15"}"#;
         let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
         assert!(req.amount > rust_decimal::Decimal::from(100000));
     }
@@ -422,7 +460,8 @@ mod tests {
             "currency": "USD",
             "date": "2024-06-15",
             "category_id": cat_id.to_string()
-        }).to_string();
+        })
+        .to_string();
         let req: CreateTransactionRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(req.category_id, Some(cat_id));
     }
@@ -431,7 +470,10 @@ mod tests {
     fn create_transaction_with_logo_edge() {
         let json = r#"{"name":"Test","amount":"10.00","currency":"USD","date":"2024-06-15","logo_url":"https://example.com/logo.png"}"#;
         let req: CreateTransactionRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(req.logo_url, Some("https://example.com/logo.png".to_string()));
+        assert_eq!(
+            req.logo_url,
+            Some("https://example.com/logo.png".to_string())
+        );
     }
 
     #[test]
@@ -468,7 +510,8 @@ mod tests {
             "date": "2025-01-01",
             "notes": "Updated notes",
             "category_id": Uuid::new_v4().to_string()
-        }).to_string();
+        })
+        .to_string();
         let req: UpdateTransactionRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(req.name.as_deref(), Some("Updated"));
         assert!(req.amount.is_some());
@@ -572,59 +615,59 @@ mod tests {
         assert_eq!(query.token.unwrap().len(), 500);
     }
 }
-    // ── DateRangeQuery from_date/to_date ──
-    #[test]
-    fn date_range_query_from_to_date() {
-        let query = "from_date=2024-01-01&to_date=2024-06-30";
-        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
-        assert_eq!(result.from_date, Some("2024-01-01".to_string()));
-        assert_eq!(result.to_date, Some("2024-06-30".to_string()));
-    }
+// ── DateRangeQuery from_date/to_date ──
+#[test]
+fn date_range_query_from_to_date() {
+    let query = "from_date=2024-01-01&to_date=2024-06-30";
+    let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+    assert_eq!(result.from_date, Some("2024-01-01".to_string()));
+    assert_eq!(result.to_date, Some("2024-06-30".to_string()));
+}
 
-    #[test]
-    fn date_range_query_all_params() {
-        let query = "token=abc&from_date=2024-01-01&to_date=2024-12-31";
-        let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
-        assert!(result.token.is_some());
-        assert!(result.from_date.is_some());
-        assert!(result.to_date.is_some());
-    }
+#[test]
+fn date_range_query_all_params() {
+    let query = "token=abc&from_date=2024-01-01&to_date=2024-12-31";
+    let result: DateRangeQuery = serde_urlencoded::from_str(query).unwrap();
+    assert!(result.token.is_some());
+    assert!(result.from_date.is_some());
+    assert!(result.to_date.is_some());
+}
 
-    // ── TransactionResponse edge cases ──
-    #[test]
-    fn transaction_response_zero_amount() {
-        use crate::transactions::models::TransactionResponse;
-        let resp = TransactionResponse {
-            id: Uuid::new_v4(),
-            user_id: Uuid::new_v4(),
-            category_id: Uuid::new_v4(),
-            name: "Zero".to_string(),
-            amount: rust_decimal::Decimal::ZERO,
-            currency: "USD".to_string(),
-            date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-        assert_eq!(resp.amount, rust_decimal::Decimal::ZERO);
-    }
+// ── TransactionResponse edge cases ──
+#[test]
+fn transaction_response_zero_amount() {
+    use crate::transactions::models::TransactionResponse;
+    let resp = TransactionResponse {
+        id: Uuid::new_v4(),
+        user_id: Uuid::new_v4(),
+        category_id: Uuid::new_v4(),
+        name: "Zero".to_string(),
+        amount: rust_decimal::Decimal::ZERO,
+        currency: "USD".to_string(),
+        date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        notes: None,
+        logo_url: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    assert_eq!(resp.amount, rust_decimal::Decimal::ZERO);
+}
 
-    #[test]
-    fn transaction_response_negative_amount() {
-        use crate::transactions::models::TransactionResponse;
-        let resp = TransactionResponse {
-            id: Uuid::new_v4(),
-            user_id: Uuid::new_v4(),
-            category_id: Uuid::new_v4(),
-            name: "Refund".to_string(),
-            amount: rust_decimal::Decimal::new(-5000, 2),
-            currency: "USD".to_string(),
-            date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-        assert!(resp.amount < rust_decimal::Decimal::ZERO);
-    }
+#[test]
+fn transaction_response_negative_amount() {
+    use crate::transactions::models::TransactionResponse;
+    let resp = TransactionResponse {
+        id: Uuid::new_v4(),
+        user_id: Uuid::new_v4(),
+        category_id: Uuid::new_v4(),
+        name: "Refund".to_string(),
+        amount: rust_decimal::Decimal::new(-5000, 2),
+        currency: "USD".to_string(),
+        date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        notes: None,
+        logo_url: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    assert!(resp.amount < rust_decimal::Decimal::ZERO);
+}

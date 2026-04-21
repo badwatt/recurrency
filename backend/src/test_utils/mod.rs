@@ -181,7 +181,7 @@ mod subscription_response_tests {
             created_at: now,
             updated_at: now,
         };
-        
+
         let json = serde_json::to_value(&sub).unwrap();
         assert_eq!(json["notes"], "Test notes");
         assert_eq!(json["logo_url"], "https://logo.com/test.png");

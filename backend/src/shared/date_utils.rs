@@ -61,20 +61,20 @@ mod tests {
 
     #[test]
     fn all_31_day_months() {
-        assert_eq!(days_in_month(2024, 1), 31);  // Jan
-        assert_eq!(days_in_month(2024, 3), 31);  // Mar
-        assert_eq!(days_in_month(2024, 5), 31);  // May
-        assert_eq!(days_in_month(2024, 7), 31);  // Jul
-        assert_eq!(days_in_month(2024, 8), 31);  // Aug
+        assert_eq!(days_in_month(2024, 1), 31); // Jan
+        assert_eq!(days_in_month(2024, 3), 31); // Mar
+        assert_eq!(days_in_month(2024, 5), 31); // May
+        assert_eq!(days_in_month(2024, 7), 31); // Jul
+        assert_eq!(days_in_month(2024, 8), 31); // Aug
         assert_eq!(days_in_month(2024, 10), 31); // Oct
         assert_eq!(days_in_month(2024, 12), 31); // Dec
     }
 
     #[test]
     fn all_30_day_months() {
-        assert_eq!(days_in_month(2024, 4), 30);  // Apr
-        assert_eq!(days_in_month(2024, 6), 30);  // Jun
-        assert_eq!(days_in_month(2024, 9), 30);  // Sep
+        assert_eq!(days_in_month(2024, 4), 30); // Apr
+        assert_eq!(days_in_month(2024, 6), 30); // Jun
+        assert_eq!(days_in_month(2024, 9), 30); // Sep
         assert_eq!(days_in_month(2024, 11), 30); // Nov
     }
 

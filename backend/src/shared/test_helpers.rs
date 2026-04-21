@@ -1,5 +1,5 @@
 //! Test helpers for handler integration tests using axum test utilities.
-//! 
+//!
 //! This module provides utilities to test HTTP handlers with mocked services.
 
 use axum::{
@@ -37,9 +37,12 @@ pub async fn post_json<T: serde::Serialize, R: DeserializeOwned>(
         .await
         .unwrap();
     let response_body: R = serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-        panic!("Failed to parse response: {:?}", String::from_utf8_lossy(&body_bytes))
+        panic!(
+            "Failed to parse response: {:?}",
+            String::from_utf8_lossy(&body_bytes)
+        )
     });
-    
+
     (status, response_body)
 }
 
@@ -68,9 +71,12 @@ pub async fn get_json<R: DeserializeOwned>(
         .await
         .unwrap();
     let response_body: R = serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-        panic!("Failed to parse response: {:?}", String::from_utf8_lossy(&body_bytes))
+        panic!(
+            "Failed to parse response: {:?}",
+            String::from_utf8_lossy(&body_bytes)
+        )
     });
-    
+
     (status, response_body)
 }
 
@@ -101,18 +107,17 @@ pub async fn put_json<T: serde::Serialize, R: DeserializeOwned>(
         .await
         .unwrap();
     let response_body: R = serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-        panic!("Failed to parse response: {:?}", String::from_utf8_lossy(&body_bytes))
+        panic!(
+            "Failed to parse response: {:?}",
+            String::from_utf8_lossy(&body_bytes)
+        )
     });
-    
+
     (status, response_body)
 }
 
 /// Make a DELETE request to the test app.
-pub async fn delete_request(
-    app: Router,
-    uri: &str,
-    auth_token: Option<&str>,
-) -> StatusCode {
+pub async fn delete_request(app: Router, uri: &str, auth_token: Option<&str>) -> StatusCode {
     let mut req = Request::delete(uri)
         .header("Content-Type", "application/json")
         .body(Body::empty())
@@ -146,30 +151,40 @@ mod tests {
         // Test that a simple GET request returns a response.
         // Uses oneshot directly since response is plain text (not JSON).
         let app = Router::new().route("/health", get(|| async { "OK" }));
-        let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .uri("/health")
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let body_bytes = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body_bytes = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         assert_eq!(&body_bytes[..], b"OK");
     }
 
     #[tokio::test]
     async fn test_post_accepts_json_body() {
         use axum::routing::post;
-        
+
         // Simple test: verify mock handler receives and parses request
-        let app = Router::new()
-            .route("/api/subscriptions", post(|axum::Json(body): axum::Json<serde_json::Value>| async move { 
-                axum::Json(serde_json::json!({"received": body["name"]}))
-            }));
-        
+        let app = Router::new().route(
+            "/api/subscriptions",
+            post(
+                |axum::Json(body): axum::Json<serde_json::Value>| async move {
+                    axum::Json(serde_json::json!({"received": body["name"]}))
+                },
+            ),
+        );
+
         let (status, body): (StatusCode, serde_json::Value) = post_json(
-            app, 
-            "/api/subscriptions", 
+            app,
+            "/api/subscriptions",
             &serde_json::json!({"name": "test"}),
-            None
-        ).await;
-        
+            None,
+        )
+        .await;
+
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["received"], "test");
     }
@@ -177,7 +192,7 @@ mod tests {
     #[tokio::test]
     async fn test_bearer_token_extraction() {
         use axum::extract::Request;
-        
+
         // Create a simple endpoint that extracts and returns the token
         async fn handler(request: Request) -> String {
             let auth_header = request.headers().get("authorization");
@@ -187,16 +202,18 @@ mod tests {
                 "no header".to_string()
             }
         }
-        
+
         let app = Router::new().route("/test", get(handler));
-        
+
         let req = Request::get("/test")
             .header("Authorization", "Bearer my-token-123")
             .body(Body::empty())
             .unwrap();
-            
+
         let response = app.oneshot(req).await.unwrap();
-        let body_bytes = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body_bytes = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         let body_str = String::from_utf8_lossy(&body_bytes);
         assert!(body_str.contains("my-token-123"));
     }
@@ -206,14 +223,17 @@ mod tests {
         use crate::shared::test_helpers::put_json;
         use axum::routing::put;
 
-        async fn handler(axum::extract::Json(payload): axum::extract::Json<serde_json::Value>) -> impl axum::response::IntoResponse {
+        async fn handler(
+            axum::extract::Json(payload): axum::extract::Json<serde_json::Value>,
+        ) -> impl axum::response::IntoResponse {
             axum::Json(payload)
         }
 
         let app = Router::new().route("/test", put(handler));
         let payload = serde_json::json!({"key": "value", "num": 42});
 
-        let (status, body): (StatusCode, serde_json::Value) = put_json(app, "/test", &payload, None).await;
+        let (status, body): (StatusCode, serde_json::Value) =
+            put_json(app, "/test", &payload, None).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body, payload);
     }
@@ -224,7 +244,10 @@ mod tests {
         use axum::routing::put;
 
         async fn handler() -> impl axum::response::IntoResponse {
-            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": "bad"})))
+            (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": "bad"})),
+            )
         }
 
         let app = Router::new().route("/test", put(handler));
@@ -239,14 +262,17 @@ mod tests {
         use crate::shared::test_helpers::put_json;
         use axum::routing::put;
 
-        async fn handler(axum::extract::Json(payload): axum::extract::Json<serde_json::Value>) -> impl axum::response::IntoResponse {
+        async fn handler(
+            axum::extract::Json(payload): axum::extract::Json<serde_json::Value>,
+        ) -> impl axum::response::IntoResponse {
             axum::Json(payload)
         }
 
         let app = Router::new().route("/test", put(handler));
         let payload = serde_json::json!({"name": "test"});
 
-        let (status, body): (StatusCode, serde_json::Value) = put_json(app, "/test", &payload, Some("Bearer token123")).await;
+        let (status, body): (StatusCode, serde_json::Value) =
+            put_json(app, "/test", &payload, Some("Bearer token123")).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body, payload);
     }
@@ -272,7 +298,10 @@ mod tests {
         use axum::routing::delete;
 
         async fn handler() -> impl axum::response::IntoResponse {
-            (StatusCode::NOT_FOUND, axum::Json(serde_json::json!({"error": "not found"})))
+            (
+                StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({"error": "not found"})),
+            )
         }
 
         let app = Router::new().route("/test", delete(handler));
