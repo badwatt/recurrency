@@ -27,7 +27,9 @@ fn get_log_path() -> std::path::PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn write_log(level: &str, msg: &str) {
-    if !is_dev() { return; }
+    if !is_dev() {
+        return;
+    }
     if let Ok(mut file) = OpenOptions::new()
         .create(true)
         .append(true)

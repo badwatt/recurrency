@@ -92,7 +92,7 @@ fn yearly_normalized(sub: &Subscription) -> rust_decimal::Decimal {
 }
 
 pub static SUBSCRIPTIONS: GlobalSignal<SubscriptionsState> =
-    Signal::global(|| SubscriptionsState::default());
+    Signal::global(SubscriptionsState::default);
 
 #[cfg(test)]
 mod tests {

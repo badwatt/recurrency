@@ -16,7 +16,7 @@ fn save_server_url(url: &str) {
 
 #[component]
 pub fn SetupPage() -> Element {
-    let mut server_url = use_signal(|| get_base_url());
+    let mut server_url = use_signal(get_base_url);
     let mut connecting = use_signal(|| false);
     let success = use_signal(|| false);
     let mut error = use_signal(String::new);

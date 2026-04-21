@@ -66,7 +66,7 @@ pub fn LogoSearch(selected_url: String, on_select: EventHandler<String>) -> Elem
                                 class: "flex flex-col items-center gap-1 rounded-md border border-border p-2 hover:bg-accent",
                                 onclick: {
                                     let url = logo.url.clone();
-                                    let on_sel = on_select.clone();
+                                    let on_sel = on_select;
                                     move |_| {
                                         on_sel.call(url.clone());
                                         dialog_open.set(false);

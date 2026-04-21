@@ -242,7 +242,7 @@ pub fn CategoryCombobox(
                                     let cat_name = cat.name.clone();
                                     let cat_color = cat.color.clone().unwrap_or_else(|| "#6b7280".into());
                                     let is_selected = cat_id == sel_id;
-                                    let on_change_cb = on_change.clone();
+                                    let on_change_cb = on_change;
                                     let cat_id_for_click = cat_id.clone();
                                     rsx! {
                                         button {

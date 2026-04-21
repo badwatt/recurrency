@@ -30,7 +30,7 @@ pub(crate) fn extract_vqd(html: &str) -> Option<String> {
         if let Some(start) = html.find(prefix) {
             let token_start = start + prefix.len();
             let token_end = html[token_start..]
-                .find(|c: char| c == '\'' || c == '"' || c == '&' || c == ';')
+                .find(['\'', '"', '&', ';'])
                 .map(|i| token_start + i)
                 .unwrap_or(html.len());
             let token = &html[token_start..token_end];

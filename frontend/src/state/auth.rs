@@ -41,7 +41,7 @@ pub struct AuthState {
 impl AuthState {
     /// Check if the user is authenticated and verified.
     pub fn is_verified(&self) -> bool {
-        self.user.as_ref().map_or(false, |u| u.verified)
+        self.user.as_ref().is_some_and(|u| u.verified)
     }
 
     /// Get the current user's currency, defaulting to EUR.
@@ -212,7 +212,7 @@ impl AuthState {
     }
 }
 
-pub static AUTH: GlobalSignal<AuthState> = Signal::global(|| AuthState::default());
+pub static AUTH: GlobalSignal<AuthState> = Signal::global(AuthState::default);
 
 #[cfg(test)]
 mod tests {

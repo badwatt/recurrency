@@ -330,14 +330,11 @@ pub fn SubscriptionsPage() -> Element {
         spawn(async move {
             let state = PREFERENCES();
             if !state.initialized {
-                match api::preferences::get().await {
-                    Ok(p) => {
-                        // Preserve theme from localStorage
-                        let saved_theme = PREFERENCES().theme().to_string();
-                        PREFERENCES.write().set_data(p);
-                        PREFERENCES.write().set_theme(saved_theme);
-                    }
-                    Err(_) => {}
+                if let Ok(p) = api::preferences::get().await {
+                    // Preserve theme from localStorage
+                    let saved_theme = PREFERENCES().theme().to_string();
+                    PREFERENCES.write().set_data(p);
+                    PREFERENCES.write().set_theme(saved_theme);
                 }
             }
         });

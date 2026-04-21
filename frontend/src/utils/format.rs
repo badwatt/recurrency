@@ -51,7 +51,7 @@ fn add_thousands_separators(s: &str) -> String {
     let digits: Vec<char> = s.chars().collect();
     let len = digits.len();
     for (i, c) in digits.iter().enumerate() {
-        if i > 0 && (len - i) % 3 == 0 {
+        if i > 0 && (len - i).is_multiple_of(3) {
             result.push(',');
         }
         result.push(*c);

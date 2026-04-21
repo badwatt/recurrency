@@ -258,13 +258,13 @@ fn MobileSidebar(on_close: EventHandler<()>) -> Element {
 
             // Nav links
             nav { class: "flex-1 px-3 py-4 space-y-1 overflow-y-auto",
-                MobileNavLink { to: crate::Route::Dashboard {}, label: "Dashboard", active: current == crate::Route::Dashboard {}, icon: Icon::Dashboard, on_close: on_close.clone() }
-                MobileNavLink { to: crate::Route::Subscriptions {}, label: "Subscriptions", active: current == crate::Route::Subscriptions {}, icon: Icon::Subscriptions, on_close: on_close.clone() }
-                MobileNavLink { to: crate::Route::Transactions {}, label: "Transactions", active: current == crate::Route::Transactions {}, icon: Icon::Transactions, on_close: on_close.clone() }
-                MobileNavLink { to: crate::Route::Calendar {}, label: "Calendar", active: current == crate::Route::Calendar {}, icon: Icon::Calendar, on_close: on_close.clone() }
-                MobileNavLink { to: crate::Route::Categories {}, label: "Categories", active: current == crate::Route::Categories {}, icon: Icon::Categories, on_close: on_close.clone() }
-                MobileNavLink { to: crate::Route::Reports {}, label: "Reports", active: current == crate::Route::Reports {}, icon: Icon::Reports, on_close: on_close.clone() }
-                MobileNavLink { to: crate::Route::Settings {}, label: "Settings", active: current == crate::Route::Settings {}, icon: Icon::Settings, on_close: on_close.clone() }
+                MobileNavLink { to: crate::Route::Dashboard {}, label: "Dashboard", active: current == crate::Route::Dashboard {}, icon: Icon::Dashboard, on_close: on_close }
+                MobileNavLink { to: crate::Route::Subscriptions {}, label: "Subscriptions", active: current == crate::Route::Subscriptions {}, icon: Icon::Subscriptions, on_close: on_close }
+                MobileNavLink { to: crate::Route::Transactions {}, label: "Transactions", active: current == crate::Route::Transactions {}, icon: Icon::Transactions, on_close: on_close }
+                MobileNavLink { to: crate::Route::Calendar {}, label: "Calendar", active: current == crate::Route::Calendar {}, icon: Icon::Calendar, on_close: on_close }
+                MobileNavLink { to: crate::Route::Categories {}, label: "Categories", active: current == crate::Route::Categories {}, icon: Icon::Categories, on_close: on_close }
+                MobileNavLink { to: crate::Route::Reports {}, label: "Reports", active: current == crate::Route::Reports {}, icon: Icon::Reports, on_close: on_close }
+                MobileNavLink { to: crate::Route::Settings {}, label: "Settings", active: current == crate::Route::Settings {}, icon: Icon::Settings, on_close: on_close }
             }
 
             // Bottom section
@@ -378,10 +378,7 @@ fn NotificationBell() -> Element {
                     let next = !NOTIFICATIONS().is_open;
                     if next {
                         spawn(async move {
-                            match notifications::list().await {
-                                Ok(resp) => NOTIFICATIONS.write().set_data(resp.notifications, resp.unread_count),
-                                Err(_) => {}
-                            }
+                            if let Ok(resp) = notifications::list().await { NOTIFICATIONS.write().set_data(resp.notifications, resp.unread_count) }
                         });
                     }
                     NOTIFICATIONS.write().toggle();

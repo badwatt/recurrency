@@ -50,7 +50,7 @@ impl NotificationsState {
 }
 
 pub static NOTIFICATIONS: GlobalSignal<NotificationsState> =
-    Signal::global(|| NotificationsState::default());
+    Signal::global(NotificationsState::default);
 
 #[cfg(test)]
 mod tests {

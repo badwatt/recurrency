@@ -69,7 +69,7 @@ pub fn create_mock_category(name: &str) -> CategoryResponse {
 /// Create a mock CategoryWithCounts.
 pub fn create_mock_category_with_counts(name: &str) -> CategoryWithCounts {
     CategoryWithCounts {
-        category: create_mock_category(name).into(),
+        category: create_mock_category(name),
         subscription_count: 5,
         transaction_count: 10,
     }

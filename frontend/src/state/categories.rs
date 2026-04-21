@@ -36,8 +36,7 @@ impl CategoriesState {
     }
 }
 
-pub static CATEGORIES: GlobalSignal<CategoriesState> =
-    Signal::global(|| CategoriesState::default());
+pub static CATEGORIES: GlobalSignal<CategoriesState> = Signal::global(CategoriesState::default);
 
 #[cfg(test)]
 mod tests {

@@ -410,9 +410,8 @@ pub fn CalendarPage() -> Element {
                 // Also refresh calendar
                 let y = current_year();
                 let m = current_month();
-                match sub_api::calendar_month(y, m).await {
-                    Ok(items) => calendar_items.set(items),
-                    Err(_) => {}
+                if let Ok(items) = sub_api::calendar_month(y, m).await {
+                    calendar_items.set(items)
                 }
             });
             delete_confirm_id.set(None);
@@ -500,9 +499,8 @@ pub fn CalendarPage() -> Element {
                 // Refresh calendar
                 let y = current_year();
                 let m = current_month();
-                match sub_api::calendar_month(y, m).await {
-                    Ok(items) => calendar_items.set(items),
-                    Err(_) => {}
+                if let Ok(items) = sub_api::calendar_month(y, m).await {
+                    calendar_items.set(items)
                 }
             });
         }

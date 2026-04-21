@@ -48,7 +48,7 @@ pub fn SettingsPage() -> Element {
     let mut prefs_loading = use_signal(|| false);
     let mut saving_name = use_signal(|| false);
     let mut saving_currency = use_signal(|| false);
-    let server_url = use_signal(|| crate::api::client::get_base_url());
+    let server_url = use_signal(crate::api::client::get_base_url);
 
     // Load notification preferences
     use_future(move || async move {

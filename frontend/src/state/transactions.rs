@@ -47,7 +47,7 @@ impl TransactionsState {
 }
 
 pub static TRANSACTIONS: GlobalSignal<TransactionsState> =
-    Signal::global(|| TransactionsState::default());
+    Signal::global(TransactionsState::default);
 
 #[cfg(test)]
 mod tests {
