@@ -105,6 +105,7 @@ RUN chmod +x /entrypoint.sh
 # Environment defaults
 ENV APP_HOST=0.0.0.0 \
     APP_PORT=80 \
+    APP_ENV=development \
     ENABLE_DEMO=false \
     FRONTEND_DIST=/frontend/dist
 
