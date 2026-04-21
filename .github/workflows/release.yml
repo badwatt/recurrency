@@ -277,15 +277,10 @@ jobs:
       - name: Locate APK
         run: |
           echo "Searching for APK..."
-          ls -la frontend/dist/*.apk 2>/dev/null || true
-          find frontend/target/dx -name '*.apk' -type f 2>/dev/null || true
-          APK=$(find frontend/target/dx frontend/dist -name '*.apk' -type f 2>/dev/null | head -1)
-          if [ -z "$APK" ]; then
-            # Also search in gradle output from patched build
-            APK=$(find frontend/target/dx -path '*/build/outputs/apk/*/*.apk' -type f 2>/dev/null | head -1)
-          fi
+          find bin -name '*.apk' -type f 2>/dev/null || true
+          APK=$(find bin -name '*.apk' -type f 2>/dev/null | head -1)
           echo "Found APK: $APK"
-          mkdir -p frontend/dist
+          mkdir -p bin
           APK_NAME="recurrency-$(cat VERSION)-aarch64.apk"
           cp "$APK" "frontend/dist/$APK_NAME"
           ls -la "frontend/dist/$APK_NAME"
@@ -295,7 +290,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: recurrency-android
-          path: frontend/dist/*.apk
+          path: bin/android/*.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -303,4 +298,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
-          files: frontend/dist/${{ env.APK_NAME }}
+          files: bin/android/*.apk
