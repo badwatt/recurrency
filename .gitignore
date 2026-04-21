@@ -47,9 +47,7 @@ Cargo.lock
 **/*.rs.bk
 
 # Backend
-backend.log
-frontend.log
-
+# Frontend
 # Database
 *.sqlite
 *.sqlite3

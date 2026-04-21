@@ -24,15 +24,30 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv().ok();
+fn init_logging() {
+    use tracing_appender::rolling::{RollingFileAppender, Rotation};
+
+    // Create logs/ dir if not exists
+    std::fs::create_dir_all("logs").ok();
+
+    let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "backend.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    // Keep guard alive for app lifetime
+    std::mem::forget(_guard);
+
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
         ))
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
         .init();
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+    init_logging();
 
     tracing::info!("Starting Recurrency API server...");
     let db_pool = shared::db::create_pool().await?;
