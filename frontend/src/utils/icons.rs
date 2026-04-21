@@ -2,7 +2,7 @@
 /// Mirrors the getIcon() function from the React frontend.
 /// In Dioxus, we'll use lucide-dioxus components, but this provides
 /// the name lookup/normalization logic.
-
+///
 /// Available icon names (matching lucide-react icon names from original).
 pub const ICON_NAMES: &[&str] = &[
     "Home",
