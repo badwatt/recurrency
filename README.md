@@ -118,36 +118,30 @@ docker compose up -d
 
 ## Test Coverage
 
-| Project | Lines | Functions |
-|---|---|---|
-| **Backend** | **82%** | **79%** |
-| **Frontend** | **78%** | **64%** |
+| Project | Lines | Functions | Regions | Tests |
+|---|---|---|---|---|
+| **Backend** | **86.88%** | **85.85%** | **86.14%** | 1294 |
+| **Frontend** | **80.22%** | **71.16%** | **80.86%** | 1491 |
+
+Full coverage report (Nix dev shell):
 
 ```bash
-# Backend tests
-cd backend && cargo test
+# Backend tests + coverage
+cd backend && nix develop .. -c cargo llvm-cov test --lib
 
-# Frontend tests
-cd frontend && cargo test
-
-# Coverage
-cd backend && nix-shell -p pkg-config openssl --run "cargo llvm-cov test"
+# Frontend tests + coverage
+cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
----
+### Coverage Notes
 
-## Development
+Backend uncovered ~13% = async DB handlers requiring:
+- PostgreSQL integration tests (trait injection added for testability)
 
-```bash
-# Start services
-./re up
+Frontend uncovered ~20% = RSX macro-generated VDOM requiring:
+- Dioxus WASM test runtime
 
-# Run tests
-./re test
-
-# Check coverage
-cd backend && nix-shell -p pkg-config openssl --run "cargo llvm-cov report"
-```
+Both projects include comprehensive model/utility tests + mock services.
 
 ---
 
