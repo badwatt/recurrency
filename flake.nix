@@ -77,7 +77,6 @@
             echo "Node: $(node --version)"
             echo "Rust: $(rustc --version)"
             echo "Bun: $(bun --version)"
-            export RUSTFLAGS="-C linker=${pkgs.llvmPackages.lld}/bin/lld"
           '';
         };
 
