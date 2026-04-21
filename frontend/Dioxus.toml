@@ -15,6 +15,12 @@ identifier = "com.alvaro17f.recurrency"
 icon = ["assets/icons/icon-1024.png"]
 
 [android]
-# arm64 covers 95%+ of devices; add "x86_64-linux-android" if needed for emulators
 build_targets = ["aarch64-linux-android"]
+out_dir = "../bin/android"
 min_sdk_version = 21
+
+[desktop]
+out_dir = "../bin/desktop"
+
+[web]
+out_dir = "dist"

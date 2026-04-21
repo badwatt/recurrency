@@ -67,5 +67,6 @@ keystore.properties
 # NixOS
 .direnv
 .env
+.bin
 frontend/assets/tailwind.css
 frontend/public/tailwind.css

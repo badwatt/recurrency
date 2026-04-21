@@ -142,8 +142,7 @@ cmd_android_build() {
 
 cmd_android_clean() {
   info "Cleaning Android build..."
-  cd "$ROOT/frontend"
-  rm -rf android android-studio .gradle app/build build 2>/dev/null || true
+  rm -rf bin/android android android-studio .gradle app/build build 2>/dev/null || true
   ok "Android build cleaned"
 }
 
