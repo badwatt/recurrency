@@ -32,6 +32,11 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 # ── Start ───────────────────────────────────────────────
 cmd_up() {
+  info "Killing stale processes..."
+  pkill -f "cargo run" 2>/dev/null || true
+  pkill -f "dx serve" 2>/dev/null || true
+  sleep 1
+
   info "Starting PostgreSQL..."
   cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d 2>/dev/null || true
   ok "DB running"
@@ -62,6 +67,7 @@ cmd_up() {
   echo "  • Backend:  http://localhost:8080"
   echo "  • Database: localhost:5432"
   echo ""
+  warn "First frontend load: ~30s (58MB WASM download + compile)"
   warn "Ctrl+C to stop"
   wait
 }
