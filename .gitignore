@@ -55,6 +55,7 @@ frontend.log
 *.sqlite3
 
 # Logs
+.logs/
 logs/
 *.log
 
