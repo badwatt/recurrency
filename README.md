@@ -16,7 +16,7 @@ git clone https://github.com/alvaro17f/recurrency.git
 cd recurrency
 
 # Start all services (frontend, backend, database)
-./re up
+./taskfile up
 
 # Open in browser
 open http://localhost:1420
@@ -26,22 +26,20 @@ open http://localhost:1420
 
 ---
 
-## The `./re` Script
+## The `./taskfile` Script
 
 | Command | Description |
 |---|---|
-| `./re up` | Start all services |
-| `./re up --prod` | Production mode (disables demo) |
-| `./re down` | Stop all services |
-| `./re restart` | Restart everything |
-| `./re status` | Show running services |
-| `./re logs` | Tail backend logs |
-| `./re setup` | Install dependencies & build |
-| `./re test` | Run all tests |
-| `./re typecheck` | Type check |
-| `./re build` | Production build |
-| `./re clean` | Remove build artifacts |
-| `./re reset` | Reset database (⚠️ deletes all data) |
+| `./taskfile up` | Start all services (DB + backend + frontend) |
+| `./taskfile down` | Stop all services |
+| `./taskfile test` | Run all tests (backend + frontend) |
+| `./taskfile coverage` | Show coverage report |
+| `./taskfile reset` | Reset database (⚠️ deletes all data) |
+| `./taskfile backend` | Start backend only (port 8080) |
+| `./taskfile frontend` | Start frontend only (port 1420) |
+| `./taskfile db` | Start PostgreSQL only (port 5432) |
+| `./taskfile css` | Build Tailwind CSS once |
+| `./taskfile help` | Show help |
 
 **Services:**
 - **Frontend:** http://localhost:1420 (Dioxus WASM)
