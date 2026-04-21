@@ -202,7 +202,7 @@ mod tests {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "yes");
         let enabled = is_demo_enabled();
-        assert!(!enabled);
+        assert!(!enabled);  // "yes" not in "true" set
         env::remove_var("ENABLE_DEMO");
     }
 
@@ -232,6 +232,7 @@ mod tests {
     #[test]
     fn demo_email_enabled_custom() {
         // Clear all first
+        env::remove_var("DEMO_EMAIL");
         env::remove_var("DEMO_PASSWORD");
         env::remove_var("DEMO_PASSWORD_HASH");
         
@@ -246,6 +247,7 @@ mod tests {
     #[test]
     fn demo_email_enabled_generates_random() {
         // Clear all first
+        env::remove_var("ENABLE_DEMO");
         env::remove_var("DEMO_EMAIL");
         env::remove_var("DEMO_PASSWORD");
         env::remove_var("DEMO_PASSWORD_HASH");
@@ -331,6 +333,10 @@ mod tests {
 
     #[test]
     fn status_response_enabled_with_custom_email() {
+        env::remove_var("ENABLE_DEMO");
+        env::remove_var("DEMO_EMAIL");
+        env::remove_var("DEMO_PASSWORD");
+        env::remove_var("DEMO_PASSWORD_HASH");
         env::set_var("ENABLE_DEMO", "true");
         env::set_var("DEMO_EMAIL", "status@demo.com");
         
