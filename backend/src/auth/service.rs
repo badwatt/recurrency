@@ -220,7 +220,7 @@ impl SqlxAuthService {
         req: UpdateSettingsRequest,
     ) -> AppResult<User> {
         let name = req.name.unwrap_or_default();
-        let currency = req.currency.unwrap_or_else(String::new);
+        let currency = req.currency.unwrap_or_default();
 
         let user = sqlx::query_as::<_, User>(
             r#"
