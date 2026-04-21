@@ -20,6 +20,8 @@
             rust-analyzer
             clippy
             rustfmt
+            cargo-llvm-cov
+            llvmPackages.llvm
 
             # Node.js & Bun
             nodejs_22
@@ -64,6 +66,10 @@
 
           RUST_BACKTRACE = "1";
           OPENSSL_NO_VENDOR = "1";
+
+          # cargo-llvm-cov uses these to find llvm tools
+          LLVM_COV = "${pkgs.llvmPackages.llvm}/bin/llvm-cov";
+          LLVM_PROFDATA = "${pkgs.llvmPackages.llvm}/bin/llvm-profdata";
 
           shellHook = ''
             echo "🟢 Recurrency dev environment ready"
