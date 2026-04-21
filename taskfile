@@ -123,6 +123,24 @@ cmd_frontend() { cd "$ROOT/frontend" && nix develop "$ROOT" -c dx serve --platfo
 cmd_db()       { cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d && ok "DB running on 5432"; }
 cmd_css()      { cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify && ok "CSS built"; }
 
+# ── Build ───────────────────────────────────────────────
+cmd_build() {
+  info "Building all..."
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
+  ok "Build complete: backend (target/release) + frontend (dist/)"
+}
+
+cmd_clear() {
+  info "Clearing all build artifacts..."
+  rm -rf backend/target/release/recurrency-api 2>/dev/null || true
+  rm -rf frontend/dist 2>/dev/null || true
+  rm -rf bin/android bin/desktop 2>/dev/null || true
+  rm -rf frontend/target 2>/dev/null || true
+  ok "All build artifacts cleared"
+}
+
+
 # ── Android ────────────────────────────────────────────
 _check_android_env() {
   if [ -z "$ANDROID_HOME" ] && [ -z "$ANDROID_SDK_ROOT" ]; then
@@ -134,13 +152,13 @@ _check_android_env() {
   fi
 }
 
-cmd_android_build() {
+cmd_build_android() {
   _check_android_env
   info "Building Android APK..."
   cd "$ROOT" && bash scripts/build-android.sh
 }
 
-cmd_android_clean() {
+cmd_clear_android() {
   info "Cleaning Android build..."
   rm -rf bin/android android android-studio .gradle app/build build 2>/dev/null || true
   ok "Android build cleaned"
@@ -166,9 +184,17 @@ ${G}Individual:${N}
   db        Start PostgreSQL only (port 5432)
   css       Build Tailwind CSS once
 
+${G}Build:${N}
+  build         Build backend + frontend (release)
+  build:android Build Android APK (auto-setup SDK if needed)
+  build:desktop Build desktop app
+
+${G}Clear:${N}
+  clear         Clear all build artifacts
+  clear:android Clear Android build artifacts
+
 ${G}Android:${N}
-  android:build  Build Android APK (auto-setup SDK if needed)
-  android:clean  Clean Android build artifacts
+  android       Alias for build:android
 
 ${Y}Examples:${N}
   ./taskfile up           # Start all
@@ -189,9 +215,10 @@ case "${1:-help}" in
   backend)      cmd_backend ;;
   frontend)     cmd_frontend ;;
   db)           cmd_db ;;
-  css)          cmd_css ;;
-  android)      cmd_android_build ;;
-  android:build) cmd_android_build ;;
-  android:clean) cmd_android_clean ;;
-  help|*)       cmd_help ;;
+  css)           cmd_css ;;
+  build)         cmd_build ;;
+  clear)         cmd_clear ;;
+  build:android) cmd_build_android ;;
+  clear:android) cmd_clear_android ;;
+  help|*)        cmd_help ;;
 esac
