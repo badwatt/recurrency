@@ -27,7 +27,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 fn init_logging() {
     use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
-    let env = std::env::var("RUST_ENV").unwrap_or_default();
+    let env = std::env::var("APP_ENV").unwrap_or_default();
 
     // Only write to file in development
     if env != "production" {

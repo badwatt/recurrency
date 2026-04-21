@@ -11,7 +11,7 @@ static LOG_FILE: Mutex<Option<std::path::PathBuf>> = Mutex::new(None);
 
 #[cfg(not(target_arch = "wasm32"))]
 fn is_dev() -> bool {
-    std::env::var("RUST_ENV").unwrap_or_default() != "production"
+    std::env::var("APP_ENV").unwrap_or_default() != "production"
 }
 
 #[cfg(not(target_arch = "wasm32"))]
