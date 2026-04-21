@@ -125,8 +125,11 @@ pub async fn reset(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
+    #[serial]
     fn demo_is_enabled_default() {
         // Default is disabled when no env vars are set
         // (ENABLE_DEMO is not set, so it defaults to false)
@@ -137,6 +140,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_email_custom() {
         // Test that DEMO_EMAIL env var is respected
         // We can't fully test in isolation due to env state, but verify function exists
@@ -146,6 +150,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_secret_custom() {
         env::set_var("DEMO_PASSWORD", "my_test_pass");
         let secret_val = demo_password();
@@ -154,6 +159,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_secret_hash_custom() {
         env::set_var("DEMO_PASSWORD_HASH", "precomputed$hash");
         let hash = demo_password_hash("anything").unwrap();
@@ -162,6 +168,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_secret_hash_generated() {
         env::remove_var("DEMO_PASSWORD_HASH");
         let hash = demo_password_hash("testpass").unwrap();
@@ -171,6 +178,7 @@ mod tests {
     // ── is_demo_enabled edge cases ──
 
     #[test]
+    #[serial]
     fn demo_is_enabled_true_lowercase() {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "true");
@@ -180,6 +188,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_is_enabled_true_uppercase() {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "TRUE");
@@ -189,6 +198,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_is_enabled_1() {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "1");
@@ -198,6 +208,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_is_enabled_yes() {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "yes");
@@ -207,6 +218,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_is_enabled_false() {
         env::remove_var("ENABLE_DEMO");
         env::set_var("ENABLE_DEMO", "false");
@@ -218,6 +230,7 @@ mod tests {
     // ── demo_email edge cases ──
 
     #[test]
+    #[serial]
     fn demo_email_disabled_returns_empty() {
         // Must clear ALL demo env vars first
         env::remove_var("ENABLE_DEMO");
@@ -230,6 +243,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_email_enabled_custom() {
         // Clear all first
         env::remove_var("DEMO_EMAIL");
@@ -245,6 +259,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_email_enabled_generates_random() {
         // Clear all first
         env::remove_var("ENABLE_DEMO");
@@ -264,6 +279,7 @@ mod tests {
     // ── demo_password edge cases ──
 
     #[test]
+    #[serial]
     fn demo_password_default_length() {
         env::remove_var("DEMO_PASSWORD");
         let password = demo_password();
@@ -271,6 +287,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_password_no_hyphens() {
         env::remove_var("DEMO_PASSWORD");
         let password = demo_password();
@@ -280,6 +297,7 @@ mod tests {
     // ── demo_password_hash edge cases ──
 
     #[test]
+    #[serial]
     fn demo_password_hash_uses_password_when_no_precomputed() {
         env::remove_var("DEMO_PASSWORD_HASH");
         let hash1 = demo_password_hash("pass1").unwrap();
@@ -290,6 +308,7 @@ mod tests {
     // ── DemoQuery deserialization ──
 
     #[test]
+    #[serial]
     fn demo_query_with_token() {
         let query = "token=my-token-123";
         let result: DemoQuery = serde_urlencoded::from_str(query).unwrap();
@@ -297,6 +316,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_query_without_token() {
         let query = "";
         let result: DemoQuery = serde_urlencoded::from_str(query).unwrap();
@@ -304,6 +324,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn demo_query_empty_token() {
         let query = "token=";
         let result: DemoQuery = serde_urlencoded::from_str(query).unwrap();
@@ -314,6 +335,7 @@ mod tests {
     // ── status() response structure ──
 
     #[test]
+    #[serial]
     fn status_response_disabled() {
         env::remove_var("ENABLE_DEMO");
         let enabled = is_demo_enabled();
@@ -332,6 +354,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn status_response_enabled_with_custom_email() {
         env::remove_var("ENABLE_DEMO");
         env::remove_var("DEMO_EMAIL");
@@ -353,6 +376,7 @@ mod tests {
     // ── init response structure ──
 
     #[test]
+    #[serial]
     fn init_response_structure() {
         let response = serde_json::json!({
             "email": "init@demo.com",
@@ -365,6 +389,7 @@ mod tests {
     // ── reset response structure ──
 
     #[test]
+    #[serial]
     fn reset_response_success() {
         let response = serde_json::json!({
             "success": true,
@@ -375,6 +400,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn reset_response_failure() {
         let response = serde_json::json!({
             "success": false,

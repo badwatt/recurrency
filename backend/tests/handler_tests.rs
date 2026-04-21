@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod auth_model_tests {
-    use crate::auth::models::{
+    use recurrency_api::auth::models::{
         CreateUserRequest, LoginRequest, UpdateSettingsRequest, UserResponse,
     };
     use validator::Validate;
@@ -122,7 +122,7 @@ mod auth_model_tests {
 
 #[cfg(test)]
 mod subscription_model_tests {
-    use crate::subscriptions::models::CreateSubscriptionRequest;
+    use recurrency_api::subscriptions::models::CreateSubscriptionRequest;
     use validator::Validate;
 
     #[test]
@@ -190,7 +190,7 @@ mod subscription_model_tests {
 
 #[cfg(test)]
 mod transaction_model_tests {
-    use crate::transactions::models::CreateTransactionRequest;
+    use recurrency_api::transactions::models::CreateTransactionRequest;
 
     #[test]
     fn create_transaction_request_full() {
@@ -246,7 +246,7 @@ mod transaction_model_tests {
 
 #[cfg(test)]
 mod category_model_tests {
-    use crate::categories::models::CreateCategoryRequest;
+    use recurrency_api::categories::models::CreateCategoryRequest;
 
     #[test]
     fn create_category_request_full() {
@@ -286,7 +286,7 @@ mod category_model_tests {
 
 #[cfg(test)]
 mod notification_model_tests {
-    use crate::notifications::models::UpdatePreferenceRequest;
+    use recurrency_api::notifications::models::UpdatePreferenceRequest;
 
     #[test]
     fn update_preference_request_deserialize() {
@@ -316,7 +316,7 @@ mod notification_model_tests {
 
 #[cfg(test)]
 mod report_model_tests {
-    use crate::reports::models::{CategoryBreakdown, MonthlySummary, SpendingTrend};
+    use recurrency_api::reports::models::{CategoryBreakdown, MonthlySummary, SpendingTrend};
     use rust_decimal::Decimal;
 
     #[test]
@@ -400,7 +400,7 @@ mod report_model_tests {
 
 #[cfg(test)]
 mod preferences_model_tests {
-    use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
+    use recurrency_api::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 
     #[test]
     fn preferences_response_serialization() {
@@ -452,8 +452,8 @@ mod preferences_model_tests {
 
 #[cfg(test)]
 mod auth_extractor_tests {
-    use crate::shared::auth_extractor::extract_token_from_request;
     use axum::http::HeaderMap;
+    use recurrency_api::shared::auth_extractor::extract_token_from_request;
 
     #[test]
     fn extract_token_bearer_valid() {
@@ -517,7 +517,7 @@ mod auth_extractor_tests {
 
 #[cfg(test)]
 mod error_tests {
-    use crate::shared::error::AppError;
+    use recurrency_api::shared::error::AppError;
 
     #[test]
     fn app_error_conflict() {
@@ -625,7 +625,7 @@ mod query_deserialization_tests {
 mod email_service_tests {
     #[test]
     fn email_is_configured_function_exists() {
-        use crate::email::is_configured;
+        use recurrency_api::email::is_configured;
         let _ = is_configured();
     }
 }
