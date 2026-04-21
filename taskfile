@@ -28,6 +28,8 @@ ok()    { printf '%s✓ %s%s\n' "$G" "$1" "$N"; }
 warn()  { printf '%s⚠ %s%s\n' "$Y" "$1" "$N"; }
 err()   { printf '%s✗ %s%s\n' "$R" "$1" "$N"; exit 1; }
 
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
 # ── Start ───────────────────────────────────────────────
 cmd_up() {
   info "Starting PostgreSQL..."
