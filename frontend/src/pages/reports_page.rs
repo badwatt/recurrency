@@ -976,7 +976,7 @@ mod tests {
     // ── build_csv additional tests ──
     #[test]
     fn build_csv_header() {
-        use crate::models::report::{CategoryBreakdown, MonthlySummary, SpendingTrend};
+        use crate::models::report::MonthlySummary;
         let report = ReportResponse {
             monthly_summary: MonthlySummary {
                 year: 2024,

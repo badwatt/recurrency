@@ -1,5 +1,5 @@
 use crate::api::client::{api_get, ApiError};
-use crate::models::logo::*;
+use crate::models::logo::LogoSearchResponse;
 
 #[allow(dead_code)]
 pub async fn search(query: &str) -> Result<LogoSearchResponse, ApiError> {
@@ -8,7 +8,7 @@ pub async fn search(query: &str) -> Result<LogoSearchResponse, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::logo::*;
+    
 
     #[test]
     fn logos_search_url_format() {

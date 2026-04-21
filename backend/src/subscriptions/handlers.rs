@@ -4,7 +4,6 @@ use axum::{
     Json,
 };
 use chrono::Datelike;
-use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
 

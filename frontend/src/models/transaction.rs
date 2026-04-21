@@ -263,7 +263,7 @@ mod transaction_model_tests {
 
     #[test]
     fn transaction_display_name() {
-        let txn = make_test_txn("Lunch", dec!(25), "2024-01-01");
+        let _txn = make_test_txn("Lunch", dec!(25), "2024-01-01");
         assert_eq!("Lunch" /* display_name() */, "Lunch");
     }
 

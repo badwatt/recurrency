@@ -332,7 +332,7 @@ mod subscription_tests {
 
     #[test]
     fn subscription_display_name() {
-        let sub = make_test_sub("Netflix", "monthly", true);
+        let _sub = make_test_sub("Netflix", "monthly", true);
         assert_eq!("Netflix" /* display_name() */, "Netflix");
     }
 
@@ -578,7 +578,7 @@ mod subscription_tests {
 
     #[test]
     fn display_impls() {
-        let sub = make_test_sub("Netflix", "monthly", true);
+        let _sub = make_test_sub("Netflix", "monthly", true);
         let name = "Netflix" /* display_name() */;
         assert_eq!(name, "Netflix");
 

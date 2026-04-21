@@ -4,7 +4,6 @@ use axum::{
     Json,
 };
 use chrono::Datelike;
-use sqlx::PgPool;
 
 use crate::auth::service::AuthService;
 use crate::reports::models::ReportResponse;

@@ -11,7 +11,7 @@ pub fn LoginPage() -> Element {
     let mut loading = use_signal(|| false);
     let mut demo_loading = use_signal(|| false);
     let mut demo_enabled = use_signal(|| false);
-    let nav = navigator();
+    let _nav = navigator();
 
     // Check if server URL needs configuration (Android/desktop without env var)
     // On first load after app restart, localStorage read may not have completed yet.

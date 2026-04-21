@@ -3,7 +3,6 @@ use axum::{
     http::HeaderMap,
     Json,
 };
-use sqlx::PgPool;
 
 use crate::auth::service::AuthService;
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};

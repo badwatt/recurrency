@@ -2,11 +2,9 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use std::sync::Arc;
 use validator::Validate;
 
 use crate::auth::models::{AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest, UserResponse};
-use crate::auth::service::AuthServiceTrait;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
 use crate::shared::OptionalQuery;

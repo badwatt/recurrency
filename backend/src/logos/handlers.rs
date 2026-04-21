@@ -1,12 +1,16 @@
 use axum::{
-    body::Body,
     extract::Query,
-    routing::get,
-    Json, Router,
+    Json,
 };
 use serde::Deserialize;
-
 use crate::logos::service::search_logos;
+
+#[cfg(test)]
+use axum::{
+    body::Body,
+    routing::get,
+    Router,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchQuery {

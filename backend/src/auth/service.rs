@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest, User, UserResponse};
+use crate::auth::models::{AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User, UserResponse};
 use crate::shared::error::{AppError, AppResult};
 use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use argon2::Argon2;

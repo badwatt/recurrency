@@ -1820,7 +1820,7 @@ mod transaction_page_tests {
 
     #[test]
     fn month_group_transactions_empty() {
-        let cat = Uuid::new_v4();
+        let _cat = Uuid::new_v4();
         let txns: Vec<Transaction> = vec![];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert!(groups.is_empty());

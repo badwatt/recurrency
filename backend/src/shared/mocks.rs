@@ -9,7 +9,7 @@
 //! ```
 
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -22,8 +22,8 @@ use crate::auth::service::AuthServiceTrait;
 use crate::categories::models::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::categories::service::CategoryWithCounts;
 use crate::notifications::models::{
-    Notification, NotificationPreferenceResponse, NotificationPreferencesResponse,
-    NotificationResponse, UpdateNotificationPreferencesRequest, UpdatePreferenceRequest,
+    Notification, NotificationPreferenceResponse,
+    NotificationResponse, UpdatePreferenceRequest,
 };
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
@@ -115,7 +115,7 @@ impl MockAuthService {
         Self::new(MockConfig::failure(message))
     }
 
-    fn make_user(&self, id: Uuid, email: &str, name: &str, verified: bool) -> User {
+    pub fn make_user(&self, id: Uuid, email: &str, name: &str, verified: bool) -> User {
         User {
             id,
             email: email.to_string(),
@@ -359,7 +359,7 @@ impl MockCategoryService {
         mock
     }
 
-    fn make_category(&self, id: Uuid, user_id: Uuid, name: &str) -> Category {
+    pub fn make_category(&self, id: Uuid, user_id: Uuid, name: &str) -> Category {
         Category {
             id,
             user_id,

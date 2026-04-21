@@ -71,7 +71,8 @@ pub(crate) fn apply_theme_class(theme: &str) {
 /// On web: sets class on <html>, persists to localStorage.
 /// On Android/desktop: uses dioxus::document::eval() to manipulate DOM + localStorage.
 #[cfg(feature = "web")]
-pub fn apply_theme_to_document(_theme: &str) {
+#[allow(unused_variables)]
+pub fn apply_theme_to_document(theme: &str) {
     // Prefer web_sys for web (synchronous, more reliable).
     // But also fall back to eval for consistency.
     #[cfg(target_arch = "wasm32")]

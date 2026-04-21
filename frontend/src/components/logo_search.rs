@@ -89,6 +89,7 @@ pub fn LogoSearch(
 }
 
 #[cfg(test)]
+#[allow(unused_assignments)]
 mod tests {
     use crate::models::logo::LogoResult;
 
@@ -265,7 +266,7 @@ mod tests {
     // ── on_select callback fires ──
     #[test]
     fn select_logo_updates_signal() {
-        let selected: Option<LogoResult> = None;
+        let _selected: Option<LogoResult> = None;
         let logo = LogoResult {
             name: "Netflix".into(),
             url: "https://logo.clearbit.com/netflix.com".into(),

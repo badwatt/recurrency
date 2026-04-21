@@ -2,8 +2,11 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::notifications::models::{
-    Notification, NotificationPreferenceResponse, NotificationPreferencesResponse,
-    NotificationResponse, UpdateNotificationPreferencesRequest, UpdatePreferenceRequest,
+    Notification, NotificationPreferenceResponse, NotificationResponse, UpdatePreferenceRequest,
+};
+#[cfg(test)]
+use crate::notifications::models::{
+    NotificationPreferencesResponse, UpdateNotificationPreferencesRequest,
 };
 use crate::shared::error::AppResult;
 
@@ -445,9 +448,11 @@ mod tests {
 }
 
 
+#[cfg(test)]
 mod serde_tests {
-    use super::*;
-
+    use crate::notifications::models::{Notification, NotificationResponse, UpdatePreferenceRequest};
+    use uuid::Uuid;
+    
     #[test]
     fn notification_response_unread_count_serde() {
         let resp = NotificationResponse {

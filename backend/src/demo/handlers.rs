@@ -5,7 +5,6 @@ use axum::{
     http::HeaderMap,
     Json,
 };
-use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::auth::service::AuthService;

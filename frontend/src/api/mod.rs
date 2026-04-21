@@ -1,5 +1,4 @@
 pub mod client;
-pub use client::ApiError;
 pub mod subscriptions;
 pub mod transactions;
 pub mod categories;

@@ -21,7 +21,7 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
 mod tests {
     use crate::models::notification::*;
     use uuid::Uuid;
-    use chrono::{DateTime, Utc};
+    use chrono::DateTime;
 
     #[test]
     fn notification_api_paths() {
