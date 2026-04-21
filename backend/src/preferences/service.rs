@@ -1,10 +1,25 @@
 use sqlx::PgPool;
 use uuid::Uuid;
+use async_trait::async_trait;
 
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::shared::error::AppResult;
 
-pub struct PreferencesService;
+#[async_trait]
+pub trait PreferencesServiceTrait: Send + Sync {
+    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse>;
+    async fn update_preferences(&self, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse>;
+}
+
+pub struct SqlxPreferencesService {
+    pool: PgPool,
+}
+
+impl SqlxPreferencesService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
 
 /// Apply a key-value preference to the response object.
 pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, value: &str) {
@@ -15,13 +30,14 @@ pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, va
     }
 }
 
-impl PreferencesService {
-    pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<PreferencesResponse> {
+#[async_trait]
+impl PreferencesServiceTrait for SqlxPreferencesService {
+    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse> {
         let prefs = sqlx::query_as::<_, (String, String)>(
             "SELECT key, value FROM user_preferences WHERE user_id = $1",
         )
         .bind(user_id)
-        .fetch_all(pool)
+        .fetch_all(&self.pool)
         .await?;
 
         let mut response = PreferencesResponse::default();
@@ -33,11 +49,7 @@ impl PreferencesService {
         Ok(response)
     }
 
-    pub async fn update_preferences(
-        pool: &PgPool,
-        user_id: Uuid,
-        req: UpdatePreferencesRequest,
-    ) -> AppResult<PreferencesResponse> {
+    async fn update_preferences(&self, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse> {
         if let Some(theme) = req.theme {
             sqlx::query(
                 r#"
@@ -48,7 +60,7 @@ impl PreferencesService {
             )
             .bind(user_id)
             .bind(&theme)
-            .execute(pool)
+            .execute(&self.pool)
             .await?;
         }
 
@@ -62,11 +74,24 @@ impl PreferencesService {
             )
             .bind(user_id)
             .bind(&subscriptions_view)
-            .execute(pool)
+            .execute(&self.pool)
             .await?;
         }
 
-        Self::get_preferences(pool, user_id).await
+        self.get_preferences(user_id).await
+    }
+}
+
+// Backward compatibility: keep PreferencesService for now
+pub struct PreferencesService;
+
+impl PreferencesService {
+    pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<PreferencesResponse> {
+        SqlxPreferencesService::new(pool.clone()).get_preferences(user_id).await
+    }
+
+    pub async fn update_preferences(pool: &PgPool, user_id: Uuid, req: UpdatePreferencesRequest) -> AppResult<PreferencesResponse> {
+        SqlxPreferencesService::new(pool.clone()).update_preferences(user_id, req).await
     }
 }
 
