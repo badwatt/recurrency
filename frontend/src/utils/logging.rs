@@ -10,6 +10,11 @@ use std::sync::Mutex;
 static LOG_FILE: Mutex<Option<std::path::PathBuf>> = Mutex::new(None);
 
 #[cfg(not(target_arch = "wasm32"))]
+fn is_dev() -> bool {
+    std::env::var("RUST_ENV").unwrap_or_default() != "production"
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn get_log_path() -> std::path::PathBuf {
     let mut guard = LOG_FILE.lock().unwrap();
     if guard.is_none() {
@@ -22,6 +27,7 @@ fn get_log_path() -> std::path::PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn write_log(level: &str, msg: &str) {
+    if !is_dev() { return; }
     if let Ok(mut file) = OpenOptions::new()
         .create(true)
         .append(true)

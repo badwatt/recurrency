@@ -27,21 +27,30 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 fn init_logging() {
     use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
-    // Create logs/ dir if not exists
-    std::fs::create_dir_all("logs").ok();
+    let env = std::env::var("RUST_ENV").unwrap_or_default();
 
-    let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "backend.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    // Only write to file in development
+    if env != "production" {
+        std::fs::create_dir_all("logs").ok();
+        let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "backend.log");
+        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+        std::mem::forget(_guard);
 
-    // Keep guard alive for app lifetime
-    std::mem::forget(_guard);
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
-        .init();
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::EnvFilter::new(
+                std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
+            ))
+            .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
+            .init();
+    } else {
+        // Production: stdout only
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::EnvFilter::new(
+                std::env::var("RUST_LOG").unwrap_or_else(|_| "warn".into()),
+            ))
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 }
 
 #[tokio::main]
