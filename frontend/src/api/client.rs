@@ -63,7 +63,7 @@ pub fn set_base_url(url: &str) {
 
 /// Implementation: resolve base URL from localStorage/env/origin.
 fn get_base_url_impl() -> String {
-    // 1. On WASM: check localStorage first, then same-origin
+    // 1. On WASM: check localStorage first, then default backend URL
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
@@ -75,12 +75,8 @@ fn get_base_url_impl() -> String {
                     }
                 }
             }
-            if let Ok(origin) = window.location().origin() {
-                if !origin.is_empty() {
-                    eprintln!("[get_base_url] WASM origin: {}", origin);
-                    return origin;
-                }
-            }
+            // In dev mode: dx serve runs on 1420, backend on 8080
+            // Never use window.location.origin - it points to frontend server
         }
         eprintln!("[get_base_url] WASM fallback: localhost:8080");
         return "http://localhost:8080".to_string();
