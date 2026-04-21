@@ -97,7 +97,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         Arc::new(SqlxAuthService::new(db_pool.clone())) as Arc<dyn AuthServiceTrait>,
     );
 
-    Router::new()
+    let router = Router::new()
         .route("/health", get(health_check))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
@@ -192,8 +192,19 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/demo/reset", post(demo::handlers::reset))
         .route("/api/logos/search", get(logos::handlers::search))
         .with_state(app_state)
-        .layer(cors)
-        .fallback_service(ServeDir::new(&frontend_dist).fallback(ServeFile::new(&index_path)))
+        .layer(cors);
+
+    let router = if std::env::var("BUILD_UI").unwrap_or_else(|_| "true".into()) == "true"
+        && index_html_exists(&frontend_dist)
+    {
+        tracing::info!("Frontend UI enabled (BUILD_UI=true)");
+        router.fallback_service(ServeDir::new(&frontend_dist).fallback(ServeFile::new(&index_path)))
+    } else {
+        tracing::info!("Frontend UI disabled (BUILD_UI=false or no dist/)");
+        router
+    };
+
+    router
 }
 
 async fn health_check() -> &'static str {
