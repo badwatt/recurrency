@@ -128,7 +128,40 @@ cmd_build() {
   info "Building all..."
   cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
   cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
-  ok "Build complete: backend (target/release) + frontend (dist/)"
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform android --release
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release 2>/dev/null || true
+  ok "Build complete: backend + web + android + desktop"
+}
+
+cmd_build_app() {
+  info "Building web + api (all-in-one)..."
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
+  ok "Build complete: backend + web (all-in-one)"
+}
+
+cmd_build_api() {
+  info "Building API..."
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  ok "API built: backend/target/release/recurrency-api"
+}
+
+cmd_build_web() {
+  info "Building web frontend..."
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
+  ok "Web built: frontend/dist/"
+}
+
+cmd_build_android() {
+  _check_android_env
+  info "Building Android APK..."
+  cd "$ROOT" && bash scripts/build-android.sh
+}
+
+cmd_build_desktop() {
+  info "Building desktop app..."
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release
+  ok "Desktop built: bin/desktop/"
 }
 
 cmd_clear() {
@@ -164,6 +197,20 @@ cmd_clear_android() {
   ok "Android build cleaned"
 }
 
+cmd_clear_desktop() {
+  info "Clearing desktop artifacts..."
+  rm -rf bin/desktop 2>/dev/null || true
+  ok "Desktop artifacts cleared"
+}
+
+cmd_clear_all() {
+  info "Clearing all build artifacts..."
+  cmd_clear
+  cmd_clear_android
+  cmd_clear_desktop
+  ok "All build artifacts cleared"
+}
+
 # ── Help ───────────────────────────────────────────────
 cmd_help() {
   cat <<EOF
@@ -185,23 +232,28 @@ ${G}Individual:${N}
   css       Build Tailwind CSS once
 
 ${G}Build:${N}
-  build         Build backend + frontend (release)
-  build:android Build Android APK (auto-setup SDK if needed)
-  build:desktop Build desktop app
+  build          Build all (api + web + android + desktop)
+  build:app      Build api + web (all-in-one binary)
+  build:api      Build backend API only
+  build:web      Build web frontend only
+  build:android  Build Android APK (auto-setup SDK if needed)
+  build:desktop  Build desktop app
 
 ${G}Clear:${N}
-  clear         Clear all build artifacts
-  clear:android Clear Android build artifacts
-
-${G}Android:${N}
-  android       Alias for build:android
+  clear          Clear all build artifacts
+  clear:app      Clear api + web artifacts
+  clear:api      Clear API artifacts
+  clear:web      Clear web artifacts
+  clear:android  Clear Android artifacts
+  clear:desktop  Clear desktop artifacts
+  clear:all      Clear everything
 
 ${Y}Examples:${N}
   ./taskfile up           # Start all
   ./taskfile test         # Run tests
   ./taskfile coverage     # Check coverage
   ./taskfile reset        # Clean database
-  ./taskfile android:build  # Build APK
+  ./taskfile build:app    # Build all-in-one
 EOF
 }
 
@@ -216,9 +268,18 @@ case "${1:-help}" in
   frontend)     cmd_frontend ;;
   db)           cmd_db ;;
   css)           cmd_css ;;
-  build)         cmd_build ;;
-  clear)         cmd_clear ;;
-  build:android) cmd_build_android ;;
-  clear:android) cmd_clear_android ;;
-  help|*)        cmd_help ;;
+  build)          cmd_build ;;
+  build:app)      cmd_build_app ;;
+  build:api)      cmd_build_api ;;
+  build:web)      cmd_build_web ;;
+  build:android)  cmd_build_android ;;
+  build:desktop)  cmd_build_desktop ;;
+  clear)          cmd_clear ;;
+  clear:app)      cmd_clear_app ;;
+  clear:api)      cmd_clear_api ;;
+  clear:web)      cmd_clear_web ;;
+  clear:android)  cmd_clear_android ;;
+  clear:desktop)  cmd_clear_desktop ;;
+  clear:all)      cmd_clear_all ;;
+  help|*)         cmd_help ;;
 esac
