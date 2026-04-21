@@ -1,0 +1,36 @@
+//! Embedded frontend detection and initialization.
+//! Provides functions to check if frontend files are available.
+
+use include_dir::include_dir;
+
+/// Embedded dist/ directory from frontend/
+/// This macro expands at compile time to include all files in frontend/dist/
+static DIST_DIR: include_dir::Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist");
+
+/// Check if embedded dist has files
+pub fn has_embedded() -> bool {
+    DIST_DIR.get_file("index.html").is_some()
+}
+
+/// Initialize embedded frontend system.
+/// Returns true if dist/ was found and embedded.
+pub fn init() -> bool {
+    let build_ui = std::env::var("BUILD_UI").unwrap_or_else(|_| "true".into());
+    if build_ui != "true" {
+        tracing::info!("BUILD_UI=false, frontend serving disabled");
+        return false;
+    }
+
+    if !has_embedded() {
+        tracing::warn!("No embedded frontend files. Run `dx bundle --platform web` first or set BUILD_UI=false.");
+        return false;
+    }
+
+    tracing::info!("Frontend embedded: {} files available", count_files());
+    true
+}
+
+/// Count files in dist/
+fn count_files() -> usize {
+    DIST_DIR.files().count()
+}

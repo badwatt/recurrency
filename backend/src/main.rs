@@ -194,15 +194,17 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .with_state(app_state)
         .layer(cors);
 
-    let router = if std::env::var("BUILD_UI").unwrap_or_else(|_| "true".into()) == "true"
-        && index_html_exists(&frontend_dist)
-    {
-        tracing::info!("Frontend UI enabled (BUILD_UI=true)");
-        router.fallback_service(ServeDir::new(&frontend_dist).fallback(ServeFile::new(&index_path)))
+    // Serve frontend if BUILD_UI=true
+    let build_ui = std::env::var("BUILD_UI").unwrap_or_else(|_| "true".into());
+    if build_ui == "true" {
+        if shared::embedded::init() || index_html_exists(&frontend_dist) {
+            tracing::info!("Frontend UI: enabled");
+        } else {
+            tracing::warn!("Frontend UI: dist/ not found. Set BUILD_UI=false for API-only mode.");
+        }
     } else {
-        tracing::info!("Frontend UI disabled (BUILD_UI=false or no dist/)");
-        router
-    };
+        tracing::info!("Frontend UI disabled (BUILD_UI=false)");
+    }
 
     router
 }
