@@ -237,7 +237,7 @@ Mock services viven en `src/shared/mocks.rs`.
 ### Docker Compose (tests)
 
 ```yaml
-# docker-compose.test.yml
+# docker/docker-compose.test.yml
 version: '3.8'
 services:
   postgres:
@@ -259,7 +259,7 @@ services:
 
 ```bash
 # Iniciar DB de test
-docker compose -f docker-compose.test.yml up -d
+docker compose -f docker/docker-compose.test.yml up -d
 
 # Variable de entorno
 export DATABASE_URL="postgres://test:test@localhost:5433/recurrency_test"
