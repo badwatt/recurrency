@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── Recurrency Taskfile ───────────────────────────────────
+# Usage: ./taskfile [command]
+#
+# Commands:
+#   up        Start everything (DB + backend + frontend)
+#   down      Stop everything
+#   test      Run all tests with coverage
+#   coverage  Show coverage report
+#   reset     Reset database (⚠️  deletes all data)
+#   backend   Start backend only
+#   frontend  Start frontend only
+#   db        Start PostgreSQL only
+#   css       Build Tailwind CSS
+#   help      Show this help
+
+# ── Colors ──────────────────────────────────────────────
+Y='\033[1;33m'
+G='\033[1;32m'
+C='\033[1;36m'
+R='\033[0;31m'
+N='\033[0m'
+
+# ── Paths ───────────────────────────────────────────────
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+declare -A COLORS=([info]=\$C [ok]=\$G [warn]=\$Y [err]=\$R)
+
+info()  { echo -e "${C}→ $1${N}"; }
+ok()    { echo -e "${G}✓ $1${N}"; }
+warn()  { echo -e "${Y}⚠ $1${N}"; }
+err()   { echo -e "${R}✗ $1${N}"; exit 1; }
+
+# ── Start ───────────────────────────────────────────────
+cmd_up() {
+  info "Starting PostgreSQL..."
+  cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d 2>/dev/null || true
+  ok "DB running"
+
+  info "Building CSS..."
+  cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify 2>/dev/null || true
+
+  info "Starting backend..."
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo run &
+  BACKEND_PID=$!
+
+  info "Starting frontend..."
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx serve --platform web --port 1420 &
+  FRONTEND_PID=$!
+
+  trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; cd $ROOT && docker compose -f docker-compose.dev.yml down 2>/dev/null" EXIT
+
+  ok "All running:"
+  echo "  • Frontend: http://localhost:1420"
+  echo "  • Backend:  http://localhost:8080"
+  echo "  • Database: localhost:5432"
+  echo ""
+  warn "Ctrl+C to stop"
+  wait
+}
+
+# ── Stop ────────────────────────────────────────────────
+cmd_down() {
+  info "Stopping..."
+  pkill -f "cargo run" 2>/dev/null || true
+  pkill -f "dx serve" 2>/dev/null || true
+  cd "$ROOT" && docker compose -f docker-compose.dev.yml down 2>/dev/null || true
+  ok "All stopped"
+}
+
+# ── Tests ──────────────────────────────────────────────
+cmd_test() {
+  info "Backend tests..."
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo test --lib || warn "Backend tests failed"
+
+  echo ""
+  info "Frontend tests..."
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c cargo test || warn "Frontend tests failed"
+
+  ok "Tests done"
+}
+
+# ── Coverage ───────────────────────────────────────────
+cmd_coverage() {
+  info "Backend coverage..."
+  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo llvm-cov test --lib 2>&1 | tail -1
+
+  echo ""
+  info "Frontend coverage..."
+  cd "$ROOT/frontend" && nix develop "$ROOT" -c cargo llvm-cov test 2>&1 | tail -1
+}
+
+# ── Reset DB ─────────────────────────────────────────
+cmd_reset() {
+  warn "This DELETES all data!"
+  read -rp "Confirm [y/N]: " confirm
+  [[ "$confirm" =~ ^[Yy]$ ]] || { ok "Cancelled"; exit 0; }
+
+  info "Resetting..."
+  cd "$ROOT" && docker compose -f docker-compose.dev.yml down -v 2>/dev/null || true
+  docker compose -f docker-compose.dev.yml up -d
+  cd "$ROOT/backend" && nix develop "$ROOT" -c sqlx migrate run 2>/dev/null || true
+  ok "Database reset"
+}
+
+# ── Individual ─────────────────────────────────────────
+cmd_backend()  { cd "$ROOT/backend"  && nix develop "$ROOT" -c cargo run; }
+cmd_frontend() { cd "$ROOT/frontend" && nix develop "$ROOT" -c dx serve --platform web --port 1420; }
+cmd_db()       { cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d && ok "DB running on 5432"; }
+cmd_css()      { cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify && ok "CSS built"; }
+
+# ── Help ───────────────────────────────────────────────
+cmd_help() {
+  cat <<EOF
+${C}Recurrency Taskfile${N}
+
+${Y}Usage:${N} ./taskfile [command]
+
+${G}Main:${N}
+  up        Start everything (DB + backend + frontend)
+  down      Stop everything
+  test      Run all tests
+  coverage  Show coverage report
+  reset     Reset database (⚠️  deletes data)
+
+${G}Individual:${N}
+  backend   Start backend only (port 8080)
+  frontend  Start frontend only (port 1420)
+  db        Start PostgreSQL only (port 5432)
+  css       Build Tailwind CSS once
+
+${Y}Examples:${N}
+  ./taskfile up        # Start all
+  ./taskfile test      # Run tests
+  ./taskfile coverage  # Check coverage
+  ./taskfile reset     # Clean database
+EOF
+}
+
+# ── Dispatch ──────────────────────────────────────────
+case "${1:-help}" in
+  up)        cmd_up ;;
+  down|stop) cmd_down ;;
+  test)      cmd_test ;;
+  coverage)  cmd_coverage ;;
+  reset)     cmd_reset ;;
+  backend)   cmd_backend ;;
+  frontend)  cmd_frontend ;;
+  db)        cmd_db ;;
+  css)       cmd_css ;;
+  help|*)     cmd_help ;;
+esac
