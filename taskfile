@@ -40,11 +40,19 @@ cmd_up() {
   cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify 2>/dev/null || true
 
   info "Starting backend..."
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo run &
+  cd "$ROOT/backend"
+  export APP_HOST="${APP_HOST:-localhost}"
+  export APP_PORT="${APP_PORT:-8080}"
+  export JWT_SECRET="${JWT_SECRET:-dev-secret}"
+  export ENABLE_DEMO="${ENABLE_DEMO:-true}"
+  export FRONTEND_DIST="$ROOT/frontend/public"
+  nix develop "$ROOT" -c cargo run &
   BACKEND_PID=$!
 
   info "Starting frontend..."
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx serve --platform web --port 1420 &
+  cd "$ROOT/frontend"
+  export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
+  nix develop "$ROOT" -c dx serve --platform web --port 1420 &
   FRONTEND_PID=$!
 
   trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; cd $ROOT && docker compose -f docker-compose.dev.yml down 2>/dev/null" EXIT

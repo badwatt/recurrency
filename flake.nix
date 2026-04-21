@@ -22,6 +22,7 @@
             rustfmt
             cargo-llvm-cov
             llvmPackages.llvm
+            llvmPackages.lld
 
             # Node.js & Bun
             nodejs_22
@@ -76,6 +77,7 @@
             echo "Node: $(node --version)"
             echo "Rust: $(rustc --version)"
             echo "Bun: $(bun --version)"
+            export RUSTFLAGS="-C linker=${pkgs.llvmPackages.lld}/bin/lld"
           '';
         };
 
