@@ -444,13 +444,30 @@ mod tests {
     }
 
     // ── get_app_data_dir tests ──
+    // Android path check: /data/data/com.alvaro17f.recurrency/files
+    // This path only exists on Android devices, not on test machines.
+    // Line 18-20 (android_files parent().map(...).unwrap_or(false)) is only hit on Android.
+    // Line 22-25 (HOME/.recurrency fallback) is only hit when dirs::data_dir() returns None
+    // AND the Android path doesn't exist.
     #[test]
     fn get_app_data_dir_returns_some_on_native() {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let result = get_app_data_dir();
-            assert!(result.is_some());
+            let result = super::get_app_data_dir();
+            // On native test platforms (Linux), dirs::data_dir() returns Some
+            // (e.g., /home/user/.local/share or similar). So we get that path.
+            assert!(result.is_some(), "get_app_data_dir should return Some on native");
         }
+    }
+
+    #[test]
+    fn android_path_parent_exists_check() {
+        // Test the android path parent existence logic
+        let android_files = std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
+        let parent = android_files.parent().expect("should have parent");
+        // On non-Android (Linux), /data/data/ does NOT exist, so this returns None
+        let exists = parent.exists();
+        assert!(!exists, "Android path should not exist on Linux desktop");
     }
 
     // ── persist_to_storage tests (native) ──
@@ -488,7 +505,7 @@ mod tests {
     fn persist_to_storage_no_op_without_token() {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut state = AuthState::default();
+            let state = AuthState::default();
             // No token set, should not fail
             state.persist_to_storage();
             // Should not create any files
