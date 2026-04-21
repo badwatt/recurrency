@@ -1,6 +1,6 @@
-use dioxus::prelude::*;
 use crate::api::auth;
 use crate::Route;
+use dioxus::prelude::*;
 
 #[component]
 pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<()>) -> Element {
@@ -51,7 +51,12 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
     };
 
     let on_code_input = move |e: FormEvent| {
-        let val = e.value().chars().filter(|c| c.is_ascii_digit()).take(6).collect();
+        let val = e
+            .value()
+            .chars()
+            .filter(|c| c.is_ascii_digit())
+            .take(6)
+            .collect();
         code.set(val);
     };
 
@@ -135,8 +140,8 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
 
 #[cfg(test)]
 mod tests {
-    use crate::state::auth::AuthState;
     use crate::models::auth::UserResponse;
+    use crate::state::auth::AuthState;
     use uuid::Uuid;
 
     fn sample_user(verified: bool) -> UserResponse {

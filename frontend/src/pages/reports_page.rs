@@ -1,12 +1,12 @@
-use dioxus::prelude::*;
+use crate::api::categories;
+use crate::api::reports;
+use crate::components::chart::{palette_color, DonutChart, DonutData, LineChart, LineData};
+use crate::models::report::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
-use crate::api::reports;
-use crate::api::categories;
-use crate::models::report::*;
 use crate::utils::format::format_currency;
-use crate::components::chart::{LineChart, LineData, DonutChart, DonutData, palette_color};
 use chrono::{Datelike, Local};
+use dioxus::prelude::*;
 
 fn icon_credit_card() -> Element {
     rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
@@ -30,12 +30,19 @@ fn icon_trending_up() -> Element {
     }}
 }
 
-
 const MONTH_OPTIONS: &[(&str, &str)] = &[
-    ("1", "January"), ("2", "February"), ("3", "March"),
-    ("4", "April"), ("5", "May"), ("6", "June"),
-    ("7", "July"), ("8", "August"), ("9", "September"),
-    ("10", "October"), ("11", "November"), ("12", "December"),
+    ("1", "January"),
+    ("2", "February"),
+    ("3", "March"),
+    ("4", "April"),
+    ("5", "May"),
+    ("6", "June"),
+    ("7", "July"),
+    ("8", "August"),
+    ("9", "September"),
+    ("10", "October"),
+    ("11", "November"),
+    ("12", "December"),
 ];
 
 fn report_years() -> Vec<i32> {
@@ -58,10 +65,14 @@ pub fn category_style_by_name<'a>(
     categories: &'a [crate::models::category::Category],
     name: &str,
 ) -> (&'a str, &'a str) {
-    categories.iter()
+    categories
+        .iter()
         .find(|c| c.name == name)
         .map(|c| {
-            (c.color.as_deref().unwrap_or("#6b7280"), c.icon.as_deref().unwrap_or("Tag"))
+            (
+                c.color.as_deref().unwrap_or("#6b7280"),
+                c.icon.as_deref().unwrap_or("Tag"),
+            )
         })
         .unwrap_or(("#6b7280", "Tag"))
 }
@@ -77,7 +88,9 @@ pub fn ReportsPage() -> Element {
     // Load categories
     use_future(move || async move {
         // android guard removed
-        if !CATEGORIES().categories.is_empty() { return; }
+        if !CATEGORIES().categories.is_empty() {
+            return;
+        }
         CATEGORIES.write().set_loading();
         match categories::list().await {
             Ok(data) => CATEGORIES.write().set_data(data),
@@ -92,14 +105,14 @@ pub fn ReportsPage() -> Element {
         let y = year_val.clone();
         let m = month_val.clone();
         async move {
-        is_loading.set(true);
-        let y: i32 = y.parse().unwrap_or(now.year());
-        let m: u32 = m.parse().unwrap_or(now.month());
-        match reports::get_summary(y, m).await {
-            Ok(data) => report.set(Some(data)),
-            Err(e) => log::error!("Failed to fetch report: {}", e),
-        }
-        is_loading.set(false);
+            is_loading.set(true);
+            let y: i32 = y.parse().unwrap_or(now.year());
+            let m: u32 = m.parse().unwrap_or(now.month());
+            match reports::get_summary(y, m).await {
+                Ok(data) => report.set(Some(data)),
+                Err(e) => log::error!("Failed to fetch report: {}", e),
+            }
+            is_loading.set(false);
         }
     });
 
@@ -364,10 +377,10 @@ pub fn ReportsPage() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_decimal_macros::dec;
     use crate::models::category::Category;
-    use uuid::Uuid;
     use chrono::DateTime;
+    use rust_decimal_macros::dec;
+    use uuid::Uuid;
 
     fn make_cat(name: &str, color: &str, icon: &str) -> Category {
         Category {
@@ -387,22 +400,21 @@ mod tests {
     fn build_csv_format() {
         let report = ReportResponse {
             monthly_summary: crate::models::report::MonthlySummary {
-                year: 2024, month: 1,
+                year: 2024,
+                month: 1,
                 subscriptions_total: dec!(100),
                 transactions_total: dec!(50),
                 overall_total: dec!(150),
                 subscriptions_count: 5,
                 transactions_count: 3,
             },
-            category_breakdown: vec![
-                crate::models::report::CategoryBreakdown {
-                    category_id: None,
-                    category_name: "Food".into(),
-                    total: dec!(100),
-                    count: 5,
-                    percentage: 66.7,
-                },
-            ],
+            category_breakdown: vec![crate::models::report::CategoryBreakdown {
+                category_id: None,
+                category_name: "Food".into(),
+                total: dec!(100),
+                count: 5,
+                percentage: 66.7,
+            }],
             recent_trends: vec![],
         };
         let csv = build_csv(&report);
@@ -477,7 +489,8 @@ mod tests {
     fn build_csv_all_categories() {
         let report = ReportResponse {
             monthly_summary: crate::models::report::MonthlySummary {
-                year: 2024, month: 1,
+                year: 2024,
+                month: 1,
                 subscriptions_total: dec!(100),
                 transactions_total: dec!(50),
                 overall_total: dec!(150),
@@ -513,7 +526,8 @@ mod tests {
     fn build_csv_empty_breakdown() {
         let report = ReportResponse {
             monthly_summary: crate::models::report::MonthlySummary {
-                year: 2024, month: 1,
+                year: 2024,
+                month: 1,
                 subscriptions_total: dec!(0),
                 transactions_total: dec!(0),
                 overall_total: dec!(0),
@@ -558,8 +572,14 @@ mod tests {
     fn avg_per_month_computation() {
         // Simulate the avg computation from the component
         let trends = vec![
-            crate::models::report::SpendingTrend { period: "2024-01".into(), total: dec!(100) },
-            crate::models::report::SpendingTrend { period: "2024-02".into(), total: dec!(200) },
+            crate::models::report::SpendingTrend {
+                period: "2024-01".into(),
+                total: dec!(100),
+            },
+            crate::models::report::SpendingTrend {
+                period: "2024-02".into(),
+                total: dec!(200),
+            },
         ];
         let sum: rust_decimal::Decimal = trends.iter().map(|t| t.total).sum();
         let avg = sum / rust_decimal::Decimal::from(trends.len() as i64);
@@ -584,22 +604,21 @@ mod tests {
         // Category name with comma
         let report = ReportResponse {
             monthly_summary: crate::models::report::MonthlySummary {
-                year: 2024, month: 1,
+                year: 2024,
+                month: 1,
                 subscriptions_total: dec!(50),
                 transactions_total: dec!(0),
                 overall_total: dec!(50),
                 subscriptions_count: 1,
                 transactions_count: 0,
             },
-            category_breakdown: vec![
-                crate::models::report::CategoryBreakdown {
-                    category_id: None,
-                    category_name: "Food, Drinks".into(),
-                    total: dec!(50),
-                    count: 1,
-                    percentage: 100.0,
-                },
-            ],
+            category_breakdown: vec![crate::models::report::CategoryBreakdown {
+                category_id: None,
+                category_name: "Food, Drinks".into(),
+                total: dec!(50),
+                count: 1,
+                percentage: 100.0,
+            }],
             recent_trends: vec![],
         };
         let csv = build_csv(&report);
@@ -610,9 +629,21 @@ mod tests {
     fn donut_data_ordering() {
         use crate::components::chart::DonutData;
         let data = vec![
-            DonutData { label: "A".into(), value: 50.0, color: "#f00".into() },
-            DonutData { label: "B".into(), value: 30.0, color: "#0f0".into() },
-            DonutData { label: "C".into(), value: 20.0, color: "#00f".into() },
+            DonutData {
+                label: "A".into(),
+                value: 50.0,
+                color: "#f00".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 30.0,
+                color: "#0f0".into(),
+            },
+            DonutData {
+                label: "C".into(),
+                value: 20.0,
+                color: "#00f".into(),
+            },
         ];
         let total: f64 = data.iter().map(|d| d.value).sum();
         assert_eq!(total, 100.0);
@@ -623,7 +654,11 @@ mod tests {
         use crate::components::chart::palette_color;
         for i in 0..12 {
             let c = palette_color(i);
-            assert!(c.starts_with('#'), "Color at index {} should start with #", i);
+            assert!(
+                c.starts_with('#'),
+                "Color at index {} should start with #",
+                i
+            );
         }
     }
 
@@ -639,31 +674,46 @@ mod tests {
     #[test]
     fn reports_page_has_title() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("Reports") || src.contains("Report"), "Should have Reports title");
+        assert!(
+            src.contains("Reports") || src.contains("Report"),
+            "Should have Reports title"
+        );
     }
 
     #[test]
     fn reports_page_uses_chart_components() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("Chart") || src.contains("Donut") || src.contains("Line"), "Should use chart components");
+        assert!(
+            src.contains("Chart") || src.contains("Donut") || src.contains("Line"),
+            "Should use chart components"
+        );
     }
 
     #[test]
     fn reports_page_has_export_button() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("export") || src.contains("Export") || src.contains("download"), "Should have export button");
+        assert!(
+            src.contains("export") || src.contains("Export") || src.contains("download"),
+            "Should have export button"
+        );
     }
 
     #[test]
     fn reports_page_has_month_selector() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("month") || src.contains("Month") || src.contains("Select"), "Should have month selector");
+        assert!(
+            src.contains("month") || src.contains("Month") || src.contains("Select"),
+            "Should have month selector"
+        );
     }
 
     #[test]
     fn reports_page_has_year_selector() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("year") || src.contains("Year") || src.contains("report_years"), "Should have year selector");
+        assert!(
+            src.contains("year") || src.contains("Year") || src.contains("report_years"),
+            "Should have year selector"
+        );
     }
 
     #[test]
@@ -675,13 +725,19 @@ mod tests {
     #[test]
     fn reports_page_uses_effect() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("use_effect"), "Should use effect for side effects");
+        assert!(
+            src.contains("use_effect"),
+            "Should use effect for side effects"
+        );
     }
 
     #[test]
     fn reports_page_uses_future() {
         let src = include_str!("reports_page.rs");
-        assert!(src.contains("use_future"), "Should use future for async loading");
+        assert!(
+            src.contains("use_future"),
+            "Should use future for async loading"
+        );
     }
 
     #[test]
@@ -739,8 +795,16 @@ mod tests {
     fn donut_data_multiple_items() {
         use crate::components::chart::DonutData;
         let data = vec![
-            DonutData { label: "A".into(), value: 40.0, color: "#111".into() },
-            DonutData { label: "B".into(), value: 60.0, color: "#222".into() },
+            DonutData {
+                label: "A".into(),
+                value: 40.0,
+                color: "#111".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 60.0,
+                color: "#222".into(),
+            },
         ];
         assert_eq!(data.len(), 2);
     }
@@ -909,7 +973,8 @@ mod tests {
     fn build_csv_multiple_categories() {
         let report = ReportResponse {
             monthly_summary: crate::models::report::MonthlySummary {
-                year: 2024, month: 6,
+                year: 2024,
+                month: 6,
                 subscriptions_total: dec!(200),
                 transactions_total: dec!(300),
                 overall_total: dec!(500),
@@ -1007,15 +1072,13 @@ mod tests {
                 subscriptions_count: 5,
                 transactions_count: 10,
             },
-            category_breakdown: vec![
-                CategoryBreakdown {
-                    category_id: Some(Uuid::new_v4().to_string()),
-                    category_name: "Food".into(),
-                    total: dec!(50),
-                    count: 5,
-                    percentage: 50.0,
-                },
-            ],
+            category_breakdown: vec![CategoryBreakdown {
+                category_id: Some(Uuid::new_v4().to_string()),
+                category_name: "Food".into(),
+                total: dec!(50),
+                count: 5,
+                percentage: 50.0,
+            }],
             recent_trends: vec![],
         };
         let csv = build_csv(&report);
@@ -1035,15 +1098,13 @@ mod tests {
                 subscriptions_count: 5,
                 transactions_count: 10,
             },
-            category_breakdown: vec![
-                CategoryBreakdown {
-                    category_id: Some(Uuid::new_v4().to_string()),
-                    category_name: "Coffee".into(),
-                    total: dec!(15.99),
-                    count: 10,
-                    percentage: 15.99,
-                },
-            ],
+            category_breakdown: vec![CategoryBreakdown {
+                category_id: Some(Uuid::new_v4().to_string()),
+                category_name: "Coffee".into(),
+                total: dec!(15.99),
+                count: 10,
+                percentage: 15.99,
+            }],
             recent_trends: vec![],
         };
         let csv = build_csv(&report);

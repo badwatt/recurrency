@@ -81,9 +81,17 @@ pub fn apply_theme_to_document(theme: &str) {
             "system" => {
                 if let Some(window) = web_sys::window() {
                     if let Ok(Some(mql)) = window.match_media("(prefers-color-scheme: dark)") {
-                        if mql.matches() { "dark" } else { "light" }
-                    } else { "light" }
-                } else { "light" }
+                        if mql.matches() {
+                            "dark"
+                        } else {
+                            "light"
+                        }
+                    } else {
+                        "light"
+                    }
+                } else {
+                    "light"
+                }
             }
             "dark" => "dark",
             "mocha" => "mocha",
@@ -197,7 +205,12 @@ mod tests {
     fn cycle_theme_returns_valid_theme() {
         for theme in ["light", "dark", "mocha", "system", "unknown", ""] {
             let next = cycle_theme(theme);
-            assert!(THEMES.contains(&next), "cycle_theme({:?}) = {:?}, not in THEMES", theme, next);
+            assert!(
+                THEMES.contains(&next),
+                "cycle_theme({:?}) = {:?}, not in THEMES",
+                theme,
+                next
+            );
         }
     }
 
@@ -220,15 +233,23 @@ mod tests {
     fn resolve_theme_class_all_valid() {
         for theme in ["light", "dark", "mocha"] {
             let resolved = resolve_theme_class(theme);
-            assert_eq!(resolved, theme, "resolve_theme_class({:?}) should equal {:?}", theme, theme);
+            assert_eq!(
+                resolved, theme,
+                "resolve_theme_class({:?}) should equal {:?}",
+                theme, theme
+            );
         }
     }
 
     #[test]
     fn resolve_theme_class_various_invalid() {
         for invalid in ["", "foo", "bar", "DARK", "Light", "SYSTEM"] {
-            assert_eq!(resolve_theme_class(invalid), "light",
-                "resolve_theme_class({:?}) should default to light", invalid);
+            assert_eq!(
+                resolve_theme_class(invalid),
+                "light",
+                "resolve_theme_class({:?}) should default to light",
+                invalid
+            );
         }
     }
 

@@ -2,14 +2,18 @@ use crate::api::client::{api_get, ApiError};
 use crate::models::report::*;
 
 pub async fn get_summary(year: i32, month: u32) -> Result<ReportResponse, ApiError> {
-    api_get(&format!("/api/reports/summary?year={}&month={}", year, month)).await
+    api_get(&format!(
+        "/api/reports/summary?year={}&month={}",
+        year, month
+    ))
+    .await
 }
 
 #[cfg(test)]
 mod tests {
     use crate::models::report::*;
-    use uuid::Uuid;
     use rust_decimal_macros::dec;
+    use uuid::Uuid;
 
     #[test]
     fn reports_summary_url() {
@@ -121,9 +125,10 @@ mod tests {
                 transactions_count: 3,
             },
             category_breakdown: vec![],
-            recent_trends: vec![
-                SpendingTrend { period: "2024-05".into(), total: dec!(140.0) },
-            ],
+            recent_trends: vec![SpendingTrend {
+                period: "2024-05".into(),
+                total: dec!(140.0),
+            }],
         };
         assert!(!resp.recent_trends.is_empty());
     }

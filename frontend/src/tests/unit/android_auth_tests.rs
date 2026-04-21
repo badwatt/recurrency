@@ -1,4 +1,3 @@
-
 //! TDD tests for Android auth persistence.
 //! Bug: Auth state lost after app restart on Android.
 //! Root cause: dirs::data_dir() returns None on Android (no jni feature).

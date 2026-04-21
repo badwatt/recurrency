@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
-use crate::state::categories::CATEGORIES;
 use crate::api;
 use crate::models::category::CreateCategoryRequest;
+use crate::state::categories::CATEGORIES;
 
 /// Props for the CategoryCombobox component.
 ///
@@ -27,9 +27,7 @@ pub fn CategoryCombobox(
 
     // Find currently selected category for display
     let selected_cat = cats.categories.iter().find(|c| c.id.to_string() == sel_id);
-    let display_text = selected_cat
-        .map(|c| c.name.clone())
-        .unwrap_or_default();
+    let display_text = selected_cat.map(|c| c.name.clone()).unwrap_or_default();
     let display_color = selected_cat
         .and_then(|c| c.color.clone())
         .unwrap_or_else(|| "#6b7280".into());
@@ -374,7 +372,11 @@ mod tests {
 
     #[test]
     fn filter_categories_partial_match() {
-        let cats = vec![make_cat("Food"), make_cat("Transport"), make_cat("Entertainment")];
+        let cats = vec![
+            make_cat("Food"),
+            make_cat("Transport"),
+            make_cat("Entertainment"),
+        ];
         let result = filter_categories(&cats, "ood");
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], 0);
@@ -397,7 +399,11 @@ mod tests {
 
     #[test]
     fn filter_categories_multiple_matches() {
-        let cats = vec![make_cat("Food"), make_cat("Food Delivery"), make_cat("Transport")];
+        let cats = vec![
+            make_cat("Food"),
+            make_cat("Food Delivery"),
+            make_cat("Transport"),
+        ];
         let result = filter_categories(&cats, "food");
         assert_eq!(result.len(), 2);
     }
@@ -595,7 +601,9 @@ mod tests {
         // "CAFÉ".to_lowercase() = "café"
         // Should match
         let search = "cafe"; // Without accent
-        let exact = cats.iter().any(|c| c.name.to_lowercase() == search.to_lowercase());
+        let exact = cats
+            .iter()
+            .any(|c| c.name.to_lowercase() == search.to_lowercase());
         // Actually café ≠ cafe (different chars)
         assert!(!exact);
     }

@@ -191,10 +191,10 @@ mod tests {
         let mut state = ToastState::default();
         state.success("Test message");
         assert_eq!(state.items.len(), 1);
-        
+
         let id = state.items[0].id;
         state.remove(id);
-        
+
         assert_eq!(state.items.len(), 0);
     }
 
@@ -206,10 +206,10 @@ mod tests {
         state.success("Second");
         state.success("Third");
         assert_eq!(state.items.len(), 3);
-        
+
         let second_id = state.items[1].id;
         state.remove(second_id);
-        
+
         assert_eq!(state.items.len(), 2);
         assert!(state.items.iter().any(|t| t.message == "First"));
         assert!(state.items.iter().any(|t| t.message == "Third"));
@@ -222,9 +222,9 @@ mod tests {
         let mut state = ToastState::default();
         state.success("Test");
         let original_len = state.items.len();
-        
+
         state.remove(9999); // Non-existent ID
-        
+
         assert_eq!(state.items.len(), original_len);
     }
 
@@ -232,12 +232,12 @@ mod tests {
     fn toast_state_can_add_and_remove_multiple_times() {
         // RED: Add/remove cycle multiple times
         let mut state = ToastState::default();
-        
+
         state.success("Toast 1");
         let id1 = state.items[0].id;
         state.remove(id1);
         assert!(state.items.is_empty());
-        
+
         state.error("Toast 2");
         let id2 = state.items[0].id;
         state.remove(id2);

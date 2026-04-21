@@ -1,10 +1,10 @@
-use dioxus::prelude::*;
+use crate::api::notifications;
 use crate::hooks::use_swipe_sidebar::use_swipe_sidebar;
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
-use crate::api::notifications;
-use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::state::preferences::PREFERENCES;
+use crate::theme::hooks::{apply_theme_class, toggle_theme};
+use dioxus::prelude::*;
 
 // ── Pure helper functions (testable without Dioxus) ──────────────────────────
 
@@ -35,7 +35,9 @@ pub fn AppLayout() -> Element {
 
     // Hide pre-WASM loading spinner (the one in index.html)
     use_future(move || async move {
-        let _ = dioxus::document::eval("document.getElementById('pre-wasm-loader').style.display='none';");
+        let _ = dioxus::document::eval(
+            "document.getElementById('pre-wasm-loader').style.display='none';",
+        );
     });
 
     // Wait for initialization before deciding
@@ -315,7 +317,13 @@ fn NavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Element
 }
 
 #[component]
-fn MobileNavLink(to: crate::Route, label: String, active: bool, icon: Icon, on_close: EventHandler<()>) -> Element {
+fn MobileNavLink(
+    to: crate::Route,
+    label: String,
+    active: bool,
+    icon: Icon,
+    on_close: EventHandler<()>,
+) -> Element {
     let class = if active {
         "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground"
     } else {
@@ -332,8 +340,6 @@ fn MobileNavLink(to: crate::Route, label: String, active: bool, icon: Icon, on_c
         }
     }
 }
-
-
 
 // ──────────────────────────────────────────────
 // Theme toggle
@@ -595,7 +601,11 @@ pub fn navlink_class(active: bool) -> &'static str {
 
 /// Format the notification badge text: 99+ for large counts.
 pub fn notification_badge_text(count: usize) -> String {
-    if count > 99 { "99+".to_string() } else { count.to_string() }
+    if count > 99 {
+        "99+".to_string()
+    } else {
+        count.to_string()
+    }
 }
 
 /// CSS class for notification item row based on read status.
@@ -609,7 +619,11 @@ pub fn notification_item_classes(is_read: bool) -> &'static str {
 
 /// CSS class for notification unread dot.
 pub fn notification_dot_class(is_read: bool) -> &'static str {
-    if is_read { "w-2 h-2 rounded-full bg-transparent" } else { "w-2 h-2 rounded-full bg-primary" }
+    if is_read {
+        "w-2 h-2 rounded-full bg-transparent"
+    } else {
+        "w-2 h-2 rounded-full bg-primary"
+    }
 }
 
 #[component]
@@ -733,7 +747,10 @@ mod tests {
         // Find NotificationBell section
         let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
         // The panel with top-full must NOT be inside the fixed overlay
-        let before_overlay = bell_section.split("fixed inset-0 z-40").nth(0).unwrap_or("");
+        let before_overlay = bell_section
+            .split("fixed inset-0 z-40")
+            .nth(0)
+            .unwrap_or("");
         let panel_before_overlay = before_overlay.contains("top-full");
         assert!(panel_before_overlay,
             "Notification panel must be positioned BEFORE the fixed overlay in DOM (child of .relative, not fixed overlay)");
@@ -744,8 +761,10 @@ mod tests {
         // Panel must stop_propagation to prevent closing on panel click.
         let src = include_str!("app_layout.rs");
         let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
-        assert!(bell_section.contains("e.stop_propagation()"),
-            "Notification panel must call stop_propagation on onclick");
+        assert!(
+            bell_section.contains("e.stop_propagation()"),
+            "Notification panel must call stop_propagation on onclick"
+        );
     }
 
     #[test]
@@ -759,16 +778,21 @@ mod tests {
         let src = include_str!("app_layout.rs");
         // The overlay must NOT be inside NotificationBell (renders inside header)
         let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
-        let before_next_fn = bell_section.split("fn NotificationItem").nth(0).unwrap_or(bell_section);
+        let before_next_fn = bell_section
+            .split("fn NotificationItem")
+            .nth(0)
+            .unwrap_or(bell_section);
         let overlay_in_bell = before_next_fn.contains("fixed inset-0 z-40");
         assert!(!overlay_in_bell,
             "Notification overlay must not be inside NotificationBell (header has backdrop-blur-md). Move to App level.");
         // The overlay must exist at App level using NOTIFICATIONS signal
-        let has_app_overlay = src.lines().any(|l| {
-            l.contains("fixed inset-0 z-40") && l.contains("NOTIFICATIONS")
-        });
-        assert!(has_app_overlay,
-            "Notification overlay must exist at App level using NOTIFICATIONS global signal");
+        let has_app_overlay = src
+            .lines()
+            .any(|l| l.contains("fixed inset-0 z-40") && l.contains("NOTIFICATIONS"));
+        assert!(
+            has_app_overlay,
+            "Notification overlay must exist at App level using NOTIFICATIONS global signal"
+        );
     }
 
     #[test]
@@ -783,9 +807,11 @@ mod tests {
         let block = return_block.lines().take(15).collect::<Vec<_>>().join("\n");
         let block_lower = block.to_lowercase();
         // Must use backdrop-blur class
-        assert!(block_lower.contains("backdrop-blur"),
+        assert!(
+            block_lower.contains("backdrop-blur"),
             "Loading spinner must use backdrop-blur for semi-transparent overlay. Found: {}",
-            block.lines().take(3).collect::<Vec<_>>().join(" "));
+            block.lines().take(3).collect::<Vec<_>>().join(" ")
+        );
         // Must use semi-transparent background, not opaque bg-background
         let has_opaque_bg = (block.contains("bg-background ") || block.contains("bg-background\""))
             && !block.contains("bg-background/");
@@ -797,7 +823,6 @@ mod tests {
     // ── Icon enum tests ──
     #[test]
     fn icon_variants_are_instantiable() {
-        
         let _ = Icon::Dashboard;
         let _ = Icon::Subscriptions;
         let _ = Icon::Transactions;
@@ -814,7 +839,6 @@ mod tests {
 
     #[test]
     fn icon_eq_identity() {
-        
         assert_eq!(Icon::Dashboard, Icon::Dashboard);
         assert_eq!(Icon::Subscriptions, Icon::Subscriptions);
         assert_eq!(Icon::Calendar, Icon::Calendar);
@@ -828,7 +852,6 @@ mod tests {
 
     #[test]
     fn icon_neq_different_variants() {
-        
         assert_ne!(Icon::Dashboard, Icon::Subscriptions);
         assert_ne!(Icon::Sun, Icon::Moon);
         assert_ne!(Icon::Coffee, Icon::Monitor);
@@ -836,7 +859,6 @@ mod tests {
 
     #[test]
     fn icon_clone_independence() {
-        
         let orig = Icon::Settings;
         let _cloned = orig;
         assert_eq!(orig, Icon::Settings);
@@ -847,26 +869,34 @@ mod tests {
     fn navlink_active_class_uses_bg_primary() {
         let src = include_str!("app_layout.rs");
         let navlink_section = src.split("fn NavLink").nth(1).unwrap_or("");
-        assert!(navlink_section.contains("bg-primary"),
-            "NavLink active class must contain bg-primary");
+        assert!(
+            navlink_section.contains("bg-primary"),
+            "NavLink active class must contain bg-primary"
+        );
     }
 
     #[test]
     fn navlink_inactive_class_uses_muted_foreground() {
         let src = include_str!("app_layout.rs");
         let navlink_section = src.split("fn NavLink").nth(1).unwrap_or("");
-        assert!(navlink_section.contains("muted-foreground"),
-            "NavLink inactive class must use muted-foreground");
+        assert!(
+            navlink_section.contains("muted-foreground"),
+            "NavLink inactive class must use muted-foreground"
+        );
     }
 
     #[test]
     fn mobile_navlink_same_class_logic() {
         let src = include_str!("app_layout.rs");
         let mobile_section = src.split("fn MobileNavLink").nth(1).unwrap_or("");
-        assert!(mobile_section.contains("bg-primary"),
-            "MobileNavLink active class must contain bg-primary");
-        assert!(mobile_section.contains("muted-foreground"),
-            "MobileNavLink inactive class must use muted-foreground");
+        assert!(
+            mobile_section.contains("bg-primary"),
+            "MobileNavLink active class must contain bg-primary"
+        );
+        assert!(
+            mobile_section.contains("muted-foreground"),
+            "MobileNavLink inactive class must use muted-foreground"
+        );
     }
 
     // ── NotificationItem dot indicator tests ──
@@ -874,20 +904,34 @@ mod tests {
     fn notification_item_read_dot_is_transparent() {
         let src = include_str!("app_layout.rs");
         let item_section = src.split("fn NotificationItem").nth(1).unwrap_or("");
-        let dot_section = item_section.split("Dot indicator").nth(1).unwrap_or("")
-            .split("Content").next().unwrap_or("");
-        assert!(dot_section.contains("bg-transparent"),
-            "NotificationItem read dot must use bg-transparent");
+        let dot_section = item_section
+            .split("Dot indicator")
+            .nth(1)
+            .unwrap_or("")
+            .split("Content")
+            .next()
+            .unwrap_or("");
+        assert!(
+            dot_section.contains("bg-transparent"),
+            "NotificationItem read dot must use bg-transparent"
+        );
     }
 
     #[test]
     fn notification_item_unread_dot_has_color() {
         let src = include_str!("app_layout.rs");
         let item_section = src.split("fn NotificationItem").nth(1).unwrap_or("");
-        let dot_section = item_section.split("Dot indicator").nth(1).unwrap_or("")
-            .split("Content").next().unwrap_or("");
-        assert!(dot_section.contains("bg-primary"),
-            "NotificationItem unread dot must use bg-primary");
+        let dot_section = item_section
+            .split("Dot indicator")
+            .nth(1)
+            .unwrap_or("")
+            .split("Content")
+            .next()
+            .unwrap_or("");
+        assert!(
+            dot_section.contains("bg-primary"),
+            "NotificationItem unread dot must use bg-primary"
+        );
     }
 
     // ── SvgIcon exhaustive match tests ──
@@ -896,13 +940,24 @@ mod tests {
         let src = include_str!("app_layout.rs");
         let svg_section = src.split("fn SvgIcon").nth(1).unwrap_or("");
         for variant in [
-            "Icon::Dashboard", "Icon::Subscriptions", "Icon::Transactions",
-            "Icon::Calendar", "Icon::Categories", "Icon::Reports",
-            "Icon::Settings", "Icon::Logout", "Icon::Sun", "Icon::Moon",
-            "Icon::Coffee", "Icon::Monitor",
+            "Icon::Dashboard",
+            "Icon::Subscriptions",
+            "Icon::Transactions",
+            "Icon::Calendar",
+            "Icon::Categories",
+            "Icon::Reports",
+            "Icon::Settings",
+            "Icon::Logout",
+            "Icon::Sun",
+            "Icon::Moon",
+            "Icon::Coffee",
+            "Icon::Monitor",
         ] {
-            assert!(svg_section.contains(variant),
-                "SvgIcon must have match arm for: {}", variant);
+            assert!(
+                svg_section.contains(variant),
+                "SvgIcon must have match arm for: {}",
+                variant
+            );
         }
     }
 
@@ -910,8 +965,10 @@ mod tests {
     fn svg_icon_uses_stroke_current_color() {
         let src = include_str!("app_layout.rs");
         let svg_section = src.split("fn SvgIcon").nth(1).unwrap_or("");
-        assert!(svg_section.contains(r#"stroke: "currentColor""#),
-            "SvgIcon SVG must use stroke=currentColor");
+        assert!(
+            svg_section.contains(r#"stroke: "currentColor""#),
+            "SvgIcon SVG must use stroke=currentColor"
+        );
     }
 
     // ── ThemeToggleButton uses all theme icons ──
@@ -919,62 +976,88 @@ mod tests {
     fn theme_toggle_uses_all_theme_icons() {
         let src = include_str!("app_layout.rs");
         let toggle_section = src.split("fn ThemeToggleButton").nth(1).unwrap_or("");
-        assert!(toggle_section.contains("Icon::Sun"), "Theme toggle must use Sun icon");
-        assert!(toggle_section.contains("Icon::Moon"), "Theme toggle must use Moon icon");
-        assert!(toggle_section.contains("Icon::Coffee"), "Theme toggle must use Coffee icon");
-        assert!(toggle_section.contains("Icon::Monitor"), "Theme toggle must use Monitor icon");
+        assert!(
+            toggle_section.contains("Icon::Sun"),
+            "Theme toggle must use Sun icon"
+        );
+        assert!(
+            toggle_section.contains("Icon::Moon"),
+            "Theme toggle must use Moon icon"
+        );
+        assert!(
+            toggle_section.contains("Icon::Coffee"),
+            "Theme toggle must use Coffee icon"
+        );
+        assert!(
+            toggle_section.contains("Icon::Monitor"),
+            "Theme toggle must use Monitor icon"
+        );
     }
 
     // ── App layout auth state ──
     #[test]
     fn app_layout_checks_initialized() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("!auth.initialized") || src.contains("!initialized"),
-            "AppLayout must check auth.initialized for loading state");
+        assert!(
+            src.contains("!auth.initialized") || src.contains("!initialized"),
+            "AppLayout must check auth.initialized for loading state"
+        );
     }
 
     #[test]
     fn app_layout_shows_children_when_authenticated() {
         let src = include_str!("app_layout.rs");
         let post_auth = src.split("auth.is_authenticated").nth(1).unwrap_or("");
-        assert!(post_auth.contains("children"),
-            "Authenticated users must see children/content");
+        assert!(
+            post_auth.contains("children"),
+            "Authenticated users must see children/content"
+        );
     }
-    
+
     // ── Additional RSX structure tests ──
     #[test]
     fn app_layout_has_sidebar() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("sidebar") || src.contains("Sidebar"),
-            "AppLayout must have sidebar");
+        assert!(
+            src.contains("sidebar") || src.contains("Sidebar"),
+            "AppLayout must have sidebar"
+        );
     }
 
     #[test]
     fn app_layout_has_main_content() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("main") || src.contains("content"),
-            "AppLayout must have main content area");
+        assert!(
+            src.contains("main") || src.contains("content"),
+            "AppLayout must have main content area"
+        );
     }
 
     #[test]
     fn app_layout_has_header() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("header") || src.contains("Header"),
-            "AppLayout must have header");
+        assert!(
+            src.contains("header") || src.contains("Header"),
+            "AppLayout must have header"
+        );
     }
 
     #[test]
     fn app_layout_has_notification_bell() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("NotificationBell") || src.contains("notification"),
-            "AppLayout must have notification bell");
+        assert!(
+            src.contains("NotificationBell") || src.contains("notification"),
+            "AppLayout must have notification bell"
+        );
     }
 
     #[test]
     fn app_layout_has_theme_toggle() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("ThemeToggleButton") || src.contains("ThemeToggle"),
-            "AppLayout must have theme toggle");
+        assert!(
+            src.contains("ThemeToggleButton") || src.contains("ThemeToggle"),
+            "AppLayout must have theme toggle"
+        );
     }
 
     #[test]
@@ -986,7 +1069,10 @@ mod tests {
     #[test]
     fn mobile_navlink_component_exists() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("fn MobileNavLink"), "Must have MobileNavLink component");
+        assert!(
+            src.contains("fn MobileNavLink"),
+            "Must have MobileNavLink component"
+        );
     }
 
     #[test]
@@ -998,86 +1084,111 @@ mod tests {
     #[test]
     fn notification_item_component_exists() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("fn NotificationItem"), "Must have NotificationItem component");
+        assert!(
+            src.contains("fn NotificationItem"),
+            "Must have NotificationItem component"
+        );
     }
 
     #[test]
     fn logo_icon_exists() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("LogoIcon") || src.contains("logo"),
-            "Must have logo icon");
+        assert!(
+            src.contains("LogoIcon") || src.contains("logo"),
+            "Must have logo icon"
+        );
     }
 
     #[test]
     fn app_layout_uses_swipe_sidebar() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("use_swipe_sidebar"),
-            "AppLayout must use swipe sidebar hook");
+        assert!(
+            src.contains("use_swipe_sidebar"),
+            "AppLayout must use swipe sidebar hook"
+        );
     }
 
     #[test]
     fn app_layout_checks_current_route() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("use_route") || src.contains("current_route"),
-            "AppLayout must check current route");
+        assert!(
+            src.contains("use_route") || src.contains("current_route"),
+            "AppLayout must check current route"
+        );
     }
 
     #[test]
     fn app_layout_closes_sidebar_on_route_change() {
         let src = include_str!("app_layout.rs");
-        let has_sidebar_close = src.contains("sidebar_open.set(false)") || 
-            (src.contains("sidebar_open") && src.contains("use_effect"));
-        assert!(has_sidebar_close,
-            "Sidebar should close on route change");
+        let has_sidebar_close = src.contains("sidebar_open.set(false)")
+            || (src.contains("sidebar_open") && src.contains("use_effect"));
+        assert!(has_sidebar_close, "Sidebar should close on route change");
     }
 
     #[test]
     fn app_layout_has_responsive_classes() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("md:") || src.contains("hidden") || src.contains("block"),
-            "AppLayout must have responsive layout classes");
+        assert!(
+            src.contains("md:") || src.contains("hidden") || src.contains("block"),
+            "AppLayout must have responsive layout classes"
+        );
     }
 
     #[test]
     fn notification_bell_has_badge() {
         let src = include_str!("app_layout.rs");
         let bell_section = src.split("fn NotificationBell").nth(1).unwrap_or("");
-        assert!(bell_section.contains("unread_count") || bell_section.contains("badge"),
-            "Notification bell should show unread count badge");
+        assert!(
+            bell_section.contains("unread_count") || bell_section.contains("badge"),
+            "Notification bell should show unread count badge"
+        );
     }
 
     #[test]
     fn svg_icon_has_icon_variant() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("Icon::"), "SvgIcon must use Icon enum variants");
+        assert!(
+            src.contains("Icon::"),
+            "SvgIcon must use Icon enum variants"
+        );
     }
 
     #[test]
     fn app_layout_imports_auth_state() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("AUTH") || src.contains("use_state"),
-            "AppLayout must import/use auth state");
+        assert!(
+            src.contains("AUTH") || src.contains("use_state"),
+            "AppLayout must import/use auth state"
+        );
     }
 
     #[test]
     fn app_layout_imports_notifications() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("NOTIFICATIONS") || src.contains("notifications"),
-            "AppLayout must use notifications state");
+        assert!(
+            src.contains("NOTIFICATIONS") || src.contains("notifications"),
+            "AppLayout must use notifications state"
+        );
     }
 
     #[test]
     fn app_layout_uses_theme_hook() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("apply_theme_class") || src.contains("toggle_theme") || src.contains("theme"),
-            "AppLayout must use theme hook");
+        assert!(
+            src.contains("apply_theme_class")
+                || src.contains("toggle_theme")
+                || src.contains("theme"),
+            "AppLayout must use theme hook"
+        );
     }
 
     #[test]
     fn app_layout_has_use_future_for_spinner() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("use_future") || src.contains("pre-wasm-loader"),
-            "AppLayout must hide pre-WASM spinner");
+        assert!(
+            src.contains("use_future") || src.contains("pre-wasm-loader"),
+            "AppLayout must hide pre-WASM spinner"
+        );
     }
 
     // ── Pure function tests: mobile_sidebar_class ──
@@ -1101,7 +1212,18 @@ mod tests {
     fn mobile_sidebar_class_both_have_common_classes() {
         let open = mobile_sidebar_class(true);
         let closed = mobile_sidebar_class(false);
-        for cls in ["fixed", "inset-y-0", "left-0", "w-64", "bg-card", "border-r", "border-border", "lg:hidden", "transition-transform", "duration-200"] {
+        for cls in [
+            "fixed",
+            "inset-y-0",
+            "left-0",
+            "w-64",
+            "bg-card",
+            "border-r",
+            "border-border",
+            "lg:hidden",
+            "transition-transform",
+            "duration-200",
+        ] {
             assert!(open.contains(cls), "open class should contain {}", cls);
             assert!(closed.contains(cls), "closed class should contain {}", cls);
         }
@@ -1156,8 +1278,12 @@ mod tests {
         let themes = ["light", "dark", "mocha", "system"];
         let icons: Vec<Icon> = themes.iter().map(|t| theme_icon_and_label(t).0).collect();
         for i in 0..icons.len() {
-            for j in (i+1)..icons.len() {
-                assert_ne!(icons[i], icons[j], "theme {} and {} should have different icons", themes[i], themes[j]);
+            for j in (i + 1)..icons.len() {
+                assert_ne!(
+                    icons[i], icons[j],
+                    "theme {} and {} should have different icons",
+                    themes[i], themes[j]
+                );
             }
         }
     }

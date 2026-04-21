@@ -1,11 +1,11 @@
-use dioxus::prelude::*;
 use chrono::Local;
+use dioxus::prelude::*;
 
-use crate::state::subscriptions::SUBSCRIPTIONS;
-use crate::state::auth::AUTH;
 use crate::api::subscriptions as api_subs;
-use crate::utils::format::format_currency;
 use crate::components::logo_image_with_fallback;
+use crate::state::auth::AUTH;
+use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::utils::format::format_currency;
 
 // ── Pure helper functions (testable without Dioxus) ──────────────────────────
 
@@ -14,10 +14,15 @@ pub fn next_billing_days_text(date: Option<chrono::NaiveDate>) -> Option<String>
     date.map(|d| {
         let now = Local::now().date_naive();
         let diff = (d - now).num_days();
-        if diff == 0 { "Today".into() }
-        else if diff == 1 { "Tomorrow".into() }
-        else if diff < 0 { "Overdue".into() }
-        else { format!("{} days", diff) }
+        if diff == 0 {
+            "Today".into()
+        } else if diff == 1 {
+            "Tomorrow".into()
+        } else if diff < 0 {
+            "Overdue".into()
+        } else {
+            format!("{} days", diff)
+        }
     })
 }
 
@@ -109,7 +114,6 @@ fn icon_receipt() -> Element {
     }
 }
 
-
 // ── Dashboard Component ──────────────────────────────────────────────────────
 
 #[component]
@@ -157,21 +161,14 @@ pub fn Dashboard() -> Element {
         .unwrap_or_default();
 
     // Helpers — delegate to pure functions for testability
-    let next_billing_days = |date: Option<chrono::NaiveDate>| -> Option<String> {
-        next_billing_days_text(date)
-    };
+    let next_billing_days =
+        |date: Option<chrono::NaiveDate>| -> Option<String> { next_billing_days_text(date) };
 
-    let format_date_short = |d: chrono::NaiveDate| -> String {
-        format_date_short_fn(d)
-    };
+    let format_date_short = |d: chrono::NaiveDate| -> String { format_date_short_fn(d) };
 
-    let is_overdue = |d: chrono::NaiveDate| -> bool {
-        is_overdue_fn(d)
-    };
+    let is_overdue = |d: chrono::NaiveDate| -> bool { is_overdue_fn(d) };
 
-    let is_today = |d: chrono::NaiveDate| -> bool {
-        is_today_fn(d)
-    };
+    let is_today = |d: chrono::NaiveDate| -> bool { is_today_fn(d) };
 
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
@@ -359,11 +356,11 @@ pub fn Dashboard() -> Element {
 
 #[cfg(test)]
 mod tests {
+    use crate::models::subscription::Subscription;
     use crate::state::subscriptions::SubscriptionsState;
-    use chrono::{Local, NaiveDate, Days, Datelike};
+    use chrono::{Datelike, Days, Local, NaiveDate};
     use rust_decimal_macros::dec;
     use uuid::Uuid;
-    use crate::models::subscription::Subscription;
 
     fn make_sub(
         name: &str,
@@ -533,9 +530,11 @@ mod tests {
         for (src, name) in pages {
             // Only check code before tests module to avoid false positives
             let code = src.split("mod tests").next().unwrap_or(src);
-            assert!(!code.contains(bad),
+            assert!(
+                !code.contains(bad),
                 "{} page must use flex flex-col gap-6 instead of space-y-6",
-                name);
+                name
+            );
         }
     }
 
@@ -543,29 +542,34 @@ mod tests {
     #[test]
     fn dashboard_uses_state_subscriptions() {
         let src = include_str!("dashboard.rs");
-        assert!(src.contains("SUBSCRIPTIONS") || src.contains("subscriptions"),
-            "Dashboard should use subscriptions state");
+        assert!(
+            src.contains("SUBSCRIPTIONS") || src.contains("subscriptions"),
+            "Dashboard should use subscriptions state"
+        );
     }
 
     #[test]
     fn dashboard_uses_auth_state() {
         let src = include_str!("dashboard.rs");
-        assert!(src.contains("AUTH") || src.contains("auth"),
-            "Dashboard should use auth state");
+        assert!(
+            src.contains("AUTH") || src.contains("auth"),
+            "Dashboard should use auth state"
+        );
     }
 
     #[test]
     fn dashboard_uses_currency_format() {
         let src = include_str!("dashboard.rs");
-        assert!(src.contains("format_currency") || src.contains("currency"),
-            "Dashboard should format currencies");
+        assert!(
+            src.contains("format_currency") || src.contains("currency"),
+            "Dashboard should format currencies"
+        );
     }
 
     #[test]
     fn dashboard_has_svg_icons() {
         let src = include_str!("dashboard.rs");
-        assert!(src.contains("svg"),
-            "Dashboard should use SVG icons");
+        assert!(src.contains("svg"), "Dashboard should use SVG icons");
     }
 
     // ── Pure function tests: next_billing_days_text ──
@@ -577,19 +581,28 @@ mod tests {
     #[test]
     fn next_billing_days_text_today() {
         let today = Local::now().date_naive();
-        assert_eq!(super::next_billing_days_text(Some(today)), Some("Today".to_string()));
+        assert_eq!(
+            super::next_billing_days_text(Some(today)),
+            Some("Today".to_string())
+        );
     }
 
     #[test]
     fn next_billing_days_text_tomorrow() {
         let tomorrow = Local::now().date_naive() + Days::new(1);
-        assert_eq!(super::next_billing_days_text(Some(tomorrow)), Some("Tomorrow".to_string()));
+        assert_eq!(
+            super::next_billing_days_text(Some(tomorrow)),
+            Some("Tomorrow".to_string())
+        );
     }
 
     #[test]
     fn next_billing_days_text_overdue() {
         let yesterday = Local::now().date_naive() - Days::new(1);
-        assert_eq!(super::next_billing_days_text(Some(yesterday)), Some("Overdue".to_string()));
+        assert_eq!(
+            super::next_billing_days_text(Some(yesterday)),
+            Some("Overdue".to_string())
+        );
     }
 
     #[test]
@@ -679,13 +692,19 @@ mod tests {
     #[test]
     fn next_billing_days_text_yesterday() {
         let yesterday = Local::now().date_naive() - Days::new(1);
-        assert_eq!(super::next_billing_days_text(Some(yesterday)), Some("Overdue".to_string()));
+        assert_eq!(
+            super::next_billing_days_text(Some(yesterday)),
+            Some("Overdue".to_string())
+        );
     }
 
     #[test]
     fn next_billing_days_text_distant_past() {
         let distant_past = Local::now().date_naive() - Days::new(100);
-        assert_eq!(super::next_billing_days_text(Some(distant_past)), Some("Overdue".to_string()));
+        assert_eq!(
+            super::next_billing_days_text(Some(distant_past)),
+            Some("Overdue".to_string())
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::models::auth::UserResponse;
+use dioxus::prelude::*;
 
 #[allow(dead_code)]
 const TOKEN_KEY: &str = "recurrency-auth-token";
@@ -25,7 +25,6 @@ pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
     }
     None
 }
-
 
 #[allow(dead_code)]
 const USER_KEY: &str = "recurrency-auth-user";
@@ -54,7 +53,12 @@ impl AuthState {
     }
 
     /// Set the user after successful login/register.
-    pub fn set_authenticated(&mut self, token: String, user: UserResponse, requires_verification: bool) {
+    pub fn set_authenticated(
+        &mut self,
+        token: String,
+        user: UserResponse,
+        requires_verification: bool,
+    ) {
         self.token = Some(token);
         self.user = Some(user);
         self.is_authenticated = !requires_verification;
@@ -170,11 +174,17 @@ impl AuthState {
                 let token_file = app_dir.join("auth-token.txt");
                 let user_file = app_dir.join("auth-user.json");
                 eprintln!("[Auth] Hydrate: looking for files in {:?}", app_dir);
-                match (std::fs::read_to_string(&token_file), std::fs::read_to_string(&user_file)) {
+                match (
+                    std::fs::read_to_string(&token_file),
+                    std::fs::read_to_string(&user_file),
+                ) {
                     (Ok(token), Ok(user_json)) => {
                         if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json) {
                             if !token.is_empty() {
-                                eprintln!("[Auth] Hydrate: token found (length {}), user hydrated", token.len());
+                                eprintln!(
+                                    "[Auth] Hydrate: token found (length {}), user hydrated",
+                                    token.len()
+                                );
                                 self.token = Some(token);
                                 self.user = Some(user);
                                 self.is_authenticated = true;
@@ -185,7 +195,10 @@ impl AuthState {
                         eprintln!("[Auth] Hydrate: files found but parse failed");
                     }
                     (Err(e1), e2) => {
-                        eprintln!("[Auth] Hydrate: token file error: {:?}, user file result: {:?}", e1, e2);
+                        eprintln!(
+                            "[Auth] Hydrate: token file error: {:?}, user file result: {:?}",
+                            e1, e2
+                        );
                     }
                     (Ok(_), Err(e2)) => {
                         eprintln!("[Auth] Hydrate: user file error: {:?}", e2);
@@ -200,7 +213,6 @@ impl AuthState {
 }
 
 pub static AUTH: GlobalSignal<AuthState> = Signal::global(|| AuthState::default());
-
 
 #[cfg(test)]
 mod tests {
@@ -305,14 +317,14 @@ mod tests {
         // Simulates settings page: AUTH.write().user = Some(resp.user)
         let mut state = AuthState::default();
         state.set_authenticated("token123".into(), sample_user(), false);
-        
+
         // Simulate getting updated user from settings API
         let mut updated_user = sample_user();
         updated_user.currency = "USD".into();
         updated_user.name = Some("New Name".into());
-        
+
         state.user = Some(updated_user);
-        
+
         // Verify user was updated
         assert_eq!(state.user.as_ref().unwrap().currency, "USD");
         assert_eq!(state.user.as_ref().unwrap().name, Some("New Name".into()));
@@ -456,7 +468,10 @@ mod tests {
             let result = super::get_app_data_dir();
             // On native test platforms (Linux), dirs::data_dir() returns Some
             // (e.g., /home/user/.local/share or similar). So we get that path.
-            assert!(result.is_some(), "get_app_data_dir should return Some on native");
+            assert!(
+                result.is_some(),
+                "get_app_data_dir should return Some on native"
+            );
         }
     }
 
@@ -475,7 +490,8 @@ mod tests {
     fn persist_to_storage_writes_files_on_native() {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let data_dir = get_app_data_dir().expect("get_app_data_dir should return Some on native");
+            let data_dir =
+                get_app_data_dir().expect("get_app_data_dir should return Some on native");
             let app_dir = data_dir.join("recurrency");
             // Clean up before test - ensure fresh state
             let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
@@ -488,12 +504,21 @@ mod tests {
             state.persist_to_storage();
 
             // Verify files exist
-            assert!(app_dir.join("auth-token.txt").exists(), "Token file should exist");
-            assert!(app_dir.join("auth-user.json").exists(), "User file should exist");
+            assert!(
+                app_dir.join("auth-token.txt").exists(),
+                "Token file should exist"
+            );
+            assert!(
+                app_dir.join("auth-user.json").exists(),
+                "User file should exist"
+            );
 
             // Verify content
             let token_content = std::fs::read_to_string(app_dir.join("auth-token.txt")).unwrap();
-            assert_eq!(token_content, "unique-token-xyz123", "Token content should match");
+            assert_eq!(
+                token_content, "unique-token-xyz123",
+                "Token content should match"
+            );
 
             // Clean up
             let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));

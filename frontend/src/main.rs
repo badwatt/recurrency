@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use dioxus::prelude::*;
 use crate::state::auth::AUTH;
 use crate::state::preferences::PREFERENCES;
+use dioxus::prelude::*;
 
 mod api;
 mod auth;
@@ -12,22 +12,10 @@ mod layout;
 mod models;
 mod pages;
 mod state;
+#[cfg(test)]
+mod tests;
 mod theme;
 mod utils;
-#[cfg(test)]
-mod android_auth_tests;
-#[cfg(test)]
-mod android_icon_tests;
-#[cfg(test)]
-mod android_persistence_tests;
-#[cfg(test)]
-mod android_theme_tests;
-#[cfg(test)]
-mod android_setup_tests;
-#[cfg(test)]
-
-#[cfg(test)]
-mod index_html_tests;
 
 #[derive(Routable, Clone, Debug, PartialEq)]
 #[rustfmt::skip]
@@ -97,8 +85,10 @@ fn App() -> Element {
                 }
             } else {
                 // Try reading from app data file
-                let data_dir: std::path::PathBuf = crate::state::auth::get_app_data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-                let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
+                let data_dir: std::path::PathBuf = crate::state::auth::get_app_data_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."));
+                let url_file: std::path::PathBuf =
+                    data_dir.join("recurrency").join("server_url.txt");
                 if url_file.exists() {
                     if let Ok(url) = std::fs::read_to_string(&url_file) {
                         let url = url.trim().to_string();

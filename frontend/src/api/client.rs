@@ -146,7 +146,10 @@ pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
         req = req.header(k, v);
     }
 
-    let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status().as_u16();
 
     if status == 401 {
@@ -157,11 +160,16 @@ pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
         return Err(ApiError::Http(status, body));
     }
 
-    resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
+    resp.json::<T>()
+        .await
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// POST request with auth.
-pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(path: &str, body: &B) -> Result<T, ApiError> {
+pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(
+    path: &str,
+    body: &B,
+) -> Result<T, ApiError> {
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
@@ -172,7 +180,11 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(path: &str, body
         req = req.header(k, v);
     }
 
-    let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+    let resp = req
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status().as_u16();
 
     if status == 401 {
@@ -183,11 +195,16 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(path: &str, body
         return Err(ApiError::Http(status, body));
     }
 
-    resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
+    resp.json::<T>()
+        .await
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// PUT request with auth.
-pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(path: &str, body: &B) -> Result<T, ApiError> {
+pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(
+    path: &str,
+    body: &B,
+) -> Result<T, ApiError> {
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
@@ -198,7 +215,11 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(path: &str, body:
         req = req.header(k, v);
     }
 
-    let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+    let resp = req
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status().as_u16();
 
     if status == 401 {
@@ -209,7 +230,9 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(path: &str, body:
         return Err(ApiError::Http(status, body));
     }
 
-    resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
+    resp.json::<T>()
+        .await
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// DELETE request with auth.
@@ -224,7 +247,10 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
         req = req.header(k, v);
     }
 
-    let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status().as_u16();
 
     if status == 401 {
@@ -253,7 +279,10 @@ mod tests {
         // Test that existing query params use & instead of ?
         let path_with_query = "/api/reports/summary?year=2025&month=4";
         let url2 = format!("{}{}{}token=test-token", base, path_with_query, '&');
-        assert_eq!(url2, "http://localhost:8080/api/reports/summary?year=2025&month=4&token=test-token");
+        assert_eq!(
+            url2,
+            "http://localhost:8080/api/reports/summary?year=2025&month=4&token=test-token"
+        );
     }
 
     #[test]
@@ -312,7 +341,11 @@ mod tests {
         let has_query = path_with_query.contains('?');
         assert!(has_query);
         // The separator logic: if path contains ?, use &
-        let separator = if path_with_query.contains('?') { '&' } else { '?' };
+        let separator = if path_with_query.contains('?') {
+            '&'
+        } else {
+            '?'
+        };
         assert_eq!(separator, '&');
     }
 
@@ -322,7 +355,11 @@ mod tests {
         let path_no_query = "/api/subscriptions";
         let has_query = path_no_query.contains('?');
         assert!(!has_query);
-        let separator = if path_no_query.contains('?') { '&' } else { '?' };
+        let separator = if path_no_query.contains('?') {
+            '&'
+        } else {
+            '?'
+        };
         assert_eq!(separator, '?');
     }
 
@@ -330,7 +367,9 @@ mod tests {
     fn auth_headers_contains_content_type() {
         let mut headers: Vec<(String, String)> = Vec::new();
         headers.push(("Content-Type".into(), "application/json".into()));
-        assert!(headers.iter().any(|(k, v)| k == "Content-Type" && v == "application/json"));
+        assert!(headers
+            .iter()
+            .any(|(k, v)| k == "Content-Type" && v == "application/json"));
     }
 
     #[test]
@@ -366,7 +405,10 @@ mod tests {
         let token = "secret-jwt";
         let separator = if path.contains('?') { '&' } else { '?' };
         let url = format!("{}{}{}token={}", base, path, separator, token);
-        assert_eq!(url, "http://localhost:8080/api/reports?year=2024&token=secret-jwt");
+        assert_eq!(
+            url,
+            "http://localhost:8080/api/reports?year=2024&token=secret-jwt"
+        );
     }
 
     #[test]
@@ -383,7 +425,9 @@ mod tests {
         let mut headers: Vec<(String, String)> = Vec::new();
         // Manually add Content-Type (mirrors auth_headers logic)
         headers.push(("Content-Type".into(), "application/json".into()));
-        assert!(headers.iter().any(|(k, v)| k == "Content-Type" && v == "application/json"));
+        assert!(headers
+            .iter()
+            .any(|(k, v)| k == "Content-Type" && v == "application/json"));
     }
 
     #[test]
@@ -559,7 +603,11 @@ mod tests {
     #[test]
     fn base_url_valid_format_starts_with_http() {
         let url = get_base_url();
-        assert!(url.starts_with("http://") || url.starts_with("https://") || url.starts_with("localhost"));
+        assert!(
+            url.starts_with("http://")
+                || url.starts_with("https://")
+                || url.starts_with("localhost")
+        );
     }
 
     #[test]
@@ -604,7 +652,9 @@ mod tests {
         headers.push(("Content-Type".into(), "application/json".into()));
         headers.push(("Authorization".into(), "Bearer abc123".into()));
         assert_eq!(headers.len(), 2);
-        assert!(headers.iter().any(|(k, v)| k == "Authorization" && v.starts_with("Bearer")));
+        assert!(headers
+            .iter()
+            .any(|(k, v)| k == "Authorization" && v.starts_with("Bearer")));
     }
 
     // ── Response status handling ──

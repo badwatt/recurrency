@@ -1,7 +1,7 @@
-use dioxus::prelude::*;
+use crate::api::{auth, client::get_base_url, demo};
 use crate::state::auth::AUTH;
-use crate::api::{auth, demo, client::get_base_url};
 use crate::Route;
+use dioxus::prelude::*;
 
 #[component]
 pub fn LoginPage() -> Element {
@@ -40,11 +40,8 @@ pub fn LoginPage() -> Element {
         loading.set(true);
         match auth::login(email(), auth_field()).await {
             Ok(resp) => {
-                AUTH.write().set_authenticated(
-                    resp.token,
-                    resp.user,
-                    resp.requires_verification,
-                );
+                AUTH.write()
+                    .set_authenticated(resp.token, resp.user, resp.requires_verification);
                 let nav = navigator();
                 nav.push(Route::Dashboard {});
             }
@@ -215,8 +212,8 @@ pub fn LoginPage() -> Element {
 
 #[cfg(test)]
 mod tests {
-    use crate::state::auth::AuthState;
     use crate::models::auth::UserResponse;
+    use crate::state::auth::AuthState;
     use uuid::Uuid;
 
     fn sample_user(verified: bool) -> UserResponse {

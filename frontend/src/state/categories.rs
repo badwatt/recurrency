@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::models::category::Category;
+use dioxus::prelude::*;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CategoriesState {
@@ -36,7 +36,8 @@ impl CategoriesState {
     }
 }
 
-pub static CATEGORIES: GlobalSignal<CategoriesState> = Signal::global(|| CategoriesState::default());
+pub static CATEGORIES: GlobalSignal<CategoriesState> =
+    Signal::global(|| CategoriesState::default());
 
 #[cfg(test)]
 mod tests {
@@ -61,10 +62,7 @@ mod tests {
     #[test]
     fn default_category_lookup() {
         let mut state = CategoriesState::default();
-        state.categories = vec![
-            make_cat("Other", false),
-            make_cat("Default", true),
-        ];
+        state.categories = vec![make_cat("Other", false), make_cat("Default", true)];
         assert_eq!(state.default_category().unwrap().name, "Default");
     }
 
@@ -206,8 +204,7 @@ mod tests {
         {
             // USERPROFILE is Windows-only. On Linux it returns None.
             // But or_else ensures HOME is tried first.
-            let result = std::env::var_os("USERPROFILE")
-                .or_else(|| std::env::var_os("HOME"));
+            let result = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"));
             // On Linux, HOME is available
             assert!(result.is_some());
             let home = result.unwrap();
@@ -220,13 +217,18 @@ mod tests {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // Verify the Android path format
-            let android_path = std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
+            let android_path =
+                std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
             let parent = android_path.parent().expect("Android path has parent");
             // On Linux test machines, /data/data does not exist
             // On Android devices, /data/data exists
             // This tests the path construction (line 18 in auth.rs)
-            assert!(android_path.to_string_lossy().contains("com.alvaro17f.recurrency"));
-            assert!(parent.to_string_lossy().ends_with("/data/data/com.alvaro17f.recurrency"));
+            assert!(android_path
+                .to_string_lossy()
+                .contains("com.alvaro17f.recurrency"));
+            assert!(parent
+                .to_string_lossy()
+                .ends_with("/data/data/com.alvaro17f.recurrency"));
         }
     }
 

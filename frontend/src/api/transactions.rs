@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_post, api_put, api_delete, ApiError};
+use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
 use crate::models::transaction::*;
 
 pub async fn list() -> Result<Vec<Transaction>, ApiError> {
@@ -14,7 +14,10 @@ pub async fn create(req: &CreateTransactionRequest) -> Result<Transaction, ApiEr
     api_post("/api/transactions", req).await
 }
 
-pub async fn update(id: &uuid::Uuid, req: &UpdateTransactionRequest) -> Result<Transaction, ApiError> {
+pub async fn update(
+    id: &uuid::Uuid,
+    req: &UpdateTransactionRequest,
+) -> Result<Transaction, ApiError> {
     api_put(&format!("/api/transactions/{}", id), req).await
 }
 
@@ -26,8 +29,8 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
 mod tests {
     use crate::models::transaction::*;
     use chrono::NaiveDate;
-    use uuid::Uuid;
     use rust_decimal_macros::dec;
+    use uuid::Uuid;
 
     #[test]
     fn transaction_api_paths() {

@@ -8,7 +8,6 @@ pub async fn search(query: &str) -> Result<LogoSearchResponse, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn logos_search_url_format() {
@@ -60,8 +59,14 @@ mod tests {
         use crate::models::logo::{LogoResult, LogoSearchResponse};
         let resp = LogoSearchResponse {
             results: vec![
-                LogoResult { name: "A".into(), url: "https://a.com/a.png".into() },
-                LogoResult { name: "B".into(), url: "https://b.com/b.png".into() },
+                LogoResult {
+                    name: "A".into(),
+                    url: "https://a.com/a.png".into(),
+                },
+                LogoResult {
+                    name: "B".into(),
+                    url: "https://b.com/b.png".into(),
+                },
             ],
         };
         assert_eq!(resp.results.len(), 2);

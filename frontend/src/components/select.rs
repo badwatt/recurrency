@@ -1,11 +1,7 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Select(
-    value: String,
-    on_change: EventHandler<String>,
-    children: Element,
-) -> Element {
+pub fn Select(value: String, on_change: EventHandler<String>, children: Element) -> Element {
     rsx! {
         select {
             value: "{value}",
@@ -41,26 +37,38 @@ mod tests {
     #[test]
     fn select_uses_select_element() {
         let src = include_str!("select.rs");
-        assert!(src.contains("select {"), "Select component must use <select> element");
+        assert!(
+            src.contains("select {"),
+            "Select component must use <select> element"
+        );
     }
 
     #[test]
     fn select_binds_value_attribute() {
         let src = include_str!("select.rs");
         assert!(src.contains("value:"), "Select must bind value attribute");
-        assert!(src.contains("value: \"{value}\""), "Value binding must use interpolation");
+        assert!(
+            src.contains("value: \"{value}\""),
+            "Value binding must use interpolation"
+        );
     }
 
     #[test]
     fn select_has_onchange_handler() {
         let src = include_str!("select.rs");
-        assert!(src.contains("onchange:"), "Select must have onchange handler");
+        assert!(
+            src.contains("onchange:"),
+            "Select must have onchange handler"
+        );
     }
 
     #[test]
     fn select_calls_event_value() {
         let src = include_str!("select.rs");
-        assert!(src.contains("e.value()"), "onchange must call e.value() to get selected value");
+        assert!(
+            src.contains("e.value()"),
+            "onchange must call e.value() to get selected value"
+        );
     }
 
     #[test]
@@ -72,13 +80,19 @@ mod tests {
     #[test]
     fn select_renders_children() {
         let src = include_str!("select.rs");
-        assert!(src.contains("{children}"), "Select must render children (options)");
+        assert!(
+            src.contains("{children}"),
+            "Select must render children (options)"
+        );
     }
 
     #[test]
     fn select_moves_event_handler() {
         let src = include_str!("select.rs");
-        assert!(src.contains("move |e:"), "onchange closure must use move for ownership");
+        assert!(
+            src.contains("move |e:"),
+            "onchange closure must use move for ownership"
+        );
         assert!(src.contains("FormEvent"), "Event type must be FormEvent");
     }
 
@@ -87,8 +101,14 @@ mod tests {
         let src = include_str!("select.rs");
         assert!(src.contains("pub fn Select("), "Component must be public");
         assert!(src.contains("value: String"), "Must accept value prop");
-        assert!(src.contains("on_change: EventHandler<String>"), "Must accept on_change callback");
-        assert!(src.contains("children: Element"), "Must accept children Element");
+        assert!(
+            src.contains("on_change: EventHandler<String>"),
+            "Must accept on_change callback"
+        );
+        assert!(
+            src.contains("children: Element"),
+            "Must accept children Element"
+        );
     }
 
     #[test]
@@ -96,16 +116,23 @@ mod tests {
         let src = include_str!("select.rs");
         // Must have focus styles for accessibility
         assert!(src.contains("focus:"), "Select must have focus styles");
-        assert!(src.contains("focus-ring") || src.contains("focus:outline"),
-            "Select must have visible focus indicator");
+        assert!(
+            src.contains("focus-ring") || src.contains("focus:outline"),
+            "Select must have visible focus indicator"
+        );
     }
 
     #[test]
     fn select_class_contains_disabled_styles() {
         let src = include_str!("select.rs");
-        assert!(src.contains("disabled:"), "Select must have disabled styles");
-        assert!(src.contains("disabled:cursor-not-allowed") || src.contains("disabled:opacity"),
-            "Disabled state must change cursor and opacity");
+        assert!(
+            src.contains("disabled:"),
+            "Select must have disabled styles"
+        );
+        assert!(
+            src.contains("disabled:cursor-not-allowed") || src.contains("disabled:opacity"),
+            "Disabled state must change cursor and opacity"
+        );
     }
 
     #[test]
@@ -118,6 +145,9 @@ mod tests {
     #[test]
     fn select_uses_dioxus_prelude() {
         let src = include_str!("select.rs");
-        assert!(src.contains("use dioxus::prelude::"), "Must import dioxus prelude");
+        assert!(
+            src.contains("use dioxus::prelude::"),
+            "Must import dioxus prelude"
+        );
     }
 }

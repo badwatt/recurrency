@@ -119,28 +119,48 @@ pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element 
 
     // Compute points
     let n = data.len() as f64;
-    let step_x = if data.len() > 1 { chart_w / (n - 1.0) } else { 0.0 };
+    let step_x = if data.len() > 1 {
+        chart_w / (n - 1.0)
+    } else {
+        0.0
+    };
 
-    let points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
-        let x = padding_left + i as f64 * step_x;
-        let y = padding_top + chart_h - (d.value / max_val) * chart_h;
-        (x, y)
-    }).collect();
+    let points: Vec<(f64, f64)> = data
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let x = padding_left + i as f64 * step_x;
+            let y = padding_top + chart_h - (d.value / max_val) * chart_h;
+            (x, y)
+        })
+        .collect();
 
     // Build polyline path
-    let line_path = points.iter().enumerate().map(|(i, (x, y))| {
-        if i == 0 { format!("M{x:.1},{y:.1}") } else { format!("L{x:.1},{y:.1}") }
-    }).collect::<Vec<_>>().join(" ");
+    let line_path = points
+        .iter()
+        .enumerate()
+        .map(|(i, (x, y))| {
+            if i == 0 {
+                format!("M{x:.1},{y:.1}")
+            } else {
+                format!("L{x:.1},{y:.1}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
 
     // Build area fill path (close to bottom)
-    let area_path = if let (Some(&(first_x, _)), Some(&(last_x, _))) = (points.first(), points.last()) {
-        let bottom_y = padding_top + chart_h;
-        let mut path = line_path.clone();
-        path.push_str(&format!("L{last_x:.1},{bottom_y:.1}L{first_x:.1},{bottom_y:.1}Z"));
-        path
-    } else {
-        line_path.clone()
-    };
+    let area_path =
+        if let (Some(&(first_x, _)), Some(&(last_x, _))) = (points.first(), points.last()) {
+            let bottom_y = padding_top + chart_h;
+            let mut path = line_path.clone();
+            path.push_str(&format!(
+                "L{last_x:.1},{bottom_y:.1}L{first_x:.1},{bottom_y:.1}Z"
+            ));
+            path
+        } else {
+            line_path.clone()
+        };
 
     // Gradient id
     let grad_id = "lineGrad";
@@ -352,7 +372,11 @@ mod tests {
 
     #[test]
     fn bar_data_serialize() {
-        let d = BarData { label: "Netflix".into(), value: 15.99, color: "#e50914".into() };
+        let d = BarData {
+            label: "Netflix".into(),
+            value: 15.99,
+            color: "#e50914".into(),
+        };
         let json = serde_json::to_string(&d).unwrap();
         let back: BarData = serde_json::from_str(&json).unwrap();
         assert_eq!(d, back);
@@ -361,8 +385,16 @@ mod tests {
     #[test]
     fn max_value_computation() {
         let data = vec![
-            BarData { label: "A".into(), value: 10.0, color: "#f00".into() },
-            BarData { label: "B".into(), value: 30.0, color: "#0f0".into() },
+            BarData {
+                label: "A".into(),
+                value: 10.0,
+                color: "#f00".into(),
+            },
+            BarData {
+                label: "B".into(),
+                value: 30.0,
+                color: "#0f0".into(),
+            },
         ];
         let max = data.iter().map(|d| d.value).fold(0.0_f64, f64::max);
         assert_eq!(max, 30.0);
@@ -377,9 +409,18 @@ mod tests {
     #[test]
     fn line_data_points() {
         let data = vec![
-            LineData { label: "Jan".into(), value: 100.0 },
-            LineData { label: "Feb".into(), value: 200.0 },
-            LineData { label: "Mar".into(), value: 150.0 },
+            LineData {
+                label: "Jan".into(),
+                value: 100.0,
+            },
+            LineData {
+                label: "Feb".into(),
+                value: 200.0,
+            },
+            LineData {
+                label: "Mar".into(),
+                value: 150.0,
+            },
         ];
         let max = data.iter().map(|d| d.value).fold(0.0_f64, f64::max);
         assert_eq!(max, 200.0);
@@ -388,8 +429,16 @@ mod tests {
     #[test]
     fn donut_segments_computation() {
         let data = vec![
-            DonutData { label: "A".into(), value: 60.0, color: "#f00".into() },
-            DonutData { label: "B".into(), value: 40.0, color: "#0f0".into() },
+            DonutData {
+                label: "A".into(),
+                value: 60.0,
+                color: "#f00".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 40.0,
+                color: "#0f0".into(),
+            },
         ];
         let total: f64 = 100.0;
         let circ = 2.0 * std::f64::consts::PI * 40.0;
@@ -416,9 +465,11 @@ mod tests {
 
     #[test]
     fn donut_zero_total() {
-        let _data = vec![
-            DonutData { label: "A".into(), value: 0.0, color: "#f00".into() },
-        ];
+        let _data = vec![DonutData {
+            label: "A".into(),
+            value: 0.0,
+            color: "#f00".into(),
+        }];
         let total: f64 = 0.0;
         // Should be handled by returning "No data" element at render time
         assert_eq!(total, 0.0);
@@ -426,9 +477,11 @@ mod tests {
 
     #[test]
     fn donut_segments_single_item() {
-        let data = vec![
-            DonutData { label: "A".into(), value: 100.0, color: "#f00".into() },
-        ];
+        let data = vec![DonutData {
+            label: "A".into(),
+            value: 100.0,
+            color: "#f00".into(),
+        }];
         let total: f64 = 100.0;
         let circ = 2.0 * std::f64::consts::PI * 40.0;
         let segs = compute_donut_segments(&data, total, circ);
@@ -440,9 +493,21 @@ mod tests {
     #[test]
     fn donut_segments_offsets() {
         let data = vec![
-            DonutData { label: "A".into(), value: 50.0, color: "#f00".into() },
-            DonutData { label: "B".into(), value: 30.0, color: "#0f0".into() },
-            DonutData { label: "C".into(), value: 20.0, color: "#00f".into() },
+            DonutData {
+                label: "A".into(),
+                value: 50.0,
+                color: "#f00".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 30.0,
+                color: "#0f0".into(),
+            },
+            DonutData {
+                label: "C".into(),
+                value: 20.0,
+                color: "#00f".into(),
+            },
         ];
         let total: f64 = 100.0;
         let circ = 2.0 * std::f64::consts::PI * 40.0;
@@ -463,14 +528,19 @@ mod tests {
 
     #[test]
     fn line_data_single_point() {
-        let data = vec![
-            LineData { label: "Only".into(), value: 42.0 },
-        ];
+        let data = vec![LineData {
+            label: "Only".into(),
+            value: 42.0,
+        }];
         let max = data.iter().map(|d| d.value).fold(0.0_f64, f64::max);
         assert_eq!(max, 42.0);
         // step_x would be 0 for single data point (n-1 = 0)
         let n = data.len() as f64;
-        let step_x = if data.len() > 1 { 400.0 / (n - 1.0) } else { 0.0 };
+        let step_x = if data.len() > 1 {
+            400.0 / (n - 1.0)
+        } else {
+            0.0
+        };
         assert_eq!(step_x, 0.0);
     }
 
@@ -483,7 +553,11 @@ mod tests {
 
     #[test]
     fn bar_data_roundtrip() {
-        let d = BarData { label: "Test".into(), value: 42.0, color: "#abc".into() };
+        let d = BarData {
+            label: "Test".into(),
+            value: 42.0,
+            color: "#abc".into(),
+        };
         let json = serde_json::to_string(&d).unwrap();
         let back: BarData = serde_json::from_str(&json).unwrap();
         assert_eq!(d, back);
@@ -491,7 +565,10 @@ mod tests {
 
     #[test]
     fn line_data_roundtrip() {
-        let d = LineData { label: "Jan".into(), value: 100.0 };
+        let d = LineData {
+            label: "Jan".into(),
+            value: 100.0,
+        };
         let json = serde_json::to_string(&d).unwrap();
         let back: LineData = serde_json::from_str(&json).unwrap();
         assert_eq!(d, back);
@@ -499,7 +576,11 @@ mod tests {
 
     #[test]
     fn donut_data_roundtrip() {
-        let d = DonutData { label: "A".into(), value: 50.0, color: "#f00".into() };
+        let d = DonutData {
+            label: "A".into(),
+            value: 50.0,
+            color: "#f00".into(),
+        };
         let json = serde_json::to_string(&d).unwrap();
         let back: DonutData = serde_json::from_str(&json).unwrap();
         assert_eq!(d, back);
@@ -522,9 +603,21 @@ mod tests {
     #[test]
     fn donut_segments_equal_values() {
         let data = vec![
-            DonutData { label: "A".into(), value: 33.33, color: "#f00".into() },
-            DonutData { label: "B".into(), value: 33.33, color: "#0f0".into() },
-            DonutData { label: "C".into(), value: 33.34, color: "#00f".into() },
+            DonutData {
+                label: "A".into(),
+                value: 33.33,
+                color: "#f00".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 33.33,
+                color: "#0f0".into(),
+            },
+            DonutData {
+                label: "C".into(),
+                value: 33.34,
+                color: "#00f".into(),
+            },
         ];
         let total: f64 = data.iter().map(|d| d.value).sum();
         let circ = 2.0 * std::f64::consts::PI * 40.0;
@@ -533,16 +626,32 @@ mod tests {
         // Each segment approx 1/3 of circumference, minus gap
         let per_seg = circ / 3.0;
         for seg in &segs {
-            assert!((seg.dash_len - (per_seg - 2.0)).abs() < 5.0, "segment len should be ~{}", per_seg - 2.0);
+            assert!(
+                (seg.dash_len - (per_seg - 2.0)).abs() < 5.0,
+                "segment len should be ~{}",
+                per_seg - 2.0
+            );
         }
     }
 
     #[test]
     fn donut_segments_cumulative_offsets() {
         let data = vec![
-            DonutData { label: "A".into(), value: 70.0, color: "#f00".into() },
-            DonutData { label: "B".into(), value: 20.0, color: "#0f0".into() },
-            DonutData { label: "C".into(), value: 10.0, color: "#00f".into() },
+            DonutData {
+                label: "A".into(),
+                value: 70.0,
+                color: "#f00".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 20.0,
+                color: "#0f0".into(),
+            },
+            DonutData {
+                label: "C".into(),
+                value: 10.0,
+                color: "#00f".into(),
+            },
         ];
         let total: f64 = 100.0;
         let circ = 2.0 * std::f64::consts::PI * 40.0;
@@ -555,9 +664,11 @@ mod tests {
 
     #[test]
     fn donut_segments_no_gap_single_item() {
-        let data = vec![
-            DonutData { label: "A".into(), value: 100.0, color: "#f00".into() },
-        ];
+        let data = vec![DonutData {
+            label: "A".into(),
+            value: 100.0,
+            color: "#f00".into(),
+        }];
         let total: f64 = 100.0;
         let circ = 2.0 * std::f64::consts::PI * 40.0;
         let segs = compute_donut_segments(&data, total, circ);
@@ -568,9 +679,13 @@ mod tests {
 
     #[test]
     fn donut_segments_many_items() {
-        let data: Vec<DonutData> = (0..10).map(|i| {
-            DonutData { label: format!("{}", i), value: 10.0, color: "#f00".into() }
-        }).collect();
+        let data: Vec<DonutData> = (0..10)
+            .map(|i| DonutData {
+                label: format!("{}", i),
+                value: 10.0,
+                color: "#f00".into(),
+            })
+            .collect();
         let total: f64 = 100.0;
         let circ = 2.0 * std::f64::consts::PI * 40.0;
         let segs = compute_donut_segments(&data, total, circ);
@@ -580,11 +695,18 @@ mod tests {
     // ── Additional palette_color tests ──
     #[test]
     fn palette_color_sequential() {
-        let expected = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
-                       "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16",
-                       "#e11d48", "#64748b"];
+        let expected = [
+            "#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899",
+            "#14b8a6", "#84cc16", "#e11d48", "#64748b",
+        ];
         for (i, &expected_color) in expected.iter().enumerate() {
-            assert_eq!(palette_color(i), expected_color, "palette_color({}) should be {}", i, expected_color);
+            assert_eq!(
+                palette_color(i),
+                expected_color,
+                "palette_color({}) should be {}",
+                i,
+                expected_color
+            );
         }
     }
 
@@ -592,8 +714,13 @@ mod tests {
     fn palette_color_wrap_around() {
         // After 12 colors, it wraps
         for i in 0..12 {
-            assert_eq!(palette_color(i + 12), palette_color(i),
-                "palette_color({}) should equal palette_color({})", i + 12, i);
+            assert_eq!(
+                palette_color(i + 12),
+                palette_color(i),
+                "palette_color({}) should equal palette_color({})",
+                i + 12,
+                i
+            );
         }
     }
 

@@ -1,4 +1,3 @@
-
 // TDD tests for setup.rs server URL persistence bug.
 // Bug: SetupPage save_server_url uses dirs::data_dir() → None on Android → URL not saved.
 
@@ -15,7 +14,11 @@ fn test_save_server_url_uses_android_fallback() {
     std::fs::write(&url_file, "http://my-server:9000").unwrap();
 
     let read = std::fs::read_to_string(&url_file).unwrap();
-    assert_eq!(read.trim(), "http://my-server:9000", "server_url.txt must persist on native");
+    assert_eq!(
+        read.trim(),
+        "http://my-server:9000",
+        "server_url.txt must persist on native"
+    );
 
     std::fs::remove_file(&url_file).ok();
 }

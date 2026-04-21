@@ -1,9 +1,9 @@
-use dioxus::prelude::*;
-use crate::state::categories::CATEGORIES;
 use crate::api::categories;
-use crate::models::category::*;
-use crate::utils::icons::ICON_NAMES;
 use crate::components::dialog::Dialog;
+use crate::models::category::*;
+use crate::state::categories::CATEGORIES;
+use crate::utils::icons::ICON_NAMES;
+use dioxus::prelude::*;
 use uuid::Uuid;
 
 /// Available color palette for category picker.
@@ -43,10 +43,8 @@ fn icon_plus() -> Element {
 }
 
 const COLOR_PALETTE: &[&str] = &[
-    "#ef4444", "#f97316", "#f59e0b", "#eab308",
-    "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-    "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1",
-    "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
+    "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
+    "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
     "#f43f5e", "#6b7280", "#78716c", "#a3a3a3",
 ];
 
@@ -66,7 +64,9 @@ pub fn CategoriesPage() -> Element {
     // Load data
     use_future(move || async move {
         // android guard removed
-        if !CATEGORIES().categories.is_empty() { return; }
+        if !CATEGORIES().categories.is_empty() {
+            return;
+        }
         CATEGORIES.write().set_loading();
         match categories::list().await {
             Ok(data) => CATEGORIES.write().set_data(data),
@@ -114,17 +114,22 @@ pub fn CategoriesPage() -> Element {
         form_saving.set(true);
         spawn(async move {
             let result = if let Some(id) = editing {
-                categories::update(&id, &UpdateCategoryRequest {
-                    name: Some(name_val),
-                    icon: Some(icon),
-                    color: Some(color),
-                }).await
+                categories::update(
+                    &id,
+                    &UpdateCategoryRequest {
+                        name: Some(name_val),
+                        icon: Some(icon),
+                        color: Some(color),
+                    },
+                )
+                .await
             } else {
                 categories::create(&CreateCategoryRequest {
                     name: name_val,
                     icon: Some(icon),
                     color: Some(color),
-                }).await
+                })
+                .await
             };
 
             match result {
@@ -404,7 +409,8 @@ fn icon_display(name: &str) -> String {
         "Wine" => "🍷",
         "Tag" => "🏷",
         _ => "🏷",
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// Validation result for category form.
@@ -554,8 +560,17 @@ mod tests {
     #[test]
     fn color_palette_has_hex_format() {
         for color in COLOR_PALETTE {
-            assert!(color.starts_with('#'), "Color {} should start with #", color);
-            assert_eq!(color.len(), 7, "Color {} should be 7 chars (#RRGGBB)", color);
+            assert!(
+                color.starts_with('#'),
+                "Color {} should start with #",
+                color
+            );
+            assert_eq!(
+                color.len(),
+                7,
+                "Color {} should be 7 chars (#RRGGBB)",
+                color
+            );
         }
     }
 
@@ -702,7 +717,10 @@ mod tests {
     // ── Color palette additional tests ──
     #[test]
     fn color_palette_has_multiple_colors() {
-        assert!(COLOR_PALETTE.len() > 5, "Palette should have multiple colors");
+        assert!(
+            COLOR_PALETTE.len() > 5,
+            "Palette should have multiple colors"
+        );
     }
 
     #[test]
@@ -716,10 +734,23 @@ mod tests {
     // Icon tests check that function doesn't panic
     #[test]
     fn icon_display_known_icons_no_panic() {
-        let icons = ["Home", "Car", "Coffee", "Film", "Gamepad2", "ShoppingBag", "Smartphone", "Utensils"];
+        let icons = [
+            "Home",
+            "Car",
+            "Coffee",
+            "Film",
+            "Gamepad2",
+            "ShoppingBag",
+            "Smartphone",
+            "Utensils",
+        ];
         for icon in icons {
             let result = icon_display(icon);
-            assert!(!result.is_empty(), "icon_display({}) should not return empty", icon);
+            assert!(
+                !result.is_empty(),
+                "icon_display({}) should not return empty",
+                icon
+            );
         }
     }
 
@@ -847,7 +878,10 @@ mod tests {
     fn validate_category_form_short_name() {
         let r = validate_category_form("A", "Home", "#ef4444");
         assert!(!r.is_valid());
-        assert_eq!(r.name_error.as_deref(), Some("Name must be at least 2 characters"));
+        assert_eq!(
+            r.name_error.as_deref(),
+            Some("Name must be at least 2 characters")
+        );
     }
 
     #[test]

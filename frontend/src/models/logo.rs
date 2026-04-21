@@ -18,12 +18,10 @@ mod tests {
     #[test]
     fn logo_search_roundtrip() {
         let resp = LogoSearchResponse {
-            results: vec![
-                LogoResult {
-                    name: "Netflix".into(),
-                    url: "https://logo.com/netflix.png".into(),
-                },
-            ],
+            results: vec![LogoResult {
+                name: "Netflix".into(),
+                url: "https://logo.com/netflix.png".into(),
+            }],
         };
         let json = serde_json::to_string(&resp).unwrap();
         let back: LogoSearchResponse = serde_json::from_str(&json).unwrap();
@@ -42,9 +40,7 @@ mod tests {
 
     #[test]
     fn empty_search_response() {
-        let resp = LogoSearchResponse {
-            results: vec![],
-        };
+        let resp = LogoSearchResponse { results: vec![] };
         let json = serde_json::to_string(&resp).unwrap();
         let back: LogoSearchResponse = serde_json::from_str(&json).unwrap();
         assert!(back.results.is_empty());
@@ -54,9 +50,18 @@ mod tests {
     fn multiple_results() {
         let resp = LogoSearchResponse {
             results: vec![
-                LogoResult { name: "Netflix".into(), url: "https://logo.com/n.png".into() },
-                LogoResult { name: "Spotify".into(), url: "https://logo.com/s.png".into() },
-                LogoResult { name: "YouTube".into(), url: "https://logo.com/y.png".into() },
+                LogoResult {
+                    name: "Netflix".into(),
+                    url: "https://logo.com/n.png".into(),
+                },
+                LogoResult {
+                    name: "Spotify".into(),
+                    url: "https://logo.com/s.png".into(),
+                },
+                LogoResult {
+                    name: "YouTube".into(),
+                    url: "https://logo.com/y.png".into(),
+                },
             ],
         };
         let json = serde_json::to_string(&resp).unwrap();

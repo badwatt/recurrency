@@ -134,7 +134,10 @@ mod tests {
         let json = serde_json::to_string(&item).unwrap();
         let back: CalendarItem = serde_json::from_str(&json).unwrap();
         assert_eq!(back.name, "Netflix");
-        assert_eq!(back.billing_date, NaiveDate::from_ymd_opt(2024, 2, 1).unwrap());
+        assert_eq!(
+            back.billing_date,
+            NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()
+        );
     }
 
     // ── Backend response field mismatch tests ──
@@ -153,9 +156,13 @@ mod tests {
             logo_url: None,
         };
         let json = serde_json::to_string(&item).unwrap();
-        
+
         // Must contain "billing_date" not "date"
-        assert!(json.contains("billing_date"), "Should have billing_date field, got: {}", json);
+        assert!(
+            json.contains("billing_date"),
+            "Should have billing_date field, got: {}",
+            json
+        );
         assert!(!json.contains("\"date\""), "Should not have 'date' field");
     }
 
@@ -295,8 +302,8 @@ mod tests {
 #[cfg(test)]
 mod subscription_tests {
     use super::*;
-    use rust_decimal_macros::dec;
     use chrono::NaiveDate;
+    use rust_decimal_macros::dec;
 
     fn make_test_sub(name: &str, frequency: &str, active: bool) -> Subscription {
         Subscription {

@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn get_symbol_usd() {
-        assert_eq!(get_currency_symbol("USD"), "$"  );
+        assert_eq!(get_currency_symbol("USD"), "$");
     }
 
     // ── Additional format tests ──

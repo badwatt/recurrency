@@ -1,15 +1,12 @@
-use dioxus::prelude::*;
 use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::input::Input;
 use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
+use dioxus::prelude::*;
 
 #[component]
-pub fn LogoSearch(
-    selected_url: String,
-    on_select: EventHandler<String>,
-) -> Element {
+pub fn LogoSearch(selected_url: String, on_select: EventHandler<String>) -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut query = use_signal(String::new);
     let mut results = use_signal(Vec::<LogoResult>::new);
@@ -124,9 +121,18 @@ mod tests {
     #[test]
     fn logo_result_multiple() {
         let logos = vec![
-            LogoResult { name: "Netflix".into(), url: "https://a.com/n.png".into() },
-            LogoResult { name: "Spotify".into(), url: "https://a.com/s.png".into() },
-            LogoResult { name: "Amazon".into(), url: "https://a.com/am.png".into() },
+            LogoResult {
+                name: "Netflix".into(),
+                url: "https://a.com/n.png".into(),
+            },
+            LogoResult {
+                name: "Spotify".into(),
+                url: "https://a.com/s.png".into(),
+            },
+            LogoResult {
+                name: "Amazon".into(),
+                url: "https://a.com/am.png".into(),
+            },
         ];
         assert_eq!(logos.len(), 3);
         assert_eq!(logos[0].name, "Netflix");
@@ -186,8 +192,14 @@ mod tests {
     #[test]
     fn results_with_items() {
         let results = vec![
-            LogoResult { name: "A".into(), url: "https://a.com".into() },
-            LogoResult { name: "B".into(), url: "https://b.com".into() },
+            LogoResult {
+                name: "A".into(),
+                url: "https://a.com".into(),
+            },
+            LogoResult {
+                name: "B".into(),
+                url: "https://b.com".into(),
+            },
         ];
         assert_eq!(results.len(), 2);
     }
@@ -253,11 +265,18 @@ mod tests {
     #[test]
     fn search_results_dedup() {
         let logos = vec![
-            LogoResult { name: "Netflix".into(), url: "https://a.com/1.png".into() },
-            LogoResult { name: "Netflix".into(), url: "https://a.com/2.png".into() },
+            LogoResult {
+                name: "Netflix".into(),
+                url: "https://a.com/1.png".into(),
+            },
+            LogoResult {
+                name: "Netflix".into(),
+                url: "https://a.com/2.png".into(),
+            },
         ];
         let mut seen = std::collections::HashSet::new();
-        let unique: Vec<_> = logos.into_iter()
+        let unique: Vec<_> = logos
+            .into_iter()
             .filter(|r| seen.insert(r.name.clone()))
             .collect();
         assert_eq!(unique.len(), 1);

@@ -1,13 +1,13 @@
-use dioxus::prelude::*;
-use crate::state::transactions::TRANSACTIONS;
-use crate::state::categories::CATEGORIES;
-use crate::state::auth::AUTH;
 use crate::api::transactions;
-use crate::components::logo_image_with_fallback;
 use crate::components::dialog::Dialog;
+use crate::components::logo_image_with_fallback;
 use crate::models::transaction::*;
+use crate::state::auth::AUTH;
+use crate::state::categories::CATEGORIES;
+use crate::state::transactions::TRANSACTIONS;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, NaiveDate};
+use dioxus::prelude::*;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -222,11 +222,16 @@ pub fn filter_sort_group(
             "name" => a.name.cmp(&b.name),
             _ => a.date.cmp(&b.date),
         };
-        if sort.direction == "asc" { cmp } else { cmp.reverse() }
+        if sort.direction == "asc" {
+            cmp
+        } else {
+            cmp.reverse()
+        }
     });
 
     // Group by month descending
-    let mut groups: std::collections::BTreeMap<String, Vec<Transaction>> = std::collections::BTreeMap::new();
+    let mut groups: std::collections::BTreeMap<String, Vec<Transaction>> =
+        std::collections::BTreeMap::new();
     for t in result {
         let key = format!("{}-{:02}", t.date.year(), t.date.month());
         groups.entry(key).or_default().push(t);
@@ -235,20 +240,38 @@ pub fn filter_sort_group(
     let mut out: Vec<_> = groups.into_iter().collect();
     out.sort_by(|a, b| b.0.cmp(&a.0));
 
-    out.into_iter().map(|(key, txns)| {
-        let (year, month) = key.split_once('-').unwrap();
-        let y: i32 = year.parse().unwrap();
-        let m: u32 = month.parse().unwrap();
-        let label = format_month(y, m);
-        let total: Decimal = txns.iter().map(|t| t.amount).sum();
-        MonthGroup { key, label, transactions: txns, total }
-    }).collect()
+    out.into_iter()
+        .map(|(key, txns)| {
+            let (year, month) = key.split_once('-').unwrap();
+            let y: i32 = year.parse().unwrap();
+            let m: u32 = month.parse().unwrap();
+            let label = format_month(y, m);
+            let total: Decimal = txns.iter().map(|t| t.amount).sum();
+            MonthGroup {
+                key,
+                label,
+                transactions: txns,
+                total,
+            }
+        })
+        .collect()
 }
 
 fn format_month(year: i32, month: u32) -> String {
     let names = [
-        "", "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
+        "",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
     ];
     format!("{} {}", names.get(month as usize).unwrap_or(&""), year)
 }
@@ -256,7 +279,10 @@ fn format_month(year: i32, month: u32) -> String {
 #[component]
 pub fn TransactionsPage() -> Element {
     let mut filters = use_signal(FilterConfig::default);
-    let mut sort_cfg = use_signal(|| SortConfig { field: "date".into(), direction: "desc".into() });
+    let mut sort_cfg = use_signal(|| SortConfig {
+        field: "date".into(),
+        direction: "desc".into(),
+    });
     let mut dialog_open = use_signal(|| false);
     let mut editing_id = use_signal(|| None::<Uuid>);
     let mut show_filters = use_signal(|| false);
@@ -286,7 +312,9 @@ pub fn TransactionsPage() -> Element {
     // Load data
     use_future(move || async move {
         // android guard removed
-        if TRANSACTIONS().is_loading { return; }
+        if TRANSACTIONS().is_loading {
+            return;
+        }
         TRANSACTIONS.write().set_loading();
         match transactions::list().await {
             Ok(data) => TRANSACTIONS.write().set_data(data),
@@ -296,7 +324,9 @@ pub fn TransactionsPage() -> Element {
 
     use_future(move || async move {
         // android guard removed
-        if !CATEGORIES().categories.is_empty() { return; }
+        if !CATEGORIES().categories.is_empty() {
+            return;
+        }
         CATEGORIES.write().set_loading();
         match crate::api::categories::list().await {
             Ok(data) => CATEGORIES.write().set_data(data),
@@ -348,11 +378,11 @@ pub fn TransactionsPage() -> Element {
             valid = false;
         } else {
             match Decimal::from_str(&amount_str) {
-                Ok(d) if d > Decimal::ZERO => {},
+                Ok(d) if d > Decimal::ZERO => {}
                 Ok(_) => {
                     amount_error.set("Amount must be greater than 0".into());
                     valid = false;
-                },
+                }
                 Err(_) => {
                     amount_error.set("Invalid amount".into());
                     valid = false;
@@ -378,7 +408,9 @@ pub fn TransactionsPage() -> Element {
             valid = false;
         }
 
-        if !valid { return; }
+        if !valid {
+            return;
+        }
 
         let amount = match Decimal::from_str(&amount_str) {
             Ok(d) => d,
@@ -394,15 +426,23 @@ pub fn TransactionsPage() -> Element {
         form_saving.set(true);
         spawn(async move {
             let result = if let Some(id) = editing {
-                transactions::update(&id, &UpdateTransactionRequest {
-                    name: Some(name_val),
-                    amount: Some(amount),
-                    currency: Some(form_currency()),
-                    date: Some(date),
-                    category_id: cat_id,
-                    notes: if form_notes().is_empty() { None } else { Some(form_notes()) },
-                    logo_url: None,
-                }).await
+                transactions::update(
+                    &id,
+                    &UpdateTransactionRequest {
+                        name: Some(name_val),
+                        amount: Some(amount),
+                        currency: Some(form_currency()),
+                        date: Some(date),
+                        category_id: cat_id,
+                        notes: if form_notes().is_empty() {
+                            None
+                        } else {
+                            Some(form_notes())
+                        },
+                        logo_url: None,
+                    },
+                )
+                .await
             } else {
                 transactions::create(&CreateTransactionRequest {
                     name: name_val,
@@ -410,9 +450,14 @@ pub fn TransactionsPage() -> Element {
                     currency: form_currency(),
                     date,
                     category_id: cat_id,
-                    notes: if form_notes().is_empty() { None } else { Some(form_notes()) },
+                    notes: if form_notes().is_empty() {
+                        None
+                    } else {
+                        Some(form_notes())
+                    },
                     logo_url: None,
-                }).await
+                })
+                .await
             };
 
             match result {
@@ -449,7 +494,6 @@ pub fn TransactionsPage() -> Element {
             }
         };
     }
-
 
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
@@ -946,8 +990,14 @@ mod tests {
 
     #[test]
     fn filter_config_partial_eq() {
-        let f1 = FilterConfig { category_id: Some(Uuid::new_v4()), ..Default::default() };
-        let f2 = FilterConfig { category_id: f1.category_id, ..Default::default() };
+        let f1 = FilterConfig {
+            category_id: Some(Uuid::new_v4()),
+            ..Default::default()
+        };
+        let f2 = FilterConfig {
+            category_id: f1.category_id,
+            ..Default::default()
+        };
         assert_eq!(f1.category_id, f2.category_id);
     }
 
@@ -961,7 +1011,10 @@ mod tests {
     // ── SortConfig tests ──
     #[test]
     fn sort_config_debug() {
-        let s = SortConfig { field: "amount".into(), direction: "asc".into() };
+        let s = SortConfig {
+            field: "amount".into(),
+            direction: "asc".into(),
+        };
         let debug = format!("{:?}", s);
         assert!(debug.contains("SortConfig"));
     }
@@ -973,7 +1026,12 @@ mod tests {
         let group = MonthGroup {
             key: "2024-01".into(),
             label: "January 2024".into(),
-            transactions: vec![make_txn("Test", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c)],
+            transactions: vec![make_txn(
+                "Test",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            )],
             total: dec!(10),
         };
         let debug = format!("{:?}", group);
@@ -1144,10 +1202,23 @@ mod tests {
         let c1 = Uuid::new_v4();
         let c2 = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c1),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c2),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c1,
+            ),
+            make_txn(
+                "B",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c2,
+            ),
         ];
-        let filters = FilterConfig { category_id: Some(c1), ..Default::default() };
+        let filters = FilterConfig {
+            category_id: Some(c1),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].transactions.len(), 1);
@@ -1158,9 +1229,24 @@ mod tests {
     fn filter_by_price_range() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("Cheap", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("Mid", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
-            make_txn("Expensive", dec!(50), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c),
+            make_txn(
+                "Cheap",
+                dec!(5),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Mid",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Expensive",
+                dec!(50),
+                NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                c,
+            ),
         ];
         let filters = FilterConfig {
             price_min: Some(dec!(10)),
@@ -1176,11 +1262,29 @@ mod tests {
     fn sort_by_amount_desc() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(30), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
-            make_txn("C", dec!(20), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(30),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
+            make_txn(
+                "C",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "amount".into(), direction: "desc".into() };
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "desc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "B");
         assert_eq!(groups[0].transactions[1].name, "C");
@@ -1191,9 +1295,24 @@ mod tests {
     fn group_by_month_descending() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("Jan", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
-            make_txn("Mar", dec!(20), NaiveDate::from_ymd_opt(2024,3,1).unwrap(), c),
-            make_txn("Feb", dec!(15), NaiveDate::from_ymd_opt(2024,2,10).unwrap(), c),
+            make_txn(
+                "Jan",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Mar",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Feb",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 2, 10).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups.len(), 3);
@@ -1206,8 +1325,18 @@ mod tests {
     fn month_group_total() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups[0].total, dec!(30));
@@ -1216,9 +1345,12 @@ mod tests {
     #[test]
     fn empty_filters_return_all() {
         let c = Uuid::new_v4();
-        let txns = vec![
-            make_txn("X", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-        ];
+        let txns = vec![make_txn(
+            "X",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            c,
+        )];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups[0].transactions.len(), 1);
     }
@@ -1235,10 +1367,23 @@ mod tests {
     fn filter_by_price_min_only() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(5),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
         ];
-        let filters = FilterConfig { price_min: Some(dec!(10)), ..Default::default() };
+        let filters = FilterConfig {
+            price_min: Some(dec!(10)),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert_eq!(groups[0].transactions.len(), 1);
         assert_eq!(groups[0].transactions[0].name, "B");
@@ -1248,10 +1393,23 @@ mod tests {
     fn filter_by_price_max_only() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(5),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
         ];
-        let filters = FilterConfig { price_max: Some(dec!(10)), ..Default::default() };
+        let filters = FilterConfig {
+            price_max: Some(dec!(10)),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert_eq!(groups[0].transactions.len(), 1);
         assert_eq!(groups[0].transactions[0].name, "A");
@@ -1262,11 +1420,30 @@ mod tests {
         let c1 = Uuid::new_v4();
         let c2 = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c1),
-            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c1),
-            make_txn("C", dec!(10), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c2),
+            make_txn(
+                "A",
+                dec!(5),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c1,
+            ),
+            make_txn(
+                "B",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c1,
+            ),
+            make_txn(
+                "C",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                c2,
+            ),
         ];
-        let filters = FilterConfig { category_id: Some(c1), price_min: Some(dec!(10)), ..Default::default() };
+        let filters = FilterConfig {
+            category_id: Some(c1),
+            price_min: Some(dec!(10)),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert_eq!(groups[0].transactions.len(), 1);
         assert_eq!(groups[0].transactions[0].name, "B");
@@ -1276,10 +1453,23 @@ mod tests {
     fn sort_by_name_ascending() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("Charlie", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("Alpha", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn(
+                "Charlie",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Alpha",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "name".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "name".into(),
+            direction: "asc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "Alpha");
         assert_eq!(groups[0].transactions[1].name, "Charlie");
@@ -1289,11 +1479,29 @@ mod tests {
     fn sort_by_amount_ascending() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c),
+            make_txn(
+                "C",
+                dec!(30),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "amount".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "asc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "A");
         assert_eq!(groups[0].transactions[1].name, "B");
@@ -1304,10 +1512,23 @@ mod tests {
     fn sort_by_date_descending() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "date".into(), direction: "desc".into() };
+        let sort = SortConfig {
+            field: "date".into(),
+            direction: "desc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "B");
         assert_eq!(groups[0].transactions[1].name, "A");
@@ -1317,10 +1538,23 @@ mod tests {
     fn sort_unknown_field_defaults_to_date() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "unknown".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "unknown".into(),
+            direction: "asc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "A"); // sorted by date asc as default
     }
@@ -1329,10 +1563,30 @@ mod tests {
     fn groups_across_multiple_months() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("Jan1", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("Jan2", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
-            make_txn("Feb", dec!(15), NaiveDate::from_ymd_opt(2024,2,10).unwrap(), c),
-            make_txn("Mar", dec!(25), NaiveDate::from_ymd_opt(2024,3,5).unwrap(), c),
+            make_txn(
+                "Jan1",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Jan2",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Feb",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 2, 10).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Mar",
+                dec!(25),
+                NaiveDate::from_ymd_opt(2024, 3, 5).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups.len(), 3);
@@ -1346,9 +1600,24 @@ mod tests {
     fn month_group_total_multiple_txns() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
-            make_txn("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,20).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
+            make_txn(
+                "C",
+                dec!(30),
+                NaiveDate::from_ymd_opt(2024, 1, 20).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups[0].total, dec!(60));
@@ -1364,10 +1633,16 @@ mod tests {
     #[test]
     fn filter_removes_all_returns_empty_groups() {
         let c = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-        ];
-        let filters = FilterConfig { price_min: Some(dec!(100)), ..Default::default() };
+        let txns = vec![make_txn(
+            "A",
+            dec!(5),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            c,
+        )];
+        let filters = FilterConfig {
+            price_min: Some(dec!(100)),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert!(groups.is_empty());
     }
@@ -1466,7 +1741,12 @@ mod tests {
     #[test]
     fn transaction_has_notes() {
         let c = Uuid::new_v4();
-        let mut txn = make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c);
+        let mut txn = make_txn(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            c,
+        );
         txn.notes = Some("Important note".into());
         assert!(txn.notes.as_ref().is_some_and(|n| !n.is_empty()));
     }
@@ -1474,7 +1754,12 @@ mod tests {
     #[test]
     fn transaction_no_notes() {
         let c = Uuid::new_v4();
-        let txn = make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c);
+        let txn = make_txn(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            c,
+        );
         assert!(!txn.notes.as_ref().is_some_and(|n| !n.is_empty()));
     }
 
@@ -1487,14 +1772,19 @@ mod tests {
         let src = include_str!("transactions_page.rs");
         // Find the Add/Edit dialog overlay section (NOT the notes dialog)
         let dialog_section = src.split("Dialog overlay").nth(1).unwrap_or("");
-        let before_notes = dialog_section.split("Notes dialog").next().unwrap_or(dialog_section);
+        let before_notes = dialog_section
+            .split("Notes dialog")
+            .next()
+            .unwrap_or(dialog_section);
         // Card inside dialog must have stop_propagation (not just in test comments)
-        let code_lines: Vec<&str> = before_notes.lines()
+        let code_lines: Vec<&str> = before_notes
+            .lines()
             .filter(|l| !l.trim().starts_with("//"))
             .collect();
         let code_text = code_lines.join("\n");
         let has_stop_prop_on_card = code_text.contains("e.stop_propagation()");
-        let uses_dialog_comp = before_notes.contains("Dialog {") || before_notes.contains("Dialog(");
+        let uses_dialog_comp =
+            before_notes.contains("Dialog {") || before_notes.contains("Dialog(");
         assert!(
             has_stop_prop_on_card || uses_dialog_comp,
             "Transaction Add/Edit dialog card must have onclick stop_propagation or use Dialog component"
@@ -1512,8 +1802,16 @@ mod tests {
     #[test]
     fn filter_sort_group_no_category() {
         let c = Uuid::new_v4();
-        let txns = vec![make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c)];
-        let filters = FilterConfig { category_id: Some(Uuid::new_v4()), ..Default::default() };
+        let txns = vec![make_txn(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            c,
+        )];
+        let filters = FilterConfig {
+            category_id: Some(Uuid::new_v4()),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert!(groups.is_empty());
     }
@@ -1522,10 +1820,23 @@ mod tests {
     fn filter_sort_group_price_min_above_all() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(5),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
         ];
-        let filters = FilterConfig { price_min: Some(dec!(100)), ..Default::default() };
+        let filters = FilterConfig {
+            price_min: Some(dec!(100)),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert!(groups.is_empty());
     }
@@ -1534,10 +1845,23 @@ mod tests {
     fn filter_sort_group_price_max_below_all() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(50), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(100), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(50),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(100),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
         ];
-        let filters = FilterConfig { price_max: Some(dec!(10)), ..Default::default() };
+        let filters = FilterConfig {
+            price_max: Some(dec!(10)),
+            ..Default::default()
+        };
         let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
         assert!(groups.is_empty());
     }
@@ -1547,9 +1871,24 @@ mod tests {
         let c1 = Uuid::new_v4();
         let c2 = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c1),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c1),
-            make_txn("C", dec!(10), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c2),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c1,
+            ),
+            make_txn(
+                "B",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c1,
+            ),
+            make_txn(
+                "C",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                c2,
+            ),
         ];
         let filters = FilterConfig {
             category_id: Some(c1),
@@ -1565,8 +1904,18 @@ mod tests {
     fn month_group_label_format() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,2,15).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 2, 15).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups.len(), 2);
@@ -1581,9 +1930,24 @@ mod tests {
     fn month_group_total_sum() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("A", dec!(10.5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("B", dec!(20.25), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
-            make_txn("C", dec!(5.25), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), c),
+            make_txn(
+                "A",
+                dec!(10.5),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "B",
+                dec!(20.25),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
+            make_txn(
+                "C",
+                dec!(5.25),
+                NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         // Sum = 10.5 + 20.25 + 5.25 = 36.0
@@ -1594,10 +1958,23 @@ mod tests {
     fn sort_by_name_descending() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("Apple", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("Zebra", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c),
+            make_txn(
+                "Apple",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Zebra",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "name".into(), direction: "desc".into() };
+        let sort = SortConfig {
+            field: "name".into(),
+            direction: "desc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "Zebra");
         assert_eq!(groups[0].transactions[1].name, "Apple");
@@ -1607,10 +1984,23 @@ mod tests {
     fn sort_by_date_ascending() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("Later", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
-            make_txn("Earlier", dec!(10), NaiveDate::from_ymd_opt(2024,1,5).unwrap(), c),
+            make_txn(
+                "Later",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
+            make_txn(
+                "Earlier",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 5).unwrap(),
+                c,
+            ),
         ];
-        let sort = SortConfig { field: "date".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "date".into(),
+            direction: "asc".into(),
+        };
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
         assert_eq!(groups[0].transactions[0].name, "Earlier");
         assert_eq!(groups[0].transactions[1].name, "Later");
@@ -1620,9 +2010,24 @@ mod tests {
     fn multiple_groups_each_with_total() {
         let c = Uuid::new_v4();
         let txns = vec![
-            make_txn("JanA", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c),
-            make_txn("JanB", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap(), c),
-            make_txn("FebA", dec!(5), NaiveDate::from_ymd_opt(2024,2,1).unwrap(), c),
+            make_txn(
+                "JanA",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                c,
+            ),
+            make_txn(
+                "JanB",
+                dec!(20),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                c,
+            ),
+            make_txn(
+                "FebA",
+                dec!(5),
+                NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+                c,
+            ),
         ];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         // Jan: 30, Feb: 5
@@ -1636,7 +2041,12 @@ mod tests {
     #[test]
     fn month_group_key_format() {
         let c = Uuid::new_v4();
-        let txns = vec![make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,3,5).unwrap(), c)];
+        let txns = vec![make_txn(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 3, 5).unwrap(),
+            c,
+        )];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups[0].key, "2024-03");
     }
@@ -1644,8 +2054,18 @@ mod tests {
     #[test]
     fn month_group_transactions_preserved() {
         let c = Uuid::new_v4();
-        let t1 = make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), c);
-        let t2 = make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), c);
+        let t1 = make_txn(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            c,
+        );
+        let t2 = make_txn(
+            "B",
+            dec!(20),
+            NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+            c,
+        );
         let txns = vec![t1.clone(), t2.clone()];
         let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
         assert_eq!(groups[0].transactions.len(), 2);
@@ -1695,7 +2115,10 @@ mod tests {
 
     #[test]
     fn txn_validation_result_clone() {
-        let v = TransactionValidationResult { name_error: Some("err".into()), ..Default::default() };
+        let v = TransactionValidationResult {
+            name_error: Some("err".into()),
+            ..Default::default()
+        };
         let c = v.clone();
         assert_eq!(v.name_error, c.name_error);
     }
@@ -1723,7 +2146,10 @@ mod tests {
     #[test]
     fn validate_txn_form_short_name() {
         let r = validate_transaction_form("A", "4.50", "EUR", "2024-01-15", "cat-id-123");
-        assert_eq!(r.name_error.as_deref(), Some("Name must be at least 2 characters"));
+        assert_eq!(
+            r.name_error.as_deref(),
+            Some("Name must be at least 2 characters")
+        );
     }
 
     #[test]
@@ -1735,13 +2161,19 @@ mod tests {
     #[test]
     fn validate_txn_form_zero_amount() {
         let r = validate_transaction_form("Coffee", "0", "EUR", "2024-01-15", "cat-id-123");
-        assert_eq!(r.amount_error.as_deref(), Some("Amount must be greater than 0"));
+        assert_eq!(
+            r.amount_error.as_deref(),
+            Some("Amount must be greater than 0")
+        );
     }
 
     #[test]
     fn validate_txn_form_negative_amount() {
         let r = validate_transaction_form("Coffee", "-3", "EUR", "2024-01-15", "cat-id-123");
-        assert_eq!(r.amount_error.as_deref(), Some("Amount must be greater than 0"));
+        assert_eq!(
+            r.amount_error.as_deref(),
+            Some("Amount must be greater than 0")
+        );
     }
 
     #[test]
@@ -1789,225 +2221,437 @@ mod tests {
         let r = validate_transaction_form("Coffee", "9.99", "EUR", "2024-01-15", "cat-id-123");
         assert!(r.is_valid());
 
+        // ── TransactionPage additional tests ─────────────────────────────────
+        #[cfg(test)]
+        mod transaction_page_tests {
+            use super::*;
 
-// ── TransactionPage additional tests ─────────────────────────────────
-#[cfg(test)]
-mod transaction_page_tests {
-    use super::*;
+            #[test]
+            fn filter_config_txn_default() {
+                let f = FilterConfig::default();
+                assert!(f.category_id.is_none());
+                assert!(f.price_min.is_none());
+                assert!(f.price_max.is_none());
+            }
 
-    #[test]
-    fn filter_config_txn_default() {
-        let f = FilterConfig::default();
-        assert!(f.category_id.is_none());
-        assert!(f.price_min.is_none());
-        assert!(f.price_max.is_none());
-    }
+            #[test]
+            fn sort_config_txn_default() {
+                let s = SortConfig::default();
+                assert_eq!(s.field, "date");
+                assert_eq!(s.direction, "desc");
+            }
 
-    #[test]
-    fn sort_config_txn_default() {
-        let s = SortConfig::default();
-        assert_eq!(s.field, "date");
-        assert_eq!(s.direction, "desc");
-    }
+            #[test]
+            fn sort_config_txn_partial_eq() {
+                let s1 = SortConfig {
+                    field: "amount".into(),
+                    direction: "asc".into(),
+                };
+                let s2 = SortConfig {
+                    field: "amount".into(),
+                    direction: "asc".into(),
+                };
+                assert_eq!(s1.field, s2.field);
+                assert_eq!(s1.direction, s2.direction);
+            }
 
-    #[test]
-    fn sort_config_txn_partial_eq() {
-        let s1 = SortConfig { field: "amount".into(), direction: "asc".into() };
-        let s2 = SortConfig { field: "amount".into(), direction: "asc".into() };
-        assert_eq!(s1.field, s2.field);
-        assert_eq!(s1.direction, s2.direction);
-    }
+            #[test]
+            fn month_group_transactions_empty() {
+                let _cat = Uuid::new_v4();
+                let txns: Vec<Transaction> = vec![];
+                let groups =
+                    filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+                assert!(groups.is_empty());
+            }
 
-    #[test]
-    fn month_group_transactions_empty() {
-        let _cat = Uuid::new_v4();
-        let txns: Vec<Transaction> = vec![];
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
-        assert!(groups.is_empty());
-    }
+            #[test]
+            fn month_group_single_transaction() {
+                let cat = Uuid::new_v4();
+                let txns = vec![make_txn(
+                    "Coffee",
+                    dec!(4.50),
+                    NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+                    cat,
+                )];
+                let groups =
+                    filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+                assert_eq!(groups.len(), 1);
+                assert_eq!(groups[0].key, "2024-06");
+                assert_eq!(groups[0].total, dec!(4.50));
+                assert_eq!(groups[0].transactions.len(), 1);
+            }
 
-    #[test]
-    fn month_group_single_transaction() {
-        let cat = Uuid::new_v4();
-        let txns = vec![make_txn("Coffee", dec!(4.50), NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(), cat)];
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
-        assert_eq!(groups.len(), 1);
-        assert_eq!(groups[0].key, "2024-06");
-        assert_eq!(groups[0].total, dec!(4.50));
-        assert_eq!(groups[0].transactions.len(), 1);
-    }
+            #[test]
+            fn month_group_key_format_various() {
+                let cat = Uuid::new_v4();
+                for (year, month, expected) in &[
+                    (2024, 1, "2024-01"),
+                    (2024, 12, "2024-12"),
+                    (2025, 6, "2025-06"),
+                ] {
+                    let txns = vec![make_txn(
+                        "T",
+                        dec!(1),
+                        NaiveDate::from_ymd_opt(*year, *month, 1).unwrap(),
+                        cat,
+                    )];
+                    let groups =
+                        filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+                    assert_eq!(
+                        groups[0].key, *expected,
+                        "key for {}/{} should be {}",
+                        year, month, expected
+                    );
+                }
+            }
 
-    #[test]
-    fn month_group_key_format_various() {
-        let cat = Uuid::new_v4();
-        for (year, month, expected) in &[(2024, 1, "2024-01"), (2024, 12, "2024-12"), (2025, 6, "2025-06")] {
-            let txns = vec![make_txn("T", dec!(1), NaiveDate::from_ymd_opt(*year, *month, 1).unwrap(), cat)];
-            let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
-            assert_eq!(groups[0].key, *expected, "key for {}/{} should be {}", year, month, expected);
+            #[test]
+            fn month_group_year_spans() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "Jan",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "Dec",
+                        dec!(20),
+                        NaiveDate::from_ymd_opt(2023, 12, 1).unwrap(),
+                        cat,
+                    ),
+                ];
+                let groups =
+                    filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+                assert_eq!(groups.len(), 2);
+            }
+
+            #[test]
+            fn month_group_preserves_sort_within_group() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "B",
+                        dec!(20),
+                        NaiveDate::from_ymd_opt(2024, 1, 5).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "A",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                        cat,
+                    ),
+                ];
+                let sort = SortConfig {
+                    field: "amount".into(),
+                    direction: "asc".into(),
+                };
+                let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+                let names: Vec<_> = groups[0]
+                    .transactions
+                    .iter()
+                    .map(|t| t.name.clone())
+                    .collect();
+                // Sorted by amount ASC: A (10) then B (20)
+                assert_eq!(names[0], "A");
+                assert_eq!(names[1], "B");
+            }
+
+            #[test]
+            fn filter_sort_group_price_min_only() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "A",
+                        dec!(5),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(15),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "C",
+                        dec!(25),
+                        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                        cat,
+                    ),
+                ];
+                let filters = FilterConfig {
+                    price_min: Some(dec!(15)),
+                    ..Default::default()
+                };
+                let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+                assert_eq!(groups[0].transactions.len(), 2);
+            }
+
+            #[test]
+            fn filter_sort_group_price_max_only() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "A",
+                        dec!(5),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(15),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "C",
+                        dec!(25),
+                        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                        cat,
+                    ),
+                ];
+                let filters = FilterConfig {
+                    price_max: Some(dec!(15)),
+                    ..Default::default()
+                };
+                let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+                assert_eq!(groups[0].transactions.len(), 2);
+            }
+
+            #[test]
+            fn filter_sort_group_combined() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "A",
+                        dec!(5),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(15),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                ];
+                let filters = FilterConfig {
+                    price_min: Some(dec!(5)),
+                    price_max: Some(dec!(15)),
+                    ..Default::default()
+                };
+                let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
+                assert_eq!(groups[0].transactions.len(), 2);
+            }
+
+            #[test]
+            fn month_group_total_accumulation() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "A",
+                        dec!(10.50),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(20.25),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "C",
+                        dec!(15.25),
+                        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                        cat,
+                    ),
+                ];
+                let groups =
+                    filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+                assert_eq!(groups[0].total, dec!(46.00));
+            }
+
+            #[test]
+            fn month_group_many_months() {
+                let cat = Uuid::new_v4();
+                let mut txns = vec![];
+                for m in 1..=12 {
+                    txns.push(make_txn(
+                        &format!("M{}", m),
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, m, 1).unwrap(),
+                        cat,
+                    ));
+                }
+                let groups =
+                    filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+                assert_eq!(groups.len(), 12);
+            }
+
+            #[test]
+            fn sort_by_amount_ascending() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "C",
+                        dec!(30),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "A",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(20),
+                        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                        cat,
+                    ),
+                ];
+                let sort = SortConfig {
+                    field: "amount".into(),
+                    direction: "asc".into(),
+                };
+                let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+                let names: Vec<_> = groups[0]
+                    .transactions
+                    .iter()
+                    .map(|t| t.name.clone())
+                    .collect();
+                assert_eq!(names, vec!["A", "B", "C"]);
+            }
+
+            #[test]
+            fn sort_by_amount_descending() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "A",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(20),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "C",
+                        dec!(30),
+                        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                        cat,
+                    ),
+                ];
+                let sort = SortConfig {
+                    field: "amount".into(),
+                    direction: "desc".into(),
+                };
+                let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+                let names: Vec<_> = groups[0]
+                    .transactions
+                    .iter()
+                    .map(|t| t.name.clone())
+                    .collect();
+                assert_eq!(names, vec!["C", "B", "A"]);
+            }
+
+            #[test]
+            fn sort_by_name() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "Zebra",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "Apple",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "Mango",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+                        cat,
+                    ),
+                ];
+                let sort = SortConfig {
+                    field: "name".into(),
+                    direction: "asc".into(),
+                };
+                let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+                let names: Vec<_> = groups[0]
+                    .transactions
+                    .iter()
+                    .map(|t| t.name.clone())
+                    .collect();
+                assert_eq!(names, vec!["Apple", "Mango", "Zebra"]);
+            }
+
+            #[test]
+            fn sort_by_unknown_field() {
+                let cat = Uuid::new_v4();
+                let txns = vec![
+                    make_txn(
+                        "A",
+                        dec!(10),
+                        NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        cat,
+                    ),
+                    make_txn(
+                        "B",
+                        dec!(20),
+                        NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+                        cat,
+                    ),
+                ];
+                let sort = SortConfig {
+                    field: "unknown_field".into(),
+                    direction: "asc".into(),
+                };
+                let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
+                // Unknown field: preserves original order
+                assert_eq!(groups[0].transactions.len(), 2);
+            }
+
+            #[test]
+            fn validate_txn_form_large_amount() {
+                let r = validate_transaction_form(
+                    "Big purchase",
+                    "999999.99",
+                    "EUR",
+                    "2024-01-15",
+                    "cat-id-123",
+                );
+                assert!(r.is_valid());
+            }
+
+            #[test]
+            fn validate_txn_form_small_amount() {
+                let r =
+                    validate_transaction_form("Micro", "0.01", "EUR", "2024-01-15", "cat-id-123");
+                assert!(r.is_valid());
+            }
+
+            #[test]
+            fn validate_txn_form_valid_date_formats() {
+                for date in &["2024-01-01", "2024-06-30", "2025-12-31"] {
+                    let r = validate_transaction_form("Test", "10", "EUR", date, "cat-id-123");
+                    assert!(r.date_error.is_none(), "date {} should be valid", date);
+                }
+            }
         }
-    }
-
-    #[test]
-    fn month_group_year_spans() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("Jan", dec!(10), NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(), cat),
-            make_txn("Dec", dec!(20), NaiveDate::from_ymd_opt(2023, 12, 1).unwrap(), cat),
-        ];
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
-        assert_eq!(groups.len(), 2);
-    }
-
-    #[test]
-    fn month_group_preserves_sort_within_group() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024, 1, 5).unwrap(), cat),
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(), cat),
-        ];
-        let sort = SortConfig { field: "amount".into(), direction: "asc".into() };
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
-        let names: Vec<_> = groups[0].transactions.iter().map(|t| t.name.clone()).collect();
-        // Sorted by amount ASC: A (10) then B (20)
-        assert_eq!(names[0], "A");
-        assert_eq!(names[1], "B");
-    }
-
-    #[test]
-    fn filter_sort_group_price_min_only() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-            make_txn("C", dec!(25), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), cat),
-        ];
-        let filters = FilterConfig { price_min: Some(dec!(15)), ..Default::default() };
-        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
-        assert_eq!(groups[0].transactions.len(), 2);
-    }
-
-    #[test]
-    fn filter_sort_group_price_max_only() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-            make_txn("C", dec!(25), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), cat),
-        ];
-        let filters = FilterConfig { price_max: Some(dec!(15)), ..Default::default() };
-        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
-        assert_eq!(groups[0].transactions.len(), 2);
-    }
-
-    #[test]
-    fn filter_sort_group_combined() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(5), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("B", dec!(15), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-        ];
-        let filters = FilterConfig { price_min: Some(dec!(5)), price_max: Some(dec!(15)), ..Default::default() };
-        let groups = filter_sort_group(&txns, &filters, &SortConfig::default());
-        assert_eq!(groups[0].transactions.len(), 2);
-    }
-
-    #[test]
-    fn month_group_total_accumulation() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(10.50), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("B", dec!(20.25), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-            make_txn("C", dec!(15.25), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), cat),
-        ];
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
-        assert_eq!(groups[0].total, dec!(46.00));
-    }
-
-    #[test]
-    fn month_group_many_months() {
-        let cat = Uuid::new_v4();
-        let mut txns = vec![];
-        for m in 1..=12 {
-            txns.push(make_txn(&format!("M{}", m), dec!(10), NaiveDate::from_ymd_opt(2024, m, 1).unwrap(), cat));
-        }
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
-        assert_eq!(groups.len(), 12);
-    }
-
-    #[test]
-    fn sort_by_amount_ascending() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), cat),
-        ];
-        let sort = SortConfig { field: "amount".into(), direction: "asc".into() };
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
-        let names: Vec<_> = groups[0].transactions.iter().map(|t| t.name.clone()).collect();
-        assert_eq!(names, vec!["A", "B", "C"]);
-    }
-
-    #[test]
-    fn sort_by_amount_descending() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-            make_txn("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), cat),
-        ];
-        let sort = SortConfig { field: "amount".into(), direction: "desc".into() };
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
-        let names: Vec<_> = groups[0].transactions.iter().map(|t| t.name.clone()).collect();
-        assert_eq!(names, vec!["C", "B", "A"]);
-    }
-
-    #[test]
-    fn sort_by_name() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("Zebra", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("Apple", dec!(10), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-            make_txn("Mango", dec!(10), NaiveDate::from_ymd_opt(2024,1,3).unwrap(), cat),
-        ];
-        let sort = SortConfig { field: "name".into(), direction: "asc".into() };
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
-        let names: Vec<_> = groups[0].transactions.iter().map(|t| t.name.clone()).collect();
-        assert_eq!(names, vec!["Apple", "Mango", "Zebra"]);
-    }
-
-    #[test]
-    fn sort_by_unknown_field() {
-        let cat = Uuid::new_v4();
-        let txns = vec![
-            make_txn("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap(), cat),
-            make_txn("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,2).unwrap(), cat),
-        ];
-        let sort = SortConfig { field: "unknown_field".into(), direction: "asc".into() };
-        let groups = filter_sort_group(&txns, &FilterConfig::default(), &sort);
-        // Unknown field: preserves original order
-        assert_eq!(groups[0].transactions.len(), 2);
-    }
-
-    #[test]
-    fn validate_txn_form_large_amount() {
-        let r = validate_transaction_form("Big purchase", "999999.99", "EUR", "2024-01-15", "cat-id-123");
-        assert!(r.is_valid());
-    }
-
-    #[test]
-    fn validate_txn_form_small_amount() {
-        let r = validate_transaction_form("Micro", "0.01", "EUR", "2024-01-15", "cat-id-123");
-        assert!(r.is_valid());
-    }
-
-    #[test]
-    fn validate_txn_form_valid_date_formats() {
-        for date in &["2024-01-01", "2024-06-30", "2025-12-31"] {
-            let r = validate_transaction_form("Test", "10", "EUR", date, "cat-id-123");
-            assert!(r.date_error.is_none(), "date {} should be valid", date);
-        }
-    }
-}
     }
 }

@@ -1,6 +1,6 @@
-use dioxus::prelude::*;
 use crate::api::client::{get_base_url, set_base_url};
 use crate::Route;
+use dioxus::prelude::*;
 
 fn save_server_url(url: &str) {
     #[cfg(not(target_arch = "wasm32"))]
@@ -190,7 +190,10 @@ mod tests {
         let url = "192.168.1.100:8080";
         let has_http = url.starts_with("http://");
         let has_https = url.starts_with("https://");
-        assert!(!has_http && !has_https, "URL without http(s):// should be invalid");
+        assert!(
+            !has_http && !has_https,
+            "URL without http(s):// should be invalid"
+        );
     }
 
     #[test]
@@ -229,7 +232,10 @@ mod tests {
     fn validate_url_whitespace_invalid() {
         let url = "   http://example.com   ";
         // After trim should be valid, but raw URL with spaces should be invalid
-        assert!(url.trim() != url, "URL with leading/trailing spaces should be trimmed");
+        assert!(
+            url.trim() != url,
+            "URL with leading/trailing spaces should be trimmed"
+        );
         let trimmed = url.trim();
         assert!(trimmed.starts_with("http://"));
     }
@@ -250,7 +256,11 @@ mod tests {
     #[test]
     fn error_message_empty_url() {
         let url = "";
-        let error = if url.is_empty() { "Server URL is required" } else { "" };
+        let error = if url.is_empty() {
+            "Server URL is required"
+        } else {
+            ""
+        };
         assert_eq!(error, "Server URL is required");
     }
 
@@ -259,16 +269,22 @@ mod tests {
         let url = "example.com";
         let error = if !url.starts_with("http://") && !url.starts_with("https://") {
             "URL must start with http:// or https://"
-        } else { "" };
+        } else {
+            ""
+        };
         assert_eq!(error, "URL must start with http:// or https://");
     }
 
     #[test]
     fn error_message_no_error_when_valid() {
         let url = "http://example.com";
-        let error = if url.is_empty() { "Server URL is required" }
-            else if !url.starts_with("http://") && !url.starts_with("https://") { "URL must start with http:// or https://" }
-            else { "" };
+        let error = if url.is_empty() {
+            "Server URL is required"
+        } else if !url.starts_with("http://") && !url.starts_with("https://") {
+            "URL must start with http:// or https://"
+        } else {
+            ""
+        };
         assert_eq!(error, "");
     }
 
@@ -313,38 +329,56 @@ mod tests {
     #[test]
     fn setup_page_has_url_input() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("setup-server-url"), "Should have server URL input");
+        assert!(
+            src.contains("setup-server-url"),
+            "Should have server URL input"
+        );
     }
 
     #[test]
     fn setup_page_has_connect_button() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("Connect") || src.contains("connecting()"), "Should have connect button");
+        assert!(
+            src.contains("Connect") || src.contains("connecting()"),
+            "Should have connect button"
+        );
     }
 
     #[test]
     fn setup_page_has_error_display() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("error()") || src.contains("error.set"), "Should display errors");
+        assert!(
+            src.contains("error()") || src.contains("error.set"),
+            "Should display errors"
+        );
     }
 
     #[test]
     fn setup_page_has_success_message() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("success()") || src.contains("Connected"), "Should show success message");
+        assert!(
+            src.contains("success()") || src.contains("Connected"),
+            "Should show success message"
+        );
     }
 
     #[test]
     fn setup_page_navigates_on_success() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("Route::Login") || src.contains("nav.push"), "Should navigate to Login on success");
+        assert!(
+            src.contains("Route::Login") || src.contains("nav.push"),
+            "Should navigate to Login on success"
+        );
     }
 
     #[test]
     fn setup_page_validates_before_connect() {
         // The handle_connect function validates URL before making request
         let src = include_str!("setup.rs");
-        assert!(src.contains("url.is_empty()") && src.contains("http://"), "Should validate URL before connect");
+        assert!(
+            src.contains("url.is_empty()") && src.contains("http://"),
+            "Should validate URL before connect"
+        );
     }
 
     // ── Additional validation edge cases ──
@@ -385,18 +419,26 @@ mod tests {
     #[test]
     fn error_message_for_empty_https() {
         let url = "";
-        let error = if url.is_empty() { "Server URL is required" }
-            else if !url.starts_with("http://") && !url.starts_with("https://") { "URL must start with http:// or https://" }
-            else { "" };
+        let error = if url.is_empty() {
+            "Server URL is required"
+        } else if !url.starts_with("http://") && !url.starts_with("https://") {
+            "URL must start with http:// or https://"
+        } else {
+            ""
+        };
         assert_eq!(error, "Server URL is required");
     }
 
     #[test]
     fn error_message_for_no_protocol() {
         let url = "192.168.1.100";
-        let error = if url.is_empty() { "Server URL is required" }
-            else if !url.starts_with("http://") && !url.starts_with("https://") { "URL must start with http:// or https://" }
-            else { "" };
+        let error = if url.is_empty() {
+            "Server URL is required"
+        } else if !url.starts_with("http://") && !url.starts_with("https://") {
+            "URL must start with http:// or https://"
+        } else {
+            ""
+        };
         assert_eq!(error, "URL must start with http:// or https://");
     }
 
@@ -413,13 +455,19 @@ mod tests {
     #[test]
     fn setup_page_uses_flex_layout() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("flex") && src.contains("min-h-screen"), "Should use flex layout");
+        assert!(
+            src.contains("flex") && src.contains("min-h-screen"),
+            "Should use flex layout"
+        );
     }
 
     #[test]
     fn setup_page_uses_centered_content() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("items-center") && src.contains("justify-center"), "Should center content");
+        assert!(
+            src.contains("items-center") && src.contains("justify-center"),
+            "Should center content"
+        );
     }
 
     #[test]
@@ -431,7 +479,10 @@ mod tests {
     #[test]
     fn setup_page_has_background_class() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("bg-background"), "Should have background styling");
+        assert!(
+            src.contains("bg-background"),
+            "Should have background styling"
+        );
     }
 
     #[test]
@@ -446,7 +497,10 @@ mod tests {
     #[test]
     fn setup_page_timeout_is_set() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("Duration::from_secs(5)"), "Should have timeout set");
+        assert!(
+            src.contains("Duration::from_secs(5)"),
+            "Should have timeout set"
+        );
     }
 
     #[test]
@@ -467,14 +521,20 @@ mod tests {
     fn setup_page_handles_connection_error() {
         // Error message for failed connections
         let error = "Connection failed: connection refused";
-        assert!(error.contains("Connection failed"), "Should show connection error");
+        assert!(
+            error.contains("Connection failed"),
+            "Should show connection error"
+        );
     }
 
     // ── Navigation and URL handling ──
     #[test]
     fn setup_page_navigator_is_used() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("navigator()") || src.contains("nav"), "Should use navigator");
+        assert!(
+            src.contains("navigator()") || src.contains("nav"),
+            "Should use navigator"
+        );
     }
 
     #[test]
@@ -488,20 +548,29 @@ mod tests {
     fn setup_page_uses_signal_states() {
         // Verify signal initializations work
         let src = include_str!("setup.rs");
-        assert!(src.contains("use_signal"), "Should use use_signal for state");
+        assert!(
+            src.contains("use_signal"),
+            "Should use use_signal for state"
+        );
     }
 
     #[test]
     fn setup_page_connects_to_api() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("/api/demo/status"), "Should connect to demo API");
+        assert!(
+            src.contains("/api/demo/status"),
+            "Should connect to demo API"
+        );
     }
 
     // ── Input field validation ──
     #[test]
     fn setup_page_input_has_placeholder() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("placeholder:"), "Should have input placeholder");
+        assert!(
+            src.contains("placeholder:"),
+            "Should have input placeholder"
+        );
     }
 
     #[test]

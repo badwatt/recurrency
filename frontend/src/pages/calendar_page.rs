@@ -3,16 +3,16 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use uuid::Uuid;
 
-use crate::state::auth::AUTH;
-use crate::state::subscriptions::SUBSCRIPTIONS;
-use crate::state::categories::CATEGORIES;
-use crate::state::preferences::PREFERENCES;
 use crate::api;
 use crate::api::subscriptions as sub_api;
-use crate::models::subscription::{CalendarItem, UpdateSubscriptionRequest};
-use crate::utils::format::format_currency;
-use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::components::dialog::Dialog;
+use crate::models::subscription::{CalendarItem, UpdateSubscriptionRequest};
+use crate::state::auth::AUTH;
+use crate::state::categories::CATEGORIES;
+use crate::state::preferences::PREFERENCES;
+use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::utils::constants::{CURRENCIES, FREQUENCIES};
+use crate::utils::format::format_currency;
 use chrono::{Datelike, Local, NaiveDate};
 
 fn icon_calendar() -> Element {
@@ -34,8 +34,19 @@ fn icon_credit_card() -> Element {
 const WEEKDAYS_SUNDAY: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_MONDAY: &[&str] = &["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES: &[&str] = &[
-    "", "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ];
 
 /// Compute calendar grid days (with null padding for leading empty cells).
@@ -64,9 +75,17 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
 }
 
 /// Get items for a specific day.
-pub fn items_for_day(items: &[CalendarItem], year: i32, month: u32, day: u32) -> Vec<&CalendarItem> {
+pub fn items_for_day(
+    items: &[CalendarItem],
+    year: i32,
+    month: u32,
+    day: u32,
+) -> Vec<&CalendarItem> {
     let date_str = format!("{}-{:02}-{:02}", year, month, day);
-    items.iter().filter(|i| i.billing_date.to_string() == date_str).collect()
+    items
+        .iter()
+        .filter(|i| i.billing_date.to_string() == date_str)
+        .collect()
 }
 
 /// Check if a day is today.
@@ -93,7 +112,11 @@ fn item_display(item: &CalendarItem, currency: &str) -> CalendarItemDisplay {
         subscription_id: item.subscription_id,
         name: item.name.clone(),
         amount_str: format_currency(item.amount, currency),
-        title_str: format!("{} - {}", item.name, format_currency(item.amount, &item.currency)),
+        title_str: format!(
+            "{} - {}",
+            item.name,
+            format_currency(item.amount, &item.currency)
+        ),
     }
 }
 
@@ -105,9 +128,19 @@ struct DayCellInfo {
     extra_count: usize,
 }
 
-fn day_cell_info(items: &[CalendarItem], year: i32, month: u32, day: u32, currency: &str) -> DayCellInfo {
+fn day_cell_info(
+    items: &[CalendarItem],
+    year: i32,
+    month: u32,
+    day: u32,
+    currency: &str,
+) -> DayCellInfo {
     let day_items = items_for_day(items, year, month, day);
-    let display_items: Vec<CalendarItemDisplay> = day_items.iter().take(3).map(|i| item_display(i, currency)).collect();
+    let display_items: Vec<CalendarItemDisplay> = day_items
+        .iter()
+        .take(3)
+        .map(|i| item_display(i, currency))
+        .collect();
     DayCellInfo {
         day,
         is_today: is_today(year, month, day),
@@ -138,7 +171,11 @@ impl EditForm {
 /// Helper: find category name for a CalendarItem by looking up the subscription in SUBSCRIPTIONS.
 fn category_name_for_item(item: &CalendarItem) -> String {
     let subs = SUBSCRIPTIONS();
-    if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == item.subscription_id) {
+    if let Some(sub) = subs
+        .subscriptions
+        .iter()
+        .find(|s| s.id == item.subscription_id)
+    {
         let cats = CATEGORIES();
         if let Some(cat) = cats.get_by_id(&sub.category_id) {
             return cat.name.clone();
@@ -150,7 +187,11 @@ fn category_name_for_item(item: &CalendarItem) -> String {
 /// Helper: find category color for a CalendarItem.
 fn category_color_for_item(item: &CalendarItem) -> String {
     let subs = SUBSCRIPTIONS();
-    if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == item.subscription_id) {
+    if let Some(sub) = subs
+        .subscriptions
+        .iter()
+        .find(|s| s.id == item.subscription_id)
+    {
         let cats = CATEGORIES();
         if let Some(cat) = cats.get_by_id(&sub.category_id) {
             return cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
@@ -244,25 +285,37 @@ pub fn CalendarPage() -> Element {
     let total_display = format_currency(total, &currency);
     let days = calendar_days(year, month, &first_day);
     let now = Local::now().date_naive();
-    let month_label = format!("{} {}", MONTH_NAMES.get(month as usize).unwrap_or(&""), year);
-    let weekday_headers = if first_day == "sunday" { WEEKDAYS_SUNDAY } else { WEEKDAYS_MONDAY };
+    let month_label = format!(
+        "{} {}",
+        MONTH_NAMES.get(month as usize).unwrap_or(&""),
+        year
+    );
+    let weekday_headers = if first_day == "sunday" {
+        WEEKDAYS_SUNDAY
+    } else {
+        WEEKDAYS_MONDAY
+    };
 
     // Pre-compute day cells for desktop grid
-    let day_cells: Vec<Option<DayCellInfo>> = days.iter().map(|d| {
-        d.map(|d| day_cell_info(&items, year, month, d, &currency))
-    }).collect();
+    let day_cells: Vec<Option<DayCellInfo>> = days
+        .iter()
+        .map(|d| d.map(|d| day_cell_info(&items, year, month, d, &currency)))
+        .collect();
 
     // Sort upcoming items by billing date for mobile view
     let mut upcoming: Vec<_> = items.iter().collect();
     upcoming.sort_by(|a, b| a.billing_date.cmp(&b.billing_date));
-    let upcoming_display: Vec<(String, String, String, String)> = upcoming.iter().map(|item| {
-        (
-            item.subscription_id.to_string(),
-            item.name.clone(),
-            item.billing_date.format("%a, %b %e").to_string(),
-            format_currency(item.amount, &item.currency),
-        )
-    }).collect();
+    let upcoming_display: Vec<(String, String, String, String)> = upcoming
+        .iter()
+        .map(|item| {
+            (
+                item.subscription_id.to_string(),
+                item.name.clone(),
+                item.billing_date.format("%a, %b %e").to_string(),
+                format_currency(item.amount, &item.currency),
+            )
+        })
+        .collect();
 
     let go_prev = move |_| {
         let (y, m) = if current_month() == 1 {
@@ -293,17 +346,27 @@ pub fn CalendarPage() -> Element {
     let selected_day_items: Vec<(CalendarItem, String, String)> = selected_day()
         .map(|(sy, sm, sd)| {
             let day_refs = items_for_day(&items, sy, sm, sd);
-            day_refs.iter().map(|item| {
-                let cat_name = category_name_for_item(item);
-                let cat_color = category_color_for_item(item);
-                ((*item).clone(), cat_name, cat_color)
-            }).collect::<Vec<_>>()
+            day_refs
+                .iter()
+                .map(|item| {
+                    let cat_name = category_name_for_item(item);
+                    let cat_color = category_color_for_item(item);
+                    ((*item).clone(), cat_name, cat_color)
+                })
+                .collect::<Vec<_>>()
         })
         .unwrap_or_default();
 
-    let selected_day_label = selected_day().map(|(sy, sm, sd)| {
-        format!("{} {} {}", MONTH_NAMES.get(sm as usize).unwrap_or(&""), sd, sy)
-    }).unwrap_or_default();
+    let selected_day_label = selected_day()
+        .map(|(sy, sm, sd)| {
+            format!(
+                "{} {} {}",
+                MONTH_NAMES.get(sm as usize).unwrap_or(&""),
+                sd,
+                sy
+            )
+        })
+        .unwrap_or_default();
 
     // Handler: open edit dialog for a subscription
     let mut handle_edit = move |sub_id: Uuid| {
@@ -393,10 +456,16 @@ pub fn CalendarPage() -> Element {
             valid = false;
         }
 
-        if !valid { return; }
+        if !valid {
+            return;
+        }
 
         let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
-        let category = if f.category_id.is_empty() { None } else { Uuid::parse_str(&f.category_id).ok() };
+        let category = if f.category_id.is_empty() {
+            None
+        } else {
+            Uuid::parse_str(&f.category_id).ok()
+        };
 
         if let Some(id) = editing_id() {
             let req = UpdateSubscriptionRequest {
@@ -404,10 +473,22 @@ pub fn CalendarPage() -> Element {
                 amount: Some(amount),
                 currency: Some(f.currency),
                 frequency: Some(f.frequency),
-                start_date: Some(f.start_date.parse().unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())),
+                start_date: Some(
+                    f.start_date
+                        .parse()
+                        .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+                ),
                 category_id: category,
-                notes: if f.notes.is_empty() { None } else { Some(f.notes.clone()) },
-                logo_url: if f.logo_url.is_empty() { None } else { Some(f.logo_url.clone()) },
+                notes: if f.notes.is_empty() {
+                    None
+                } else {
+                    Some(f.notes.clone())
+                },
+                logo_url: if f.logo_url.is_empty() {
+                    None
+                } else {
+                    Some(f.logo_url.clone())
+                },
                 ..Default::default()
             };
             spawn(async move {
@@ -429,7 +510,6 @@ pub fn CalendarPage() -> Element {
         edit_dialog_open.set(false);
     };
 
-
     let form_name = edit_form().name;
     let form_amount = edit_form().amount;
     let form_currency = edit_form().currency;
@@ -446,7 +526,11 @@ pub fn CalendarPage() -> Element {
     let category_err = category_error();
 
     let is_editing = editing_id().is_some();
-    let edit_title = if is_editing { "Edit Subscription".to_string() } else { "Add Subscription".to_string() };
+    let edit_title = if is_editing {
+        "Edit Subscription".to_string()
+    } else {
+        "Add Subscription".to_string()
+    };
 
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
@@ -880,7 +964,11 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
 
-    fn make_calendar_item(name: &str, amount: rust_decimal::Decimal, billing_date: NaiveDate) -> CalendarItem {
+    fn make_calendar_item(
+        name: &str,
+        amount: rust_decimal::Decimal,
+        billing_date: NaiveDate,
+    ) -> CalendarItem {
         CalendarItem {
             subscription_id: Uuid::new_v4(),
             name: name.into(),
@@ -928,9 +1016,21 @@ mod tests {
     #[test]
     fn items_for_day_match() {
         let items = vec![
-            make_calendar_item("Netflix", dec!(15), NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()),
-            make_calendar_item("Spotify", dec!(10), NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()),
-            make_calendar_item("Hulu", dec!(12), NaiveDate::from_ymd_opt(2024, 1, 20).unwrap()),
+            make_calendar_item(
+                "Netflix",
+                dec!(15),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            ),
+            make_calendar_item(
+                "Spotify",
+                dec!(10),
+                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            ),
+            make_calendar_item(
+                "Hulu",
+                dec!(12),
+                NaiveDate::from_ymd_opt(2024, 1, 20).unwrap(),
+            ),
         ];
         let day15 = items_for_day(&items, 2024, 1, 15);
         assert_eq!(day15.len(), 2);
@@ -958,9 +1058,11 @@ mod tests {
 
     #[test]
     fn day_cell_info_with_items() {
-        let items = vec![
-            make_calendar_item("A", dec!(10), NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()),
-        ];
+        let items = vec![make_calendar_item(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        )];
         let info = day_cell_info(&items, 2024, 1, 15, "EUR");
         assert_eq!(info.day, 15);
         assert_eq!(info.items.len(), 1);
@@ -970,11 +1072,31 @@ mod tests {
     #[test]
     fn day_cell_info_extra_count() {
         let items = vec![
-            make_calendar_item("Item0", rust_decimal::Decimal::from(1), NaiveDate::from_ymd_opt(2024, 3, 10).unwrap()),
-            make_calendar_item("Item1", rust_decimal::Decimal::from(2), NaiveDate::from_ymd_opt(2024, 3, 10).unwrap()),
-            make_calendar_item("Item2", rust_decimal::Decimal::from(3), NaiveDate::from_ymd_opt(2024, 3, 10).unwrap()),
-            make_calendar_item("Item3", rust_decimal::Decimal::from(4), NaiveDate::from_ymd_opt(2024, 3, 10).unwrap()),
-            make_calendar_item("Item4", rust_decimal::Decimal::from(5), NaiveDate::from_ymd_opt(2024, 3, 10).unwrap()),
+            make_calendar_item(
+                "Item0",
+                rust_decimal::Decimal::from(1),
+                NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
+            ),
+            make_calendar_item(
+                "Item1",
+                rust_decimal::Decimal::from(2),
+                NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
+            ),
+            make_calendar_item(
+                "Item2",
+                rust_decimal::Decimal::from(3),
+                NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
+            ),
+            make_calendar_item(
+                "Item3",
+                rust_decimal::Decimal::from(4),
+                NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
+            ),
+            make_calendar_item(
+                "Item4",
+                rust_decimal::Decimal::from(5),
+                NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
+            ),
         ];
         let info = day_cell_info(&items, 2024, 3, 10, "EUR");
         assert_eq!(info.items.len(), 3); // take(3)
@@ -1041,18 +1163,20 @@ mod tests {
     #[test]
     fn month_total_multiple_items() {
         let items = vec![
-            make_calendar_item("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,5).unwrap()),
-            make_calendar_item("B", dec!(20), NaiveDate::from_ymd_opt(2024,1,15).unwrap()),
-            make_calendar_item("C", dec!(30), NaiveDate::from_ymd_opt(2024,1,25).unwrap()),
+            make_calendar_item("A", dec!(10), NaiveDate::from_ymd_opt(2024, 1, 5).unwrap()),
+            make_calendar_item("B", dec!(20), NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()),
+            make_calendar_item("C", dec!(30), NaiveDate::from_ymd_opt(2024, 1, 25).unwrap()),
         ];
         assert_eq!(month_total(&items), dec!(60));
     }
 
     #[test]
     fn items_for_day_no_match() {
-        let items = vec![
-            make_calendar_item("Netflix", dec!(15), NaiveDate::from_ymd_opt(2024,1,15).unwrap()),
-        ];
+        let items = vec![make_calendar_item(
+            "Netflix",
+            dec!(15),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        )];
         let result = items_for_day(&items, 2024, 1, 1);
         assert!(result.is_empty());
         let result2 = items_for_day(&items, 2024, 2, 15);
@@ -1061,9 +1185,11 @@ mod tests {
 
     #[test]
     fn items_for_day_wrong_month() {
-        let items = vec![
-            make_calendar_item("Netflix", dec!(15), NaiveDate::from_ymd_opt(2024,1,15).unwrap()),
-        ];
+        let items = vec![make_calendar_item(
+            "Netflix",
+            dec!(15),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        )];
         let result = items_for_day(&items, 2024, 2, 15);
         assert!(result.is_empty());
     }
@@ -1203,27 +1329,43 @@ mod tests {
 
     #[test]
     fn month_navigation_prev_december() {
-        let (y, m) = if 1 == 1 { (2024 - 1, 12) } else { (2024, 1 - 1) };
+        let (y, m) = if 1 == 1 {
+            (2024 - 1, 12)
+        } else {
+            (2024, 1 - 1)
+        };
         assert_eq!(y, 2023);
         assert_eq!(m, 12);
     }
 
     #[test]
     fn month_navigation_next_december() {
-        let (y, m) = if 12 == 12 { (2024 + 1, 1) } else { (2024, 12 + 1) };
+        let (y, m) = if 12 == 12 {
+            (2024 + 1, 1)
+        } else {
+            (2024, 12 + 1)
+        };
         assert_eq!(y, 2025);
         assert_eq!(m, 1);
     }
 
     #[test]
     fn calendar_item_has_active_flag() {
-        let item = make_calendar_item("Test", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap());
+        let item = make_calendar_item(
+            "Test",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        );
         assert!(item.is_active);
     }
 
     #[test]
     fn calendar_item_serialization() {
-        let item = make_calendar_item("Test", dec!(10), NaiveDate::from_ymd_opt(2024,1,1).unwrap());
+        let item = make_calendar_item(
+            "Test",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        );
         let json = serde_json::to_string(&item).unwrap();
         let back: CalendarItem = serde_json::from_str(&json).unwrap();
         assert_eq!(back.name, "Test");
@@ -1234,7 +1376,11 @@ mod tests {
     fn calendar_days_monday_starts_on_monday() {
         // January 2024 starts on Monday — Monday start means 0 padding
         let days = calendar_days(2024, 1, "monday");
-        assert_eq!(days[0], Some(1), "Monday: first day of Jan 2024 should be in cell 0");
+        assert_eq!(
+            days[0],
+            Some(1),
+            "Monday: first day of Jan 2024 should be in cell 0"
+        );
     }
 
     #[test]
@@ -1242,7 +1388,10 @@ mod tests {
         // January 2024 starts on Monday
         // Sunday start: Sunday is day 0, so Monday is 1 padding
         let days = calendar_days(2024, 1, "sunday");
-        assert_eq!(days[0], None, "Sunday: first cell should be empty (Sunday before Monday)");
+        assert_eq!(
+            days[0], None,
+            "Sunday: first cell should be empty (Sunday before Monday)"
+        );
         assert_eq!(days[1], Some(1), "Sunday: second cell should be day 1");
     }
 
@@ -1264,7 +1413,9 @@ mod tests {
         // Sunday start: Sun(0), Mon(1), Tue(2), Wed(3), Thu(4), Fri(5) → 5 padding
         let days = calendar_days(2024, 3, "sunday");
         for (i, d) in days.iter().enumerate() {
-            if i < 5 { assert!(d.is_none(), "Sunday start: cell {i} should be empty"); }
+            if i < 5 {
+                assert!(d.is_none(), "Sunday start: cell {i} should be empty");
+            }
         }
         assert_eq!(days[5], Some(1), "Friday = 5 days from Sunday");
     }
@@ -1283,26 +1434,40 @@ mod tests {
     #[test]
     fn calendar_days_padding_depends_on_first_day() {
         // Same month, different start days → different padding
-        let days_monday = calendar_days(2024, 7, "monday");  // July 1, 2024 is Monday
+        let days_monday = calendar_days(2024, 7, "monday"); // July 1, 2024 is Monday
         let days_sunday = calendar_days(2024, 7, "sunday");
         let monday_padding = days_monday.iter().take_while(|d| d.is_none()).count();
         let sunday_padding = days_sunday.iter().take_while(|d| d.is_none()).count();
         // July 1 is Monday → Monday=0, Sunday=1
         assert_eq!(monday_padding, 0, "July 1 is Monday → 0 padding");
-        assert_eq!(sunday_padding, 1, "July 1 is Monday → 1 padding for Sunday start");
+        assert_eq!(
+            sunday_padding, 1,
+            "July 1 is Monday → 1 padding for Sunday start"
+        );
     }
 
     #[test]
     fn calendar_item_billing_date_field_exists() {
         // CalendarItem must have billing_date field for frontend to display
-        let item = make_calendar_item("Netflix", dec!(15.99), NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
-        assert_eq!(item.billing_date, NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        let item = make_calendar_item(
+            "Netflix",
+            dec!(15.99),
+            NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+        );
+        assert_eq!(
+            item.billing_date,
+            NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()
+        );
     }
 
     #[test]
     fn calendar_item_is_active_field_exists() {
         // CalendarItem must have is_active for filtering
-        let item = make_calendar_item("Netflix", dec!(15.99), NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        let item = make_calendar_item(
+            "Netflix",
+            dec!(15.99),
+            NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+        );
         assert!(item.is_active); // make_calendar_item creates active items
     }
 
@@ -1324,18 +1489,27 @@ mod tests {
         let src = include_str!("calendar_page.rs");
         // Find the edit_dialog_open section
         let dialog_section = src.split("edit_dialog_open()").nth(1).unwrap_or("");
-        let before_next_section = dialog_section.split("Notes dialog").next()
-            .unwrap_or(dialog_section.split("Calendar day").next().unwrap_or(dialog_section));
-        let code_lines: Vec<&str> = before_next_section.lines()
+        let before_next_section = dialog_section.split("Notes dialog").next().unwrap_or(
+            dialog_section
+                .split("Calendar day")
+                .next()
+                .unwrap_or(dialog_section),
+        );
+        let code_lines: Vec<&str> = before_next_section
+            .lines()
             .filter(|l| !l.trim().starts_with("//"))
             .collect();
         let code_text = code_lines.join("\n");
         let has_stop_prop = code_text.contains("e.stop_propagation()");
         let has_backdrop_close = code_text.contains("edit_dialog_open.set(false)");
-        assert!(has_stop_prop,
-            "Calendar subscription dialog card must have stop_propagation");
-        assert!(has_backdrop_close,
-            "Calendar subscription dialog backdrop must close on click");
+        assert!(
+            has_stop_prop,
+            "Calendar subscription dialog card must have stop_propagation"
+        );
+        assert!(
+            has_backdrop_close,
+            "Calendar subscription dialog backdrop must close on click"
+        );
     }
 
     // ── calendar_days additional edge cases ──
@@ -1360,7 +1534,12 @@ mod tests {
         for month in 1..=12u32 {
             let days = calendar_days(2024, month, "monday");
             let count = days.iter().filter_map(|d| *d).count();
-            assert!((28..=31).contains(&count), "Month {} should have 28-31 days, got {}", month, count);
+            assert!(
+                (28..=31).contains(&count),
+                "Month {} should have 28-31 days, got {}",
+                month,
+                count
+            );
         }
     }
 
@@ -1424,7 +1603,11 @@ mod tests {
     fn is_today_false_different_day() {
         let today = chrono::Utc::now().date_naive();
         let yesterday = today - chrono::Duration::days(1);
-        assert!(!is_today(yesterday.year(), yesterday.month(), yesterday.day()));
+        assert!(!is_today(
+            yesterday.year(),
+            yesterday.month(),
+            yesterday.day()
+        ));
     }
 
     #[test]
@@ -1435,13 +1618,21 @@ mod tests {
         } else {
             NaiveDate::from_ymd_opt(today.year(), today.month() + 1, today.day().min(1)).unwrap()
         };
-        assert!(!is_today(next_month.year(), next_month.month(), next_month.day()));
+        assert!(!is_today(
+            next_month.year(),
+            next_month.month(),
+            next_month.day()
+        ));
     }
 
     // ── month_total tests ──
     #[test]
     fn month_total_single_item() {
-        let items = vec![make_calendar_item("A", dec!(10.50), NaiveDate::from_ymd_opt(2024,1,1).unwrap())];
+        let items = vec![make_calendar_item(
+            "A",
+            dec!(10.50),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        )];
         let total = month_total(&items);
         assert_eq!(total, dec!(10.50));
     }
@@ -1449,14 +1640,22 @@ mod tests {
     // ── items_for_day tests ──
     #[test]
     fn items_for_day_empty_day() {
-        let items = vec![make_calendar_item("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap())];
+        let items = vec![make_calendar_item(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        )];
         let result = items_for_day(&items, 2024, 1, 1);
         assert!(result.is_empty());
     }
 
     #[test]
     fn items_for_day_found_netflix() {
-        let items = vec![make_calendar_item("Netflix", dec!(15.99), NaiveDate::from_ymd_opt(2024,6,15).unwrap())];
+        let items = vec![make_calendar_item(
+            "Netflix",
+            dec!(15.99),
+            NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+        )];
         let result = items_for_day(&items, 2024, 6, 15);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "Netflix");
@@ -1464,7 +1663,7 @@ mod tests {
 
     #[test]
     fn items_for_day_two_on_same_day() {
-        let d = NaiveDate::from_ymd_opt(2024,1,10).unwrap();
+        let d = NaiveDate::from_ymd_opt(2024, 1, 10).unwrap();
         let items = vec![
             make_calendar_item("A", dec!(10), d),
             make_calendar_item("B", dec!(20), d),
@@ -1475,7 +1674,11 @@ mod tests {
 
     #[test]
     fn items_for_day_month_mismatch() {
-        let items = vec![make_calendar_item("A", dec!(10), NaiveDate::from_ymd_opt(2024,1,15).unwrap())];
+        let items = vec![make_calendar_item(
+            "A",
+            dec!(10),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        )];
         let result = items_for_day(&items, 2024, 2, 15); // different month
         assert!(result.is_empty());
     }
@@ -1494,7 +1697,10 @@ mod tests {
             logo_url: Some("https://logo.com/netflix.png".into()),
         };
         assert!(item.logo_url.is_some());
-        assert_eq!(item.logo_url.as_ref().unwrap(), "https://logo.com/netflix.png");
+        assert_eq!(
+            item.logo_url.as_ref().unwrap(),
+            "https://logo.com/netflix.png"
+        );
     }
 
     #[test]
@@ -1521,7 +1727,7 @@ mod tests {
                 amount: dec!(10),
                 currency: "EUR".into(),
                 frequency: freq.to_string(),
-                billing_date: NaiveDate::from_ymd_opt(2024,1,1).unwrap(),
+                billing_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 is_active: true,
                 logo_url: None,
             };
@@ -1653,7 +1859,13 @@ mod tests {
         let today = Local::now().date_naive();
         let yesterday = today.pred_opt().unwrap_or(today);
         let items = vec![make_calendar_item("Test", dec!(10), yesterday)];
-        let info = day_cell_info(&items, yesterday.year(), yesterday.month(), yesterday.day(), "USD");
+        let info = day_cell_info(
+            &items,
+            yesterday.year(),
+            yesterday.month(),
+            yesterday.day(),
+            "USD",
+        );
         assert!(!info.is_today, "Yesterday should not be marked as today");
     }
 
@@ -1689,26 +1901,33 @@ mod tests {
     fn calendar_page_uses_grid_for_days() {
         let src = include_str!("calendar_page.rs");
         // Calendar must use a grid layout for days
-        assert!(src.contains("grid grid-cols-7"), 
-            "Calendar should use grid-cols-7 for day layout");
+        assert!(
+            src.contains("grid grid-cols-7"),
+            "Calendar should use grid-cols-7 for day layout"
+        );
     }
 
     #[test]
     fn calendar_page_month_navigation() {
         let src = include_str!("calendar_page.rs");
         // Must have prev/next month navigation
-        assert!(src.contains("prev_month") || src.contains("next_month") || 
-                src.contains("month - 1") || src.contains("month + 1"),
-            "Calendar should have month navigation");
+        assert!(
+            src.contains("prev_month")
+                || src.contains("next_month")
+                || src.contains("month - 1")
+                || src.contains("month + 1"),
+            "Calendar should have month navigation"
+        );
     }
 
     #[test]
     fn calendar_page_month_label_shown() {
         let src = include_str!("calendar_page.rs");
         // Must show month/year label
-        assert!(src.contains("month_label") || src.contains("month_name") || 
-                src.contains("NaiveDate"),
-            "Calendar should show month label");
+        assert!(
+            src.contains("month_label") || src.contains("month_name") || src.contains("NaiveDate"),
+            "Calendar should show month label"
+        );
     }
 
     // ── format_frequency edge cases ──
@@ -1722,10 +1941,13 @@ mod tests {
         ] {
             let result = format_frequency(input);
             // Should contain the expected word (case-insensitive match)
-            assert!(result.to_lowercase().contains(&expected.to_lowercase()) || 
-                    result == expected,
+            assert!(
+                result.to_lowercase().contains(&expected.to_lowercase()) || result == expected,
                 "format_frequency({}) = {}, expected to contain {}",
-                input, result, expected);
+                input,
+                result,
+                expected
+            );
         }
     }
 
@@ -1733,7 +1955,10 @@ mod tests {
     fn format_frequency_unknown_defaults_to_input() {
         let result = format_frequency("biweekly");
         // Unknown frequency: should return the input or a default
-        assert!(!result.is_empty(), "format_frequency should never return empty string");
+        assert!(
+            !result.is_empty(),
+            "format_frequency should never return empty string"
+        );
     }
 
     // ── calendar_days tests ──
@@ -1813,4 +2038,3 @@ mod tests {
         assert!(result.is_empty());
     }
 }
-

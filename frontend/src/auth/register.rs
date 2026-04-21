@@ -1,8 +1,8 @@
-use dioxus::prelude::*;
-use crate::state::auth::AUTH;
-use crate::api::auth;
-use crate::Route;
 use super::verify_email::VerifyEmailPage;
+use crate::api::auth;
+use crate::state::auth::AUTH;
+use crate::Route;
+use dioxus::prelude::*;
 
 #[component]
 pub fn RegisterPage() -> Element {
@@ -26,11 +26,7 @@ pub fn RegisterPage() -> Element {
                     pending_email.set(Some(resp.user.email.clone()));
                     AUTH.write().set_authenticated(resp.token, resp.user, true);
                 } else {
-                    AUTH.write().set_authenticated(
-                        resp.token,
-                        resp.user,
-                        false,
-                    );
+                    AUTH.write().set_authenticated(resp.token, resp.user, false);
                     let nav = navigator();
                     nav.push(Route::Login {});
                 }
@@ -171,8 +167,8 @@ pub fn RegisterPage() -> Element {
 
 #[cfg(test)]
 mod tests {
-    use crate::state::auth::AuthState;
     use crate::models::auth::UserResponse;
+    use crate::state::auth::AuthState;
     use uuid::Uuid;
 
     fn sample_user(verified: bool) -> UserResponse {
@@ -318,7 +314,10 @@ mod tests {
         assert!(email.contains('@'));
         // Domain after @ should have a dot for a valid TLD
         let after_at = email.split('@').nth(1).unwrap_or("");
-        assert!(!after_at.contains('.'), "Email domain should have a dot for valid TLD");
+        assert!(
+            !after_at.contains('.'),
+            "Email domain should have a dot for valid TLD"
+        );
     }
 
     // ── Password validation ──

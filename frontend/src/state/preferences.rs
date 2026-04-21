@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::models::preferences::PreferencesResponse;
+use dioxus::prelude::*;
 
 #[allow(dead_code)]
 const THEME_KEY: &str = "recurrency-theme";
@@ -104,8 +104,8 @@ impl PreferencesState {
     }
 }
 
-pub static PREFERENCES: GlobalSignal<PreferencesState> = Signal::global(|| PreferencesState::default());
-
+pub static PREFERENCES: GlobalSignal<PreferencesState> =
+    Signal::global(|| PreferencesState::default());
 
 #[cfg(test)]
 mod tests {

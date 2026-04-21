@@ -1,4 +1,3 @@
-
 // TDD tests for Android app icon bug.
 // Bug: App icon not showing on Android home screen.
 // Root cause: dx bundle generates mipmap-*/ic_launcher.webp but Dioxus default
@@ -8,12 +7,20 @@
 /// TDD RED: mipmap directories must exist with ic_launcher files after build.
 #[test]
 fn test_mipmap_directories_exist_with_icons() {
-    let res_dir = std::path::PathBuf::from("frontend/target/dx/recurrency/release/android/app/app/src/main/res");
+    let res_dir = std::path::PathBuf::from(
+        "frontend/target/dx/recurrency/release/android/app/app/src/main/res",
+    );
     if !res_dir.exists() {
         // Skip if not built yet (CI/local dev without android build)
         return;
     }
-    let densities = ["mipmap-mdpi", "mipmap-hdpi", "mipmap-xhdpi", "mipmap-xxhdpi", "mipmap-xxxhdpi"];
+    let densities = [
+        "mipmap-mdpi",
+        "mipmap-hdpi",
+        "mipmap-xhdpi",
+        "mipmap-xxhdpi",
+        "mipmap-xxxhdpi",
+    ];
     for density in densities {
         let mipmap_dir = res_dir.join(density);
         if mipmap_dir.exists() {
@@ -24,10 +31,19 @@ fn test_mipmap_directories_exist_with_icons() {
                 .flatten()
                 .filter(|e| e.file_name().to_string_lossy().contains("ic_launcher"))
                 .collect();
-            assert!(!icons.is_empty(), "{} must have ic_launcher icon file", density);
+            assert!(
+                !icons.is_empty(),
+                "{} must have ic_launcher icon file",
+                density
+            );
             // File must be >1KB (not empty placeholder)
             let size = icons[0].metadata().map(|m| m.len()).unwrap_or(0);
-            assert!(size > 1024, "{} ic_launcher must be >1KB (got {} bytes)", density, size);
+            assert!(
+                size > 1024,
+                "{} ic_launcher must be >1KB (got {} bytes)",
+                density,
+                size
+            );
         }
     }
 }
@@ -57,18 +73,32 @@ fn test_drawable_foreground_icon_exists() {
     if !foreground_png.exists() {
         return;
     }
-    let size = std::fs::metadata(&foreground_png).map(|m| m.len()).unwrap_or(0);
-    assert!(size > 1024, "drawable/ic_launcher_foreground.png must be >1KB (got {} bytes)", size);
+    let size = std::fs::metadata(&foreground_png)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    assert!(
+        size > 1024,
+        "drawable/ic_launcher_foreground.png must be >1KB (got {} bytes)",
+        size
+    );
 }
 
 /// TDD RED: mipmap-webp icons must be >1KB (not empty Dioxus defaults).
 #[test]
 fn test_mipmap_icons_not_empty() {
-    let res_dir = std::path::PathBuf::from("frontend/target/dx/recurrency/release/android/app/app/src/main/res");
+    let res_dir = std::path::PathBuf::from(
+        "frontend/target/dx/recurrency/release/android/app/app/src/main/res",
+    );
     if !res_dir.exists() {
         return;
     }
-    let densities = ["mipmap-mdpi", "mipmap-hdpi", "mipmap-xhdpi", "mipmap-xxhdpi", "mipmap-xxxhdpi"];
+    let densities = [
+        "mipmap-mdpi",
+        "mipmap-hdpi",
+        "mipmap-xhdpi",
+        "mipmap-xxhdpi",
+        "mipmap-xxxhdpi",
+    ];
     let mut found_any = false;
     for density in densities {
         let mipmap_dir = res_dir.join(density);
@@ -79,12 +109,21 @@ fn test_mipmap_icons_not_empty() {
                     if name.contains("ic_launcher") && !name.contains(".xml") {
                         found_any = true;
                         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                        assert!(size > 1024, "{}/{} must be >1KB (got {} bytes)", density, name, size);
+                        assert!(
+                            size > 1024,
+                            "{}/{} must be >1KB (got {} bytes)",
+                            density,
+                            name,
+                            size
+                        );
                     }
                 }
             }
         }
     }
     // At least one density should have an icon
-    assert!(found_any, "At least one mipmap density should have ic_launcher icon files");
+    assert!(
+        found_any,
+        "At least one mipmap density should have ic_launcher icon files"
+    );
 }

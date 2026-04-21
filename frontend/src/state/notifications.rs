@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::models::notification::Notification;
+use dioxus::prelude::*;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct NotificationsState {
@@ -49,7 +49,8 @@ impl NotificationsState {
     }
 }
 
-pub static NOTIFICATIONS: GlobalSignal<NotificationsState> = Signal::global(|| NotificationsState::default());
+pub static NOTIFICATIONS: GlobalSignal<NotificationsState> =
+    Signal::global(|| NotificationsState::default());
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_post, api_delete, ApiError};
+use crate::api::client::{api_delete, api_get, api_post, ApiError};
 use crate::models::notification::*;
 
 pub async fn list() -> Result<NotificationListResponse, ApiError> {
@@ -6,7 +6,11 @@ pub async fn list() -> Result<NotificationListResponse, ApiError> {
 }
 
 pub async fn mark_as_read(id: &uuid::Uuid) -> Result<(), ApiError> {
-    api_post(&format!("/api/notifications/{}/read", id), &serde_json::json!({})).await
+    api_post(
+        &format!("/api/notifications/{}/read", id),
+        &serde_json::json!({}),
+    )
+    .await
 }
 
 pub async fn mark_all_as_read() -> Result<(), ApiError> {
@@ -20,8 +24,8 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
 #[cfg(test)]
 mod tests {
     use crate::models::notification::*;
-    use uuid::Uuid;
     use chrono::DateTime;
+    use uuid::Uuid;
 
     #[test]
     fn notification_api_paths() {
@@ -66,7 +70,10 @@ mod tests {
 
     #[test]
     fn notification_list_response_empty() {
-        let resp = NotificationListResponse { notifications: vec![], unread_count: 0 };
+        let resp = NotificationListResponse {
+            notifications: vec![],
+            unread_count: 0,
+        };
         assert!(resp.notifications.is_empty());
         assert_eq!(resp.unread_count, 0);
     }
@@ -126,7 +133,10 @@ mod tests {
             created_at: DateTime::UNIX_EPOCH,
         };
         assert!(n.message.is_some());
-        assert_eq!(n.message.as_ref().unwrap(), "Your subscription renews today");
+        assert_eq!(
+            n.message.as_ref().unwrap(),
+            "Your subscription renews today"
+        );
     }
 
     #[test]
@@ -180,9 +190,7 @@ mod tests {
 
     #[test]
     fn notification_uuid_uniqueness() {
-        let ids: std::collections::HashSet<_> = (0..100)
-            .map(|_| Uuid::new_v4())
-            .collect();
+        let ids: std::collections::HashSet<_> = (0..100).map(|_| Uuid::new_v4()).collect();
         assert_eq!(ids.len(), 100);
     }
 }

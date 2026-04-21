@@ -124,7 +124,10 @@ mod tests {
         let json = serde_json::to_string(&txn).unwrap();
         let back: Transaction = serde_json::from_str(&json).unwrap();
         assert_eq!(back.notes.as_deref(), Some("Weekly shop"));
-        assert_eq!(back.logo_url.as_deref(), Some("https://example.com/logo.png"));
+        assert_eq!(
+            back.logo_url.as_deref(),
+            Some("https://example.com/logo.png")
+        );
     }
 
     #[test]
@@ -147,8 +150,8 @@ mod tests {
 #[cfg(test)]
 mod transaction_model_tests {
     use super::*;
-    use rust_decimal_macros::dec;
     use chrono::NaiveDate;
+    use rust_decimal_macros::dec;
 
     fn make_test_txn(name: &str, amount: Decimal, date_str: &str) -> Transaction {
         Transaction {

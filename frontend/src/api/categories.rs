@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_post, api_put, api_delete, ApiError};
+use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
 use crate::models::category::*;
 
 pub async fn list() -> Result<Vec<Category>, ApiError> {
@@ -24,8 +24,8 @@ pub async fn set_default(id: &uuid::Uuid) -> Result<(), ApiError> {
 #[cfg(test)]
 mod tests {
     use crate::models::category::*;
-    use uuid::Uuid;
     use chrono::DateTime;
+    use uuid::Uuid;
 
     #[test]
     fn category_api_paths() {
@@ -214,7 +214,7 @@ mod tests {
     // These test the URL construction logic that the async functions would call.
     // While the async fn bodies (api_get, api_post, etc.) can't run without Dioxus runtime,
     // we verify the URL paths are correctly constructed and serialized.
-    
+
     #[test]
     fn list_url_construction() {
         let path = "/api/categories";

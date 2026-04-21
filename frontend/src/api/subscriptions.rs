@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_post, api_put, api_delete, ApiError};
+use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
 use crate::models::subscription::*;
 
 pub async fn list() -> Result<Vec<Subscription>, ApiError> {
@@ -14,7 +14,10 @@ pub async fn create(req: &CreateSubscriptionRequest) -> Result<Subscription, Api
     api_post("/api/subscriptions", req).await
 }
 
-pub async fn update(id: &uuid::Uuid, req: &UpdateSubscriptionRequest) -> Result<Subscription, ApiError> {
+pub async fn update(
+    id: &uuid::Uuid,
+    req: &UpdateSubscriptionRequest,
+) -> Result<Subscription, ApiError> {
     api_put(&format!("/api/subscriptions/{}", id), req).await
 }
 
@@ -28,15 +31,19 @@ pub async fn upcoming() -> Result<Vec<Subscription>, ApiError> {
 }
 
 pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, ApiError> {
-    api_get(&format!("/api/subscriptions/calendar?year={}&month={}", year, month)).await
+    api_get(&format!(
+        "/api/subscriptions/calendar?year={}&month={}",
+        year, month
+    ))
+    .await
 }
 
 #[cfg(test)]
 mod tests {
     use crate::models::subscription::*;
     use chrono::NaiveDate;
-    use uuid::Uuid;
     use rust_decimal_macros::dec;
+    use uuid::Uuid;
 
     #[test]
     fn subscription_api_paths() {
@@ -199,7 +206,10 @@ mod tests {
             logo_url: None,
         };
         assert_eq!(item.name, "Netflix");
-        assert_eq!(item.billing_date, NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+        assert_eq!(
+            item.billing_date,
+            NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()
+        );
         assert!(item.is_active);
     }
 

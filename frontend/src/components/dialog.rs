@@ -1,23 +1,20 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Dialog(
-    open: bool,
-    on_close: EventHandler<()>,
-    title: String,
-    children: Element,
-) -> Element {
+pub fn Dialog(open: bool, on_close: EventHandler<()>, title: String, children: Element) -> Element {
     // Escape key handler via eval
     use_future(move || async move {
         if open {
-            let _ = dioxus::document::eval(r#"
+            let _ = dioxus::document::eval(
+                r#"
                 document.addEventListener('keydown', function handler(e) {
                     if (e.key === 'Escape') {
                         document.removeEventListener('keydown', handler);
                         dioxus.send(true);
                     }
                 });
-            "#);
+            "#,
+            );
         }
     });
 
@@ -106,9 +103,11 @@ mod tests {
         let card_section = src.split("bg-card").nth(1).unwrap_or("");
         let class_line = card_section.lines().next().unwrap_or("");
         // Must use sm:max-w-lg (not bare max-w-lg) so mobile is unconstrained
-        assert!(class_line.contains("sm:max-w-lg"),
+        assert!(
+            class_line.contains("sm:max-w-lg"),
             "Dialog card class must include sm:max-w-lg for mobile responsiveness. Found: {}",
-            class_line.trim());
+            class_line.trim()
+        );
     }
 
     #[test]
@@ -118,10 +117,14 @@ mod tests {
         let card_section = src.split("bg-card").nth(1).unwrap_or("");
         let class_line = card_section.lines().next().unwrap_or("");
         // Must use sm: or md: prefix on max-h so mobile fills viewport
-        let has_bare_max_h = class_line.contains("max-h-") && !class_line.contains("sm:max-h") && !class_line.contains("md:max-h");
-        assert!(!has_bare_max_h,
+        let has_bare_max_h = class_line.contains("max-h-")
+            && !class_line.contains("sm:max-h")
+            && !class_line.contains("md:max-h");
+        assert!(
+            !has_bare_max_h,
             "Dialog card must not have bare max-h on mobile (use sm:max-h or md:max-h). Found: {}",
-            class_line.trim());
+            class_line.trim()
+        );
     }
 
     #[test]
@@ -135,12 +138,18 @@ mod tests {
         let sub_src = include_str!("../pages/subscriptions_page.rs");
         let tx_src = include_str!("../pages/transactions_page.rs");
         // Both render_dialog functions must use flex-col sm:flex-row for footer
-        let sub_footer = sub_src.contains("flex-col sm:flex-row") || sub_src.contains("flex-col-reverse sm:flex-row");
-        let tx_footer = tx_src.contains("flex-col sm:flex-row") || tx_src.contains("flex-col-reverse sm:flex-row");
-        assert!(sub_footer,
-            "subscriptions dialog footer must use flex-col sm:flex-row for stacking on mobile");
-        assert!(tx_footer,
-            "transactions dialog footer must use flex-col sm:flex-row for stacking on mobile");
+        let sub_footer = sub_src.contains("flex-col sm:flex-row")
+            || sub_src.contains("flex-col-reverse sm:flex-row");
+        let tx_footer = tx_src.contains("flex-col sm:flex-row")
+            || tx_src.contains("flex-col-reverse sm:flex-row");
+        assert!(
+            sub_footer,
+            "subscriptions dialog footer must use flex-col sm:flex-row for stacking on mobile"
+        );
+        assert!(
+            tx_footer,
+            "transactions dialog footer must use flex-col sm:flex-row for stacking on mobile"
+        );
     }
 
     // ── Dialog component signature ──

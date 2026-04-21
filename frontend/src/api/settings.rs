@@ -51,7 +51,10 @@ mod tests {
 
         // SettingsResponse expects wrapper - parse fails
         let result: Result<SettingsResponse, _> = serde_json::from_str(&user_json);
-        assert!(result.is_err(), "UserResponse can't parse as SettingsResponse - missing wrapper");
+        assert!(
+            result.is_err(),
+            "UserResponse can't parse as SettingsResponse - missing wrapper"
+        );
     }
 
     #[test]

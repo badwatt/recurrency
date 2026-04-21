@@ -13,7 +13,12 @@ pub fn logo_image_with_fallback(
     name: &str,
     img_class: &str,
 ) -> Element {
-    let first_letter = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+    let first_letter = name
+        .chars()
+        .next()
+        .unwrap_or('?')
+        .to_uppercase()
+        .to_string();
     let img_id = format!("logo-img-{id}");
     let fb_id = format!("logo-fb-{id}");
     match url {
@@ -51,14 +56,24 @@ mod tests {
     #[test]
     fn first_letter_uppercase_english() {
         let name = "Netflix";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "N");
     }
 
     #[test]
     fn first_letter_uppercase_spanish() {
         let name = "Álvaro";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "Á");
     }
 
@@ -75,35 +90,60 @@ mod tests {
     #[test]
     fn first_letter_uppercase_emoji() {
         let name = "🎬 Film";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "🎬");
     }
 
     #[test]
     fn first_letter_empty_fallback() {
         let name = "";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "?");
     }
 
     #[test]
     fn first_letter_single_char() {
         let name = "A";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "A");
     }
 
     #[test]
     fn first_letter_lowercase_converted() {
         let name = "amazon";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "A");
     }
 
     #[test]
     fn first_letter_mixed_case() {
         let name = "pOrTfOlIo";
-        let first = name.chars().next().unwrap_or('?').to_uppercase().to_string();
+        let first = name
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .to_string();
         assert_eq!(first, "P");
     }
 
@@ -140,7 +180,8 @@ mod tests {
 
     #[test]
     fn logo_fallback_class_contains_flex() {
-        let fb_class = "flex h-full w-full items-center justify-center font-semibold text-muted-foreground";
+        let fb_class =
+            "flex h-full w-full items-center justify-center font-semibold text-muted-foreground";
         assert!(fb_class.contains("flex"));
         assert!(fb_class.contains("items-center"));
         assert!(fb_class.contains("justify-center"));

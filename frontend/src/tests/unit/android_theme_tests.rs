@@ -1,4 +1,3 @@
-
 // TDD tests for Android theme persistence.
 // Bug: theme not persisting across app restarts on Android.
 

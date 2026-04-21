@@ -1,4 +1,3 @@
-
 // TDD tests for Android persistence bugs.
 // Bug 1: Server URL resets to localhost:8080 on restart.
 // Bug 2: Theme not persisting on Android.
@@ -16,7 +15,11 @@ fn test_server_url_file_persists_on_native() {
     std::fs::write(&url_file, "http://my-server:3000").unwrap();
 
     let read_url = std::fs::read_to_string(&url_file).unwrap();
-    assert_eq!(read_url.trim(), "http://my-server:3000", "server_url.txt must persist across restarts");
+    assert_eq!(
+        read_url.trim(),
+        "http://my-server:3000",
+        "server_url.txt must persist across restarts"
+    );
 
     std::fs::remove_file(&url_file).ok();
     std::fs::remove_dir_all(app_dir.parent().unwrap()).ok();
@@ -32,7 +35,11 @@ fn test_theme_file_persists_on_native() {
     std::fs::write(&theme_file, "dark").unwrap();
 
     let read_theme = std::fs::read_to_string(&theme_file).unwrap();
-    assert_eq!(read_theme.trim(), "dark", "theme.txt must persist across restarts");
+    assert_eq!(
+        read_theme.trim(),
+        "dark",
+        "theme.txt must persist across restarts"
+    );
 
     std::fs::remove_file(&theme_file).ok();
     std::fs::remove_dir_all(app_dir.parent().unwrap()).ok();
@@ -42,5 +49,8 @@ fn test_theme_file_persists_on_native() {
 #[test]
 fn test_get_app_data_dir_returns_path_on_native() {
     let data_dir = crate::state::auth::get_app_data_dir();
-    assert!(data_dir.is_some(), "get_app_data_dir must return Some on native (Android fallback required)");
+    assert!(
+        data_dir.is_some(),
+        "get_app_data_dir must return Some on native (Android fallback required)"
+    );
 }

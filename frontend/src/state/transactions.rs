@@ -1,6 +1,6 @@
+use crate::models::transaction::Transaction;
 use chrono::Datelike;
 use dioxus::prelude::*;
-use crate::models::transaction::Transaction;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TransactionsState {
@@ -46,7 +46,8 @@ impl TransactionsState {
     }
 }
 
-pub static TRANSACTIONS: GlobalSignal<TransactionsState> = Signal::global(|| TransactionsState::default());
+pub static TRANSACTIONS: GlobalSignal<TransactionsState> =
+    Signal::global(|| TransactionsState::default());
 
 #[cfg(test)]
 mod tests {
@@ -101,7 +102,10 @@ mod tests {
         state.set_loading();
         assert!(state.is_loading);
 
-        state.set_data(vec![make_txn("Test", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        state.set_data(vec![make_txn(
+            "Test",
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        )]);
         assert!(!state.is_loading);
         assert_eq!(state.transactions.len(), 1);
 
@@ -123,7 +127,10 @@ mod tests {
     fn set_data_clears_error() {
         let mut state = TransactionsState::default();
         state.set_error("error".into());
-        state.set_data(vec![make_txn("A", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        state.set_data(vec![make_txn(
+            "A",
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        )]);
         assert!(state.error.is_none());
         assert!(!state.is_loading);
     }
@@ -139,8 +146,14 @@ mod tests {
     #[test]
     fn set_data_replaces_transactions() {
         let mut state = TransactionsState::default();
-        state.transactions = vec![make_txn("Old", NaiveDate::from_ymd_opt(2023, 1, 1).unwrap())];
-        state.set_data(vec![make_txn("New", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        state.transactions = vec![make_txn(
+            "Old",
+            NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+        )];
+        state.set_data(vec![make_txn(
+            "New",
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        )]);
         assert_eq!(state.transactions.len(), 1);
         assert_eq!(state.transactions[0].name, "New");
     }
@@ -246,7 +259,10 @@ mod tests {
         let mut state = TransactionsState::default();
         state.set_loading();
         assert!(state.is_loading);
-        state.set_data(vec![make_txn("A", NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())]);
+        state.set_data(vec![make_txn(
+            "A",
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        )]);
         assert!(!state.is_loading);
         state.set_error("fail".into());
         assert!(!state.is_loading);

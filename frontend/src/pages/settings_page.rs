@@ -1,22 +1,42 @@
-use dioxus::prelude::*;
+use crate::api::notification_preferences;
+use crate::api::settings;
+use crate::components::toast::TOAST;
+use crate::models::auth::UpdateSettingsRequest;
+use crate::models::notification::{
+    UpdateNotificationPreferenceRequest, UpdateNotificationPreferencesRequest,
+};
 use crate::state::auth::AUTH;
 use crate::state::preferences::PREFERENCES;
-use crate::api::settings;
-use crate::api::notification_preferences;
-use crate::models::auth::UpdateSettingsRequest;
-use crate::models::notification::{UpdateNotificationPreferenceRequest, UpdateNotificationPreferencesRequest};
 use crate::utils::constants::CURRENCIES;
-use crate::components::toast::TOAST;
+use dioxus::prelude::*;
 
 const NOTIFICATION_CHANNELS: &[(&str, &str, &str)] = &[
-    ("email", "Email Notifications", "Receive email reminders before payments"),
-    ("push", "Push Notifications", "Receive push notifications on your devices"),
-    ("system", "System Notifications", "Receive desktop notifications"),
+    (
+        "email",
+        "Email Notifications",
+        "Receive email reminders before payments",
+    ),
+    (
+        "push",
+        "Push Notifications",
+        "Receive push notifications on your devices",
+    ),
+    (
+        "system",
+        "System Notifications",
+        "Receive desktop notifications",
+    ),
 ];
 
 #[component]
 pub fn SettingsPage() -> Element {
-    let mut name = use_signal(|| AUTH().user.as_ref().and_then(|u| u.name.clone()).unwrap_or_default());
+    let mut name = use_signal(|| {
+        AUTH()
+            .user
+            .as_ref()
+            .and_then(|u| u.name.clone())
+            .unwrap_or_default()
+    });
     let mut currency = use_signal(|| AUTH().currency().to_string());
     let mut notification_prefs = use_signal(|| {
         let mut map = std::collections::HashMap::new();
@@ -53,7 +73,6 @@ pub fn SettingsPage() -> Element {
         }
     });
 
-
     let mut handle_save_currency = move |new_currency: String| {
         currency.set(new_currency.clone());
         saving_currency.set(true);
@@ -61,7 +80,9 @@ pub fn SettingsPage() -> Element {
             match settings::update(&UpdateSettingsRequest {
                 name: None,
                 currency: Some(new_currency),
-            }).await {
+            })
+            .await
+            {
                 Ok(resp) => {
                     AUTH.write().user = Some(resp.user);
                     AUTH.write().persist_to_storage();
@@ -105,9 +126,12 @@ pub fn SettingsPage() -> Element {
         });
     };
 
-    let user_email = AUTH().user.as_ref().map(|u| u.email.clone()).unwrap_or_default();
+    let user_email = AUTH()
+        .user
+        .as_ref()
+        .map(|u| u.email.clone())
+        .unwrap_or_default();
     let cur = currency();
-
 
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
@@ -300,7 +324,7 @@ mod tests {
 
     #[test]
     fn notification_channels_keys() {
-        let keys: Vec<_> = NOTIFICATION_CHANNELS.iter().map(|(k,_,_)| *k).collect();
+        let keys: Vec<_> = NOTIFICATION_CHANNELS.iter().map(|(k, _, _)| *k).collect();
         assert!(keys.contains(&"email"));
         assert!(keys.contains(&"push"));
         assert!(keys.contains(&"system"));
@@ -346,7 +370,12 @@ mod tests {
         for (val, label) in CURRENCIES {
             assert!(!val.is_empty());
             assert!(!label.is_empty());
-            assert!(label.contains(val), "Label '{}' should contain code '{}'", label, val);
+            assert!(
+                label.contains(val),
+                "Label '{}' should contain code '{}'",
+                label,
+                val
+            );
         }
     }
 
@@ -403,8 +432,7 @@ mod tests {
     #[test]
     fn notification_pref_request_construction() {
         use crate::models::notification::{
-            UpdateNotificationPreferenceRequest,
-            UpdateNotificationPreferencesRequest,
+            UpdateNotificationPreferenceRequest, UpdateNotificationPreferencesRequest,
         };
         let req = UpdateNotificationPreferencesRequest {
             preferences: vec![
@@ -455,10 +483,10 @@ mod tests {
     #[test]
     fn notification_toggle_logic() {
         // Simulate toggle: if current is true, new should be false, etc.
-        let channels: std::collections::HashMap<String, bool> = [
-            ("email".to_string(), true),
-            ("push".to_string(), false),
-        ].into_iter().collect();
+        let channels: std::collections::HashMap<String, bool> =
+            [("email".to_string(), true), ("push".to_string(), false)]
+                .into_iter()
+                .collect();
         assert_eq!(*channels.get("email").unwrap(), true);
         assert_eq!(*channels.get("push").unwrap(), false);
     }
@@ -478,7 +506,7 @@ mod tests {
     #[test]
     fn settings_update_response_updates_user_currency() {
         // Simulates what happens when settings::update returns SettingsResponse
-        use crate::models::auth::{UserResponse, SettingsResponse};
+        use crate::models::auth::{SettingsResponse, UserResponse};
         use uuid::Uuid;
 
         let updated_user = UserResponse {
@@ -488,11 +516,9 @@ mod tests {
             currency: "USD".into(),
             verified: true,
         };
-        
-        let response = SettingsResponse {
-            user: updated_user,
-        };
-        
+
+        let response = SettingsResponse { user: updated_user };
+
         // Verify response structure
         assert_eq!(response.user.currency, "USD");
         assert_eq!(response.user.name, Some("Alice".into()));
@@ -501,7 +527,7 @@ mod tests {
     // ── Currency update flow simulation ──
     #[test]
     fn currency_update_request_response_cycle() {
-        use crate::models::auth::{UpdateSettingsRequest, SettingsResponse, UserResponse};
+        use crate::models::auth::{SettingsResponse, UpdateSettingsRequest, UserResponse};
         use uuid::Uuid;
 
         // Create request
@@ -521,7 +547,7 @@ mod tests {
                 verified: true,
             },
         };
-        
+
         // Verify currency was updated in response
         assert_eq!(resp.user.currency, "JPY");
     }
@@ -531,11 +557,11 @@ mod tests {
     fn settings_should_show_toast_on_success() {
         // Test that toast API exists and can be called
         // After fix: settings page should call TOAST.write().success(...) on save
-        use crate::components::toast::{ToastState, ToastKind};
-        
+        use crate::components::toast::{ToastKind, ToastState};
+
         let mut state = ToastState::default();
         state.success("Currency saved");
-        
+
         assert_eq!(state.items.len(), 1);
         assert_eq!(state.items[0].message, "Currency saved");
         assert!(matches!(state.items[0].kind, ToastKind::Success));
@@ -543,11 +569,11 @@ mod tests {
 
     #[test]
     fn settings_should_show_toast_on_error() {
-        use crate::components::toast::{ToastState, ToastKind};
-        
+        use crate::components::toast::{ToastKind, ToastState};
+
         let mut state = ToastState::default();
         state.error("Failed to save");
-        
+
         assert_eq!(state.items.len(), 1);
         assert_eq!(state.items[0].message, "Failed to save");
         assert!(matches!(state.items[0].kind, ToastKind::Error));
@@ -558,14 +584,14 @@ mod tests {
     fn settings_toast_lifecycle_add_then_remove() {
         // RED: Simulates settings save → toast → user dismisses
         use crate::components::toast::ToastState;
-        
+
         let mut state = ToastState::default();
-        
+
         // User saves settings, toast appears
         state.success("Currency updated");
         assert_eq!(state.items.len(), 1);
         let toast_id = state.items[0].id;
-        
+
         // User clicks X to dismiss
         state.remove(toast_id);
         assert_eq!(state.items.len(), 0);
@@ -575,24 +601,24 @@ mod tests {
     fn settings_multiple_toasts_can_be_individually_removed() {
         // RED: Multiple settings changes create multiple toasts
         use crate::components::toast::ToastState;
-        
+
         let mut state = ToastState::default();
-        
+
         // First save: currency
         state.success("Currency updated");
         let currency_id = state.items[0].id;
-        
+
         // Second save: name
         state.success("Name updated");
         let name_id = state.items[1].id;
-        
+
         assert_eq!(state.items.len(), 2);
-        
+
         // Dismiss currency toast only
         state.remove(currency_id);
         assert_eq!(state.items.len(), 1);
         assert!(state.items.iter().any(|t| t.message == "Name updated"));
-        
+
         // Dismiss name toast
         state.remove(name_id);
         assert_eq!(state.items.len(), 0);
@@ -608,19 +634,28 @@ mod tests {
     #[test]
     fn settings_page_has_name_input() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("name") && src.contains("oninput"), "Should have name input");
+        assert!(
+            src.contains("name") && src.contains("oninput"),
+            "Should have name input"
+        );
     }
 
     #[test]
     fn settings_page_has_currency_select() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("currency") || src.contains("Select"), "Should have currency selector");
+        assert!(
+            src.contains("currency") || src.contains("Select"),
+            "Should have currency selector"
+        );
     }
 
     #[test]
     fn settings_page_has_notification_toggles() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("notification") || src.contains("NOTIFICATION_CHANNELS"), "Should have notification toggles");
+        assert!(
+            src.contains("notification") || src.contains("NOTIFICATION_CHANNELS"),
+            "Should have notification toggles"
+        );
     }
 
     #[test]
@@ -632,7 +667,10 @@ mod tests {
     #[test]
     fn settings_page_has_save_handlers() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("handle_save") || src.contains("on_change"), "Should have save handlers");
+        assert!(
+            src.contains("handle_save") || src.contains("on_change"),
+            "Should have save handlers"
+        );
     }
 
     // ── State initialization checks ──
@@ -645,7 +683,10 @@ mod tests {
     #[test]
     fn settings_page_loads_notification_prefs() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("notification_preferences") || src.contains("NOTIFICATION_CHANNELS"), "Should load notification preferences");
+        assert!(
+            src.contains("notification_preferences") || src.contains("NOTIFICATION_CHANNELS"),
+            "Should load notification preferences"
+        );
     }
 
     // ── API call checks ──
@@ -658,7 +699,10 @@ mod tests {
     #[test]
     fn settings_page_calls_notification_prefs_api() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("notification_preferences::"), "Should call notification preferences API");
+        assert!(
+            src.contains("notification_preferences::"),
+            "Should call notification preferences API"
+        );
     }
 
     // ── API request/response checks ──
@@ -673,19 +717,28 @@ mod tests {
     #[test]
     fn settings_page_uses_effect() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("use_effect"), "Should use effect for side effects");
+        assert!(
+            src.contains("use_effect"),
+            "Should use effect for side effects"
+        );
     }
 
     #[test]
     fn settings_page_uses_future() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("use_future"), "Should use future for async loading");
+        assert!(
+            src.contains("use_future"),
+            "Should use future for async loading"
+        );
     }
 
     #[test]
     fn settings_page_uses_spawn() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("spawn"), "Should use spawn for async operations");
+        assert!(
+            src.contains("spawn"),
+            "Should use spawn for async operations"
+        );
     }
 
     #[test]
@@ -703,17 +756,20 @@ mod tests {
     #[test]
     fn settings_page_has_loading_states() {
         let src = include_str!("settings_page.rs");
-        assert!(src.contains("_loading") || src.contains("loading"), "Should have loading state");
+        assert!(
+            src.contains("_loading") || src.contains("loading"),
+            "Should have loading state"
+        );
     }
 
     #[test]
     fn notification_toggle_behavior() {
         let mut prefs = std::collections::HashMap::new();
         prefs.insert("email".to_string(), false);
-        
+
         prefs.insert("email".to_string(), true);
         assert_eq!(prefs.get("email"), Some(&true));
-        
+
         prefs.insert("email".to_string(), false);
         assert_eq!(prefs.get("email"), Some(&false));
     }
@@ -722,7 +778,7 @@ mod tests {
     fn settings_update_response_verifies_currency() {
         use crate::models::auth::{SettingsResponse, UserResponse};
         use uuid::Uuid;
-        
+
         let response = SettingsResponse {
             user: UserResponse {
                 id: Uuid::new_v4(),
@@ -740,7 +796,7 @@ mod tests {
     fn settings_response_user_name() {
         use crate::models::auth::{SettingsResponse, UserResponse};
         use uuid::Uuid;
-        
+
         let response = SettingsResponse {
             user: UserResponse {
                 id: Uuid::new_v4(),
@@ -757,7 +813,7 @@ mod tests {
     fn settings_response_user_verified() {
         use crate::models::auth::{SettingsResponse, UserResponse};
         use uuid::Uuid;
-        
+
         let response = SettingsResponse {
             user: UserResponse {
                 id: Uuid::new_v4(),

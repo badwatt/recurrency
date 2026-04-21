@@ -4,15 +4,17 @@ use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 use crate::api;
-use crate::models::subscription::{CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest};
-use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::components::dialog::Dialog;
+use crate::components::logo_image_with_fallback;
+use crate::models::subscription::{
+    CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
+};
+use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
-use crate::state::auth::AUTH;
-use crate::utils::format::format_currency;
+use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
-use crate::components::logo_image_with_fallback;
-use crate::components::dialog::Dialog;
+use crate::utils::format::format_currency;
 
 // ── Filter / Sort types ──────────────────────────────────────────────
 
@@ -56,11 +58,21 @@ const SORT_OPTIONS: &[(&str, &str)] = &[
 
 pub fn count_active_filters(f: &FilterConfig) -> usize {
     let mut n = 0;
-    if f.status.is_some() { n += 1; }
-    if f.frequency.is_some() { n += 1; }
-    if f.category_id.is_some() { n += 1; }
-    if f.price_min.is_some() { n += 1; }
-    if f.price_max.is_some() { n += 1; }
+    if f.status.is_some() {
+        n += 1;
+    }
+    if f.frequency.is_some() {
+        n += 1;
+    }
+    if f.category_id.is_some() {
+        n += 1;
+    }
+    if f.price_min.is_some() {
+        n += 1;
+    }
+    if f.price_max.is_some() {
+        n += 1;
+    }
     n
 }
 
@@ -111,11 +123,21 @@ pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
     subs.sort_by(|a, b| {
         let cmp = match sort.field.as_str() {
             "next_billing_date" => {
-                let a_val = a.next_billing_date
-                    .map(|d| d.and_time(chrono::NaiveTime::MIN).and_utc().timestamp_millis())
+                let a_val = a
+                    .next_billing_date
+                    .map(|d| {
+                        d.and_time(chrono::NaiveTime::MIN)
+                            .and_utc()
+                            .timestamp_millis()
+                    })
                     .unwrap_or(i64::MAX);
-                let b_val = b.next_billing_date
-                    .map(|d| d.and_time(chrono::NaiveTime::MIN).and_utc().timestamp_millis())
+                let b_val = b
+                    .next_billing_date
+                    .map(|d| {
+                        d.and_time(chrono::NaiveTime::MIN)
+                            .and_utc()
+                            .timestamp_millis()
+                    })
                     .unwrap_or(i64::MAX);
                 a_val.cmp(&b_val)
             }
@@ -127,22 +149,37 @@ pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
                 a_ord.cmp(&b_ord)
             }
             "start_date" => {
-                let a_val = a.start_date.and_time(chrono::NaiveTime::MIN).and_utc().timestamp_millis();
-                let b_val = b.start_date.and_time(chrono::NaiveTime::MIN).and_utc().timestamp_millis();
+                let a_val = a
+                    .start_date
+                    .and_time(chrono::NaiveTime::MIN)
+                    .and_utc()
+                    .timestamp_millis();
+                let b_val = b
+                    .start_date
+                    .and_time(chrono::NaiveTime::MIN)
+                    .and_utc()
+                    .timestamp_millis();
                 a_val.cmp(&b_val)
             }
             _ => std::cmp::Ordering::Equal,
         };
-        if sort.direction == "desc" { cmp.reverse() } else { cmp }
+        if sort.direction == "desc" {
+            cmp.reverse()
+        } else {
+            cmp
+        }
     });
 }
 
-pub fn apply_filters_and_sort(subs: &[Subscription], filters: &FilterConfig, sort: &SortConfig) -> Vec<Subscription> {
+pub fn apply_filters_and_sort(
+    subs: &[Subscription],
+    filters: &FilterConfig,
+    sort: &SortConfig,
+) -> Vec<Subscription> {
     let mut result = filter_subscriptions(subs, filters);
     sort_subscriptions(&mut result, sort);
     result
 }
-
 
 /// Validation result type.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -350,7 +387,10 @@ pub fn SubscriptionsPage() -> Element {
 
     let handle_create: Callback<()> = use_callback(move |_| {
         editing_id.set(None);
-        let default_cat = CATEGORIES().default_category().map(|c| c.id.to_string()).unwrap_or_default();
+        let default_cat = CATEGORIES()
+            .default_category()
+            .map(|c| c.id.to_string())
+            .unwrap_or_default();
         form.set(DialogForm {
             name: String::new(),
             amount: String::new(),
@@ -382,7 +422,11 @@ pub fn SubscriptionsPage() -> Element {
 
     let toggle_sort_direction: Callback<()> = use_callback(move |_| {
         let dir = sort().direction.clone();
-        sort.write().direction = if dir == "asc" { "desc".into() } else { "asc".into() };
+        sort.write().direction = if dir == "asc" {
+            "desc".into()
+        } else {
+            "asc".into()
+        };
     });
 
     let set_view_mode = move |mode: &str| {
@@ -407,13 +451,18 @@ pub fn SubscriptionsPage() -> Element {
     let filtered = apply_filters_and_sort(&state.subscriptions, &filters_val, &sort_val);
 
     let active_filter_count = count_active_filters(&filters_val);
-    let sort_arrow = if sort_val.direction == "asc" { "↑" } else { "↓" };
+    let sort_arrow = if sort_val.direction == "asc" {
+        "↑"
+    } else {
+        "↓"
+    };
     let filtered_count = filtered.len();
     let plural = if filtered_count != 1 { "s" } else { "" };
 
     // Category options for selects (owned)
     let category_options: Vec<(String, String)> = CATEGORIES()
-        .categories.iter()
+        .categories
+        .iter()
         .map(|c| (c.id.to_string(), c.name.clone()))
         .collect();
 
@@ -788,11 +837,18 @@ pub fn SubscriptionsPage() -> Element {
 
 /// Returns CSS opacity class based on active status.
 pub fn subscription_card_opacity(is_active: bool) -> &'static str {
-    if is_active { "" } else { "opacity-60" }
+    if is_active {
+        ""
+    } else {
+        "opacity-60"
+    }
 }
 
 /// Formats next billing date text.
-pub fn subscription_next_text(is_active: bool, next_billing_date: Option<chrono::NaiveDate>) -> String {
+pub fn subscription_next_text(
+    is_active: bool,
+    next_billing_date: Option<chrono::NaiveDate>,
+) -> String {
     if is_active {
         next_billing_date
             .map(|d| format!("Next: {}", d))
@@ -823,7 +879,11 @@ fn render_grid_card(
     let (color, _icon, cat_name) = {
         let cats = CATEGORIES();
         if let Some(c) = cats.get_by_id(&sub.category_id) {
-            (c.color.clone().unwrap_or_else(|| "#6b7280".into()), c.icon.clone().unwrap_or_default(), c.name.clone())
+            (
+                c.color.clone().unwrap_or_else(|| "#6b7280".into()),
+                c.icon.clone().unwrap_or_default(),
+                c.name.clone(),
+            )
         } else {
             ("#6b7280".into(), String::new(), "Uncategorized".into())
         }
@@ -904,7 +964,11 @@ fn render_list_card(
     let (color, _icon, cat_name) = {
         let cats = CATEGORIES();
         if let Some(c) = cats.get_by_id(&sub.category_id) {
-            (c.color.clone().unwrap_or_else(|| "#6b7280".into()), c.icon.clone().unwrap_or_default(), c.name.clone())
+            (
+                c.color.clone().unwrap_or_else(|| "#6b7280".into()),
+                c.icon.clone().unwrap_or_default(),
+                c.name.clone(),
+            )
         } else {
             ("#6b7280".into(), String::new(), "Uncategorized".into())
         }
@@ -986,9 +1050,21 @@ fn render_dialog(
     mut category_error: Signal<String>,
 ) -> Element {
     let is_editing = editing_id().is_some();
-    let title = if is_editing { "Edit Subscription" } else { "Add Subscription" };
-    let desc = if is_editing { "Make changes to your subscription here." } else { "Add a new recurring expense or subscription." };
-    let submit_label = if is_editing { "Save Changes" } else { "Add Subscription" };
+    let title = if is_editing {
+        "Edit Subscription"
+    } else {
+        "Add Subscription"
+    };
+    let desc = if is_editing {
+        "Make changes to your subscription here."
+    } else {
+        "Add a new recurring expense or subscription."
+    };
+    let submit_label = if is_editing {
+        "Save Changes"
+    } else {
+        "Add Subscription"
+    };
 
     let form_name = form().name;
     let form_amount = form().amount;
@@ -1255,7 +1331,14 @@ mod tests {
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
-    fn make_sub(name: &str, amount: Decimal, frequency: &str, active: bool, next_billing: Option<NaiveDate>, cat_id: Uuid) -> Subscription {
+    fn make_sub(
+        name: &str,
+        amount: Decimal,
+        frequency: &str,
+        active: bool,
+        next_billing: Option<NaiveDate>,
+        cat_id: Uuid,
+    ) -> Subscription {
         Subscription {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
@@ -1281,7 +1364,10 @@ mod tests {
             make_sub("A", dec!(10), "monthly", true, None, cat),
             make_sub("B", dec!(20), "monthly", false, None, cat),
         ];
-        let filters = FilterConfig { status: Some("active".into()), ..Default::default() };
+        let filters = FilterConfig {
+            status: Some("active".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "A");
@@ -1294,7 +1380,10 @@ mod tests {
             make_sub("A", dec!(10), "monthly", true, None, cat),
             make_sub("B", dec!(20), "monthly", false, None, cat),
         ];
-        let filters = FilterConfig { status: Some("inactive".into()), ..Default::default() };
+        let filters = FilterConfig {
+            status: Some("inactive".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "B");
@@ -1307,7 +1396,10 @@ mod tests {
             make_sub("A", dec!(10), "weekly", true, None, cat),
             make_sub("B", dec!(20), "monthly", true, None, cat),
         ];
-        let filters = FilterConfig { frequency: Some("weekly".into()), ..Default::default() };
+        let filters = FilterConfig {
+            frequency: Some("weekly".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "A");
@@ -1321,7 +1413,10 @@ mod tests {
             make_sub("A", dec!(10), "monthly", true, None, cat_a),
             make_sub("B", dec!(20), "monthly", true, None, cat_b),
         ];
-        let filters = FilterConfig { category_id: Some(cat_a.to_string()), ..Default::default() };
+        let filters = FilterConfig {
+            category_id: Some(cat_a.to_string()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "A");
@@ -1335,7 +1430,10 @@ mod tests {
             make_sub("B", dec!(15), "monthly", true, None, cat),
             make_sub("C", dec!(25), "monthly", true, None, cat),
         ];
-        let filters = FilterConfig { price_min: Some("10".into()), ..Default::default() };
+        let filters = FilterConfig {
+            price_min: Some("10".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 2);
     }
@@ -1348,7 +1446,10 @@ mod tests {
             make_sub("B", dec!(15), "monthly", true, None, cat),
             make_sub("C", dec!(25), "monthly", true, None, cat),
         ];
-        let filters = FilterConfig { price_max: Some("20".into()), ..Default::default() };
+        let filters = FilterConfig {
+            price_max: Some("20".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 2);
     }
@@ -1361,7 +1462,11 @@ mod tests {
             make_sub("B", dec!(15), "monthly", true, None, cat),
             make_sub("C", dec!(25), "monthly", true, None, cat),
         ];
-        let filters = FilterConfig { price_min: Some("10".into()), price_max: Some("20".into()), ..Default::default() };
+        let filters = FilterConfig {
+            price_min: Some("10".into()),
+            price_max: Some("20".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "B");
@@ -1387,7 +1492,11 @@ mod tests {
             make_sub("B", dec!(20), "monthly", true, None, cat),
             make_sub("C", dec!(30), "weekly", false, None, cat),
         ];
-        let filters = FilterConfig { status: Some("active".into()), frequency: Some("weekly".into()), ..Default::default() };
+        let filters = FilterConfig {
+            status: Some("active".into()),
+            frequency: Some("weekly".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "A");
@@ -1401,7 +1510,10 @@ mod tests {
             make_sub("A", dec!(10), "monthly", true, None, cat),
             make_sub("B", dec!(20), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "amount".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "A");
         assert_eq!(subs[1].name, "B");
@@ -1416,7 +1528,10 @@ mod tests {
             make_sub("B", dec!(20), "monthly", true, None, cat),
             make_sub("C", dec!(30), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "amount".into(), direction: "desc".into() };
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "desc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "C");
         assert_eq!(subs[1].name, "B");
@@ -1431,7 +1546,10 @@ mod tests {
             make_sub("Alpha", dec!(10), "monthly", true, None, cat),
             make_sub("Bravo", dec!(10), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "name".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "name".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Alpha");
         assert_eq!(subs[1].name, "Bravo");
@@ -1446,7 +1564,10 @@ mod tests {
             make_sub("Weekly", dec!(10), "weekly", true, None, cat),
             make_sub("Monthly", dec!(10), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "frequency".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "frequency".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Weekly");
         assert_eq!(subs[1].name, "Monthly");
@@ -1458,9 +1579,19 @@ mod tests {
         let cat = Uuid::new_v4();
         let mut subs = vec![
             make_sub("NoDate", dec!(10), "monthly", true, None, cat),
-            make_sub("HasDate", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+            make_sub(
+                "HasDate",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+                cat,
+            ),
         ];
-        let sort = SortConfig { field: "next_billing_date".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "next_billing_date".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "HasDate");
         assert_eq!(subs[1].name, "NoDate");
@@ -1503,7 +1634,10 @@ mod tests {
                 updated_at: chrono::DateTime::UNIX_EPOCH,
             },
         ];
-        let sort = SortConfig { field: "start_date".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "start_date".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Early");
         assert_eq!(subs[1].name, "Late");
@@ -1517,8 +1651,15 @@ mod tests {
             make_sub("B", dec!(30), "monthly", true, None, cat),
             make_sub("C", dec!(20), "weekly", true, None, cat),
         ];
-        let filters = FilterConfig { status: Some("active".into()), frequency: Some("monthly".into()), ..Default::default() };
-        let sort = SortConfig { field: "amount".into(), direction: "desc".into() };
+        let filters = FilterConfig {
+            status: Some("active".into()),
+            frequency: Some("monthly".into()),
+            ..Default::default()
+        };
+        let sort = SortConfig {
+            field: "amount".into(),
+            direction: "desc".into(),
+        };
         let result = apply_filters_and_sort(&subs, &filters, &sort);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].name, "B");
@@ -1569,32 +1710,47 @@ mod tests {
 
     #[test]
     fn validate_form_name_empty() {
-        let form = DialogForm { name: "".into(), ..Default::default() };
+        let form = DialogForm {
+            name: "".into(),
+            ..Default::default()
+        };
         assert!(form.name.trim().is_empty());
     }
 
     #[test]
     fn validate_form_name_too_short() {
-        let form = DialogForm { name: "A".into(), ..Default::default() };
+        let form = DialogForm {
+            name: "A".into(),
+            ..Default::default()
+        };
         assert!(form.name.trim().len() < 2);
     }
 
     #[test]
     fn validate_form_name_valid() {
-        let form = DialogForm { name: "Netflix".into(), ..Default::default() };
+        let form = DialogForm {
+            name: "Netflix".into(),
+            ..Default::default()
+        };
         assert!(!form.name.trim().is_empty());
         assert!(form.name.trim().len() >= 2);
     }
 
     #[test]
     fn validate_form_amount_empty() {
-        let form = DialogForm { amount: "".into(), ..Default::default() };
+        let form = DialogForm {
+            amount: "".into(),
+            ..Default::default()
+        };
         assert!(form.amount.is_empty());
     }
 
     #[test]
     fn validate_form_amount_zero() {
-        let form = DialogForm { amount: "0".into(), ..Default::default() };
+        let form = DialogForm {
+            amount: "0".into(),
+            ..Default::default()
+        };
         let result = form.amount.parse::<Decimal>();
         assert!(result.is_ok());
         assert!(result.unwrap() <= dec!(0));
@@ -1602,7 +1758,10 @@ mod tests {
 
     #[test]
     fn validate_form_amount_negative() {
-        let form = DialogForm { amount: "-5".into(), ..Default::default() };
+        let form = DialogForm {
+            amount: "-5".into(),
+            ..Default::default()
+        };
         let result = form.amount.parse::<Decimal>();
         assert!(result.is_ok());
         assert!(result.unwrap() <= dec!(0));
@@ -1610,7 +1769,10 @@ mod tests {
 
     #[test]
     fn validate_form_amount_valid() {
-        let form = DialogForm { amount: "9.99".into(), ..Default::default() };
+        let form = DialogForm {
+            amount: "9.99".into(),
+            ..Default::default()
+        };
         let result = form.amount.parse::<Decimal>();
         assert!(result.is_ok());
         assert!(result.unwrap() > dec!(0));
@@ -1618,60 +1780,93 @@ mod tests {
 
     #[test]
     fn validate_form_amount_invalid() {
-        let form = DialogForm { amount: "abc".into(), ..Default::default() };
+        let form = DialogForm {
+            amount: "abc".into(),
+            ..Default::default()
+        };
         let result = form.amount.parse::<Decimal>();
         assert!(result.is_err());
     }
 
     #[test]
     fn validate_form_currency_empty() {
-        let form = DialogForm { currency: "".into(), ..Default::default() };
+        let form = DialogForm {
+            currency: "".into(),
+            ..Default::default()
+        };
         assert!(form.currency.is_empty());
     }
 
     #[test]
     fn validate_form_frequency_empty() {
-        let form = DialogForm { frequency: "".into(), ..Default::default() };
+        let form = DialogForm {
+            frequency: "".into(),
+            ..Default::default()
+        };
         assert!(form.frequency.is_empty());
     }
 
     #[test]
     fn validate_form_start_date_empty() {
-        let form = DialogForm { start_date: "".into(), ..Default::default() };
+        let form = DialogForm {
+            start_date: "".into(),
+            ..Default::default()
+        };
         assert!(form.start_date.is_empty());
     }
 
     #[test]
     fn validate_form_start_date_valid() {
-        let form = DialogForm { start_date: "2024-06-15".into(), ..Default::default() };
+        let form = DialogForm {
+            start_date: "2024-06-15".into(),
+            ..Default::default()
+        };
         assert!(form.start_date.parse::<chrono::NaiveDate>().is_ok());
     }
 
     #[test]
     fn validate_form_start_date_invalid() {
-        let form = DialogForm { start_date: "not-a-date".into(), ..Default::default() };
+        let form = DialogForm {
+            start_date: "not-a-date".into(),
+            ..Default::default()
+        };
         assert!(form.start_date.parse::<chrono::NaiveDate>().is_err());
     }
 
     #[test]
     fn validate_form_category_id_empty() {
-        let form = DialogForm { category_id: "".into(), ..Default::default() };
+        let form = DialogForm {
+            category_id: "".into(),
+            ..Default::default()
+        };
         assert!(form.category_id.is_empty());
     }
 
     #[test]
     fn validate_form_notes_optional() {
-        let form = DialogForm { notes: "Some notes".into(), ..Default::default() };
+        let form = DialogForm {
+            notes: "Some notes".into(),
+            ..Default::default()
+        };
         assert!(!form.notes.is_empty());
-        let form2 = DialogForm { notes: "".into(), ..Default::default() };
+        let form2 = DialogForm {
+            notes: "".into(),
+            ..Default::default()
+        };
         assert!(form2.notes.is_empty());
     }
 
     #[test]
     fn validate_form_logo_url_optional() {
-        let form = DialogForm { logo_url: "https://logo.com/img.png".into(), ..Default::default() };
+        let form = DialogForm {
+            logo_url: "https://logo.com/img.png".into(),
+            ..Default::default()
+        };
         assert!(!form.logo_url.is_empty());
-        let form2 = DialogForm { logo_url: "".into(), ..Default::default() };
+        let form2 = DialogForm {
+            logo_url: "".into(),
+            ..Default::default()
+        };
         assert!(form2.logo_url.is_empty());
     }
 
@@ -1683,7 +1878,10 @@ mod tests {
             make_sub("A", dec!(10), "monthly", true, None, cat),
             make_sub("B", dec!(20), "monthly", false, None, cat),
         ];
-        let filters = FilterConfig { status: Some("all".into()), ..Default::default() };
+        let filters = FilterConfig {
+            status: Some("all".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 2);
     }
@@ -1691,10 +1889,11 @@ mod tests {
     #[test]
     fn filter_invalid_category_uuid_ignored() {
         let cat = Uuid::new_v4();
-        let subs = vec![
-            make_sub("A", dec!(10), "monthly", true, None, cat),
-        ];
-        let filters = FilterConfig { category_id: Some("not-a-uuid".into()), ..Default::default() };
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let filters = FilterConfig {
+            category_id: Some("not-a-uuid".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1); // Invalid UUID = filter not applied, all pass
     }
@@ -1702,10 +1901,11 @@ mod tests {
     #[test]
     fn filter_invalid_price_min_ignored() {
         let cat = Uuid::new_v4();
-        let subs = vec![
-            make_sub("A", dec!(10), "monthly", true, None, cat),
-        ];
-        let filters = FilterConfig { price_min: Some("abc".into()), ..Default::default() };
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let filters = FilterConfig {
+            price_min: Some("abc".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1); // Invalid decimal = filter not applied
     }
@@ -1713,10 +1913,11 @@ mod tests {
     #[test]
     fn filter_invalid_price_max_ignored() {
         let cat = Uuid::new_v4();
-        let subs = vec![
-            make_sub("A", dec!(10), "monthly", true, None, cat),
-        ];
-        let filters = FilterConfig { price_max: Some("xyz".into()), ..Default::default() };
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let filters = FilterConfig {
+            price_max: Some("xyz".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1); // Invalid decimal = filter not applied
     }
@@ -1728,7 +1929,10 @@ mod tests {
             make_sub("Exact", dec!(10), "monthly", true, None, cat),
             make_sub("Below", dec!(5), "monthly", true, None, cat),
         ];
-        let filters = FilterConfig { price_min: Some("10".into()), ..Default::default() };
+        let filters = FilterConfig {
+            price_min: Some("10".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1); // amount >= 10, so "Exact" matches
         assert_eq!(result[0].name, "Exact");
@@ -1741,7 +1945,10 @@ mod tests {
             make_sub("Exact", dec!(10), "monthly", true, None, cat),
             make_sub("Above", dec!(15), "monthly", true, None, cat),
         ];
-        let filters = FilterConfig { price_max: Some("10".into()), ..Default::default() };
+        let filters = FilterConfig {
+            price_max: Some("10".into()),
+            ..Default::default()
+        };
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "Exact");
@@ -1762,7 +1969,10 @@ mod tests {
             make_sub("A", dec!(10), "monthly", true, None, cat),
             make_sub("B", dec!(20), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "unknown".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "unknown".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         // Unknown field = Equal comparison, order preserved
         assert_eq!(subs.len(), 2);
@@ -1776,7 +1986,10 @@ mod tests {
             make_sub("Charlie", dec!(10), "monthly", true, None, cat),
             make_sub("Bravo", dec!(10), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "name".into(), direction: "desc".into() };
+        let sort = SortConfig {
+            field: "name".into(),
+            direction: "desc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Charlie");
         assert_eq!(subs[1].name, "Bravo");
@@ -1791,7 +2004,10 @@ mod tests {
             make_sub("Amazon", dec!(10), "monthly", true, None, cat),
             make_sub("spotify", dec!(10), "monthly", true, None, cat),
         ];
-        let sort = SortConfig { field: "name".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "name".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Amazon"); // A before n before s (case-insensitive)
     }
@@ -1800,17 +2016,19 @@ mod tests {
     #[test]
     fn apply_filters_and_sort_empty_input() {
         let subs: Vec<Subscription> = vec![];
-        let result = apply_filters_and_sort(&subs, &FilterConfig::default(), &SortConfig::default());
+        let result =
+            apply_filters_and_sort(&subs, &FilterConfig::default(), &SortConfig::default());
         assert!(result.is_empty());
     }
 
     #[test]
     fn apply_filters_and_sort_no_match() {
         let cat = Uuid::new_v4();
-        let subs = vec![
-            make_sub("A", dec!(10), "monthly", true, None, cat),
-        ];
-        let filters = FilterConfig { price_min: Some("100".into()), ..Default::default() };
+        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+        let filters = FilterConfig {
+            price_min: Some("100".into()),
+            ..Default::default()
+        };
         let result = apply_filters_and_sort(&subs, &filters, &SortConfig::default());
         assert!(result.is_empty());
     }
@@ -1819,10 +2037,27 @@ mod tests {
     fn sort_by_next_billing_date_with_dates() {
         let cat = Uuid::new_v4();
         let mut subs = vec![
-            make_sub("Later", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
-            make_sub("Earlier", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()), cat),
+            make_sub(
+                "Later",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+                cat,
+            ),
+            make_sub(
+                "Earlier",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()),
+                cat,
+            ),
         ];
-        let sort = SortConfig { field: "next_billing_date".into(), direction: "asc".into() };
+        let sort = SortConfig {
+            field: "next_billing_date".into(),
+            direction: "asc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Earlier");
         assert_eq!(subs[1].name, "Later");
@@ -1835,7 +2070,10 @@ mod tests {
             make_sub("Weekly", dec!(10), "weekly", true, None, cat),
             make_sub("Yearly", dec!(10), "yearly", true, None, cat),
         ];
-        let sort = SortConfig { field: "frequency".into(), direction: "desc".into() };
+        let sort = SortConfig {
+            field: "frequency".into(),
+            direction: "desc".into(),
+        };
         sort_subscriptions(&mut subs, &sort);
         assert_eq!(subs[0].name, "Yearly");
         assert_eq!(subs[1].name, "Weekly");
@@ -1911,7 +2149,8 @@ mod tests {
         let src = include_str!("subscriptions_page.rs");
         // Find the render_dialog function (the Add/Edit dialog)
         let dialog_fn = src.split("fn render_dialog").nth(1).unwrap_or("");
-        let code_lines: Vec<&str> = dialog_fn.lines()
+        let code_lines: Vec<&str> = dialog_fn
+            .lines()
             .filter(|l| !l.trim().starts_with("//"))
             .collect();
         let code_text = code_lines.join("\n");
@@ -1941,11 +2180,13 @@ mod tests {
         // Fix: use "top-full mt-2" to anchor below the button.
         let src = include_str!("subscriptions_page.rs");
         // Find the popover panel class line (contains bg-popover)
-        let has_correct_position = src.lines().any(|l| {
-            l.contains("bg-popover") && l.contains("top-full")
-        });
-        assert!(has_correct_position,
-            "Filters popover panel should use top-full mt-2 (below button), not top-10");
+        let has_correct_position = src
+            .lines()
+            .any(|l| l.contains("bg-popover") && l.contains("top-full"));
+        assert!(
+            has_correct_position,
+            "Filters popover panel should use top-full mt-2 (below button), not top-10"
+        );
     }
 
     // ── count_active_filters tests ──
@@ -2235,8 +2476,22 @@ mod tests {
     fn sort_subscriptions_by_start_date() {
         let cat = Uuid::new_v4();
         let mut subs = vec![
-            make_sub("A", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()), cat),
-            make_sub("B", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()), cat),
+            make_sub(
+                "A",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+                cat,
+            ),
+            make_sub(
+                "B",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+                cat,
+            ),
         ];
         let sort = SortConfig {
             field: "start_date".into(),
@@ -2252,8 +2507,22 @@ mod tests {
     fn sort_subscriptions_by_next_billing_date() {
         let cat = Uuid::new_v4();
         let mut subs = vec![
-            make_sub("June15", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()), cat),
-            make_sub("June1", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+            make_sub(
+                "June15",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+                cat,
+            ),
+            make_sub(
+                "June1",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+                cat,
+            ),
         ];
         let sort = SortConfig {
             field: "next_billing_date".into(),
@@ -2269,7 +2538,14 @@ mod tests {
     fn sort_subscriptions_none_next_billing_last() {
         let cat = Uuid::new_v4();
         let mut subs = vec![
-            make_sub("HasDate", dec!(10), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
+            make_sub(
+                "HasDate",
+                dec!(10),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+                cat,
+            ),
             make_sub("NoDate", dec!(10), "monthly", true, None, cat),
         ];
         let sort = SortConfig {
@@ -2302,8 +2578,22 @@ mod tests {
     fn apply_filters_and_sort_full_pipeline() {
         let cat = Uuid::new_v4();
         let subs = vec![
-            make_sub("Z1", dec!(20), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()), cat),
-            make_sub("A1", dec!(5), "monthly", true, Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()), cat),
+            make_sub(
+                "Z1",
+                dec!(20),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+                cat,
+            ),
+            make_sub(
+                "A1",
+                dec!(5),
+                "monthly",
+                true,
+                Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+                cat,
+            ),
             make_sub("A2", dec!(5), "yearly", true, None, cat),
         ];
         let f = FilterConfig {
@@ -2369,184 +2659,319 @@ mod tests {
     // ── More status_options tests ──
     #[test]
     fn status_options_values() {
-        let expected = vec![("all", "All"), ("active", "Active"), ("inactive", "Inactive")];
+        let expected = vec![
+            ("all", "All"),
+            ("active", "Active"),
+            ("inactive", "Inactive"),
+        ];
         assert_eq!(STATUS_OPTIONS, expected);
     }
 
     // ── More sort_options tests ──
     #[test]
     fn sort_options_values() {
-        assert!(SORT_OPTIONS.iter().any(|(k, v)| *k == "next_billing_date" && *v == "Upcoming date"));
-        assert!(SORT_OPTIONS.iter().any(|(k, v)| *k == "amount" && *v == "Price"));
+        assert!(SORT_OPTIONS
+            .iter()
+            .any(|(k, v)| *k == "next_billing_date" && *v == "Upcoming date"));
+        assert!(SORT_OPTIONS
+            .iter()
+            .any(|(k, v)| *k == "amount" && *v == "Price"));
 
-    // ── ValidationResult tests ──
-    #[test]
-    fn validation_result_default() {
-        let v = ValidationResult::default();
-        assert!(v.is_valid());
-        assert!(v.name_error.is_none());
-    }
-
-    #[test]
-    fn validation_result_with_name_error() {
-        let v = ValidationResult { name_error: Some("Name required".into()), ..Default::default() };
-        assert!(!v.is_valid());
-        assert_eq!(v.name_error.as_deref(), Some("Name required"));
-    }
-
-    #[test]
-    fn validation_result_multiple_errors() {
-        let v = ValidationResult {
-            name_error: Some("bad".into()),
-            amount_error: Some("bad".into()),
-            ..Default::default()
-        };
-        assert!(!v.is_valid());
-        assert!(v.name_error.is_some());
-        assert!(v.amount_error.is_some());
-    }
-
-    #[test]
-    fn validation_result_clone() {
-        let v = ValidationResult { name_error: Some("err".into()), ..Default::default() };
-        let c = v.clone();
-        assert_eq!(v.name_error, c.name_error);
-    }
-
-    // ── validate_subscription_form tests ──
-    #[test]
-    fn validate_form_valid() {
-        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert!(r.is_valid());
-    }
-
-    #[test]
-    fn validate_form_empty_name() {
-        let r = validate_subscription_form("", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
-        assert!(!r.is_valid());
-    }
-
-    #[test]
-    fn validate_form_whitespace_name() {
-        let r = validate_subscription_form("   ", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.name_error.as_deref(), Some("Name is required"));
-    }
-
-    #[test]
-    fn validate_form_short_name() {
-        let r = validate_subscription_form("A", "15.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.name_error.as_deref(), Some("Name must be at least 2 characters"));
-    }
-
-    #[test]
-    fn validate_form_empty_amount() {
-        let r = validate_subscription_form("Netflix", "", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.amount_error.as_deref(), Some("Amount is required"));
-    }
-
-    #[test]
-    fn validate_form_zero_amount() {
-        let r = validate_subscription_form("Netflix", "0", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.amount_error.as_deref(), Some("Amount must be greater than 0"));
-    }
-
-    #[test]
-    fn validate_form_negative_amount() {
-        let r = validate_subscription_form("Netflix", "-5", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.amount_error.as_deref(), Some("Amount must be greater than 0"));
-    }
-
-    #[test]
-    fn validate_form_invalid_amount() {
-        let r = validate_subscription_form("Netflix", "abc", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.amount_error.as_deref(), Some("Invalid amount format"));
-    }
-
-    #[test]
-    fn validate_form_empty_currency() {
-        let r = validate_subscription_form("Netflix", "15.99", "", "monthly", "2024-01-01", "cat-id-123");
-        assert_eq!(r.currency_error.as_deref(), Some("Currency is required"));
-    }
-
-    #[test]
-    fn validate_form_empty_frequency() {
-        let r = validate_subscription_form("Netflix", "15.99", "EUR", "", "2024-01-01", "cat-id-123");
-        assert_eq!(r.frequency_error.as_deref(), Some("Frequency is required"));
-    }
-
-    #[test]
-    fn validate_form_empty_start_date() {
-        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "", "cat-id-123");
-        assert_eq!(r.start_date_error.as_deref(), Some("Start date is required"));
-    }
-
-    #[test]
-    fn validate_form_invalid_start_date() {
-        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "not-a-date", "cat-id-123");
-        assert_eq!(r.start_date_error.as_deref(), Some("Invalid date format"));
-    }
-
-    #[test]
-    fn validate_form_empty_category() {
-        let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "2024-01-01", "");
-        assert_eq!(r.category_error.as_deref(), Some("Category is required"));
-    }
-
-    #[test]
-    fn validate_form_multiple_errors() {
-        let r = validate_subscription_form("", "", "", "", "", "");
-        assert!(r.name_error.is_some());
-        assert!(r.amount_error.is_some());
-        assert!(r.currency_error.is_some());
-        assert!(r.frequency_error.is_some());
-        assert!(r.start_date_error.is_some());
-        assert!(r.category_error.is_some());
-    }
-
-    #[test]
-    fn validate_form_decimal_amount() {
-        let r = validate_subscription_form("Netflix", "9.99", "EUR", "monthly", "2024-01-01", "cat-id-123");
-        assert!(r.is_valid());
-    }
-
-    #[test]
-    fn validate_form_valid_date_formats() {
-        for date in &["2024-01-01", "2024-12-31", "2025-06-15"] {
-            let r = validate_subscription_form("Netflix", "15.99", "EUR", "monthly", date, "cat-id-123");
-            assert!(r.start_date_error.is_none(), "date {} should be valid", date);
+        // ── ValidationResult tests ──
+        #[test]
+        fn validation_result_default() {
+            let v = ValidationResult::default();
+            assert!(v.is_valid());
+            assert!(v.name_error.is_none());
         }
-    }
 
-    // ── Extended filter/sort tests ──
-    #[test]
-    fn filter_by_invalid_category_id() {
-        let cat = Uuid::new_v4();
-        let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
-        let filters = FilterConfig { category_id: Some("not-a-uuid".into()), ..Default::default() };
-        let result = filter_subscriptions(&subs, &filters);
-        assert_eq!(result.len(), 1);
-    }
+        #[test]
+        fn validation_result_with_name_error() {
+            let v = ValidationResult {
+                name_error: Some("Name required".into()),
+                ..Default::default()
+            };
+            assert!(!v.is_valid());
+            assert_eq!(v.name_error.as_deref(), Some("Name required"));
+        }
 
-    #[test]
-    fn sort_unknown_field_stable() {
-        let cat = Uuid::new_v4();
-        let mut subs = vec![
-            make_sub("A", dec!(10), "monthly", true, None, cat),
-            make_sub("B", dec!(20), "monthly", true, None, cat),
-        ];
-        let sort = SortConfig { field: "unknown".into(), direction: "asc".into() };
-        sort_subscriptions(&mut subs, &sort);
-        assert_eq!(subs.len(), 2);
-    }
+        #[test]
+        fn validation_result_multiple_errors() {
+            let v = ValidationResult {
+                name_error: Some("bad".into()),
+                amount_error: Some("bad".into()),
+                ..Default::default()
+            };
+            assert!(!v.is_valid());
+            assert!(v.name_error.is_some());
+            assert!(v.amount_error.is_some());
+        }
 
-    #[test]
-    fn sort_config_partial_eq() {
-        let s1 = SortConfig { field: "name".into(), direction: "desc".into() };
-        let s2 = SortConfig { field: "name".into(), direction: "desc".into() };
-        assert_eq!(s1.field, s2.field);
-        assert_eq!(s1.direction, s2.direction);
-    }
+        #[test]
+        fn validation_result_clone() {
+            let v = ValidationResult {
+                name_error: Some("err".into()),
+                ..Default::default()
+            };
+            let c = v.clone();
+            assert_eq!(v.name_error, c.name_error);
+        }
+
+        // ── validate_subscription_form tests ──
+        #[test]
+        fn validate_form_valid() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "15.99",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert!(r.is_valid());
+        }
+
+        #[test]
+        fn validate_form_empty_name() {
+            let r = validate_subscription_form(
+                "",
+                "15.99",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+            assert!(!r.is_valid());
+        }
+
+        #[test]
+        fn validate_form_whitespace_name() {
+            let r = validate_subscription_form(
+                "   ",
+                "15.99",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+        }
+
+        #[test]
+        fn validate_form_short_name() {
+            let r = validate_subscription_form(
+                "A",
+                "15.99",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(
+                r.name_error.as_deref(),
+                Some("Name must be at least 2 characters")
+            );
+        }
+
+        #[test]
+        fn validate_form_empty_amount() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(r.amount_error.as_deref(), Some("Amount is required"));
+        }
+
+        #[test]
+        fn validate_form_zero_amount() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "0",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(
+                r.amount_error.as_deref(),
+                Some("Amount must be greater than 0")
+            );
+        }
+
+        #[test]
+        fn validate_form_negative_amount() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "-5",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(
+                r.amount_error.as_deref(),
+                Some("Amount must be greater than 0")
+            );
+        }
+
+        #[test]
+        fn validate_form_invalid_amount() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "abc",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(r.amount_error.as_deref(), Some("Invalid amount format"));
+        }
+
+        #[test]
+        fn validate_form_empty_currency() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "15.99",
+                "",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(r.currency_error.as_deref(), Some("Currency is required"));
+        }
+
+        #[test]
+        fn validate_form_empty_frequency() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "15.99",
+                "EUR",
+                "",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert_eq!(r.frequency_error.as_deref(), Some("Frequency is required"));
+        }
+
+        #[test]
+        fn validate_form_empty_start_date() {
+            let r =
+                validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "", "cat-id-123");
+            assert_eq!(
+                r.start_date_error.as_deref(),
+                Some("Start date is required")
+            );
+        }
+
+        #[test]
+        fn validate_form_invalid_start_date() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "15.99",
+                "EUR",
+                "monthly",
+                "not-a-date",
+                "cat-id-123",
+            );
+            assert_eq!(r.start_date_error.as_deref(), Some("Invalid date format"));
+        }
+
+        #[test]
+        fn validate_form_empty_category() {
+            let r =
+                validate_subscription_form("Netflix", "15.99", "EUR", "monthly", "2024-01-01", "");
+            assert_eq!(r.category_error.as_deref(), Some("Category is required"));
+        }
+
+        #[test]
+        fn validate_form_multiple_errors() {
+            let r = validate_subscription_form("", "", "", "", "", "");
+            assert!(r.name_error.is_some());
+            assert!(r.amount_error.is_some());
+            assert!(r.currency_error.is_some());
+            assert!(r.frequency_error.is_some());
+            assert!(r.start_date_error.is_some());
+            assert!(r.category_error.is_some());
+        }
+
+        #[test]
+        fn validate_form_decimal_amount() {
+            let r = validate_subscription_form(
+                "Netflix",
+                "9.99",
+                "EUR",
+                "monthly",
+                "2024-01-01",
+                "cat-id-123",
+            );
+            assert!(r.is_valid());
+        }
+
+        #[test]
+        fn validate_form_valid_date_formats() {
+            for date in &["2024-01-01", "2024-12-31", "2025-06-15"] {
+                let r = validate_subscription_form(
+                    "Netflix",
+                    "15.99",
+                    "EUR",
+                    "monthly",
+                    date,
+                    "cat-id-123",
+                );
+                assert!(
+                    r.start_date_error.is_none(),
+                    "date {} should be valid",
+                    date
+                );
+            }
+        }
+
+        // ── Extended filter/sort tests ──
+        #[test]
+        fn filter_by_invalid_category_id() {
+            let cat = Uuid::new_v4();
+            let subs = vec![make_sub("A", dec!(10), "monthly", true, None, cat)];
+            let filters = FilterConfig {
+                category_id: Some("not-a-uuid".into()),
+                ..Default::default()
+            };
+            let result = filter_subscriptions(&subs, &filters);
+            assert_eq!(result.len(), 1);
+        }
+
+        #[test]
+        fn sort_unknown_field_stable() {
+            let cat = Uuid::new_v4();
+            let mut subs = vec![
+                make_sub("A", dec!(10), "monthly", true, None, cat),
+                make_sub("B", dec!(20), "monthly", true, None, cat),
+            ];
+            let sort = SortConfig {
+                field: "unknown".into(),
+                direction: "asc".into(),
+            };
+            sort_subscriptions(&mut subs, &sort);
+            assert_eq!(subs.len(), 2);
+        }
+
+        #[test]
+        fn sort_config_partial_eq() {
+            let s1 = SortConfig {
+                field: "name".into(),
+                direction: "desc".into(),
+            };
+            let s2 = SortConfig {
+                field: "name".into(),
+                direction: "desc".into(),
+            };
+            assert_eq!(s1.field, s2.field);
+            assert_eq!(s1.direction, s2.direction);
+        }
     }
 }
 
@@ -2737,7 +3162,10 @@ mod dialog_form_tests {
 
     #[test]
     fn sort_config_custom() {
-        let s = SortConfig { field: "amount".into(), direction: "desc".into() };
+        let s = SortConfig {
+            field: "amount".into(),
+            direction: "desc".into(),
+        };
         assert_eq!(s.field, "amount");
         assert_eq!(s.direction, "desc");
     }
@@ -2751,8 +3179,14 @@ mod dialog_form_tests {
 
     #[test]
     fn sort_config_partial_eq() {
-        let a = SortConfig { field: "name".into(), direction: "asc".into() };
-        let b = SortConfig { field: "name".into(), direction: "asc".into() };
+        let a = SortConfig {
+            field: "name".into(),
+            direction: "asc".into(),
+        };
+        let b = SortConfig {
+            field: "name".into(),
+            direction: "asc".into(),
+        };
         assert_eq!(a.field, b.field);
         assert_eq!(a.direction, b.direction);
     }

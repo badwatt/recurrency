@@ -130,12 +130,10 @@ mod tests {
     #[test]
     fn update_notification_preferences_request() {
         let req = UpdateNotificationPreferencesRequest {
-            preferences: vec![
-                UpdateNotificationPreferenceRequest {
-                    channel: "email".into(),
-                    enabled: true,
-                },
-            ],
+            preferences: vec![UpdateNotificationPreferenceRequest {
+                channel: "email".into(),
+                enabled: true,
+            }],
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdateNotificationPreferencesRequest = serde_json::from_str(&json).unwrap();

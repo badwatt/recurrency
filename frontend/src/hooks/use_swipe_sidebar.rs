@@ -1,4 +1,3 @@
-
 use dioxus::prelude::*;
 
 /// Hook that provides a Signal<bool> controlling mobile sidebar open state.
@@ -126,7 +125,13 @@ mod tests {
         let end_x = 40.0_f64;
         let dx = end_x - start_x;
         let threshold = 50.0_f64;
-        let action = if dx > threshold { "open" } else if dx < -threshold { "close" } else { "ignore" };
+        let action = if dx > threshold {
+            "open"
+        } else if dx < -threshold {
+            "close"
+        } else {
+            "ignore"
+        };
         assert_eq!(action, "ignore");
     }
 
