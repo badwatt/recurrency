@@ -14,18 +14,24 @@
             --foreground: 222.2 84% 4.9%;
             --primary: 222.2 47.4% 11.2%;
             --muted: 210 40% 96.1%;
+            --loader-bg: rgba(255,255,255,0.65);
+            --loader-fg: #020817;
         }
         .dark {
             --background: 222.2 84% 4.9%;
             --foreground: 210 40% 98%;
             --primary: 210 40% 98%;
             --muted: 217.2 32.6% 17.5%;
+            --loader-bg: rgba(0,0,0,0.3);
+            --loader-fg: #fff;
         }
         .mocha {
             --background: 240 21% 15%;
             --foreground: 226 64% 88%;
             --primary: 232 97% 85%;
             --muted: 234 13% 31%;
+            --loader-bg: rgba(0,0,0,0.3);
+            --loader-fg: #fff;
         }
         /* Pre-WASM loading overlay — themed + backdrop-blur */
         #pre-wasm-loader {
@@ -33,9 +39,9 @@
             align-items: center; justify-content: center;
             position: fixed; inset: 0; z-index: 9999;
             /* Semi-transparent — app behind visible through blur */
-            background-color: rgba(0,0,0,0.3);
+            background-color: var(--loader-bg);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            color: #fff;
+            color: var(--loader-fg);
         }
         #pre-wasm-loader .rings { position: relative; width: 3rem; height: 3rem; }
         #pre-wasm-loader .r1,
