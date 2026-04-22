@@ -77,6 +77,26 @@ pub fn AppLayout() -> Element {
         apply_theme_class(&theme);
     });
 
+    // Listen for OS dark-mode changes so system theme updates live.
+    // Guard prevents duplicate listeners on re-render.
+    #[cfg(feature = "web")]
+    use_effect(move || {
+        let js = r#"
+        (function() {
+            if (window.__recurrency_system_listener) return;
+            window.__recurrency_system_listener = true;
+            var mql = window.matchMedia('(prefers-color-scheme: dark)');
+            mql.addEventListener('change', function(e) {
+                var stored = localStorage.getItem('recurrency-theme');
+                if (stored === 'system') {
+                    document.documentElement.className = e.matches ? 'dark' : 'light';
+                }
+            });
+        })()
+        "#;
+        let _ = dioxus::document::eval(js);
+    });
+
     rsx! {
         div {
             class: "flex h-screen bg-background",
