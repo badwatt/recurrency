@@ -6,14 +6,15 @@ fn index_html_body_bgmap_matches_css_variables() {
     // Bug: <style> was AFTER <link> → tailwind.css body{background-color:hsl(var(--background))}
     // parsed with undefined vars → body defaulted to white on refresh.
     // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE any stylesheet.
-    // Note: <link> for tailwind.css removed — CSS loaded via asset!() in main.rs
-    // (works on all platforms including Android).
+    // Note: <link> for tailwind.css in <head> loads before WASM mounts.
+    // Order: inline <style> vars first, then <link> stylesheet.
+    // This prevents FOUC by letting browser download CSS while WASM loads.
     let html = include_str!("../../../index.html");
 
     // <style> with CSS vars must be present and BEFORE any <link> stylesheet
     let style_pos = html.find("<style>").unwrap_or(usize::MAX);
     let link_pos = html.find("<link rel=\"stylesheet\"").unwrap_or(usize::MAX);
-    // If no <link rel=stylesheet> exists (removed), just check <style> exists
+    // If no <link rel=stylesheet> exists, just check <style> exists
     if link_pos != usize::MAX {
         assert!(
             style_pos < link_pos,
