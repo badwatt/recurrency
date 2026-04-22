@@ -2,11 +2,10 @@
 
 #[test]
 fn index_html_body_bgmap_matches_css_variables() {
-    // Note: tailwind.css loaded via <link> in <head>. Inline <style> vars
-    // must come BEFORE link so CSS has defined variables at parse time.
-    // Note: tailwind.css loaded via <link> in <head> (before WASM) AND
-    // via asset!() in main.rs (after WASM mounts). Browser may load CSS
-    // twice but caches second request. Key: CSS arrives before DOM so no FOUC.
+    // Note: tailwind.css loaded via [web.resource] in Dioxus.toml.
+    // dx CLI injects <link> in generated <head> at build time.
+    // Inline <style> vars must come BEFORE that link so CSS has
+    // defined variables at parse time.
     let html = include_str!("../../../index.html");
 
     // <style> with CSS vars must be present and BEFORE any <link> stylesheet
@@ -35,10 +34,9 @@ fn index_html_body_bgmap_matches_css_variables() {
 
 #[test]
 fn index_html_sets_body_background_on_theme() {
-    // Body background is set via tailwind.css: body{background-color:hsl(var(--background))}.
-    // CSS variables must be defined before tailwind.css parses this rule.
-    // Bug: <style> after <link> → vars undefined → body white on refresh.
-    // Fix: inline <style> with vars before <link> → body gets correct themed bg.
+    // Body background is set in tailwind.css: body{background-color:hsl(var(--background))}.
+    // CSS variables are inline in <style> (before dx-injected <link>).
+    // On refresh, vars are defined before external CSS parses → no white flash.
     let html = include_str!("../../../index.html");
     // Verify CSS variables are defined in <style> (which must come before <link>)
     assert!(
@@ -125,9 +123,8 @@ fn index_html_has_loading_spinner_before_wasm() {
 #[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
     // Pre-WASM loader must be OPAQUE to prevent FOUC.
-    // When tailwind.css loads via <link> and asset!(), content may still render
-    // unstyled for a few ms before CSS parses. Opaque loader hides this.
-    // Fix: solid themed background hides unstyled content behind loader.
+    // tailwind.css loads via [web.resource]; dx injects <link> in generated HTML.
+    // Opaque loader hides any unstyled content until CSS parses.
     let html = include_str!("../../../index.html");
     let style_section = html
         .split("<style>")
