@@ -37,16 +37,22 @@ pub fn resolve_theme_class(theme: &str) -> &'static str {
 
 /// Apply the current theme class to the document <html> element.
 /// Strategy:
-///   - "system": DO NOT set class. TailwindCSS @media handles OS dark mode automatically.
-///     Setting class via eval (async) applies AFTER first paint → system theme broken.
-///   - "dark"/"mocha"/"light": Set class via dioxus::document::eval (fire-and-forget).
-///     User explicitly chose these, so brief flash is acceptable.
+///   - "system": Resolve OS preference via JS matchMedia, then set
+///     "dark" or "light" class explicitly. TailwindCSS darkMode
+///     needs explicit class — @media alone doesn't work with
+///     the class-based Dark Mode config.
+///   - "dark"/"mocha"/"light": Set class directly via eval.
 pub(crate) fn apply_theme_class(theme: &str) {
     match theme {
         "system" => {
-            // DO NOT set class via JS. TailwindCSS @media (prefers-color-scheme: dark)
-            // automatically applies dark mode when OS is in dark mode.
-            // Setting class via eval (async) applies AFTER first paint → wrong theme shown.
+            // Resolve system preference to explicit class via JS matchMedia.
+            let js = r#"
+            (function() {
+                var cls = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                document.documentElement.className = cls;
+            })()
+            "#;
+            let _ = dioxus::document::eval(js);
             return;
         }
         "dark" | "mocha" | "light" => {}
