@@ -8,7 +8,7 @@ fn index_html_body_bgmap_matches_css_variables() {
     // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE any stylesheet.
     // Note: <link> for tailwind.css removed — CSS loaded via asset!() in main.rs
     // (works on all platforms including Android).
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
 
     // <style> with CSS vars must be present and BEFORE any <link> stylesheet
     let style_pos = html.find("<style>").unwrap_or(usize::MAX);
@@ -40,7 +40,7 @@ fn index_html_sets_body_background_on_theme() {
     // CSS variables must be defined before tailwind.css parses this rule.
     // Bug: <style> after <link> → vars undefined → body white on refresh.
     // Fix: inline <style> with vars before <link> → body gets correct themed bg.
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     // Verify CSS variables are defined in <style> (which must come before <link>)
     assert!(
         html.contains("--background"),
@@ -55,7 +55,7 @@ fn index_html_sets_body_background_on_theme() {
 
 #[test]
 fn index_html_applies_dark_class_to_html() {
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     assert!(
         html.contains("document.documentElement.classList.add('dark')"),
         "index.html must add 'dark' class to <html> element"
@@ -64,7 +64,7 @@ fn index_html_applies_dark_class_to_html() {
 
 #[test]
 fn index_html_applies_mocha_class_to_html() {
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     assert!(
         html.contains("document.documentElement.classList.add('mocha')"),
         "index.html must add 'mocha' class to <html> element"
@@ -76,7 +76,7 @@ fn index_html_meta_theme_color_matches_css_variables() {
     // meta[name=theme-color] must match the inline CSS variable --background hex values.
     // Bug: dark theme-color was #030712 but CSS --background hsl(222.2,84%,4.9%)=#020817.
     // Fix: body-end script sets meta.content to correct hex values per theme.
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     // Script in body sets meta.content with dark/mocha/light hex values
     let body_section = html.split("<body>").nth(1).unwrap_or("");
     assert!(
@@ -102,7 +102,7 @@ fn index_html_meta_theme_color_matches_css_variables() {
 fn index_html_has_loading_spinner_before_wasm() {
     // Before WASM loads, there's a gap where only index.html is visible.
     // Must show a themed loading spinner so users see a themed page, not blank.
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     let body_section = html.split("\x3cbody>").nth(1).unwrap_or("").to_lowercase();
     // Must have a spinner element (id="pre-wasm-loader" or class containing "loading")
     let has_spinner = body_section.contains("pre-wasm-loader")
@@ -127,7 +127,7 @@ fn index_html_has_loading_spinner_before_wasm() {
 fn index_html_loader_is_backdrop_blur_overlay() {
     // Pre-WASM loader must be semi-transparent + backdrop-blur.
     // User intent: loader overlays the app (visible through blur), not opaque wall.
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     let style_section = html
         .split("<style>")
         .nth(1)
@@ -160,7 +160,7 @@ fn index_html_has_inline_theme_variables() {
     // for .dark/.mocha themes → spinner shows wrong colors (light theme fallback).
     // Bug: spinner colors wrong on refresh in dark/mocha mode.
     // Fix: inline fallback CSS variables for each theme in index.html <style>.
-    let html = include_str!("../../../assets/index.html");
+    let html = include_str!("../../../index.html");
     let style_section = html
         .split("<style>")
         .nth(1)
