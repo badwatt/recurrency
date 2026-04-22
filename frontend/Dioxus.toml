@@ -9,9 +9,6 @@ title = ""
 [web.watcher]
 watch_path = ["src", "assets", "public"]
 
-[web.resource]
-style = ["/tailwind.css"]
-
 [bundle]
 identifier = "com.alvaro17f.recurrency"
 icon = ["assets/icons/icon-1024.png"]
