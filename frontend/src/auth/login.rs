@@ -89,7 +89,7 @@ pub fn LoginPage() -> Element {
                 class: "w-full max-w-md rounded-lg border border-border bg-card p-0 shadow-sm",
 
                 // Setup warning
-                if needs_setup {
+                if needs_setup && !cfg!(feature = "web") {
                     div {
                         class: "flex items-start gap-3 rounded-t-lg bg-amber-50 p-4 text-amber-800",
                         svg {
@@ -467,11 +467,28 @@ mod tests {
     }
 
     #[test]
-    fn form_validation_both_invalid() {
-        let email = "userexample.com";
-        let password = "short";
-        let email_valid = email.contains('@');
-        let password_valid = password.len() >= 8;
-        assert!(!email_valid && !password_valid);
+    fn setup_warning_gated_by_web_feature() {
+        // Bug: "Using default server URL" warning shows on web builds,
+        // but "Configure server URL" link is hidden on web.
+        // Fix: warning must share the same condition as the configure link.
+        let src = include_str!("login.rs");
+        let warning_pos = src.find("Using default server URL").unwrap_or(usize::MAX);
+        assert!(warning_pos != usize::MAX, "Warning text must exist in login.rs");
+        // Search backwards from warning for the nearest `if` line
+        let before = &src[..warning_pos];
+        let lines: Vec<&str> = before.lines().collect();
+        let mut found_guard = false;
+        for line in lines.iter().rev() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("if ") {
+                found_guard = trimmed.contains("!cfg!(feature = \"web\")")
+                    || trimmed.contains("cfg!(not(feature = \"web\"))");
+                break;
+            }
+        }
+        assert!(
+            found_guard,
+            "Setup warning must be gated by !cfg!(feature = \"web\") same as configure link"
+        );
     }
 }
