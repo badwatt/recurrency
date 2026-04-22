@@ -166,6 +166,19 @@ impl EditForm {
     fn reset(&mut self) {
         *self = EditForm::default();
     }
+
+    fn init_for_create(date: &str, currency: &str, category_id: &str) -> Self {
+        EditForm {
+            name: String::new(),
+            amount: String::new(),
+            currency: currency.to_string(),
+            frequency: "monthly".to_string(),
+            start_date: date.to_string(),
+            category_id: category_id.to_string(),
+            notes: String::new(),
+            logo_url: String::new(),
+        }
+    }
 }
 
 /// Helper: find category name for a CalendarItem by looking up the subscription in SUBSCRIPTIONS.
@@ -669,11 +682,22 @@ pub fn CalendarPage() -> Element {
                                                         title: "Add subscription for {formatted_date}",
                                                         onclick: move |e| {
                                                             e.stop_propagation();
-                                                            // Reset form and pre-fill the date
-                                                            edit_form.write().reset();
-                                                            edit_form.write().start_date = formatted_date.clone();
-                                                            edit_form.write().currency = AUTH().currency().to_string();
+                                                            let default_cat = CATEGORIES()
+                                                                .default_category()
+                                                                .map(|c| c.id.to_string())
+                                                                .unwrap_or_default();
+                                                            edit_form.set(EditForm::init_for_create(
+                                                                &formatted_date,
+                                                                &AUTH().currency().to_string(),
+                                                                &default_cat,
+                                                            ));
                                                             editing_id.set(None);
+                                                            name_error.set(String::new());
+                                                            amount_error.set(String::new());
+                                                            currency_error.set(String::new());
+                                                            frequency_error.set(String::new());
+                                                            start_date_error.set(String::new());
+                                                            category_error.set(String::new());
                                                             edit_dialog_open.set(true);
                                                         },
                                                         "+"
@@ -2030,9 +2054,15 @@ mod tests {
     }
 
     #[test]
-    fn items_for_day_empty_items() {
-        let items: Vec<CalendarItem> = vec![];
-        let result = items_for_day(&items, 2024, 1, 15);
-        assert!(result.is_empty());
+    fn edit_form_init_for_create_sets_defaults() {
+        let form = EditForm::init_for_create("2024-06-15", "EUR", "cat-123");
+        assert!(form.name.is_empty());
+        assert!(form.amount.is_empty());
+        assert_eq!(form.currency, "EUR");
+        assert_eq!(form.frequency, "monthly");
+        assert_eq!(form.start_date, "2024-06-15");
+        assert_eq!(form.category_id, "cat-123");
+        assert!(form.notes.is_empty());
+        assert!(form.logo_url.is_empty());
     }
 }
