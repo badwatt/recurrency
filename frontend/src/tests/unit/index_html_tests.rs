@@ -2,13 +2,11 @@
 
 #[test]
 fn index_html_body_bgmap_matches_css_variables() {
-    // index.html must define CSS variables for body background BEFORE tailwind.css loads.
-    // Bug: <style> was AFTER <link> → tailwind.css body{background-color:hsl(var(--background))}
-    // parsed with undefined vars → body defaulted to white on refresh.
-    // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE any stylesheet.
-    // Note: tailwind.css loaded via asset!() in main.rs — JS inserts link AFTER
-    // WASM mounts. Inline <style> vars must exist before that so body background
-    // resolves correctly during initial render.
+    // Note: tailwind.css loaded via <link> in <head>. Inline <style> vars
+    // must come BEFORE link so CSS has defined variables at parse time.
+    // Note: tailwind.css loaded via <link> in <head> (before WASM) AND
+    // via asset!() in main.rs (after WASM mounts). Browser may load CSS
+    // twice but caches second request. Key: CSS arrives before DOM so no FOUC.
     let html = include_str!("../../../index.html");
 
     // <style> with CSS vars must be present and BEFORE any <link> stylesheet
@@ -127,8 +125,8 @@ fn index_html_has_loading_spinner_before_wasm() {
 #[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
     // Pre-WASM loader must be OPAQUE to prevent FOUC.
-    // When tailwind.css loads via asset!(), content renders unstyled briefly.
-    // Semi-transparent loader lets unstyled content show through.
+    // When tailwind.css loads via <link> and asset!(), content may still render
+    // unstyled for a few ms before CSS parses. Opaque loader hides this.
     // Fix: solid themed background hides unstyled content behind loader.
     let html = include_str!("../../../index.html");
     let style_section = html
