@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::components::dialog::Dialog;
-use crate::models::subscription::{CalendarItem, UpdateSubscriptionRequest};
+use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, UpdateSubscriptionRequest};
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
@@ -505,6 +505,40 @@ pub fn CalendarPage() -> Element {
             };
             spawn(async move {
                 let _ = api::subscriptions::update(&id, &req).await;
+                match api::subscriptions::list().await {
+                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                    Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+                }
+                // Refresh calendar
+                let y = current_year();
+                let m = current_month();
+                if let Ok(items) = sub_api::calendar_month(y, m).await {
+                    calendar_items.set(items)
+                }
+            });
+        } else {
+            let req = CreateSubscriptionRequest {
+                name: f.name,
+                amount,
+                currency: f.currency,
+                frequency: f.frequency,
+                start_date: f.start_date.parse().unwrap_or(
+                    chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                ),
+                category_id: category,
+                notes: if f.notes.is_empty() {
+                    None
+                } else {
+                    Some(f.notes.clone())
+                },
+                logo_url: if f.logo_url.is_empty() {
+                    None
+                } else {
+                    Some(f.logo_url.clone())
+                },
+            };
+            spawn(async move {
+                let _ = api::subscriptions::create(&req).await;
                 match api::subscriptions::list().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
@@ -2051,6 +2085,19 @@ mod tests {
         let result20 = items_for_day(&items, 2024, 1, 20);
         assert_eq!(result15.len(), 1);
         assert_eq!(result20.len(), 1);
+    }
+
+    #[test]
+    fn handle_edit_submit_has_create_branch() {
+        // Bug: calendar '+' button opens add dialog but submit only updates,
+        // never creates. handle_edit_submit must have else branch calling
+        // api::subscriptions::create when editing_id is None.
+        let src = include_str!("calendar_page.rs");
+        let section = src.split("handle_edit_submit").nth(1).unwrap_or("");
+        assert!(
+            section.contains("api::subscriptions::create"),
+            "handle_edit_submit must call api::subscriptions::create for new subscriptions"
+        );
     }
 
     #[test]
