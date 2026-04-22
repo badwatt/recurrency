@@ -51,7 +51,7 @@ pub enum Route {
     CatchAll { path: Vec<String> },
 }
 
-const TAILWIND_CSS: Asset = asset!("/styles/tailwind.css", AssetOptions::css().with_static_head(true));
+const TAILWIND_CSS: Asset = asset!("/assets/styles/tailwind.css", AssetOptions::css().with_static_head(true));
 
 fn main() {
     dioxus::launch(App);
