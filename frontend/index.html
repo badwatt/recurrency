@@ -15,7 +15,7 @@
       --foreground: 222.2 84% 4.9%;
       --primary: 222.2 47.4% 11.2%;
       --muted: 210 40% 96.1%;
-      --loader-bg: rgba(255,255,255,0.65);
+      --loader-bg: #fff;
       --loader-fg: #020817;
     }
 
@@ -24,7 +24,7 @@
       --foreground: 210 40% 98%;
       --primary: 210 40% 98%;
       --muted: 217.2 32.6% 17.5%;
-      --loader-bg: rgba(0,0,0,0.3);
+      --loader-bg: #020817;
       --loader-fg: #fff;
     }
 
@@ -33,11 +33,11 @@
       --foreground: 226 64% 88%;
       --primary: 232 97% 85%;
       --muted: 234 13% 31%;
-      --loader-bg: rgba(0,0,0,0.3);
+      --loader-bg: #1e1e2e;
       --loader-fg: #fff;
     }
 
-    /* Pre-WASM loading overlay — themed + backdrop-blur */
+    /* Pre-WASM loading overlay — themed, opaque to prevent FOUC */
     body {
       background-color: hsl(var(--background));
       color: hsl(var(--foreground));
@@ -50,9 +50,8 @@
       position: fixed;
       inset: 0;
       z-index: 9999;
-      /* Semi-transparent — app behind visible through blur */
+      /* Opaque — hides unstyled content behind loader until CSS loads */
       background-color: var(--loader-bg);
-      -webkit-backdrop-filter: blur(12px);
       color: var(--loader-fg);
     }
 
@@ -105,7 +104,6 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="/assets/tailwind.css" />
 </head>
 
 <body>

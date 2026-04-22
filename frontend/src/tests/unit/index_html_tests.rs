@@ -6,9 +6,9 @@ fn index_html_body_bgmap_matches_css_variables() {
     // Bug: <style> was AFTER <link> → tailwind.css body{background-color:hsl(var(--background))}
     // parsed with undefined vars → body defaulted to white on refresh.
     // Fix: inline <style> with :root/.dark/.mocha CSS vars BEFORE any stylesheet.
-    // Note: <link> for tailwind.css in <head> loads before WASM mounts.
-    // Order: inline <style> vars first, then <link> stylesheet.
-    // This prevents FOUC by letting browser download CSS while WASM loads.
+    // Note: tailwind.css loaded via asset!() in main.rs — JS inserts link AFTER
+    // WASM mounts. Inline <style> vars must exist before that so body background
+    // resolves correctly during initial render.
     let html = include_str!("../../../index.html");
 
     // <style> with CSS vars must be present and BEFORE any <link> stylesheet
@@ -126,8 +126,10 @@ fn index_html_has_loading_spinner_before_wasm() {
 
 #[test]
 fn index_html_loader_is_backdrop_blur_overlay() {
-    // Pre-WASM loader must be semi-transparent + backdrop-blur.
-    // User intent: loader overlays the app (visible through blur), not opaque wall.
+    // Pre-WASM loader must be OPAQUE to prevent FOUC.
+    // When tailwind.css loads via asset!(), content renders unstyled briefly.
+    // Semi-transparent loader lets unstyled content show through.
+    // Fix: solid themed background hides unstyled content behind loader.
     let html = include_str!("../../../index.html");
     let style_section = html
         .split("<style>")
@@ -136,21 +138,31 @@ fn index_html_loader_is_backdrop_blur_overlay() {
         .split("</style>")
         .next()
         .unwrap_or("");
-    // Must have backdrop-filter: blur
+    // Must NOT have backdrop-filter (opaque bg, no blur needed)
     assert!(
-        style_section.contains("backdrop-filter"),
-        "#pre-wasm-loader must have backdrop-filter:blur"
+        !style_section.contains("backdrop-filter"),
+        "#pre-wasm-loader must NOT use backdrop-filter with opaque bg"
     );
-    // Must be SEMI-transparent (rgba), NOT opaque solid
+    // Must be OPAQUE solid color, not rgba semi-transparent
     assert!(
-        style_section.contains("rgba("),
-        "#pre-wasm-loader must use rgba() for semi-transparent background"
+        !style_section.contains("rgba("),
+        "#pre-wasm-loader must NOT use rgba() — must be opaque"
     );
-    // Must NOT be solid opaque white/black
+    // Must use solid colors: #fff for light, #020817 for dark, #1e1e2e for mocha
     assert!(
-        !style_section.contains("background-color: rgb(255,255,255)")
-            && !style_section.contains("rgb(2,8,23)"),
-        "Loader must NOT be opaque solid color"
+        style_section.contains("--loader-bg: #fff")
+            || style_section.contains("--loader-bg:#fff"),
+        "Light theme loader must be opaque white"
+    );
+    assert!(
+        style_section.contains("--loader-bg: #020817")
+            || style_section.contains("--loader-bg:#020817"),
+        "Dark theme loader must be opaque #020817"
+    );
+    assert!(
+        style_section.contains("--loader-bg: #1e1e2e")
+            || style_section.contains("--loader-bg:#1e1e2e"),
+        "Mocha theme loader must be opaque #1e1e2e"
     );
 }
 

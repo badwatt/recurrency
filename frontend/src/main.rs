@@ -103,6 +103,7 @@ fn App() -> Element {
     });
 
     rsx! {
+        dioxus::document::Stylesheet { href: asset!("/assets/tailwind.css") }
         Router::<Route> {}
     }
 }
