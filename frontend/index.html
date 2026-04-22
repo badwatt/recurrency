@@ -38,6 +38,10 @@
     }
 
     /* Pre-WASM loading overlay — themed + backdrop-blur */
+    body {
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+    }
     #pre-wasm-loader {
       display: flex;
       flex-direction: column;
