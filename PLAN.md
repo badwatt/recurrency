@@ -6,7 +6,7 @@ When you are done with a task, you should mark it as done in this file.
 
 ## TASKS:
 
-- [x] adding a subscription by pressing calendar cell "+" button does not work.
-It should be able to add a subscription from there.
+- [ ] when editin a subscription, it always show frecuency "weekly".
+Even when that's not the real value. It comes preselected in the dropdown.
 
 
