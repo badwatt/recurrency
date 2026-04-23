@@ -7,7 +7,7 @@ update the README.md too.
 
 ## TASKS:
 
-- [ ] when editin a subscription, it always show frecuency "weekly".
-Even when that's not the real value. It comes preselected in the dropdown.
+- [ ] Add setting to show dates like YYYY-MM-DD or DD-MM-YYYY (default: DD-MM-YYYY)
+
 
 
