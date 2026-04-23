@@ -288,9 +288,9 @@ pub fn ReportsPage() -> Element {
                                                     rsx! {
                                                         div { key: "{cat.category_name}", class: "flex items-center gap-1.5 text-sm",
                                                             div { class: "w-2.5 h-2.5 rounded-full shrink-0", style: "background-color: {color}" }
+                                                            {icon_display(icon_str)}
                                                             span { class: "truncate text-muted-foreground",
-                                                                {icon_display(icon_str)}
-                                                                " {cat.category_name}"
+                                                                "{cat.category_name}"
                                                             }
                                                             span { class: "font-medium ml-auto", "{cat.percentage:.0}%" }
                                                         }
@@ -317,12 +317,12 @@ pub fn ReportsPage() -> Element {
                                                 div { class: "flex items-center justify-between",
                                                     div { class: "flex items-center gap-3",
                                                         div {
-                                                            class: "w-8 h-8 rounded-full flex items-center justify-center",
+                                                            class: "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
                                                             style: "background-color: {color}20",
                                                             div { class: "w-4 h-4 rounded-full", style: "background-color: {color}" }
                                                         }
+                                                        {icon_display(icon_str)}
                                                         span { class: "font-medium",
-                                                            {icon_display(icon_str)}
                                                             "{cat.category_name}"
                                                         }
                                                     }
