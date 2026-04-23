@@ -293,10 +293,10 @@ pub fn SettingsPage() -> Element {
                          let is_email_disabled = is_email_disabled(*key, smtp_configured());
                          rsx! {
                             div { key: "{key}",
-                                div { class: "flex items-start sm:items-center justify-between gap-2 sm:gap-4",
-                                    div {
-                                        p { class: "font-medium", "{label}" }
-                                        p { class: "text-sm text-muted-foreground", "{desc}" }
+                                div { class: "flex items-center justify-between gap-4",
+                                    div { class: "min-w-0",
+                                        p { class: "font-medium truncate", "{label}" }
+                                        p { class: "text-sm text-muted-foreground truncate", "{desc}" }
                                         if is_email_disabled {
                                             div { class: "flex items-center gap-1.5 text-amber-600 mt-1",
                                                 svg {
@@ -319,9 +319,9 @@ pub fn SettingsPage() -> Element {
                                     }
                                     button {
                                         class: if checked {
-                                            "relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors focus:outline-none"
+                                            "relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors focus:outline-none shrink-0"
                                         } else {
-                                            "relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors focus:outline-none"
+                                            "relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors focus:outline-none shrink-0"
                                         },
                                         onclick: {
                                             let key_str = key_str.clone();
