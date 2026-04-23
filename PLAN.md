@@ -7,7 +7,8 @@ update the README.md too.
 
 ## TASKS:
 
-- [x] Add setting to show dates like YYYY-MM-DD or DD-MM-YYYY (default: DD-MM-YYYY)
+- [ ] if in settings, date format is set to DD-MM-YYYY, then every date should be formatted as DD-MM-YYYY,
+including for example the date visible on every subscription card.
 
 
 
