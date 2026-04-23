@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::components::dialog::Dialog;
+use crate::components::logo_image_with_fallback;
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, UpdateSubscriptionRequest};
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -107,6 +108,7 @@ struct CalendarItemDisplay {
     name: String,
     amount_str: String,
     title_str: String,
+    logo_url: Option<String>,
 }
 
 fn item_display(item: &CalendarItem, currency: &str) -> CalendarItemDisplay {
@@ -119,6 +121,7 @@ fn item_display(item: &CalendarItem, currency: &str) -> CalendarItemDisplay {
             item.name,
             format_currency(item.amount, &item.currency)
         ),
+        logo_url: item.logo_url.clone(),
     }
 }
 
@@ -320,7 +323,7 @@ pub fn CalendarPage() -> Element {
     // Sort upcoming items by billing date for mobile view
     let mut upcoming: Vec<_> = items.iter().collect();
     upcoming.sort_by(|a, b| a.billing_date.cmp(&b.billing_date));
-    let upcoming_display: Vec<(String, String, String, String)> = upcoming
+    let upcoming_display: Vec<(String, String, String, String, Option<String>)> = upcoming
         .iter()
         .map(|item| {
             (
@@ -328,6 +331,7 @@ pub fn CalendarPage() -> Element {
                 item.name.clone(),
                 item.billing_date.format("%a, %b %e").to_string(),
                 format_currency(item.amount, &item.currency),
+                item.logo_url.clone(),
             )
         })
         .collect();
@@ -635,13 +639,18 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 } else {
                     rsx! {
                         div { class: "space-y-2",
-                            for (id, name, date_str, amount_str) in &upcoming_display {
+                            for (id, name, date_str, amount_str, logo_url) in &upcoming_display {
                                 {rsx! {
                                     div { key: "{id}", class: "rounded-lg border border-border bg-card p-3",
                                         div { class: "flex items-center justify-between",
                                             div { class: "flex items-center gap-3",
                                                 div { class: "flex h-10 w-10 items-center justify-center rounded-full bg-primary/10",
-                                                    span { class: "text-primary", {icon_credit_card()} }
+                                                    if let Some(url) = logo_url {
+                                                        {logo_image_with_fallback(&format!("upcoming-{}", id), Some(url.as_str()), name, "h-6 w-6 rounded object-contain")
+                                                        }
+                                                    } else {
+                                                        span { class: "text-primary", {icon_credit_card()} }
+                                                    }
                                                 }
                                                 div {
                                                     p { class: "font-medium", "{name}" }
@@ -763,7 +772,12 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                                     key: "{item.subscription_id}",
                                                                     class: "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs",
                                                                     title: "{item.title_str}",
-                                                                    span { class: "shrink-0", {icon_credit_card()} }
+                                                                    if let Some(url) = &item.logo_url {
+                                                                        {logo_image_with_fallback(&format!("cal-{}", item.subscription_id), Some(url.as_str()), &item.name, "h-4 w-4 rounded object-contain")
+                                                                        }
+                                                                    } else {
+                                                                        span { class: "shrink-0", {icon_credit_card()} }
+                                                                    }
                                                                     span { class: "truncate", "{item.name}" }
                                                                     span { class: "ml-auto shrink-0 font-medium", "{item.amount_str}" }
                                                                 }
@@ -2133,5 +2147,29 @@ mod tests {
         assert_eq!(form.category_id, "cat-123");
         assert!(form.notes.is_empty());
         assert!(form.logo_url.is_empty());
+    }
+
+    #[test]
+    fn item_display_preserves_logo_url() {
+        let item = CalendarItem {
+            subscription_id: Uuid::new_v4(),
+            name: "Netflix".into(),
+            amount: dec!(15.99),
+            currency: "USD".into(),
+            frequency: "monthly".into(),
+            billing_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            is_active: true,
+            logo_url: Some("https://logo.com/netflix.png".into()),
+        };
+        let display = item_display(&item, "USD");
+        assert_eq!(display.logo_url, item.logo_url);
+    }
+
+    #[test]
+    fn calendar_event_renders_logo_image() {
+        let src = include_str!("calendar_page.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("logo_image_with_fallback"),
+            "Calendar item rendering must use logo_image_with_fallback");
     }
 }

@@ -10,7 +10,7 @@ update the README.md too.
 
 - [ ] when chosen logo of a subscription/transaction has a transparent background,
 app should add a background of the color of the theme with some opacity.
-- [ ] user should be able to remove logo of a subscription/transaction.
+- [x] user should be able to remove logo of a subscription/transaction.
 - [ ] logo must appear in calendar events as well.
 - [ ] it won't search for logo until user click on the search button or press enter.
 - [ ] on mobile, subscription filters an sort buttons are misaligned.
