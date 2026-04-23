@@ -29,6 +29,10 @@ const NOTIFICATION_CHANNELS: &[(&str, &str, &str)] = &[
     ),
 ];
 
+pub fn is_email_disabled(channel: &str, smtp_configured: bool) -> bool {
+    channel == "email" && !smtp_configured
+}
+
 #[component]
 pub fn SettingsPage() -> Element {
     let mut name = use_signal(|| {
@@ -286,7 +290,7 @@ pub fn SettingsPage() -> Element {
                     for (idx, (key, label, desc)) in NOTIFICATION_CHANNELS.iter().enumerate() {
                         {let checked = notification_prefs().get(*key).copied().unwrap_or(false);
                          let key_str = key.to_string();
-                         let is_email_disabled = *key == "email" && !smtp_configured();
+                         let is_email_disabled = is_email_disabled(*key, smtp_configured());
                          rsx! {
                             div { key: "{key}",
                                 div { class: "flex items-center justify-between",
@@ -294,7 +298,23 @@ pub fn SettingsPage() -> Element {
                                         p { class: "font-medium", "{label}" }
                                         p { class: "text-sm text-muted-foreground", "{desc}" }
                                         if is_email_disabled {
-                                            p { class: "text-xs text-muted-foreground mt-1", "SMTP not configured" }
+                                            div { class: "flex items-center gap-1.5 text-amber-600 mt-1",
+                                                svg {
+                                                    xmlns: "http://www.w3.org/2000/svg",
+                                                    width: "14",
+                                                    height: "14",
+                                                    view_box: "0 0 24 24",
+                                                    fill: "none",
+                                                    stroke: "currentColor",
+                                                    stroke_width: "2",
+                                                    stroke_linecap: "round",
+                                                    stroke_linejoin: "round",
+                                                    polygon { points: "7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" }
+                                                    line { x1: "12", y1: "8", x2: "12", y2: "12" }
+                                                    line { x1: "12", y1: "16", x2: "12.01", y2: "16" }
+                                                }
+                                                p { class: "text-xs font-medium", "SMTP not configured — email notifications unavailable" }
+                                            }
                                         }
                                     }
                                     button {
@@ -841,5 +861,25 @@ mod tests {
             },
         };
         assert!(!response.user.verified);
+    }
+
+    #[test]
+    fn email_disabled_when_smtp_not_configured() {
+        assert!(is_email_disabled("email", false));
+    }
+
+    #[test]
+    fn email_not_disabled_when_smtp_configured() {
+        assert!(!is_email_disabled("email", true));
+    }
+
+    #[test]
+    fn push_not_disabled_when_smtp_missing() {
+        assert!(!is_email_disabled("push", false));
+    }
+
+    #[test]
+    fn system_not_disabled_when_smtp_missing() {
+        assert!(!is_email_disabled("system", false));
     }
 }

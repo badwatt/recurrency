@@ -9,7 +9,7 @@ update the README.md too.
 ## TASKS:
 
 - [x] remove DD-MM-YYYY/YYYY-MM-DD from settings if is possible to get the browser/mobile/desktop locale instead. And use "/" instead of "-" as separator.
-- [ ] if SMTP is not configured, make more visible that is not posible to enable email notifications.
+- [x] if SMTP is not configured, make more visible that is not posible to enable email notifications.
 - [ ] I want to use lucide icons for the whole app. Category icons are not lucide.
 - [ ] I want to always and in anywhere (labels, dropdowns, etc...) show the chosen logo of a category (or default logo if no logo is set) next to de category name. Order: logo -> category name.
 I want to show them EVERYWHERE where there is a category label. (transactions, reports, etc...)
