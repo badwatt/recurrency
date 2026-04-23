@@ -460,9 +460,9 @@ mod tests {
     // ── Additional model edge case tests ──
     #[test]
     fn create_category_request_name_with_special_chars() {
-        let json = r##"{"name":"Home & Garden 🚗","icon":"Home","color":"#00FF00"}"##;
+        let json = r##"{"name":"House & Garden 🚗","icon":"House","color":"#00FF00"}"##;
         let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(req.name, "Home & Garden 🚗");
+        assert_eq!(req.name, "House & Garden 🚗");
     }
 
     #[test]

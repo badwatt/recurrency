@@ -919,7 +919,8 @@ fn render_grid_card(
                 span {
                     class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
                     style: "color: {color}; background-color: {color}15;",
-                    "{icon_display(&cat_icon)} {cat_name}"
+                    {icon_display(&cat_icon)}
+                    "{cat_name}"
                 }
 
                 div { class: "flex items-center gap-1 mt-auto flex-wrap justify-center",
@@ -1004,7 +1005,8 @@ fn render_list_card(
                         span {
                             class: "hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
                             style: "color: {color}; background-color: {color}15;",
-                            "{icon_display(&cat_icon)} {cat_name}"
+                            {icon_display(&cat_icon)}
+                            "{cat_name}"
                         }
                         p { class: "font-medium text-sm sm:text-base", "{formatted}" }
 

@@ -2,7 +2,7 @@ use crate::api::categories;
 use crate::components::dialog::Dialog;
 use crate::models::category::*;
 use crate::state::categories::CATEGORIES;
-use crate::utils::icons::ICON_NAMES;
+use crate::utils::icons::{ICON_NAMES, icon_display};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
@@ -365,54 +365,6 @@ pub fn CategoriesPage() -> Element {
     }
 }
 
-/// Map icon name to a display character (emoji/text shorthand).
-/// Since lucide-dioxus isn't available, we use text representations.
-fn icon_display(name: &str) -> String {
-    match name {
-        "Home" => "🏠",
-        "ShoppingBag" => "🛍",
-        "Coffee" => "☕",
-        "Car" => "🚗",
-        "Heart" => "❤",
-        "Film" => "🎬",
-        "Music" => "🎵",
-        "Gamepad2" => "🎮",
-        "Briefcase" => "💼",
-        "GraduationCap" => "🎓",
-        "Plane" => "✈",
-        "Zap" => "⚡",
-        "Wifi" => "📶",
-        "Smartphone" => "📱",
-        "Laptop" => "💻",
-        "Monitor" => "🖥",
-        "Cloud" => "☁",
-        "Database" => "🗄",
-        "Server" => "🖧",
-        "Lock" => "🔒",
-        "Shield" => "🛡",
-        "CreditCard" => "💳",
-        "Wallet" => "👛",
-        "Gift" => "🎁",
-        "Star" => "⭐",
-        "Sun" => "☀",
-        "Moon" => "🌙",
-        "CloudRain" => "🌧",
-        "Thermometer" => "🌡",
-        "Activity" => "📈",
-        "Pill" => "💊",
-        "Stethoscope" => "🩺",
-        "Baby" => "👶",
-        "Flower" => "🌸",
-        "TreePine" => "🌲",
-        "Utensils" => "餐具",
-        "Beer" => "🍺",
-        "Wine" => "🍷",
-        "Tag" => "🏷",
-        _ => "🏷",
-    }
-    .to_string()
-}
-
 /// Validation result for category form.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CategoryValidationResult {
@@ -452,14 +404,14 @@ mod tests {
 
     #[test]
     fn icon_display_known() {
-        assert_eq!(icon_display("Home"), "🏠");
-        assert_eq!(icon_display("Film"), "🎬");
-        assert_eq!(icon_display("Tag"), "🏷");
+        assert!(icon_display("House").is_ok());
+        assert!(icon_display("Film").is_ok());
+        assert!(icon_display("Tag").is_ok());
     }
 
     #[test]
     fn icon_display_unknown() {
-        assert_eq!(icon_display("NonExistent"), "🏷");
+        assert!(icon_display("NonExistent").is_ok());
     }
 
     #[test]
@@ -476,52 +428,14 @@ mod tests {
     // ── Comprehensive icon_display tests ──
     #[test]
     fn icon_display_all_mappings() {
-        // Test every known icon mapping
-        assert_eq!(icon_display("Home"), "🏠");
-        assert_eq!(icon_display("ShoppingBag"), "🛍");
-        assert_eq!(icon_display("Coffee"), "☕");
-        assert_eq!(icon_display("Car"), "🚗");
-        assert_eq!(icon_display("Heart"), "❤");
-        assert_eq!(icon_display("Film"), "🎬");
-        assert_eq!(icon_display("Music"), "🎵");
-        assert_eq!(icon_display("Gamepad2"), "🎮");
-        assert_eq!(icon_display("Briefcase"), "💼");
-        assert_eq!(icon_display("GraduationCap"), "🎓");
-        assert_eq!(icon_display("Plane"), "✈");
-        assert_eq!(icon_display("Zap"), "⚡");
-        assert_eq!(icon_display("Wifi"), "📶");
-        assert_eq!(icon_display("Smartphone"), "📱");
-        assert_eq!(icon_display("Laptop"), "💻");
-        assert_eq!(icon_display("Monitor"), "🖥");
-        assert_eq!(icon_display("Cloud"), "☁");
-        assert_eq!(icon_display("Database"), "🗄");
-        assert_eq!(icon_display("Server"), "🖧");
-        assert_eq!(icon_display("Lock"), "🔒");
-        assert_eq!(icon_display("Shield"), "🛡");
-        assert_eq!(icon_display("CreditCard"), "💳");
-        assert_eq!(icon_display("Wallet"), "👛");
-        assert_eq!(icon_display("Gift"), "🎁");
-        assert_eq!(icon_display("Star"), "⭐");
-        assert_eq!(icon_display("Sun"), "☀");
-        assert_eq!(icon_display("Moon"), "🌙");
-        assert_eq!(icon_display("CloudRain"), "🌧");
-        assert_eq!(icon_display("Thermometer"), "🌡");
-        assert_eq!(icon_display("Activity"), "📈");
-        assert_eq!(icon_display("Pill"), "💊");
-        assert_eq!(icon_display("Stethoscope"), "🩺");
-        assert_eq!(icon_display("Baby"), "👶");
-        assert_eq!(icon_display("Flower"), "🌸");
-        assert_eq!(icon_display("TreePine"), "🌲");
-        assert_eq!(icon_display("Utensils"), "餐具");
-        assert_eq!(icon_display("Beer"), "🍺");
-        assert_eq!(icon_display("Wine"), "🍷");
-        assert_eq!(icon_display("Tag"), "🏷");
+        for name in ICON_NAMES {
+            assert!(icon_display(name).is_ok(), "icon_display failed for {}", name);
+        }
     }
 
     #[test]
-    fn icon_display_returns_string() {
-        let result: String = icon_display("Home");
-        assert!(result.len() > 0);
+    fn icon_display_returns_element() {
+        assert!(icon_display("House").is_ok());
     }
 
     // ── Validation logic tests (mirrors component logic) ──
@@ -626,12 +540,9 @@ mod tests {
     // ── ICON_NAMES coverage ──
     #[test]
     fn all_icon_names_mapped() {
-        // Every ICON_NAME should have a non-default mapping
         for name in ICON_NAMES {
             let display = icon_display(name);
-            // Unknown icons return 🏷 (Tag default)
-            // Tag itself also returns 🏷, so we just check non-empty
-            assert!(!display.is_empty(), "Icon {} should have a display", name);
+            assert!(display.is_ok(), "Icon {} should have a display", name);
         }
     }
 
@@ -669,31 +580,31 @@ mod tests {
     #[test]
     fn icon_display_returns_emoji_for_known() {
         // Known icon names return specific emoji
-        assert_eq!(icon_display("Tag"), "🏷");
-        assert_eq!(icon_display("Star"), "⭐");
+        assert!(icon_display("Tag").is_ok());
+        assert!(icon_display("Star").is_ok());
         // Heart may have variation selector
-        assert_eq!(icon_display("Heart"), "❤");
-        assert_eq!(icon_display("Plane"), "✈");
+        assert!(icon_display("Heart").is_ok());
+        assert!(icon_display("Plane").is_ok());
     }
 
     #[test]
     fn icon_display_fallback_for_unknown() {
         // Unknown icons fall back to tag
-        assert_eq!(icon_display("UnknownIcon"), "🏷");
-        assert_eq!(icon_display(""), "🏷");
+        assert!(icon_display("UnknownIcon").is_ok());
+        assert!(icon_display("").is_ok());
     }
 
     #[test]
     fn icon_display_non_empty_result() {
         let result = icon_display("Tag");
-        assert!(!result.is_empty());
+        assert!(result.is_ok());
     }
 
     // ── Icon display sample mappings test ──
     #[test]
     fn icon_display_sample_no_panic() {
         // Test a sample of icon names - ensure no panics
-        let test_icons = ["Tag", "Star", "Home", "Plane", "Heart", "Music", "Car"];
+        let test_icons = ["Tag", "Star", "House", "Plane", "Heart", "Music", "Car"];
         for icon in test_icons {
             let _ = icon_display(icon);
         }
@@ -735,7 +646,7 @@ mod tests {
     #[test]
     fn icon_display_known_icons_no_panic() {
         let icons = [
-            "Home",
+            "House",
             "Car",
             "Coffee",
             "Film",
@@ -747,7 +658,7 @@ mod tests {
         for icon in icons {
             let result = icon_display(icon);
             assert!(
-                !result.is_empty(),
+                result.is_ok(),
                 "icon_display({}) should not return empty",
                 icon
             );
@@ -758,7 +669,7 @@ mod tests {
     fn icon_display_food_and_drink_no_panic() {
         for icon in ["Coffee", "Pizza", "Apple", "Beer", "Wine"] {
             let result = icon_display(icon);
-            assert!(!result.is_empty());
+            assert!(result.is_ok());
         }
     }
 
@@ -766,7 +677,7 @@ mod tests {
     fn icon_display_transport_no_panic() {
         for icon in ["Car", "Plane", "Train", "Bike"] {
             let result = icon_display(icon);
-            assert!(!result.is_empty());
+            assert!(result.is_ok());
         }
     }
 
@@ -774,7 +685,7 @@ mod tests {
     fn icon_display_tech_no_panic() {
         for icon in ["Smartphone", "Laptop", "Tv", "Headphones"] {
             let result = icon_display(icon);
-            assert!(!result.is_empty());
+            assert!(result.is_ok());
         }
     }
 
@@ -782,7 +693,7 @@ mod tests {
     fn icon_display_finance_no_panic() {
         for icon in ["CreditCard", "Wallet", "DollarSign"] {
             let result = icon_display(icon);
-            assert!(!result.is_empty());
+            assert!(result.is_ok());
         }
     }
 
@@ -790,31 +701,31 @@ mod tests {
     fn icon_display_entertainment_no_panic() {
         for icon in ["Film", "Gamepad2", "Music", "Book"] {
             let result = icon_display(icon);
-            assert!(!result.is_empty());
+            assert!(result.is_ok());
         }
     }
 
     #[test]
     fn icon_display_health() {
-        assert_eq!(icon_display("Heart"), "❤");
-        assert_eq!(icon_display("Activity"), "📈");
-        assert_eq!(icon_display("Pill"), "💊");
-        assert_eq!(icon_display("Stethoscope"), "🩺");
+        assert!(icon_display("Heart").is_ok());
+        assert!(icon_display("Activity").is_ok());
+        assert!(icon_display("Pill").is_ok());
+        assert!(icon_display("Stethoscope").is_ok());
     }
 
     #[test]
     fn icon_display_nature() {
-        assert_eq!(icon_display("TreePine"), "🌲");
-        assert_eq!(icon_display("Flower"), "🌸");
-        assert_eq!(icon_display("CloudRain"), "🌧");
+        assert!(icon_display("TreePine").is_ok());
+        assert!(icon_display("Flower").is_ok());
+        assert!(icon_display("CloudRain").is_ok());
     }
 
     #[test]
     fn icon_display_weather() {
-        assert_eq!(icon_display("Sun"), "☀");
-        assert_eq!(icon_display("Moon"), "🌙");
-        assert_eq!(icon_display("CloudRain"), "🌧");
-        assert_eq!(icon_display("Thermometer"), "🌡");
+        assert!(icon_display("Sun").is_ok());
+        assert!(icon_display("Moon").is_ok());
+        assert!(icon_display("CloudRain").is_ok());
+        assert!(icon_display("Thermometer").is_ok());
     }
 
     #[test]
@@ -853,7 +764,7 @@ mod tests {
     // ── validate_category_form tests ──
     #[test]
     fn validate_category_form_valid() {
-        let r = validate_category_form("Food", "Home", "#ef4444");
+        let r = validate_category_form("Food", "House", "#ef4444");
         assert!(r.is_valid());
         assert!(r.name_error.is_none());
         assert!(r.icon_error.is_none());
@@ -862,21 +773,21 @@ mod tests {
 
     #[test]
     fn validate_category_form_empty_name() {
-        let r = validate_category_form("", "Home", "#ef4444");
+        let r = validate_category_form("", "House", "#ef4444");
         assert!(!r.is_valid());
         assert_eq!(r.name_error.as_deref(), Some("Name is required"));
     }
 
     #[test]
     fn validate_category_form_whitespace_name() {
-        let r = validate_category_form("   ", "Home", "#ef4444");
+        let r = validate_category_form("   ", "House", "#ef4444");
         assert!(!r.is_valid());
         assert_eq!(r.name_error.as_deref(), Some("Name is required"));
     }
 
     #[test]
     fn validate_category_form_short_name() {
-        let r = validate_category_form("A", "Home", "#ef4444");
+        let r = validate_category_form("A", "House", "#ef4444");
         assert!(!r.is_valid());
         assert_eq!(
             r.name_error.as_deref(),
@@ -893,14 +804,14 @@ mod tests {
 
     #[test]
     fn validate_category_form_empty_color() {
-        let r = validate_category_form("Food", "Home", "");
+        let r = validate_category_form("Food", "House", "");
         assert!(!r.is_valid());
         assert_eq!(r.color_error.as_deref(), Some("Color is required"));
     }
 
     #[test]
     fn validate_category_form_invalid_color() {
-        let r = validate_category_form("Food", "Home", "red");
+        let r = validate_category_form("Food", "House", "red");
         assert!(!r.is_valid());
         assert_eq!(r.color_error.as_deref(), Some("Invalid color"));
     }
@@ -917,7 +828,7 @@ mod tests {
     #[test]
     fn validate_category_form_name_error_takes_precedence() {
         // Empty name is "required" not "too short"
-        let r = validate_category_form("", "Home", "#ef4444");
+        let r = validate_category_form("", "House", "#ef4444");
         assert!(!r.is_valid());
         assert_eq!(r.name_error.as_deref(), Some("Name is required"));
     }

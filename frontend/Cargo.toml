@@ -17,6 +17,7 @@ path = "src/main.rs"
 dioxus = { version = "0.7.5", features = ["router"] }
 web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
 sys-locale = "0.3.2"
+lucide-dioxus = { version = "2.577", features = ["all-icons"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.140"
 chrono = { version = "0.4.44", features = ["serde"] }

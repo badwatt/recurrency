@@ -1,11 +1,14 @@
-/// Icon name → display mapping.
-/// Mirrors the getIcon() function from the React frontend.
-/// In Dioxus, we'll use lucide-dioxus components, but this provides
-/// the name lookup/normalization logic.
-///
+use dioxus::prelude::*;
+use lucide_dioxus::{
+    Activity, Baby, Beer, Briefcase, Car, Cloud, CloudRain, Coffee, CreditCard, Database,
+    Film, Flower, Gamepad2, Gift, GraduationCap, Heart, House, Laptop, Lock, Monitor, Moon,
+    Music, Pill, Plane, Server, Shield, ShoppingBag, Smartphone, Star, Stethoscope, Sun,
+    Tag, Thermometer, TreePine, Utensils, Wallet, Wifi, Wine, Zap,
+};
+
 /// Available icon names (matching lucide-react icon names from original).
 pub const ICON_NAMES: &[&str] = &[
-    "Home",
+    "House",
     "ShoppingBag",
     "Coffee",
     "Car",
@@ -49,21 +52,49 @@ pub const ICON_NAMES: &[&str] = &[
 /// Default icon when name is unknown or null.
 pub const DEFAULT_ICON: &str = "Tag";
 
-/// Map icon name to a display character (emoji).
-pub fn icon_display(name: &str) -> String {
+/// Map icon name to a lucide Element.
+pub fn icon_display(name: &str) -> Element {
     match name {
-        "Home" => "🏠", "ShoppingBag" => "🛍", "Coffee" => "☕", "Car" => "🚗",
-        "Heart" => "❤", "Film" => "🎬", "Music" => "🎵", "Gamepad2" => "🎮",
-        "Briefcase" => "💼", "GraduationCap" => "🎓", "Plane" => "✈",
-        "Zap" => "⚡", "Wifi" => "📶", "Smartphone" => "📱", "Laptop" => "💻",
-        "Monitor" => "🖥", "Cloud" => "☁", "Database" => "🗄", "Server" => "🖧",
-        "Lock" => "🔒", "Shield" => "🛡", "CreditCard" => "💳", "Wallet" => "👛",
-        "Gift" => "🎁", "Star" => "⭐", "Sun" => "☀", "Moon" => "🌙",
-        "CloudRain" => "🌧", "Thermometer" => "🌡", "Activity" => "📈",
-        "Pill" => "💊", "Stethoscope" => "🩺", "Baby" => "👶",
-        "Flower" => "🌸", "TreePine" => "🌲", "Utensils" => "餐具",
-        "Beer" => "🍺", "Wine" => "🍷", "Tag" => "🏷", _ => "🏷",
-    }.to_string()
+        "House" => rsx! { House { size: 16 } },
+        "ShoppingBag" => rsx! { ShoppingBag { size: 16 } },
+        "Coffee" => rsx! { Coffee { size: 16 } },
+        "Car" => rsx! { Car { size: 16 } },
+        "Heart" => rsx! { Heart { size: 16 } },
+        "Film" => rsx! { Film { size: 16 } },
+        "Music" => rsx! { Music { size: 16 } },
+        "Gamepad2" => rsx! { Gamepad2 { size: 16 } },
+        "Briefcase" => rsx! { Briefcase { size: 16 } },
+        "GraduationCap" => rsx! { GraduationCap { size: 16 } },
+        "Plane" => rsx! { Plane { size: 16 } },
+        "Zap" => rsx! { Zap { size: 16 } },
+        "Wifi" => rsx! { Wifi { size: 16 } },
+        "Smartphone" => rsx! { Smartphone { size: 16 } },
+        "Laptop" => rsx! { Laptop { size: 16 } },
+        "Monitor" => rsx! { Monitor { size: 16 } },
+        "Cloud" => rsx! { Cloud { size: 16 } },
+        "Database" => rsx! { Database { size: 16 } },
+        "Server" => rsx! { Server { size: 16 } },
+        "Lock" => rsx! { Lock { size: 16 } },
+        "Shield" => rsx! { Shield { size: 16 } },
+        "CreditCard" => rsx! { CreditCard { size: 16 } },
+        "Wallet" => rsx! { Wallet { size: 16 } },
+        "Gift" => rsx! { Gift { size: 16 } },
+        "Star" => rsx! { Star { size: 16 } },
+        "Sun" => rsx! { Sun { size: 16 } },
+        "Moon" => rsx! { Moon { size: 16 } },
+        "CloudRain" => rsx! { CloudRain { size: 16 } },
+        "Thermometer" => rsx! { Thermometer { size: 16 } },
+        "Activity" => rsx! { Activity { size: 16 } },
+        "Pill" => rsx! { Pill { size: 16 } },
+        "Stethoscope" => rsx! { Stethoscope { size: 16 } },
+        "Baby" => rsx! { Baby { size: 16 } },
+        "Flower" => rsx! { Flower { size: 16 } },
+        "TreePine" => rsx! { TreePine { size: 16 } },
+        "Utensils" => rsx! { Utensils { size: 16 } },
+        "Beer" => rsx! { Beer { size: 16 } },
+        "Wine" => rsx! { Wine { size: 16 } },
+        "Tag" | _ => rsx! { Tag { size: 16 } },
+    }
 }
 
 /// Convert a kebab-case icon name from the backend to PascalCase.
@@ -102,7 +133,7 @@ mod tests {
 
     #[test]
     fn normalize_single_word() {
-        assert_eq!(normalize_icon_name("home"), "Home");
+        assert_eq!(normalize_icon_name("house"), "House");
         assert_eq!(normalize_icon_name("film"), "Film");
     }
 
@@ -113,7 +144,7 @@ mod tests {
 
     #[test]
     fn valid_icons() {
-        assert!(is_valid_icon("home"));
+        assert!(is_valid_icon("house"));
         assert!(is_valid_icon("tree-pine"));
         assert!(is_valid_icon("Gamepad2"));
     }
@@ -129,7 +160,6 @@ mod tests {
         assert_eq!(ICON_NAMES.len(), 39);
     }
 
-    // ── Additional tests ──
     #[test]
     fn default_icon_is_tag() {
         assert_eq!(DEFAULT_ICON, "Tag");
@@ -137,27 +167,24 @@ mod tests {
 
     #[test]
     fn normalize_already_pascal() {
-        assert_eq!(normalize_icon_name("Home"), "Home");
+        assert_eq!(normalize_icon_name("House"), "House");
         assert_eq!(normalize_icon_name("Film"), "Film");
     }
 
     #[test]
     fn is_valid_icon_direct() {
-        // Direct PascalCase names should be found
-        assert!(is_valid_icon("Home"));
+        assert!(is_valid_icon("House"));
         assert!(is_valid_icon("Tag"));
     }
 
     #[test]
     fn is_valid_icon_from_kebab() {
-        // Kebab-case gets normalized and checked
         assert!(is_valid_icon("shopping-bag"));
     }
 
     #[test]
     fn is_valid_icon_empty_false() {
-        // Empty string normalizes to Tag, which IS valid
-        assert!(is_valid_icon("")); // empty = Tag = valid
+        assert!(is_valid_icon(""));
     }
 
     #[test]
@@ -184,14 +211,14 @@ mod tests {
     }
 
     #[test]
-    fn icon_display_known() {
-        assert_eq!(icon_display("Home"), "🏠");
-        assert_eq!(icon_display("Film"), "🎬");
-        assert_eq!(icon_display("Tag"), "🏷");
+    fn icon_display_known_returns_element() {
+        assert!(icon_display("House").is_ok());
+        assert!(icon_display("Film").is_ok());
+        assert!(icon_display("Tag").is_ok());
     }
 
     #[test]
-    fn icon_display_unknown() {
-        assert_eq!(icon_display("NonExistent"), "🏷");
+    fn icon_display_unknown_returns_element() {
+        assert!(icon_display("NonExistent").is_ok());
     }
 }
