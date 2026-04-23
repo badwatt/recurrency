@@ -60,7 +60,10 @@ pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
         .map_err(|e| AppError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
     // Get VQD token
-    let vqd_url = format!("https://duckduckgo.com/?q={}", search_term);
+    let vqd_url = format!(
+        "https://duckduckgo.com/?q={}",
+        urlencoding::encode(&search_term)
+    );
 
     let vqd_response = client
         .get(&vqd_url)

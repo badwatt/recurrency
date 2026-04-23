@@ -8,9 +8,33 @@ use dioxus::prelude::*;
 #[component]
 pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventHandler<String>) -> Element {
     let mut dialog_open = use_signal(|| false);
-    let mut query = use_signal(|| default_query);
+    let mut query = use_signal(|| default_query.clone());
     let mut results = use_signal(Vec::<LogoResult>::new);
     let mut searching = use_signal(|| false);
+    let mut error_msg = use_signal(|| String::new());
+
+    // Auto-search when dialog opens and default query is present
+    use_effect(move || {
+        if dialog_open() && !query().is_empty() && !searching() && results().is_empty() && error_msg().is_empty() {
+            searching.set(true);
+            let q = query();
+            spawn(async move {
+                match api::logos::search(&q).await {
+                    Ok(resp) => {
+                        if resp.results.is_empty() {
+                            error_msg.set("No logos found. Try a different search term.".into());
+                        } else {
+                            results.set(resp.results);
+                        }
+                    }
+                    Err(e) => {
+                        error_msg.set(format!("Search failed: {}", e));
+                    }
+                }
+                searching.set(false);
+            });
+        }
+    });
 
     rsx! {
         // Selected logo preview + button
@@ -21,8 +45,12 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
             button {
                 r#type: "button",
                 class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
-                onclick: move |_| dialog_open.set(true),
-                "Add logo"
+                onclick: move |_| {
+                    results.set(vec![]);
+                    error_msg.set(String::new());
+                    dialog_open.set(true);
+                },
+                if !selected_url.is_empty() { "Change" } else { "Add logo" }
             }
         }
 
@@ -33,29 +61,56 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
             title: "Search Logo".to_string(),
 
             div { class: "space-y-4",
-                Input {
-                    value: query(),
-                    on_input: move |v: String| query.set(v),
-                    placeholder: "Search for a brand logo…".to_string(),
-                    r#type: "text".to_string(),
+                div { class: "flex gap-2",
+                    Input {
+                        value: query(),
+                        on_input: move |v: String| {
+                            query.set(v);
+                            error_msg.set(String::new());
+                        },
+                        placeholder: "Enter company name or domain...".to_string(),
+                        r#type: "text".to_string(),
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
+                        disabled: searching() || query().is_empty(),
+                        onclick: move |_| {
+                            let q = query();
+                            searching.set(true);
+                            error_msg.set(String::new());
+                            results.set(vec![]);
+                            spawn(async move {
+                                match api::logos::search(&q).await {
+                                    Ok(resp) => {
+                                        if resp.results.is_empty() {
+                                            error_msg.set("No logos found. Try a different search term.".into());
+                                        } else {
+                                            results.set(resp.results);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error_msg.set(format!("Search failed: {}", e));
+                                    }
+                                }
+                                searching.set(false);
+                            });
+                        },
+                        if searching() { "Searching…" } else { "Search" }
+                    }
                 }
 
-                button {
-                    r#type: "button",
-                    class: "inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
-                    disabled: searching() || query().is_empty(),
-                    onclick: move |_| {
-                        let q = query();
-                        searching.set(true);
-                        spawn(async move {
-                            match api::logos::search(&q).await {
-                                Ok(resp) => results.set(resp.results),
-                                Err(_) => results.set(vec![]),
-                            }
-                            searching.set(false);
-                        });
-                    },
-                    if searching() { "Searching…" } else { "Search" }
+                if searching() {
+                    div { class: "flex h-32 items-center justify-center",
+                        div { class: "h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" }
+                    }
+                }
+
+                if !error_msg().is_empty() {
+                    div { class: "flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground",
+                        "No logos found"
+                        p { class: "text-xs", "Try searching for the company website (e.g., spotify.com)" }
+                    }
                 }
 
                 if !results().is_empty() {
@@ -63,7 +118,8 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                         for logo in results() {
                             button {
                                 r#type: "button",
-                                class: "flex flex-col items-center gap-1 rounded-md border border-border p-2 hover:bg-accent",
+                                class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 hover:bg-accent transition-colors",
+                                title: "{logo.url}",
                                 onclick: {
                                     let url = logo.url.clone();
                                     let on_sel = on_select;
@@ -72,10 +128,11 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                                         dialog_open.set(false);
                                     }
                                 },
-                                {logo_image_with_fallback(&format!("search-result-{}", logo.name), Some(logo.url.as_str()), &logo.name, "h-10 w-10 object-contain")}
-                                span { class: "text-xs text-muted-foreground truncate w-full text-center",
-                                    {logo.name.clone()}
-                                }
+                                {logo_image_with_fallback(&format!("search-result-{}", logo.url),
+                                    Some(logo.thumbnail.as_str()),
+                                    "Logo",
+                                    "max-h-full max-w-full object-contain"
+                                )}
                             }
                         }
                     }
@@ -86,59 +143,58 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
 }
 
 #[cfg(test)]
-#[allow(unused_assignments)]
 mod tests {
     use crate::models::logo::LogoResult;
 
     #[test]
-    fn logo_search_placeholder() {
-        assert!(true);
-    }
-
-    // ── LogoResult model ──
-    #[test]
     fn logo_result_fields() {
         let r = LogoResult {
-            name: "Netflix".into(),
             url: "https://logo.clearbit.com/netflix.com".into(),
+            thumbnail: "https://logo.clearbit.com/netflix.com".into(),
+            width: Some(200),
+            height: Some(100),
         };
-        assert_eq!(r.name, "Netflix");
         assert!(r.url.starts_with("https://"));
+        assert!(r.thumbnail.starts_with("https://"));
+        assert_eq!(r.width, Some(200));
+        assert_eq!(r.height, Some(100));
     }
 
     #[test]
     fn logo_result_serialization() {
         let r = LogoResult {
-            name: "Spotify".into(),
             url: "https://logo.clearbit.com/spotify.com".into(),
+            thumbnail: "https://logo.clearbit.com/spotify.com".into(),
+            width: None,
+            height: None,
         };
         let json = serde_json::to_string(&r).unwrap();
-        assert!(json.contains("Spotify"));
+        assert!(json.contains("url"));
         let back: LogoResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.name, "Spotify");
+        assert_eq!(back.url, r.url);
+        assert_eq!(back.thumbnail, r.thumbnail);
     }
 
     #[test]
     fn logo_result_multiple() {
         let logos = vec![
             LogoResult {
-                name: "Netflix".into(),
                 url: "https://a.com/n.png".into(),
+                thumbnail: "https://a.com/n_thumb.png".into(),
+                width: None,
+                height: None,
             },
             LogoResult {
-                name: "Spotify".into(),
                 url: "https://a.com/s.png".into(),
-            },
-            LogoResult {
-                name: "Amazon".into(),
-                url: "https://a.com/am.png".into(),
+                thumbnail: "https://a.com/s_thumb.png".into(),
+                width: None,
+                height: None,
             },
         ];
-        assert_eq!(logos.len(), 3);
-        assert_eq!(logos[0].name, "Netflix");
+        assert_eq!(logos.len(), 2);
+        assert_eq!(logos[0].url, "https://a.com/n.png");
     }
 
-    // ── Search query URL construction ──
     #[test]
     fn search_url_format() {
         let query = "netflix";
@@ -160,19 +216,6 @@ mod tests {
         assert!(url.contains("q=hulu+tv"));
     }
 
-    // ── Loading state transitions ──
-    #[test]
-    fn loading_state_idle() {
-        let searching = false;
-        assert!(!searching);
-    }
-
-    #[test]
-    fn loading_state_active() {
-        let searching = true;
-        assert!(searching);
-    }
-
     #[test]
     fn loading_state_transitions() {
         let mut searching = false;
@@ -182,7 +225,6 @@ mod tests {
         assert!(!searching);
     }
 
-    // ── Results state ──
     #[test]
     fn results_empty() {
         let results: Vec<LogoResult> = vec![];
@@ -193,23 +235,19 @@ mod tests {
     fn results_with_items() {
         let results = vec![
             LogoResult {
-                name: "A".into(),
                 url: "https://a.com".into(),
+                thumbnail: "https://a.com/t.png".into(),
+                width: None,
+                height: None,
             },
             LogoResult {
-                name: "B".into(),
                 url: "https://b.com".into(),
+                thumbnail: "https://b.com/t.png".into(),
+                width: None,
+                height: None,
             },
         ];
         assert_eq!(results.len(), 2);
-    }
-
-    // ── Search query min length ──
-    #[test]
-    fn search_query_min_length() {
-        let min_len = 2;
-        assert!("a".len() < min_len);
-        assert!("ab".len() >= min_len);
     }
 
     #[test]
@@ -219,7 +257,6 @@ mod tests {
         assert!(query.len() < 2);
     }
 
-    // ── Error state ──
     #[test]
     fn api_error_logo_search() {
         let err = crate::api::client::ApiError::Http(500, "logo service unavailable".into());
@@ -232,23 +269,15 @@ mod tests {
         assert!(err.to_string().contains("timeout"));
     }
 
-    // ── Modal open/close state ──
-    #[test]
-    fn modal_closed_by_default() {
-        let open = false;
-        assert!(!open);
-    }
-
     #[test]
     fn modal_toggle() {
         let mut open = false;
-        open = !open; // Open
+        open = !open;
         assert!(open);
-        open = !open; // Close
+        open = !open;
         assert!(!open);
     }
 
-    // ── Logo URL validation ──
     #[test]
     fn logo_url_https_required() {
         let url = "https://logo.clearbit.com/netflix.com";
@@ -256,55 +285,42 @@ mod tests {
     }
 
     #[test]
-    fn logo_url_clearbit_domain() {
-        let url = "https://logo.clearbit.com/company.com";
-        assert!(url.contains("logo.clearbit.com"));
-    }
-
-    // ── Search results deduplication ──
-    #[test]
     fn search_results_dedup() {
         let logos = vec![
             LogoResult {
-                name: "Netflix".into(),
                 url: "https://a.com/1.png".into(),
+                thumbnail: "https://a.com/1_t.png".into(),
+                width: None,
+                height: None,
             },
             LogoResult {
-                name: "Netflix".into(),
-                url: "https://a.com/2.png".into(),
+                url: "https://a.com/1.png".into(),
+                thumbnail: "https://a.com/2_t.png".into(),
+                width: None,
+                height: None,
             },
         ];
         let mut seen = std::collections::HashSet::new();
         let unique: Vec<_> = logos
             .into_iter()
-            .filter(|r| seen.insert(r.name.clone()))
+            .filter(|r| seen.insert(r.url.clone()))
             .collect();
         assert_eq!(unique.len(), 1);
     }
 
-    // ── on_select callback fires ──
     #[test]
     fn select_logo_updates_signal() {
-        let _selected: Option<LogoResult> = None;
         let logo = LogoResult {
-            name: "Netflix".into(),
             url: "https://logo.clearbit.com/netflix.com".into(),
+            thumbnail: "https://logo.clearbit.com/netflix.com".into(),
+            width: None,
+            height: None,
         };
         let selected = Some(logo);
         assert!(selected.is_some());
-        assert_eq!(selected.as_ref().unwrap().name, "Netflix");
+        assert_eq!(selected.as_ref().unwrap().url, "https://logo.clearbit.com/netflix.com");
     }
 
-    // ── Dialog close after selection ──
-    #[test]
-    fn dialog_close_after_select() {
-        let mut dialog_open = true;
-        // After selection, dialog should close
-        dialog_open = false;
-        assert!(!dialog_open);
-    }
-
-    // ── Disabled button when empty query ──
     #[test]
     fn button_disabled_empty_query() {
         let query = "";
@@ -325,5 +341,30 @@ mod tests {
         let query = "netflix";
         let disabled = searching || query.is_empty();
         assert!(!disabled);
+    }
+
+    // ── Thumbnail field tests ──
+    #[test]
+    fn logo_result_thumbnail_matches_url_fallback() {
+        let r = LogoResult {
+            url: "https://a.com/logo.png".into(),
+            thumbnail: "https://a.com/logo.png".into(),
+            width: None,
+            height: None,
+        };
+        assert_eq!(r.thumbnail, r.url);
+    }
+
+    #[test]
+    fn logo_result_thumbnail_different_from_url() {
+        let r = LogoResult {
+            url: "https://a.com/full.png".into(),
+            thumbnail: "https://a.com/thumb.png".into(),
+            width: Some(64),
+            height: Some(64),
+        };
+        assert_ne!(r.thumbnail, r.url);
+        assert_eq!(r.width, Some(64));
+        assert_eq!(r.height, Some(64));
     }
 }

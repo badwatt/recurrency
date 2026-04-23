@@ -27,24 +27,28 @@ mod tests {
     fn logo_result_fields() {
         use crate::models::logo::LogoResult;
         let r = LogoResult {
-            name: "Netflix".into(),
             url: "https://logo.clearbit.com/netflix.com".into(),
+            thumbnail: "https://logo.clearbit.com/netflix.com".into(),
+            width: None,
+            height: None,
         };
-        assert_eq!(r.name, "Netflix");
         assert!(r.url.starts_with("https://"));
+        assert!(r.thumbnail.starts_with("https://"));
     }
 
     #[test]
     fn logo_result_serialization() {
         use crate::models::logo::LogoResult;
         let r = LogoResult {
-            name: "Spotify".into(),
             url: "https://logo.clearbit.com/spotify.com".into(),
+            thumbnail: "https://logo.clearbit.com/spotify.com".into(),
+            width: None,
+            height: None,
         };
         let json = serde_json::to_string(&r).unwrap();
-        assert!(json.contains("Spotify"));
+        assert!(json.contains("url"));
         let back: LogoResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.name, "Spotify");
+        assert_eq!(back.url, r.url);
     }
 
     #[test]
@@ -60,12 +64,16 @@ mod tests {
         let resp = LogoSearchResponse {
             results: vec![
                 LogoResult {
-                    name: "A".into(),
                     url: "https://a.com/a.png".into(),
+                    thumbnail: "https://a.com/a_thumb.png".into(),
+                    width: None,
+                    height: None,
                 },
                 LogoResult {
-                    name: "B".into(),
                     url: "https://b.com/b.png".into(),
+                    thumbnail: "https://b.com/b_thumb.png".into(),
+                    width: None,
+                    height: None,
                 },
             ],
         };

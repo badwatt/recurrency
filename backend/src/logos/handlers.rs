@@ -1,4 +1,4 @@
-use crate::logos::service::search_logos;
+use crate::logos::service::{search_logos, LogoResult};
 use axum::{extract::Query, Json};
 use serde::Deserialize;
 
@@ -10,13 +10,18 @@ pub struct SearchQuery {
     pub q: String,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct LogoSearchResponse {
+    pub results: Vec<LogoResult>,
+}
+
 // ── Handler ──
 
 pub async fn search(
     Query(query): Query<SearchQuery>,
-) -> Result<Json<serde_json::Value>, crate::shared::error::AppError> {
-    let logos = search_logos(&query.q).await?;
-    Ok(Json(serde_json::to_value(logos).unwrap_or_default()))
+) -> Result<Json<LogoSearchResponse>, crate::shared::error::AppError> {
+    let results = search_logos(&query.q).await?;
+    Ok(Json(LogoSearchResponse { results }))
 }
 
 #[cfg(test)]
@@ -141,7 +146,8 @@ mod tests {
             .await
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(json.is_array() || json.is_object());
+        assert!(json.is_object());
+        assert!(json.get("results").unwrap().is_array());
     }
 
     // Test search with special characters
@@ -240,12 +246,15 @@ mod tests {
         let body = axum::body::to_bytes(response.into_body(), 4096)
             .await
             .unwrap();
-        let logos: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap_or_default();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+        let empty: Vec<serde_json::Value> = vec![];
+        let results = json.get("results").and_then(|v| v.as_array()).unwrap_or(&empty);
 
-        // Each logo should have certain fields
-        for logo in logos.iter().take(1) {
-            // Just verify it's valid JSON with expected structure
+        // Each logo should have expected fields
+        for logo in results.iter().take(1) {
             assert!(logo.is_object());
+            assert!(logo.get("url").is_some());
+            assert!(logo.get("thumbnail").is_some());
         }
     }
 }
