@@ -741,16 +741,11 @@ pub fn SubscriptionsPage() -> Element {
 
             // ── Delete confirmation ──
             if delete_confirm_id().is_some() {
-                div {
-                    class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-                    onclick: move |_| delete_confirm_id.set(None),
-                    div {
-                        class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:w-80 space-y-4 shadow-lg h-dvh sm:h-auto flex flex-col",
-                        onclick: move |e| e.stop_propagation(),
-                        h3 { class: "font-semibold", "Delete subscription?" }
-                        p { class: "text-sm text-muted-foreground",
-                            "This action cannot be undone."
-                        }
+                Dialog {
+                    open: true,
+                    on_close: move |_| delete_confirm_id.set(None),
+                    title: "Delete subscription?".to_string(),
+                    footer: rsx! {
                         div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                             button {
                                 class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
@@ -773,7 +768,8 @@ pub fn SubscriptionsPage() -> Element {
                                 "Delete"
                             }
                         }
-                    }
+                    },
+                    p { class: "text-sm text-muted-foreground", "This action cannot be undone." }
                 }
             }
 
@@ -789,13 +785,7 @@ pub fn SubscriptionsPage() -> Element {
                             open: true,
                             on_close: move |_| notes_dialog_open.set(false),
                             title: title,
-                            div { class: "space-y-4",
-                                textarea {
-                                    class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
-                                    placeholder: "Add notes...",
-                                    value: "{notes_dialog_value}",
-                                    oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
-                                }
+                            footer: rsx! {
                                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                                     button {
                                         class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
@@ -827,6 +817,12 @@ pub fn SubscriptionsPage() -> Element {
                                         if notes_saving() { "Saving..." } else { "Save" }
                                     }
                                 }
+                            },
+                            textarea {
+                                class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                                placeholder: "Add notes...",
+                                value: "{notes_dialog_value}",
+                                oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
                             }
                         }
                     }
@@ -1093,146 +1089,12 @@ fn render_dialog(
     let category_err = category_error();
 
     rsx! {
-        div { class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-            onclick: move |_| dialog_open.set(false),
-            div {
-                class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-[425px] shadow-lg h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
-                onclick: move |e| e.stop_propagation(),
-                h2 { class: "text-lg font-semibold", "{title}" }
-                p { class: "text-sm text-muted-foreground mb-4", "{desc}" }
-
-                div { class: "space-y-4",
-                    // Name
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Name" }
-                        input {
-                            class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                            placeholder: "Netflix, Spotify, etc.",
-                            value: "{form_name}",
-                            oninput: move |e: Event<FormData>| {
-                                form.write().name = e.value();
-                                name_error.set(String::new());
-                            },
-                        }
-                        if !name_err.is_empty() {
-                            p { class: "text-xs text-red-500", "{name_err}" }
-                        }
-                    }
-
-                    // Amount + Currency
-                    div { class: "grid grid-cols-2 gap-4",
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Amount" }
-                            input {
-                                r#type: "number",
-                                step: "0.01",
-                                min: "0",
-                                class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                                placeholder: "9.99",
-                                value: "{form_amount}",
-                                oninput: move |e: Event<FormData>| {
-                                    form.write().amount = e.value();
-                                    amount_error.set(String::new());
-                                },
-                            }
-                            if !amount_err.is_empty() {
-                                p { class: "text-xs text-red-500", "{amount_err}" }
-                            }
-                        }
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Currency" }
-                            select {
-                                class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                                value: "{form_currency}",
-                                onchange: move |e: Event<FormData>| {
-                                    form.write().currency = e.value();
-                                    currency_error.set(String::new());
-                                },
-                                for (val, label) in CURRENCIES {
-                                    option { value: "{val}", "{label}" }
-                                }
-                            }
-                            if !currency_err.is_empty() {
-                                p { class: "text-xs text-red-500", "{currency_err}" }
-                            }
-                        }
-                    }
-
-                    // Frequency + Start date
-                    div { class: "grid grid-cols-2 gap-4",
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Frequency" }
-                            select {
-                                class: if frequency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                                value: "{form_frequency}",
-                                onchange: move |e: Event<FormData>| {
-                                    form.write().frequency = e.value();
-                                    frequency_error.set(String::new());
-                                },
-                                for (val, label) in FREQUENCIES {
-                                    option { value: "{val}", selected: form_frequency == *val, "{label}" }
-                                }
-                            }
-                            if !frequency_err.is_empty() {
-                                p { class: "text-xs text-red-500", "{frequency_err}" }
-                            }
-                        }
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Start Date" }
-                            input {
-                                r#type: "date",
-                                class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                                value: "{form_start_date}",
-                                oninput: move |e: Event<FormData>| {
-                                    form.write().start_date = e.value();
-                                    start_date_error.set(String::new());
-                                },
-                            }
-                            if !start_date_err.is_empty() {
-                                p { class: "text-xs text-red-500", "{start_date_err}" }
-                            }
-                        }
-                    }
-
-                    // Category
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Category" }
-                        {rsx! {
-                            crate::components::CategoryCombobox {
-                                selected_id: form_category_id,
-                                on_change: move |id: String| {
-                                    form.write().category_id = id;
-                                    category_error.set(String::new());
-                                },
-                                error: if category_err.is_empty() { None } else { Some(category_err) },
-                            }
-                        }}
-                    }
-
-                    // Logo
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Logo (optional)" }
-                        LogoSearch {
-                            selected_url: form_logo_url.clone(),
-                            default_query: form_name.clone(),
-                            on_select: move |url: String| form.write().logo_url = url,
-                        }
-                    }
-
-                    // Notes
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Notes (optional)" }
-                        textarea {
-                            class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
-                            placeholder: "Additional notes...",
-                            value: "{form_notes}",
-                            oninput: move |e: Event<FormData>| form.write().notes = e.value(),
-                        }
-                    }
-                }
-
-                // Footer
-                div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6",
+        Dialog {
+            open: true,
+            on_close: move |_| dialog_open.set(false),
+            title: title.clone(),
+            footer: rsx! {
+                div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                     button {
                         class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
                         onclick: move |_| dialog_open.set(false),
@@ -1339,10 +1201,142 @@ fn render_dialog(
                         "{submit_label}"
                     }
                 }
+            },
+            p { class: "text-sm text-muted-foreground", "{desc}" }
+            div { class: "space-y-4",
+                // Name
+                div { class: "space-y-1.5",
+                    label { class: "text-sm font-medium", "Name" }
+                    input {
+                        class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                        placeholder: "Netflix, Spotify, etc.",
+                        value: "{form_name}",
+                        oninput: move |e: Event<FormData>| {
+                            form.write().name = e.value();
+                            name_error.set(String::new());
+                        },
+                    }
+                    if !name_err.is_empty() {
+                        p { class: "text-xs text-red-500", "{name_err}" }
+                    }
+                }
+
+                // Amount + Currency
+                div { class: "grid grid-cols-2 gap-4",
+                    div { class: "space-y-1.5",
+                        label { class: "text-sm font-medium", "Amount" }
+                        input {
+                            r#type: "number",
+                            step: "0.01",
+                            min: "0",
+                            class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                            placeholder: "9.99",
+                            value: "{form_amount}",
+                            oninput: move |e: Event<FormData>| {
+                                form.write().amount = e.value();
+                                amount_error.set(String::new());
+                            },
+                        }
+                        if !amount_err.is_empty() {
+                            p { class: "text-xs text-red-500", "{amount_err}" }
+                        }
+                    }
+                    div { class: "space-y-1.5",
+                        label { class: "text-sm font-medium", "Currency" }
+                        select {
+                            class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                            value: "{form_currency}",
+                            onchange: move |e: Event<FormData>| {
+                                form.write().currency = e.value();
+                                currency_error.set(String::new());
+                            },
+                            for (val, label) in CURRENCIES {
+                                option { value: "{val}", "{label}" }
+                            }
+                        }
+                        if !currency_err.is_empty() {
+                            p { class: "text-xs text-red-500", "{currency_err}" }
+                        }
+                    }
+                }
+
+                // Frequency + Start date
+                div { class: "grid grid-cols-2 gap-4",
+                    div { class: "space-y-1.5",
+                        label { class: "text-sm font-medium", "Frequency" }
+                        select {
+                            class: if frequency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                            value: "{form_frequency}",
+                            onchange: move |e: Event<FormData>| {
+                                form.write().frequency = e.value();
+                                frequency_error.set(String::new());
+                            },
+                            for (val, label) in FREQUENCIES {
+                                option { value: "{val}", selected: form_frequency == *val, "{label}" }
+                            }
+                        }
+                        if !frequency_err.is_empty() {
+                            p { class: "text-xs text-red-500", "{frequency_err}" }
+                        }
+                    }
+                    div { class: "space-y-1.5",
+                        label { class: "text-sm font-medium", "Start Date" }
+                        input {
+                            r#type: "date",
+                            class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                            value: "{form_start_date}",
+                            oninput: move |e: Event<FormData>| {
+                                form.write().start_date = e.value();
+                                start_date_error.set(String::new());
+                            },
+                        }
+                        if !start_date_err.is_empty() {
+                            p { class: "text-xs text-red-500", "{start_date_err}" }
+                        }
+                    }
+                }
+
+                // Category
+                div { class: "space-y-1.5",
+                    label { class: "text-sm font-medium", "Category" }
+                    {rsx! {
+                        crate::components::CategoryCombobox {
+                            selected_id: form_category_id,
+                            on_change: move |id: String| {
+                                form.write().category_id = id;
+                                category_error.set(String::new());
+                            },
+                            error: if category_err.is_empty() { None } else { Some(category_err) },
+                        }
+                    }}
+                }
+
+                // Logo
+                div { class: "space-y-1.5",
+                    label { class: "text-sm font-medium", "Logo (optional)" }
+                    LogoSearch {
+                        selected_url: form_logo_url.clone(),
+                        default_query: form_name.clone(),
+                        on_select: move |url: String| form.write().logo_url = url,
+                    }
+                }
+
+                // Notes
+                div { class: "space-y-1.5",
+                    label { class: "text-sm font-medium", "Notes (optional)" }
+                    textarea {
+                        class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                        placeholder: "Additional notes...",
+                        value: "{form_notes}",
+                        oninput: move |e: Event<FormData>| form.write().notes = e.value(),
+                    }
+                }
+
             }
         }
     }
 }
+
 
 // ── Unit tests ────────────────────────────────────────────────────────
 

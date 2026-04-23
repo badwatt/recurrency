@@ -701,134 +701,130 @@ pub fn TransactionsPage() -> Element {
 
             // Dialog overlay
             if dialog_open() {
-                div {
-                    class: "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
-                    onclick: move |_| dialog_open.set(false),
-                    div {
-                        class: "w-full sm:max-w-md rounded-none sm:rounded-lg border border-border bg-card p-4 sm:p-6 shadow-lg sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
-                        onclick: move |e| e.stop_propagation(),
-                        h2 { class: "text-lg font-semibold mb-4",
-                            if editing_id().is_some() { "Edit Transaction" } else { "Add Transaction" }
+                Dialog {
+                    open: true,
+                    on_close: move |_| dialog_open.set(false),
+                    title: if editing_id().is_some() { "Edit Transaction" } else { "Add Transaction" },
+                    footer: rsx! {
+                        div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
+                            button {
+                                onclick: move |_| dialog_open.set(false),
+                                class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
+                                "Cancel"
+                            }
+                            button {
+                                onclick: handle_save,
+                                disabled: form_saving(),
+                                class: "h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
+                                if form_saving() { "Saving..." } else { "Save" }
+                            }
                         }
-                        div { class: "space-y-4",
-                            // Name
-                            div { class: "space-y-2",
-                                label { class: "text-sm font-medium", "Name" }
-                                input {
-                                    r#type: "text",
-                                    value: "{form_name}",
-                                    oninput: move |e| {
-                                        form_name.set(e.value());
-                                        name_error.set(String::new());
-                                    },
-                                    class: if name_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                                }
-                                if !name_error().is_empty() {
-                                    p { class: "text-xs text-red-500", "{name_error()}" }
+                    },
+                div { class: "space-y-4",
+                    // Name
+                    div { class: "space-y-2",
+                        label { class: "text-sm font-medium", "Name" }
+                        input {
+                            r#type: "text",
+                            value: "{form_name}",
+                            oninput: move |e| {
+                                form_name.set(e.value());
+                                name_error.set(String::new());
+                            },
+                            class: if name_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                        }
+                        if !name_error().is_empty() {
+                            p { class: "text-xs text-red-500", "{name_error()}" }
+                        }
+                    }
+                    // Amount
+                    div { class: "grid grid-cols-2 gap-4",
+                        div { class: "space-y-2",
+                            label { class: "text-sm font-medium", "Amount" }
+                            input {
+                                r#type: "number",
+                                step: "0.01",
+                                value: "{form_amount}",
+                                oninput: move |e| {
+                                    form_amount.set(e.value());
+                                    amount_error.set(String::new());
+                                },
+                                class: if amount_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                            }
+                            if !amount_error().is_empty() {
+                                p { class: "text-xs text-red-500", "{amount_error()}" }
+                            }
+                        }
+                        div { class: "space-y-2",
+                            label { class: "text-sm font-medium", "Currency" }
+                            select {
+                                value: "{form_currency}",
+                                onchange: move |e| {
+                                    form_currency.set(e.value());
+                                    currency_error.set(String::new());
+                                },
+                                class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                                for (val, label) in crate::utils::constants::CURRENCIES {
+                                    option { value: "{val}", "{label}" }
                                 }
                             }
-                            // Amount
-                            div { class: "grid grid-cols-2 gap-4",
-                                div { class: "space-y-2",
-                                    label { class: "text-sm font-medium", "Amount" }
-                                    input {
-                                        r#type: "number",
-                                        step: "0.01",
-                                        value: "{form_amount}",
-                                        oninput: move |e| {
-                                            form_amount.set(e.value());
-                                            amount_error.set(String::new());
-                                        },
-                                        class: if amount_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                                    }
-                                    if !amount_error().is_empty() {
-                                        p { class: "text-xs text-red-500", "{amount_error()}" }
-                                    }
-                                }
-                                div { class: "space-y-2",
-                                    label { class: "text-sm font-medium", "Currency" }
-                                    select {
-                                        value: "{form_currency}",
-                                        onchange: move |e| {
-                                            form_currency.set(e.value());
-                                            currency_error.set(String::new());
-                                        },
-                                        class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                                        for (val, label) in crate::utils::constants::CURRENCIES {
-                                            option { value: "{val}", "{label}" }
-                                        }
-                                    }
-                                    if !currency_error().is_empty() {
-                                        p { class: "text-xs text-red-500", "{currency_error()}" }
-                                    }
-                                }
-                            }
-                            // Date
-                            div { class: "space-y-2",
-                                label { class: "text-sm font-medium", "Date" }
-                                input {
-                                    r#type: "date",
-                                    value: "{form_date}",
-                                    oninput: move |e| {
-                                        form_date.set(e.value());
-                                        date_error.set(String::new());
-                                    },
-                                    class: if date_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                                }
-                                if !date_error().is_empty() {
-                                    p { class: "text-xs text-red-500", "{date_error()}" }
-                                }
-                            }
-                            // Category
-                            div { class: "space-y-2",
-                                label { class: "text-sm font-medium", "Category" }
-                                {rsx! {
-                                    crate::components::CategoryCombobox {
-                                        selected_id: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
-                                        on_change: move |id: String| {
-                                            form_category_id.set(if id.is_empty() { None } else { Uuid::parse_str(&id).ok() });
-                                            category_error.set(String::new());
-                                        },
-                                        error: if category_error().is_empty() { None } else { Some(category_error()) },
-                                    }
-                                }}
-                            }
-                            // Notes
-                            div { class: "space-y-2",
-                                label { class: "text-sm font-medium", "Notes" }
-                                textarea {
-                                    value: "{form_notes}",
-                                    oninput: move |e| form_notes.set(e.value()),
-                                    class: "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]",
-                                }
-                            }
-                            // Logo
-                            div { class: "space-y-1.5",
-                                label { class: "text-sm font-medium", "Logo (optional)" }
-                                LogoSearch {
-                                    selected_url: form_logo_url(),
-                                    default_query: form_name(),
-                                    on_select: move |url: String| form_logo_url.set(url),
-                                }
-                            }
-                            // Actions
-                            div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2",
-                                button {
-                                    onclick: move |_| dialog_open.set(false),
-                                    class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
-                                    "Cancel"
-                                }
-                                button {
-                                    onclick: handle_save,
-                                    disabled: form_saving(),
-                                    class: "h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
-                                    if form_saving() { "Saving..." } else { "Save" }
-                                }
+                            if !currency_error().is_empty() {
+                                p { class: "text-xs text-red-500", "{currency_error()}" }
                             }
                         }
                     }
+                    // Date
+                    div { class: "space-y-2",
+                        label { class: "text-sm font-medium", "Date" }
+                        input {
+                            r#type: "date",
+                            value: "{form_date}",
+                            oninput: move |e| {
+                                form_date.set(e.value());
+                                date_error.set(String::new());
+                            },
+                            class: if date_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
+                        }
+                        if !date_error().is_empty() {
+                            p { class: "text-xs text-red-500", "{date_error()}" }
+                        }
+                    }
+                    // Category
+                    div { class: "space-y-2",
+                        label { class: "text-sm font-medium", "Category" }
+                        {rsx! {
+                            crate::components::CategoryCombobox {
+                                selected_id: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
+                                on_change: move |id: String| {
+                                    form_category_id.set(if id.is_empty() { None } else { Uuid::parse_str(&id).ok() });
+                                    category_error.set(String::new());
+                                },
+                                error: if category_error().is_empty() { None } else { Some(category_error()) },
+                            }
+                        }}
+                    }
+                    // Notes
+                    div { class: "space-y-2",
+                        label { class: "text-sm font-medium", "Notes" }
+                        textarea {
+                            value: "{form_notes}",
+                            oninput: move |e| form_notes.set(e.value()),
+                            class: "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]",
+                        }
+                    }
+                    // Logo
+                    div { class: "space-y-1.5",
+                        label { class: "text-sm font-medium", "Logo (optional)" }
+                        LogoSearch {
+                            selected_url: form_logo_url(),
+                            default_query: form_name(),
+                            on_select: move |url: String| form_logo_url.set(url),
+                        }
+                    }
+                    }
                 }
             }
+
 
             // ── Notes dialog ──
             if notes_dialog_open() {
@@ -842,13 +838,7 @@ pub fn TransactionsPage() -> Element {
                             open: true,
                             on_close: move |_| notes_dialog_open.set(false),
                             title: title,
-                            div { class: "space-y-4",
-                                textarea {
-                                    class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
-                                    placeholder: "Add notes...",
-                                    value: "{notes_dialog_value}",
-                                    oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
-                                }
+                            footer: rsx! {
                                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                                     button {
                                         class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
@@ -880,6 +870,12 @@ pub fn TransactionsPage() -> Element {
                                         if notes_saving() { "Saving..." } else { "Save" }
                                     }
                                 }
+                            },
+                            textarea {
+                                class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                                placeholder: "Add notes...",
+                                value: "{notes_dialog_value}",
+                                oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
                             }
                         }
                     }
