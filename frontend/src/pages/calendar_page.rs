@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Trash2};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use uuid::Uuid;
@@ -665,13 +666,13 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                         button {
                             onclick: go_prev,
                             class: "h-9 w-9 inline-flex items-center justify-center rounded-md border border-border hover:bg-accent",
-                            "◀"
+                            ChevronLeft { size: 16 }
                         }
                         h2 { class: "text-xl font-semibold min-w-[200px] text-center", "{month_label}" }
                         button {
                             onclick: go_next,
                             class: "h-9 w-9 inline-flex items-center justify-center rounded-md border border-border hover:bg-accent",
-                            "▶"
+                            ChevronRight { size: 16 }
                         }
                     }
                     button {
@@ -835,20 +836,22 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                         // Action buttons
                                         div { class: "flex items-center gap-2 pt-1",
                                             button {
-                                                class: "text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent",
+                                                class: "text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1",
                                                 onclick: {
                                                     let sub_id = item.subscription_id;
                                                     move |_| handle_edit(sub_id)
                                                 },
-                                                "✏ Edit"
+                                                Pencil { size: 14 }
+                                                "Edit"
                                             }
                                             button {
-                                                class: "text-xs px-3 py-1.5 rounded-md border border-border text-red-600 hover:bg-red-50 dark:hover:bg-red-950",
+                                                class: "text-xs px-3 py-1.5 rounded-md border border-border text-red-600 hover:bg-red-50 dark:hover:bg-red-950 inline-flex items-center gap-1",
                                                 onclick: {
                                                     let sub_id = item.subscription_id;
                                                     move |_| handle_delete_request(sub_id)
                                                 },
-                                                "🗑 Delete"
+                                                Trash2 { size: 14 }
+                                                "Delete"
                                             }
                                         }
                                     }

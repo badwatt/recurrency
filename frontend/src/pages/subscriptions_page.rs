@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use lucide_dioxus::{CreditCard, FileText, Pause, Pencil, Play, Trash2, X, ArrowUpDown};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use uuid::Uuid;
@@ -676,7 +677,8 @@ pub fn SubscriptionsPage() -> Element {
                                     button {
                                         class: "text-sm px-2 py-1.5 hover:bg-muted rounded-md flex items-center gap-1 h-8",
                                         onclick: move |_| clear_filters.call(()),
-                                        "✕ Clear"
+                                        X { size: 14 }
+                                        "Clear"
                                     }
                                 }
                             } else {
@@ -685,7 +687,7 @@ pub fn SubscriptionsPage() -> Element {
 
                             // Sort
                             div { class: "flex items-center gap-1.5 ml-auto",
-                                span { class: "text-sm text-muted-foreground", "⇅" }
+                                span { class: "text-sm text-muted-foreground", ArrowUpDown { size: 16 } }
                                 select {
                                     class: "h-8 w-[150px] rounded-md border bg-background px-2 text-sm",
                                     value: "{sort_val.field}",
@@ -905,7 +907,7 @@ fn render_grid_card(
                 div { class: "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted overflow-hidden",
                     {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-cover")}
                     if logo_url.is_none() {
-                        span { class: "text-2xl text-muted-foreground", "💳" }
+                        span { class: "text-2xl text-muted-foreground", CreditCard { size: 28 } }
                     }
                 }
 
@@ -927,22 +929,22 @@ fn render_grid_card(
                     button {
                         class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-primary" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" },
                         onclick: move |_| on_notes.call(sub_for_notes.clone()),
-                        "📝"
+                        FileText { size: 16 }
                     }
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
                         onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
-                        if is_active { "⏸" } else { "▶" }
+                        if is_active { Pause { size: 14 } } else { Play { size: 14 } }
                     }
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
                         onclick: move |_| on_edit.call(sub_for_edit.clone()),
-                        "✏"
+                        Pencil { size: 14 }
                     }
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
                         onclick: move |_| on_delete.call(id_for_delete),
-                        "🗑"
+                        Trash2 { size: 14 }
                     }
                 }
             }
@@ -992,7 +994,7 @@ fn render_list_card(
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
                         {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-cover")}
                         if logo_url.is_none() {
-                            span { class: "text-sm text-muted-foreground", "💳" }
+                            span { class: "text-muted-foreground", CreditCard { size: 20 } }
                         }
                     }
 
@@ -1014,22 +1016,22 @@ fn render_list_card(
                             button {
                                 class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-primary" } else { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" },
                                 onclick: move |_| on_notes.call(sub_for_notes.clone()),
-                                "📝"
+                                FileText { size: 16 }
                             }
                             button {
                                 class: "h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md hover:bg-muted",
                                 onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
-                                if is_active { "⏸" } else { "▶" }
+                                if is_active { Pause { size: 14 } } else { Play { size: 14 } }
                             }
                             button {
                                 class: "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted",
                                 onclick: move |_| on_edit.call(sub_for_edit.clone()),
-                                "✏"
+                                Pencil { size: 14 }
                             }
                             button {
                                 class: "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
                                 onclick: move |_| on_delete.call(id_for_delete),
-                                "🗑"
+                                Trash2 { size: 14 }
                             }
                         }
                     }
@@ -3321,5 +3323,54 @@ mod dialog_form_tests {
     #[test]
     fn subscription_has_notes_none() {
         assert!(!subscription_has_notes(&None));
+    }
+
+    // ── Lucide icon tests ──
+    #[test]
+    fn credit_card_icon_renders() {
+        let el: Element = rsx! { CreditCard { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn file_text_icon_renders() {
+        let el: Element = rsx! { FileText { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn pause_icon_renders() {
+        let el: Element = rsx! { Pause { size: 14 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn play_icon_renders() {
+        let el: Element = rsx! { Play { size: 14 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn pencil_icon_renders() {
+        let el: Element = rsx! { Pencil { size: 14 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn trash2_icon_renders() {
+        let el: Element = rsx! { Trash2 { size: 14 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn x_icon_renders() {
+        let el: Element = rsx! { X { size: 14 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn arrow_up_down_icon_renders() {
+        let el: Element = rsx! { ArrowUpDown { size: 16 } };
+        assert!(el.is_ok());
     }
 }

@@ -12,108 +12,10 @@ use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 use chrono::{Datelike, NaiveDate};
 use dioxus::prelude::*;
+use lucide_dioxus::{FileText, Pencil, Plus, Receipt, Trash2};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
-
-// ─── Lucide-style SVG icon components ───────────────────────────────────────
-
-#[allow(non_snake_case)]
-fn ReceiptIcon() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            width: "16",
-            height: "16",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            path { d: "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" }
-            line { x1: "8", y1: "7", x2: "16", y2: "7" }
-            line { x1: "8", y1: "11", x2: "16", y2: "11" }
-            line { x1: "8", y1: "15", x2: "12", y2: "15" }
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn ReceiptIconLarge() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            width: "40",
-            height: "40",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            path { d: "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" }
-            line { x1: "8", y1: "7", x2: "16", y2: "7" }
-            line { x1: "8", y1: "11", x2: "16", y2: "11" }
-            line { x1: "8", y1: "15", x2: "12", y2: "15" }
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn Trash2Icon() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            width: "16",
-            height: "16",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            polyline { points: "3 6 5 6 21 6" }
-            path { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }
-            line { x1: "10", y1: "11", x2: "10", y2: "17" }
-            line { x1: "14", y1: "11", x2: "14", y2: "17" }
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn PencilIcon() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            width: "16",
-            height: "16",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            path { d: "M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-fn PlusIcon() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            width: "16",
-            height: "16",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            line { x1: "12", y1: "5", x2: "12", y2: "19" }
-            line { x1: "5", y1: "12", x2: "19", y2: "12" }
-        }
-    }
-}
-
-// ─── Data types ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FilterConfig {
@@ -515,7 +417,7 @@ pub fn TransactionsPage() -> Element {
             div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
                 div {
                     h1 { class: "text-3xl font-bold tracking-tight",
-                        {ReceiptIcon()}
+                        Receipt { size: 16 }
                         " Transactions"
                     }
                     p { class: "text-muted-foreground", "Track your one-time expenses" }
@@ -538,7 +440,7 @@ pub fn TransactionsPage() -> Element {
                         dialog_open.set(true);
                     },
                     class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
-                    {PlusIcon()}
+                    Plus { size: 16 }
                     "Add Transaction"
                 }
             }
@@ -658,7 +560,7 @@ pub fn TransactionsPage() -> Element {
                 rsx! {
                     div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
                         span { class: "text-muted-foreground",
-                            {ReceiptIconLarge()}
+                            Receipt { size: 40 }
                         }
                         div { class: "text-center",
                             p { class: "text-lg font-medium", "No transactions yet" }
@@ -681,7 +583,7 @@ pub fn TransactionsPage() -> Element {
                                 dialog_open.set(true);
                             },
                             class: "inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                            {PlusIcon()}
+                            Plus { size: 16 }
                             "Add Transaction"
                         }
                     }
@@ -722,7 +624,7 @@ pub fn TransactionsPage() -> Element {
                                                         {logo_image_with_fallback(&format!("txn-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-full w-full object-contain p-1")}
                                                         if txn.logo_url.is_none() {
                                                             span { class: "text-muted-foreground",
-                                                                {ReceiptIcon()}
+                                                                Receipt { size: 16 }
                                                             }
                                                         }
                                                     }
@@ -764,7 +666,7 @@ pub fn TransactionsPage() -> Element {
                                                                     notes_dialog_open.set(true);
                                                                 }
                                                             },
-                                                            "📝"
+                                                            FileText { size: 16 }
                                                         }
                                                         button {
                                                             class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
@@ -772,7 +674,7 @@ pub fn TransactionsPage() -> Element {
                                                                 let txn = txn.clone();
                                                                 move |_| open_edit(&txn)
                                                             },
-                                                            {PencilIcon()}
+                                                            Pencil { size: 16 }
                                                         }
                                                         button {
                                                             class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
@@ -780,7 +682,7 @@ pub fn TransactionsPage() -> Element {
                                                                 let id = txn.id;
                                                                 move |_| handle_delete(id)
                                                             },
-                                                            {Trash2Icon()}
+                                                            Trash2 { size: 16 }
                                                         }
                                                     }
                                                 }
@@ -2679,5 +2581,36 @@ mod tests {
                 }
             }
         }
+    }
+
+    // ── Lucide icon tests ──
+    #[test]
+    fn receipt_icon_renders() {
+        let el: Element = rsx! { Receipt { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn file_text_icon_renders() {
+        let el: Element = rsx! { FileText { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn pencil_icon_renders() {
+        let el: Element = rsx! { Pencil { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn trash2_icon_renders() {
+        let el: Element = rsx! { Trash2 { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn plus_icon_renders() {
+        let el: Element = rsx! { Plus { size: 16 } };
+        assert!(el.is_ok());
     }
 }

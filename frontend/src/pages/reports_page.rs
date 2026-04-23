@@ -8,28 +8,7 @@ use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 use chrono::{Datelike, Local};
 use dioxus::prelude::*;
-
-fn icon_credit_card() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        rect { x: "1", y: "4", width: "22", height: "16", rx: "2" }
-        line { x1: "1", y1: "10", x2: "23", y2: "10" }
-    }}
-}
-
-fn icon_receipt() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        line { x1: "4", y1: "2", x2: "4", y2: "22" }
-        path { d: "M1 2h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H1" }
-    }}
-}
-
-fn icon_trending_up() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        polyline { points: "23 6 13.5 15.5 8.5 10.5 1 18" }
-        polyline { points: "17 6 23 6" }
-        polyline { points: "23 6 23 12" }
-    }}
-}
+use lucide_dioxus::{CreditCard, Receipt, TrendingUp, Wallet, Download};
 
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"),
@@ -163,7 +142,8 @@ pub fn ReportsPage() -> Element {
                     button {
                         onclick: handle_export,
                         class: "flex items-center justify-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-accent",
-                        "⬇ Export CSV"
+                        Download { size: 16 }
+                        "Export CSV"
                     }
                 }
             }
@@ -183,7 +163,7 @@ pub fn ReportsPage() -> Element {
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "Total Spending" }
-                                    span { class: "text-muted-foreground", "💰" }
+                                    span { class: "text-muted-foreground", Wallet { size: 16 } }
                                 }
                                 p { class: "text-2xl font-bold",
                                     {format_currency(r.monthly_summary.overall_total, &currency)}
@@ -197,7 +177,7 @@ pub fn ReportsPage() -> Element {
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "Subscriptions" }
-                                    span { class: "text-muted-foreground", {icon_credit_card()} }
+                                    span { class: "text-muted-foreground", CreditCard { size: 16 } }
                                 }
                                 p { class: "text-2xl font-bold",
                                     {format_currency(r.monthly_summary.subscriptions_total, &currency)}
@@ -210,7 +190,7 @@ pub fn ReportsPage() -> Element {
                             div { class: "rounded-lg border border-border bg-card p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "One-time" }
-                                    span { class: "text-muted-foreground", {icon_receipt()} }
+                                    span { class: "text-muted-foreground", Receipt { size: 16 } }
                                 }
                                 p { class: "text-2xl font-bold",
                                     {format_currency(r.monthly_summary.transactions_total, &currency)}
@@ -231,7 +211,7 @@ pub fn ReportsPage() -> Element {
                                     div { class: "rounded-lg border border-border bg-card p-6",
                                         div { class: "flex items-center justify-between pb-2",
                                             span { class: "text-sm font-medium text-muted-foreground", "Avg / Month" }
-                                            span { class: "text-muted-foreground", {icon_trending_up()} }
+                                            span { class: "text-muted-foreground", TrendingUp { size: 16 } }
                                         }
                                         p { class: "text-2xl font-bold",
                                             {format_currency(avg, &currency)}
@@ -1113,5 +1093,30 @@ mod tests {
         };
         let csv = build_csv(&report);
         assert!(csv.contains("Coffee"));
+    }
+
+    // ── Lucide icon tests ──
+    #[test]
+    fn wallet_icon_renders() {
+        let el: Element = rsx! { Wallet { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn credit_card_icon_renders() {
+        let el: Element = rsx! { CreditCard { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn receipt_icon_renders() {
+        let el: Element = rsx! { Receipt { size: 16 } };
+        assert!(el.is_ok());
+    }
+
+    #[test]
+    fn trending_up_icon_renders() {
+        let el: Element = rsx! { TrendingUp { size: 16 } };
+        assert!(el.is_ok());
     }
 }
