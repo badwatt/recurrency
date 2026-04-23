@@ -13,6 +13,7 @@ use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::utils::format::format_currency;
+use crate::utils::icons::icon_display;
 use chrono::{Datelike, Local, NaiveDate};
 
 fn icon_calendar() -> Element {
@@ -355,16 +356,33 @@ pub fn CalendarPage() -> Element {
         current_month.set(now.month());
     };
 
-    // Selected day dialog data: gather CalendarItems with full display info
-    let selected_day_items: Vec<(CalendarItem, String, String)> = selected_day()
+    /// Helper: find category icon for a CalendarItem.
+fn category_icon_for_item(item: &CalendarItem) -> String {
+    let subs = SUBSCRIPTIONS();
+    if let Some(sub) = subs
+        .subscriptions
+        .iter()
+        .find(|s| s.id == item.subscription_id)
+    {
+        let cats = CATEGORIES();
+        if let Some(cat) = cats.get_by_id(&sub.category_id) {
+            return cat.icon.clone().unwrap_or_else(|| "Tag".to_string());
+        }
+    }
+    "Tag".to_string()
+}
+
+// Selected day dialog data: gather CalendarItems with full display info
+    let selected_day_items: Vec<(CalendarItem, String, String, String)> = selected_day()
         .map(|(sy, sm, sd)| {
             let day_refs = items_for_day(&items, sy, sm, sd);
             day_refs
                 .iter()
                 .map(|item| {
                     let cat_name = category_name_for_item(item);
+                    let cat_icon = category_icon_for_item(item);
                     let cat_color = category_color_for_item(item);
-                    ((*item).clone(), cat_name, cat_color)
+                    ((*item).clone(), cat_name, cat_icon, cat_color)
                 })
                 .collect::<Vec<_>>()
         })
@@ -789,7 +807,7 @@ pub fn CalendarPage() -> Element {
                         p { class: "text-muted-foreground text-center py-4", "No payments scheduled" }
                     } else {
                         div { class: "space-y-3",
-                            for (item, cat_name, cat_color) in &selected_day_items {
+                            for (item, cat_name, cat_icon, cat_color) in &selected_day_items {
                                 {rsx! {
                                     div {
                                         key: "{item.subscription_id}",
@@ -802,6 +820,7 @@ pub fn CalendarPage() -> Element {
                                                     span {
                                                         class: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
                                                         style: "color: {cat_color}; background-color: {cat_color}15;",
+                                                        {icon_display(&cat_icon)}
                                                         "{cat_name}"
                                                     }
                                                     span { class: "text-xs text-muted-foreground",

@@ -5,6 +5,7 @@ use crate::models::report::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::utils::format::format_currency;
+use crate::utils::icons::icon_display;
 use chrono::{Datelike, Local};
 use dioxus::prelude::*;
 
@@ -302,15 +303,15 @@ pub fn ReportsPage() -> Element {
                                             for (i, cat) in r.category_breakdown.iter().take(8).enumerate() {
                                                 {
                                                     let cats_guard = CATEGORIES();
-                                                    let color = if let Some(pos) = cats_guard.categories.iter().position(|c2| c2.name == cat.category_name) {
-                                                        palette_color(pos).to_string()
-                                                    } else {
-                                                        palette_color(i).to_string()
-                                                    };
+                                                    let (color, icon_str) = category_style_by_name(&cats_guard.categories, &cat.category_name);
+                                                    let color = color.to_string();
                                                     rsx! {
                                                         div { key: "{cat.category_name}", class: "flex items-center gap-1.5 text-sm",
                                                             div { class: "w-2.5 h-2.5 rounded-full shrink-0", style: "background-color: {color}" }
-                                                            span { class: "truncate text-muted-foreground", "{cat.category_name}" }
+                                                            span { class: "truncate text-muted-foreground",
+                                                                {icon_display(icon_str)}
+                                                                " {cat.category_name}"
+                                                            }
                                                             span { class: "font-medium ml-auto", "{cat.percentage:.0}%" }
                                                         }
                                                     }
@@ -330,7 +331,7 @@ pub fn ReportsPage() -> Element {
                             } else {
                                 div { class: "space-y-4",
                                     for cat in r.category_breakdown.iter() {
-                                        {let (color, _icon) = category_style_by_name(&cats.categories, &cat.category_name);
+                                        {let (color, icon_str) = category_style_by_name(&cats.categories, &cat.category_name);
                                          rsx! {
                                             div { key: "{cat.category_name}", class: "space-y-2",
                                                 div { class: "flex items-center justify-between",
@@ -340,7 +341,10 @@ pub fn ReportsPage() -> Element {
                                                             style: "background-color: {color}20",
                                                             div { class: "w-4 h-4 rounded-full", style: "background-color: {color}" }
                                                         }
-                                                        span { class: "font-medium", "{cat.category_name}" }
+                                                        span { class: "font-medium",
+                                                            {icon_display(icon_str)}
+                                                            "{cat.category_name}"
+                                                        }
                                                     }
                                                     div { class: "flex items-center gap-4",
                                                         span { class: "text-muted-foreground", "{cat.count} items" }

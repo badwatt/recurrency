@@ -8,6 +8,7 @@ use crate::state::preferences::PREFERENCES;
 use crate::state::transactions::TRANSACTIONS;
 use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
+use crate::utils::icons::icon_display;
 use chrono::{Datelike, NaiveDate};
 use dioxus::prelude::*;
 use rust_decimal::Decimal;
@@ -724,11 +725,13 @@ pub fn TransactionsPage() -> Element {
                                                     {
                                                         let cat = cats.get_by_id(&txn.category_id);
                                                         let cat_name = cat.map(|c| c.name.as_str()).unwrap_or("Uncategorized");
+                                                        let cat_icon = cat.and_then(|c| c.icon.clone()).unwrap_or_else(|| "Tag".into());
                                                         let cat_color = cat.and_then(|c| c.color.clone()).unwrap_or_else(|| "#6b7280".into());
                                                         let bg = format!("{}20", cat_color);
                                                         rsx! {
-                                                            span { class: "font-normal text-xs hidden sm:inline-flex px-2 py-0.5 rounded",
+                                                            span { class: "font-normal text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded",
                                                                 style: "color: {cat_color}; background-color: {bg}",
+                                                                {icon_display(&cat_icon)}
                                                                 "{cat_name}"
                                                             }
                                                         }
