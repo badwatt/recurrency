@@ -491,24 +491,24 @@ pub fn SubscriptionsPage() -> Element {
                     }
                     div { class: "shrink-0 sm:hidden",
                         button {
-                            class: "border rounded-md p-2 hover:bg-muted",
+                            class: "border rounded-md px-3 py-1.5 hover:bg-muted text-sm flex items-center gap-1",
                             onclick: {
                                 let vm = view_mode.clone();
                                 move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
                             },
-                            if view_mode.as_str() == "grid" { "≡" } else { "⊞" }
+                            if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
                         }
                     }
                 }
                 div { class: "flex items-center gap-2 sm:w-auto w-full",
                     div { class: "shrink-0 hidden sm:block",
                         button {
-                            class: "border rounded-md p-2 hover:bg-muted",
+                            class: "border rounded-md px-3 py-1.5 hover:bg-muted text-sm flex items-center gap-1",
                             onclick: {
                                 let vm = view_mode.clone();
                                 move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
                             },
-                            if view_mode.as_str() == "grid" { "≡" } else { "⊞" }
+                            if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
                         }
                     }
                     button {
