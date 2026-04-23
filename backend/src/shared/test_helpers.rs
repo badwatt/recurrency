@@ -46,40 +46,6 @@ pub async fn post_json<T: serde::Serialize, R: DeserializeOwned>(
     (status, response_body)
 }
 
-/// Make a JSON GET request to the test app.
-pub async fn get_json<R: DeserializeOwned>(
-    app: Router,
-    uri: &str,
-    auth_token: Option<&str>,
-) -> (StatusCode, R) {
-    let mut req = Request::get(uri)
-        .header("Content-Type", "application/json")
-        .body(Body::empty())
-        .unwrap();
-
-    if let Some(token) = auth_token {
-        req.headers_mut().insert(
-            "Authorization",
-            format!("Bearer {}", token).parse().unwrap(),
-        );
-    }
-
-    let response = app.oneshot(req).await.unwrap();
-
-    let status = response.status();
-    let body_bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
-        .await
-        .unwrap();
-    let response_body: R = serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-        panic!(
-            "Failed to parse response: {:?}",
-            String::from_utf8_lossy(&body_bytes)
-        )
-    });
-
-    (status, response_body)
-}
-
 /// Make a JSON PUT request to the test app.
 pub async fn put_json<T: serde::Serialize, R: DeserializeOwned>(
     app: Router,
@@ -133,12 +99,6 @@ pub async fn delete_request(app: Router, uri: &str, auth_token: Option<&str>) ->
     let response = app.oneshot(req).await.unwrap();
 
     response.status()
-}
-
-/// Parse error response body.
-#[derive(serde::Deserialize)]
-pub struct ErrorResponse {
-    pub error: String,
 }
 
 #[cfg(test)]

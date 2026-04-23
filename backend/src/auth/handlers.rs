@@ -333,7 +333,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_register_success() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let body = serde_json::json!({
@@ -348,7 +348,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_register_validation_empty_email() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         // Axum returns 400 for validation errors from the validator derive
@@ -360,7 +360,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_register_invalid_email_format() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let body =
@@ -372,7 +372,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_register_duplicate_email() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let body = serde_json::json!({"email": "dup@test.com", "password": "password123", "name": "First"});
@@ -386,7 +386,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_login_success() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let reg = serde_json::json!({"email": "login@test.com", "password": "password123", "name": "Login User"});
@@ -399,7 +399,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_login_unknown_user() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let body = serde_json::json!({"email": "nobody@test.com", "password": "password123"});
@@ -412,7 +412,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_verify_valid_mock_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let token_str = VALID_MOCK_TOKEN.to_string();
@@ -429,7 +429,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_verify_invalid_mock_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let token_str = "not-a-valid-mock-token".to_string();
@@ -448,7 +448,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_get_settings_success() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         // Register user first so mock has it
@@ -476,7 +476,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_get_settings_invalid_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let req = Request::builder()
@@ -490,7 +490,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_get_settings_no_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let req = Request::builder()
@@ -506,7 +506,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_update_settings_success() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         // Register user first so mock has it
@@ -527,7 +527,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_update_settings_invalid_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let body = serde_json::json!({"name": "New Name"});
@@ -540,7 +540,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_verify_email_success() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         // Register user first so mock has it
@@ -571,7 +571,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_verify_email_invalid_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let req = Request::builder()
@@ -588,7 +588,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_resend_verification_success() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         // Register user first so mock has it
@@ -607,7 +607,7 @@ mod handler_integration_tests {
 
     #[tokio::test]
     async fn handler_resend_verification_invalid_token() {
-        let Some(mut app) = make_app().await else {
+        let Some(app) = make_app().await else {
             return;
         };
         let req = Request::builder()

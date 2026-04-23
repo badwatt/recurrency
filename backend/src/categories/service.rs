@@ -1046,7 +1046,6 @@ mod tests {
     fn transaction_begin_commit() {
         // pool.begin() returns Transaction, commit() finalizes
         // We verify the transaction type exists and can be created
-        use sqlx::postgres::PgPoolOptions;
         // Transaction<sqlx::Postgres> is the return type of pool.begin()
         fn assert_transaction<T: Send>() {}
         assert_transaction::<()>();

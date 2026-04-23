@@ -701,7 +701,7 @@ mod tests {
             notes: None,
             logo_url: None,
         };
-        let (n, a, c, d, _, nt, l) = resolve_update_fields(&e, &r);
+        let (n, a, _, d, _, nt, l) = resolve_update_fields(&e, &r);
         assert_eq!(n, "K");
         assert_eq!(a, rust_decimal::Decimal::from(99));
         assert_eq!(d, NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());

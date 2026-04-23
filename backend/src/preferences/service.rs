@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn apply_preference_no_fields() {
-        let mut prefs = PreferencesResponse {
+        let prefs = PreferencesResponse {
             theme: "light".to_string(),
             subscriptions_view: "grid".to_string(),
         };

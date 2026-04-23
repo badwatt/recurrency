@@ -2026,7 +2026,7 @@ mod tests {
         async fn get_default_after_set_default() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
-            let cat1 = mock
+            let _cat1 = mock
                 .create(user_id, make_category_request("First"))
                 .await
                 .unwrap();
@@ -3644,7 +3644,7 @@ mod tests {
 
         #[tokio::test]
         async fn report_trends_with_month_wrap() {
-            let mock = MockReportService::success();
+            let _mock = MockReportService::success();
             // month = 1, count = 3, should wrap to previous year
             let trends = make_mock_trends(1, 2024, 3);
             assert_eq!(trends.len(), 3);

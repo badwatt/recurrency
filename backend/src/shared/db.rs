@@ -53,7 +53,7 @@ mod tests {
     // Test that PgPoolOptions can be configured
     #[test]
     fn pool_options_configuration() {
-        let options = PgPoolOptions::new()
+        let _options = PgPoolOptions::new()
             .max_connections(5)
             .min_connections(1)
             .acquire_timeout(Duration::from_secs(30));
@@ -65,19 +65,19 @@ mod tests {
     // Test PgPoolOptions with different configurations
     #[test]
     fn pool_options_min_connections() {
-        let options = PgPoolOptions::new().min_connections(0);
+        let _options = PgPoolOptions::new().min_connections(0);
         assert!(true);
     }
 
     #[test]
     fn pool_options_idle_timeout() {
-        let options = PgPoolOptions::new().idle_timeout(Duration::from_secs(600));
+        let _options = PgPoolOptions::new().idle_timeout(Duration::from_secs(600));
         assert!(true);
     }
 
     #[test]
     fn pool_options_max_lifetime() {
-        let options = PgPoolOptions::new().max_lifetime(Duration::from_secs(1800));
+        let _options = PgPoolOptions::new().max_lifetime(Duration::from_secs(1800));
         assert!(true);
     }
 

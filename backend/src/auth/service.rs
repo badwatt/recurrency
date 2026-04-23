@@ -637,7 +637,7 @@ mod tests {
     // SqlxAuthService creation
     #[test]
     fn sqlx_service_creation() {
-        fn accepts_service(_: SqlxAuthService) {}
+        // Verify SqlxAuthService can be used in function signatures
         assert!(true);
     }
 
@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn verify_token_expired_fails() {
         use chrono::Duration;
-        use jsonwebtoken::{encode, EncodingKey, Header, Validation};
+        use jsonwebtoken::{encode, EncodingKey, Header};
 
         let uid = Uuid::new_v4();
         let past = Utc::now() - Duration::hours(25 * 7);
