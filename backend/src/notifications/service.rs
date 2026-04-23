@@ -125,7 +125,7 @@ impl NotificationService {
                 };
 
                 sqlx::query(
-                    "INSERT INTO notifications (id, user_id, type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())",
+                    INSERT_NOTIFICATION_SQL,
                 )
                 .bind(Uuid::new_v4())
                 .bind(user_id)
