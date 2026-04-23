@@ -489,30 +489,26 @@ pub fn SubscriptionsPage() -> Element {
                         h1 { class: "text-3xl font-bold tracking-tight", "Subscriptions" }
                         p { class: "text-muted-foreground", "Manage your recurring expenses" }
                     }
-                    div { class: "flex border rounded-md shrink-0 sm:hidden",
+                    div { class: "shrink-0 sm:hidden",
                         button {
-                            class: if view_mode == "grid" { "bg-secondary p-2 rounded-l-md" } else { "p-2 rounded-l-md hover:bg-muted" },
-                            onclick: move |_| set_view_mode("grid"),
-                            "⊞"
-                        }
-                        button {
-                            class: if view_mode == "list" { "bg-secondary p-2 rounded-r-md" } else { "p-2 rounded-r-md hover:bg-muted" },
-                            onclick: move |_| set_view_mode("list"),
-                            "≡"
+                            class: "border rounded-md p-2 hover:bg-muted",
+                            onclick: {
+                                let vm = view_mode.clone();
+                                move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
+                            },
+                            if view_mode.as_str() == "grid" { "≡" } else { "⊞" }
                         }
                     }
                 }
                 div { class: "flex items-center gap-2 sm:w-auto w-full",
-                    div { class: "hidden sm:flex border rounded-md shrink-0",
+                    div { class: "shrink-0 hidden sm:block",
                         button {
-                            class: if view_mode == "grid" { "bg-secondary p-2 rounded-l-md" } else { "p-2 rounded-l-md hover:bg-muted" },
-                            onclick: move |_| set_view_mode("grid"),
-                            "⊞"
-                        }
-                        button {
-                            class: if view_mode == "list" { "bg-secondary p-2 rounded-r-md" } else { "p-2 rounded-r-md hover:bg-muted" },
-                            onclick: move |_| set_view_mode("list"),
-                            "≡"
+                            class: "border rounded-md p-2 hover:bg-muted",
+                            onclick: {
+                                let vm = view_mode.clone();
+                                move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
+                            },
+                            if view_mode.as_str() == "grid" { "≡" } else { "⊞" }
                         }
                     }
                     button {

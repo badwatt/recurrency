@@ -16,7 +16,7 @@ app should add a background of the color of the theme with some opacity.
 - [ ] fix warning: constant `INSERT_NOTIFICATION_SQL` is never used
 - [ ] on mobile, subscription filters an sort buttons are misaligned.
 - [x] I want on transactions the same filters and sort buttons as on subscriptions.
-- [ ] I do not like the switch buttons between grid and list subscriptions.
+- [x] I do not like the switch buttons between grid and list subscriptions.
 Rethink it please. I like where is located, but I find it innecessary to have 2 buttons in 1 when is a toggle.
 - [ ] on mobile, settings do have too much margin.
 - [ ] on mobile, settings notification buttons are misaligned.
