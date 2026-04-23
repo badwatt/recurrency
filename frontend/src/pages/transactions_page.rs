@@ -1,6 +1,7 @@
 use crate::api::transactions;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
+use crate::components::logo_search::LogoSearch;
 use crate::models::transaction::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -297,6 +298,7 @@ pub fn TransactionsPage() -> Element {
     let mut form_date = use_signal(String::new);
     let mut form_category_id = use_signal(|| None::<Uuid>);
     let mut form_notes = use_signal(String::new);
+    let mut form_logo_url = use_signal(String::new);
     let mut form_saving = use_signal(|| false);
 
     // Notes dialog state
@@ -351,6 +353,7 @@ pub fn TransactionsPage() -> Element {
         form_date.set(txn.date.to_string());
         form_category_id.set(Some(txn.category_id));
         form_notes.set(txn.notes.clone().unwrap_or_default());
+        form_logo_url.set(txn.logo_url.clone().unwrap_or_default());
         name_error.set(String::new());
         amount_error.set(String::new());
         currency_error.set(String::new());
@@ -442,7 +445,11 @@ pub fn TransactionsPage() -> Element {
                         } else {
                             Some(form_notes())
                         },
-                        logo_url: None,
+                        logo_url: if form_logo_url().is_empty() {
+                            None
+                        } else {
+                            Some(form_logo_url())
+                        },
                     },
                 )
                 .await
@@ -458,7 +465,11 @@ pub fn TransactionsPage() -> Element {
                     } else {
                         Some(form_notes())
                     },
-                    logo_url: None,
+                    logo_url: if form_logo_url().is_empty() {
+                        None
+                    } else {
+                        Some(form_logo_url())
+                    },
                 })
                 .await
             };
@@ -518,6 +529,7 @@ pub fn TransactionsPage() -> Element {
                         form_date.set(chrono::Local::now().format("%Y-%m-%d").to_string());
                         form_category_id.set(CATEGORIES().default_category().map(|c| c.id));
                         form_notes.set(String::new());
+                        form_logo_url.set(String::new());
                         name_error.set(String::new());
                         amount_error.set(String::new());
                         currency_error.set(String::new());
@@ -883,6 +895,15 @@ pub fn TransactionsPage() -> Element {
                                     value: "{form_notes}",
                                     oninput: move |e| form_notes.set(e.value()),
                                     class: "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]",
+                                }
+                            }
+                            // Logo
+                            div { class: "space-y-1.5",
+                                label { class: "text-sm font-medium", "Logo (optional)" }
+                                LogoSearch {
+                                    selected_url: form_logo_url(),
+                                    default_query: form_name(),
+                                    on_select: move |url: String| form_logo_url.set(url),
                                 }
                             }
                             // Actions

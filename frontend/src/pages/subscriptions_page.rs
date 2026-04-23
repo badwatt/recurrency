@@ -1207,6 +1207,7 @@ fn render_dialog(
                         label { class: "text-sm font-medium", "Logo (optional)" }
                         LogoSearch {
                             selected_url: form_logo_url.clone(),
+                            default_query: form_name.clone(),
                             on_select: move |url: String| form.write().logo_url = url,
                         }
                     }

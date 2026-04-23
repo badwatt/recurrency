@@ -6,9 +6,9 @@ use crate::models::logo::LogoResult;
 use dioxus::prelude::*;
 
 #[component]
-pub fn LogoSearch(selected_url: String, on_select: EventHandler<String>) -> Element {
+pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventHandler<String>) -> Element {
     let mut dialog_open = use_signal(|| false);
-    let mut query = use_signal(String::new);
+    let mut query = use_signal(|| default_query);
     let mut results = use_signal(Vec::<LogoResult>::new);
     let mut searching = use_signal(|| false);
 
