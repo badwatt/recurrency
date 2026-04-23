@@ -118,8 +118,8 @@ docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | **85.83%** | **85.65%** | **84.55%** | 1294 |
-| **Frontend** | **80.04%** | **71.33%** | **79.75%** | 1493 |
+| **Backend** | **85.83%** | **85.65%** | **84.55%** | 1123 |
+| **Frontend** | **80.04%** | **71.33%** | **79.75%** | 1502 |
 
 Full coverage report (Nix dev shell):
 
