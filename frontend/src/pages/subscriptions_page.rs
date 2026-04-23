@@ -16,17 +16,7 @@ use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
-
-/// Simple icon display helper for subscriptions page.
-fn icon_display(name: &str) -> String {
-    match name {
-        "Home" => "🏠", "ShoppingBag" => "🛍", "Coffee" => "☕", "Car" => "🚗",
-        "Heart" => "❤", "Film" => "🎬", "Music" => "🎵", "Gamepad2" => "🎮",
-        "Briefcase" => "💼", "GraduationCap" => "🎓", "Plane" => "✈",
-        "Zap" => "⚡", "Wifi" => "📶", "Smartphone" => "📱", "Laptop" => "💻",
-        "Monitor" => "🖥", "Tag" => "🏷", _ => "🏷",
-    }.to_string()
-}
+use crate::utils::icons::icon_display;
 
 // ── Filter / Sort types ──────────────────────────────────────────────
 
@@ -1339,18 +1329,6 @@ fn render_dialog(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn icon_display_known() {
-        assert_eq!(icon_display("Home"), "🏠");
-        assert_eq!(icon_display("Film"), "🎬");
-        assert_eq!(icon_display("Tag"), "🏷");
-    }
-
-    #[test]
-    fn icon_display_unknown() {
-        assert_eq!(icon_display("NonExistent"), "🏷");
-    }
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 

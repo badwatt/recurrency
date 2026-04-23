@@ -49,6 +49,23 @@ pub const ICON_NAMES: &[&str] = &[
 /// Default icon when name is unknown or null.
 pub const DEFAULT_ICON: &str = "Tag";
 
+/// Map icon name to a display character (emoji).
+pub fn icon_display(name: &str) -> String {
+    match name {
+        "Home" => "🏠", "ShoppingBag" => "🛍", "Coffee" => "☕", "Car" => "🚗",
+        "Heart" => "❤", "Film" => "🎬", "Music" => "🎵", "Gamepad2" => "🎮",
+        "Briefcase" => "💼", "GraduationCap" => "🎓", "Plane" => "✈",
+        "Zap" => "⚡", "Wifi" => "📶", "Smartphone" => "📱", "Laptop" => "💻",
+        "Monitor" => "🖥", "Cloud" => "☁", "Database" => "🗄", "Server" => "🖧",
+        "Lock" => "🔒", "Shield" => "🛡", "CreditCard" => "💳", "Wallet" => "👛",
+        "Gift" => "🎁", "Star" => "⭐", "Sun" => "☀", "Moon" => "🌙",
+        "CloudRain" => "🌧", "Thermometer" => "🌡", "Activity" => "📈",
+        "Pill" => "💊", "Stethoscope" => "🩺", "Baby" => "👶",
+        "Flower" => "🌸", "TreePine" => "🌲", "Utensils" => "餐具",
+        "Beer" => "🍺", "Wine" => "🍷", "Tag" => "🏷", _ => "🏷",
+    }.to_string()
+}
+
 /// Convert a kebab-case icon name from the backend to PascalCase.
 /// e.g., "tree-pine" → "TreePine"
 pub fn normalize_icon_name(name: &str) -> String {
@@ -164,5 +181,17 @@ mod tests {
     #[test]
     fn normalize_preserves_numbers() {
         assert_eq!(normalize_icon_name("gamepad-2"), "Gamepad2");
+    }
+
+    #[test]
+    fn icon_display_known() {
+        assert_eq!(icon_display("Home"), "🏠");
+        assert_eq!(icon_display("Film"), "🎬");
+        assert_eq!(icon_display("Tag"), "🏷");
+    }
+
+    #[test]
+    fn icon_display_unknown() {
+        assert_eq!(icon_display("NonExistent"), "🏷");
     }
 }

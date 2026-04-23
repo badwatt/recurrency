@@ -240,10 +240,12 @@ pub fn CategoryCombobox(
                                 {
                                     let cat_id = cat.id.to_string();
                                     let cat_name = cat.name.clone();
+                                    let cat_icon = cat.icon.clone().unwrap_or_else(|| "Tag".into());
                                     let cat_color = cat.color.clone().unwrap_or_else(|| "#6b7280".into());
                                     let is_selected = cat_id == sel_id;
                                     let on_change_cb = on_change;
                                     let cat_id_for_click = cat_id.clone();
+                                    let icon_str = crate::utils::icons::icon_display(&cat_icon);
                                     rsx! {
                                         button {
                                             class: if is_selected {
@@ -261,7 +263,7 @@ pub fn CategoryCombobox(
                                                 class: "inline-block h-3 w-3 rounded-full shrink-0",
                                                 style: "background-color: {cat_color}",
                                             }
-                                            span { class: "flex-1 text-left truncate", "{cat_name}" }
+                                            "{icon_str} {cat_name}"
                                             if is_selected {
                                                 svg {
                                                     class: "h-4 w-4 shrink-0 text-primary",
