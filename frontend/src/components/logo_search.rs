@@ -13,28 +13,28 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
     let mut searching = use_signal(|| false);
     let mut error_msg = use_signal(|| String::new());
 
-    // Auto-search when dialog opens and default query is present
-    use_effect(move || {
-        if dialog_open() && !query().is_empty() && !searching() && results().is_empty() && error_msg().is_empty() {
-            searching.set(true);
-            let q = query();
-            spawn(async move {
-                match api::logos::search(&q).await {
-                    Ok(resp) => {
-                        if resp.results.is_empty() {
-                            error_msg.set("No logos found. Try a different search term.".into());
-                        } else {
-                            results.set(resp.results);
-                        }
-                    }
-                    Err(e) => {
-                        error_msg.set(format!("Search failed: {}", e));
+    let mut do_search = move || {
+        if query().is_empty() || searching() { return; }
+        let q = query();
+        searching.set(true);
+        error_msg.set(String::new());
+        results.set(vec![]);
+        spawn(async move {
+            match api::logos::search(&q).await {
+                Ok(resp) => {
+                    if resp.results.is_empty() {
+                        error_msg.set("No logos found. Try a different search term.".into());
+                    } else {
+                        results.set(resp.results);
                     }
                 }
-                searching.set(false);
-            });
-        }
-    });
+                Err(e) => {
+                    error_msg.set(format!("Search failed: {}", e));
+                }
+            }
+            searching.set(false);
+        });
+    };
 
     rsx! {
         // Selected logo preview + button
@@ -70,40 +70,26 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
 
             div { class: "space-y-4",
                 div { class: "flex gap-2",
-                    Input {
-                        value: query(),
-                        on_input: move |v: String| {
-                            query.set(v);
+                    input {
+                        r#type: "text",
+                        value: "{query()}",
+                        placeholder: "Enter company name or domain...",
+                        class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+                        oninput: move |e: FormEvent| {
+                            query.set(e.value());
                             error_msg.set(String::new());
                         },
-                        placeholder: "Enter company name or domain...".to_string(),
-                        r#type: "text".to_string(),
+                        onkeydown: move |e: KeyboardEvent| {
+                            if e.key().to_string() == "Enter" {
+                                do_search();
+                            }
+                        },
                     }
                     button {
                         r#type: "button",
                         class: "inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
                         disabled: searching() || query().is_empty(),
-                        onclick: move |_| {
-                            let q = query();
-                            searching.set(true);
-                            error_msg.set(String::new());
-                            results.set(vec![]);
-                            spawn(async move {
-                                match api::logos::search(&q).await {
-                                    Ok(resp) => {
-                                        if resp.results.is_empty() {
-                                            error_msg.set("No logos found. Try a different search term.".into());
-                                        } else {
-                                            results.set(resp.results);
-                                        }
-                                    }
-                                    Err(e) => {
-                                        error_msg.set(format!("Search failed: {}", e));
-                                    }
-                                }
-                                searching.set(false);
-                            });
-                        },
+                        onclick: move |_| do_search(),
                         if searching() { "Searching…" } else { "Search" }
                     }
                 }
@@ -391,5 +377,22 @@ mod tests {
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         assert!(prod.contains("on_select.call(\"\".to_string())"),
             "Remove button must clear logo via on_select with empty string");
+    }
+
+    #[test]
+    fn logo_search_no_auto_search_effect() {
+        let src = include_str!("logo_search.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        // Old auto-search pattern: use_effect + dialog_open() + !query().is_empty() + results().is_empty()
+        assert!(!prod.contains("results().is_empty() && error_msg().is_empty()"),
+            "LogoSearch must not auto-search when dialog opens");
+    }
+
+    #[test]
+    fn logo_search_enter_key_triggers_search() {
+        let src = include_str!("logo_search.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("onkeydown"),
+            "LogoSearch input must support Enter key to trigger search");
     }
 }
