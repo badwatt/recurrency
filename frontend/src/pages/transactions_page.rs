@@ -657,7 +657,8 @@ pub fn TransactionsPage() -> Element {
                                                     // Actions
                                                     div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
                                                         button {
-                                                            class: if txn.notes.as_ref().is_some_and(|n| !n.is_empty()) { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-primary" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" },
+                                                            class: if txn.notes.as_ref().is_some_and(|n| !n.is_empty()) { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground opacity-40" },
+                                                            title: txn.notes.as_ref().filter(|n| !n.is_empty()).cloned().unwrap_or_default(),
                                                             onclick: {
                                                                 let txn = txn.clone();
                                                                 move |_| {
