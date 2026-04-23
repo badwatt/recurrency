@@ -8,15 +8,11 @@ update the README.md too.
 
 ## TASKS:
 
-- [x] when chosen logo of a subscription/transaction has a transparent background,
+- [ ] when chosen logo of a subscription/transaction has a transparent background,
 app should add a background of the color of the theme with some opacity.
-- [x] user should be able to remove logo of a subscription/transaction.
-- [x] logo must appear in calendar events as well.
-- [x] it won't search for logo until user click on the search button or press enter.
-- [x] on mobile, subscription filters an sort buttons are misaligned.
+- [ ] user should be able to remove logo of a subscription/transaction.
+- [ ] on mobile, subscription filters an sort buttons are misaligned. I want sort in line with filters: filters -> sort (all width)
 - [x] I want on transactions the same filters and sort buttons as on subscriptions.
-- [x] I do not like the switch buttons between grid and list subscriptions.
-Rethink it please. I like where is located, but I find it innecessary to have 2 buttons in 1 when is a toggle.
-- [x] on mobile, settings do have too much margin.
-- [x] on mobile, settings notification buttons are misaligned.
+- [ ] the switch button between grid and list should have a text (list, grid)
+- [ ] on mobile settings, notification buttons have diferent width because of the texts (Email Notifications, Push Notifications and System Notifications texts).
 
