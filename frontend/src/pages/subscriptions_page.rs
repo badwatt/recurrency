@@ -1156,7 +1156,7 @@ fn render_dialog(
                                     frequency_error.set(String::new());
                                 },
                                 for (val, label) in FREQUENCIES {
-                                    option { value: "{val}", "{label}" }
+                                    option { value: "{val}", selected: form_frequency == *val, "{label}" }
                                 }
                             }
                             if !frequency_err.is_empty() {
