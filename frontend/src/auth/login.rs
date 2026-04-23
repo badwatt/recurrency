@@ -139,7 +139,7 @@ pub fn LoginPage() -> Element {
                         input {
                             id: "login-email",
                             r#type: "email",
-                            placeholder: "m@example.com",
+                            placeholder: "email@example.com",
                             value: "{email}",
                             oninput: move |e| email.set(e.value()),
                             required: true,
