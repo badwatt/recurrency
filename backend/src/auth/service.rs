@@ -284,8 +284,10 @@ impl AuthServiceTrait for SqlxAuthService {
 
 // ── Backwards-compatible static methods ──
 
+#[allow(dead_code)]
 pub struct AuthService;
 
+#[allow(dead_code)]
 impl AuthService {
     pub async fn register(pool: &PgPool, req: CreateUserRequest) -> AppResult<AuthResponse> {
         let svc = SqlxAuthService::new(pool.clone());

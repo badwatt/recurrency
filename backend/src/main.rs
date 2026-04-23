@@ -16,12 +16,11 @@ use axum::{
     Router,
 };
 use shared::app_utils::{
-    build_index_path, get_frontend_dist, index_html_exists, list_files_recursive, parse_port,
+    build_index_path, get_frontend_dist, index_html_exists, parse_port,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn init_logging() {
@@ -75,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn build_app(db_pool: sqlx::PgPool) -> Router {
+    #[allow(unused_imports)]
     use auth::service::{AuthServiceTrait, SqlxAuthService};
     use shared::app_state::AppState;
 

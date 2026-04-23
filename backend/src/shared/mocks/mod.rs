@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Mock implementations of all service traits for testing.
 //!
 //! Usage:

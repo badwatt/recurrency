@@ -21,6 +21,7 @@ pub fn build_index_path(frontend_dist: &str) -> String {
 }
 
 /// Recursively list files in a directory for startup diagnostics.
+#[allow(dead_code)]
 pub fn list_files_recursive(dir: &str, count: &mut u32, depth: usize) {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {

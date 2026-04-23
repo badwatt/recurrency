@@ -12,6 +12,7 @@ use crate::subscriptions::models::{
 };
 
 // ── resolve_update_fields: pure function for testability ──
+#[allow(dead_code)]
 pub fn resolve_update_fields(
     existing: &Subscription,
     req: &UpdateSubscriptionRequest,
