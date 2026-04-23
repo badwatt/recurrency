@@ -11,7 +11,7 @@ update the README.md too.
 - [x] if in settings, date format is set to DD-MM-YYYY, then every date should be formatted as DD-MM-YYYY,
 including for example the date visible on every subscription card.
 - [ ] Start Date format do not get updated when switching between DD-MM-YYYY or YYYY-MM-DD.
-- [ ] why frontend/assets/icon.png exists? if is not being used then remove it.
+- [x] why frontend/assets/icon.png exists? if is not being used then remove it.
 - [x] I want to change the email placeholder on the login page to "email@example.com"
 - [x] if SMTP is not configured, then email notifications should not be able to be enabled.
 - [ ] I want to use lucide icons for the whole app.

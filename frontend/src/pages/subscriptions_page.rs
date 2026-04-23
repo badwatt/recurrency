@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
+use crate::components::logo_search::LogoSearch;
 use crate::models::subscription::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
@@ -1074,6 +1075,7 @@ fn render_dialog(
     let form_start_date = form().start_date;
     let form_category_id = form().category_id;
     let form_notes = form().notes;
+    let form_logo_url = form().logo_url;
 
     let name_err = name_error();
     let amount_err = amount_error();
@@ -1197,6 +1199,15 @@ fn render_dialog(
                                 error: if category_err.is_empty() { None } else { Some(category_err) },
                             }
                         }}
+                    }
+
+                    // Logo
+                    div { class: "space-y-1.5",
+                        label { class: "text-sm font-medium", "Logo (optional)" }
+                        LogoSearch {
+                            selected_url: form_logo_url.clone(),
+                            on_select: move |url: String| form.write().logo_url = url,
+                        }
                     }
 
                     // Notes
