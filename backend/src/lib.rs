@@ -13,5 +13,4 @@ pub mod preferences;
 pub mod reports;
 pub mod shared;
 pub mod subscriptions;
-pub mod test_utils;
 pub mod transactions;

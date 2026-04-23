@@ -8,7 +8,6 @@ mod preferences;
 mod reports;
 mod shared;
 mod subscriptions;
-mod test_utils;
 mod transactions;
 
 use axum::{

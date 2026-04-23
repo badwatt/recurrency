@@ -10,7 +10,6 @@ use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use argon2::Argon2;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header};
-use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::categories::service::CategoryService;
@@ -282,57 +281,16 @@ impl AuthServiceTrait for SqlxAuthService {
     }
 }
 
-// ── Backwards-compatible static methods ──
+// ── Helper functions (pure, no DB) ──
 
-#[allow(dead_code)]
+/// Thin wrapper so existing handlers keep calling AuthService::verify_token.
 pub struct AuthService;
 
-#[allow(dead_code)]
 impl AuthService {
-    pub async fn register(pool: &PgPool, req: CreateUserRequest) -> AppResult<AuthResponse> {
-        let svc = SqlxAuthService::new(pool.clone());
-        svc.register_impl(req).await
-    }
-
-    pub async fn login(pool: &PgPool, req: LoginRequest) -> AppResult<AuthResponse> {
-        let svc = SqlxAuthService::new(pool.clone());
-        svc.login_impl(req).await
-    }
-
-    pub async fn verify_email(
-        pool: &PgPool,
-        user_id: Uuid,
-        code: String,
-    ) -> AppResult<UserResponse> {
-        let svc = SqlxAuthService::new(pool.clone());
-        svc.verify_email_impl(user_id, code).await
-    }
-
-    pub async fn resend_verification(pool: &PgPool, user_id: Uuid) -> AppResult<String> {
-        let svc = SqlxAuthService::new(pool.clone());
-        svc.resend_verification_impl(user_id).await
-    }
-
-    pub async fn get_user_by_id(pool: &PgPool, user_id: Uuid) -> AppResult<User> {
-        let svc = SqlxAuthService::new(pool.clone());
-        svc.get_user_by_id_impl(user_id).await
-    }
-
-    pub async fn update_settings(
-        pool: &PgPool,
-        user_id: Uuid,
-        req: UpdateSettingsRequest,
-    ) -> AppResult<User> {
-        let svc = SqlxAuthService::new(pool.clone());
-        svc.update_settings_impl(user_id, req).await
-    }
-
     pub async fn verify_token(token: &str) -> AppResult<Claims> {
         verify_token_internal(token)
     }
 }
-
-// ── Helper functions (pure, no DB) ──
 
 pub fn verify_token_internal(token: &str) -> AppResult<Claims> {
     let token_data = decode::<Claims>(

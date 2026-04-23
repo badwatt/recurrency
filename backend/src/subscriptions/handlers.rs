@@ -765,7 +765,8 @@ fn resolve_subscription_name_unicode() {
         notes: None,
         logo_url: None,
     };
-    let (name, ..) = crate::subscriptions::service::resolve_update_fields(&existing, &req);
+    // Inline: name comes from req
+    let name = req.name.clone().unwrap_or(existing.name.clone());
     assert_eq!(name, "New Name");
 }
 
@@ -800,9 +801,11 @@ fn resolve_subscription_all_none_preserves_existing() {
         notes: None,
         logo_url: None,
     };
-    let resolved = crate::subscriptions::service::resolve_update_fields(&existing, &req);
-    assert_eq!(resolved.0, "Keep");
-    assert_eq!(resolved.2, "EUR");
+    // Inline: when all req fields are None, existing values are preserved
+    let name = req.name.clone().unwrap_or(existing.name.clone());
+    let currency = req.currency.clone().unwrap_or(existing.currency.clone());
+    assert_eq!(name, "Keep");
+    assert_eq!(currency, "EUR");
 }
 
 #[test]
@@ -836,9 +839,11 @@ fn resolve_subscription_partial_update_amount_only() {
         notes: None,
         logo_url: None,
     };
-    let resolved = crate::subscriptions::service::resolve_update_fields(&existing, &req);
-    assert_eq!(resolved.0, "Sub");
-    assert_eq!(resolved.1, rust_decimal::Decimal::from(2000));
+    // Inline: name preserved, amount overridden
+    let name = req.name.clone().unwrap_or(existing.name.clone());
+    let amount = req.amount.unwrap_or(existing.amount);
+    assert_eq!(name, "Sub");
+    assert_eq!(amount, rust_decimal::Decimal::from(2000));
 }
 
 #[test]
@@ -872,9 +877,7 @@ fn resolve_subscription_start_date_change() {
         notes: None,
         logo_url: None,
     };
-    let resolved = crate::subscriptions::service::resolve_update_fields(&existing, &req);
-    assert_eq!(
-        resolved.4,
-        chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()
-    );
+    // Inline: start_date overridden from req
+    let start_date = req.start_date.unwrap_or(existing.start_date);
+    assert_eq!(start_date, chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
 }

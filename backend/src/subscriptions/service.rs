@@ -11,50 +11,6 @@ use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
 
-// ── resolve_update_fields: pure function for testability ──
-#[allow(dead_code)]
-pub fn resolve_update_fields(
-    existing: &Subscription,
-    req: &UpdateSubscriptionRequest,
-) -> (
-    String,
-    Decimal,
-    String,
-    String,
-    NaiveDate,
-    NaiveDate,
-    Uuid,
-    bool,
-    Option<String>,
-    Option<String>,
-) {
-    let name = req.name.clone().unwrap_or(existing.name.clone());
-    let amount = req.amount.unwrap_or(existing.amount);
-    let currency = req.currency.clone().unwrap_or(existing.currency.clone());
-    let frequency = req.frequency.clone().unwrap_or(existing.frequency.clone());
-    let start_date = req.start_date.unwrap_or(existing.start_date);
-    let next_billing_date = req
-        .next_billing_date
-        .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency));
-    let category_id = req.category_id.unwrap_or(existing.category_id);
-    let is_active = req.is_active.unwrap_or(existing.is_active);
-    let notes = req.notes.clone().or(existing.notes.clone());
-    let logo_url = req.logo_url.clone().or(existing.logo_url.clone());
-
-    (
-        name,
-        amount,
-        currency,
-        frequency,
-        start_date,
-        next_billing_date,
-        category_id,
-        is_active,
-        notes,
-        logo_url,
-    )
-}
-
 pub struct SubscriptionService;
 
 impl SubscriptionService {
