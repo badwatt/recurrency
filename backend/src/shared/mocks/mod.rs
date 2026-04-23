@@ -3250,6 +3250,8 @@ mod tests {
             let req = UpdatePreferencesRequest {
                 theme: Some("dark".to_string()),
                 subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(user_id, req).await;
             assert!(result.is_ok());
@@ -3264,6 +3266,8 @@ mod tests {
             let req = UpdatePreferencesRequest {
                 theme: None,
                 subscriptions_view: Some("list".to_string()),
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(user_id, req).await;
             assert!(result.is_ok());
@@ -3278,6 +3282,8 @@ mod tests {
             let req = UpdatePreferencesRequest {
                 theme: Some("midnight".to_string()),
                 subscriptions_view: Some("compact".to_string()),
+                first_day_of_week: None,
+                date_format: None,
             };
             mock.update_preferences(user_id, req).await.unwrap();
 
@@ -3294,12 +3300,16 @@ mod tests {
             let req1 = UpdatePreferencesRequest {
                 theme: Some("dark".to_string()),
                 subscriptions_view: Some("list".to_string()),
+                first_day_of_week: None,
+                date_format: None,
             };
             mock.update_preferences(user_id, req1).await.unwrap();
 
             let req2 = UpdatePreferencesRequest {
                 theme: Some("light".to_string()),
                 subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(user_id, req2).await.unwrap();
 
@@ -3313,6 +3323,8 @@ mod tests {
             let req = UpdatePreferencesRequest {
                 theme: Some("dark".to_string()),
                 subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -3326,12 +3338,16 @@ mod tests {
             let req1 = UpdatePreferencesRequest {
                 theme: Some("dark".to_string()),
                 subscriptions_view: Some("list".to_string()),
+                first_day_of_week: None,
+                date_format: None,
             };
             mock.update_preferences(user_id, req1).await.unwrap();
 
             let req2 = UpdatePreferencesRequest {
                 theme: None,
                 subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(user_id, req2).await.unwrap();
             assert_eq!(result.theme, "dark");
@@ -3349,6 +3365,8 @@ mod tests {
                 UpdatePreferencesRequest {
                     theme: Some("dark".to_string()),
                     subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
                 },
             )
             .await
@@ -3358,6 +3376,8 @@ mod tests {
                 UpdatePreferencesRequest {
                     theme: Some("light".to_string()),
                     subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
                 },
             )
             .await
@@ -3757,6 +3777,8 @@ mod tests {
             let req = UpdatePreferencesRequest {
                 theme: Some("dark".to_string()),
                 subscriptions_view: Some("list".to_string()),
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(user_id, req).await;
             assert!(result.is_ok());
@@ -3768,6 +3790,8 @@ mod tests {
             let req = UpdatePreferencesRequest {
                 theme: Some("light".to_string()),
                 subscriptions_view: Some("grid".to_string()),
+                first_day_of_week: None,
+                date_format: None,
             };
             let result = mock.update_preferences(Uuid::new_v4(), req).await;
             assert!(result.is_err());

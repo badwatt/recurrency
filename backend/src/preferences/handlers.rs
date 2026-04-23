@@ -123,6 +123,8 @@ mod tests {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
             subscriptions_view: "list".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("dark"));
@@ -134,6 +136,7 @@ mod tests {
         let resp = PreferencesResponse::default();
         assert_eq!(resp.theme, "system");
         assert_eq!(resp.subscriptions_view, "grid");
+        assert_eq!(resp.first_day_of_week, "monday");
     }
 
     #[test]

@@ -30,6 +30,8 @@ pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, va
     match key {
         "theme" => response.theme = value.to_string(),
         "subscriptions_view" => response.subscriptions_view = value.to_string(),
+        "first_day_of_week" => response.first_day_of_week = value.to_string(),
+        "date_format" => response.date_format = value.to_string(),
         _ => {}
     }
 }
@@ -82,6 +84,34 @@ impl PreferencesServiceTrait for SqlxPreferencesService {
             )
             .bind(user_id)
             .bind(&subscriptions_view)
+            .execute(&self.pool)
+            .await?;
+        }
+
+        if let Some(first_day_of_week) = req.first_day_of_week {
+            sqlx::query(
+                r#"
+                INSERT INTO user_preferences (user_id, key, value)
+                VALUES ($1, 'first_day_of_week', $2)
+                ON CONFLICT (user_id, key) DO UPDATE SET value = $2
+                "#,
+            )
+            .bind(user_id)
+            .bind(&first_day_of_week)
+            .execute(&self.pool)
+            .await?;
+        }
+
+        if let Some(date_format) = req.date_format {
+            sqlx::query(
+                r#"
+                INSERT INTO user_preferences (user_id, key, value)
+                VALUES ($1, 'date_format', $2)
+                ON CONFLICT (user_id, key) DO UPDATE SET value = $2
+                "#,
+            )
+            .bind(user_id)
+            .bind(&date_format)
             .execute(&self.pool)
             .await?;
         }
@@ -172,6 +202,8 @@ mod tests {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
             subscriptions_view: "list".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("dark"));
@@ -180,10 +212,12 @@ mod tests {
 
     #[test]
     fn preferences_response_deserialize() {
-        let json = r#"{"theme":"dark","subscriptions_view":"compact"}"#;
+        let json = r#"{"theme":"dark","subscriptions_view":"compact","first_day_of_week":"sunday","date_format":"YYYY-MM-DD"}"#;
         let resp: PreferencesResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.theme, "dark");
         assert_eq!(resp.subscriptions_view, "compact");
+        assert_eq!(resp.first_day_of_week, "sunday");
+        assert_eq!(resp.date_format, "YYYY-MM-DD");
     }
 
     // ── UpdatePreferencesRequest deserialization ──
@@ -193,6 +227,8 @@ mod tests {
         let req = UpdatePreferencesRequest {
             theme: Some("dark".to_string()),
             subscriptions_view: Some("table".to_string()),
+            first_day_of_week: None,
+            date_format: None,
         };
         assert!(req.theme.is_some());
         assert!(req.subscriptions_view.is_some());
@@ -276,6 +312,8 @@ mod tests {
         let resp = PreferencesResponse {
             theme: "".to_string(),
             subscriptions_view: "".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         assert_eq!(resp.theme, "");
         assert_eq!(resp.subscriptions_view, "");
@@ -286,6 +324,8 @@ mod tests {
         let resp = PreferencesResponse {
             theme: "テーマ".to_string(),
             subscriptions_view: "列表".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         assert_eq!(resp.theme, "テーマ");
         assert_eq!(resp.subscriptions_view, "列表");
@@ -296,6 +336,8 @@ mod tests {
         let resp = PreferencesResponse {
             theme: "midnight".to_string(),
             subscriptions_view: "compact".to_string(),
+            first_day_of_week: "sunday".to_string(),
+            date_format: "YYYY-MM-DD".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         let parsed: PreferencesResponse = serde_json::from_str(&json).unwrap();
@@ -306,28 +348,31 @@ mod tests {
     #[test]
     fn preferences_response_complete_deserialize() {
         // PreferencesResponse requires all fields
-        let json = r#"{"theme":"light","subscriptions_view":"list"}"#;
+        let json = r#"{"theme":"light","subscriptions_view":"list","first_day_of_week":"monday","date_format":"DD-MM-YYYY"}"#;
         let resp: PreferencesResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.theme, "light");
         assert_eq!(resp.subscriptions_view, "list");
+        assert_eq!(resp.date_format, "DD-MM-YYYY");
     }
 
     // ── UpdatePreferencesRequest edge cases ──
 
     #[test]
     fn update_preferences_request_both_empty_strings() {
-        let json = r#"{"theme":"","subscriptions_view":""}"#;
+        let json = r#"{"theme":"","subscriptions_view":"","first_day_of_week":""}"#;
         let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
         assert!(req.theme.is_some()); // Empty string is still Some
         assert!(req.subscriptions_view.is_some());
+        assert!(req.first_day_of_week.is_some());
     }
 
     #[test]
     fn update_preferences_request_with_unicode() {
-        let json = r#"{"theme":"テーマ","subscriptions_view":"视图"}"#;
+        let json = r#"{"theme":"テーマ","subscriptions_view":"视图","first_day_of_week":"monday"}"#;
         let req: UpdatePreferencesRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.theme.as_deref(), Some("テーマ"));
         assert_eq!(req.subscriptions_view.as_deref(), Some("视图"));
+        assert_eq!(req.first_day_of_week.as_deref(), Some("monday"));
     }
 
     #[test]
@@ -353,24 +398,34 @@ mod tests {
     // Apply preference edge cases using the 3-arg function
     #[test]
     fn apply_preference_theme_only() {
-        let mut prefs = PreferencesResponse {
-            theme: "light".to_string(),
-            subscriptions_view: "grid".to_string(),
-        };
+        let mut prefs = PreferencesResponse::default();
         apply_preference(&mut prefs, "theme", "dark");
         assert_eq!(prefs.theme, "dark");
         assert_eq!(prefs.subscriptions_view, "grid"); // unchanged
+        assert_eq!(prefs.first_day_of_week, "monday"); // unchanged
     }
 
     #[test]
     fn apply_preference_view_only() {
-        let mut prefs = PreferencesResponse {
-            theme: "dark".to_string(),
-            subscriptions_view: "grid".to_string(),
-        };
+        let mut prefs = PreferencesResponse::default();
         apply_preference(&mut prefs, "subscriptions_view", "list");
-        assert_eq!(prefs.theme, "dark"); // unchanged
+        assert_eq!(prefs.theme, "system"); // unchanged
         assert_eq!(prefs.subscriptions_view, "list");
+        assert_eq!(prefs.first_day_of_week, "monday"); // unchanged
+    }
+
+    #[test]
+    fn apply_preference_first_day_of_week() {
+        let mut prefs = PreferencesResponse::default();
+        apply_preference(&mut prefs, "first_day_of_week", "sunday");
+        assert_eq!(prefs.first_day_of_week, "sunday");
+    }
+
+    #[test]
+    fn apply_preference_date_format() {
+        let mut prefs = PreferencesResponse::default();
+        apply_preference(&mut prefs, "date_format", "YYYY-MM-DD");
+        assert_eq!(prefs.date_format, "YYYY-MM-DD");
     }
 
     #[test]
@@ -378,6 +433,8 @@ mod tests {
         let mut prefs = PreferencesResponse {
             theme: "light".to_string(),
             subscriptions_view: "grid".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         apply_preference(&mut prefs, "theme", "midnight");
         apply_preference(&mut prefs, "subscriptions_view", "compact");
@@ -390,6 +447,8 @@ mod tests {
         let prefs = PreferencesResponse {
             theme: "light".to_string(),
             subscriptions_view: "grid".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         // No fields to update - nothing changes
         assert_eq!(prefs.theme, "light");

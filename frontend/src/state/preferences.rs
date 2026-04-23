@@ -27,6 +27,11 @@ impl PreferencesState {
         &self.preferences.first_day_of_week
     }
 
+    /// Get date format: "DD-MM-YYYY" or "YYYY-MM-DD" (default: "DD-MM-YYYY").
+    pub fn date_format(&self) -> &str {
+        &self.preferences.date_format
+    }
+
     pub fn set_loading(&mut self) {
         self.is_loading = true;
     }
@@ -48,6 +53,10 @@ impl PreferencesState {
 
     pub fn set_first_day_of_week(&mut self, day: String) {
         self.preferences.first_day_of_week = day;
+    }
+
+    pub fn set_date_format(&mut self, format: String) {
+        self.preferences.date_format = format;
     }
 
     /// Persist theme to localStorage (WASM) or file (native).
@@ -148,6 +157,7 @@ mod tests {
             theme: "mocha".into(),
             subscriptions_view: "list".into(),
             first_day_of_week: "monday".into(),
+            date_format: "DD-MM-YYYY".into(),
         });
         assert!(state.initialized);
         assert_eq!(state.theme(), "mocha");
@@ -224,6 +234,7 @@ mod tests {
             theme: "catppuccin-mocha".into(),
             subscriptions_view: "table".into(),
             first_day_of_week: "sunday".into(),
+            date_format: "YYYY-MM-DD".into(),
         };
         state.set_data(resp);
         assert_eq!(state.theme(), "catppuccin-mocha");
