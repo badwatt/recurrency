@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
+use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
 use crate::models::subscription::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
@@ -926,11 +927,12 @@ fn render_grid_card(
                 }
 
                 div { class: "flex items-center gap-1 mt-auto flex-wrap justify-center",
-                    button {
-                        class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
-                        title: sub.notes.clone(),
-                        onclick: move |_| on_notes.call(sub_for_notes.clone()),
-                        FileText { size: 16 }
+                    Tooltip { content: sub.notes.clone().unwrap_or_default(),
+                        button {
+                            class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
+                            onclick: move |_| on_notes.call(sub_for_notes.clone()),
+                            FileText { size: 16 }
+                        }
                     }
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
@@ -1014,11 +1016,12 @@ fn render_list_card(
                         p { class: "font-medium text-sm sm:text-base", "{formatted}" }
 
                         div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
-                            button {
-                                class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
-                                title: sub.notes.clone(),
-                                onclick: move |_| on_notes.call(sub_for_notes.clone()),
-                                FileText { size: 16 }
+                            Tooltip { content: sub.notes.clone().unwrap_or_default(),
+                                button {
+                                    class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
+                                    onclick: move |_| on_notes.call(sub_for_notes.clone()),
+                                    FileText { size: 16 }
+                                }
                             }
                             button {
                                 class: "h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md hover:bg-muted",

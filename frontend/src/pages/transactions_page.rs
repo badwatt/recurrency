@@ -1,5 +1,6 @@
 use crate::api::transactions;
 use crate::components::dialog::Dialog;
+use crate::components::tooltip::Tooltip;
 use crate::components::logo_image_with_fallback;
 use crate::components::logo_search::LogoSearch;
 use crate::models::transaction::*;
@@ -656,18 +657,19 @@ pub fn TransactionsPage() -> Element {
                                                     }
                                                     // Actions
                                                     div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
-                                                        button {
-                                                            class: if txn.notes.as_ref().is_some_and(|n| !n.is_empty()) { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground opacity-40" },
-                                                            title: txn.notes.as_ref().filter(|n| !n.is_empty()).cloned().unwrap_or_default(),
-                                                            onclick: {
-                                                                let txn = txn.clone();
-                                                                move |_| {
-                                                                    notes_dialog_txn_id.set(Some(txn.id));
-                                                                    notes_dialog_value.set(txn.notes.clone().unwrap_or_default());
-                                                                    notes_dialog_open.set(true);
-                                                                }
-                                                            },
-                                                            FileText { size: 16 }
+                                                        Tooltip { content: txn.notes.clone().unwrap_or_default(),
+                                                            button {
+                                                                class: if txn.notes.as_ref().is_some_and(|n| !n.is_empty()) { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground opacity-40" },
+                                                                onclick: {
+                                                                    let txn = txn.clone();
+                                                                    move |_| {
+                                                                        notes_dialog_txn_id.set(Some(txn.id));
+                                                                        notes_dialog_value.set(txn.notes.clone().unwrap_or_default());
+                                                                        notes_dialog_open.set(true);
+                                                                    }
+                                                                },
+                                                                FileText { size: 16 }
+                                                            }
                                                         }
                                                         button {
                                                             class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
