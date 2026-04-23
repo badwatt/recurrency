@@ -239,7 +239,6 @@ pub fn SettingsPage() -> Element {
                                         theme: None,
                                         subscriptions_view: None,
                                         first_day_of_week: Some(day),
-                                        date_format: None,
                                     }).await {
                                         Ok(_) => TOAST.write().success("First day of week updated"),
                                         Err(e) => {
@@ -252,35 +251,6 @@ pub fn SettingsPage() -> Element {
                             class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
                             option { value: "monday", "Monday" }
                             option { value: "sunday", "Sunday" }
-                        }
-                    }
-                    // Date format
-                    div { class: "space-y-2",
-                        label { r#for: "settings-date-format", class: "text-sm font-medium", "Date Format" }
-                        select {
-                            id: "settings-date-format",
-                            value: "{PREFERENCES().date_format()}",
-                            onchange: move |e| {
-                                let fmt = e.value();
-                                PREFERENCES.write().set_date_format(fmt.clone());
-                                spawn(async move {
-                                    match crate::api::preferences::update(&crate::models::preferences::UpdatePreferencesRequest {
-                                        theme: None,
-                                        subscriptions_view: None,
-                                        first_day_of_week: None,
-                                        date_format: Some(fmt),
-                                    }).await {
-                                        Ok(_) => TOAST.write().success("Date format updated"),
-                                        Err(e) => {
-                                            log::error!("Failed to update date_format: {:?}", e);
-                                            TOAST.write().error("Failed to update preference");
-                                        }
-                                    }
-                                });
-                            },
-                            class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
-                            option { value: "DD-MM-YYYY", "DD-MM-YYYY (Day-Month-Year)" }
-                            option { value: "YYYY-MM-DD", "YYYY-MM-DD (Year-Month-Day)" }
                         }
                     }
                 }

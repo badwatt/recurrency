@@ -27,9 +27,10 @@ impl PreferencesState {
         &self.preferences.first_day_of_week
     }
 
-    /// Get date format: "DD-MM-YYYY" or "YYYY-MM-DD" (default: "DD-MM-YYYY").
-    pub fn date_format(&self) -> &str {
-        &self.preferences.date_format
+    /// Get date format derived from system locale.
+    pub fn date_format(&self) -> String {
+        let locale = crate::utils::dates::get_locale();
+        crate::utils::dates::get_date_format_from_locale(&locale).to_string()
     }
 
     pub fn set_loading(&mut self) {
@@ -53,10 +54,6 @@ impl PreferencesState {
 
     pub fn set_first_day_of_week(&mut self, day: String) {
         self.preferences.first_day_of_week = day;
-    }
-
-    pub fn set_date_format(&mut self, format: String) {
-        self.preferences.date_format = format;
     }
 
     /// Persist theme to localStorage (WASM) or file (native).

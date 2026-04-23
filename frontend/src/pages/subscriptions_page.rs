@@ -439,7 +439,6 @@ pub fn SubscriptionsPage() -> Element {
                 theme: None,
                 subscriptions_view: Some(mode),
                 first_day_of_week: None,
-                date_format: None,
             };
             let _ = api::preferences::update(&req).await;
         });
@@ -876,7 +875,7 @@ fn render_grid_card(
 ) -> Element {
     let opacity = subscription_card_opacity(sub.is_active);
     let formatted = format_currency(sub.amount, &sub.currency);
-    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, PREFERENCES().date_format());
+    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &PREFERENCES().date_format());
 
     let (color, cat_icon, cat_name) = {
         let cats = CATEGORIES();
@@ -961,7 +960,7 @@ fn render_list_card(
 ) -> Element {
     let opacity = subscription_card_opacity(sub.is_active);
     let formatted = format_currency(sub.amount, &sub.currency);
-    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, PREFERENCES().date_format());
+    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &PREFERENCES().date_format());
 
     let (color, cat_icon, cat_name) = {
         let cats = CATEGORIES();
@@ -3275,36 +3274,34 @@ mod dialog_form_tests {
 
     #[test]
     fn subscription_next_text_active_with_date() {
-        // Test with DD-MM-YYYY format
         let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let result = subscription_next_text(true, Some(date), "DD-MM-YYYY");
-        assert_eq!(result, "Next: 15-06-2024");
+        let result = subscription_next_text(true, Some(date), "DD/MM/YYYY");
+        assert_eq!(result, "Next: 15/06/2024");
     }
 
     #[test]
     fn subscription_next_text_active_with_date_yyyy_mm_dd() {
-        // Test with YYYY-MM-DD format
         let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let result = subscription_next_text(true, Some(date), "YYYY-MM-DD");
-        assert_eq!(result, "Next: 2024-06-15");
+        let result = subscription_next_text(true, Some(date), "YYYY/MM/DD");
+        assert_eq!(result, "Next: 2024/06/15");
     }
 
     #[test]
     fn subscription_next_text_active_no_date() {
-        let result = subscription_next_text(true, None, "DD-MM-YYYY");
+        let result = subscription_next_text(true, None, "DD/MM/YYYY");
         assert_eq!(result, "No billing date");
     }
 
     #[test]
     fn subscription_next_text_inactive() {
         let date = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let result = subscription_next_text(false, Some(date), "DD-MM-YYYY");
+        let result = subscription_next_text(false, Some(date), "DD/MM/YYYY");
         assert_eq!(result, "Inactive");
     }
 
     #[test]
     fn subscription_next_text_inactive_no_date() {
-        let result = subscription_next_text(false, None, "DD-MM-YYYY");
+        let result = subscription_next_text(false, None, "DD/MM/YYYY");
         assert_eq!(result, "Inactive");
     }
 

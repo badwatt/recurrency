@@ -5,7 +5,7 @@ pub struct PreferencesResponse {
     pub theme: String,
     pub subscriptions_view: String,
     pub first_day_of_week: String,
-    pub date_format: String, // "DD-MM-YYYY" | "YYYY-MM-DD", default "DD-MM-YYYY"
+    pub date_format: String, // Kept for API backward compat; derived from locale in UI
 }
 
 impl Default for PreferencesResponse {
@@ -14,7 +14,7 @@ impl Default for PreferencesResponse {
             theme: "system".into(),
             subscriptions_view: "grid".into(),
             first_day_of_week: "monday".into(),
-            date_format: "DD-MM-YYYY".into(),
+            date_format: "DD/MM/YYYY".into(),
         }
     }
 }
@@ -24,7 +24,6 @@ pub struct UpdatePreferencesRequest {
     pub theme: Option<String>,
     pub subscriptions_view: Option<String>,
     pub first_day_of_week: Option<String>,
-    pub date_format: Option<String>,
 }
 
 #[cfg(test)]
@@ -37,7 +36,7 @@ mod tests {
         assert_eq!(prefs.theme, "system");
         assert_eq!(prefs.subscriptions_view, "grid");
         assert_eq!(prefs.first_day_of_week, "monday");
-        assert_eq!(prefs.date_format, "DD-MM-YYYY");
+        assert_eq!(prefs.date_format, "DD/MM/YYYY");
     }
 
     #[test]
@@ -46,7 +45,7 @@ mod tests {
             theme: "dark".into(),
             subscriptions_view: "list".into(),
             first_day_of_week: "monday".into(),
-            date_format: "YYYY-MM-DD".into(),
+            date_format: "YYYY/MM/DD".into(),
         };
         let json = serde_json::to_string(&prefs).unwrap();
         let back: PreferencesResponse = serde_json::from_str(&json).unwrap();
@@ -59,14 +58,12 @@ mod tests {
             theme: None,
             subscriptions_view: None,
             first_day_of_week: None,
-            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
         assert!(back.theme.is_none());
         assert!(back.subscriptions_view.is_none());
         assert!(back.first_day_of_week.is_none());
-        assert!(back.date_format.is_none());
     }
 
     #[test]
@@ -75,14 +72,12 @@ mod tests {
             theme: Some("dark".into()),
             subscriptions_view: None,
             first_day_of_week: None,
-            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(back.theme, Some("dark".into()));
         assert!(back.subscriptions_view.is_none());
         assert!(back.first_day_of_week.is_none());
-        assert!(back.date_format.is_none());
     }
 
     #[test]
@@ -91,14 +86,12 @@ mod tests {
             theme: None,
             subscriptions_view: Some("list".into()),
             first_day_of_week: None,
-            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
         assert!(back.theme.is_none());
         assert_eq!(back.subscriptions_view, Some("list".into()));
         assert!(back.first_day_of_week.is_none());
-        assert!(back.date_format.is_none());
     }
 
     #[test]
@@ -107,14 +100,12 @@ mod tests {
             theme: Some("light".into()),
             subscriptions_view: Some("grid".into()),
             first_day_of_week: None,
-            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(back.theme, Some("light".into()));
         assert_eq!(back.subscriptions_view, Some("grid".into()));
         assert!(back.first_day_of_week.is_none());
-        assert!(back.date_format.is_none());
     }
 
     #[test]
@@ -123,13 +114,13 @@ mod tests {
             theme: "catppuccin-mocha".into(),
             subscriptions_view: "table".into(),
             first_day_of_week: "sunday".into(),
-            date_format: "YYYY-MM-DD".into(),
+            date_format: "YYYY/MM/DD".into(),
         };
         let json = serde_json::to_string(&prefs).unwrap();
         let back: PreferencesResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(back.theme, "catppuccin-mocha");
         assert_eq!(back.subscriptions_view, "table");
-        assert_eq!(back.date_format, "YYYY-MM-DD");
+        assert_eq!(back.date_format, "YYYY/MM/DD");
     }
 
     #[test]
@@ -138,24 +129,21 @@ mod tests {
             theme: Some("light".into()),
             subscriptions_view: Some("list".into()),
             first_day_of_week: Some("sunday".into()),
-            date_format: Some("YYYY-MM-DD".into()),
         };
         assert!(req.theme.is_some());
         assert!(req.subscriptions_view.is_some());
         assert!(req.first_day_of_week.is_some());
-        assert!(req.date_format.is_some());
     }
 
     #[test]
-    fn update_request_date_format_only() {
+    fn update_request_first_day_of_week_only() {
         let req = UpdatePreferencesRequest {
             theme: None,
             subscriptions_view: None,
-            first_day_of_week: None,
-            date_format: Some("YYYY-MM-DD".into()),
+            first_day_of_week: Some("sunday".into()),
         };
-        assert!(req.date_format.is_some());
-        assert_eq!(req.date_format.unwrap(), "YYYY-MM-DD");
+        assert!(req.first_day_of_week.is_some());
+        assert_eq!(req.first_day_of_week.unwrap(), "sunday");
     }
 
     #[test]
@@ -168,6 +156,6 @@ mod tests {
     #[test]
     fn date_format_valid_values() {
         let prefs = PreferencesResponse::default();
-        assert!(["DD-MM-YYYY", "YYYY-MM-DD"].contains(&prefs.date_format.as_str()));
+        assert!(["DD/MM/YYYY", "YYYY/MM/DD", "MM/DD/YYYY"].contains(&prefs.date_format.as_str()));
     }
 }

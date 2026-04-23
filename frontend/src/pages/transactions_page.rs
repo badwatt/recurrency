@@ -717,7 +717,7 @@ pub fn TransactionsPage() -> Element {
                                                     div { class: "flex-1 min-w-0",
                                                         p { class: "font-medium truncate text-sm sm:text-base", "{txn.name}" }
                                                         p { class: "text-xs text-muted-foreground",
-                                                            {format_date(&txn.date, PREFERENCES().date_format())}
+                                                            {format_date(&txn.date, &PREFERENCES().date_format())}
                                                         }
                                                     }
                                                     // Category badge
