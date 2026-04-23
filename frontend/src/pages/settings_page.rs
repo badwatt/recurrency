@@ -232,7 +232,10 @@ pub fn SettingsPage() -> Element {
                                         date_format: None,
                                     }).await {
                                         Ok(_) => TOAST.write().success("First day of week updated"),
-                                        Err(_) => TOAST.write().error("Failed to update preference"),
+                                        Err(e) => {
+                                            log::error!("Failed to update first_day_of_week: {:?}", e);
+                                            TOAST.write().error("Failed to update preference");
+                                        }
                                     }
                                 });
                             },
@@ -258,7 +261,10 @@ pub fn SettingsPage() -> Element {
                                         date_format: Some(fmt),
                                     }).await {
                                         Ok(_) => TOAST.write().success("Date format updated"),
-                                        Err(_) => TOAST.write().error("Failed to update preference"),
+                                        Err(e) => {
+                                            log::error!("Failed to update date_format: {:?}", e);
+                                            TOAST.write().error("Failed to update preference");
+                                        }
                                     }
                                 });
                             },

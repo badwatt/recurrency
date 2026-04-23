@@ -6,6 +6,7 @@ pub async fn get() -> Result<PreferencesResponse, ApiError> {
 }
 
 pub async fn update(req: &UpdatePreferencesRequest) -> Result<PreferencesResponse, ApiError> {
+    log::info!("Updating preferences: {:?}", req);
     api_put("/api/preferences", req).await
 }
 

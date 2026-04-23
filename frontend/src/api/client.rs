@@ -206,6 +206,7 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(
     body: &B,
 ) -> Result<T, ApiError> {
     let url = auth_url(path);
+    log::info!("[api_put] URL: {}, Body type: {}", url, std::any::type_name::<B>());
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
@@ -222,11 +223,14 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(
         .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status().as_u16();
 
+    log::info!("[api_put] Response status: {}", status);
+
     if status == 401 {
         return Err(ApiError::Unauthorized);
     }
     if !resp.status().is_success() {
         let body = resp.text().await.unwrap_or_default();
+        log::error!("[api_put] HTTP error {}: {}", status, body);
         return Err(ApiError::Http(status, body));
     }
 

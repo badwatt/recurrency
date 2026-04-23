@@ -8,6 +8,7 @@ use crate::auth::models::{
     AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest,
     UserResponse,
 };
+use crate::auth::service::verify_token_internal;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
 use crate::shared::OptionalQuery;
@@ -77,7 +78,7 @@ pub async fn update_settings(
 ) -> AppResult<Json<SettingsResponse>> {
     let token =
         extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
-    let claims = state.auth_service.verify_token(&token).await?;
+    let claims = verify_token_internal(&token)?;
     let user = state.auth_service.update_settings(claims.sub, req).await?;
     Ok(Json(user.into()))
 }
