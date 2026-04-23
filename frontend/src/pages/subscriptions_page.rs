@@ -17,6 +17,17 @@ use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
 
+/// Simple icon display helper for subscriptions page.
+fn icon_display(name: &str) -> String {
+    match name {
+        "Home" => "🏠", "ShoppingBag" => "🛍", "Coffee" => "☕", "Car" => "🚗",
+        "Heart" => "❤", "Film" => "🎬", "Music" => "🎵", "Gamepad2" => "🎮",
+        "Briefcase" => "💼", "GraduationCap" => "🎓", "Plane" => "✈",
+        "Zap" => "⚡", "Wifi" => "📶", "Smartphone" => "📱", "Laptop" => "💻",
+        "Monitor" => "🖥", "Tag" => "🏷", _ => "🏷",
+    }.to_string()
+}
+
 // ── Filter / Sort types ──────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -876,16 +887,16 @@ fn render_grid_card(
     let formatted = format_currency(sub.amount, &sub.currency);
     let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, PREFERENCES().date_format());
 
-    let (color, _icon, cat_name) = {
+    let (color, cat_icon, cat_name) = {
         let cats = CATEGORIES();
         if let Some(c) = cats.get_by_id(&sub.category_id) {
             (
                 c.color.clone().unwrap_or_else(|| "#6b7280".into()),
-                c.icon.clone().unwrap_or_default(),
+                c.icon.clone().unwrap_or_else(|| "Tag".into()),
                 c.name.clone(),
             )
         } else {
-            ("#6b7280".into(), String::new(), "Uncategorized".into())
+            ("#6b7280".into(), "Tag".into(), "Uncategorized".into())
         }
     };
 
@@ -916,9 +927,9 @@ fn render_grid_card(
                 p { class: "font-bold text-xl tracking-tight", "{formatted}" }
 
                 span {
-                    class: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
+                    class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
                     style: "color: {color}; background-color: {color}15;",
-                    "{cat_name}"
+                    "{icon_display(&cat_icon)} {cat_name}"
                 }
 
                 div { class: "flex items-center gap-1 mt-auto flex-wrap justify-center",
@@ -961,16 +972,16 @@ fn render_list_card(
     let formatted = format_currency(sub.amount, &sub.currency);
     let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, PREFERENCES().date_format());
 
-    let (color, _icon, cat_name) = {
+    let (color, cat_icon, cat_name) = {
         let cats = CATEGORIES();
         if let Some(c) = cats.get_by_id(&sub.category_id) {
             (
                 c.color.clone().unwrap_or_else(|| "#6b7280".into()),
-                c.icon.clone().unwrap_or_default(),
+                c.icon.clone().unwrap_or_else(|| "Tag".into()),
                 c.name.clone(),
             )
         } else {
-            ("#6b7280".into(), String::new(), "Uncategorized".into())
+            ("#6b7280".into(), "Tag".into(), "Uncategorized".into())
         }
     };
 
@@ -1001,9 +1012,9 @@ fn render_list_card(
 
                     div { class: "flex items-center gap-2 sm:gap-4 shrink-0",
                         span {
-                            class: "hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
+                            class: "hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
                             style: "color: {color}; background-color: {color}15;",
-                            "{cat_name}"
+                            "{icon_display(&cat_icon)} {cat_name}"
                         }
                         p { class: "font-medium text-sm sm:text-base", "{formatted}" }
 
@@ -1328,6 +1339,18 @@ fn render_dialog(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn icon_display_known() {
+        assert_eq!(icon_display("Home"), "🏠");
+        assert_eq!(icon_display("Film"), "🎬");
+        assert_eq!(icon_display("Tag"), "🏷");
+    }
+
+    #[test]
+    fn icon_display_unknown() {
+        assert_eq!(icon_display("NonExistent"), "🏷");
+    }
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
