@@ -558,7 +558,7 @@ pub fn SubscriptionsPage() -> Element {
                     div { class: "space-y-4",
 
                         // ── Filter / Sort bar ──
-                        div { class: "flex items-center gap-2 flex-wrap",
+                        div { class: "flex flex-col sm:flex-row items-start sm:items-center gap-2",
                             div { class: "relative",
                                 button {
                                     class: "border px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 hover:bg-muted h-8",
@@ -687,10 +687,10 @@ pub fn SubscriptionsPage() -> Element {
                             }}
 
                             // Sort
-                            div { class: "flex items-center gap-1.5 ml-auto",
+                            div { class: "flex items-center gap-1.5 w-full sm:w-auto sm:ml-auto",
                                 span { class: "text-sm text-muted-foreground", ArrowUpDown { size: 16 } }
                                 select {
-                                    class: "h-8 w-[150px] rounded-md border bg-background px-2 text-sm",
+                                    class: "h-8 w-full sm:w-[150px] rounded-md border bg-background px-2 text-sm",
                                     value: "{sort_val.field}",
                                     onchange: move |e: Event<FormData>| {
                                         sort.write().field = e.value();
@@ -3371,5 +3371,19 @@ mod dialog_form_tests {
     fn arrow_up_down_icon_renders() {
         let el: Element = rsx! { ArrowUpDown { size: 16 } };
         assert!(el.is_ok());
+    }
+
+    #[test]
+    fn filter_sort_bar_uses_flex_col_on_mobile() {
+        let prod = include_str!("subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("flex-col sm:flex-row"),
+            "filter/sort bar must stack vertically on mobile");
+    }
+
+    #[test]
+    fn sort_select_full_width_on_mobile() {
+        let prod = include_str!("subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("w-full sm:w-[150px]"),
+            "sort select must be full-width on mobile");
     }
 }
