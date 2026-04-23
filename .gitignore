@@ -70,5 +70,10 @@ keystore.properties
 .direnv
 .env
 .bin
+
+# Plan
+PLAN.md
+
+# Frontend assets
 frontend/assets/tailwind.css
 frontend/public/tailwind.css
