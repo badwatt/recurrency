@@ -1403,6 +1403,12 @@ impl PreferencesServiceTrait for MockPreferencesService {
         if let Some(view) = req.subscriptions_view {
             updated.subscriptions_view = view;
         }
+        if let Some(first_day) = req.first_day_of_week {
+            updated.first_day_of_week = first_day;
+        }
+        if let Some(date_fmt) = req.date_format {
+            updated.date_format = date_fmt;
+        }
 
         prefs.insert(user_id, updated.clone());
         Ok(updated)
