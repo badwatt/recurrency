@@ -52,6 +52,14 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                 },
                 if !selected_url.is_empty() { "Change" } else { "Add logo" }
             }
+            if !selected_url.is_empty() {
+                button {
+                    r#type: "button",
+                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50",
+                    onclick: move |_| on_select.call("".to_string()),
+                    "Remove"
+                }
+            }
         }
 
         // Search dialog
@@ -366,5 +374,22 @@ mod tests {
         assert_ne!(r.thumbnail, r.url);
         assert_eq!(r.width, Some(64));
         assert_eq!(r.height, Some(64));
+    }
+
+    #[test]
+    fn logo_search_has_remove_button() {
+        let src = include_str!("logo_search.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("Remove"), "LogoSearch must have a Remove button");
+        assert!(prod.contains(r#"if !selected_url.is_empty()"#),
+            "Remove button must be conditional on selected_url");
+    }
+
+    #[test]
+    fn logo_search_remove_calls_empty_string() {
+        let src = include_str!("logo_search.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("on_select.call(\"\".to_string())"),
+            "Remove button must clear logo via on_select with empty string");
     }
 }
