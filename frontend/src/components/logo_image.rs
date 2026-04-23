@@ -21,12 +21,16 @@ pub fn logo_image_with_fallback(
         .to_string();
     let img_id = format!("logo-img-{id}");
     let fb_id = format!("logo-fb-{id}");
+    let wrapper_id = format!("logo-wrapper-{id}");
     match url {
         Some(url_str) => {
             let fb_id_clone = fb_id.clone();
-            let img_id_clone = img_id.clone();
+            let img_id_clone_for_error = img_id.clone();
+            let img_id_clone_for_load = img_id.clone();
+            let wrapper_id_clone = wrapper_id.clone();
             rsx! {
                 div {
+                    id: "{wrapper_id}",
                     class: "flex items-center justify-center rounded-md overflow-hidden bg-primary/10",
                     img {
                         id: "{img_id}",
@@ -37,7 +41,32 @@ pub fn logo_image_with_fallback(
                             let _ = dioxus::document::eval(&format!(
                                 "document.getElementById('{}').style.display='none'; \
                                  document.getElementById('{}').style.display='flex';",
-                                img_id_clone, fb_id_clone
+                                img_id_clone_for_error, fb_id_clone
+                            ));
+                        },
+                        onload: move |_| {
+                            let _ = dioxus::document::eval(&format!(
+                                r#"
+                                (function() {{
+                                    var img = document.getElementById('{}');
+                                    var wrapper = img ? img.parentElement : null;
+                                    if (!img || !wrapper) return;
+                                    var canvas = document.createElement('canvas');
+                                    var ctx = canvas.getContext('2d');
+                                    canvas.width = img.naturalWidth || 1;
+                                    canvas.height = img.naturalHeight || 1;
+                                    ctx.drawImage(img, 0, 0);
+                                    var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                                    var hasTransparency = false;
+                                    for (var i = 3; i < data.length; i += 4) {{
+                                        if (data[i] < 255) {{ hasTransparency = true; break; }}
+                                    }}
+                                    if (hasTransparency) {{
+                                        wrapper.style.background = 'var(--primary)';
+                                    }}
+                                }})()
+                                "#,
+                                img_id_clone_for_load
                             ));
                         },
                     }
@@ -244,5 +273,40 @@ mod tests {
         assert!(some_branch.contains("div {"), "wrapper div must be inside Some branch");
         assert!(some_branch.contains("img {"), "img must be inside wrapper");
         assert!(some_branch.contains("span {"), "fallback span must be inside wrapper");
+    }
+
+    #[test]
+    fn logo_transparency_check_js_format() {
+        // JS to detect transparency: draw image to canvas, check alpha channel
+        let img_id = "logo-img-test-id";
+        let wrapper_id = "logo-wrapper-test-id";
+        let js = format!(
+            r#"
+            (function() {{
+                var img = document.getElementById('{}');
+                var wrapper = img ? img.parentElement : null;
+                if (!img || !wrapper) return;
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth || 1;
+                canvas.height = img.naturalHeight || 1;
+                ctx.drawImage(img, 0, 0);
+                var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                var hasTransparency = false;
+                for (var i = 3; i < data.length; i += 4) {{
+                    if (data[i] < 255) {{ hasTransparency = true; break; }}
+                }}
+                if (hasTransparency) {{
+                    wrapper.style.background = 'var(--primary)';
+                }}
+            }})()
+            "#,
+            img_id
+        );
+        assert!(js.contains("getElementById"), "JS must get element by ID");
+        assert!(js.contains("getContext('2d')"), "JS must create canvas context");
+        assert!(js.contains("getImageData"), "JS must get image data");
+        assert!(js.contains("hasTransparency"), "JS must check transparency");
+        assert!(js.contains("var(--primary)"), "JS must set solid primary color when transparent");
     }
 }
