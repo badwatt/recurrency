@@ -148,7 +148,7 @@ pub fn SettingsPage() -> Element {
     let cur = currency();
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6",
+        div { class: "p-2 md:p-6 flex flex-col gap-6",
             h1 { class: "text-3xl font-bold tracking-tight", "Settings" }
             p { class: "text-muted-foreground", "Manage your account and preferences" }
 
@@ -293,7 +293,7 @@ pub fn SettingsPage() -> Element {
                          let is_email_disabled = is_email_disabled(*key, smtp_configured());
                          rsx! {
                             div { key: "{key}",
-                                div { class: "flex items-center justify-between",
+                                div { class: "flex items-start sm:items-center justify-between gap-2 sm:gap-4",
                                     div {
                                         p { class: "font-medium", "{label}" }
                                         p { class: "text-sm text-muted-foreground", "{desc}" }
