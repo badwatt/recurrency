@@ -8,11 +8,11 @@ update the README.md too.
 
 ## TASKS:
 
-- [ ] when chosen logo of a subscription/transaction has a transparent background,
+- [x] when chosen logo of a subscription/transaction has a transparent background,
 app should add a background of the color of the theme with some opacity.
 - [x] user should be able to remove logo of a subscription/transaction.
-- [ ] logo must appear in calendar events as well.
-- [ ] it won't search for logo until user click on the search button or press enter.
+- [x] logo must appear in calendar events as well.
+- [x] it won't search for logo until user click on the search button or press enter.
 - [ ] on mobile, subscription filters an sort buttons are misaligned.
 - [ ] I want on transactions the same filters and sort buttons as on subscriptions.
 - [ ] I do not like the switch buttons between grid and list subscriptions.
