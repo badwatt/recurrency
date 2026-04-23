@@ -1,3 +1,4 @@
+use crate::api::app;
 use crate::api::notification_preferences;
 use crate::api::settings;
 use crate::components::toast::TOAST;
@@ -46,6 +47,7 @@ pub fn SettingsPage() -> Element {
         map
     });
     let mut prefs_loading = use_signal(|| false);
+    let mut smtp_configured = use_signal(|| true); // Default true to avoid flash
     let mut saving_name = use_signal(|| false);
     let mut saving_currency = use_signal(|| false);
     let server_url = use_signal(crate::api::client::get_base_url);
@@ -62,6 +64,14 @@ pub fn SettingsPage() -> Element {
                 notification_prefs.set(map);
             }
             Err(e) => log::error!("Failed to load notification prefs: {}", e),
+        }
+    });
+
+    // Load app info to check SMTP configuration
+    use_future(move || async move {
+        match app::get_app_info().await {
+            Ok(info) => smtp_configured.set(info.smtp_configured),
+            Err(e) => log::error!("Failed to load app info: {}", e),
         }
     });
 
@@ -306,12 +316,16 @@ pub fn SettingsPage() -> Element {
                     for (idx, (key, label, desc)) in NOTIFICATION_CHANNELS.iter().enumerate() {
                         {let checked = notification_prefs().get(*key).copied().unwrap_or(false);
                          let key_str = key.to_string();
+                         let is_email_disabled = *key == "email" && !smtp_configured();
                          rsx! {
                             div { key: "{key}",
                                 div { class: "flex items-center justify-between",
                                     div {
                                         p { class: "font-medium", "{label}" }
                                         p { class: "text-sm text-muted-foreground", "{desc}" }
+                                        if is_email_disabled {
+                                            p { class: "text-xs text-muted-foreground mt-1", "SMTP not configured" }
+                                        }
                                     }
                                     button {
                                         class: if checked {
@@ -324,7 +338,7 @@ pub fn SettingsPage() -> Element {
                                             let new_val = !checked;
                                             move |_| handle_notification_toggle(key_str.clone(), new_val)
                                         },
-                                        disabled: prefs_loading(),
+                                        disabled: prefs_loading() || is_email_disabled,
                                         span {
                                             class: if checked {
                                                 "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6"

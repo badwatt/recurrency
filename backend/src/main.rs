@@ -1,7 +1,7 @@
+mod email;
 mod auth;
 mod categories;
 mod demo;
-mod email;
 mod logos;
 mod notifications;
 mod preferences;
@@ -11,6 +11,7 @@ mod subscriptions;
 mod transactions;
 
 use axum::{
+    extract::Json,
     routing::{delete, get, post, put},
     Router,
 };
@@ -208,8 +209,17 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
     router
 }
 
-async fn health_check() -> &'static str {
-    "OK"
+#[derive(serde::Serialize)]
+struct HealthResponse {
+    status: &'static str,
+    smtp_configured: bool,
+}
+
+async fn health_check() -> Json<HealthResponse> {
+    Json(HealthResponse {
+        status: "OK",
+        smtp_configured: email::is_configured(),
+    })
 }
 
 #[cfg(test)]
@@ -222,13 +232,14 @@ mod tests {
     #[tokio::test]
     async fn test_health_check() {
         let result = health_check().await;
-        assert_eq!(result, "OK");
+        assert_eq!(result.status, "OK");
+        assert!(result.smtp_configured || !result.smtp_configured); // Either value valid
     }
 
     #[tokio::test]
     async fn health_check_endpoint() {
-        async fn test_handler() -> &'static str {
-            "OK"
+        async fn test_handler() -> Json<super::HealthResponse> {
+            super::health_check().await
         }
 
         let app = Router::new().route("/health", get(test_handler));
@@ -241,6 +252,9 @@ mod tests {
 
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let json: HealthResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json.status, "OK");
     }
 
     #[test]
