@@ -4,7 +4,9 @@ use crate::components::logo_image_with_fallback;
 use crate::models::transaction::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
+use crate::state::preferences::PREFERENCES;
 use crate::state::transactions::TRANSACTIONS;
+use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, NaiveDate};
 use dioxus::prelude::*;
@@ -715,7 +717,7 @@ pub fn TransactionsPage() -> Element {
                                                     div { class: "flex-1 min-w-0",
                                                         p { class: "font-medium truncate text-sm sm:text-base", "{txn.name}" }
                                                         p { class: "text-xs text-muted-foreground",
-                                                            {txn.date.format("%b %e, %Y").to_string()}
+                                                            {format_date(&txn.date, PREFERENCES().date_format())}
                                                         }
                                                     }
                                                     // Category badge
