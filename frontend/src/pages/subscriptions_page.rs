@@ -554,8 +554,8 @@ pub fn SubscriptionsPage() -> Element {
                     div { class: "space-y-4",
 
                         // ── Filter / Sort bar ──
-                        div { class: "flex flex-col sm:flex-row items-start sm:items-center gap-2",
-                            div { class: "relative",
+                        div { class: "flex flex-row items-center gap-2 sm:flex-row sm:items-center",
+                            div { class: "shrink-0 relative",
                                 button {
                                     class: "border px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 hover:bg-muted h-8",
                                     onclick: move |_| filters_popover.set(!filters_popover()),
@@ -683,10 +683,10 @@ pub fn SubscriptionsPage() -> Element {
                             }}
 
                             // Sort
-                            div { class: "flex items-center gap-1.5 w-full sm:w-auto sm:ml-auto",
+                            div { class: "flex items-center gap-1.5 ml-auto",
                                 span { class: "text-sm text-muted-foreground", ArrowUpDown { size: 16 } }
                                 select {
-                                    class: "h-8 w-full sm:w-[150px] rounded-md border bg-background px-2 text-sm",
+                                    class: "h-8 w-[130px] sm:w-[150px] rounded-md border bg-background px-2 text-sm",
                                     value: "{sort_val.field}",
                                     onchange: move |e: Event<FormData>| {
                                         sort.write().field = e.value();
@@ -3370,16 +3370,16 @@ mod dialog_form_tests {
     }
 
     #[test]
-    fn filter_sort_bar_uses_flex_col_on_mobile() {
+    fn filter_sort_bar_uses_flex_row_on_mobile() {
         let prod = include_str!("subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("flex-col sm:flex-row"),
-            "filter/sort bar must stack vertically on mobile");
+        assert!(prod.contains("flex flex-row items-center gap-2 sm:flex-row"),
+            "filter/sort bar must be horizontal on mobile");
     }
 
     #[test]
-    fn sort_select_full_width_on_mobile() {
+    fn sort_select_fixed_width_on_mobile() {
         let prod = include_str!("subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("w-full sm:w-[150px]"),
-            "sort select must be full-width on mobile");
+        assert!(prod.contains("w-[130px] sm:w-[150px]"),
+            "sort select must have fixed width on mobile");
     }
 }
