@@ -7,7 +7,7 @@ update the README.md too.
 
 ## TASKS:
 
-- [ ] Add setting to show dates like YYYY-MM-DD or DD-MM-YYYY (default: DD-MM-YYYY)
+- [x] Add setting to show dates like YYYY-MM-DD or DD-MM-YYYY (default: DD-MM-YYYY)
 
 
 
