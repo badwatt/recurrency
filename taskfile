@@ -34,8 +34,11 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 # ── Start ───────────────────────────────────────────────
 cmd_up() {
   info "Killing stale processes..."
+  pkill -f "recurrency-api" 2>/dev/null || true
   pkill -f "cargo run" 2>/dev/null || true
   pkill -f "dx serve" 2>/dev/null || true
+  # kill any process on port 8080
+  fuser -k 8080/tcp 2>/dev/null || true
   sleep 1
 
   info "Starting PostgreSQL..."
@@ -43,7 +46,7 @@ cmd_up() {
   ok "DB running"
 
   info "Building CSS..."
-  cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify 2>/dev/null || true
+  cd "$ROOT/frontend" && npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify 2>/dev/null || true
 
   info "Starting backend..."
   cd "$ROOT/backend"
@@ -52,13 +55,13 @@ cmd_up() {
   export JWT_SECRET="${JWT_SECRET:-dev-secret}"
   export ENABLE_DEMO="${ENABLE_DEMO:-true}"
   export FRONTEND_DIST="$ROOT/frontend/public"
-  nix develop "$ROOT" -c cargo run &
+  nix develop --no-eval-cache "$ROOT" -c cargo run &
   BACKEND_PID=$!
 
   info "Starting frontend..."
   cd "$ROOT/frontend"
   export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
-  nix develop "$ROOT" -c dx serve --platform web --port 1420 &
+  nix develop --no-eval-cache "$ROOT" -c dx serve --platform web --port 1420 &
   FRONTEND_PID=$!
 
   trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; cd $ROOT && docker compose -f docker-compose.dev.yml down 2>/dev/null" EXIT
@@ -76,8 +79,10 @@ cmd_up() {
 # ── Stop ────────────────────────────────────────────────
 cmd_down() {
   info "Stopping..."
+  pkill -f "recurrency-api" 2>/dev/null || true
   pkill -f "cargo run" 2>/dev/null || true
   pkill -f "dx serve" 2>/dev/null || true
+  fuser -k 8080/tcp 2>/dev/null || true
   cd "$ROOT" && docker compose -f docker-compose.dev.yml down 2>/dev/null || true
   ok "All stopped"
 }
@@ -85,11 +90,11 @@ cmd_down() {
 # ── Tests ──────────────────────────────────────────────
 cmd_test() {
   info "Backend tests..."
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo test --lib || warn "Backend tests failed"
+  cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo test --lib || warn "Backend tests failed"
 
   echo ""
   info "Frontend tests..."
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c cargo test || warn "Frontend tests failed"
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c cargo test || warn "Frontend tests failed"
 
   ok "Tests done"
 }
@@ -97,11 +102,11 @@ cmd_test() {
 # ── Coverage ───────────────────────────────────────────
 cmd_coverage() {
   info "Backend coverage..."
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo llvm-cov test --lib 2>&1 | tail -1
+  cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo llvm-cov test --lib 2>&1 | tail -1
 
   echo ""
   info "Frontend coverage..."
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c cargo llvm-cov test 2>&1 | tail -1
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c cargo llvm-cov test 2>&1 | tail -1
 }
 
 # ── Reset DB ─────────────────────────────────────────
@@ -111,24 +116,25 @@ cmd_reset() {
   [[ "$confirm" =~ ^[Yy]$ ]] || { ok "Cancelled"; exit 0; }
 
   info "Resetting..."
+  fuser -k 8080/tcp 2>/dev/null || true
   cd "$ROOT" && docker compose -f docker-compose.dev.yml down -v 2>/dev/null || true
   docker compose -f docker-compose.dev.yml up -d
-  cd "$ROOT/backend" && nix develop "$ROOT" -c sqlx migrate run 2>/dev/null || true
+  cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c sqlx migrate run 2>/dev/null || true
   ok "Database reset"
 }
 
 # ── Individual ─────────────────────────────────────────
-cmd_backend()  { cd "$ROOT/backend"  && nix develop "$ROOT" -c cargo run; }
-cmd_frontend() { cd "$ROOT/frontend" && nix develop "$ROOT" -c dx serve --platform web --port 1420; }
+cmd_backend()  { cd "$ROOT/backend"  && nix develop --no-eval-cache "$ROOT" -c cargo run; }
+cmd_frontend() { cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx serve --platform web --port 1420; }
 cmd_db()       { cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d && ok "DB running on 5432"; }
-cmd_css()      { cd "$ROOT/frontend" && npx tailwindcss -i assets/tailwind.src.css -o public/tailwind.css --minify && ok "CSS built"; }
+cmd_css()      { cd "$ROOT/frontend" && npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify && ok "CSS built"; }
 
 # ── Build ───────────────────────────────────────────────
 cmd_build() {
   info "Building all..."
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform desktop --release --out-dir ../bin/desktop 2>/dev/null || true
+  cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo build --release
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx bundle --platform web --release
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx bundle --platform desktop --release --out-dir ../bin/desktop 2>/dev/null || true
   ok "Build complete: backend + web + desktop"
   info "For Android APK: use build:android"
 }
@@ -136,8 +142,8 @@ cmd_build() {
 cmd_build_app() {
   info "Building web + api (all-in-one)..."
   mkdir -p "$ROOT/bin"
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx bundle --platform web --release
+  cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo build --release
   cp "$ROOT/backend/target/release/recurrency-api" "$ROOT/bin/recurrency-aio"
   ok "Build complete: bin/recurrency-aio"
 }
@@ -145,14 +151,14 @@ cmd_build_app() {
 cmd_build_api() {
   info "Building API..."
   mkdir -p "$ROOT/bin"
-  cd "$ROOT/backend" && nix develop "$ROOT" -c cargo build --release
+  cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo build --release
   cp "$ROOT/backend/target/release/recurrency-api" "$ROOT/bin/recurrency-aio"
   ok "API built: bin/recurrency-aio"
 }
 
 cmd_build_web() {
   info "Building web frontend..."
-  cd "$ROOT/frontend" && nix develop "$ROOT" -c dx bundle --platform web --release
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx bundle --platform web --release
   ok "Web built: frontend/dist/"
   info "Embed in all-in-one: use build:app"
 }
