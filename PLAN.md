@@ -17,8 +17,8 @@ including for example the date visible on every subscription card.
 - [ ] I want to use lucide icons for the whole app.
 - [x] I want to always and in anywhere (labels, dropdowns, etc...) show the chosen logo of a category (or default logo if no logo is set) next to de category name. Order: logo -> category name. (subscription cards + dropdowns done)
 - [x] I want to restore the functionality from the tauri branch that allows user to set a custom logo for the subscriptions/transactions using duckduckgo.
-- [ ] when user enables push notifications from the mobile app, then a notification should be sent to the user to let them know that push notifications are enabled.
-- [ ] when user enables system notifications from the desktop app, then a notification should be sent to the user to let them know that system notifications are enabled.
+- [x] when user enables push notifications from the mobile app, then a notification should be sent to the user to let them know that push notifications are enabled.
+- [x] when user enables system notifications from the desktop app, then a notification should be sent to the user to let them know that system notifications are enabled.
 
 
 
