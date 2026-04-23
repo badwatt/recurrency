@@ -10,6 +10,13 @@ use crate::notifications::models::{
 };
 use crate::shared::error::AppResult;
 
+pub const SELECT_NOTIFICATIONS_SQL: &str =
+"SELECT id, user_id, type as \"notification_type\", title, message, is_read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50";
+
+pub const INSERT_NOTIFICATION_SQL: &str =
+"INSERT INTO notifications (id, user_id, type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())";
+
+
 pub struct NotificationService;
 
 impl NotificationService {
@@ -21,13 +28,10 @@ impl NotificationService {
         .fetch_one(pool)
         .await?;
 
-        let notifications = sqlx::query_as::<_, Notification>(
-            "SELECT id, user_id, notification_type as type, title, message, is_read, created_at
-             FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50",
-        )
-        .bind(user_id)
-        .fetch_all(pool)
-        .await?;
+        let notifications = sqlx::query_as::<_, Notification>(SELECT_NOTIFICATIONS_SQL)
+            .bind(user_id)
+            .fetch_all(pool)
+            .await?;
 
         Ok(NotificationResponse {
             notifications,
@@ -121,7 +125,7 @@ impl NotificationService {
                 };
 
                 sqlx::query(
-                    "INSERT INTO notifications (id, user_id, notification_type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())",
+                    "INSERT INTO notifications (id, user_id, type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())",
                 )
                 .bind(Uuid::new_v4())
                 .bind(user_id)
@@ -591,6 +595,20 @@ mod tests {
     #[test]
     fn rows_5() {
         assert!(5i64 > 0);
+    }
+
+    #[test]
+    fn select_query_uses_db_type_column() {
+        assert!(!SELECT_NOTIFICATIONS_SQL.contains("notification_type as type"),
+            "SELECT SQL uses wrong column name");
+        assert!(SELECT_NOTIFICATIONS_SQL.contains(r#"type as "notification_type""#),
+            "SELECT SQL must alias DB column 'type' for sqlx FromRow");
+    }
+
+    #[test]
+    fn insert_query_uses_db_type_column() {
+        assert!(!INSERT_NOTIFICATION_SQL.contains("notification_type"),
+            "INSERT SQL uses wrong column name");
     }
 }
 
