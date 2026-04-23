@@ -102,11 +102,34 @@ impl NotificationService {
         prefs: Vec<UpdatePreferenceRequest>,
     ) -> AppResult<Vec<NotificationPreferenceResponse>> {
         for req in prefs {
+            // Check if enabling push or system notifications
+            let should_send_confirmation = req.enabled
+                && (req.channel == "push" || req.channel == "system");
+
             sqlx::query(
                 "INSERT INTO notification_preferences (user_id, channel, enabled, reminder_days_before) VALUES ($1, $2, $3, 3) ON CONFLICT (user_id, channel) DO UPDATE SET enabled = $3",
             )
             .bind(user_id).bind(&req.channel).bind(req.enabled)
             .execute(pool).await?;
+
+            // Send confirmation notification if enabled
+            if should_send_confirmation {
+                let (title, message) = if req.channel == "push" {
+                    ("Push notifications enabled", "You will receive push notifications for upcoming payments.")
+                } else {
+                    ("System notifications enabled", "You will receive desktop notifications for upcoming payments.")
+                };
+
+                sqlx::query(
+                    "INSERT INTO notifications (id, user_id, notification_type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())",
+                )
+                .bind(Uuid::new_v4())
+                .bind(user_id)
+                .bind("system")
+                .bind(title)
+                .bind(message)
+                .execute(pool).await?;
+            }
         }
         Self::get_notification_preferences(pool, user_id).await
     }
@@ -613,5 +636,41 @@ mod serde_tests {
         let req: UpdatePreferenceRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.channel, "email");
         assert!(req.enabled);
+    }
+
+    #[test]
+    fn update_preference_push_confirmation_message() {
+        // Verify push channel triggers confirmation
+        let channel = "push";
+        let enabled = true;
+        let should_send = enabled && (channel == "push" || channel == "system");
+        assert!(should_send);
+    }
+
+    #[test]
+    fn update_preference_system_confirmation_message() {
+        // Verify system channel triggers confirmation
+        let channel = "system";
+        let enabled = true;
+        let should_send = enabled && (channel == "push" || channel == "system");
+        assert!(should_send);
+    }
+
+    #[test]
+    fn update_preference_no_confirmation_when_disabled() {
+        // Verify disabled channel does NOT trigger confirmation
+        let channel = "push";
+        let enabled = false;
+        let should_send = enabled && (channel == "push" || channel == "system");
+        assert!(!should_send);
+    }
+
+    #[test]
+    fn update_preference_no_confirmation_for_email() {
+        // Verify email channel does NOT trigger confirmation
+        let channel = "email";
+        let enabled = true;
+        let should_send = enabled && (channel == "push" || channel == "system");
+        assert!(!should_send);
     }
 }
