@@ -26,24 +26,27 @@ pub fn logo_image_with_fallback(
             let fb_id_clone = fb_id.clone();
             let img_id_clone = img_id.clone();
             rsx! {
-                img {
-                    id: "{img_id}",
-                    src: "{url_str}",
-                    alt: "{name}",
-                    class: "{img_class}",
-                    onerror: move |_| {
-                        let _ = dioxus::document::eval(&format!(
-                            "document.getElementById('{}').style.display='none'; \
-                             document.getElementById('{}').style.display='flex';",
-                            img_id_clone, fb_id_clone
-                        ));
-                    },
-                }
-                span {
-                    id: "{fb_id}",
-                    class: "flex h-full w-full items-center justify-center font-semibold text-muted-foreground",
-                    style: "display:none;",
-                    "{first_letter}"
+                div {
+                    class: "flex items-center justify-center rounded-md overflow-hidden bg-primary/10",
+                    img {
+                        id: "{img_id}",
+                        src: "{url_str}",
+                        alt: "{name}",
+                        class: "{img_class}",
+                        onerror: move |_| {
+                            let _ = dioxus::document::eval(&format!(
+                                "document.getElementById('{}').style.display='none'; \
+                                 document.getElementById('{}').style.display='flex';",
+                                img_id_clone, fb_id_clone
+                            ));
+                        },
+                    }
+                    span {
+                        id: "{fb_id}",
+                        class: "flex h-full w-full items-center justify-center font-semibold text-muted-foreground",
+                        style: "display:none;",
+                        "{first_letter}"
+                    }
                 }
             }
         }
@@ -222,5 +225,24 @@ mod tests {
         let url_str = "https://logo.clearbit.com/spotify.com";
         assert!(url_str.starts_with("https://"));
         assert!(url_str.contains("logo"));
+    }
+
+    #[test]
+    fn logo_wrapper_has_theme_background() {
+        let src = include_str!("logo_image.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(prod.contains("div {"), "logo must be wrapped in a div");
+        assert!(prod.contains("bg-primary"), "wrapper must have theme background");
+    }
+
+    #[test]
+    fn logo_image_and_fallback_inside_wrapper() {
+        let src = include_str!("logo_image.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        // img and span should appear after div wrapper opens in Some(url) branch
+        let some_branch = prod.split("match url").nth(1).unwrap_or("");
+        assert!(some_branch.contains("div {"), "wrapper div must be inside Some branch");
+        assert!(some_branch.contains("img {"), "img must be inside wrapper");
+        assert!(some_branch.contains("span {"), "fallback span must be inside wrapper");
     }
 }
