@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::State,
     Json,
 };
 use validator::Validate;
@@ -65,7 +65,7 @@ pub async fn get_settings(
 ) -> AppResult<Json<UserResponse>> {
     let token =
         extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
-    let claims = state.auth_service.verify_token(&token).await?;
+    let claims = verify_token_internal(&token)?;
     let user = state.auth_service.get_settings(claims.sub).await?;
     Ok(Json(user))
 }
@@ -85,7 +85,7 @@ pub async fn update_settings(
 
 #[derive(serde::Deserialize)]
 pub struct VerifyEmailQuery {
-    pub token: String,
+    pub token: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -95,10 +95,15 @@ pub struct VerifyEmailBody {
 
 pub async fn verify_email(
     State(state): State<crate::shared::app_state::AppState>,
-    Query(query): Query<VerifyEmailQuery>,
+    OptionalQuery(query): OptionalQuery<VerifyEmailQuery>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<VerifyEmailBody>,
 ) -> AppResult<Json<UserResponse>> {
-    let claims = state.auth_service.verify_token(&query.token).await?;
+    let token = extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?;
+    let claims = verify_token_internal(&token)?;
     let user = state
         .auth_service
         .verify_email(claims.sub, body.code)
@@ -108,9 +113,14 @@ pub async fn verify_email(
 
 pub async fn resend_verification(
     State(state): State<crate::shared::app_state::AppState>,
-    Query(query): Query<VerifyEmailQuery>,
+    OptionalQuery(query): OptionalQuery<VerifyEmailQuery>,
+    headers: axum::http::HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = state.auth_service.verify_token(&query.token).await?;
+    let token = extract_token_from_request(
+        query.as_ref().and_then(|q| q.token.as_ref()),
+        &headers,
+    )?;
+    let claims = verify_token_internal(&token)?;
     let _ = state.auth_service.resend_verification(claims.sub).await?;
     Ok(Json(
         serde_json::json!({"message": "Verification code sent"}),
@@ -135,7 +145,7 @@ mod tests {
     fn verify_email_query_deserialize() {
         let query = "token=mytoken123";
         let result: VerifyEmailQuery = serde_urlencoded::from_str(query).unwrap();
-        assert_eq!(result.token, "mytoken123");
+        assert_eq!(result.token, Some("mytoken123".to_string()));
     }
 
     #[test]
@@ -296,7 +306,7 @@ mod tests {
         // serde_urlencoded decodes %40 to @ automatically
         let query = "token=abc%40test.com";
         let result: VerifyEmailQuery = serde_urlencoded::from_str(query).unwrap();
-        assert_eq!(result.token, "abc@test.com");
+        assert_eq!(result.token, Some("abc@test.com".to_string()));
     }
 }
 

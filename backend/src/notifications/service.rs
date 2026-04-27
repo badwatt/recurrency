@@ -111,9 +111,9 @@ impl NotificationService {
                 && (req.channel == "push" || req.channel == "system");
 
             sqlx::query(
-                "INSERT INTO notification_preferences (user_id, channel, enabled, reminder_days_before) VALUES ($1, $2, $3, 3) ON CONFLICT (user_id, channel) DO UPDATE SET enabled = $3",
+                "INSERT INTO notification_preferences (user_id, channel, enabled, reminder_days_before) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, channel) DO UPDATE SET enabled = $3, reminder_days_before = $4",
             )
-            .bind(user_id).bind(&req.channel).bind(req.enabled)
+            .bind(user_id).bind(&req.channel).bind(req.enabled).bind(req.reminder_days_before)
             .execute(pool).await?;
 
             // Send confirmation notification if enabled

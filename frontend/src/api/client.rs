@@ -12,7 +12,6 @@ fn get_client() -> &'static reqwest::Client {
         #[cfg(not(target_arch = "wasm32"))]
         {
             builder = builder.timeout(std::time::Duration::from_secs(30));
-            builder = builder.danger_accept_invalid_certs(true);
         }
         builder.build().expect("Failed to create reqwest client")
     })
@@ -56,8 +55,17 @@ pub fn get_base_url() -> String {
 
 /// Update the base URL at runtime (called after user configures server URL).
 pub fn set_base_url(url: &str) {
+    let url = url.trim();
+    if !url.is_empty() && !url.starts_with("http://") && !url.starts_with("https://") {
+        log::error!("set_base_url: invalid URL (must start with http:// or https://): {}", url);
+        return;
+    }
     if let Ok(mut lock) = BASE_URL_OVERRIDE.write() {
-        *lock = Some(url.to_string());
+        if url.is_empty() {
+            *lock = None;
+        } else {
+            *lock = Some(url.to_string());
+        }
     }
 }
 
@@ -112,18 +120,10 @@ pub fn get_token() -> Option<String> {
     AUTH.cloned().token.clone()
 }
 
-/// Build an authenticated URL with token as query param.
-/// Uses `?token=` if no query params exist, `&token=` otherwise.
+/// Build a URL with the base URL. Auth is handled via headers, not URL.
 pub fn auth_url(path: &str) -> String {
     let base = get_base_url();
-    let token = get_token();
-    match token {
-        Some(t) if !t.is_empty() => {
-            let separator = if path.contains('?') { '&' } else { '?' };
-            format!("{}{}{}token={}", base, path, separator, t)
-        }
-        _ => format!("{}{}", base, path),
-    }
+    format!("{}{}", base, path)
 }
 
 /// Build auth headers for a request.
@@ -156,7 +156,7 @@ pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
         return Err(ApiError::Unauthorized);
     }
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
         return Err(ApiError::Http(status, body));
     }
 
@@ -191,7 +191,7 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(
         return Err(ApiError::Unauthorized);
     }
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
         return Err(ApiError::Http(status, body));
     }
 
@@ -229,7 +229,7 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(
         return Err(ApiError::Unauthorized);
     }
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
         log::error!("[api_put] HTTP error {}: {}", status, body);
         return Err(ApiError::Http(status, body));
     }
@@ -261,7 +261,7 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
         return Err(ApiError::Unauthorized);
     }
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
         return Err(ApiError::Http(status, body));
     }
 
@@ -515,9 +515,8 @@ mod tests {
 
     #[test]
     fn set_base_url_empty_clears_override() {
-        // Empty string is not stored (checked in set_base_url)
+        // Empty string is rejected, falls back to default
         set_base_url("");
-        // get_base_url will fall back to default
         let url = get_base_url();
         assert!(url.contains("localhost:8080"));
     }
@@ -526,10 +525,9 @@ mod tests {
     fn set_base_url_preserves_previous_on_empty() {
         set_base_url("http://first:9000");
         set_base_url("");
-        // Empty string IS stored, overwrites previous
+        // Empty string clears override, falls back to default
         let url = get_base_url();
-        // Returns empty (stored empty string) or fallback
-        assert!(url.is_empty() || url.contains("localhost"));
+        assert!(url.contains("localhost:8080"));
     }
 
     #[test]

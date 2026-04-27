@@ -26,19 +26,49 @@ pub async fn verify(token: &str) -> Result<serde_json::Value, ApiError> {
 
 #[allow(dead_code)]
 pub async fn verify_email(token: &str, code: &str) -> Result<serde_json::Value, ApiError> {
-    api_post(
-        &format!("/api/auth/verify-email?token={}", token),
-        &serde_json::json!({ "code": code }),
-    )
-    .await
+    let base = crate::api::client::get_base_url();
+    let url = format!("{}/api/auth/verify-email", base);
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "code": code }))
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
+        return Err(ApiError::Http(status, body));
+    }
+    resp.json::<serde_json::Value>()
+        .await
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 pub async fn resend_verification(token: &str) -> Result<serde_json::Value, ApiError> {
-    api_post(
-        &format!("/api/auth/resend-verification?token={}", token),
-        &serde_json::json!({}),
-    )
-    .await
+    let base = crate::api::client::get_base_url();
+    let url = format!("{}/api/auth/resend-verification", base);
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
+        return Err(ApiError::Http(status, body));
+    }
+    resp.json::<serde_json::Value>()
+        .await
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 #[allow(dead_code)]
@@ -52,7 +82,7 @@ async fn api_get_with_token<T: serde::de::DeserializeOwned>(
     token: &str,
 ) -> Result<T, ApiError> {
     let base = crate::api::client::get_base_url();
-    let url = format!("{}{}?token={}", base, path, token);
+    let url = format!("{}{}", base, path);
     let client = reqwest::Client::new();
     let resp = client
         .get(&url)
@@ -64,7 +94,7 @@ async fn api_get_with_token<T: serde::de::DeserializeOwned>(
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
-        let body = resp.text().await.unwrap_or_default();
+        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
         return Err(ApiError::Http(status, body));
     }
     resp.json::<T>()

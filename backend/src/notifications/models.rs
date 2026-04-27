@@ -42,6 +42,12 @@ pub struct UpdateNotificationPreferencesRequest {
 pub struct UpdatePreferenceRequest {
     pub channel: String,
     pub enabled: bool,
+    #[serde(default = "default_reminder_days")]
+    pub reminder_days_before: i32,
+}
+
+fn default_reminder_days() -> i32 {
+    3
 }
 
 #[cfg(test)]
@@ -85,10 +91,12 @@ mod tests {
                 UpdatePreferenceRequest {
                     channel: "email".to_string(),
                     enabled: true,
+                    reminder_days_before: 3,
                 },
                 UpdatePreferenceRequest {
                     channel: "push".to_string(),
                     enabled: false,
+                    reminder_days_before: 3,
                 },
             ],
         };

@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::Utc;
 use dioxus::prelude::*;
 
 use crate::api::subscriptions as api_subs;
@@ -12,7 +12,7 @@ use crate::utils::format::format_currency;
 /// Format a billing date into a human-readable relative string.
 pub fn next_billing_days_text(date: Option<chrono::NaiveDate>) -> Option<String> {
     date.map(|d| {
-        let now = Local::now().date_naive();
+        let now = Utc::now().date_naive();
         let diff = (d - now).num_days();
         if diff == 0 {
             "Today".into()
@@ -33,12 +33,12 @@ pub fn format_date_short_fn(d: chrono::NaiveDate) -> String {
 
 /// Check if a date is overdue (before today).
 pub fn is_overdue_fn(d: chrono::NaiveDate) -> bool {
-    d < Local::now().date_naive()
+    d < Utc::now().date_naive()
 }
 
 /// Check if a date is today.
 pub fn is_today_fn(d: chrono::NaiveDate) -> bool {
-    d == Local::now().date_naive()
+    d == Utc::now().date_naive()
 }
 
 // ── SVG Icon Components ──────────────────────────────────────────────────────

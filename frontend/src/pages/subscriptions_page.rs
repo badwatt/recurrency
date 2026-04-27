@@ -300,20 +300,20 @@ pub fn SubscriptionsPage() -> Element {
     let view_mode = prefs_state.preferences.subscriptions_view.clone();
     let default_currency = auth_state.currency().to_string();
 
-    // Fetch on mount
+    // Fetch on mount (force re-fetch to ensure fresh data)
+    let mut has_fetched = use_signal(|| false);
     use_effect(move || {
         let _ = subs_state;
-        spawn(async move {
-            // Skip on Android - reqwest crashes on auto-mount
-            let state = SUBSCRIPTIONS();
-            if !state.is_loading && state.subscriptions.is_empty() && state.error.is_none() {
+        if !*has_fetched.peek() {
+            has_fetched.set(true);
+            spawn(async move {
                 SUBSCRIPTIONS.write().set_loading();
                 match api::subscriptions::list().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
-            }
-        });
+            });
+        }
     });
 
     use_effect(move || {

@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
 use crate::shared::date_utils::days_in_month;
+use crate::shared::error::AppResult;
 
 pub struct ReportService;
 
@@ -83,7 +84,7 @@ impl ReportService {
         user_id: Uuid,
         year: i32,
         month: u32,
-    ) -> MonthlySummary {
+    ) -> AppResult<MonthlySummary> {
         let (from_date, to_date) = month_date_range(year, month);
 
         // Get subscriptions total (normalized to monthly)
@@ -104,8 +105,7 @@ impl ReportService {
         )
         .bind(user_id)
         .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
         let subscriptions_total = subscriptions.first().map(|r| r.0).unwrap_or(Decimal::ZERO);
 
@@ -121,8 +121,7 @@ impl ReportService {
         .bind(from_date)
         .bind(to_date)
         .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
         let (transactions_total, transactions_count) = transactions
             .first()
@@ -135,10 +134,9 @@ impl ReportService {
         )
         .bind(user_id)
         .fetch_one(pool)
-        .await
-        .unwrap_or((0,));
+        .await?;
 
-        MonthlySummary {
+        Ok(MonthlySummary {
             year,
             month,
             subscriptions_total,
@@ -146,7 +144,7 @@ impl ReportService {
             overall_total: subscriptions_total + transactions_total,
             subscriptions_count: subscription_count.0,
             transactions_count,
-        }
+        })
     }
 
     pub async fn get_category_breakdown(
@@ -154,7 +152,7 @@ impl ReportService {
         user_id: Uuid,
         year: i32,
         month: u32,
-    ) -> Vec<CategoryBreakdown> {
+    ) -> AppResult<Vec<CategoryBreakdown>> {
         let (from_date, to_date) = month_date_range(year, month);
 
         // Get subscriptions by category
@@ -178,8 +176,7 @@ impl ReportService {
         )
         .bind(user_id)
         .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
         // Get transactions by category
         let txns_by_cat: Vec<(Option<String>, String, Decimal)> = sqlx::query_as(
@@ -195,18 +192,17 @@ impl ReportService {
         .bind(from_date)
         .bind(to_date)
         .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
         // Combine and aggregate using extracted function
-        combine_category_totals(subs_by_cat, txns_by_cat)
+        Ok(combine_category_totals(subs_by_cat, txns_by_cat))
     }
 
     pub async fn get_recent_trends(
         pool: &PgPool,
         user_id: Uuid,
         months_count: i32,
-    ) -> Vec<SpendingTrend> {
+    ) -> AppResult<Vec<SpendingTrend>> {
         let mut trends = Vec::new();
 
         for i in 0..months_count {
@@ -214,7 +210,7 @@ impl ReportService {
             let year = target_date.year();
             let month = target_date.month();
 
-            let summary = Self::get_monthly_summary(pool, user_id, year, month).await;
+            let summary = Self::get_monthly_summary(pool, user_id, year, month).await?;
 
             trends.push(SpendingTrend {
                 period: format!("{}/{:02}", month, year % 100),
@@ -222,7 +218,7 @@ impl ReportService {
             });
         }
 
-        trends
+        Ok(trends)
     }
 
     pub async fn get_full_report(
@@ -230,16 +226,16 @@ impl ReportService {
         user_id: Uuid,
         year: i32,
         month: u32,
-    ) -> ReportResponse {
-        let monthly_summary = Self::get_monthly_summary(pool, user_id, year, month).await;
-        let category_breakdown = Self::get_category_breakdown(pool, user_id, year, month).await;
-        let recent_trends = Self::get_recent_trends(pool, user_id, 6).await;
+    ) -> AppResult<ReportResponse> {
+        let monthly_summary = Self::get_monthly_summary(pool, user_id, year, month).await?;
+        let category_breakdown = Self::get_category_breakdown(pool, user_id, year, month).await?;
+        let recent_trends = Self::get_recent_trends(pool, user_id, 6).await?;
 
-        ReportResponse {
+        Ok(ReportResponse {
             monthly_summary,
             category_breakdown,
             recent_trends,
-        }
+        })
     }
 }
 

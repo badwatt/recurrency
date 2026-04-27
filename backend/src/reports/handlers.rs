@@ -34,7 +34,7 @@ pub async fn get_report(
         .and_then(|q| q.month)
         .unwrap_or(today.month());
 
-    let report = ReportService::get_full_report(&state.pool, claims.sub, year, month).await;
+    let report = ReportService::get_full_report(&state.pool, claims.sub, year, month).await?;
 
     Ok(Json(report))
 }

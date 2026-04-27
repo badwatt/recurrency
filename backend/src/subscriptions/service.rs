@@ -88,11 +88,23 @@ impl SubscriptionService {
         let name = req.name.unwrap_or(existing.name);
         let amount = req.amount.unwrap_or(existing.amount);
         let currency = req.currency.unwrap_or(existing.currency);
+        let frequency_changed = req.frequency.is_some()
+            && req.frequency.as_ref() != Some(&existing.frequency);
         let frequency = req.frequency.unwrap_or(existing.frequency.clone());
         let start_date = req.start_date.unwrap_or(existing.start_date);
-        let next_billing_date = req
-            .next_billing_date
-            .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency));
+        let next_billing_date = if let Some(nbd) = req.next_billing_date {
+            nbd
+        } else if frequency_changed {
+            // Frequency changed: recalculate from existing next_billing_date (or start_date)
+            calculate_next_billing_date(
+                existing.next_billing_date.unwrap_or(start_date),
+                &frequency,
+            )
+        } else {
+            existing.next_billing_date.unwrap_or_else(|| {
+                calculate_next_billing_date(start_date, &frequency)
+            })
+        };
         let category_id = req.category_id.unwrap_or(existing.category_id);
         let is_active = req.is_active.unwrap_or(existing.is_active);
         let notes = req.notes.or(existing.notes);
@@ -275,6 +287,10 @@ pub(crate) fn calculate_next_billing_date(start_date: NaiveDate, frequency: &str
         next_date = advance_date(next_date, frequency);
         iterations += 1;
         if iterations > 1000 {
+            tracing::warn!(
+                "calculate_next_billing_date: loop guard triggered for start_date={} frequency={}",
+                start_date, frequency
+            );
             break;
         }
     }

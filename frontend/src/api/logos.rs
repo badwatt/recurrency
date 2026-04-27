@@ -3,7 +3,29 @@ use crate::models::logo::LogoSearchResponse;
 
 #[allow(dead_code)]
 pub async fn search(query: &str) -> Result<LogoSearchResponse, ApiError> {
-    api_get(&format!("/api/logos/search?q={}", query)).await
+    let encoded: String = query
+        .chars()
+        .map(|c| match c {
+            ' ' => "%20".to_string(),
+            '&' => "%26".to_string(),
+            '=' => "%3D".to_string(),
+            '#' => "%23".to_string(),
+            '%' => "%25".to_string(),
+            '+' => "%2B".to_string(),
+            '?' => "%3F".to_string(),
+            _ if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' || c == '~' => {
+                c.to_string()
+            }
+            _ => {
+                let mut buf = [0u8; 4];
+                let s = c.encode_utf8(&mut buf);
+                s.bytes()
+                    .map(|b| format!("%{:02X}", b))
+                    .collect::<String>()
+            }
+        })
+        .collect();
+    api_get(&format!("/api/logos/search?q={}", encoded)).await
 }
 
 #[cfg(test)]

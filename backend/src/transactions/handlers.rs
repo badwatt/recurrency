@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::auth::service::AuthService;
 use crate::shared::app_state::AppState;
-use crate::shared::error::AppResult;
+use crate::shared::error::{AppError, AppResult};
 use crate::transactions::models::{
     CreateTransactionRequest, TransactionResponse, UpdateTransactionRequest,
 };
@@ -119,17 +119,17 @@ pub async fn by_date_range(
     )?)
     .await?;
 
-    let from_date = query
-        .as_ref()
-        .and_then(|q| q.from_date.as_ref())
-        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
-        .unwrap_or_else(|| chrono::Utc::now().date_naive());
+    let from_date = match query.as_ref().and_then(|q| q.from_date.as_deref()) {
+        Some(d) => chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
+            .map_err(|_| AppError::BadRequest(format!("Invalid from_date: {}", d)))?,
+        None => chrono::Utc::now().date_naive(),
+    };
 
-    let to_date = query
-        .as_ref()
-        .and_then(|q| q.to_date.as_ref())
-        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
-        .unwrap_or_else(|| chrono::Utc::now().date_naive());
+    let to_date = match query.as_ref().and_then(|q| q.to_date.as_deref()) {
+        Some(d) => chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
+            .map_err(|_| AppError::BadRequest(format!("Invalid to_date: {}", d)))?,
+        None => chrono::Utc::now().date_naive(),
+    };
 
     let transactions =
         TransactionService::get_by_date_range(&state.pool, claims.sub, from_date, to_date).await?;

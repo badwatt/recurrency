@@ -3033,6 +3033,7 @@ mod tests {
             let updates = vec![UpdatePreferenceRequest {
                 channel: "email".to_string(),
                 enabled: true,
+                reminder_days_before: 3,
             }];
             let result = mock.update_notification_preferences(user_id, updates).await;
             assert!(result.is_ok());
@@ -3051,10 +3052,12 @@ mod tests {
                 UpdatePreferenceRequest {
                     channel: "email".to_string(),
                     enabled: true,
+                    reminder_days_before: 3,
                 },
                 UpdatePreferenceRequest {
                     channel: "push".to_string(),
                     enabled: true,
+                    reminder_days_before: 3,
                 },
             ];
             let result = mock.update_notification_preferences(user_id, updates).await;
@@ -3078,6 +3081,7 @@ mod tests {
             let updates = vec![UpdatePreferenceRequest {
                 channel: "email".to_string(),
                 enabled: true,
+                reminder_days_before: 3,
             }];
             let result = mock
                 .update_notification_preferences(Uuid::new_v4(), updates)
@@ -3928,6 +3932,7 @@ mod tests {
             let prefs = vec![UpdatePreferenceRequest {
                 channel: "email".to_string(),
                 enabled: true,
+                reminder_days_before: 3,
             }];
             let result = mock.update_notification_preferences(user_id, prefs).await;
             assert!(result.is_ok());
@@ -3942,6 +3947,7 @@ mod tests {
                     vec![UpdatePreferenceRequest {
                         channel: "push".to_string(),
                         enabled: false,
+                        reminder_days_before: 3,
                     }],
                 )
                 .await;

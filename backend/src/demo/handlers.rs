@@ -115,10 +115,7 @@ pub async fn reset(
             "success": true,
             "message": "Demo data has been reset successfully"
         }))),
-        Err(e) => Ok(Json(serde_json::json!({
-            "success": false,
-            "message": e
-        }))),
+        Err(e) => Err(AppError::Internal(format!("Failed to reset demo data: {}", e))),
     }
 }
 

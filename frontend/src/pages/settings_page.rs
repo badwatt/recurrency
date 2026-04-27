@@ -79,11 +79,16 @@ pub fn SettingsPage() -> Element {
         }
     });
 
-    // Sync form state when user changes
+    // Sync form state when user changes (only if fields are empty to avoid overwriting edits)
     use_effect(move || {
         if let Some(u) = &AUTH().user {
-            name.set(u.name.clone().unwrap_or_default());
-            currency.set(u.currency.clone());
+            // Only initialize empty fields; don't overwrite user edits
+            if name().is_empty() {
+                name.set(u.name.clone().unwrap_or_default());
+            }
+            if currency().is_empty() {
+                currency.set(u.currency.clone());
+            }
         }
     });
 
@@ -237,6 +242,7 @@ pub fn SettingsPage() -> Element {
                             value: "{PREFERENCES().first_day_of_week()}",
                             onchange: move |e| {
                                 let day = e.value();
+                                let previous = PREFERENCES().first_day_of_week().to_string();
                                 PREFERENCES.write().set_first_day_of_week(day.clone());
                                 spawn(async move {
                                     match crate::api::preferences::update(&crate::models::preferences::UpdatePreferencesRequest {
@@ -247,6 +253,7 @@ pub fn SettingsPage() -> Element {
                                         Ok(_) => TOAST.write().success("First day of week updated"),
                                         Err(e) => {
                                             log::error!("Failed to update first_day_of_week: {:?}", e);
+                                            PREFERENCES.write().set_first_day_of_week(previous);
                                             TOAST.write().error("Failed to update preference");
                                         }
                                     }

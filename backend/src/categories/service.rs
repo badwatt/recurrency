@@ -14,7 +14,6 @@ impl CategoryService {
             r#"
             INSERT INTO categories (id, user_id, name, is_system, is_default, created_at, updated_at)
             VALUES ($1, $2, 'Uncategorized', true, true, $3, $3)
-            ON CONFLICT DO NOTHING
             "#,
         )
         .bind(Uuid::new_v4())
@@ -146,13 +145,15 @@ impl CategoryService {
         // Reassign all subscriptions and transactions from this category to the default category
         let default_category = Self::get_default(pool, user_id).await?;
 
+        let mut tx = pool.begin().await?;
+
         sqlx::query(
             "UPDATE subscriptions SET category_id = $1 WHERE category_id = $2 AND user_id = $3",
         )
         .bind(default_category.id)
         .bind(id)
         .bind(user_id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
         sqlx::query(
@@ -161,7 +162,7 @@ impl CategoryService {
         .bind(default_category.id)
         .bind(id)
         .bind(user_id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
         let result = sqlx::query(
@@ -169,7 +170,7 @@ impl CategoryService {
         )
         .bind(id)
         .bind(user_id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
         if result.rows_affected() == 0 {
@@ -177,6 +178,8 @@ impl CategoryService {
                 "Category not found or is the default category".to_string(),
             ));
         }
+
+        tx.commit().await?;
 
         Ok(())
     }

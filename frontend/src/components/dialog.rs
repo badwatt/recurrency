@@ -5,14 +5,19 @@ pub fn Dialog(open: bool, on_close: EventHandler<()>, title: String, footer: Opt
     // Escape key handler via eval
     use_future(move || async move {
         if open {
+            // Guard to prevent duplicate listeners from re-renders
             let _ = dioxus::document::eval(
                 r#"
-                document.addEventListener('keydown', function handler(e) {
-                    if (e.key === 'Escape') {
-                        document.removeEventListener('keydown', handler);
-                        dioxus.send(true);
-                    }
-                });
+                if (!window.__dialogEscapeListener) {
+                    window.__dialogEscapeListener = true;
+                    document.addEventListener('keydown', function handler(e) {
+                        if (e.key === 'Escape') {
+                            document.removeEventListener('keydown', handler);
+                            window.__dialogEscapeListener = false;
+                            dioxus.send(true);
+                        }
+                    });
+                }
             "#,
             );
         }

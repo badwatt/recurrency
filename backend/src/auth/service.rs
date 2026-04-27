@@ -22,7 +22,7 @@ fn get_jwt_secret() -> &'static [u8] {
     JWT_SECRET
         .get_or_init(|| {
             std::env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "super_secret_jwt_key_change_in_production".to_string())
+                .expect("JWT_SECRET environment variable must be set")
                 .into_bytes()
         })
         .as_slice()
@@ -111,6 +111,7 @@ impl SqlxAuthService {
 
         if let Err(e) = CategoryService::create_uncategorized(&self.pool, user.id).await {
             tracing::error!("Failed to create uncategorized category: {}", e);
+            return Err(e);
         }
 
         Ok(AuthResponse {
@@ -307,7 +308,7 @@ fn verify_password(password: &str, hash: &str) -> AppResult<()> {
 
     Argon2::default()
         .verify_password(password.as_bytes(), &parsed_hash)
-        .map_err(|e| AppError::Internal(format!("Password verification failed: {:?}", e)))?;
+        .map_err(|_| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
     Ok(())
 }
@@ -461,11 +462,13 @@ mod tests {
     // get_jwt_secret
     #[test]
     fn get_jwt_secret_returns_value() {
+        std::env::set_var("JWT_SECRET", "test-secret-key");
         assert!(!get_jwt_secret().is_empty());
     }
 
     #[test]
     fn get_jwt_secret_same_on_repeat() {
+        std::env::set_var("JWT_SECRET", "test-secret-key");
         assert_eq!(get_jwt_secret(), get_jwt_secret());
     }
 

@@ -27,8 +27,8 @@ impl SubscriptionsState {
 
     /// Get subscriptions due in the next 7 days.
     pub fn due_this_week(&self) -> Vec<&Subscription> {
-        use chrono::{Days, Local};
-        let now = Local::now().date_naive();
+        use chrono::{Days, Utc};
+        let now = Utc::now().date_naive();
         let week = now.checked_add_days(Days::new(7)).unwrap();
         self.active()
             .into_iter()
@@ -42,8 +42,8 @@ impl SubscriptionsState {
 
     /// Get subscriptions due in the current month.
     pub fn due_this_month(&self) -> Vec<&Subscription> {
-        use chrono::{Datelike, Local};
-        let now = Local::now().date_naive();
+        use chrono::{Datelike, Utc};
+        let now = Utc::now().date_naive();
         self.active()
             .into_iter()
             .filter(|s| {
@@ -204,8 +204,8 @@ mod tests {
 
     #[test]
     fn due_this_week() {
-        use chrono::{Days, Local};
-        let now = Local::now().date_naive();
+        use chrono::{Days, Utc};
+        let now = Utc::now().date_naive();
         let in_3_days = now.checked_add_days(Days::new(3)).unwrap();
         let in_10_days = now.checked_add_days(Days::new(10)).unwrap();
 
@@ -223,8 +223,8 @@ mod tests {
 
     #[test]
     fn due_this_month() {
-        use chrono::{Days, Local};
-        let now = Local::now().date_naive();
+        use chrono::{Days, Utc};
+        let now = Utc::now().date_naive();
         let this_month = now;
         let next_month = now.checked_add_days(Days::new(32)).unwrap();
 
@@ -242,8 +242,8 @@ mod tests {
 
     #[test]
     fn due_this_month_ignores_inactive() {
-        use chrono::Local;
-        let now = Local::now().date_naive();
+        use chrono::Utc;
+        let now = Utc::now().date_naive();
 
         let mut state = SubscriptionsState::default();
         state.subscriptions = vec![
@@ -345,8 +345,8 @@ mod tests {
 
     #[test]
     fn due_this_week_none_due() {
-        use chrono::{Days, Local};
-        let now = Local::now().date_naive();
+        use chrono::{Days, Utc};
+        let now = Utc::now().date_naive();
         let in_30_days = now.checked_add_days(Days::new(30)).unwrap();
 
         let mut state = SubscriptionsState::default();

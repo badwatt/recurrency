@@ -6,7 +6,7 @@ use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Utc};
 use dioxus::prelude::*;
 use lucide_dioxus::{CreditCard, Receipt, TrendingUp, Wallet, Download};
 
@@ -26,7 +26,7 @@ const MONTH_OPTIONS: &[(&str, &str)] = &[
 ];
 
 fn report_years() -> Vec<i32> {
-    let this_year = Local::now().year();
+    let this_year = Utc::now().year();
     vec![this_year - 2, this_year - 1, this_year]
 }
 
@@ -59,7 +59,7 @@ pub fn category_style_by_name<'a>(
 
 #[component]
 pub fn ReportsPage() -> Element {
-    let now = Local::now();
+    let now = Utc::now();
     let mut selected_year = use_signal(|| now.year().to_string());
     let mut selected_month = use_signal(|| now.month().to_string());
     let mut report = use_signal(|| None::<ReportResponse>);
@@ -938,7 +938,7 @@ mod tests {
     #[test]
     fn report_years_are_recent() {
         let years = report_years();
-        let this_year = chrono::Local::now().year();
+        let this_year = chrono::Utc::now().year();
         assert_eq!(years.len(), 3);
         assert!(years.contains(&(this_year - 2)));
         assert!(years.contains(&(this_year - 1)));
