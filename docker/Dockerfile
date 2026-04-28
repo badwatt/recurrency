@@ -111,7 +111,7 @@ RUN if [ ! -f /frontend/dist/index.html ]; then \
     rm -rf /tmp/dx_output
 
 # Copy entrypoint
-COPY entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Environment defaults
