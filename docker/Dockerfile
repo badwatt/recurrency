@@ -62,6 +62,9 @@ ENV RUSTFLAGS="-C target-cpu=generic"
 # Copy VERSION for build.rs fallback
 COPY VERSION /build/VERSION
 
+# Copy frontend dist from frontend-build stage (needed by include_dir!)
+COPY --from=frontend-build /build/frontend/dist /build/frontend/dist
+
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 
