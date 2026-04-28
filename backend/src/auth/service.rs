@@ -291,6 +291,24 @@ impl AuthService {
     pub async fn verify_token(token: &str) -> AppResult<Claims> {
         verify_token_internal(token)
     }
+
+    /// Convenience wrapper for integration tests.
+    /// Delegates to SqlxAuthService.
+    pub async fn register(pool: &sqlx::PgPool, req: CreateUserRequest) -> AppResult<AuthResponse> {
+        SqlxAuthService::new(pool.clone()).register(req).await
+    }
+
+    /// Convenience wrapper for integration tests.
+    /// Delegates to SqlxAuthService.
+    pub async fn login(pool: &sqlx::PgPool, req: LoginRequest) -> AppResult<AuthResponse> {
+        SqlxAuthService::new(pool.clone()).login(req).await
+    }
+
+    /// Convenience wrapper for integration tests.
+    /// Delegates to SqlxAuthService.
+    pub async fn get_user_by_id(pool: &sqlx::PgPool, user_id: Uuid) -> AppResult<User> {
+        SqlxAuthService::new(pool.clone()).get_user_by_id(user_id).await
+    }
 }
 
 pub fn verify_token_internal(token: &str) -> AppResult<Claims> {

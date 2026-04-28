@@ -209,15 +209,15 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
     router
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct HealthResponse {
-    status: &'static str,
+    status: String,
     smtp_configured: bool,
 }
 
 async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
-        status: "OK",
+        status: "OK".to_string(),
         smtp_configured: email::is_configured(),
     })
 }
@@ -253,7 +253,7 @@ mod tests {
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
-        let json: HealthResponse = serde_json::from_slice(&body).unwrap();
+        let json: HealthResponse = serde_json::from_slice(body.as_ref()).unwrap();
         assert_eq!(json.status, "OK");
     }
 
@@ -268,7 +268,7 @@ mod tests {
 
     #[test]
     fn cors_layer_allow_credentials() {
-        let cors = CorsLayer::new()
+        let _cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
             .allow_headers(Any)
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn cors_layer_expose_headers() {
-        let cors = CorsLayer::new().allow_origin(Any).expose_headers(Any);
+        let _cors = CorsLayer::new().allow_origin(Any).expose_headers(Any);
         assert!(true);
     }
 

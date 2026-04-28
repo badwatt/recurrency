@@ -407,6 +407,8 @@ mod preferences_model_tests {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
             subscriptions_view: "list".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("dark"));
@@ -418,6 +420,8 @@ mod preferences_model_tests {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
             subscriptions_view: "list".to_string(),
+            first_day_of_week: "monday".to_string(),
+            date_format: "DD-MM-YYYY".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         let parsed: PreferencesResponse = serde_json::from_str(&json).unwrap();

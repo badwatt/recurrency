@@ -70,11 +70,11 @@ COPY backend/Cargo.toml backend/Cargo.lock* ./
 
 # Cache dependencies — separate layers
 RUN mkdir src && echo 'fn main() {}' > src/main.rs
-RUN cargo build --release -j 4 2>/dev/null || true
+RUN cargo build --release -j 4 --features embed-frontend 2>/dev/null || true
 RUN rm -rf src
 
 COPY backend/ ./
-RUN touch src/main.rs && cargo build --release -j 4
+RUN touch src/main.rs && cargo build --release -j 4 --features embed-frontend
 
 # ── Stage 3: All-in-one runtime ────────────────────────────
 FROM debian:bookworm-slim
