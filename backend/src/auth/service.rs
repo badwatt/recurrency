@@ -438,6 +438,7 @@ mod tests {
 
     #[test]
     fn generate_token_contains_email() {
+        std::env::set_var("JWT_SECRET", "test-secret-key");
         let user = User {
             id: Uuid::new_v4(),
             email: "token@test.com".to_string(),
