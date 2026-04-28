@@ -22,7 +22,7 @@ fn get_jwt_secret() -> &'static [u8] {
     JWT_SECRET
         .get_or_init(|| {
             std::env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "dev-secret-change-in-production".to_string())
+                .expect("JWT_SECRET environment variable must be set")
                 .into_bytes()
         })
         .as_slice()

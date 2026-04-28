@@ -57,6 +57,8 @@ jobs:
           cache-on-failure: true
 
       - name: Run backend tests
+        env:
+          JWT_SECRET: test-jwt-secret-key
         run: cd backend && cargo test
 
   # ── Frontend tests ─────────────────────────────────────────
