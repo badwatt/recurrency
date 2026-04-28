@@ -41,7 +41,7 @@ COPY frontend/ ./
 
 # Build Tailwind CSS
 RUN npm install --prefix . tailwindcss tailwindcss-animate \
-    && npx tailwindcss -i assets/tailwind.src.css -o assets/tailwind.css --minify
+    && npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
 
 # Build Dioxus web bundle (dx bundle outputs to out_dir = dist/)
 RUN dx bundle --platform web --release && \
