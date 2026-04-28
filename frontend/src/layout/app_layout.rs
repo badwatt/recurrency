@@ -219,7 +219,7 @@ fn DesktopSidebar() -> Element {
                             {AUTH().user.as_ref().map(|u| u.name.clone().unwrap_or_else(|| u.email.clone())).unwrap_or_default()}
                         }
                         span { class: "text-xs text-muted-foreground",
-                            {"v".to_string() + env!("CARGO_PKG_VERSION")}
+                            {"v".to_string() + crate::utils::constants::APP_VERSION}
                         }
                     }
                     ThemeToggleButton {}
@@ -295,7 +295,7 @@ fn MobileSidebar(on_close: EventHandler<()>) -> Element {
                             {AUTH().user.as_ref().map(|u| u.name.clone().unwrap_or_else(|| u.email.clone())).unwrap_or_default()}
                         }
                         span { class: "text-xs text-muted-foreground",
-                            {"v".to_string() + env!("CARGO_PKG_VERSION")}
+                            {"v".to_string() + crate::utils::constants::APP_VERSION}
                         }
                     }
                     ThemeToggleButton {}

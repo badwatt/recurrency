@@ -7,8 +7,12 @@
 FROM ubuntu:24.04 AS frontend-build
 
 ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 ENV RUSTFLAGS="-C target-cpu=generic" \
     DEBIAN_FRONTEND=noninteractive
+
+# Copy VERSION for build.rs fallback
+COPY VERSION /build/VERSION
 
 # Install system deps with retry on mirror sync
 RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends \
@@ -51,7 +55,12 @@ RUN dx bundle --platform web --release && \
 # rust:bookworm has glibc 2.36 — binary compatible with debian:bookworm-slim runtime
 FROM rust:1-bookworm AS backend-build
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 ENV RUSTFLAGS="-C target-cpu=generic"
+
+# Copy VERSION for build.rs fallback
+COPY VERSION /build/VERSION
 
 WORKDIR /build/backend
 COPY backend/Cargo.toml backend/Cargo.lock* ./

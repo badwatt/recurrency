@@ -22,7 +22,7 @@ pub const DEFAULT_CURRENCY: &str = "EUR";
 
 /// App version (read from VERSION file at build time).
 #[allow(dead_code)]
-pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const APP_VERSION: &str = env!("APP_VERSION");
 
 #[cfg(test)]
 mod tests {

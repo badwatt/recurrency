@@ -1,10 +1,25 @@
 //! Build script: compile Dioxus web frontend at compile time.
 //! Output embedded in binary - no dist/ folder needed.
+//! Also injects APP_VERSION from root VERSION file.
 
 use std::env;
+use std::fs;
 use std::path::Path;
 
 fn main() {
+    // --- Inject APP_VERSION from VERSION file ---
+    let version = env::var("APP_VERSION").unwrap_or_else(|_| {
+        let version_path = Path::new("../VERSION");
+        fs::read_to_string(version_path)
+            .unwrap_or_else(|_| "dev".into())
+            .trim()
+            .to_string()
+    });
+    println!("cargo:rustc-env=APP_VERSION={}", version);
+    println!("cargo:rerun-if-changed=../VERSION");
+    println!("cargo:rerun-if-env-changed=APP_VERSION");
+
+    // --- Original frontend build logic ---
     // Only embed when building the binary, not for lib
     let profile = env::var("PROFILE").unwrap_or_default();
     if profile == "test" || profile == "bench" {
