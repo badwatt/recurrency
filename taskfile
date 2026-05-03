@@ -48,13 +48,23 @@ cmd_up() {
   info "Building CSS..."
   cd "$ROOT/frontend" && npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify 2>/dev/null || true
 
+  info "Building frontend (dist)..."
+  cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx bundle --platform web 2>/dev/null || true
+  if [ ! -f "$ROOT/frontend/dist/public/index.html" ]; then
+    warn "dx bundle output not found at dist/public/, trying target/dx/ fallback..."
+    find "$ROOT/frontend/target/dx" -name 'index.html' -path '*/web/public/*' | head -1 | xargs -I {} cp -r "$(dirname {})" "$ROOT/frontend/dist/public" 2>/dev/null || true
+  fi
+  if [ ! -f "$ROOT/frontend/dist/public/index.html" ]; then
+    err "Frontend build failed: no index.html found"
+  fi
+
   info "Starting backend..."
   cd "$ROOT/backend"
   export APP_HOST="${APP_HOST:-localhost}"
   export APP_PORT="${APP_PORT:-8080}"
   export JWT_SECRET="${JWT_SECRET:-dev-secret}"
   export ENABLE_DEMO="${ENABLE_DEMO:-true}"
-  export FRONTEND_DIST="$ROOT/frontend/public"
+  export FRONTEND_DIST="$ROOT/frontend/dist/public"
   nix develop --no-eval-cache "$ROOT" -c cargo run &
   BACKEND_PID=$!
 
