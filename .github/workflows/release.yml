@@ -59,7 +59,7 @@ jobs:
       - name: Run backend tests
         env:
           JWT_SECRET: test-jwt-secret-key
-        run: cd backend && cargo test
+        run: cd backend && cargo test --lib
 
   # ── Frontend tests ─────────────────────────────────────────
   test-frontend:
@@ -96,7 +96,7 @@ jobs:
           cache-on-failure: true
 
       - name: Run frontend tests
-        run: cd frontend && cargo test
+        run: cd frontend && cargo test -- --test-threads=1
 
   # ── Build Docker image + create release ──────────────────
   docker:
