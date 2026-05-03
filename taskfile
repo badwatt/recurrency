@@ -42,16 +42,18 @@ cmd_up() {
   sleep 1
 
   info "Starting PostgreSQL..."
-  cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d 2>/dev/null || true
+  cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d 2>&1 || warn "docker compose failed, PostgreSQL may not start"
 
   info "Waiting for PostgreSQL to be ready..."
   for i in $(seq 1 30); do
-    if cd "$ROOT" && docker compose -f docker-compose.dev.yml exec db pg_isready -U recurrency -d recurrency >/dev/null 2>&1; then
+    if pg_isready -h localhost -p 5432 -U recurrency -d recurrency >/dev/null 2>&1; then
       ok "PostgreSQL ready"
       break
     fi
     if [ "$i" -eq 30 ]; then
-      err "PostgreSQL not ready after 30s"
+      warn "pg_isready not available or DB slow, checking container..."
+      cd "$ROOT" && docker compose -f docker-compose.dev.yml ps 2>/dev/null || true
+      err "PostgreSQL not ready after 30s. Run: docker compose -f docker/docker-compose.dev.yml logs db"
     fi
     sleep 1
   done
