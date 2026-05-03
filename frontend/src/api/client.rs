@@ -106,7 +106,8 @@ fn get_base_url_impl() -> String {
             }
         }
         // Try app data file (persisted by SetupPage.save_server_url)
-        if let Some(data_dir) = dirs::data_dir() {
+        // Must use get_app_data_dir() for Android compatibility
+        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
             if let Ok(url) = std::fs::read_to_string(&url_file) {
                 let url = url.trim().to_string();

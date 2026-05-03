@@ -218,7 +218,8 @@ jobs:
       - name: Build Android APK (aarch64 debug)
         run: cd frontend && dx bundle --platform android --target aarch64-linux-android
 
-      # Dioxus uses generic ic_launcher.webp icons — replace with our app logo
+      # Dioxus uses generic ic_launcher.webp icons — replace with our app logo.
+      # Android adaptive icons need: solid background + padded foreground.
       - name: Replace Android icons with app logo
         run: |
           cd frontend
@@ -243,21 +244,26 @@ jobs:
               echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
             fi
           done
-          # Generate foreground icon for adaptive icons
+          # Generate foreground icon with padding for adaptive icons.
+          # Android adaptive-icon: 108dp canvas, 72dp safe zone.
+          # Foreground must be 432px (108dp @ xxxhdpi) with icon centered in ~288px area.
           mkdir -p "$RES_DIR/drawable"
-          convert assets/icons/icon-1024.png -resize 288x288 "$RES_DIR/drawable/ic_launcher_foreground.png"
-          echo "Generated drawable/ic_launcher_foreground.png"
+          convert assets/icons/icon-1024.png -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
+          echo "Generated drawable/ic_launcher_foreground.png (432x432 with padding)"
+          # Generate solid background color for adaptive icons
+          convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
+          echo "Generated drawable/ic_launcher_background.png"
           # Replace vector foreground with bitmap reference
           FG_XML="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
           if [ -f "$FG_XML" ]; then
             printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<layer-list xmlns:android="http://schemas.android.com/apk/res/android">' '  <item android:drawable="@drawable/ic_launcher_foreground" />' '</layer-list>' > "$FG_XML"
             echo "Replaced $FG_XML with bitmap reference"
           fi
-          # Ensure mipmap ic_launcher.xml references our icon
+          # Ensure mipmap ic_launcher.xml uses solid background + padded foreground
           for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
             if [ -f "$LAUNCHER_XML" ]; then
-              printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '  <background android:drawable="@android:color/transparent"/>' '  <foreground android:drawable="@drawable/ic_launcher_foreground"/>' '</adaptive-icon>' > "$LAUNCHER_XML"
+              printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '  <background android:drawable="@drawable/ic_launcher_background"/>' '  <foreground android:drawable="@drawable/ic_launcher_foreground"/>' '</adaptive-icon>' > "$LAUNCHER_XML"
               echo "Replaced $LAUNCHER_XML"
             fi
           done
