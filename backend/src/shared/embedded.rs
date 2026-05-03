@@ -9,7 +9,7 @@ static DIST_DIR: include_dir::Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../fro
 
 /// Check if embedded dist has files
 pub fn has_embedded() -> bool {
-    DIST_DIR.get_file("index.html").is_some()
+    DIST_DIR.get_file("public/index.html").is_some()
 }
 
 /// Initialize embedded frontend system.
@@ -37,8 +37,14 @@ fn count_files() -> usize {
 
 /// Get file content and mime type by path from embedded dist.
 /// Returns (content_bytes, mime_type) if found.
+/// dx bundle outputs to dist/public/, so files are under public/ in include_dir.
 pub fn get_file(path: &str) -> Option<(&'static [u8], String)> {
-    let file = DIST_DIR.get_file(path)?;
+    let file_path = if path.is_empty() || path == "/" || path == "index.html" {
+        "public/index.html"
+    } else {
+        &format!("public/{}", path)
+    };
+    let file = DIST_DIR.get_file(file_path)?;
     let ct = mime_guess::from_path(path).first_or_octet_stream();
     Some((file.contents(), ct.to_string()))
 }

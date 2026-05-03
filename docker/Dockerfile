@@ -92,7 +92,8 @@ COPY --from=backend-build /build/backend/target/release/recurrency-api /usr/loca
 RUN chmod +x /usr/local/bin/recurrency-api
 
 # Copy frontend dist (dx bundle output)
-COPY --from=frontend-build /build/frontend/dist /frontend/dist
+# dx bundle puts files in dist/public/
+COPY --from=frontend-build /build/frontend/dist/public /frontend/dist
 
 # Also copy dx build output as fallback (dx build uses target/dx/ instead of dist/)
 COPY --from=frontend-build /build/frontend/target/dx /tmp/dx_output
