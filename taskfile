@@ -42,7 +42,7 @@ cmd_up() {
   sleep 1
 
   info "Starting PostgreSQL..."
-  cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d 2>&1 || warn "docker compose failed, PostgreSQL may not start"
+  cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml up -d 2>&1 || warn "docker compose failed, PostgreSQL may not start"
 
   info "Waiting for PostgreSQL to be ready..."
   for i in $(seq 1 30); do
@@ -52,7 +52,7 @@ cmd_up() {
     fi
     if [ "$i" -eq 30 ]; then
       warn "pg_isready not available or DB slow, checking container..."
-      cd "$ROOT" && docker compose -f docker-compose.dev.yml ps 2>/dev/null || true
+      cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml ps 2>/dev/null || true
       err "PostgreSQL not ready after 30s. Run: docker compose -f docker/docker-compose.dev.yml logs db"
     fi
     sleep 1
@@ -87,7 +87,7 @@ cmd_up() {
   nix develop --no-eval-cache "$ROOT" -c dx serve --platform web --port 1420 &
   FRONTEND_PID=$!
 
-  trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; cd $ROOT && docker compose -f docker-compose.dev.yml down 2>/dev/null" EXIT
+  trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; cd $ROOT && docker compose -f docker/docker-compose.dev.yml down 2>/dev/null" EXIT
 
   ok "All running:"
   echo "  • Frontend: http://localhost:1420"
@@ -106,7 +106,7 @@ cmd_down() {
   pkill -f "cargo run" 2>/dev/null || true
   pkill -f "dx serve" 2>/dev/null || true
   fuser -k 8080/tcp 2>/dev/null || true
-  cd "$ROOT" && docker compose -f docker-compose.dev.yml down 2>/dev/null || true
+  cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml down 2>/dev/null || true
   ok "All stopped"
 }
 
@@ -140,8 +140,8 @@ cmd_reset() {
 
   info "Resetting..."
   fuser -k 8080/tcp 2>/dev/null || true
-  cd "$ROOT" && docker compose -f docker-compose.dev.yml down -v 2>/dev/null || true
-  docker compose -f docker-compose.dev.yml up -d
+  cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml down -v 2>/dev/null || true
+  docker compose -f docker/docker-compose.dev.yml up -d
   cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c sqlx migrate run 2>/dev/null || true
   ok "Database reset"
 }
@@ -149,7 +149,7 @@ cmd_reset() {
 # ── Individual ─────────────────────────────────────────
 cmd_backend()  { cd "$ROOT/backend"  && nix develop --no-eval-cache "$ROOT" -c cargo run; }
 cmd_frontend() { cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx serve --platform web --port 1420; }
-cmd_db()       { cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d && ok "DB running on 5432"; }
+cmd_db()       { cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml up -d && ok "DB running on 5432"; }
 cmd_css()      { cd "$ROOT/frontend" && npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify && ok "CSS built"; }
 
 # ── Build ───────────────────────────────────────────────
