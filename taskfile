@@ -46,14 +46,25 @@ cmd_up() {
 
   info "Waiting for PostgreSQL to be ready..."
   for i in $(seq 1 30); do
-    if pg_isready -h localhost -p 5432 -U recurrency -d recurrency >/dev/null 2>&1; then
-      ok "PostgreSQL ready"
+    # Try TCP connection to PostgreSQL port
+    if (echo >/dev/tcp/localhost/5432) 2>/dev/null; then
+      ok "PostgreSQL ready (TCP)"
+      break
+    fi
+    # Also try pg_isready if available
+    if command -v pg_isready >/dev/null 2>&1 && pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+      ok "PostgreSQL ready (pg_isready)"
+      break
+    fi
+    # Also try docker exec as fallback
+    if cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml exec -T db pg_isready >/dev/null 2>&1; then
+      ok "PostgreSQL ready (docker exec)"
       break
     fi
     if [ "$i" -eq 30 ]; then
-      warn "pg_isready not available or DB slow, checking container..."
+      warn "PostgreSQL not ready after 30s. Container status:"
       cd "$ROOT" && docker compose -f docker/docker-compose.dev.yml ps 2>/dev/null || true
-      err "PostgreSQL not ready after 30s. Run: docker compose -f docker/docker-compose.dev.yml logs db"
+      err "PostgreSQL not ready. Run: docker compose -f docker/docker-compose.dev.yml logs db"
     fi
     sleep 1
   done
