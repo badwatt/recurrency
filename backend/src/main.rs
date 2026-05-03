@@ -11,7 +11,10 @@ mod subscriptions;
 mod transactions;
 
 use axum::{
+    body::Body,
     extract::Json,
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
 };
@@ -202,11 +205,48 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         } else {
             tracing::warn!("Frontend UI: dist/ not found. Set BUILD_UI=false for API-only mode.");
         }
+
+        #[cfg(feature = "embed-frontend")]
+        {
+            router = router.fallback(serve_embedded);
+        }
+        #[cfg(not(feature = "embed-frontend"))]
+        {
+            let serve_dir = tower_http::services::ServeDir::new(&frontend_dist)
+                .fallback(tower_http::services::ServeFile::new(&index_path));
+            router = router.fallback_service(serve_dir);
+        }
     } else {
         tracing::info!("Frontend UI disabled (BUILD_UI=false)");
     }
 
     router
+}
+
+#[cfg(feature = "embed-frontend")]
+async fn serve_embedded(req: axum::extract::Request) -> Response {
+    let path = req.uri().path().trim_start_matches('/');
+    let path = if path.is_empty() { "index.html" } else { path };
+
+    if let Some((content, ct)) = shared::embedded::get_file(path) {
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, ct)
+            .body(Body::from(content.to_vec()))
+            .unwrap();
+    }
+    // SPA fallback: serve index.html for unknown paths
+    if let Some((content, _)) = shared::embedded::get_file("index.html") {
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(Body::from(content.to_vec()))
+            .unwrap();
+    }
+    Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body(Body::from("Not found"))
+        .unwrap()
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
