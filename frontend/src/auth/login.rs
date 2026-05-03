@@ -13,11 +13,16 @@ pub fn LoginPage() -> Element {
     let mut demo_enabled = use_signal(|| false);
     let _nav = navigator();
 
-    // Check if server URL needs configuration (Android/desktop without env var)
-    // On first load after app restart, localStorage read may not have completed yet.
+    // On WASM (web), base URL is always resolved (origin or fallback).
+    // Setup page is only needed on native (Android/desktop) where server URL must be configured manually.
+    // On WASM, skip setup entirely — the URL is determined automatically.
+    #[cfg(target_arch = "wasm32")]
+    let needs_setup = false;
+
+    #[cfg(not(target_arch = "wasm32"))]
     let needs_setup = get_base_url() == "http://localhost:8080";
 
-    // Auto-redirect to Setup if running locally without config
+    // Auto-redirect to Setup if no server configured (native only)
     let nav = navigator();
     use_effect(move || {
         if needs_setup {
