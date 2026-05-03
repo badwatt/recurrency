@@ -188,14 +188,6 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Cache Cargo (android)
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: frontend
-          cache-on-failure: true
-          prefix-key: android-arm64
-          cache-bin: false
-
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
 
