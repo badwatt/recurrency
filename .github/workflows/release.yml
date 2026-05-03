@@ -280,13 +280,20 @@ jobs:
       - name: Locate APK
         run: |
           echo "Searching for APK..."
-          find bin -name '*.apk' -type f 2>/dev/null || true
-          APK=$(find bin -name '*.apk' -type f 2>/dev/null | head -1)
+          find frontend/target/dx frontend/bin -name '*.apk' -type f 2>/dev/null || true
+          APK=$(find frontend/target/dx frontend/bin -name '*.apk' -type f 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find . -name '*.apk' -type f -not -path './bin/android/*' 2>/dev/null | head -1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "FATAL: No APK found"
+            exit 1
+          fi
           echo "Found APK: $APK"
-          mkdir -p bin
+          mkdir -p bin/android
           APK_NAME="recurrency-$(cat VERSION)-aarch64.apk"
-          cp "$APK" "frontend/dist/$APK_NAME"
-          ls -la "frontend/dist/$APK_NAME"
+          cp "$APK" "bin/android/$APK_NAME"
+          ls -la "bin/android/$APK_NAME"
           echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
 
       - name: Upload APK
