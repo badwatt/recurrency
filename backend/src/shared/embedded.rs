@@ -37,8 +37,8 @@ fn count_files() -> usize {
 
 /// Get file content and mime type by path from embedded dist.
 /// Returns (content_bytes, mime_type) if found.
-pub fn get_file(path: &str) -> Option<(&'static [u8], &'static str)> {
+pub fn get_file(path: &str) -> Option<(&'static [u8], String)> {
     let file = DIST_DIR.get_file(path)?;
     let ct = mime_guess::from_path(path).first_or_octet_stream();
-    Some((file.contents(), ct.as_ref()))
+    Some((file.contents(), ct.to_string()))
 }

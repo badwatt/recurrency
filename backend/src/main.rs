@@ -234,7 +234,7 @@ async fn serve_embedded(req: axum::extract::Request) -> Response {
     if let Some((content, ct)) = shared::embedded::get_file(path) {
         return Response::builder()
             .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, ct)
+            .header(header::CONTENT_TYPE, ct.as_str())
             .body(Body::from(content.to_vec()))
             .unwrap();
     }
