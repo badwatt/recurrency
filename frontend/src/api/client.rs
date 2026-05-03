@@ -83,8 +83,14 @@ fn get_base_url_impl() -> String {
                     }
                 }
             }
-            // In dev mode: dx serve runs on 1420, backend on 8080
-            // Never use window.location.origin - it points to frontend server
+            // When served from same origin as backend (all-in-one docker),
+            // use current origin. In dev mode (dx serve on 1420), fallback to localhost:8080.
+            if let Ok(origin) = window.location().origin() {
+                if !origin.contains(":1420") {
+                    eprintln!("[get_base_url] WASM origin: {}", origin);
+                    return origin;
+                }
+            }
         }
         eprintln!("[get_base_url] WASM fallback: localhost:8080");
         return "http://localhost:8080".to_string();
