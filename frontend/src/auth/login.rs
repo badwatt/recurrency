@@ -18,9 +18,11 @@ pub fn LoginPage() -> Element {
     let needs_setup = get_base_url() == "http://localhost:8080";
 
     // Auto-redirect to Setup if running locally without config
+    let nav = navigator();
     use_effect(move || {
         if needs_setup {
-            eprintln!("[LoginPage] Using localhost - showing setup warning");
+            eprintln!("[LoginPage] No server configured — redirecting to Setup");
+            nav.push(Route::Setup {});
         }
     });
 
