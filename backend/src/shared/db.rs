@@ -11,6 +11,29 @@ pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
         .await
 }
 
+/// Create a DB pool with retry logic. Waits up to 60s for PostgreSQL to be ready.
+pub async fn create_pool_with_retry() -> Result<PgPool, sqlx::Error> {
+    let mut attempts = 0u32;
+    let max_attempts = 12; // 12 * 5s = 60s total
+    loop {
+        match create_pool().await {
+            Ok(pool) => {
+                tracing::info!("Database connection established");
+                return Ok(pool);
+            }
+            Err(e) => {
+                attempts += 1;
+                if attempts >= max_attempts {
+                    tracing::error!("Failed to connect to database after {} attempts: {}", attempts, e);
+                    return Err(e);
+                }
+                tracing::warn!("Database not ready (attempt {}/{}): {}. Retrying in 5s...", attempts, max_attempts, e);
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+        }
+    }
+}
+
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::migrate!("./migrations").run(pool).await?;
     Ok(())

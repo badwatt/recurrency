@@ -48,3 +48,30 @@ pub fn get_file(path: &str) -> Option<(&'static [u8], String)> {
     let ct = mime_guess::from_path(path).first_or_octet_stream();
     Some((file.contents(), ct.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_embedded_files() {
+        assert!(has_embedded(), "No embedded frontend files found. Run dx bundle first.");
+    }
+
+    #[test]
+    fn get_index_html() {
+        let (content, ct) = get_file("index.html").expect("index.html not found");
+        assert!(content.len() > 0);
+        assert_eq!(ct, "text/html");
+    }
+
+    #[test]
+    fn get_main_js() {
+        let result = get_file("assets/recurrency.js");
+        // May or may not exist depending on build
+        if let Some((content, ct)) = result {
+            assert!(content.len() > 0);
+            assert_eq!(ct, "text/javascript");
+        }
+    }
+}

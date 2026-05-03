@@ -43,7 +43,18 @@ cmd_up() {
 
   info "Starting PostgreSQL..."
   cd "$ROOT" && docker compose -f docker-compose.dev.yml up -d 2>/dev/null || true
-  ok "DB running"
+
+  info "Waiting for PostgreSQL to be ready..."
+  for i in $(seq 1 30); do
+    if cd "$ROOT" && docker compose -f docker-compose.dev.yml exec db pg_isready -U recurrency -d recurrency >/dev/null 2>&1; then
+      ok "PostgreSQL ready"
+      break
+    fi
+    if [ "$i" -eq 30 ]; then
+      err "PostgreSQL not ready after 30s"
+    fi
+    sleep 1
+  done
 
   info "Building CSS..."
   cd "$ROOT/frontend" && npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify 2>/dev/null || true
