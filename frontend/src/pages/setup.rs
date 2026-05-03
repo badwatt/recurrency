@@ -44,6 +44,7 @@ pub fn SetupPage() -> Element {
                 nav.push(Route::Login {});
             }
 
+            #[cfg(not(target_os = "android"))]
             {
                 let client = reqwest::Client::new();
                 let result = client
