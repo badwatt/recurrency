@@ -11,12 +11,15 @@ mod subscriptions;
 mod transactions;
 
 use axum::{
-    body::Body,
     extract::Json,
-    http::{header, StatusCode},
-    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
+};
+#[cfg(feature = "embed-frontend")]
+use axum::{
+    body::Body,
+    http::{header, StatusCode},
+    response::Response,
 };
 use shared::app_utils::{
     build_index_path, get_frontend_dist, index_html_exists, parse_port,
@@ -100,7 +103,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         Arc::new(SqlxAuthService::new(db_pool.clone())) as Arc<dyn AuthServiceTrait>,
     );
 
-    let router = Router::new()
+    let mut router = Router::new()
         .route("/health", get(health_check))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
