@@ -250,25 +250,14 @@ jobs:
           # Replace vector foreground with bitmap reference
           FG_XML="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
           if [ -f "$FG_XML" ]; then
-            cat > "$FG_XML" << 'XMLEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-  <item android:drawable="@drawable/ic_launcher_foreground" />
-</layer-list>
-XMLEOF
+            printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<layer-list xmlns:android="http://schemas.android.com/apk/res/android">' '  <item android:drawable="@drawable/ic_launcher_foreground" />' '</layer-list>' > "$FG_XML"
             echo "Replaced $FG_XML with bitmap reference"
           fi
           # Ensure mipmap ic_launcher.xml references our icon
           for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
             if [ -f "$LAUNCHER_XML" ]; then
-              cat > "$LAUNCHER_XML" << 'XMLEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-  <background android:drawable="@android:color/transparent"/>
-  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-XMLEOF
+              printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '  <background android:drawable="@android:color/transparent"/>' '  <foreground android:drawable="@drawable/ic_launcher_foreground"/>' '</adaptive-icon>' > "$LAUNCHER_XML"
               echo "Replaced $LAUNCHER_XML"
             fi
           done
