@@ -248,6 +248,8 @@ jobs:
           # Android adaptive-icon: 108dp canvas, 72dp safe zone.
           # Foreground must be 432px (108dp @ xxxhdpi) with icon centered in ~288px area.
           mkdir -p "$RES_DIR/drawable"
+          # Remove Dioxus-generated background XML to avoid duplicate resource conflict
+          rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
           convert assets/icons/icon-1024.png -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
           echo "Generated drawable/ic_launcher_foreground.png (432x432 with padding)"
           # Generate solid background color for adaptive icons
