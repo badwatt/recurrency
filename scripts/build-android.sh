@@ -114,7 +114,11 @@ fi
 echo "--- Building signed APK ---"
 cd target/dx/recurrency/release/android/app
 ./gradlew clean 2>&1 | tail -1
-./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1 | tail -3
+if ! ./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1; then
+    echo "ERROR: Gradle build failed. Full output above."
+    cd "$ROOT"
+    exit 1
+fi
 cd -
 
 UNSIGNED=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk/release -name "*-unsigned.apk" | head -1)
