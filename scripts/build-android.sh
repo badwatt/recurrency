@@ -12,8 +12,17 @@ done
 
 cd "$(dirname "$0")/../frontend"
 
-# Resolve Java from nix-shell
-JAVA_HOME="$(nix-shell -p jdk17 --run 'echo $JAVA_HOME')"
+# Resolve Java from nix-shell (filter out shell banner)
+JAVA_HOME="$(nix-shell -p jdk17 --run 'echo $JAVA_HOME' 2>/dev/null | grep -E '^/' | head -1)"
+if [ -z "$JAVA_HOME" ] || [ ! -d "$JAVA_HOME" ]; then
+  echo "ERROR: Could not resolve JAVA_HOME from nix-shell"
+  echo "Trying fallback: searching /nix/store for openjdk..."
+  JAVA_HOME="$(find /nix/store -maxdepth 2 -name 'openjdk' -type d 2>/dev/null | head -1)"
+fi
+if [ -z "$JAVA_HOME" ] || [ ! -d "$JAVA_HOME" ]; then
+  echo "ERROR: JAVA_HOME not found. Install JDK 17."
+  exit 1
+fi
 export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$PATH"
 
@@ -70,22 +79,30 @@ for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     fi
 done
 
-# Generate PNG foreground in drawable-nodpi/ (survives gradlew clean)
-FOREGROUND_XML="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
-FOREGROUND_PNG="$RES_DIR/drawable-nodpi/ic_launcher_fg.png"
-if [ -f "$FOREGROUND_XML" ]; then
-    mkdir -p "$RES_DIR/drawable-nodpi"
-    rm -f "$RES_DIR/drawable/ic_launcher_foreground.png" 2>/dev/null || true
-    convert "$ICON" -resize 108x108 "$FOREGROUND_PNG"
-    cat > "$FOREGROUND_XML" << 'XMLEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/ic_launcher_fg" />
-XMLEOF
-    echo "--- Foreground PNG: drawable-nodpi/ic_launcher_fg.png (108×108) ---"
-fi
+# Generate foreground with padding + solid background for adaptive icons
+# Android adaptive-icon: 108dp canvas, 72dp safe zone.
+# Foreground: 432x432 canvas, 216x216 centered icon
+mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
+convert "$ICON" -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
+echo "--- Generated ic_launcher_foreground.png (432x432 with padding) ---"
 
-# Patch Gradle: extractNativeLibs=true + Java 17
+convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
+echo "--- Generated ic_launcher_background.png (432x432 solid color) ---"
+
+# Patch adaptive-icon XMLs: solid background + padded foreground
+for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+    LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
+    if [ -f "$LAUNCHER_XML" ]; then
+        cat > "$LAUNCHER_XML" << 'XMLEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <background android:drawable="@drawable/ic_launcher_background"/>
+  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>
+XMLEOF
+        echo "--- Patched $LAUNCHER_XML ---"
+    fi
+done
 GRADLE_FILE="target/dx/recurrency/release/android/app/app/build.gradle.kts"
 if [ -f "$GRADLE_FILE" ]; then
     sed -i 's/extractNativeLibs="false"/extractNativeLibs="true"/g' "$GRADLE_FILE"
