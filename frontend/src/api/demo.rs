@@ -40,7 +40,7 @@ fn raw_get<T: serde::de::DeserializeOwned>(base_url: &str, path: &str) -> Result
         .map_err(|e| ApiError::Network(format!("Invalid address: {}", e)))?
         .next()
         .ok_or_else(|| ApiError::Network(format!("Could not resolve: {}", addr_str)))?;
-    let stream = TcpStream::connect_timeout(
+    let mut stream = TcpStream::connect_timeout(
         &socket_addr,
         std::time::Duration::from_secs(10),
     ).map_err(|e| ApiError::Network(format!("Connection failed: {}", e)))?;
@@ -51,14 +51,12 @@ fn raw_get<T: serde::de::DeserializeOwned>(base_url: &str, path: &str) -> Result
         "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
         path, addr_str
     );
-
-    let mut stream_clone = stream.try_clone().map_err(|e| ApiError::Network(e.to_string()))?;
-    stream_clone.write_all(request.as_bytes()).map_err(|e| ApiError::Network(format!("Write failed: {}", e)))?;
+    stream.write_all(request.as_bytes()).map_err(|e| ApiError::Network(format!("Write failed: {}", e)))?;
 
     let mut response = Vec::new();
     let mut buf = [0u8; 4096];
     loop {
-        match stream_clone.read(&mut buf) {
+        match stream.read(&mut buf) {
             Ok(0) => break,
             Ok(n) => response.extend_from_slice(&buf[..n]),
             Err(e) => {
@@ -69,6 +67,7 @@ fn raw_get<T: serde::de::DeserializeOwned>(base_url: &str, path: &str) -> Result
             }
         }
     }
+    drop(stream);
 
     let response_str = String::from_utf8_lossy(&response);
     let header_end = response_str.find("\r\n\r\n").unwrap_or(0);

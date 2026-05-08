@@ -1,4 +1,4 @@
-use crate::api::{auth, client::get_base_url, demo};
+use crate::api::{auth, client::get_base_url, demo, client::ApiError};
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
@@ -61,8 +61,22 @@ pub fn LoginPage() -> Element {
             let base_url = crate::api::client::get_base_url();
             let (tx, rx) = tokio::sync::oneshot::channel();
             std::thread::spawn(move || {
-                let result = auth::blocking_login(&base_url, &email_val, &password_val);
-                let _ = tx.send(result);
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    auth::blocking_login(&base_url, &email_val, &password_val)
+                }));
+                match result {
+                    Ok(login_result) => { let _ = tx.send(login_result); }
+                    Err(panic) => {
+                        let msg = if let Some(s) = panic.downcast_ref::<&str>() {
+                            s.to_string()
+                        } else if let Some(s) = panic.downcast_ref::<String>() {
+                            s.clone()
+                        } else {
+                            "Unknown panic".to_string()
+                        };
+                        let _ = tx.send(Err(ApiError::Network(msg)));
+                    }
+                }
             });
             let login_result = tokio::time::timeout(
                 std::time::Duration::from_secs(20),
@@ -101,8 +115,18 @@ pub fn LoginPage() -> Element {
             let base_url = crate::api::client::get_base_url();
             let (tx, rx) = tokio::sync::oneshot::channel();
             std::thread::spawn(move || {
-                let result = demo::blocking_init(&base_url);
-                let _ = tx.send(result);
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    demo::blocking_init(&base_url)
+                }));
+                match result {
+                    Ok(r) => { let _ = tx.send(r); }
+                    Err(panic) => {
+                        let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
+                        else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
+                        else { "Unknown panic".to_string() };
+                        let _ = tx.send(Err(ApiError::Network(msg)));
+                    }
+                }
             });
             let init_result = tokio::time::timeout(
                 std::time::Duration::from_secs(20),
@@ -114,8 +138,18 @@ pub fn LoginPage() -> Element {
                     let base_url = crate::api::client::get_base_url();
                     let (tx2, rx2) = tokio::sync::oneshot::channel();
                     std::thread::spawn(move || {
-                        let result = auth::blocking_login(&base_url, &init_resp.email, &init_resp.password);
-                        let _ = tx2.send(result);
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            auth::blocking_login(&base_url, &init_resp.email, &init_resp.password)
+                        }));
+                        match result {
+                            Ok(r) => { let _ = tx2.send(r); }
+                            Err(panic) => {
+                                let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
+                                else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
+                                else { "Unknown panic".to_string() };
+                                let _ = tx2.send(Err(ApiError::Network(msg)));
+                            }
+                        }
                     });
                     let login_result = tokio::time::timeout(
                         std::time::Duration::from_secs(20),
