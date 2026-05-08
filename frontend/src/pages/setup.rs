@@ -37,23 +37,46 @@ pub fn SetupPage() -> Element {
         let nav = navigator();
 
         spawn(async move {
-            // Verify URL is reachable before saving (all platforms including Android).
-            // tokio::time::timeout prevents hang if reqwest ignores client timeout on Android.
-            let check_result = tokio::time::timeout(
+            // Verify URL is reachable before saving.
+            // On Android, reqwest blocks the executor so tokio::time::timeout never fires.
+            // Use spawn_blocking + TcpStream::connect_timeout instead — runs in separate thread.
+            let url_for_check = url.clone();
+            let tcp_check = tokio::task::spawn_blocking(move || {
+                // Parse host:port from URL
+                let trimmed = url_for_check.trim();
+                let without_proto = trimmed
+                    .strip_prefix("http://")
+                    .or_else(|| trimmed.strip_prefix("https://"));
+                let host_port = match without_proto {
+                    Some(s) => s.split('/').next().unwrap_or(s),
+                    None => return Err("URL must start with http:// or https://".to_string()),
+                };
+                let mut parts = host_port.split(':');
+                let host = match parts.next() {
+                    Some(h) if !h.is_empty() => h.to_string(),
+                    _ => return Err("Invalid URL: missing host".to_string()),
+                };
+                let port: u16 = parts.next().unwrap_or("80").parse().map_err(|_| "Invalid port".to_string())?;
+
+                let addr = std::net::SocketAddr::new(
+                    host.parse().map_err(|_| format!("Invalid host: {}", host))?,
+                    port,
+                );
+                std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(5))
+                    .map(|_| ())
+                    .map_err(|e| format!("Connection failed: {}", e))
+            });
+
+            // Timeout on the spawn_blocking task
+            let tcp_result = tokio::time::timeout(
                 std::time::Duration::from_secs(10),
-                async {
-                    let client = crate::api::client::get_client();
-                    client
-                        .get(format!("{}/api/demo/status", &url))
-                        .timeout(std::time::Duration::from_secs(5))
-                        .send()
-                        .await
-                },
+                tcp_check,
             )
             .await;
 
-            match check_result {
-                Ok(Ok(resp)) if resp.status().is_success() => {
+            match tcp_result {
+                Ok(Ok(Ok(()))) => {
+                    // TCP connect succeeded — server is reachable
                     set_base_url(&url);
                     save_server_url(&url);
 
@@ -73,11 +96,11 @@ pub fn SetupPage() -> Element {
 
                     nav.push(Route::Login {});
                 }
-                Ok(Ok(resp)) => {
-                    error.set(format!("Server returned status {}", resp.status()));
+                Ok(Ok(Err(e))) => {
+                    error.set(e);
                 }
                 Ok(Err(e)) => {
-                    error.set(format!("Connection failed: {}", e));
+                    error.set(format!("Check failed: {}", e));
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check the URL and make sure the server is running.".to_string());

@@ -56,19 +56,26 @@ pub fn LoginPage() -> Element {
         // Async closures in event handlers may not cancel properly on Android.
         spawn(async move {
             // Hard timeout prevents hang when reqwest ignores client timeout on Android.
+            // tokio::task::spawn runs HTTP call in separate task — timeout fires even if reqwest blocks.
+            let login_handle = tokio::task::spawn(async move {
+                auth::login(email_val, password_val).await
+            });
             let login_result = tokio::time::timeout(
                 std::time::Duration::from_secs(15),
-                auth::login(email_val, password_val),
+                login_handle,
             )
             .await;
             match login_result {
-                Ok(Ok(resp)) => {
+                Ok(Ok(Ok(resp))) => {
                     AUTH.write()
                         .set_authenticated(resp.token, resp.user, resp.requires_verification);
                     nav.push(Route::Dashboard {});
                 }
-                Ok(Err(e)) => {
+                Ok(Ok(Err(e))) => {
                     error.set(e.to_string());
+                }
+                Ok(Err(e)) => {
+                    error.set(format!("Login task failed: {}", e));
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
@@ -86,21 +93,25 @@ pub fn LoginPage() -> Element {
         let nav = nav_demo.clone();
 
         spawn(async move {
-            // Hard timeout prevents hang on Android
+            // Hard timeout prevents hang on Android — spawn HTTP calls in separate tokio tasks
+            let init_handle = tokio::task::spawn(async move { demo::init().await });
             let init_result = tokio::time::timeout(
                 std::time::Duration::from_secs(15),
-                demo::init(),
+                init_handle,
             )
             .await;
             match init_result {
-                Ok(Ok(init_resp)) => {
+                Ok(Ok(Ok(init_resp))) => {
+                    let login_handle = tokio::task::spawn(async move {
+                        auth::login(init_resp.email, init_resp.password).await
+                    });
                     let login_result = tokio::time::timeout(
                         std::time::Duration::from_secs(15),
-                        auth::login(init_resp.email, init_resp.password),
+                        login_handle,
                     )
                     .await;
                     match login_result {
-                        Ok(Ok(auth_resp)) => {
+                        Ok(Ok(Ok(auth_resp))) => {
                             AUTH.write().set_authenticated(
                                 auth_resp.token,
                                 auth_resp.user,
@@ -110,16 +121,22 @@ pub fn LoginPage() -> Element {
                             let _ = demo::reset().await;
                             nav.push(Route::Dashboard {});
                         }
-                        Ok(Err(e)) => {
+                        Ok(Ok(Err(e))) => {
                             error.set(e.to_string());
+                        }
+                        Ok(Err(e)) => {
+                            error.set(format!("Login task failed: {}", e));
                         }
                         Err(_) => {
                             error.set("Connection timed out. Check your server URL.".to_string());
                         }
                     }
                 }
-                Ok(Err(e)) => {
+                Ok(Ok(Err(e))) => {
                     error.set(e.to_string());
+                }
+                Ok(Err(e)) => {
+                    error.set(format!("Init task failed: {}", e));
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL.".to_string());
