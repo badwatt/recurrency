@@ -55,27 +55,21 @@ pub fn LoginPage() -> Element {
         // Use Dioxus spawn (tied to component scope — cancelled on unmount).
         // Async closures in event handlers may not cancel properly on Android.
         spawn(async move {
-            // Hard timeout prevents hang when reqwest ignores client timeout on Android.
-            // tokio::task::spawn runs HTTP call in separate task — timeout fires even if reqwest blocks.
-            let login_handle = tokio::task::spawn(async move {
-                auth::login(email_val, password_val).await
-            });
+            // tokio::time::timeout prevents hang if server doesn't respond.
+            // URL already verified by TCP connect in Setup page.
             let login_result = tokio::time::timeout(
                 std::time::Duration::from_secs(15),
-                login_handle,
+                auth::login(email_val, password_val),
             )
             .await;
             match login_result {
-                Ok(Ok(Ok(resp))) => {
+                Ok(Ok(resp)) => {
                     AUTH.write()
                         .set_authenticated(resp.token, resp.user, resp.requires_verification);
                     nav.push(Route::Dashboard {});
                 }
-                Ok(Ok(Err(e))) => {
-                    error.set(e.to_string());
-                }
                 Ok(Err(e)) => {
-                    error.set(format!("Login task failed: {}", e));
+                    error.set(e.to_string());
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
@@ -93,50 +87,39 @@ pub fn LoginPage() -> Element {
         let nav = nav_demo.clone();
 
         spawn(async move {
-            // Hard timeout prevents hang on Android — spawn HTTP calls in separate tokio tasks
-            let init_handle = tokio::task::spawn(async move { demo::init().await });
+            // tokio::time::timeout prevents hang if server doesn't respond.
             let init_result = tokio::time::timeout(
                 std::time::Duration::from_secs(15),
-                init_handle,
+                demo::init(),
             )
             .await;
             match init_result {
-                Ok(Ok(Ok(init_resp))) => {
-                    let login_handle = tokio::task::spawn(async move {
-                        auth::login(init_resp.email, init_resp.password).await
-                    });
+                Ok(Ok(init_resp)) => {
                     let login_result = tokio::time::timeout(
                         std::time::Duration::from_secs(15),
-                        login_handle,
+                        auth::login(init_resp.email, init_resp.password),
                     )
                     .await;
                     match login_result {
-                        Ok(Ok(Ok(auth_resp))) => {
+                        Ok(Ok(auth_resp)) => {
                             AUTH.write().set_authenticated(
                                 auth_resp.token,
                                 auth_resp.user,
                                 auth_resp.requires_verification,
                             );
-                            // Await reset so demo data is ready before navigating
                             let _ = demo::reset().await;
                             nav.push(Route::Dashboard {});
                         }
-                        Ok(Ok(Err(e))) => {
-                            error.set(e.to_string());
-                        }
                         Ok(Err(e)) => {
-                            error.set(format!("Login task failed: {}", e));
+                            error.set(e.to_string());
                         }
                         Err(_) => {
                             error.set("Connection timed out. Check your server URL.".to_string());
                         }
                     }
                 }
-                Ok(Ok(Err(e))) => {
-                    error.set(e.to_string());
-                }
                 Ok(Err(e)) => {
-                    error.set(format!("Init task failed: {}", e));
+                    error.set(e.to_string());
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL.".to_string());
