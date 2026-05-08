@@ -1,7 +1,5 @@
 use crate::api::client::{api_get, api_post, ApiError};
 use serde::Deserialize;
-use std::io::{Read, Write};
-use std::net::TcpStream;
 
 #[derive(Debug, Deserialize)]
 pub struct DemoStatus {
@@ -21,83 +19,19 @@ pub struct DemoResetResponse {
     pub message: String,
 }
 
-/// Raw HTTP GET using TcpStream. No reqwest.
-fn raw_get<T: serde::de::DeserializeOwned>(base_url: &str, path: &str) -> Result<T, ApiError> {
-    let trimmed = base_url.trim();
-    let without_proto = trimmed
-        .strip_prefix("http://")
-        .or_else(|| trimmed.strip_prefix("https://"))
-        .ok_or_else(|| ApiError::Network("URL must start with http://".to_string()))?;
-    let host_port = without_proto.split('/').next().unwrap_or(without_proto);
-    let mut parts = host_port.split(':');
-    let host = parts.next().unwrap_or("");
-    let port: u16 = parts.next().unwrap_or("80").parse().map_err(|_| ApiError::Network("Invalid port".to_string()))?;
-    // Host header without default port (many servers reject :80 in Host header)
-    let host_hdr = if port == 80 { host.to_string() } else { format!("{}:{}", host, port) };
-    let addr_str = format!("{}:{}", host, port);
-    use std::net::ToSocketAddrs;
-    let socket_addr = addr_str
-        .to_socket_addrs()
-        .map_err(|e| ApiError::Network(format!("Invalid address: {}", e)))?
-        .next()
-        .ok_or_else(|| ApiError::Network(format!("Could not resolve: {}", addr_str)))?;
-    let mut stream = TcpStream::connect_timeout(
-        &socket_addr,
-        std::time::Duration::from_secs(10),
-    ).map_err(|e| ApiError::Network(format!("Connection failed: {}", e)))?;
-
-    stream.set_read_timeout(Some(std::time::Duration::from_secs(15))).ok();
-
-    let request = format!(
-        "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
-        path, host_hdr
-    );
-    stream.write_all(request.as_bytes()).map_err(|e| ApiError::Network(format!("Write failed: {}", e)))?;
-
-    let mut response = Vec::new();
-    let mut buf = [0u8; 4096];
-    loop {
-        match stream.read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => response.extend_from_slice(&buf[..n]),
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut {
-                    break;
-                }
-                return Err(ApiError::Network(format!("Read failed: {}", e)));
-            }
-        }
-    }
-    drop(stream);
-
-    let response_str = String::from_utf8_lossy(&response);
-    if response_str.is_empty() {
-        return Err(ApiError::Network("Empty response from server".to_string()));
-    }
-    let header_end = response_str.find("\r\n\r\n").unwrap_or(0);
-    if header_end == 0 || header_end + 4 >= response_str.len() {
-        let preview: String = response_str.chars().take(200).collect();
-        return Err(ApiError::Network(format!("Malformed response: {}", preview)));
-    }
-    let body_str = &response_str[header_end + 4..];
-
-    let status_line = response_str.lines().next().unwrap_or("");
-    let status_code: u16 = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-
-    if status_code < 200 || status_code >= 300 {
-        return Err(ApiError::Http(status_code, body_str.to_string()));
-    }
-
-    serde_json::from_str(body_str).map_err(|e| ApiError::Parse(format!("{}: {}", e, &body_str[..body_str.len().min(200)])))
-}
-
-/// Synchronous demo init — raw TCP HTTP, no reqwest.
+/// Synchronous demo init using ureq (no tokio, supports TLS). Works on Android.
 pub fn blocking_init(base_url: &str) -> Result<DemoInitResponse, ApiError> {
-    raw_get(base_url, "/api/demo/init")
+    let url = format!("{}/api/demo/init", base_url);
+    let resp = ureq::get(&url)
+        .timeout(std::time::Duration::from_secs(15))
+        .call()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+    let status = resp.status();
+    if status < 200 || status >= 300 {
+        let body = resp.into_string().unwrap_or_default();
+        return Err(ApiError::Http(status, body));
+    }
+    resp.into_json::<DemoInitResponse>().map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 pub async fn get_status() -> Result<DemoStatus, ApiError> {

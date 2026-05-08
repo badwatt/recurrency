@@ -1,87 +1,20 @@
 use crate::api::client::{api_post, ApiError};
 use crate::models::auth::*;
-use std::io::{Read, Write};
-use std::net::TcpStream;
 
-/// Raw HTTP POST using TcpStream. No reqwest.
-/// On Android, reqwest (async or blocking) fails inside tokio runtime.
-fn raw_post<T: serde::de::DeserializeOwned>(base_url: &str, path: &str, body: &str) -> Result<T, ApiError> {
-    let trimmed = base_url.trim();
-    let without_proto = trimmed
-        .strip_prefix("http://")
-        .or_else(|| trimmed.strip_prefix("https://"))
-        .ok_or_else(|| ApiError::Network("URL must start with http://".to_string()))?;
-    let host_port = without_proto.split('/').next().unwrap_or(without_proto);
-    let mut parts = host_port.split(':');
-    let host = parts.next().unwrap_or("");
-    let port: u16 = parts.next().unwrap_or("80").parse().map_err(|_| ApiError::Network("Invalid port".to_string()))?;
-    // Host header without default port (many servers reject :80 in Host header)
-    let host_hdr = if port == 80 { host.to_string() } else { format!("{}:{}", host, port) };
-    let addr_str = format!("{}:{}", host, port);
-    use std::net::ToSocketAddrs;
-    let socket_addr = addr_str
-        .to_socket_addrs()
-        .map_err(|e| ApiError::Network(format!("Invalid address: {}", e)))?
-        .next()
-        .ok_or_else(|| ApiError::Network(format!("Could not resolve: {}", addr_str)))?;
-    let mut stream = TcpStream::connect_timeout(
-        &socket_addr,
-        std::time::Duration::from_secs(10),
-    ).map_err(|e| ApiError::Network(format!("Connection failed: {}", e)))?;
-    stream.set_read_timeout(Some(std::time::Duration::from_secs(15))).ok();
-    stream.set_write_timeout(Some(std::time::Duration::from_secs(5))).ok();
-
-    let request = format!(
-        "POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        path, host_hdr, body.len(), body
-    );
-    stream.write_all(request.as_bytes()).map_err(|e| ApiError::Network(format!("Write failed: {}", e)))?;
-
-    let mut response = Vec::new();
-    let mut buf = [0u8; 4096];
-    loop {
-        match stream.read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => response.extend_from_slice(&buf[..n]),
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut {
-                    break;
-                }
-                return Err(ApiError::Network(format!("Read failed: {}", e)));
-            }
-        }
-    }
-    drop(stream);
-
-    let response_str = String::from_utf8_lossy(&response);
-    if response_str.is_empty() {
-        return Err(ApiError::Network("Empty response from server".to_string()));
-    }
-    let header_end = response_str.find("\r\n\r\n").unwrap_or(0);
-    if header_end == 0 || header_end + 4 >= response_str.len() {
-        let preview: String = response_str.chars().take(200).collect();
-        return Err(ApiError::Network(format!("Malformed response: {}", preview)));
-    }
-    let body_str = &response_str[header_end + 4..];
-
-    let status_line = response_str.lines().next().unwrap_or("");
-    let status_code: u16 = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-
-    if status_code < 200 || status_code >= 300 {
-        return Err(ApiError::Http(status_code, body_str.to_string()));
-    }
-
-    serde_json::from_str(body_str).map_err(|e| ApiError::Parse(format!("{}: {}", e, &body_str[..body_str.len().min(200)])))
-}
-
-/// Synchronous login — raw TCP HTTP, no reqwest.
+/// Synchronous login using ureq (no tokio, supports TLS). Works on Android.
 pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, ApiError> {
-    let body = serde_json::json!({ "email": email, "password": password }).to_string();
-    raw_post(base_url, "/api/auth/login", &body)
+    let url = format!("{}/api/auth/login", base_url);
+    let resp = ureq::post(&url)
+        .timeout(std::time::Duration::from_secs(15))
+        .set("Content-Type", "application/json")
+        .send_json(&serde_json::json!({ "email": email, "password": password }))
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+    let status = resp.status();
+    if status < 200 || status >= 300 {
+        let body = resp.into_string().unwrap_or_default();
+        return Err(ApiError::Http(status, body));
+    }
+    resp.into_json::<AuthResponse>().map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 pub async fn login(email: String, password: String) -> Result<AuthResponse, ApiError> {

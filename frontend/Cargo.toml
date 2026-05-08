@@ -14,6 +14,7 @@ name = "recurrency"
 path = "src/main.rs"
 
 [dependencies]
+ureq = { version = "2", features = ["json", "native-tls"] }
 dioxus = { version = "0.7.5", features = ["router"] }
 web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
 sys-locale = "0.3.2"
