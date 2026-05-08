@@ -16,9 +16,15 @@ fn raw_post<T: serde::de::DeserializeOwned>(base_url: &str, path: &str, body: &s
     let host = parts.next().unwrap_or("");
     let port: u16 = parts.next().unwrap_or("80").parse().map_err(|_| ApiError::Network("Invalid port".to_string()))?;
 
-    let addr = format!("{}:{}", host, port);
+    let addr_str = format!("{}:{}", host, port);
+    use std::net::ToSocketAddrs;
+    let socket_addr = addr_str
+        .to_socket_addrs()
+        .map_err(|e| ApiError::Network(format!("Invalid address: {}", e)))?
+        .next()
+        .ok_or_else(|| ApiError::Network(format!("Could not resolve: {}", addr_str)))?;
     let stream = TcpStream::connect_timeout(
-        &addr.parse().map_err(|_| ApiError::Network(format!("Invalid address: {}", addr)))?,
+        &socket_addr,
         std::time::Duration::from_secs(10),
     ).map_err(|e| ApiError::Network(format!("Connection failed: {}", e)))?;
 
@@ -27,7 +33,7 @@ fn raw_post<T: serde::de::DeserializeOwned>(base_url: &str, path: &str, body: &s
 
     let request = format!(
         "POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        path, addr, body.len(), body
+        path, addr_str, body.len(), body
     );
 
     let mut stream_clone = stream.try_clone().map_err(|e| ApiError::Network(e.to_string()))?;
