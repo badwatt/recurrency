@@ -58,10 +58,13 @@ pub fn SetupPage() -> Element {
                 };
                 let port: u16 = parts.next().unwrap_or("80").parse().map_err(|_| "Invalid port".to_string())?;
 
-                let addr = std::net::SocketAddr::new(
-                    host.parse().map_err(|_| format!("Invalid host: {}", host))?,
-                    port,
-                );
+                let addr_str = format!("{}:{}", host, port);
+                use std::net::ToSocketAddrs;
+                let addr = addr_str
+                    .to_socket_addrs()
+                    .map_err(|e| format!("Invalid host: {}", e))?
+                    .next()
+                    .ok_or("Could not resolve host")?;
                 std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(5))
                     .map(|_| ())
                     .map_err(|e| format!("Connection failed: {}", e))
