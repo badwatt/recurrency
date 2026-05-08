@@ -15,7 +15,8 @@ fn raw_post<T: serde::de::DeserializeOwned>(base_url: &str, path: &str, body: &s
     let mut parts = host_port.split(':');
     let host = parts.next().unwrap_or("");
     let port: u16 = parts.next().unwrap_or("80").parse().map_err(|_| ApiError::Network("Invalid port".to_string()))?;
-
+    // Host header without default port (many servers reject :80 in Host header)
+    let host_hdr = if port == 80 { host.to_string() } else { format!("{}:{}", host, port) };
     let addr_str = format!("{}:{}", host, port);
     use std::net::ToSocketAddrs;
     let socket_addr = addr_str
@@ -32,7 +33,7 @@ fn raw_post<T: serde::de::DeserializeOwned>(base_url: &str, path: &str, body: &s
 
     let request = format!(
         "POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        path, addr_str, body.len(), body
+        path, host_hdr, body.len(), body
     );
     stream.write_all(request.as_bytes()).map_err(|e| ApiError::Network(format!("Write failed: {}", e)))?;
 
