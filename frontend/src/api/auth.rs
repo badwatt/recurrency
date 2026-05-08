@@ -28,7 +28,7 @@ pub async fn verify(token: &str) -> Result<serde_json::Value, ApiError> {
 pub async fn verify_email(token: &str, code: &str) -> Result<serde_json::Value, ApiError> {
     let base = crate::api::client::get_base_url();
     let url = format!("{}/api/auth/verify-email", base);
-    let client = reqwest::Client::new();
+    let client = crate::api::client::get_client();
     let resp = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", token))
@@ -51,7 +51,7 @@ pub async fn verify_email(token: &str, code: &str) -> Result<serde_json::Value, 
 pub async fn resend_verification(token: &str) -> Result<serde_json::Value, ApiError> {
     let base = crate::api::client::get_base_url();
     let url = format!("{}/api/auth/resend-verification", base);
-    let client = reqwest::Client::new();
+    let client = crate::api::client::get_client();
     let resp = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", token))
@@ -83,7 +83,7 @@ async fn api_get_with_token<T: serde::de::DeserializeOwned>(
 ) -> Result<T, ApiError> {
     let base = crate::api::client::get_base_url();
     let url = format!("{}{}", base, path);
-    let client = reqwest::Client::new();
+    let client = crate::api::client::get_client();
     let resp = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", token))

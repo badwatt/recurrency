@@ -83,8 +83,10 @@ done
 # Android adaptive-icon: 108dp canvas, 72dp safe zone.
 # Foreground: 432x432 canvas, 216x216 centered icon
 mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
-# Remove Dioxus-generated background XML to avoid duplicate resource conflict
+# Remove Dioxus-generated XMLs to avoid duplicate resource conflict and shadowing.
+# drawable-v24/ic_launcher_foreground.xml (white vector) shadows our custom PNG on API 24+.
 rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
+rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
 convert "$ICON" -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
 echo "--- Generated ic_launcher_foreground.png (432x432 with padding) ---"
 

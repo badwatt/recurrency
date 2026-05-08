@@ -46,7 +46,7 @@ pub fn SetupPage() -> Element {
 
             #[cfg(not(target_os = "android"))]
             {
-                let client = reqwest::Client::new();
+                let client = crate::api::client::get_client();
                 let result = client
                     .get(format!("{}/api/demo/status", &url))
                     .timeout(std::time::Duration::from_secs(5))

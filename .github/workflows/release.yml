@@ -248,19 +248,15 @@ jobs:
           # Android adaptive-icon: 108dp canvas, 72dp safe zone.
           # Foreground must be 432px (108dp @ xxxhdpi) with icon centered in ~288px area.
           mkdir -p "$RES_DIR/drawable"
-          # Remove Dioxus-generated background XML to avoid duplicate resource conflict
+          # Remove Dioxus-generated XMLs to avoid duplicate resource conflict and shadowing.
+          # drawable-v24/ic_launcher_foreground.xml (white vector) shadows our custom PNG on API 24+.
           rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
+          rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
           convert assets/icons/icon-1024.png -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
           echo "Generated drawable/ic_launcher_foreground.png (432x432 with padding)"
           # Generate solid background color for adaptive icons
           convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
           echo "Generated drawable/ic_launcher_background.png"
-          # Replace vector foreground with bitmap reference
-          FG_XML="$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
-          if [ -f "$FG_XML" ]; then
-            printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<layer-list xmlns:android="http://schemas.android.com/apk/res/android">' '  <item android:drawable="@drawable/ic_launcher_foreground" />' '</layer-list>' > "$FG_XML"
-            echo "Replaced $FG_XML with bitmap reference"
-          fi
           # Ensure mipmap ic_launcher.xml uses solid background + padded foreground
           for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"

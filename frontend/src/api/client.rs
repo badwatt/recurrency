@@ -3,16 +3,15 @@ use dioxus::prelude::*;
 use serde::de::DeserializeOwned;
 use std::sync::RwLock;
 
-// Static reqwest client for Android (Client::new() crashes on native Android)
-static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+// Static reqwest client with proper timeouts for Android/native.
+// Client::new() without timeouts hangs forever on Android when server is unreachable.
+pub static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
 
-fn get_client() -> &'static reqwest::Client {
+pub fn get_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(|| {
-        let mut builder = reqwest::Client::builder();
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            builder = builder.timeout(std::time::Duration::from_secs(30));
-        }
+        let mut builder = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(30));
         builder.build().expect("Failed to create reqwest client")
     })
 }
@@ -961,6 +960,16 @@ mod tests {
             let url = get_base_url();
             assert_eq!(url, "http://persist:7777");
         }
+    }
+
+    // ── get_client() timeout configuration ──
+
+    #[test]
+    fn get_client_returns_static_ref() {
+        let client1 = get_client();
+        let client2 = get_client();
+        // Same static reference (OnceLock)
+        assert!(std::ptr::eq(client1, client2));
     }
 }
 

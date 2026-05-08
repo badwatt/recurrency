@@ -53,6 +53,7 @@ pub enum Route {
 
 const TAILWIND_CSS: Asset = asset!("/assets/styles/tailwind.css", AssetOptions::css().with_static_head(true));
 
+
 fn main() {
     dioxus::launch(App);
 }
@@ -105,8 +106,14 @@ fn App() -> Element {
     });
 
     rsx! {
-        document::Stylesheet { href: TAILWIND_CSS }
-        Router::<Route> {}
+        // Critical inline CSS prevents FOUC on Android WebView.
+        // Android WebView doesn't block render on <link> stylesheet.
+        // Wrapper div sets dark background immediately via inline style.
+        div {
+            style: "background:#09090b;color:#fafafa;min-height:100dvh;font-family:system-ui,-apple-system,sans-serif;",
+            document::Stylesheet { href: TAILWIND_CSS }
+            Router::<Route> {}
+        }
     }
 }
 
