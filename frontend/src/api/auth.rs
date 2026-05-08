@@ -53,11 +53,17 @@ fn raw_post<T: serde::de::DeserializeOwned>(base_url: &str, path: &str, body: &s
     drop(stream);
 
     let response_str = String::from_utf8_lossy(&response);
+    if response_str.is_empty() {
+        return Err(ApiError::Network("Empty response from server".to_string()));
+    }
     let header_end = response_str.find("\r\n\r\n").unwrap_or(0);
-    let headers = &response_str[..header_end];
+    if header_end == 0 || header_end + 4 >= response_str.len() {
+        let preview: String = response_str.chars().take(200).collect();
+        return Err(ApiError::Network(format!("Malformed response: {}", preview)));
+    }
     let body_str = &response_str[header_end + 4..];
 
-    let status_line = headers.lines().next().unwrap_or("");
+    let status_line = response_str.lines().next().unwrap_or("");
     let status_code: u16 = status_line
         .split_whitespace()
         .nth(1)
