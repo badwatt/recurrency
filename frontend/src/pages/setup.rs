@@ -37,52 +37,53 @@ pub fn SetupPage() -> Element {
         let nav = navigator();
 
         spawn(async move {
-            #[cfg(target_os = "android")]
-            {
-                set_base_url(&url);
-                save_server_url(&url);
-                nav.push(Route::Login {});
-            }
+            // Verify URL is reachable before saving (all platforms including Android).
+            // tokio::time::timeout prevents hang if reqwest ignores client timeout on Android.
+            let check_result = tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                async {
+                    let client = crate::api::client::get_client();
+                    client
+                        .get(format!("{}/api/demo/status", &url))
+                        .timeout(std::time::Duration::from_secs(5))
+                        .send()
+                        .await
+                },
+            )
+            .await;
 
-            #[cfg(not(target_os = "android"))]
-            {
-                let client = crate::api::client::get_client();
-                let result = client
-                    .get(format!("{}/api/demo/status", &url))
-                    .timeout(std::time::Duration::from_secs(5))
-                    .send()
-                    .await;
+            match check_result {
+                Ok(Ok(resp)) if resp.status().is_success() => {
+                    set_base_url(&url);
+                    save_server_url(&url);
 
-                match result {
-                    Ok(resp) if resp.status().is_success() => {
-                        set_base_url(&url);
-                        save_server_url(&url);
-
-                        #[cfg(target_arch = "wasm32")]
-                        {
-                            let _ = dioxus::document::eval(&format!(
-                                "localStorage.setItem('RECURRENCY_API_URL','{}')",
-                                url
-                            ))
-                            .await;
-                        }
-
-                        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-                        {
-                            std::env::set_var("RECURRENCY_API_URL", &url);
-                        }
-
-                        nav.push(Route::Login {});
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        let _ = dioxus::document::eval(&format!(
+                            "localStorage.setItem('RECURRENCY_API_URL','{}')",
+                            url
+                        ))
+                        .await;
                     }
-                    Ok(resp) => {
-                        error.set(format!("Server returned status {}", resp.status()));
+
+                    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+                    {
+                        std::env::set_var("RECURRENCY_API_URL", &url);
                     }
-                    Err(e) => {
-                        error.set(format!("Connection failed: {}", e));
-                    }
+
+                    nav.push(Route::Login {});
                 }
-                connecting.set(false);
+                Ok(Ok(resp)) => {
+                    error.set(format!("Server returned status {}", resp.status()));
+                }
+                Ok(Err(e)) => {
+                    error.set(format!("Connection failed: {}", e));
+                }
+                Err(_) => {
+                    error.set("Connection timed out. Check the URL and make sure the server is running.".to_string());
+                }
             }
+            connecting.set(false);
         });
     };
 
