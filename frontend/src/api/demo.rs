@@ -19,6 +19,23 @@ pub struct DemoResetResponse {
     pub message: String,
 }
 
+/// Synchronous demo init for use inside tokio::task::spawn_blocking.
+pub fn blocking_init(base_url: &str) -> Result<DemoInitResponse, ApiError> {
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+    let url = format!("{}/api/demo/init", base_url);
+    let resp = client.get(&url).send().map_err(|e| ApiError::Network(e.to_string()))?;
+    let status = resp.status().as_u16();
+    if !resp.status().is_success() {
+        let body = resp.text().unwrap_or_default();
+        return Err(ApiError::Http(status, body));
+    }
+    resp.json::<DemoInitResponse>().map_err(|e| ApiError::Parse(e.to_string()))
+}
+
 pub async fn get_status() -> Result<DemoStatus, ApiError> {
     api_get("/api/demo/status").await
 }

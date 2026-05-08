@@ -1,6 +1,32 @@
 use crate::api::client::{api_post, ApiError};
 use crate::models::auth::*;
 
+/// Synchronous login for use inside tokio::task::spawn_blocking.
+/// On Android, reqwest async blocks the tokio runtime — blocking client in separate thread works.
+pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, ApiError> {
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    let url = format!("{}/api/auth/login", base_url);
+    let resp = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "email": email, "password": password }))
+        .send()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    let status = resp.status().as_u16();
+    if !resp.status().is_success() {
+        let body = resp.text().unwrap_or_default();
+        return Err(ApiError::Http(status, body));
+    }
+    resp.json::<AuthResponse>()
+        .map_err(|e| ApiError::Parse(e.to_string()))
+}
+
 pub async fn login(email: String, password: String) -> Result<AuthResponse, ApiError> {
     let req = LoginRequest { email, password };
     api_post("/api/auth/login", &req).await

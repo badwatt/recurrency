@@ -55,21 +55,28 @@ pub fn LoginPage() -> Element {
         // Use Dioxus spawn (tied to component scope — cancelled on unmount).
         // Async closures in event handlers may not cancel properly on Android.
         spawn(async move {
-            // tokio::time::timeout prevents hang if server doesn't respond.
-            // URL already verified by TCP connect in Setup page.
+            // On Android, reqwest async blocks tokio runtime — timeout never fires.
+            // Use reqwest::blocking inside spawn_blocking (separate thread pool).
+            let base_url = crate::api::client::get_base_url();
+            let login_handle = tokio::task::spawn_blocking(move || {
+                auth::blocking_login(&base_url, &email_val, &password_val)
+            });
             let login_result = tokio::time::timeout(
-                std::time::Duration::from_secs(15),
-                auth::login(email_val, password_val),
+                std::time::Duration::from_secs(20),
+                login_handle,
             )
             .await;
             match login_result {
-                Ok(Ok(resp)) => {
+                Ok(Ok(Ok(resp))) => {
                     AUTH.write()
                         .set_authenticated(resp.token, resp.user, resp.requires_verification);
                     nav.push(Route::Dashboard {});
                 }
-                Ok(Err(e)) => {
+                Ok(Ok(Err(e))) => {
                     error.set(e.to_string());
+                }
+                Ok(Err(e)) => {
+                    error.set(format!("Login error: {}", e));
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
@@ -87,21 +94,30 @@ pub fn LoginPage() -> Element {
         let nav = nav_demo.clone();
 
         spawn(async move {
-            // tokio::time::timeout prevents hang if server doesn't respond.
+            // On Android, reqwest async blocks tokio runtime.
+            // Use reqwest::blocking inside spawn_blocking (separate thread pool).
+            let base_url = crate::api::client::get_base_url();
+            let demo_handle = tokio::task::spawn_blocking(move || {
+                demo::blocking_init(&base_url)
+            });
             let init_result = tokio::time::timeout(
-                std::time::Duration::from_secs(15),
-                demo::init(),
+                std::time::Duration::from_secs(20),
+                demo_handle,
             )
             .await;
             match init_result {
-                Ok(Ok(init_resp)) => {
+                Ok(Ok(Ok(init_resp))) => {
+                    let base_url = crate::api::client::get_base_url();
+                    let login_handle = tokio::task::spawn_blocking(move || {
+                        auth::blocking_login(&base_url, &init_resp.email, &init_resp.password)
+                    });
                     let login_result = tokio::time::timeout(
-                        std::time::Duration::from_secs(15),
-                        auth::login(init_resp.email, init_resp.password),
+                        std::time::Duration::from_secs(20),
+                        login_handle,
                     )
                     .await;
                     match login_result {
-                        Ok(Ok(auth_resp)) => {
+                        Ok(Ok(Ok(auth_resp))) => {
                             AUTH.write().set_authenticated(
                                 auth_resp.token,
                                 auth_resp.user,
@@ -110,16 +126,22 @@ pub fn LoginPage() -> Element {
                             let _ = demo::reset().await;
                             nav.push(Route::Dashboard {});
                         }
-                        Ok(Err(e)) => {
+                        Ok(Ok(Err(e))) => {
                             error.set(e.to_string());
+                        }
+                        Ok(Err(e)) => {
+                            error.set(format!("Login error: {}", e));
                         }
                         Err(_) => {
                             error.set("Connection timed out. Check your server URL.".to_string());
                         }
                     }
                 }
-                Ok(Err(e)) => {
+                Ok(Ok(Err(e))) => {
                     error.set(e.to_string());
+                }
+                Ok(Err(e)) => {
+                    error.set(format!("Demo init error: {}", e));
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL.".to_string());
