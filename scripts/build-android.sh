@@ -59,6 +59,9 @@ if [ ! -f "$KEYSTORE" ]; then
 fi
 
 echo "--- Building Android APK (aarch64) ---"
+# Clean previous Android build to avoid duplicate resource conflicts.
+# Dioxus generates ic_launcher_background.xml, previous builds leave .png residue.
+rm -rf target/dx/recurrency/release/android 2>/dev/null || true
 dx bundle --platform android --target aarch64-linux-android --release
 
 # Replace icons
