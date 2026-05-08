@@ -170,7 +170,7 @@ fn ureq_handle_resp<T: serde::de::DeserializeOwned>(resp: ureq::Response) -> Res
 }
 
 /// GET request with auth.
-pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
+pub async fn api_get<T: DeserializeOwned + Send + 'static>(path: &str) -> Result<T, ApiError> {
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
@@ -209,7 +209,7 @@ pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
 }
 
 /// POST request with auth.
-pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(
+pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
     path: &str,
     body: &B,
 ) -> Result<T, ApiError> {
@@ -252,7 +252,7 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(
 }
 
 /// PUT request with auth.
-pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(
+pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
     path: &str,
     body: &B,
 ) -> Result<T, ApiError> {
