@@ -55,15 +55,18 @@ pub fn LoginPage() -> Element {
         // Use Dioxus spawn (tied to component scope — cancelled on unmount).
         // Async closures in event handlers may not cancel properly on Android.
         spawn(async move {
-            // On Android, reqwest async blocks tokio runtime — timeout never fires.
-            // Use reqwest::blocking inside spawn_blocking (separate thread pool).
+            // On Android, reqwest async blocks tokio runtime.
+            // reqwest::blocking panics inside tokio context (even spawn_blocking).
+            // Use std::thread::spawn (OS thread, no tokio context) + oneshot channel.
             let base_url = crate::api::client::get_base_url();
-            let login_handle = tokio::task::spawn_blocking(move || {
-                auth::blocking_login(&base_url, &email_val, &password_val)
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            std::thread::spawn(move || {
+                let result = auth::blocking_login(&base_url, &email_val, &password_val);
+                let _ = tx.send(result);
             });
             let login_result = tokio::time::timeout(
                 std::time::Duration::from_secs(20),
-                login_handle,
+                rx,
             )
             .await;
             match login_result {
@@ -75,8 +78,8 @@ pub fn LoginPage() -> Element {
                 Ok(Ok(Err(e))) => {
                     error.set(e.to_string());
                 }
-                Ok(Err(e)) => {
-                    error.set(format!("Login error: {}", e));
+                Ok(Err(_)) => {
+                    error.set("Login channel closed".to_string());
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
@@ -94,26 +97,29 @@ pub fn LoginPage() -> Element {
         let nav = nav_demo.clone();
 
         spawn(async move {
-            // On Android, reqwest async blocks tokio runtime.
-            // Use reqwest::blocking inside spawn_blocking (separate thread pool).
+            // std::thread::spawn (no tokio context) + oneshot channel.
             let base_url = crate::api::client::get_base_url();
-            let demo_handle = tokio::task::spawn_blocking(move || {
-                demo::blocking_init(&base_url)
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            std::thread::spawn(move || {
+                let result = demo::blocking_init(&base_url);
+                let _ = tx.send(result);
             });
             let init_result = tokio::time::timeout(
                 std::time::Duration::from_secs(20),
-                demo_handle,
+                rx,
             )
             .await;
             match init_result {
                 Ok(Ok(Ok(init_resp))) => {
                     let base_url = crate::api::client::get_base_url();
-                    let login_handle = tokio::task::spawn_blocking(move || {
-                        auth::blocking_login(&base_url, &init_resp.email, &init_resp.password)
+                    let (tx2, rx2) = tokio::sync::oneshot::channel();
+                    std::thread::spawn(move || {
+                        let result = auth::blocking_login(&base_url, &init_resp.email, &init_resp.password);
+                        let _ = tx2.send(result);
                     });
                     let login_result = tokio::time::timeout(
                         std::time::Duration::from_secs(20),
-                        login_handle,
+                        rx2,
                     )
                     .await;
                     match login_result {
@@ -129,8 +135,8 @@ pub fn LoginPage() -> Element {
                         Ok(Ok(Err(e))) => {
                             error.set(e.to_string());
                         }
-                        Ok(Err(e)) => {
-                            error.set(format!("Login error: {}", e));
+                        Ok(Err(_)) => {
+                            error.set("Login channel closed".to_string());
                         }
                         Err(_) => {
                             error.set("Connection timed out. Check your server URL.".to_string());
@@ -140,8 +146,8 @@ pub fn LoginPage() -> Element {
                 Ok(Ok(Err(e))) => {
                     error.set(e.to_string());
                 }
-                Ok(Err(e)) => {
-                    error.set(format!("Demo init error: {}", e));
+                Ok(Err(_)) => {
+                    error.set("Demo init channel closed".to_string());
                 }
                 Err(_) => {
                     error.set("Connection timed out. Check your server URL.".to_string());
