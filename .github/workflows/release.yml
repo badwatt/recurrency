@@ -319,7 +319,7 @@ jobs:
         with:
           name: recurrency-android
           path: bin/android/*.apk
-          retention-days: 30
+          retention-days: 1
           if-no-files-found: error
 
       - name: Upload APK to Release
