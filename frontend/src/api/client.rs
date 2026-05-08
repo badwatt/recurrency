@@ -140,35 +140,72 @@ pub fn auth_headers(headers: &mut Vec<(String, String)>) {
     headers.push(("Content-Type".into(), "application/json".into()));
 }
 
+// ── ureq synchronous helpers (no tokio, supports TLS, works on Android) ──
+
+fn ureq_request(method: &str, url: &str, headers: &[(String, String)]) -> ureq::Request {
+    let mut req = match method {
+        "GET" => ureq::get(url),
+        "POST" => ureq::post(url),
+        "PUT" => ureq::put(url),
+        "DELETE" => ureq::delete(url),
+        _ => ureq::get(url),
+    };
+    req = req.timeout(std::time::Duration::from_secs(30));
+    for (k, v) in headers {
+        req = req.set(k, v);
+    }
+    req
+}
+
+fn ureq_handle_resp<T: serde::de::DeserializeOwned>(resp: ureq::Response) -> Result<T, ApiError> {
+    let status = resp.status();
+    if status == 401 {
+        return Err(ApiError::Unauthorized);
+    }
+    if status < 200 || status >= 300 {
+        let body = resp.into_string().unwrap_or_default();
+        return Err(ApiError::Http(status, body));
+    }
+    resp.into_json::<T>().map_err(|e| ApiError::Parse(e.to_string()))
+}
+
 /// GET request with auth.
 pub async fn api_get<T: DeserializeOwned>(path: &str) -> Result<T, ApiError> {
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
-    let client = get_client();
-    let mut req = client.get(&url);
-    for (k, v) in headers {
-        req = req.header(k, v);
+    #[cfg(target_os = "android")]
+    {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let req = ureq_request("GET", &url, &headers);
+                req.call().map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+            }));
+            let _ = tx.send(match result {
+                Ok(r) => r,
+                Err(p) => Err(ApiError::Network(panic_msg(p))),
+            });
+        });
+        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
     }
-
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-    let status = resp.status().as_u16();
-
-    if status == 401 {
-        return Err(ApiError::Unauthorized);
+    #[cfg(not(target_os = "android"))]
+    {
+        let client = get_client();
+        let mut req = client.get(&url);
+        for (k, v) in headers {
+            req = req.header(k, v);
+        }
+        let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let status = resp.status().as_u16();
+        if status == 401 { return Err(ApiError::Unauthorized); }
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Http(status, body));
+        }
+        resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
     }
-    if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
-        return Err(ApiError::Http(status, body));
-    }
-
-    resp.json::<T>()
-        .await
-        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// POST request with auth.
@@ -179,31 +216,39 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned>(
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
+    let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
-    let client = get_client();
-    let mut req = client.post(&url);
-    for (k, v) in headers {
-        req = req.header(k, v);
+    #[cfg(target_os = "android")]
+    {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let req = ureq_request("POST", &url, &headers);
+                req.send_string(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+            }));
+            let _ = tx.send(match result {
+                Ok(r) => r,
+                Err(p) => Err(ApiError::Network(panic_msg(p))),
+            });
+        });
+        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
     }
-
-    let resp = req
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-    let status = resp.status().as_u16();
-
-    if status == 401 {
-        return Err(ApiError::Unauthorized);
+    #[cfg(not(target_os = "android"))]
+    {
+        let client = get_client();
+        let mut req = client.post(&url);
+        for (k, v) in headers {
+            req = req.header(k, v);
+        }
+        let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let status = resp.status().as_u16();
+        if status == 401 { return Err(ApiError::Unauthorized); }
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Http(status, body));
+        }
+        resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
     }
-    if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
-        return Err(ApiError::Http(status, body));
-    }
-
-    resp.json::<T>()
-        .await
-        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// PUT request with auth.
@@ -212,37 +257,41 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned>(
     body: &B,
 ) -> Result<T, ApiError> {
     let url = auth_url(path);
-    log::info!("[api_put] URL: {}, Body type: {}", url, std::any::type_name::<B>());
     let mut headers = Vec::new();
     auth_headers(&mut headers);
+    let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
-    let client = get_client();
-    let mut req = client.put(&url);
-    for (k, v) in headers {
-        req = req.header(k, v);
+    #[cfg(target_os = "android")]
+    {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let req = ureq_request("PUT", &url, &headers);
+                req.send_string(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+            }));
+            let _ = tx.send(match result {
+                Ok(r) => r,
+                Err(p) => Err(ApiError::Network(panic_msg(p))),
+            });
+        });
+        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
     }
-
-    let resp = req
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-    let status = resp.status().as_u16();
-
-    log::info!("[api_put] Response status: {}", status);
-
-    if status == 401 {
-        return Err(ApiError::Unauthorized);
+    #[cfg(not(target_os = "android"))]
+    {
+        let client = get_client();
+        let mut req = client.put(&url);
+        for (k, v) in headers {
+            req = req.header(k, v);
+        }
+        let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let status = resp.status().as_u16();
+        if status == 401 { return Err(ApiError::Unauthorized); }
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Http(status, body));
+        }
+        resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
     }
-    if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
-        log::error!("[api_put] HTTP error {}: {}", status, body);
-        return Err(ApiError::Http(status, body));
-    }
-
-    resp.json::<T>()
-        .await
-        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// DELETE request with auth.
@@ -251,27 +300,50 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
     let mut headers = Vec::new();
     auth_headers(&mut headers);
 
-    let client = get_client();
-    let mut req = client.delete(&url);
-    for (k, v) in headers {
-        req = req.header(k, v);
+    #[cfg(target_os = "android")]
+    {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let req = ureq_request("DELETE", &url, &headers);
+                let resp = req.call().map_err(|e| ApiError::Network(e.to_string()))?;
+                let status = resp.status();
+                if status == 401 { return Err(ApiError::Unauthorized); }
+                if status < 200 || status >= 300 {
+                    let body = resp.into_string().unwrap_or_default();
+                    return Err(ApiError::Http(status, body));
+                }
+                Ok(())
+            }));
+            let _ = tx.send(match result {
+                Ok(r) => r,
+                Err(p) => Err(ApiError::Network(panic_msg(p))),
+            });
+        });
+        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
     }
-
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-    let status = resp.status().as_u16();
-
-    if status == 401 {
-        return Err(ApiError::Unauthorized);
+    #[cfg(not(target_os = "android"))]
+    {
+        let client = get_client();
+        let mut req = client.delete(&url);
+        for (k, v) in headers {
+            req = req.header(k, v);
+        }
+        let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let status = resp.status().as_u16();
+        if status == 401 { return Err(ApiError::Unauthorized); }
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Http(status, body));
+        }
+        Ok(())
     }
-    if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
-        return Err(ApiError::Http(status, body));
-    }
+}
 
-    Ok(())
+fn panic_msg(p: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = p.downcast_ref::<&str>() { s.to_string() }
+    else if let Some(s) = p.downcast_ref::<String>() { s.clone() }
+    else { "Unknown panic".to_string() }
 }
 
 #[cfg(test)]
