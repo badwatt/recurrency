@@ -971,6 +971,18 @@ mod tests {
         // Same static reference (OnceLock)
         assert!(std::ptr::eq(client1, client2));
     }
+
+    #[test]
+    fn api_error_timeout_is_user_friendly() {
+        // Login timeout should produce clear error message
+        let err = ApiError::Network("timed out".to_string());
+        let msg = err.to_string();
+        assert!(
+            msg.contains("timed out") || msg.contains("timeout"),
+            "Timeout error should be clear: {}",
+            msg
+        );
+    }
 }
 
 // ── Integration: Full URL building example ──

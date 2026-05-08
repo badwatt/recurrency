@@ -45,15 +45,25 @@ pub fn LoginPage() -> Element {
         evt.prevent_default();
         error.set(String::new());
         loading.set(true);
-        match auth::login(email(), auth_field()).await {
-            Ok(resp) => {
+        // Hard timeout prevents hang on Android when reqwest ignores client timeout.
+        // Also prevents crash if user navigates away ("Configure server URL") during login.
+        let login_result = tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            auth::login(email(), auth_field()),
+        )
+        .await;
+        match login_result {
+            Ok(Ok(resp)) => {
                 AUTH.write()
                     .set_authenticated(resp.token, resp.user, resp.requires_verification);
                 let nav = navigator();
                 nav.push(Route::Dashboard {});
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 error.set(e.to_string());
+            }
+            Err(_) => {
+                error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
             }
         }
         loading.set(false);
@@ -62,11 +72,21 @@ pub fn LoginPage() -> Element {
     let handle_demo = move |_evt: MouseEvent| async move {
         error.set(String::new());
         demo_loading.set(true);
-        // init → login with credentials → set_authenticated → reset (fire-and-forget)
-        match demo::init().await {
-            Ok(init_resp) => {
-                match auth::login(init_resp.email, init_resp.password).await {
-                    Ok(auth_resp) => {
+        // Hard timeout prevents hang on Android
+        let init_result = tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            demo::init(),
+        )
+        .await;
+        match init_result {
+            Ok(Ok(init_resp)) => {
+                let login_result = tokio::time::timeout(
+                    std::time::Duration::from_secs(15),
+                    auth::login(init_resp.email, init_resp.password),
+                )
+                .await;
+                match login_result {
+                    Ok(Ok(auth_resp)) => {
                         AUTH.write().set_authenticated(
                             auth_resp.token,
                             auth_resp.user,
@@ -77,13 +97,19 @@ pub fn LoginPage() -> Element {
                         let nav = navigator();
                         nav.push(Route::Dashboard {});
                     }
-                    Err(e) => {
+                    Ok(Err(e)) => {
                         error.set(e.to_string());
+                    }
+                    Err(_) => {
+                        error.set("Connection timed out. Check your server URL.".to_string());
                     }
                 }
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 error.set(e.to_string());
+            }
+            Err(_) => {
+                error.set("Connection timed out. Check your server URL.".to_string());
             }
         }
         demo_loading.set(false);
