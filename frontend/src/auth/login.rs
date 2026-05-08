@@ -41,78 +41,92 @@ pub fn LoginPage() -> Element {
         }
     });
 
-    let handle_submit = move |evt: FormEvent| async move {
+    // Capture navigator before async — valid even if component unmounts
+    let nav = navigator();
+
+    let handle_submit = move |evt: FormEvent| {
         evt.prevent_default();
         error.set(String::new());
         loading.set(true);
-        // Hard timeout prevents hang on Android when reqwest ignores client timeout.
-        // Also prevents crash if user navigates away ("Configure server URL") during login.
-        let login_result = tokio::time::timeout(
-            std::time::Duration::from_secs(15),
-            auth::login(email(), auth_field()),
-        )
-        .await;
-        match login_result {
-            Ok(Ok(resp)) => {
-                AUTH.write()
-                    .set_authenticated(resp.token, resp.user, resp.requires_verification);
-                let nav = navigator();
-                nav.push(Route::Dashboard {});
-            }
-            Ok(Err(e)) => {
-                error.set(e.to_string());
-            }
-            Err(_) => {
-                error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
-            }
-        }
-        loading.set(false);
-    };
+        let email_val = email();
+        let password_val = auth_field();
+        let nav = nav.clone();
 
-    let handle_demo = move |_evt: MouseEvent| async move {
-        error.set(String::new());
-        demo_loading.set(true);
-        // Hard timeout prevents hang on Android
-        let init_result = tokio::time::timeout(
-            std::time::Duration::from_secs(15),
-            demo::init(),
-        )
-        .await;
-        match init_result {
-            Ok(Ok(init_resp)) => {
-                let login_result = tokio::time::timeout(
-                    std::time::Duration::from_secs(15),
-                    auth::login(init_resp.email, init_resp.password),
-                )
-                .await;
-                match login_result {
-                    Ok(Ok(auth_resp)) => {
-                        AUTH.write().set_authenticated(
-                            auth_resp.token,
-                            auth_resp.user,
-                            auth_resp.requires_verification,
-                        );
-                        // Await reset so demo data is ready before navigating
-                        let _ = demo::reset().await;
-                        let nav = navigator();
-                        nav.push(Route::Dashboard {});
-                    }
-                    Ok(Err(e)) => {
-                        error.set(e.to_string());
-                    }
-                    Err(_) => {
-                        error.set("Connection timed out. Check your server URL.".to_string());
-                    }
+        // Use Dioxus spawn (tied to component scope — cancelled on unmount).
+        // Async closures in event handlers may not cancel properly on Android.
+        spawn(async move {
+            // Hard timeout prevents hang when reqwest ignores client timeout on Android.
+            let login_result = tokio::time::timeout(
+                std::time::Duration::from_secs(15),
+                auth::login(email_val, password_val),
+            )
+            .await;
+            match login_result {
+                Ok(Ok(resp)) => {
+                    AUTH.write()
+                        .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                    nav.push(Route::Dashboard {});
+                }
+                Ok(Err(e)) => {
+                    error.set(e.to_string());
+                }
+                Err(_) => {
+                    error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
                 }
             }
-            Ok(Err(e)) => {
-                error.set(e.to_string());
+            loading.set(false);
+        });
+    };
+
+    let nav_demo = navigator();
+
+    let handle_demo = move |_evt: MouseEvent| {
+        error.set(String::new());
+        demo_loading.set(true);
+        let nav = nav_demo.clone();
+
+        spawn(async move {
+            // Hard timeout prevents hang on Android
+            let init_result = tokio::time::timeout(
+                std::time::Duration::from_secs(15),
+                demo::init(),
+            )
+            .await;
+            match init_result {
+                Ok(Ok(init_resp)) => {
+                    let login_result = tokio::time::timeout(
+                        std::time::Duration::from_secs(15),
+                        auth::login(init_resp.email, init_resp.password),
+                    )
+                    .await;
+                    match login_result {
+                        Ok(Ok(auth_resp)) => {
+                            AUTH.write().set_authenticated(
+                                auth_resp.token,
+                                auth_resp.user,
+                                auth_resp.requires_verification,
+                            );
+                            // Await reset so demo data is ready before navigating
+                            let _ = demo::reset().await;
+                            nav.push(Route::Dashboard {});
+                        }
+                        Ok(Err(e)) => {
+                            error.set(e.to_string());
+                        }
+                        Err(_) => {
+                            error.set("Connection timed out. Check your server URL.".to_string());
+                        }
+                    }
+                }
+                Ok(Err(e)) => {
+                    error.set(e.to_string());
+                }
+                Err(_) => {
+                    error.set("Connection timed out. Check your server URL.".to_string());
+                }
             }
-            Err(_) => {
-                error.set("Connection timed out. Check your server URL.".to_string());
-            }
-        }
-        demo_loading.set(false);
+            demo_loading.set(false);
+        });
     };
 
     rsx! {
