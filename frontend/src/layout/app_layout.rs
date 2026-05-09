@@ -137,7 +137,7 @@ pub fn AppLayout() -> Element {
                             }
                         }
                     }
-                    // Right: theme toggle + notification bell + settings
+                    // Right: theme toggle + notification bell + settings + logout
                     div { class: "flex items-center gap-1",
                         ThemeToggleButton {}
                         NotificationBell {}
@@ -145,6 +145,16 @@ pub fn AppLayout() -> Element {
                             href: "/settings",
                             class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
                             {SvgIcon(Icon::Settings, 20)}
+                        }
+                        button {
+                            r#type: "button",
+                            class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-destructive hover:bg-accent transition-colors",
+                            onclick: move |_| {
+                                AUTH.write().logout();
+                                AUTH.write().persist_to_storage();
+                            },
+                            title: "Logout",
+                            {SvgIcon(Icon::Logout, 20)}
                         }
                     }
                 }
@@ -178,8 +188,14 @@ pub fn AppLayout() -> Element {
                         icon: Icon::Subscriptions,
                     }
                     MobileTab {
+                        to: crate::Route::Transactions {},
+                        label: "Trans".to_string(),
+                        active: matches!(current_route, crate::Route::Transactions {}),
+                        icon: Icon::Transactions,
+                    }
+                    MobileTab {
                         to: crate::Route::Calendar {},
-                        label: "Calendar".to_string(),
+                        label: "Cal".to_string(),
                         active: matches!(current_route, crate::Route::Calendar {}),
                         icon: Icon::Calendar,
                     }
