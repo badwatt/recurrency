@@ -168,7 +168,7 @@ pub fn AppLayout() -> Element {
                 }
             }
 
-            main { id: "main-content", class: "flex-1 w-full max-w-screen-2xl mx-auto",
+            main { id: "main-content", class: "flex-1 w-full max-w-screen-2xl mx-auto pb-14 lg:pb-0",
                 Outlet::<crate::Route> {}
             }
 
