@@ -9,9 +9,13 @@ pub static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::n
 
 pub fn get_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(|| {
-        let mut builder = reqwest::Client::builder()
-            .connect_timeout(std::time::Duration::from_secs(10))
-            .timeout(std::time::Duration::from_secs(30));
+        let mut builder = reqwest::Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            builder = builder
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(std::time::Duration::from_secs(30));
+        }
         builder.build().expect("Failed to create reqwest client")
     })
 }
@@ -142,6 +146,7 @@ pub fn auth_headers(headers: &mut Vec<(String, String)>) {
 
 // ── ureq synchronous helpers (no tokio, supports TLS, works on Android) ──
 
+#[cfg(not(target_arch = "wasm32"))]
 fn ureq_request(method: &str, url: &str, headers: &[(String, String)]) -> ureq::Request {
     let mut req = match method {
         "GET" => ureq::get(url),
@@ -157,6 +162,7 @@ fn ureq_request(method: &str, url: &str, headers: &[(String, String)]) -> ureq::
     req
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn ureq_handle_resp<T: serde::de::DeserializeOwned>(resp: ureq::Response) -> Result<T, ApiError> {
     let status = resp.status();
     if status == 401 {

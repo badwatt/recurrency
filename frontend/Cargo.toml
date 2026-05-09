@@ -14,7 +14,6 @@ name = "recurrency"
 path = "src/main.rs"
 
 [dependencies]
-ureq = { version = "2", features = ["json", "native-tls"] }
 dioxus = { version = "0.7.5", features = ["router"] }
 web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
 sys-locale = "0.3.2"
@@ -30,6 +29,12 @@ log = "0.4.27"
 gloo-timers = { version = "0.4.0", features = ["futures"], optional = true }
 tokio = { version = "1", features = ["time"] }  # always needed for native builds
 dirs = "6.0.0"
+
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "2", default-features = false, features = ["json", "tls", "gzip"] }
 
 [features]
 default = ["web"]

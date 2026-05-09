@@ -20,6 +20,7 @@ pub struct DemoResetResponse {
 }
 
 /// Synchronous demo init using ureq (no tokio, supports TLS). Works on Android.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn blocking_init(base_url: &str) -> Result<DemoInitResponse, ApiError> {
     let url = format!("{}/api/demo/init", base_url);
     let resp = ureq::get(&url)

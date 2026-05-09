@@ -40,6 +40,8 @@ pub fn SetupPage() -> Element {
             // Verify URL is reachable before saving.
             // On Android, reqwest blocks the executor so tokio::time::timeout never fires.
             // Use spawn_blocking + TcpStream::connect_timeout instead — runs in separate thread.
+            #[cfg(not(target_arch = "wasm32"))]
+            {
             let url_for_check = url.clone();
             let tcp_check = tokio::task::spawn_blocking(move || {
                 // Parse host:port from URL
@@ -108,6 +110,17 @@ pub fn SetupPage() -> Element {
                 Err(_) => {
                     error.set("Connection timed out. Check the URL and make sure the server is running.".to_string());
                 }
+            }
+            } // end #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(target_arch = "wasm32")]
+            {
+                // WASM: skip TCP check, save and navigate directly
+                set_base_url(&url);
+                let _ = dioxus::document::eval(&format!(
+                    "localStorage.setItem('RECURRENCY_API_URL','{}')",
+                    url
+                )).await;
+                nav.push(Route::Login {});
             }
             connecting.set(false);
         });

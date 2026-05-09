@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn Badge(variant: String, children: Element) -> Element {
-    let base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors";
+    let base = "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors";
     let variant_class = match variant.as_str() {
         "secondary" => "bg-secondary text-secondary-foreground",
         "destructive" => "bg-destructive text-destructive-foreground",
@@ -100,9 +100,9 @@ mod tests {
 
     #[test]
     fn badge_base_class_contains_transition() {
-        let base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors";
+        let base = "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors";
         assert!(base.contains("inline-flex"));
-        assert!(base.contains("rounded-full"));
+        assert!(base.contains("rounded-md"));
         assert!(base.contains("transition-colors"));
     }
 }

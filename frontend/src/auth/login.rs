@@ -55,48 +55,61 @@ pub fn LoginPage() -> Element {
         // Use Dioxus spawn (tied to component scope — cancelled on unmount).
         // Async closures in event handlers may not cancel properly on Android.
         spawn(async move {
-            // On Android, reqwest async blocks tokio runtime.
-            // reqwest::blocking panics inside tokio context (even spawn_blocking).
-            // Use std::thread::spawn (OS thread, no tokio context) + oneshot channel.
-            let base_url = crate::api::client::get_base_url();
-            let (tx, rx) = tokio::sync::oneshot::channel();
-            std::thread::spawn(move || {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    auth::blocking_login(&base_url, &email_val, &password_val)
-                }));
-                match result {
-                    Ok(login_result) => { let _ = tx.send(login_result); }
-                    Err(panic) => {
-                        let msg = if let Some(s) = panic.downcast_ref::<&str>() {
-                            s.to_string()
-                        } else if let Some(s) = panic.downcast_ref::<String>() {
-                            s.clone()
-                        } else {
-                            "Unknown panic".to_string()
-                        };
-                        let _ = tx.send(Err(ApiError::Network(msg)));
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let base_url = crate::api::client::get_base_url();
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                std::thread::spawn(move || {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        auth::blocking_login(&base_url, &email_val, &password_val)
+                    }));
+                    match result {
+                        Ok(login_result) => { let _ = tx.send(login_result); }
+                        Err(panic) => {
+                            let msg = if let Some(s) = panic.downcast_ref::<&str>() {
+                                s.to_string()
+                            } else if let Some(s) = panic.downcast_ref::<String>() {
+                                s.clone()
+                            } else {
+                                "Unknown panic".to_string()
+                            };
+                            let _ = tx.send(Err(ApiError::Network(msg)));
+                        }
+                    }
+                });
+                let login_result = tokio::time::timeout(
+                    std::time::Duration::from_secs(20),
+                    rx,
+                )
+                .await;
+                match login_result {
+                    Ok(Ok(Ok(resp))) => {
+                        AUTH.write()
+                            .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                        nav.push(Route::Dashboard {});
+                    }
+                    Ok(Ok(Err(e))) => {
+                        error.set(e.to_string());
+                    }
+                    Ok(Err(_)) => {
+                        error.set("Login channel closed".to_string());
+                    }
+                    Err(_) => {
+                        error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
                     }
                 }
-            });
-            let login_result = tokio::time::timeout(
-                std::time::Duration::from_secs(20),
-                rx,
-            )
-            .await;
-            match login_result {
-                Ok(Ok(Ok(resp))) => {
-                    AUTH.write()
-                        .set_authenticated(resp.token, resp.user, resp.requires_verification);
-                    nav.push(Route::Dashboard {});
-                }
-                Ok(Ok(Err(e))) => {
-                    error.set(e.to_string());
-                }
-                Ok(Err(_)) => {
-                    error.set("Login channel closed".to_string());
-                }
-                Err(_) => {
-                    error.set("Connection timed out. Check your server URL and make sure the server is running.".to_string());
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                match auth::login(email_val.clone(), password_val.clone()).await {
+                    Ok(resp) => {
+                        AUTH.write()
+                            .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                        nav.push(Route::Dashboard {});
+                    }
+                    Err(e) => {
+                        error.set(e.to_string());
+                    }
                 }
             }
             loading.set(false);
@@ -111,80 +124,106 @@ pub fn LoginPage() -> Element {
         let nav = nav_demo.clone();
 
         spawn(async move {
-            // std::thread::spawn (no tokio context) + oneshot channel.
-            let base_url = crate::api::client::get_base_url();
-            let (tx, rx) = tokio::sync::oneshot::channel();
-            std::thread::spawn(move || {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    demo::blocking_init(&base_url)
-                }));
-                match result {
-                    Ok(r) => { let _ = tx.send(r); }
-                    Err(panic) => {
-                        let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
-                        else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
-                        else { "Unknown panic".to_string() };
-                        let _ = tx.send(Err(ApiError::Network(msg)));
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let base_url = crate::api::client::get_base_url();
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                std::thread::spawn(move || {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        demo::blocking_init(&base_url)
+                    }));
+                    match result {
+                        Ok(r) => { let _ = tx.send(r); }
+                        Err(panic) => {
+                            let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
+                            else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
+                            else { "Unknown panic".to_string() };
+                            let _ = tx.send(Err(ApiError::Network(msg)));
+                        }
                     }
-                }
-            });
-            let init_result = tokio::time::timeout(
-                std::time::Duration::from_secs(20),
-                rx,
-            )
-            .await;
-            match init_result {
-                Ok(Ok(Ok(init_resp))) => {
-                    let base_url = crate::api::client::get_base_url();
-                    let (tx2, rx2) = tokio::sync::oneshot::channel();
-                    std::thread::spawn(move || {
-                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                            auth::blocking_login(&base_url, &init_resp.email, &init_resp.password)
-                        }));
-                        match result {
-                            Ok(r) => { let _ = tx2.send(r); }
-                            Err(panic) => {
-                                let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
-                                else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
-                                else { "Unknown panic".to_string() };
-                                let _ = tx2.send(Err(ApiError::Network(msg)));
+                });
+                let init_result = tokio::time::timeout(
+                    std::time::Duration::from_secs(20),
+                    rx,
+                )
+                .await;
+                match init_result {
+                    Ok(Ok(Ok(init_resp))) => {
+                        let base_url = crate::api::client::get_base_url();
+                        let (tx2, rx2) = tokio::sync::oneshot::channel();
+                        std::thread::spawn(move || {
+                            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                auth::blocking_login(&base_url, &init_resp.email, &init_resp.password)
+                            }));
+                            match result {
+                                Ok(r) => { let _ = tx2.send(r); }
+                                Err(panic) => {
+                                    let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
+                                    else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
+                                    else { "Unknown panic".to_string() };
+                                    let _ = tx2.send(Err(ApiError::Network(msg)));
+                                }
+                            }
+                        });
+                        let login_result = tokio::time::timeout(
+                            std::time::Duration::from_secs(20),
+                            rx2,
+                        )
+                        .await;
+                        match login_result {
+                            Ok(Ok(Ok(auth_resp))) => {
+                                AUTH.write().set_authenticated(
+                                    auth_resp.token,
+                                    auth_resp.user,
+                                    auth_resp.requires_verification,
+                                );
+                                let _ = demo::reset().await;
+                                nav.push(Route::Dashboard {});
+                            }
+                            Ok(Ok(Err(e))) => {
+                                error.set(e.to_string());
+                            }
+                            Ok(Err(_)) => {
+                                error.set("Login channel closed".to_string());
+                            }
+                            Err(_) => {
+                                error.set("Connection timed out. Check your server URL.".to_string());
                             }
                         }
-                    });
-                    let login_result = tokio::time::timeout(
-                        std::time::Duration::from_secs(20),
-                        rx2,
-                    )
-                    .await;
-                    match login_result {
-                        Ok(Ok(Ok(auth_resp))) => {
-                            AUTH.write().set_authenticated(
-                                auth_resp.token,
-                                auth_resp.user,
-                                auth_resp.requires_verification,
-                            );
-                            let _ = demo::reset().await;
-                            nav.push(Route::Dashboard {});
-                        }
-                        Ok(Ok(Err(e))) => {
-                            error.set(e.to_string());
-                        }
-                        Ok(Err(_)) => {
-                            error.set("Login channel closed".to_string());
-                        }
-                        Err(_) => {
-                            error.set("Connection timed out. Check your server URL.".to_string());
-                        }
+                    }
+                    Ok(Ok(Err(e))) => {
+                        error.set(e.to_string());
+                    }
+                    Ok(Err(_)) => {
+                        error.set("Demo init channel closed".to_string());
+                    }
+                    Err(_) => {
+                        error.set("Connection timed out. Check your server URL.".to_string());
                     }
                 }
-                Ok(Ok(Err(e))) => {
-                    error.set(e.to_string());
-                }
-                Ok(Err(_)) => {
-                    error.set("Demo init channel closed".to_string());
-                }
-                Err(_) => {
-                    error.set("Connection timed out. Check your server URL.".to_string());
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                match demo::init().await {
+                    Ok(init_resp) => {
+                        match auth::login(init_resp.email.clone(), init_resp.password.clone()).await {
+                            Ok(auth_resp) => {
+                                AUTH.write().set_authenticated(
+                                    auth_resp.token,
+                                    auth_resp.user,
+                                    auth_resp.requires_verification,
+                                );
+                                let _ = demo::reset().await;
+                                nav.push(Route::Dashboard {});
+                            }
+                            Err(e) => {
+                                error.set(e.to_string());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error.set(e.to_string());
+                    }
                 }
             }
             demo_loading.set(false);

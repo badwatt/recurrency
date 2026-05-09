@@ -2,6 +2,7 @@ use crate::api::client::{api_post, ApiError};
 use crate::models::auth::*;
 
 /// Synchronous login using ureq (no tokio, supports TLS). Works on Android.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, ApiError> {
     let url = format!("{}/api/auth/login", base_url);
     let resp = ureq::post(&url)

@@ -110,7 +110,7 @@ fn App() -> Element {
         // Android WebView doesn't block render on <link> stylesheet.
         // Wrapper div sets dark background immediately via inline style.
         div {
-            style: "background:#09090b;color:#fafafa;min-height:100dvh;font-family:system-ui,-apple-system,sans-serif;",
+            style: "background:#09090b;color:#fafafa;min-height:100dvh;font-family:Geist,system-ui,-apple-system,sans-serif;",
             document::Stylesheet { href: TAILWIND_CSS }
             Router::<Route> {}
         }
@@ -169,7 +169,20 @@ fn Settings() -> Element {
 
 #[component]
 fn CatchAll(path: Vec<String>) -> Element {
-    let nav = navigator();
-    nav.push(Route::Dashboard {});
-    rsx! { div { "Redirecting..." } }
+    rsx! {
+        div { class: "flex flex-col items-center justify-center min-h-dvh gap-6 px-4 bg-background",
+            div { class: "flex flex-col items-center gap-2",
+                h1 { class: "text-7xl font-bold tracking-tighter text-muted-foreground/40", "404" }
+                p { class: "text-lg text-muted-foreground", "Page not found" }
+                p { class: "text-sm text-muted-foreground/60 max-w-md text-center text-balance",
+                    "The page you're looking for doesn't exist or was moved."
+                }
+            }
+            a {
+                href: "/",
+                class: "inline-flex items-center justify-center rounded-md text-sm font-medium transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.97] px-6 py-2.5",
+                "Back to dashboard"
+            }
+        }
+    }
 }

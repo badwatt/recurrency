@@ -98,8 +98,13 @@ pub fn AppLayout() -> Element {
     });
 
     rsx! {
+        a {
+            href: "#main-content",
+            class: "sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md",
+            "Skip to content"
+        }
         div {
-            class: "flex h-screen bg-background",
+            class: "flex min-h-dvh bg-background",
 
             // ── Desktop sidebar (always visible lg+) ──
             aside { class: "hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 border-r border-border bg-card",
@@ -161,7 +166,7 @@ pub fn AppLayout() -> Element {
                     }
                 }
 
-                main { class: "flex-1 overflow-y-auto p-6",
+                main { id: "main-content", class: "flex-1 overflow-y-auto p-6",
                     Outlet::<crate::Route> {}
                 }
 
