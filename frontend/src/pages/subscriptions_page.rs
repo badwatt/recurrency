@@ -483,38 +483,24 @@ pub fn SubscriptionsPage() -> Element {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
 
             // ── Header ──
-            div { class: "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-                div { class: "flex items-start justify-between gap-3 sm:flex-col sm:gap-0",
-                    div {
-                        h1 { class: "text-3xl font-bold tracking-tight", "Subscriptions" }
-                        p { class: "text-muted-foreground", "Manage your recurring expenses" }
-                    }
-                    div { class: "shrink-0 sm:hidden",
-                        button {
-                            class: "border rounded-md px-3 py-1.5 hover:bg-muted text-sm flex items-center gap-1",
-                            onclick: {
-                                let vm = view_mode.clone();
-                                move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
-                            },
-                            if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
-                        }
-                    }
+            div { class: "flex items-center justify-between gap-3",
+                div {
+                    h1 { class: "text-2xl sm:text-3xl font-extrabold tracking-tight", "Subscriptions" }
+                    p { class: "text-sm text-muted-foreground mt-1", "Track and manage recurring payments" }
                 }
-                div { class: "flex items-center gap-2 sm:w-auto w-full",
-                    div { class: "shrink-0 hidden sm:block",
-                        button {
-                            class: "border rounded-md px-3 py-1.5 hover:bg-muted text-sm flex items-center gap-1",
-                            onclick: {
-                                let vm = view_mode.clone();
-                                move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
-                            },
-                            if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
-                        }
+                div { class: "flex items-center gap-2 shrink-0",
+                    button {
+                        class: "hidden sm:flex items-center gap-1.5 border border-border/60 rounded-lg px-3 py-2 hover:bg-muted text-sm transition-colors duration-200",
+                        onclick: {
+                            let vm = view_mode.clone();
+                            move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
+                        },
+                        if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
                     }
                     button {
-                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 sm:w-auto w-full",
+                        class: "bg-amber-500 hover:bg-amber-600 text-black font-semibold px-4 py-2.5 rounded-lg text-sm active:scale-[0.97] transition-all duration-200",
                         onclick: move |_| handle_create.call(()),
-                        "+ Add Subscription"
+                        "+ Add"
                     }
                 }
             }
@@ -528,11 +514,11 @@ pub fn SubscriptionsPage() -> Element {
                 }
             } else if state.subscriptions.is_empty() {
                 rsx! {
-                    div { class: "rounded-lg border bg-card p-6 flex h-64 flex-col items-center justify-center gap-4",
+                    div { class: "rounded-xl border border-border/40 bg-card/80 p-6 flex h-64 flex-col items-center justify-center gap-4",
                         p { class: "text-lg font-medium", "No subscriptions yet" }
                         p { class: "text-sm text-muted-foreground", "Click the button above to add your first subscription" }
                         button {
-                            class: "bg-primary text-primary-foreground px-4 py-2 rounded-md",
+                            class: "bg-amber-500 hover:bg-amber-600 text-black font-semibold px-4 py-2 rounded-lg text-sm active:scale-[0.97] transition-all duration-200",
                             onclick: move |_| handle_create.call(()),
                             "+ Add Subscription"
                         }
@@ -540,7 +526,7 @@ pub fn SubscriptionsPage() -> Element {
                 }
             } else if filtered.is_empty() {
                 rsx! {
-                    div { class: "rounded-lg border bg-card p-6 flex h-40 flex-col items-center justify-center gap-2",
+                    div { class: "rounded-xl border border-border/40 bg-card/80 p-6 flex h-40 flex-col items-center justify-center gap-2",
                         p { class: "text-sm text-muted-foreground", "No subscriptions match your filters" }
                         button {
                             class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
@@ -557,7 +543,7 @@ pub fn SubscriptionsPage() -> Element {
                         div { class: "flex flex-row items-center gap-2 sm:flex-row sm:items-center",
                             div { class: "shrink-0 relative",
                                 button {
-                                    class: "border px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 hover:bg-muted h-8",
+                                    class: "border border-border/60 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 hover:bg-muted h-8 transition-colors duration-200",
                                     onclick: move |_| filters_popover.set(!filters_popover()),
                                     "▾ Filters"
                                     if active_filter_count > 0 {
@@ -672,7 +658,7 @@ pub fn SubscriptionsPage() -> Element {
                             {if active_filter_count > 0 {
                                 rsx! {
                                     button {
-                                        class: "text-sm px-2 py-1.5 hover:bg-muted rounded-md flex items-center gap-1 h-8",
+                                        class: "text-sm px-2 py-1.5 hover:bg-muted rounded-lg flex items-center gap-1 h-8 transition-colors duration-200",
                                         onclick: move |_| clear_filters.call(()),
                                         X { size: 14 }
                                         "Clear"
@@ -696,7 +682,7 @@ pub fn SubscriptionsPage() -> Element {
                                     }
                                 }
                                 button {
-                                    class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                                    class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors duration-200",
                                     onclick: move |_| toggle_sort_direction.call(()),
                                     "{sort_arrow}"
                                 }
@@ -711,16 +697,16 @@ pub fn SubscriptionsPage() -> Element {
                         // ── Grid view ──
                         {if view_mode == "grid" {
                             rsx! {
-                                div { class: "grid gap-4 grid-cols-2 lg:grid-cols-4",
-                                    for sub in filtered.iter() {
-                                        {render_grid_card(sub, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
+                                div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                                    for (i, sub) in filtered.iter().enumerate() {
+                                        {render_grid_card(sub, i, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
                                     }
                                 }
                             }
                         } else {
                             rsx! {
-                                div { class: "space-y-2",
-                                    for sub in filtered.iter() {
+                                div { class: "space-y-3",
+                                    for (i, sub) in filtered.iter().enumerate() {
                                         {render_list_card(sub, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
                                     }
                                 }
@@ -784,7 +770,7 @@ pub fn SubscriptionsPage() -> Element {
                             footer: rsx! {
                                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                                     button {
-                                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
+                                        class: "border border-border/60 px-4 py-2 rounded-lg text-sm hover:bg-muted transition-colors duration-200",
                                         onclick: move |_| notes_dialog_open.set(false),
                                         "Cancel"
                                     }
@@ -863,6 +849,7 @@ pub fn subscription_has_notes(notes: &Option<String>) -> bool {
 
 fn render_grid_card(
     sub: &Subscription,
+    index: usize,
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
@@ -876,12 +863,12 @@ fn render_grid_card(
         let cats = CATEGORIES();
         if let Some(c) = cats.get_by_id(&sub.category_id) {
             (
-                c.color.clone().unwrap_or_else(|| "#6b7280".into()),
-                c.icon.clone().unwrap_or_else(|| "Tag".into()),
+                c.color.clone().unwrap_or_else(|| "#6b7280".to_string()),
+                c.icon.clone().unwrap_or_else(|| "Tag".to_string()),
                 c.name.clone(),
             )
         } else {
-            ("#6b7280".into(), "Tag".into(), "Uncategorized".into())
+            ("#6b7280".to_string(), "Tag".to_string(), "Uncategorized".to_string())
         }
     };
 
@@ -894,50 +881,87 @@ fn render_grid_card(
     let sub_for_notes = sub.clone();
     let has_notes = subscription_has_notes(&sub.notes);
 
+    let stagger_delay = index.saturating_mul(60);
+
     rsx! {
-        div { class: "group relative flex flex-col h-full rounded-lg border bg-card {opacity}",
-            div { class: "flex flex-col items-center justify-between flex-1 p-5 pb-4 text-center gap-3",
-                div { class: "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted overflow-hidden",
-                    {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-cover")}
-                    if logo_url.is_none() {
-                        span { class: "text-2xl text-muted-foreground", CreditCard { size: 28 } }
+        div {
+            class: "group relative overflow-hidden rounded-xl border border-border/40 bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
+            style: "animation: fadeSlideIn 0.5s ease-out both; animation-delay: {stagger_delay}ms;",
+
+            // Category color top accent strip
+            div {
+                class: "absolute top-0 left-0 right-0 h-[3px]",
+                style: "background: {color};",
+            }
+
+            // Logo watermark background
+            if let Some(ref url) = logo_url {
+                div { class: "absolute inset-0 opacity-[0.06] flex items-center justify-center pointer-events-none select-none",
+                    img {
+                        src: "{url}",
+                        alt: "",
+                        class: "w-full h-full object-contain scale-[2.5]",
+                    }
+                }
+            }
+
+            // Content
+            div { class: "relative z-10 flex flex-col p-5 pb-4 gap-3",
+
+                // Top row: logo + status badge
+                div { class: "flex items-start justify-between gap-2",
+                    div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted overflow-hidden",
+                        {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-cover")}
+                        if logo_url.is_none() {
+                            span { class: "text-muted-foreground", CreditCard { size: 22 } }
+                        }
+                    }
+
+                    // Status badge — square rounded-md
+                    span {
+                        class: if is_active { "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" } else { "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground border border-border/40" },
+                        if is_active { "Active" } else { "Inactive" }
                     }
                 }
 
-                div { class: "min-w-0 w-full",
-                    p { class: "font-semibold truncate text-base leading-tight", "{name}" }
-                    p { class: "text-xs text-muted-foreground mt-0.5 truncate", "{next_text}" }
+                // Name + next billing
+                div { class: "min-w-0",
+                    p { class: "font-semibold truncate text-sm leading-tight", "{name}" }
+                    p { class: "text-xs text-muted-foreground mt-1", "{next_text}" }
                 }
 
-                p { class: "font-bold text-xl tracking-tight", "{formatted}" }
+                // Amount
+                p { class: "font-extrabold text-2xl tracking-tight", "{formatted}" }
 
+                // Category badge
                 span {
-                    class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
-                    style: "color: {color}; background-color: {color}15;",
+                    class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
+                    style: "color: {color}; background-color: {color}15; border: 1px solid {color}25;",
                     {icon_display(&cat_icon)}
                     "{cat_name}"
                 }
 
-                div { class: "flex items-center gap-1 mt-auto flex-wrap justify-center",
+                // Action buttons
+                div { class: "flex items-center gap-0.5 mt-auto pt-1",
                     Tooltip { content: sub.notes.clone().unwrap_or_default(),
                         button {
-                            class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
+                            class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200" } else { "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground opacity-40 transition-colors duration-200" },
                             onclick: move |_| on_notes.call(sub_for_notes.clone()),
                             FileText { size: 16 }
                         }
                     }
                     button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
                         onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
                         if is_active { Pause { size: 14 } } else { Play { size: 14 } }
                     }
                     button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
                         onclick: move |_| on_edit.call(sub_for_edit.clone()),
                         Pencil { size: 14 }
                     }
                     button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
+                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors duration-200",
                         onclick: move |_| on_delete.call(id_for_delete),
                         Trash2 { size: 14 }
                     }

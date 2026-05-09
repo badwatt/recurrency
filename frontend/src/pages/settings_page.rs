@@ -154,11 +154,11 @@ pub fn SettingsPage() -> Element {
 
     rsx! {
         div { class: "p-2 md:p-6 flex flex-col gap-6",
-            h1 { class: "text-3xl font-bold tracking-tight", "Settings" }
+            h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", "Settings" }
             p { class: "text-muted-foreground", "Manage your account and preferences" }
 
             // Profile card
-            div { class: "rounded-lg border border-border bg-card",
+            div { class: "rounded-xl bg-card/80 border border-border/40",
                 div { class: "p-6 border-b border-border",
                     h2 { class: "text-lg font-semibold", "Profile" }
                     p { class: "text-sm text-muted-foreground", "Update your personal information" }
@@ -215,7 +215,7 @@ pub fn SettingsPage() -> Element {
             }
 
             // Preferences card
-            div { class: "rounded-lg border border-border bg-card",
+            div { class: "rounded-xl bg-card/80 border border-border/40",
                 div { class: "p-6 border-b border-border",
                     h2 { class: "text-lg font-semibold", "Preferences" }
                     p { class: "text-sm text-muted-foreground", "Customize your experience" }
@@ -268,7 +268,7 @@ pub fn SettingsPage() -> Element {
             }
 
             // Server card
-            div { class: "rounded-lg border border-border bg-card",
+            div { class: "rounded-xl bg-card/80 border border-border/40",
                 div { class: "p-6 border-b border-border",
                     h2 { class: "text-lg font-semibold", "Server" }
                     p { class: "text-sm text-muted-foreground", "Your Recurrency server connection" }
@@ -288,7 +288,7 @@ pub fn SettingsPage() -> Element {
             }
 
             // Notifications card
-            div { class: "rounded-lg border border-border bg-card",
+            div { class: "rounded-xl bg-card/80 border border-border/40",
                 div { class: "p-6 border-b border-border",
                     h2 { class: "text-lg font-semibold", "Notifications" }
                     p { class: "text-sm text-muted-foreground", "Configure how you receive notifications" }

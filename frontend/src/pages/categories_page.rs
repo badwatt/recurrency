@@ -179,9 +179,9 @@ pub fn CategoriesPage() -> Element {
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
                 div {
-                    h1 { class: "text-3xl font-bold tracking-tight", "Categories" }
+                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", "Categories" }
                     p { class: "text-muted-foreground", "Organize your expenses with categories" }
                 }
                 button {

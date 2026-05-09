@@ -603,14 +603,14 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 div {
-                    h1 { class: "text-3xl font-bold tracking-tight", "Calendar" }
-                    p { class: "text-muted-foreground", "View your upcoming subscription payments" }
+                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter animate-in fade-in slide-in-from-bottom-4 duration-700", "Calendar" }
+                    p { class: "text-sm text-muted-foreground mt-1", "Upcoming subscription payments" }
                 }
-                div { class: "text-right hidden md:block",
-                    p { class: "text-2xl font-bold", "{total_display}" }
-                    p { class: "text-sm text-muted-foreground", "Total this month" }
+                div { class: "text-right hidden md:block animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150",
+                    p { class: "text-2xl font-bold tracking-tight", "{total_display}" }
+                    p { class: "text-xs text-muted-foreground", "Total this month" }
                 }
             }
 
@@ -668,7 +668,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
             }
 
             // Desktop: Full calendar
-            div { class: "hidden md:block rounded-lg border border-border bg-card",
+            div { class: "hidden md:block rounded-xl bg-card/80 border border-border/40 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200",
                 // Navigation header
                 div { class: "flex items-center justify-between p-4 border-b border-border",
                     div { class: "flex items-center gap-4",
