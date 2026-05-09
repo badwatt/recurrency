@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 #[component]
 pub fn Card(children: Element) -> Element {
     rsx! {
-        div { class: "rounded-lg border border-border bg-card text-card-foreground shadow-sm",
+        div { class: "rounded-xl bg-card/80 border border-border/40 text-card-foreground hover:bg-card transition-colors duration-300",
             {children}
         }
     }
@@ -39,19 +39,19 @@ mod tests {
 
     #[test]
     fn card_class_contains_rounded() {
-        let cls = "rounded-lg border border-border bg-card text-card-foreground shadow-sm";
-        assert!(cls.contains("rounded-lg"));
+        let cls = "rounded-xl border border-border/40 bg-card/80 text-card-foreground";
+        assert!(cls.contains("rounded-xl"));
     }
 
     #[test]
     fn card_class_contains_border() {
-        let cls = "rounded-lg border border-border bg-card";
+        let cls = "rounded-xl border border-border/40 bg-card/80";
         assert!(cls.contains("border"));
     }
 
     #[test]
     fn card_class_contains_bg_card() {
-        let cls = "rounded-lg border border-border bg-card";
+        let cls = "rounded-xl border border-border/40 bg-card/80";
         assert!(cls.contains("bg-card"));
     }
 
