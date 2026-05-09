@@ -1,5 +1,8 @@
 //! Unit tests for the Recurrency frontend.
 
+pub mod dashboard_redesign_tests;
+pub mod design_system_tests;
+pub mod layout_redesign_tests;
 pub mod android_auth_tests;
 pub mod android_icon_tests;
 pub mod android_persistence_tests;

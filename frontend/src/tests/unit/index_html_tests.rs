@@ -72,8 +72,8 @@ fn index_html_meta_theme_color_matches_css_variables() {
     );
     // Verify the hex values are correct
     assert!(
-        body_section.contains("#020817"),
-        "Dark mode meta theme-color must be #020817 (matches CSS --background)"
+        body_section.contains("#0d0d11"),
+        "Dark mode meta theme-color must be #0d0d11 (matches CSS --background)"
     );
     assert!(
         body_section.contains("#1e1e2e"),
@@ -109,8 +109,8 @@ fn tailwind_src_has_theme_and_loader_css() {
         "light --loader-bg must be opaque #fff"
     );
     assert!(
-        css.contains("--loader-bg: #020817") || css.contains("--loader-bg:#020817"),
-        "dark --loader-bg must be opaque #020817"
+        css.contains("--loader-bg: #0d0d11") || css.contains("--loader-bg:#0d0d11"),
+        "dark --loader-bg must be opaque #0d0d11"
     );
     assert!(
         css.contains("--loader-bg: #1e1e2e") || css.contains("--loader-bg:#1e1e2e"),
@@ -168,9 +168,9 @@ fn index_html_loader_styles_moved_to_tailwind_src() {
         "Light theme loader must be opaque white"
     );
     assert!(
-        style_section.contains("--loader-bg: #020817")
-            || style_section.contains("--loader-bg:#020817"),
-        "Dark theme loader must be opaque #020817"
+        style_section.contains("--loader-bg: #0d0d11")
+            || style_section.contains("--loader-bg:#0d0d11"),
+        "Dark theme loader must be opaque #0d0d11"
     );
     assert!(
         style_section.contains("--loader-bg: #1e1e2e")

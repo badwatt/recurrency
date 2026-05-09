@@ -5,8 +5,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+        sans: ['Cabinet Grotesk', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",

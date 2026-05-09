@@ -118,7 +118,6 @@ fn icon_receipt() -> Element {
 
 #[component]
 pub fn Dashboard() -> Element {
-    // Fetch subscriptions on mount
     use_hook(move || {
         spawn(async move {
             SUBSCRIPTIONS.write().set_loading();
@@ -132,20 +131,15 @@ pub fn Dashboard() -> Element {
     let sub_state = SUBSCRIPTIONS();
     let auth_state = AUTH();
 
-    // Computed stats
     let active = sub_state.active();
-    let total_active = active.len();
     let monthly_total = sub_state.monthly_total();
     let yearly_total = sub_state.yearly_total();
     let due_week = sub_state.due_this_week();
     let due_month = sub_state.due_this_month();
+    let total_active = active.len();
 
     let currency = auth_state.currency();
 
-    // Active subscriptions (first 5)
-    let active_top5: Vec<_> = active.iter().take(5).collect();
-
-    // Upcoming payments: active subs with next_billing_date, sorted asc, first 5
     let mut upcoming: Vec<_> = active
         .iter()
         .filter(|s| s.next_billing_date.is_some())
@@ -157,188 +151,164 @@ pub fn Dashboard() -> Element {
         .user
         .as_ref()
         .and_then(|u| u.name.clone())
-        .or_else(|| auth_state.user.as_ref().map(|u| u.email.clone()))
         .unwrap_or_default();
 
-    // Helpers — delegate to pure functions for testability
-    let next_billing_days =
-        |date: Option<chrono::NaiveDate>| -> Option<String> { next_billing_days_text(date) };
-
-    let format_date_short = |d: chrono::NaiveDate| -> String { format_date_short_fn(d) };
-
-    let is_overdue = |d: chrono::NaiveDate| -> bool { is_overdue_fn(d) };
-
-    let is_today = |d: chrono::NaiveDate| -> bool { is_today_fn(d) };
+    let nav = navigator();
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6",
-            // Greeting
-            div {
-                h1 { class: "text-3xl font-bold tracking-tight", "Dashboard" }
-                p { class: "text-muted-foreground", "Welcome back, {user_name}" }
-            }
-
-            // Stat cards — 2 cols mobile, 4 cols lg
-            div { class: "grid gap-4 md:grid-cols-2 lg:grid-cols-4",
-                // Monthly Subscriptions
-                div { class: "bg-card border border-border rounded-lg p-6",
-                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
-                        span { class: "text-sm font-medium", "Monthly Subscriptions" }
-                        {icon_credit_card()}
-                    }
-                    div { class: "pt-0",
-                        div { class: "text-2xl font-bold", "{format_currency(monthly_total, currency)}" }
-                        p { class: "text-xs text-muted-foreground", "{total_active} active subscriptions" }
+        div { class: "p-4 md:p-8 flex flex-col gap-8",
+            // Hero: greeting + large monthly total
+            div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
+                div {
+                    p { class: "text-sm text-muted-foreground font-medium", "Welcome back, {user_name}" }
+                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter text-foreground mt-1 animate-in fade-in slide-in-from-bottom-4 duration-700",
+                        "Dashboard"
                     }
                 }
-
-                // Yearly Cost
-                div { class: "bg-card border border-border rounded-lg p-6",
-                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
-                        span { class: "text-sm font-medium", "Yearly Cost" }
-                        {icon_trending_up()}
+                div { class: "text-right animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150",
+                    p { class: "text-xs text-muted-foreground uppercase tracking-widest font-medium", "Monthly spend" }
+                    div { class: "text-4xl md:text-5xl font-bold text-foreground tracking-tight",
+                        "{format_currency(monthly_total, currency)}"
                     }
-                    div { class: "pt-0",
-                        div { class: "text-2xl font-bold", "{format_currency(yearly_total, currency)}" }
-                        p { class: "text-xs text-muted-foreground", "Projected annual spending" }
-                    }
-                }
-
-                // Due This Week
-                div { class: "bg-card border border-border rounded-lg p-6",
-                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
-                        span { class: "text-sm font-medium", "Due This Week" }
-                        {icon_calendar()}
-                    }
-                    div { class: "pt-0",
-                        div { class: "text-2xl font-bold", "{due_week.len()}" }
-                        p { class: "text-xs text-muted-foreground", "Payments in next 7 days" }
-                    }
-                }
-
-                // Due This Month
-                div { class: "bg-card border border-border rounded-lg p-6",
-                    div { class: "flex flex-row items-center justify-between space-y-0 pb-2",
-                        span { class: "text-sm font-medium", "Due This Month" }
-                        {icon_receipt()}
-                    }
-                    div { class: "pt-0",
-                        div { class: "text-2xl font-bold", "{due_month.len()}" }
-                        p { class: "text-xs text-muted-foreground", "Payments remaining this month" }
+                    p { class: "text-xs text-muted-foreground mt-1",
+                        "{total_active} active subscriptions · {format_currency(yearly_total, currency)} / year"
                     }
                 }
             }
 
-            // Two-column section: Active Subscriptions + Upcoming Payments
-            div { class: "grid gap-4 md:grid-cols-2",
-                // Active Subscriptions card
-                div { class: "bg-card border border-border rounded-lg",
-                    div { class: "p-6 pb-2",
-                        h3 { class: "text-lg font-semibold", "Active Subscriptions" }
-                    }
-                    div { class: "p-6 pt-0",
-                        if sub_state.is_loading {
-                            div { class: "flex h-32 items-center justify-center",
-                                div { class: "h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" }
+            // Quick actions
+            div { class: "flex gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300",
+                {
+                    let nav1 = nav.clone();
+                    rsx! {
+                        a {
+                            href: "/subscriptions",
+                            class: "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
+                            onclick: move |e| { e.prevent_default(); nav1.push(crate::Route::Subscriptions {}); },
+                            svg {
+                                view_box: "0 0 24 24",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "2",
+                                class: "h-4 w-4",
+                                line { x1: "12", y1: "5", x2: "12", y2: "19" }
+                                line { x1: "5", y1: "12", x2: "19", y2: "12" }
                             }
-                        } else if active_top5.is_empty() {
-                            p { class: "flex h-32 items-center justify-center text-muted-foreground", "No subscriptions yet" }
-                        } else {
-                            div { class: "space-y-4",
-                                for sub in active_top5 {
-                                    {
-                                        let days_label = next_billing_days(sub.next_billing_date);
-                                        rsx! {
-                                            div { key: "{sub.id}", class: "flex items-center justify-between",
-                                                div { class: "flex items-center gap-3",
-                                                    div { class: "flex h-9 w-9 items-center justify-center rounded-full bg-primary/10",
-                                                        {icon_credit_card()}
-                                                    }
-                                                    div {
-                                                        p { class: "text-sm font-medium", "{sub.name}" }
-                                                        p { class: "text-xs text-muted-foreground capitalize", "{sub.frequency}" }
-                                                    }
-                                                }
-                                                div { class: "text-right",
-                                                    p { class: "text-sm font-medium", "{format_currency(sub.amount, currency)}" }
-                                                    if let Some(label) = days_label {
-                                                        p { class: "text-xs text-muted-foreground", "{label}" }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                            "Add subscription"
+                        }
+                    }
+                }
+                {
+                    let nav2 = nav.clone();
+                    rsx! {
+                        a {
+                            href: "/transactions",
+                            class: "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent active:scale-[0.97] transition-all duration-200",
+                            onclick: move |e| { e.prevent_default(); nav2.push(crate::Route::Transactions {}); },
+                            svg {
+                                view_box: "0 0 24 24",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "2",
+                                class: "h-4 w-4",
+                                line { x1: "12", y1: "1", x2: "12", y2: "23" }
+                                path { d: "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 1 1 0 7H6" }
+                            }
+                            "Add transaction"
+                        }
+                    }
+                }
+            }
+
+            // Bento grid: stats + lists
+            div { class: "grid gap-4 md:grid-cols-3 auto-rows-min",
+                // Card 1: Stats overview (spans 2 cols on md+)
+                div { class: "md:col-span-2 rounded-xl bg-card border border-border/50 p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100",
+                    h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Overview" }
+                    div { class: "grid grid-cols-2 md:grid-cols-4 gap-4 mt-4",
+                        div {
+                            p { class: "text-xs text-muted-foreground", "Active subs" }
+                            p { class: "text-2xl font-bold text-foreground mt-1", "{total_active}" }
+                        }
+                        div {
+                            p { class: "text-xs text-muted-foreground", "Due this week" }
+                            p { class: "text-2xl font-bold text-foreground mt-1", "{due_week.len()}" }
+                        }
+                        div {
+                            p { class: "text-xs text-muted-foreground", "Due this month" }
+                            p { class: "text-2xl font-bold text-foreground mt-1", "{due_month.len()}" }
+                        }
+                        div {
+                            p { class: "text-xs text-muted-foreground", "Yearly cost" }
+                            p { class: "text-2xl font-bold text-foreground mt-1", "{format_currency(yearly_total, currency)}" }
+                        }
+                    }
+                }
+
+                // Card 2: Category breakdown (compact)
+                div { class: "rounded-xl bg-card border border-border/50 p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200",
+                    h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Categories" }
+                    if total_active == 0 {
+                        p { class: "text-sm text-muted-foreground mt-4", "No subscriptions yet" }
+                    } else {
+                        div { class: "mt-4 space-y-2",
+                            for sub in active.iter().take(4) {
+                                div { key: "{sub.id}", class: "flex items-center justify-between",
+                                    span { class: "text-sm text-foreground truncate", "{sub.name}" }
+                                    span { class: "text-sm text-muted-foreground", "{format_currency(sub.amount, currency)}" }
                                 }
+                            }
+                            if total_active > 4 {
+                                p { class: "text-xs text-muted-foreground", "+{total_active - 4} more" }
                             }
                         }
                     }
                 }
 
-                // Upcoming Payments card
-                div { class: "bg-card border border-border rounded-lg",
+                // Card 3: Upcoming payments (spans full width)
+                div { class: "md:col-span-3 rounded-xl bg-card border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300",
                     div { class: "p-6 pb-2",
-                        h3 { class: "text-lg font-semibold", "Upcoming Payments" }
+                        h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Upcoming payments" }
                     }
-                    div { class: "p-6 pt-0",
-                        if sub_state.is_loading {
-                            div { class: "flex h-32 items-center justify-center",
-                                div { class: "h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" }
-                            }
-                        } else if upcoming_top5.is_empty() {
-                            p { class: "flex h-32 items-center justify-center text-muted-foreground", "No upcoming payments" }
-                        } else {
-                            div { class: "space-y-4",
-                                for sub in upcoming_top5 {
-                                    {
-                                        let next_date = sub.next_billing_date.unwrap();
-                                        let overdue = is_overdue(next_date);
-                                        let today = is_today(next_date);
-                                        let (dot_class, icon_class) = if overdue {
-                                            ("bg-destructive/10", "text-destructive")
-                                        } else if today {
-                                            ("bg-yellow-500/10", "text-yellow-500")
-                                        } else {
-                                            ("bg-green-500/10", "text-green-500")
-                                        };
-                                        let date_str = format_date_short(next_date);
-                                        let days_label = next_billing_days(Some(next_date));
-                                        let logo_url = sub.logo_url.clone();
+                    if sub_state.is_loading {
+                        div { class: "flex h-24 items-center justify-center",
+                            div { class: "h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" }
+                        }
+                    } else if upcoming_top5.is_empty() {
+                        div { class: "p-6 pt-0",
+                            p { class: "text-sm text-muted-foreground", "No upcoming payments" }
+                        }
+                    } else {
+                        div { class: "p-6 pt-2 space-y-3",
+                            for sub in upcoming_top5 {
+                                {
+                                    let next_date = sub.next_billing_date.unwrap();
+                                    let overdue = is_overdue_fn(next_date);
+                                    let today = is_today_fn(next_date);
+                                    let date_str = format_date_short_fn(next_date);
+                                    let days_label = next_billing_days_text(Some(next_date));
+                                    let logo_url = sub.logo_url.clone();
 
-                                        rsx! {
-                                            div { key: "{sub.id}", class: "flex items-center justify-between",
-                                                div { class: "flex items-center gap-3",
-                                                    div { class: "flex h-9 w-9 items-center justify-center rounded-full overflow-hidden {dot_class}",
-                                                        {logo_image_with_fallback(&format!("dash-{}", sub.id), logo_url.as_deref(), &sub.name, "h-full w-full object-cover")}
-                                                        if logo_url.is_none() {
-                                                            svg {
-                                                                view_box: "0 0 24 24",
-                                                                fill: "none",
-                                                                stroke: "currentColor",
-                                                                stroke_width: "2",
-                                                                stroke_linecap: "round",
-                                                                stroke_linejoin: "round",
-                                                                class: "h-4 w-4 {icon_class}",
-                                                                line { x1: "4", y1: "2", x2: "4", y2: "22" }
-                                                                path { d: "M1 2h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H1" }
-                                                                path { d: "M4 18h2" }
-                                                                circle { cx: "12", cy: "10", r: "2" }
-                                                                path { d: "M13 14h-2" }
-                                                                line { x1: "1", y1: "20", x2: "4", y2: "20" }
-                                                            }
-                                                        }
-                                                    }
-                                                    div {
-                                                        p { class: "text-sm font-medium", "{sub.name}" }
-                                                        p { class: "text-xs text-muted-foreground", "{date_str}" }
+                                    rsx! {
+                                        div { key: "{sub.id}", class: "flex items-center justify-between py-2",
+                                            div { class: "flex items-center gap-3 min-w-0",
+                                                div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-secondary",
+                                                    {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-full w-full object-cover")}
+                                                }
+                                                div { class: "min-w-0",
+                                                    p { class: "text-sm font-medium text-foreground truncate", "{sub.name}" }
+                                                    p {
+                                                        class: if overdue { "text-xs text-destructive" } else { "text-xs text-muted-foreground" },
+                                                        "{date_str}"
                                                     }
                                                 }
-                                                div { class: "text-right",
-                                                    p { class: "text-sm font-medium", "{format_currency(sub.amount, currency)}" }
-                                                    if let Some(label) = days_label {
-                                                        p {
-                                                            class: if overdue { "text-xs text-destructive" } else { "text-xs text-muted-foreground" },
-                                                            "{label}"
-                                                        }
+                                            }
+                                            div { class: "text-right shrink-0 ml-4",
+                                                p { class: "text-sm font-semibold text-foreground", "{format_currency(sub.amount, currency)}" }
+                                                if let Some(label) = days_label {
+                                                    p {
+                                                        class: if overdue { "text-xs font-medium text-destructive" } else if today { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
+                                                        "{label}"
                                                     }
                                                 }
                                             }
