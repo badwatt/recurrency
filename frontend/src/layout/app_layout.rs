@@ -78,6 +78,35 @@ pub fn AppLayout() -> Element {
     // Notification click-outside overlay (at App level, outside backdrop-blur header)
     let mut notif_overlay = use_signal(|| false);
 
+    // Mobile bottom bar: hide on scroll down, show on scroll up
+    use_effect(move || {
+        let js = r#"
+        (function() {
+            if (window.__recurrency_scroll_bar) return;
+            window.__recurrency_scroll_bar = true;
+            var lastScroll = 0;
+            var bar = null;
+            function findBar() {
+                bar = document.querySelector('[data-mobile-bar]');
+                return bar;
+            }
+            window.addEventListener('scroll', function() {
+                if (!bar && !findBar()) return;
+                var current = window.scrollY || document.documentElement.scrollTop;
+                if (current <= 0) {
+                    bar.classList.remove('translate-y-full');
+                } else if (current > lastScroll && current > 60) {
+                    bar.classList.add('translate-y-full');
+                } else if (current < lastScroll) {
+                    bar.classList.remove('translate-y-full');
+                }
+                lastScroll = Math.max(current, 0);
+            }, {passive: true});
+        })()
+        "#;
+        let _ = dioxus::document::eval(js);
+    });
+
     rsx! {
         a {
             href: "#main-content",
@@ -172,8 +201,9 @@ pub fn AppLayout() -> Element {
                 Outlet::<crate::Route> {}
             }
 
-            // ── Mobile bottom bar (sticky to viewport bottom) ──
-            nav { class: "lg:hidden sticky bottom-0 z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl",
+            // ── Mobile bottom bar (sticky, hides on scroll down) ──
+            nav { class: "lg:hidden sticky bottom-0 z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl transition-transform duration-300",
+                "data-mobile-bar": "true",
                 div { class: "flex items-center justify-around h-14",
                     MobileTab {
                         to: crate::Route::Dashboard {},
