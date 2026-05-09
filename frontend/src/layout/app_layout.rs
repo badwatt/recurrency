@@ -172,8 +172,8 @@ pub fn AppLayout() -> Element {
                 Outlet::<crate::Route> {}
             }
 
-            // ── Mobile bottom bar ──
-            nav { class: "lg:hidden z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl",
+            // ── Mobile bottom bar (sticky to viewport bottom) ──
+            nav { class: "lg:hidden sticky bottom-0 z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl",
                 div { class: "flex items-center justify-around h-14",
                     MobileTab {
                         to: crate::Route::Dashboard {},
