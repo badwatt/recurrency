@@ -168,12 +168,12 @@ pub fn AppLayout() -> Element {
                 }
             }
 
-            main { id: "main-content", class: "flex-1 w-full max-w-screen-2xl mx-auto pb-14 lg:pb-0",
+            main { id: "main-content", class: "flex-1 w-full max-w-screen-2xl mx-auto",
                 Outlet::<crate::Route> {}
             }
 
             // ── Mobile bottom bar ──
-            nav { class: "lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl safe-area-bottom",
+            nav { class: "lg:hidden z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl",
                 div { class: "flex items-center justify-around h-14",
                     MobileTab {
                         to: crate::Route::Dashboard {},
