@@ -1,4 +1,5 @@
 use crate::api::notifications;
+use crate::components::toast::ToastContainer;
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
 use crate::state::preferences::PREFERENCES;
@@ -238,6 +239,8 @@ pub fn AppLayout() -> Element {
                 }
             }
         }
+
+        ToastContainer {}
     }
 }
 
