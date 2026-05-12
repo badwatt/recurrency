@@ -174,7 +174,7 @@ pub fn AppLayout() -> Element {
                         a {
                             href: "/settings",
                             class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-                            {SvgIcon(Icon::Settings, 20)}
+                            {svg_icon(Icon::Settings, 20)}
                         }
                         button {
                             r#type: "button",
@@ -184,7 +184,7 @@ pub fn AppLayout() -> Element {
                                 AUTH.write().persist_to_storage();
                             },
                             title: "Logout",
-                            {SvgIcon(Icon::Logout, 20)}
+                            {svg_icon(Icon::Logout, 20)}
                         }
                     }
                 }
@@ -251,7 +251,7 @@ fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Elem
         a {
             href: format!("{}", to),
             class: navlink_class(active),
-            {SvgIcon(icon, 18)}
+            {svg_icon(icon, 18)}
             span { class: "hidden lg:inline", "{label}" }
         }
     }
@@ -268,7 +268,7 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
             } else {
                 "flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground"
             },
-            {SvgIcon(icon, 22)}
+            {svg_icon(icon, 22)}
             span { class: "text-[10px] font-medium", "{label}" }
         }
     }
@@ -288,7 +288,7 @@ fn ThemeToggleButton() -> Element {
             {
                 let theme = theme_signal.theme().to_string();
                 let (icon, _label) = theme_icon_and_label(&theme);
-                rsx! { {SvgIcon(icon, 20)} }
+                rsx! { {svg_icon(icon, 20)} }
             }
         }
     }
@@ -324,7 +324,7 @@ fn NotificationBell() -> Element {
                         });
                     }
                 },
-                {SvgIcon(Icon::Dashboard, 20)}
+                {svg_icon(Icon::Dashboard, 20)}
                 if unread > 0 {
                     span { class: "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-md bg-primary px-1 text-[10px] font-bold text-primary-foreground",
                         "{notification_badge_text(unread as usize)}"
@@ -402,7 +402,7 @@ fn NotificationItem(notification: crate::models::notification::Notification) -> 
                             }
                         });
                     },
-                    {SvgIcon(Icon::Dashboard, 14)}
+                    {svg_icon(Icon::Dashboard, 14)}
                 }
             }
         }
@@ -474,7 +474,7 @@ pub fn notification_dot_class(is_read: bool) -> &'static str {
 }
 
 // ── SVG icon renderer ──
-fn SvgIcon(icon: Icon, size: i32) -> Element {
+fn svg_icon(icon: Icon, size: i32) -> Element {
     match icon {
         Icon::Dashboard => rsx! {
             svg {
@@ -817,7 +817,7 @@ mod tests {
             Icon::Monitor,
         ];
         for icon in icons {
-            let _ = SvgIcon(icon, 20);
+            let _ = svg_icon(icon, 20);
         }
     }
 

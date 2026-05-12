@@ -753,7 +753,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                                 .unwrap_or_default();
                                                             edit_form.set(EditForm::init_for_create(
                                                                 &formatted_date,
-                                                                &AUTH().currency().to_string(),
+                                                                AUTH().currency(),
                                                                 &default_cat,
                                                             ));
                                                             editing_id.set(None);
@@ -838,7 +838,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                     span {
                                                         class: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
                                                         style: "color: {cat_color}; background-color: {cat_color}15;",
-                                                        {icon_display(&cat_icon)}
+                                                        {icon_display(cat_icon)}
                                                         "{cat_name}"
                                                     }
                                                     span { class: "text-xs text-muted-foreground",

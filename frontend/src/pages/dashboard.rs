@@ -179,7 +179,7 @@ pub fn Dashboard() -> Element {
             // Quick actions
             div { class: "flex gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300",
                 {
-                    let nav1 = nav.clone();
+                    let nav1 = nav;
                     rsx! {
                         a {
                             href: "/subscriptions",
@@ -199,7 +199,7 @@ pub fn Dashboard() -> Element {
                     }
                 }
                 {
-                    let nav2 = nav.clone();
+                    let nav2 = nav;
                     rsx! {
                         a {
                             href: "/transactions",

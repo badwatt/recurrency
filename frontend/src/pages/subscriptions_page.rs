@@ -1112,7 +1112,7 @@ fn render_dialog(
         Dialog {
             open: true,
             on_close: move |_| dialog_open.set(false),
-            title: title.clone(),
+            title: title,
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                     button {

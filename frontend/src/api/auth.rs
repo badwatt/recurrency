@@ -8,7 +8,7 @@ pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<Aut
     let resp = ureq::post(&url)
         .timeout(std::time::Duration::from_secs(15))
         .set("Content-Type", "application/json")
-        .send_json(&serde_json::json!({ "email": email, "password": password }))
+        .send_json(serde_json::json!({ "email": email, "password": password }))
         .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status();
     if !(200..300).contains(&status) {

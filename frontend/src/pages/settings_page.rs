@@ -297,7 +297,7 @@ pub fn SettingsPage() -> Element {
                     for (idx, (key, label, desc)) in NOTIFICATION_CHANNELS.iter().enumerate() {
                         {let checked = notification_prefs().get(*key).copied().unwrap_or(false);
                          let key_str = key.to_string();
-                         let is_email_disabled = is_email_disabled(*key, smtp_configured());
+                         let is_email_disabled = is_email_disabled(key, smtp_configured());
                          rsx! {
                             div { key: "{key}",
                                 div { class: "flex items-center justify-between gap-4",
