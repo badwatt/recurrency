@@ -106,11 +106,11 @@ fn App() -> Element {
     });
 
     rsx! {
-        // Critical inline CSS prevents FOUC on Android WebView.
-        // Android WebView doesn't block render on <link> stylesheet.
-        // Wrapper div sets dark background immediately via inline style.
+        // Wrapper div uses CSS variables for theme-aware background/text.
+        // Pre-wasm loader (index.html) handles initial FOUC prevention.
         div {
-            style: "background:#FAF9F2;color:#202020;min-height:100dvh;font-family:'Cabinet Grotesk',system-ui,-apple-system,sans-serif;",
+            class: "min-h-dvh bg-background text-foreground",
+            style: "font-family:'Cabinet Grotesk',system-ui,-apple-system,sans-serif;",
             document::Stylesheet { href: TAILWIND_CSS }
             Router::<Route> {}
         }
