@@ -223,7 +223,8 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
-    let _body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
+    #[cfg_attr(not(target_os = "android"), expect(unused_variables, reason = "used in android cfg block"))]
+    let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
     #[cfg(target_os = "android")]
     {
@@ -266,7 +267,8 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
-    let _body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
+    #[cfg_attr(not(target_os = "android"), expect(unused_variables, reason = "used in android cfg block"))]
+    let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
     #[cfg(target_os = "android")]
     {

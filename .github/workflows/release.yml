@@ -9,7 +9,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  DX_VERSION: "0.7.5"
+  DX_VERSION: "0.7.9"
 
 permissions:
   contents: write
@@ -182,7 +182,7 @@ jobs:
           local-cache: true
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
