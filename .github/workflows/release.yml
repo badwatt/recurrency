@@ -310,11 +310,12 @@ jobs:
           echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: recurrency-android
           path: bin/android/*.apk
           retention-days: 1
+          overwrite: true
           if-no-files-found: error
 
       - name: Upload APK to Release
