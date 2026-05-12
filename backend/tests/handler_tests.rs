@@ -152,7 +152,7 @@ mod subscription_model_tests {
     fn create_subscription_leap_year() {
         let json = r#"{"name":"Test","amount":"10.00","currency":"USD","frequency":"monthly","start_date":"2024-02-29"}"#;
         let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(req.start_date.to_string().len() > 0, true);
+        assert!(!req.start_date.to_string().is_empty());
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod category_model_tests {
         for color in colors {
             let json = format!(r#"{{"name":"Test","color":"{}"}}"#, color);
             let req: CreateCategoryRequest = serde_json::from_str(&json).unwrap();
-            assert!(req.color.as_ref().map_or(false, |c| c == color));
+            assert!(req.color.as_ref().is_some_and(|c| c == color));
         }
     }
 }

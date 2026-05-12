@@ -215,8 +215,8 @@ mod tests {
     #[test]
     fn calendar_defaults_to_current_date() {
         let today = chrono::Utc::now().date_naive();
-        let year = None::<i32>.unwrap_or(today.year());
-        let month = None::<u32>.unwrap_or(today.month());
+        let year = today.year();
+        let month = today.month();
         assert_eq!(year, today.year());
         assert_eq!(month, today.month());
     }
@@ -282,7 +282,7 @@ mod tests {
         let json = r#"{"name":"Test","amount":"-10.00","currency":"USD","frequency":"monthly","start_date":"2024-01-01"}"#;
         let req: CreateSubscriptionRequest = serde_json::from_str(json).unwrap();
         // Amount is parsed as-is
-        assert_eq!(req.amount.to_string().starts_with("-"), true);
+        assert!(req.amount.to_string().starts_with("-"));
     }
 
     #[test]

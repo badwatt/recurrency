@@ -276,7 +276,6 @@ mod tests {
     async fn test_health_check() {
         let result = health_check().await;
         assert_eq!(result.status, "OK");
-        assert!(result.smtp_configured || !result.smtp_configured); // Either value valid
     }
 
     #[tokio::test]

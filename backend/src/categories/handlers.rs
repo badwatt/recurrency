@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn create_category_request_with_icon() {
         let json = r##"{"name":"Test","icon":"Star","color":"#FF0000"}"##;
-        let req: CreateCategoryRequest = serde_json::from_str(&json).unwrap();
+        let req: CreateCategoryRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.icon.as_deref(), Some("Star"));
     }
 

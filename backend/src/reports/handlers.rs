@@ -68,8 +68,8 @@ mod tests {
     #[test]
     fn report_query_defaults_to_current_date() {
         let today = chrono::Utc::now().date_naive();
-        let year = None::<i32>.unwrap_or(today.year());
-        let month = None::<u32>.unwrap_or(today.month());
+        let year = today.year();
+        let month = today.month();
         assert_eq!(year, today.year());
         assert_eq!(month, today.month());
     }

@@ -73,8 +73,9 @@ mod tests {
         assert!(result.token.is_none());
     }
 
-    // A struct with a required (non-optional) field to force parse failure.
+    // Test helper struct for deserialization — field never read directly.
     #[derive(serde::Deserialize)]
+    #[expect(dead_code)]
     struct RequiredToken {
         token: String,
     }

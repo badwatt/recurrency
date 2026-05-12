@@ -590,7 +590,7 @@ mod tests {
             transaction_count: 20,
         };
         assert_eq!(with_counts.category.name, "Converted");
-        assert_eq!(with_counts.category.is_default, true);
+        assert!(with_counts.category.is_default);
     }
 
     // ── resolve_optional_json_field edge cases ──
@@ -1098,7 +1098,7 @@ mod tests {
 
     #[test]
     fn json_field_float_keeps_existing() {
-        let result = resolve_optional_json_field(serde_json::json!(3.14), Some("keep".to_string()));
+        let result = resolve_optional_json_field(serde_json::json!(std::f64::consts::PI), Some("keep".to_string()));
         assert_eq!(result, Some("keep".to_string()));
     }
 }
@@ -1146,7 +1146,7 @@ fn resolve_json_field_unicode() {
 fn update_category_request_name_only() {
     let json = r#"{"name":"New Name"}"#;
     let req: UpdateCategoryRequest = serde_json::from_str(json).unwrap();
-    assert_eq!(req.name.as_ref().map(|s| s.as_str()), Some("New Name"));
+    assert_eq!(req.name.as_deref(), Some("New Name"));
 }
 
 #[test]
