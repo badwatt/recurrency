@@ -9,6 +9,7 @@ pub static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::n
 
 pub fn get_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(|| {
+        #[cfg_attr(target_arch = "wasm32", expect(unused_mut, reason = "builder mut only needed on non-WASM"))]
         let mut builder = reqwest::Client::builder();
         #[cfg(not(target_arch = "wasm32"))]
         {

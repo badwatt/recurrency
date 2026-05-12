@@ -2,14 +2,14 @@ use crate::api::client::{get_base_url, set_base_url};
 use crate::Route;
 use dioxus::prelude::*;
 
-fn save_server_url(url: &str) {
+fn save_server_url(_url: &str) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let app_dir = data_dir.join("recurrency");
             let _ = std::fs::create_dir_all(&app_dir);
             let url_file = app_dir.join("server_url.txt");
-            let _ = std::fs::write(&url_file, url);
+            let _ = std::fs::write(&url_file, _url);
         }
     }
 }

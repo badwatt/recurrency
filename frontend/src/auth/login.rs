@@ -1,3 +1,4 @@
+#[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
 use crate::api::{auth, client::get_base_url, demo, client::ApiError};
 use crate::state::auth::AUTH;
 use crate::Route;
