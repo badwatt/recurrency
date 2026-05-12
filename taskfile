@@ -89,13 +89,16 @@ cmd_up() {
   export JWT_SECRET="${JWT_SECRET:-dev-secret}"
   export ENABLE_DEMO="${ENABLE_DEMO:-true}"
   export FRONTEND_DIST="$ROOT/frontend/dist/public"
-  nix develop --no-eval-cache "$ROOT" -c cargo run &
+  nix develop --no-eval-cache "$ROOT" -c cargo run 2>/dev/null &
   BACKEND_PID=$!
+
+  # Brief wait to avoid cargo package cache lock contention with dx serve
+  sleep 1
 
   info "Starting frontend..."
   cd "$ROOT/frontend"
   export RECURRENCY_API_URL="${RECURRENCY_API_URL:-http://localhost:8080}"
-  nix develop --no-eval-cache "$ROOT" -c dx serve --platform web --port 1420 &
+  nix develop --no-eval-cache "$ROOT" -c dx serve --platform web --port 1420 2>/dev/null &
   FRONTEND_PID=$!
 
   trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; cd $ROOT && docker compose -f docker/docker-compose.dev.yml down 2>/dev/null" EXIT
