@@ -706,7 +706,7 @@ pub fn SubscriptionsPage() -> Element {
                         } else {
                             rsx! {
                                 div { class: "space-y-3",
-                                    for (i, sub) in filtered.iter().enumerate() {
+                                    for (_i, sub) in filtered.iter().enumerate() {
                                         {render_list_card(sub, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
                                     }
                                 }

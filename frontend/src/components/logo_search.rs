@@ -1,6 +1,5 @@
 use crate::api;
 use crate::components::dialog::Dialog;
-use crate::components::input::Input;
 use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
 use dioxus::prelude::*;
@@ -11,7 +10,7 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
     let mut query = use_signal(|| default_query.clone());
     let mut results = use_signal(Vec::<LogoResult>::new);
     let mut searching = use_signal(|| false);
-    let mut error_msg = use_signal(|| String::new());
+    let mut error_msg = use_signal(String::new);
 
     let mut do_search = move || {
         if query().is_empty() || searching() { return; }

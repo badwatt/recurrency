@@ -168,7 +168,7 @@ fn ureq_handle_resp<T: serde::de::DeserializeOwned>(resp: ureq::Response) -> Res
     if status == 401 {
         return Err(ApiError::Unauthorized);
     }
-    if status < 200 || status >= 300 {
+    if !(200..300).contains(&status) {
         let body = resp.into_string().unwrap_or_default();
         return Err(ApiError::Http(status, body));
     }
@@ -222,7 +222,7 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
-    let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
+    let _body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
     #[cfg(target_os = "android")]
     {
@@ -265,7 +265,7 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
-    let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
+    let _body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
     #[cfg(target_os = "android")]
     {
@@ -315,7 +315,7 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
                 let resp = req.call().map_err(|e| ApiError::Network(e.to_string()))?;
                 let status = resp.status();
                 if status == 401 { return Err(ApiError::Unauthorized); }
-                if status < 200 || status >= 300 {
+                if !(200..300).contains(&status) {
                     let body = resp.into_string().unwrap_or_default();
                     return Err(ApiError::Http(status, body));
                 }

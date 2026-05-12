@@ -27,7 +27,7 @@ pub fn logo_image_with_fallback(
             let fb_id_clone = fb_id.clone();
             let img_id_clone_for_error = img_id.clone();
             let img_id_clone_for_load = img_id.clone();
-            let wrapper_id_clone = wrapper_id.clone();
+            let _wrapper_id_clone = wrapper_id.clone();
             rsx! {
                 div {
                     id: "{wrapper_id}",

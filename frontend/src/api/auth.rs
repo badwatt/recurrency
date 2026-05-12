@@ -11,7 +11,7 @@ pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<Aut
         .send_json(&serde_json::json!({ "email": email, "password": password }))
         .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status();
-    if status < 200 || status >= 300 {
+    if !(200..300).contains(&status) {
         let body = resp.into_string().unwrap_or_default();
         return Err(ApiError::Http(status, body));
     }

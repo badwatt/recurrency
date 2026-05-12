@@ -50,7 +50,7 @@ pub fn LoginPage() -> Element {
         loading.set(true);
         let email_val = email();
         let password_val = auth_field();
-        let nav = nav.clone();
+        let nav = nav;
 
         // Use Dioxus spawn (tied to component scope — cancelled on unmount).
         // Async closures in event handlers may not cancel properly on Android.
@@ -121,7 +121,7 @@ pub fn LoginPage() -> Element {
     let handle_demo = move |_evt: MouseEvent| {
         error.set(String::new());
         demo_loading.set(true);
-        let nav = nav_demo.clone();
+        let nav = nav_demo;
 
         spawn(async move {
             #[cfg(not(target_arch = "wasm32"))]

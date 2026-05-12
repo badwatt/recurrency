@@ -193,7 +193,7 @@ pub fn TransactionsPage() -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut editing_id = use_signal(|| None::<Uuid>);
     let mut filters_popover = use_signal(|| false);
-    let mut show_filters = use_signal(|| false);
+    let _show_filters = use_signal(|| false);
 
     // Local form state for create/edit dialog
     let mut form_name = use_signal(String::new);

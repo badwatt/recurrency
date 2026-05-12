@@ -280,7 +280,7 @@ pub fn ReportsPage() -> Element {
                                         }
                                         // Legend
                                         div { class: "grid grid-cols-2 gap-x-4 gap-y-1.5 w-full",
-                                            for (i, cat) in r.category_breakdown.iter().take(8).enumerate() {
+                                            for (_i, cat) in r.category_breakdown.iter().take(8).enumerate() {
                                                 {
                                                     let cats_guard = CATEGORIES();
                                                     let (color, icon_str) = category_style_by_name(&cats_guard.categories, &cat.category_name);

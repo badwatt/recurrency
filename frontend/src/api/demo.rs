@@ -28,7 +28,7 @@ pub fn blocking_init(base_url: &str) -> Result<DemoInitResponse, ApiError> {
         .call()
         .map_err(|e| ApiError::Network(e.to_string()))?;
     let status = resp.status();
-    if status < 200 || status >= 300 {
+    if !(200..300).contains(&status) {
         let body = resp.into_string().unwrap_or_default();
         return Err(ApiError::Http(status, body));
     }
