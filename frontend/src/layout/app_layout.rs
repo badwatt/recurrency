@@ -108,6 +108,8 @@ pub fn AppLayout() -> Element {
         let _ = dioxus::document::eval(js);
     });
 
+    let nav = navigator();
+
     rsx! {
         a {
             href: "#main-content",
@@ -124,6 +126,10 @@ pub fn AppLayout() -> Element {
                     div { class: "flex items-center gap-6",
                         a {
                             href: "/",
+                            onclick: move |e| {
+                                e.prevent_default();
+                                nav.push(crate::Route::Dashboard {});
+                            },
                             class: "flex items-center gap-2 hover:opacity-80 transition-opacity",
                             LogoIcon {}
                             span { class: "font-bold text-foreground hidden sm:inline", "Recurrency" }
@@ -173,6 +179,10 @@ pub fn AppLayout() -> Element {
                         NotificationBell {}
                         a {
                             href: "/settings",
+                            onclick: move |e| {
+                                e.prevent_default();
+                                nav.push(crate::Route::Settings {});
+                            },
                             class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
                             {svg_icon(Icon::Settings, 20)}
                         }
@@ -247,9 +257,14 @@ pub fn AppLayout() -> Element {
 // ── Top nav link (horizontal, pill-style) ──
 #[component]
 fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Element {
+    let nav = navigator();
     rsx! {
         a {
             href: format!("{}", to),
+            onclick: move |e| {
+                e.prevent_default();
+                nav.push(to.clone());
+            },
             class: navlink_class(active),
             {svg_icon(icon, 18)}
             span { class: "hidden lg:inline", "{label}" }
@@ -260,9 +275,14 @@ fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Elem
 // ── Mobile bottom tab ──
 #[component]
 fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Element {
+    let nav = navigator();
     rsx! {
         a {
             href: format!("{}", to),
+            onclick: move |e| {
+                e.prevent_default();
+                nav.push(to.clone());
+            },
             class: if active {
                 "flex flex-col items-center gap-0.5 px-3 py-1 text-primary"
             } else {
