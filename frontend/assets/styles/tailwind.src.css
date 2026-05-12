@@ -6,28 +6,28 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 255 15% 8%;
+    --background: 53 44% 96%;
+    --foreground: 0 0% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 255 15% 8%;
+    --card-foreground: 0 0% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 255 15% 8%;
-    --primary: 36 90% 48%;
+    --popover-foreground: 0 0% 13%;
+    --primary: 0 0% 13%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 255 15% 95%;
-    --secondary-foreground: 255 15% 12%;
-    --muted: 255 10% 94%;
-    --muted-foreground: 255 8% 46%;
-    --accent: 36 90% 95%;
-    --accent-foreground: 36 90% 25%;
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 13%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 44%;
+    --accent: 49 33% 93%;
+    --accent-foreground: 0 0% 13%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 255 10% 90%;
-    --input: 255 10% 90%;
-    --ring: 36 90% 48%;
+    --border: 0 0% 87%;
+    --input: 0 0% 87%;
+    --ring: 0 0% 13%;
     --radius: 0.5rem;
-    --loader-bg: #fff;
-    --loader-fg: #14141a;
+    --loader-bg: #FAF9F2;
+    --loader-fg: #202020;
   }
 
   .dark {

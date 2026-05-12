@@ -110,7 +110,7 @@ fn App() -> Element {
         // Android WebView doesn't block render on <link> stylesheet.
         // Wrapper div sets dark background immediately via inline style.
         div {
-            style: "background:#0d0d11;color:#ededf0;min-height:100dvh;font-family:'Cabinet Grotesk',system-ui,-apple-system,sans-serif;",
+            style: "background:#FAF9F2;color:#202020;min-height:100dvh;font-family:'Cabinet Grotesk',system-ui,-apple-system,sans-serif;",
             document::Stylesheet { href: TAILWIND_CSS }
             Router::<Route> {}
         }

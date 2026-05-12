@@ -80,8 +80,8 @@ fn index_html_meta_theme_color_matches_css_variables() {
         "Mocha mode meta theme-color must be #1e1e2e (matches CSS --background)"
     );
     assert!(
-        body_section.contains("#ffffff"),
-        "Light mode meta theme-color must be #ffffff (matches CSS --background)"
+        body_section.contains("#FAF9F2"),
+        "Light mode meta theme-color must be #FAF9F2 (matches CSS --background)"
     );
 }
 
@@ -105,8 +105,8 @@ fn tailwind_src_has_theme_and_loader_css() {
     assert!(css.contains("@keyframes pulse"), "tailwind.src.css must define @keyframes pulse");
     // Opaque loader colors
     assert!(
-        css.contains("--loader-bg: #fff") || css.contains("--loader-bg:#fff"),
-        "light --loader-bg must be opaque #fff"
+        css.contains("--loader-bg: #FAF9F2") || css.contains("--loader-bg:#FAF9F2"),
+        "light --loader-bg must be opaque #FAF9F2"
     );
     assert!(
         css.contains("--loader-bg: #0d0d11") || css.contains("--loader-bg:#0d0d11"),
@@ -163,9 +163,9 @@ fn index_html_loader_styles_moved_to_tailwind_src() {
         "#pre-wasm-loader must NOT use rgba() — must be opaque"
     );
     assert!(
-        style_section.contains("--loader-bg: #fff")
-            || style_section.contains("--loader-bg:#fff"),
-        "Light theme loader must be opaque white"
+        style_section.contains("--loader-bg: #FAF9F2")
+            || style_section.contains("--loader-bg:#FAF9F2"),
+        "Light theme loader must be opaque #FAF9F2"
     );
     assert!(
         style_section.contains("--loader-bg: #0d0d11")
