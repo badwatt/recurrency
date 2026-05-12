@@ -54,7 +54,8 @@ const MONTH_NAMES: &[&str] = &[
 
 /// Compute calendar grid days (with null padding for leading empty cells).
 pub fn calendar_days(year: i32, month: u32, first_day_of_week: &str) -> Vec<Option<u32>> {
-    let first_day = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+    let first_day = NaiveDate::from_ymd_opt(year, month, 1)
+        .unwrap_or_else(|| NaiveDate::from_ymd_opt(2024, 1, 1).unwrap());
     let start_padding = if first_day_of_week == "sunday" {
         first_day.weekday().num_days_from_sunday()
     } else {
@@ -70,10 +71,11 @@ pub fn calendar_days(year: i32, month: u32, first_day_of_week: &str) -> Vec<Opti
 
 /// Number of days in a given month.
 pub fn days_in_month(year: i32, month: u32) -> u32 {
+    let default_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
     NaiveDate::from_ymd_opt(year, month + 1, 1)
-        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap())
+        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap_or(default_date))
         .pred_opt()
-        .unwrap()
+        .unwrap_or(default_date)
         .day()
 }
 
@@ -511,7 +513,8 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 start_date: Some(
                     f.start_date
                         .parse()
-                        .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+                        .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1)
+                            .expect("2024-01-01 is a valid date")),
                 ),
                 category_id: category,
                 notes: if f.notes.is_empty() {
@@ -546,7 +549,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 currency: f.currency,
                 frequency: f.frequency,
                 start_date: f.start_date.parse().unwrap_or(
-                    chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                    chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("2024-01-01 is a valid date"),
                 ),
                 category_id: category,
                 notes: if f.notes.is_empty() {
