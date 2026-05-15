@@ -1,3 +1,4 @@
+use crate::storage::Storage;
 use crate::api::transactions;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
@@ -169,7 +170,7 @@ pub fn TransactionsPage() -> Element {
             return;
         }
         TRANSACTIONS.write().set_loading();
-        match transactions::list().await {
+        match Storage::list_transactions().await {
             Ok(data) => TRANSACTIONS.write().set_data(data),
             Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
         }
@@ -181,7 +182,7 @@ pub fn TransactionsPage() -> Element {
             return;
         }
         CATEGORIES.write().set_loading();
-        match crate::api::categories::list().await {
+        match Storage::list_categories().await {
             Ok(data) => CATEGORIES.write().set_data(data),
             Err(e) => CATEGORIES.write().set_error(e.to_string()),
         }
@@ -280,7 +281,7 @@ pub fn TransactionsPage() -> Element {
         form_saving.set(true);
         spawn(async move {
             let result = if let Some(id) = editing {
-                transactions::update(
+                Storage::update_transaction(
                     &id,
                     &UpdateTransactionRequest {
                         name: Some(name_val),
@@ -302,7 +303,7 @@ pub fn TransactionsPage() -> Element {
                 )
                 .await
             } else {
-                transactions::create(&CreateTransactionRequest {
+                Storage::create_transaction(&CreateTransactionRequest {
                     name: name_val,
                     amount,
                     currency: form_currency(),
@@ -326,7 +327,7 @@ pub fn TransactionsPage() -> Element {
                 Ok(_) => {
                     dialog_open.set(false);
                     // Reload
-                    match transactions::list().await {
+                    match Storage::list_transactions().await {
                         Ok(data) => TRANSACTIONS.write().set_data(data),
                         Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
                     }
@@ -339,8 +340,8 @@ pub fn TransactionsPage() -> Element {
 
     let handle_delete = move |id: Uuid| {
         spawn(async move {
-            let _ = transactions::delete(&id).await;
-            match transactions::list().await {
+            let _ = Storage::delete_transaction(&id).await;
+            match Storage::list_transactions().await {
                 Ok(data) => TRANSACTIONS.write().set_data(data),
                 Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
             }
@@ -803,8 +804,8 @@ pub fn TransactionsPage() -> Element {
                                                     notes: if is_empty { None } else { Some(notes) },
                                                     ..Default::default()
                                                 };
-                                                let _ = transactions::update(&id, &req).await;
-                                                match transactions::list().await {
+                                                let _ = Storage::update_transaction(&id, &req).await;
+                                                match Storage::list_transactions().await {
                                                     Ok(data) => TRANSACTIONS.write().set_data(data),
                                                     Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
                                                 }

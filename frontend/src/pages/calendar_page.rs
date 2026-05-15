@@ -5,7 +5,7 @@ use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 use crate::api;
-use crate::api::subscriptions as sub_api;
+use crate::storage::Storage;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::SkeletonCalendar;
 use crate::components::dialog::Dialog;
@@ -235,7 +235,7 @@ pub fn CalendarPage() -> Element {
         let month = current_month();
         spawn(async move {
             is_loading.set(true);
-            match sub_api::calendar_month(year, month).await {
+            match Storage::calendar_month(year, month).await {
                 Ok(items) => calendar_items.set(items),
                 Err(e) => log::error!("Failed to fetch calendar: {}", e),
             }
@@ -249,7 +249,7 @@ pub fn CalendarPage() -> Element {
             let state = SUBSCRIPTIONS();
             if !state.is_loading && state.subscriptions.is_empty() && state.error.is_none() {
                 SUBSCRIPTIONS.write().set_loading();
-                match api::subscriptions::list().await {
+                match Storage::list_subscriptions().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
@@ -263,7 +263,7 @@ pub fn CalendarPage() -> Element {
             let state = CATEGORIES();
             if !state.is_loading && state.categories.is_empty() && state.error.is_none() {
                 CATEGORIES.write().set_loading();
-                match api::categories::list().await {
+                match Storage::list_categories().await {
                     Ok(data) => CATEGORIES.write().set_data(data),
                     Err(e) => CATEGORIES.write().set_error(e.to_string()),
                 }
@@ -413,15 +413,15 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
     let handle_delete_confirm = move |_| {
         if let Some(id) = delete_confirm_id() {
             spawn(async move {
-                let _ = api::subscriptions::delete(&id).await;
-                match api::subscriptions::list().await {
+                let _ = Storage::delete_subscription(&id).await;
+                match Storage::list_subscriptions().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
                 // Also refresh calendar
                 let y = current_year();
                 let m = current_month();
-                if let Ok(items) = sub_api::calendar_month(y, m).await {
+                if let Ok(items) = Storage::calendar_month(y, m).await {
                     calendar_items.set(items)
                 }
             });
@@ -478,15 +478,15 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 ..Default::default()
             };
             spawn(async move {
-                let _ = api::subscriptions::update(&id, &req).await;
-                match api::subscriptions::list().await {
+                let _ = Storage::update_subscription(&id, &req).await;
+                match Storage::list_subscriptions().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
                 // Refresh calendar
                 let y = current_year();
                 let m = current_month();
-                if let Ok(items) = sub_api::calendar_month(y, m).await {
+                if let Ok(items) = Storage::calendar_month(y, m).await {
                     calendar_items.set(items)
                 }
             });
@@ -512,15 +512,15 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 },
             };
             spawn(async move {
-                let _ = api::subscriptions::create(&req).await;
-                match api::subscriptions::list().await {
+                let _ = Storage::create_subscription(&req).await;
+                match Storage::list_subscriptions().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
                 // Refresh calendar
                 let y = current_year();
                 let m = current_month();
-                if let Ok(items) = sub_api::calendar_month(y, m).await {
+                if let Ok(items) = Storage::calendar_month(y, m).await {
                     calendar_items.set(items)
                 }
             });
@@ -2073,12 +2073,12 @@ mod tests {
     fn handle_edit_submit_has_create_branch() {
         // Bug: calendar '+' button opens add dialog but submit only updates,
         // never creates. handle_edit_submit must have else branch calling
-        // api::subscriptions::create when editing_id is None.
+        // Storage::create_subscription when editing_id is None.
         let src = include_str!("calendar_page.rs");
         let section = src.split("handle_edit_submit").nth(1).unwrap_or("");
         assert!(
-            section.contains("api::subscriptions::create"),
-            "handle_edit_submit must call api::subscriptions::create for new subscriptions"
+            section.contains("Storage::create_subscription"),
+            "handle_edit_submit must call Storage::create_subscription for new subscriptions"
         );
     }
 

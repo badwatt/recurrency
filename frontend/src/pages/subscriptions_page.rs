@@ -5,6 +5,7 @@ use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 use crate::api;
+use crate::storage::Storage;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
@@ -233,7 +234,7 @@ pub fn SubscriptionsPage() -> Element {
             has_fetched.set(true);
             spawn(async move {
                 SUBSCRIPTIONS.write().set_loading();
-                match api::subscriptions::list().await {
+                match Storage::list_subscriptions().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
@@ -247,7 +248,7 @@ pub fn SubscriptionsPage() -> Element {
             let state = CATEGORIES();
             if !state.is_loading && state.categories.is_empty() && state.error.is_none() {
                 CATEGORIES.write().set_loading();
-                match api::categories::list().await {
+                match Storage::list_categories().await {
                     Ok(data) => CATEGORIES.write().set_data(data),
                     Err(e) => CATEGORIES.write().set_error(e.to_string()),
                 }
@@ -303,8 +304,8 @@ pub fn SubscriptionsPage() -> Element {
                 is_active: Some(new_active),
                 ..Default::default()
             };
-            let _ = api::subscriptions::update(&id, &req).await;
-            match api::subscriptions::list().await {
+            let _ = Storage::update_subscription(&id, &req).await;
+            match Storage::list_subscriptions().await {
                 Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                 Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
             }
@@ -662,8 +663,8 @@ pub fn SubscriptionsPage() -> Element {
                                 onclick: move |_| {
                                     let id = delete_confirm_id().unwrap();
                                     spawn(async move {
-                                        let _ = api::subscriptions::delete(&id).await;
-                                        match api::subscriptions::list().await {
+                                        let _ = Storage::delete_subscription(&id).await;
+                                        match Storage::list_subscriptions().await {
                                             Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                                             Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                                         }
@@ -710,8 +711,8 @@ pub fn SubscriptionsPage() -> Element {
                                                     notes: if is_empty { None } else { Some(notes) },
                                                     ..Default::default()
                                                 };
-                                                let _ = api::subscriptions::update(&id, &req).await;
-                                                match api::subscriptions::list().await {
+                                                let _ = Storage::update_subscription(&id, &req).await;
+                                                match Storage::list_subscriptions().await {
                                                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                                                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                                                 }
@@ -1114,8 +1115,8 @@ fn render_dialog(
                                     ..Default::default()
                                 };
                                 spawn(async move {
-                                    let _ = api::subscriptions::update(&id, &req).await;
-                                    match api::subscriptions::list().await {
+                                    let _ = Storage::update_subscription(&id, &req).await;
+                                    match Storage::list_subscriptions().await {
                                         Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                                         Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                                     }
@@ -1132,8 +1133,8 @@ fn render_dialog(
                                     logo_url: if f.logo_url.is_empty() { None } else { Some(f.logo_url.clone()) },
                                 };
                                 spawn(async move {
-                                    let _ = api::subscriptions::create(&req).await;
-                                    match api::subscriptions::list().await {
+                                    let _ = Storage::create_subscription(&req).await;
+                                    match Storage::list_subscriptions().await {
                                         Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                                         Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                                     }
