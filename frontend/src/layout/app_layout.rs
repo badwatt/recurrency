@@ -63,8 +63,8 @@ pub fn AppLayout() -> Element {
         return rsx! { AppLoader {} };
     }
 
-    // Local mode: skip auth, auto-authenticate with a local marker
-    if APP_MODE().mode.is_local() {
+    // Offline mode: skip auth, auto-authenticate with a local marker
+    if APP_MODE().mode.is_offline() {
         // In local mode, we don't need auth — mark as authenticated
         if !auth.is_authenticated {
             // Create a local user session
@@ -76,7 +76,7 @@ pub fn AppLayout() -> Element {
                 currency: "EUR".to_string(),
                 verified: true,
             };
-            AUTH.write().set_authenticated("local".to_string(), local_user, false);
+            AUTH.write().set_authenticated("offline".to_string(), local_user, false);
         }
     } else if !auth.is_authenticated {
         let nav = navigator();

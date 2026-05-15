@@ -13,6 +13,7 @@ mod layout;
 mod models;
 mod pages;
 mod state;
+mod storage;
 #[cfg(test)]
 mod tests;
 mod theme;

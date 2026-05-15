@@ -29,12 +29,12 @@ pub fn SetupPage() -> Element {
         let current = APP_MODE();
         match &current.mode {
             AppMode::Server(_url) => "server".to_string(),
-            AppMode::Local => "local".to_string(),
+            AppMode::Offline => "offline".to_string(),
         }
     });
     let mut server_url = use_signal(|| match &APP_MODE().mode {
         AppMode::Server(url) => url.clone(),
-        AppMode::Local => String::new(),
+        AppMode::Offline => String::new(),
     });
     let mut error = use_signal(String::new);
     let mut connecting = use_signal(|| false);
@@ -120,7 +120,7 @@ pub fn SetupPage() -> Element {
                 connecting.set(false);
             });
         } else {
-            // Local mode — no server needed, go directly to app
+            // Offline mode — no server needed, go directly to app
             APP_MODE.write().set_local();
             let nav = navigator();
             nav.push(Route::Login {});
@@ -139,10 +139,10 @@ pub fn SetupPage() -> Element {
 
                 // Mode selection cards
                 div { class: "flex flex-col gap-3",
-                    // Local mode card
+                    // Offline mode card
                     button {
-                        onclick: move |_| { mode.set("local".to_string()); },
-                        class: if mode() == "local" {
+                        onclick: move |_| { mode.set("offline".to_string()); },
+                        class: if mode() == "offline" {
                             "rounded-xl border-2 border-primary bg-primary/5 p-4 text-left transition-all hover:bg-primary/10"
                         } else {
                             "rounded-xl border border-border p-4 text-left transition-all hover:border-primary/50"
@@ -164,12 +164,12 @@ pub fn SetupPage() -> Element {
                                 }
                             }
                             div { class: "flex-1",
-                                p { class: "font-medium text-foreground", "Local Mode" }
+                                p { class: "font-medium text-foreground", "Offline Mode" }
                                 p { class: "text-sm text-muted-foreground",
                                     "Use offline — data stored on this device"
                                 }
                             }
-                            if mode() == "local" {
+                            if mode() == "offline" {
                                 div { class: "h-5 w-5 rounded-full bg-primary flex items-center justify-center",
                                     svg {
                                         view_box: "0 0 24 24",
@@ -274,7 +274,7 @@ pub fn SetupPage() -> Element {
                     },
                     if connecting() {
                         "Connecting..."
-                    } else if mode() == "local" {
+                    } else if mode() == "offline" {
                         "Continue Offline"
                     } else {
                         "Connect"
@@ -355,18 +355,18 @@ mod tests {
     // ── Mode selection tests ──
 
     #[test]
-    fn app_mode_local_is_local() {
-        assert!(AppMode::Local.is_local());
+    fn app_mode_offline_is_offline() {
+        assert!(AppMode::Offline.is_offline());
     }
 
     #[test]
     fn app_mode_server_is_not_local() {
-        assert!(!AppMode::Server("http://test:8080".into()).is_local());
+        assert!(!AppMode::Server("http://test:8080".into()).is_offline());
     }
 
     #[test]
     fn app_mode_server_url_accessor() {
-        assert_eq!(AppMode::Local.server_url(), None);
+        assert_eq!(AppMode::Offline.server_url(), None);
         assert_eq!(
             AppMode::Server("http://test:8080".into()).server_url(),
             Some("http://test:8080")
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn setup_page_has_mode_selection() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("Local Mode"), "Should have local mode option");
+        assert!(src.contains("Offline Mode"), "Should have local mode option");
         assert!(src.contains("Server Mode"), "Should have server mode option");
     }
 
@@ -433,6 +433,6 @@ mod tests {
     #[test]
     fn setup_page_local_mode_skips_connection() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("Continue Offline"), "Local mode should have continue button");
+        assert!(src.contains("Continue Offline"), "Offline mode should have continue button");
     }
 }

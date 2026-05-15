@@ -275,8 +275,8 @@ pub fn SettingsPage() -> Element {
                 div { class: "p-6 border-b border-border",
                     h2 { class: "text-lg font-semibold", "Connection" }
                     p { class: "text-sm text-muted-foreground",
-                        if APP_MODE().mode.is_local() {
-                            "Local mode — data stored on this device"
+                        if APP_MODE().mode.is_offline() {
+                            "Offline mode — data stored on this device"
                         } else {
                             "Connected to your Recurrency server"
                         }
@@ -286,7 +286,7 @@ pub fn SettingsPage() -> Element {
                     // Current mode indicator
                     div { class: "flex items-center gap-3",
                         div { class: "flex h-9 w-9 items-center justify-center rounded-lg",
-                            if APP_MODE().mode.is_local() {
+                            if APP_MODE().mode.is_offline() {
                                 // Database icon
                                 svg {
                                     view_box: "0 0 24 24",
@@ -317,13 +317,13 @@ pub fn SettingsPage() -> Element {
                         }
                         div { class: "flex-1",
                             p { class: "text-sm font-medium",
-                                if APP_MODE().mode.is_local() {
-                                    "Local Mode"
+                                if APP_MODE().mode.is_offline() {
+                                    "Offline Mode"
                                 } else {
                                     "Server Mode"
                                 }
                             }
-                            if !APP_MODE().mode.is_local() {
+                            if !APP_MODE().mode.is_offline() {
                                 p { class: "text-xs text-muted-foreground",
                                     "{APP_MODE().mode.server_url().unwrap_or_default()}"
                                 }

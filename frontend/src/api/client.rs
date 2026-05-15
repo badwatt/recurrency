@@ -46,7 +46,7 @@ impl std::fmt::Display for ApiError {
 static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 
 /// Returns true if the app is in local (SQLite) mode — no server needed.
-pub fn is_local_mode() -> bool {
+pub fn is_offline_mode() -> bool {
     // 1. Check BASE_URL_OVERRIDE — explicit URL override means server mode
     if let Ok(lock) = BASE_URL_OVERRIDE.read() {
         if lock.is_some() {
@@ -58,10 +58,10 @@ pub fn is_local_mode() -> bool {
         crate::state::app_mode::APP_MODE.try_read()
     }));
     if let Ok(Ok(mode_state)) = mode_result {
-        return mode_state.mode.is_local();
+        return mode_state.mode.is_offline();
     }
     // 3. Fall back to persistent storage
-    is_local_mode_from_storage()
+    is_offline_mode_from_storage()
 }
 
 /// Returns the backend API base URL.
@@ -78,7 +78,7 @@ pub fn get_base_url() -> String {
         crate::state::app_mode::APP_MODE.try_read()
     }));
     if let Ok(Ok(mode_state)) = mode_result {
-        if mode_state.mode.is_local() {
+        if mode_state.mode.is_offline() {
             return String::new(); // local mode: no server URL
         }
         if let Some(url) = mode_state.mode.server_url() {
@@ -86,7 +86,7 @@ pub fn get_base_url() -> String {
         }
     }
     // 3. Check persistent storage directly (works without Dioxus runtime)
-    if is_local_mode_from_storage() {
+    if is_offline_mode_from_storage() {
         return String::new();
     }
     get_base_url_impl()
@@ -109,13 +109,13 @@ pub fn set_base_url(url: &str) {
 }
 
 /// Check persistent storage for app mode (works without Dioxus runtime).
-fn is_local_mode_from_storage() -> bool {
+fn is_offline_mode_from_storage() -> bool {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window()
             && let Ok(Some(storage)) = window.local_storage()
             && let Ok(Some(mode)) = storage.get_item("RECURRENCY_APP_MODE")
-            && mode == "local" {
+            && mode == "offline" {
                 return true;
             }
     }
@@ -124,7 +124,7 @@ fn is_local_mode_from_storage() -> bool {
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let mode_file = data_dir.join("recurrency").join("app_mode.txt");
             if let Ok(mode) = std::fs::read_to_string(&mode_file)
-                && mode.trim() == "local" {
+                && mode.trim() == "offline" {
                     return true;
                 }
         }

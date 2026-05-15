@@ -4,19 +4,19 @@ use dioxus::prelude::*;
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
     /// Use local SQLite database — no server needed.
-    Local,
+    Offline,
     /// Connect to a remote Recurrency server.
     Server(String),
 }
 
 impl AppMode {
-    pub fn is_local(&self) -> bool {
-        matches!(self, AppMode::Local)
+    pub fn is_offline(&self) -> bool {
+        matches!(self, AppMode::Offline)
     }
 
     pub fn server_url(&self) -> Option<&str> {
         match self {
-            AppMode::Local => None,
+            AppMode::Offline => None,
             AppMode::Server(url) => Some(url),
         }
     }
@@ -24,7 +24,7 @@ impl AppMode {
 
 impl Default for AppMode {
     fn default() -> Self {
-        AppMode::Local
+        AppMode::Offline
     }
 }
 
@@ -54,14 +54,14 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                         if let Some(url) = server_url.filter(|u| !u.is_empty()) {
                             (AppMode::Server(url), true)
                         } else {
-                            (AppMode::Local, false) // server mode but no URL → need setup
+                            (AppMode::Offline, false) // server mode but no URL → need setup
                         }
                     }
-                    Some("local") | _ => (AppMode::Local, true),
+                    Some("offline") | _ => (AppMode::Offline, true),
                 };
             }
         }
-        (AppMode::Local, false)
+        (AppMode::Offline, false)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -86,20 +86,20 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                                 return (AppMode::Server(url), true);
                             }
                         }
-                        return (AppMode::Local, false); // server mode but no URL
+                        return (AppMode::Offline, false); // server mode but no URL
                     }
-                    "local" => return (AppMode::Local, true),
+                    "offline" => return (AppMode::Offline, true),
                     _ => {}
                 }
             }
         }
-        (AppMode::Local, false)
+        (AppMode::Offline, false)
     }
 }
 
 impl AppModeState {
     pub fn set_local(&mut self) {
-        self.mode = AppMode::Local;
+        self.mode = AppMode::Offline;
         self.initialized = true;
         self.persist();
     }
@@ -111,7 +111,7 @@ impl AppModeState {
     }
 
     pub fn reset(&mut self) {
-        self.mode = AppMode::Local;
+        self.mode = AppMode::Offline;
         self.initialized = false;
         clear_mode_storage();
     }
@@ -122,7 +122,7 @@ impl AppModeState {
             if let Some(window) = web_sys::window() {
                 if let Ok(Some(storage)) = window.local_storage() {
                     let mode_str = match &self.mode {
-                        AppMode::Local => "local",
+                        AppMode::Offline => "offline",
                         AppMode::Server(_) => "server",
                     };
                     let _ = storage.set_item("RECURRENCY_APP_MODE", mode_str);
@@ -139,7 +139,7 @@ impl AppModeState {
                 let app_dir = data_dir.join("recurrency");
                 let _ = std::fs::create_dir_all(&app_dir);
                 let mode_str = match &self.mode {
-                    AppMode::Local => "local",
+                    AppMode::Offline => "offline",
                     AppMode::Server(_) => "server",
                 };
                 let _ = std::fs::write(app_dir.join("app_mode.txt"), mode_str);
@@ -179,34 +179,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn app_mode_local_is_local() {
-        assert!(AppMode::Local.is_local());
-        assert!(!AppMode::Server("http://test".into()).is_local());
+    fn app_mode_offline_is_offline() {
+        assert!(AppMode::Offline.is_offline());
+        assert!(!AppMode::Server("http://test".into()).is_offline());
     }
 
     #[test]
     fn app_mode_server_url() {
-        assert_eq!(AppMode::Local.server_url(), None);
+        assert_eq!(AppMode::Offline.server_url(), None);
         assert_eq!(AppMode::Server("http://test:8080".into()).server_url(), Some("http://test:8080"));
     }
 
     #[test]
-    fn app_mode_default_is_local() {
-        assert!(AppMode::default().is_local());
+    fn app_mode_default_is_offline() {
+        assert!(AppMode::default().is_offline());
     }
 
     #[test]
     fn app_mode_state_default() {
         // Default depends on storage — just verify it doesn't panic
         let state = AppModeState::default();
-        assert!(state.mode.is_local() || state.mode.server_url().is_some());
+        assert!(state.mode.is_offline() || state.mode.server_url().is_some());
     }
 
     #[test]
-    fn app_mode_state_set_local() {
+    fn app_mode_state_set_offline() {
         let mut state = AppModeState::default();
         state.set_local();
-        assert!(state.mode.is_local());
+        assert!(state.mode.is_offline());
         assert!(state.initialized);
     }
 
@@ -223,29 +223,29 @@ mod tests {
         let mut state = AppModeState::default();
         state.set_server("http://test:8080".into());
         state.reset();
-        assert!(state.mode.is_local());
+        assert!(state.mode.is_offline());
         assert!(!state.initialized);
     }
 
     #[test]
     fn app_mode_equality() {
-        assert_eq!(AppMode::Local, AppMode::Local);
+        assert_eq!(AppMode::Offline, AppMode::Offline);
         assert_eq!(
             AppMode::Server("http://a".into()),
             AppMode::Server("http://a".into())
         );
-        assert_ne!(AppMode::Local, AppMode::Server("http://a".into()));
+        assert_ne!(AppMode::Offline, AppMode::Server("http://a".into()));
     }
 
     #[test]
-    fn app_mode_state_persist_local() {
+    fn app_mode_state_persist_offline() {
         // Persist local mode — just ensure it doesn't panic
         let mut state = AppModeState::default();
         state.set_local();
         // On native, persists to filesystem
         // On WASM, persists to localStorage
         // In test, just verify state
-        assert!(state.mode.is_local());
+        assert!(state.mode.is_offline());
     }
 
     #[test]
@@ -259,6 +259,6 @@ mod tests {
     fn hydrate_mode_from_storage_no_panic() {
         // Just ensure hydration doesn't panic (no storage in test env)
         let (mode, _initialized) = hydrate_mode_from_storage();
-        assert!(mode.is_local() || mode.server_url().is_some());
+        assert!(mode.is_offline() || mode.server_url().is_some());
     }
 }
