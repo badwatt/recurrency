@@ -1,6 +1,22 @@
 use crate::api::notifications;
 use crate::components::toast::ToastContainer;
-use crate::components::skeleton::{Skeleton, SkeletonCard, SkeletonRow};
+
+// Branded app loader (auth init, pre-WASM)
+pub fn AppLoader() -> Element {
+    rsx! {
+        div { class: "fixed inset-0 z-50 flex flex-col items-center justify-center bg-background",
+            div { class: "relative h-12 w-12",
+                div { class: "absolute inset-0 animate-spin rounded-full border-2 border-muted border-t-primary" }
+                div { class: "absolute inset-1.5 animate-spin rounded-full border-2 border-muted/50 border-b-primary/50", style: "animation-direction: reverse; animation-duration: 1.4s" }
+            }
+            p { class: "mt-6 text-xl font-bold tracking-tight text-foreground", "Recurrency" }
+            p { class: "mt-1 text-sm text-muted-foreground",
+                "Every expense is a subscription"
+                span { class: "animate-pulse", "..." }
+            }
+        }
+    }
+}
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
 use crate::state::preferences::PREFERENCES;
@@ -35,25 +51,7 @@ pub fn AppLayout() -> Element {
     });
 
     if !auth.initialized {
-        return rsx! {
-            div { class: "fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/85 backdrop-blur-xl p-8 max-w-md mx-auto",
-                div { class: "w-full space-y-6",
-                    div { class: "space-y-3",
-                        Skeleton { class: "h-8 w-48" }
-                        Skeleton { class: "h-3 w-32" }
-                    }
-                    div { class: "space-y-3",
-                        SkeletonRow {}
-                        SkeletonRow {}
-                        SkeletonRow {}
-                    }
-                    div { class: "grid grid-cols-2 gap-3",
-                        SkeletonCard {}
-                        SkeletonCard {}
-                    }
-                }
-            }
-        };
+        return rsx! { AppLoader {} };
     }
 
     if !auth.is_authenticated {

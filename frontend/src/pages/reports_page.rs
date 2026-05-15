@@ -2,7 +2,7 @@ use crate::api::categories;
 use crate::api::reports;
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::{Skeleton, SkeletonCard, SkeletonDonut};
+use crate::components::skeleton::{SkeletonCard, SkeletonDonut};
 use crate::models::report::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;

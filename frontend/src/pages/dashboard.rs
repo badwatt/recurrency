@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 
 use crate::api::subscriptions as api_subs;
 use crate::components::logo_image_with_fallback;
-use crate::components::skeleton::{Skeleton, SkeletonRow};
+use crate::components::skeleton::SkeletonRow;
 use crate::state::auth::AUTH;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::format::format_currency;
