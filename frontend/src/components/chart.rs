@@ -276,13 +276,27 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> E
         };
     }
 
+    // Deduplicate colors: shift hue for duplicate colors so segments stay distinct
+    let data = deduplicate_colors(data);
+
     // SVG viewBox: center at 50,50 with radius ~40
     let center = 50.0_f64;
     let radius = 40.0_f64;
+    let label_radius = 54.0_f64;
     let circumference = 2.0 * std::f64::consts::PI * radius;
 
     let sw: f64 = stroke_width.parse().unwrap_or(12.0);
     let segments = compute_donut_segments(&data, total, circumference);
+
+    // Compute label positions (midpoint of each arc, non-rotated coords)
+    let label_positions: Vec<(f64, f64, String, f64)> = segments.iter().map(|seg| {
+        let mid_angle = (seg.offset + seg.dash_len / 2.0) / circumference * 360.0 - 90.0;
+        let rad = mid_angle.to_radians();
+        let x = center + label_radius * rad.cos();
+        let y = center + label_radius * rad.sin();
+        let pct = seg.dash_len / circumference * 100.0;
+        (x, y, seg.label.clone(), pct)
+    }).collect();
 
     rsx! {
         div { class: "flex flex-col items-center",
@@ -293,6 +307,23 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> E
                 xmlns: "http://www.w3.org/2000/svg",
                 class: "transform -rotate-90",
 
+                // Border outlines (thin, behind color fills)
+                for seg in &segments {
+                    circle {
+                        key: "{seg.label}-border",
+                        cx: "{center}",
+                        cy: "{center}",
+                        r: "{radius}",
+                        fill: "none",
+                        stroke: "var(--border, #e5e7eb)",
+                        stroke_width: "{sw + 2.0}",
+                        stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
+                        stroke_dashoffset: "{-seg.offset}",
+                        stroke_linecap: "butt",
+                    }
+                }
+
+                // Color fill segments
                 for seg in &segments {
                     circle {
                         key: "{seg.label}",
@@ -304,12 +335,114 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> E
                         stroke_width: "{sw}",
                         stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
                         stroke_dashoffset: "{-seg.offset}",
-                        stroke_linecap: "round",
+                        stroke_linecap: "butt",
+                    }
+                }
+            }
+            // Percentage labels outside donut
+            svg {
+                view_box: "0 0 {center*2.0} {center*2.0}",
+                width: "{size}",
+                height: "{size}",
+                xmlns: "http://www.w3.org/2000/svg",
+
+                for (x, y, label, pct) in label_positions.iter() {
+                    if *pct >= 5.0 {
+                        text {
+                            key: "{label}-pct",
+                            x: "{x}",
+                            y: "{y}",
+                            fill: "currentColor",
+                            font_size: "5",
+                            text_anchor: "middle",
+                            dominant_baseline: "central",
+                            class: "text-muted-foreground",
+                            "{pct:.0}%"
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/// Shift hue for duplicate colors so adjacent segments stay visually distinct.
+pub fn deduplicate_colors(mut data: Vec<DonutData>) -> Vec<DonutData> {
+    let mut seen = std::collections::HashSet::new();
+    for item in data.iter_mut() {
+        if seen.contains(&item.color) {
+            item.color = shift_hue(&item.color, seen.len() as u32 * 30);
+        }
+        seen.insert(item.color.clone());
+    }
+    data
+}
+
+/// Shift hue in a hex color by `degrees` around the color wheel.
+pub fn shift_hue(hex: &str, degrees: u32) -> String {
+    let hex = hex.strip_prefix('#').unwrap_or(hex);
+    if hex.len() != 6 {
+        return format!("#{hex}");
+    }
+    let Ok(r) = u8::from_str_radix(&hex[0..2], 16) else {
+        return format!("#{hex}");
+    };
+    let Ok(g) = u8::from_str_radix(&hex[2..4], 16) else {
+        return format!("#{hex}");
+    };
+    let Ok(b) = u8::from_str_radix(&hex[4..6], 16) else {
+        return format!("#{hex}");
+    };
+    // RGB → HSL
+    let (h, s, l) = rgb_to_hsl(r, g, b);
+    let h = (h + degrees as f64) % 360.0;
+    // HSL → RGB
+    let (r2, g2, b2) = hsl_to_rgb(h, s, l);
+    format!("#{r2:02x}{g2:02x}{b2:02x}")
+}
+
+fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f64, f64, f64) {
+    let r = r as f64 / 255.0;
+    let g = g as f64 / 255.0;
+    let b = b as f64 / 255.0;
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let l = (max + min) / 2.0;
+    if (max - min).abs() < f64::EPSILON {
+        return (0.0, 0.0, l);
+    }
+    let d = max - min;
+    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+    let h = match max {
+        x if x == r => 60.0 * ((g - b) / d % 6.0),
+        x if x == g => 60.0 * ((b - r) / d + 2.0),
+        x if x == b => 60.0 * ((r - g) / d + 4.0),
+        _ => 0.0,
+    };
+    (h, s, l)
+}
+
+fn hsl_to_rgb(h: f64, s: f64, l: f64) -> (u8, u8, u8) {
+    if s.abs() < f64::EPSILON {
+        let v = (l * 255.0).round() as u8;
+        return (v, v, v);
+    }
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = l - c / 2.0;
+    let (r, g, b) = match h {
+        h if h < 60.0 => (c, x, 0.0),
+        h if h < 120.0 => (x, c, 0.0),
+        h if h < 180.0 => (0.0, c, x),
+        h if h < 240.0 => (0.0, x, c),
+        h if h < 300.0 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    (
+        ((r + m) * 255.0).round() as u8,
+        ((g + m) * 255.0).round() as u8,
+        ((b + m) * 255.0).round() as u8,
+    )
 }
 
 struct DonutSegment {
@@ -549,6 +682,77 @@ mod tests {
         // Test wrapping: index 13 should equal index 1
         assert_eq!(palette_color(13), palette_color(1));
         assert_eq!(palette_color(24), palette_color(0));
+    }
+
+    #[test]
+    fn deduplicate_colors_no_duplicates() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 50.0, color: "#ef4444".into() },
+            DonutData { label: "B".into(), value: 30.0, color: "#3b82f6".into() },
+        ];
+        let result = deduplicate_colors(data);
+        assert_eq!(result[0].color, "#ef4444");
+        assert_eq!(result[1].color, "#3b82f6");
+    }
+
+    #[test]
+    fn deduplicate_colors_same_color_shifted() {
+        let data = vec![
+            DonutData { label: "A".into(), value: 50.0, color: "#ef4444".into() },
+            DonutData { label: "B".into(), value: 30.0, color: "#ef4444".into() },
+        ];
+        let result = deduplicate_colors(data);
+        assert_eq!(result[0].color, "#ef4444");
+        assert_ne!(result[1].color, "#ef4444");
+    }
+
+    #[test]
+    fn shift_hue_red_by_180() {
+        let shifted = shift_hue("#ef4444", 180);
+        // Red shifted 180° should be cyan-ish
+        assert_ne!(shifted, "#ef4444");
+        assert!(shifted.starts_with('#'));
+        assert_eq!(shifted.len(), 7);
+    }
+
+    #[test]
+    fn shift_hue_zero() {
+        assert_eq!(shift_hue("#3b82f6", 0), "#3b82f6");
+    }
+
+    #[test]
+    fn shift_hue_invalid_hex() {
+        assert_eq!(shift_hue("zzzzzz", 30), "#zzzzzz");
+    }
+
+    #[test]
+    fn shift_hue_360_wraps() {
+        assert_eq!(shift_hue("#3b82f6", 360), "#3b82f6");
+    }
+
+    #[test]
+    fn rgb_to_hsl_pure_red() {
+        let (h, s, l) = rgb_to_hsl(255, 0, 0);
+        assert!((h - 0.0).abs() < 1.0);
+        assert!((s - 1.0).abs() < 0.01);
+        assert!((l - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn rgb_to_hsl_gray() {
+        let (h, s, l) = rgb_to_hsl(128, 128, 128);
+        assert_eq!(s, 0.0);
+        assert!((l - 0.502).abs() < 0.01);
+    }
+
+    #[test]
+    fn hsl_to_rgb_roundtrip() {
+        let (h, s, l) = rgb_to_hsl(100, 200, 50);
+        let (r, g, b) = hsl_to_rgb(h, s, l);
+        // Allow small rounding error
+        assert!((r as i32 - 100).abs() <= 1);
+        assert!((g as i32 - 200).abs() <= 1);
+        assert!((b as i32 - 50).abs() <= 1);
     }
 
     #[test]
