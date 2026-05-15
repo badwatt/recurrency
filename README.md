@@ -50,21 +50,31 @@ open http://localhost:1420
 
 ## Production (Docker)
 
-Two images: API backend + nginx frontend.
+No clone needed. Pull pre-built images from GHCR:
 
 ```bash
-cd docker
-docker compose up -d
+mkdir recurrency && cd recurrency
+curl -O https://raw.githubusercontent.com/alvaro17f/recurrency/main/docker/compose.ghcr.yml
+docker compose -f compose.ghcr.yml up -d
 ```
 
 - **Frontend:** http://localhost:80 (nginx proxies `/api` → backend)
 - **Backend:** http://localhost:8080 (Axum API)
-- **PostgreSQL:** localhost:5432
 
 Custom env (`.env` or shell):
 
 ```bash
-JWT_SECRET=your-secret-key PGPASSWORD=recurrency docker compose up -d
+JWT_SECRET=your-secret-key docker compose -f compose.ghcr.yml up -d
+```
+
+### Build from source
+
+Clone + build locally:
+
+```bash
+git clone https://github.com/alvaro17f/recurrency.git
+cd recurrency/docker
+docker compose up -d
 ```
 
 ---

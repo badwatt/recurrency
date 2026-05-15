@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: recurrency-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recurrency
+      POSTGRES_PASSWORD: ${PGPASSWORD:-recurrency}
+      POSTGRES_DB: recurrency
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recurrency -d recurrency"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/alvaro17f/recurrency-api:latest
+    container_name: recurrency-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://recurrency:${PGPASSWORD:-recurrency}@db:5432/recurrency
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ENABLE_DEMO: ${ENABLE_DEMO:-true}
+      RUST_LOG: info
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/alvaro17f/recurrency-web:latest
+    container_name: recurrency-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
