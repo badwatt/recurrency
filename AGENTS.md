@@ -25,6 +25,20 @@
 
 ---
 
+## Reglas Absolutas
+
+- ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix` para añadir dependencias en la shell.
+- ⛔ **NUNCA** usar `unsafe`. Cero tolerancia.
+- ⛔ **SIEMPRE** mantener dependencias lo más actualizadas posible.
+- ⛔ **SIEMPRE** 100% coverage en tests. Sin excepciones.
+- ⛔ **SIEMPRE** TDD. Red-Green-Refactor. Test primero, código después.
+- ⛔ **NUNCA** errores ni warnings. NINGUNO. Incluye `cargo clippy`.
+- ⛔ **SIEMPRE** usar la skill `rust-best-practices`.
+- ⛔ **NUNCA** hacer bump de `VERSION` sin consultar al usuario. Dispara CI actions.
+- ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions antes de push.
+
+---
+
 ## TDD (Test-Driven Development) - OBLIGATORIO SIN EXCEPCIONES
 
 **CADA commit debe tener tests.
@@ -49,7 +63,7 @@ NUNCA código sin test.**
 4. REPETIR  → Siguiente test.
 ```
 
-### Cobertura mínima: 80%
+### Cobertura: 100%
 
 | Proyecto | Líneas | Estado |
 |----------|--------|--------|
@@ -57,8 +71,8 @@ NUNCA código sin test.**
 | Frontend | **80.22%** | ✅ 1491 tests |
 
 **Reglas:**
-- Mínimo **80%** líneas para cualquier módulo nuevo
-- Mínimo **90%** para módulos críticos (auth, payments, seguridad)
+- **100%** líneas para cualquier módulo nuevo. Sin excepciones.
+- **100%** para módulos críticos (auth, payments, seguridad)
 - **100%** condicionales en handlers
 - Si un cambio baja cobertura global → agregar más tests antes de commit
 
@@ -333,6 +347,8 @@ jobs:
 
 - **Auto-commit tests**: SÍ permitido si tests pasan y coverage ≥ 80%
 - **Push**: PREGUNTAR siempre antes de `git push`
+- ⛔ **NUNCA** bump de `VERSION` sin consultar al usuario
+- ⛔ **SIEMPRE** usar `act` localmente antes de push para verificar CI
 - Format: `type(scope): description`
 - Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
 
@@ -358,8 +374,14 @@ git add -A && git commit -m "feat(scope): description"
 
 - **Dead code elimination**: Eliminar siempre código no usado
 - No dejar código comentado u obsoleto
-- Verificar con `cargo check` / `cargo clippy` antes de terminar
+- ⛔ **NINGÚN error ni warning**. Incluye `cargo clippy`. Cero tolerancia.
 - `cargo fmt` antes de commit
+- ⛔ **NUNCA** `unsafe`. Refactorizar para evitarlo.
+- ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix`.
+- ⛔ **NUNCA** bump de `VERSION` sin consultar al usuario.
+- ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions.
+- ⛔ **SIEMPRE** usar skill `rust-best-practices`.
+- ⛔ **SIEMPRE** mantener dependencias actualizadas.
 
 ---
 
