@@ -9,7 +9,22 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+            inherit system;
+            overlays = [
+              (final: prev: {
+                wasm-bindgen-cli = final.rustPlatform.buildRustPackage rec {
+                  pname = "wasm-bindgen-cli";
+                  version = "0.2.121";
+                  src = final.fetchCrate {
+                    inherit pname version;
+                    hash = "sha256-ZOMgFNOcGkO66Jz/Z83eoIu+DIzo3Z/vq6Z5g6BDY/w=";
+                  };
+                  cargoHash = "sha256-DPdCDPTAPBrbqLUqnCwQu1dePs9lGg85JCJOCIr9qjU=";
+                };
+              })
+            ];
+          };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -23,6 +38,9 @@
             cargo-llvm-cov
             llvmPackages.llvm
             llvmPackages.lld
+            # Wasm toolchain
+            dioxus-cli
+            wasm-bindgen-cli
 
             # Node.js & Bun
             nodejs_22
