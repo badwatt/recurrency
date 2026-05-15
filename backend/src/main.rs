@@ -60,7 +60,7 @@ fn init_logging() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv().ok();
+    // .env loading handled by taskfile/shell environment
     init_logging();
 
     tracing::info!("Starting Recurrency API server...");

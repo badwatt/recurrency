@@ -10,7 +10,10 @@ pub fn get_locale() -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn get_locale() -> String {
-    sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string())
+    std::env::var("LANG")
+        .ok()
+        .and_then(|l| l.split('.').next().map(|s| s.replace('_', "-")))
+        .unwrap_or_else(|| "en-US".to_string())
 }
 
 /// Map locale to date format pattern.

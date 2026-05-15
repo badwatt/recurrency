@@ -1,4 +1,5 @@
 use std::sync::OnceLock;
+use async_trait::async_trait;
 
 use crate::auth::models::{
     AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User,
@@ -14,7 +15,6 @@ use uuid::Uuid;
 
 use crate::categories::service::CategoryService;
 use crate::email::{is_configured, send_verification_email};
-use async_trait::async_trait;
 
 static JWT_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
 

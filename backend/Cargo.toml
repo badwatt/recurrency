@@ -14,6 +14,7 @@ tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 # Serialization
 serde.workspace = true
 serde_json.workspace = true
+serde_urlencoded = "0.7"
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal"] }
@@ -44,23 +45,17 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 include_dir = { version = "0.7", optional = true }
 
-# Environment
-dotenvy = "0.15"
-
 # Email
 lettre = { version = "0.11.21", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
 
 # HTTP client for logo search
 reqwest.workspace = true
-urlencoding = "2"
-mime_guess = "2"
-
-
-# URL-encoded parsing (for OptionalQuery extractor)
-serde_urlencoded = "0.7"
+percent-encoding = "2"
 
 # Random (for demo credentials)
 rand = "0.10.1"
+
+# Async trait dispatch (dyn-compatible async traits)
 async-trait = "0.1"
 
 [features]
@@ -69,5 +64,3 @@ embed-frontend = ["dep:include_dir"]
 [dev-dependencies]
 serial_test = "3"
 tower = { version = "0.5", features = ["util"] }
-
-

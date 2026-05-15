@@ -35,6 +35,26 @@ fn count_files() -> usize {
     DIST_DIR.files().count()
 }
 
+/// Determine MIME type from file extension.
+fn mime_from_path(path: &str) -> &'static str {
+    match path.rsplit('.').next() {
+        Some("html") | Some("htm") => "text/html",
+        Some("css") => "text/css",
+        Some("js") | Some("mjs") => "text/javascript",
+        Some("json") => "application/json",
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        Some("wasm") => "application/wasm",
+        Some("woff") => "font/woff",
+        Some("woff2") => "font/woff2",
+        Some("map") => "application/json",
+        Some("webp") => "image/webp",
+        _ => "application/octet-stream",
+    }
+}
+
 /// Get file content and mime type by path from embedded dist.
 /// Returns (content_bytes, mime_type) if found.
 /// dx bundle outputs to dist/public/, so files are under public/ in include_dir.
@@ -45,8 +65,7 @@ pub fn get_file(path: &str) -> Option<(&'static [u8], String)> {
         &format!("public/{}", path)
     };
     let file = DIST_DIR.get_file(file_path)?;
-    let ct = mime_guess::from_path(path).first_or_octet_stream();
-    Some((file.contents(), ct.to_string()))
+    Some((file.contents(), mime_from_path(path).to_string()))
 }
 
 #[cfg(test)]

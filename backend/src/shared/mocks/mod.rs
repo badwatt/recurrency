@@ -1,16 +1,14 @@
 #![allow(dead_code)]
 
 //! Mock implementations of all service traits for testing.
-//!
-//! Usage:
-//! ```rust,ignore
-//! use crate::shared::mocks::*;
-//!
-//! let mock_auth = MockAuthService::success();
-//! let result = mock_auth.register(req).await;
-//! ```
+//
+// Usage:
+// use crate::shared::mocks::*;
+// let mock_auth = MockAuthService::success();
+// let result = mock_auth.register(req).await;
 
 use async_trait::async_trait;
+
 use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
 use std::str::FromStr;

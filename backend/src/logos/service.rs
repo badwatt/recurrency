@@ -1,3 +1,4 @@
+use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use serde::{Deserialize, Serialize};
 
 use crate::shared::error::{AppError, AppResult};
@@ -62,7 +63,7 @@ pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
     // Get VQD token
     let vqd_url = format!(
         "https://duckduckgo.com/?q={}",
-        urlencoding::encode(&search_term)
+        percent_encode(search_term.as_bytes(), NON_ALPHANUMERIC)
     );
 
     let vqd_response = client
