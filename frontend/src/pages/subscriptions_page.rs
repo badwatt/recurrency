@@ -9,6 +9,7 @@ use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
+use crate::components::subscription_form::{SubscriptionForm, ValidationResult, validate_subscription_form};
 use crate::models::subscription::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
@@ -186,87 +187,10 @@ pub fn apply_filters_and_sort(
     result
 }
 
-/// Validation result type.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ValidationResult {
-    pub name_error: Option<String>,
-    pub amount_error: Option<String>,
-    pub currency_error: Option<String>,
-    pub frequency_error: Option<String>,
-    pub start_date_error: Option<String>,
-    pub category_error: Option<String>,
-}
+// ValidationResult and validate_subscription_form moved to components/subscription_form.rs
 
-impl ValidationResult {
-    pub fn is_valid(&self) -> bool {
-        self.name_error.is_none()
-            && self.amount_error.is_none()
-            && self.currency_error.is_none()
-            && self.frequency_error.is_none()
-            && self.start_date_error.is_none()
-            && self.category_error.is_none()
-    }
-}
-
-/// Pure validation function for subscription form.
-pub fn validate_subscription_form(
-    name: &str,
-    amount: &str,
-    currency: &str,
-    frequency: &str,
-    start_date: &str,
-    category_id: &str,
-) -> ValidationResult {
-    use rust_decimal::Decimal;
-    let mut result = ValidationResult::default();
-    if name.trim().is_empty() {
-        result.name_error = Some("Name is required".into());
-    } else if name.trim().len() < 2 {
-        result.name_error = Some("Name must be at least 2 characters".into());
-    }
-    if amount.is_empty() {
-        result.amount_error = Some("Amount is required".into());
-    } else {
-        match amount.parse::<Decimal>() {
-            Ok(a) if a <= Decimal::ZERO => {
-                result.amount_error = Some("Amount must be greater than 0".into());
-            }
-            Err(_) => {
-                result.amount_error = Some("Invalid amount format".into());
-            }
-            _ => {}
-        }
-    }
-    if currency.is_empty() {
-        result.currency_error = Some("Currency is required".into());
-    }
-    if frequency.is_empty() {
-        result.frequency_error = Some("Frequency is required".into());
-    }
-    if start_date.is_empty() {
-        result.start_date_error = Some("Start date is required".into());
-    } else if start_date.parse::<chrono::NaiveDate>().is_err() {
-        result.start_date_error = Some("Invalid date format".into());
-    }
-    if category_id.is_empty() {
-        result.category_error = Some("Category is required".into());
-    }
-    result
-}
-
-// ── Dialog form state ────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Default)]
-struct DialogForm {
-    name: String,
-    amount: String,
-    currency: String,
-    frequency: String,
-    start_date: String,
-    category_id: String,
-    notes: String,
-    logo_url: String,
-}
+// Type alias for backward compatibility within this file
+type DialogForm = SubscriptionForm;
 
 // ── Page component ───────────────────────────────────────────────────
 
@@ -3032,7 +2956,7 @@ mod dialog_form_tests {
     fn dialog_form_debug() {
         let form = DialogForm::default();
         let debug = format!("{:?}", form);
-        assert!(debug.contains("DialogForm"));
+        assert!(debug.contains("SubscriptionForm"));
     }
 
     #[test]
@@ -3082,7 +3006,7 @@ mod dialog_form_tests {
     fn dialog_form_debug_extended() {
         let form = DialogForm::default();
         let debug = format!("{:?}", form);
-        assert!(debug.contains("DialogForm"));
+        assert!(debug.contains("SubscriptionForm"));
     }
 
     #[test]

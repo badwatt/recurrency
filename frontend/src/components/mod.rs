@@ -13,3 +13,4 @@ pub mod tooltip;
 
 pub use category_combobox::CategoryCombobox;
 pub use logo_image::logo_image_with_fallback;
+pub mod subscription_form;

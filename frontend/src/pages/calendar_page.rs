@@ -8,6 +8,7 @@ use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
+use crate::components::subscription_form::{SubscriptionForm as EditForm, ValidationResult, validate_subscription_form};
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, UpdateSubscriptionRequest};
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -156,37 +157,7 @@ fn day_cell_info(
     }
 }
 
-/// Dialog form state for editing a subscription from the calendar modal.
-#[derive(Debug, Clone, Default)]
-struct EditForm {
-    name: String,
-    amount: String,
-    currency: String,
-    frequency: String,
-    start_date: String,
-    category_id: String,
-    notes: String,
-    logo_url: String,
-}
-
-impl EditForm {
-    fn reset(&mut self) {
-        *self = EditForm::default();
-    }
-
-    fn init_for_create(date: &str, currency: &str, category_id: &str) -> Self {
-        EditForm {
-            name: String::new(),
-            amount: String::new(),
-            currency: currency.to_string(),
-            frequency: "monthly".to_string(),
-            start_date: date.to_string(),
-            category_id: category_id.to_string(),
-            notes: String::new(),
-            logo_url: String::new(),
-        }
-    }
-}
+// EditForm now uses shared SubscriptionForm (aliased above)
 
 /// Helper: find category name for a CalendarItem by looking up the subscription in SUBSCRIPTIONS.
 fn category_name_for_item(item: &CalendarItem) -> String {
@@ -411,16 +382,16 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
         let subs = SUBSCRIPTIONS();
         if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == sub_id) {
             editing_id.set(Some(sub.id));
-            edit_form.set(EditForm {
-                name: sub.name.clone(),
-                amount: sub.amount.to_string(),
-                currency: sub.currency.clone(),
-                frequency: sub.frequency.clone(),
-                start_date: sub.start_date.to_string(),
-                category_id: sub.category_id.to_string(),
-                notes: sub.notes.clone().unwrap_or_default(),
-                logo_url: sub.logo_url.clone().unwrap_or_default(),
-            });
+            edit_form.set(EditForm::from_subscription(
+                &sub.name,
+                &sub.amount.to_string(),
+                &sub.currency,
+                &sub.frequency,
+                &sub.start_date.to_string(),
+                &sub.category_id.to_string(),
+                &sub.notes.clone().unwrap_or_default(),
+                &sub.logo_url.clone().unwrap_or_default(),
+            ));
             name_error.set(String::new());
             amount_error.set(String::new());
             currency_error.set(String::new());
@@ -459,41 +430,16 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
     // Handler: submit edit form
     let handle_edit_submit = move |_| {
         let f = edit_form();
-        let mut valid = true;
-
-        if f.name.trim().is_empty() {
-            name_error.set("Name is required".into());
-            valid = false;
-        }
-        let amount_result = f.amount.parse::<Decimal>();
-        if f.amount.is_empty() {
-            amount_error.set("Amount is required".into());
-            valid = false;
-        } else if amount_result.is_err() || amount_result.as_ref().unwrap_or(&dec!(0)) <= &dec!(0) {
-            amount_error.set("Amount must be greater than 0".into());
-            valid = false;
-        }
-        if f.currency.is_empty() {
-            currency_error.set("Currency is required".into());
-            valid = false;
-        }
-        if f.frequency.is_empty() {
-            frequency_error.set("Frequency is required".into());
-            valid = false;
-        }
-        if f.start_date.is_empty() {
-            start_date_error.set("Start date is required".into());
-            valid = false;
-        } else if f.start_date.parse::<chrono::NaiveDate>().is_err() {
-            start_date_error.set("Invalid date format".into());
-            valid = false;
-        }
-        if f.category_id.is_empty() {
-            category_error.set("Category is required".into());
-            valid = false;
-        }
-
-        if !valid {
+        let result = validate_subscription_form(
+            &f.name, &f.amount, &f.currency, &f.frequency, &f.start_date, &f.category_id,
+        );
+        if !result.is_valid() {
+            name_error.set(result.name_error.unwrap_or_default());
+            amount_error.set(result.amount_error.unwrap_or_default());
+            currency_error.set(result.currency_error.unwrap_or_default());
+            frequency_error.set(result.frequency_error.unwrap_or_default());
+            start_date_error.set(result.start_date_error.unwrap_or_default());
+            category_error.set(result.category_error.unwrap_or_default());
             return;
         }
 
