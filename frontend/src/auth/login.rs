@@ -4,6 +4,8 @@ use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
 
+const SHOW_OFFLINE: bool = !cfg!(target_arch = "wasm32");
+
 #[component]
 pub fn LoginPage() -> Element {
     let mut email = use_signal(String::new);
@@ -346,13 +348,20 @@ pub fn LoginPage() -> Element {
                         }
                     }
 
-                    // Configure server URL (not needed on web — same-origin)
-                    if !cfg!(feature = "web") {
+                    // Change server or go offline
+                    p { class: "text-center text-sm text-muted-foreground",
+                        Link {
+                            to: Route::Setup {},
+                            class: "text-primary hover:underline",
+                            {format!("Change server ({})", crate::api::client::get_base_url())}
+                        }
+                    }
+                    if SHOW_OFFLINE {
                         p { class: "text-center text-sm text-muted-foreground",
                             Link {
                                 to: Route::Setup {},
-                                class: "text-primary hover:underline",
-                                "Configure server URL"
+                                class: "text-muted-foreground hover:text-foreground hover:underline",
+                                "Use without server"
                             }
                         }
                     }
