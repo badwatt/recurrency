@@ -1,9 +1,11 @@
 use chrono::Utc;
 use dioxus::prelude::*;
+use uuid::Uuid;
 
 use crate::api::subscriptions as api_subs;
 use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
+use crate::state::categories::CATEGORIES;
 use crate::state::auth::AUTH;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::format::format_currency;
@@ -249,18 +251,38 @@ pub fn Dashboard() -> Element {
                 // Card 2: Category breakdown (compact)
                 div { class: "rounded-xl bg-card border border-border/50 p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200",
                     h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Categories" }
-                    if total_active == 0 {
-                        p { class: "text-sm text-muted-foreground mt-4", "No subscriptions yet" }
-                    } else {
-                        div { class: "mt-4 space-y-2",
-                            for sub in active.iter().take(4) {
-                                div { key: "{sub.id}", class: "flex items-center justify-between",
-                                    span { class: "text-sm text-foreground truncate", "{sub.name}" }
-                                    span { class: "text-sm text-muted-foreground", "{format_currency(sub.amount, currency)}" }
-                                }
+                    {
+                        let cats = CATEGORIES();
+                        if total_active == 0 || cats.categories.is_empty() {
+                            rsx! { p { class: "text-sm text-muted-foreground mt-4", "No subscriptions yet" } }
+                        } else {
+                            // Count subs per category
+                            let mut cat_counts: std::collections::HashMap<Uuid, usize> = std::collections::HashMap::new();
+                            for sub in &active {
+                                *cat_counts.entry(sub.category_id).or_insert(0) += 1;
                             }
-                            if total_active > 4 {
-                                p { class: "text-xs text-muted-foreground", "+{total_active - 4} more" }
+                            let mut sorted: Vec<_> = cat_counts.iter().collect();
+                            sorted.sort_by(|a, b| b.1.cmp(a.1));
+                            rsx! {
+                                div { class: "mt-4 space-y-2",
+                                    for (cat_id, count) in sorted.iter().take(4) {
+                                        {
+                                            let cat_name = cats.get_by_id(*cat_id)
+                                                .map(|c| c.name.clone())
+                                                .unwrap_or_else(|| "Uncategorized".into());
+                                            let count = *count;
+                                            rsx! {
+                                                div { key: "{cat_id}", class: "flex items-center justify-between",
+                                                    span { class: "text-sm text-foreground truncate", "{cat_name}" }
+                                                    span { class: "text-sm text-muted-foreground", "{count}" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if sorted.len() > 4 {
+                                        p { class: "text-xs text-muted-foreground", "+{sorted.len() - 4} more" }
+                                    }
+                                }
                             }
                         }
                     }
