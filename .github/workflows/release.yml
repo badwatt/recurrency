@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     paths:
-      - "VERSION"
+      - "Cargo.toml"
   workflow_dispatch:
 
 env:
@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 jobs:
-  # ── Prepare: extract version ───────────────────────────────
+  # ── Prepare: extract version from workspace Cargo.toml ────
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
 
   # ── Backend: lint + test ──────────────────────────────────
   test-backend:
@@ -50,11 +50,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Sync version
-        run: |
-          V="${{ needs.prepare.outputs.version }}"
-          sed -i "s/^version = \".*\"/version = \"$V\"/" backend/Cargo.toml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -85,11 +80,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      - name: Sync version
-        run: |
-          V="${{ needs.prepare.outputs.version }}"
-          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -130,11 +120,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Sync version
-        run: |
-          V="${{ needs.prepare.outputs.version }}"
-          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml backend/Cargo.toml
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -190,11 +175,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Sync version
-        run: |
-          V="${{ needs.prepare.outputs.version }}"
-          sed -i "s/^version = \".*\"/version = \"$V\"/" frontend/Cargo.toml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -312,10 +292,9 @@ jobs:
           fi
           echo "Found APK: $APK"
           mkdir -p bin/android
-          APK_NAME="recurrency-$(cat VERSION)-aarch64.apk"
+          APK_NAME="recurrency-${{ needs.prepare.outputs.version }}-aarch64.apk"
           cp "$APK" "bin/android/$APK_NAME"
           ls -la "bin/android/$APK_NAME"
-          echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
