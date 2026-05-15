@@ -38,8 +38,8 @@ COPY frontend/ ./frontend/
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 
 # Build Tailwind CSS
-RUN npm install --prefix frontend tailwindcss tailwindcss-animate && \
-    npx tailwindcss -i frontend/assets/styles/tailwind.src.css -o frontend/assets/styles/tailwind.css --minify
+RUN cd frontend && npm install tailwindcss tailwindcss-animate && \
+    npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
 
 # Build Dioxus web bundle
 RUN cd frontend && dx bundle --platform web --release && \
