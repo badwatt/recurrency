@@ -1,7 +1,7 @@
 use crate::api::transactions;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::SkeletonRow;
+use crate::components::skeleton::TransactionRowSkeleton;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_image_with_fallback;
 use crate::components::logo_search::LogoSearch;
@@ -498,7 +498,7 @@ pub fn TransactionsPage() -> Element {
                 rsx! {
                     div { class: "space-y-3",
                         for _ in 0..5 {
-                            SkeletonRow {}
+                            TransactionRowSkeleton {}
                         }
                     }
                 }

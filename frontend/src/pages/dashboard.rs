@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 
 use crate::api::subscriptions as api_subs;
 use crate::components::logo_image_with_fallback;
-use crate::components::skeleton::SkeletonRow;
+use crate::components::skeleton::DashboardRowSkeleton;
 use crate::state::auth::AUTH;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::format::format_currency;
@@ -274,7 +274,7 @@ pub fn Dashboard() -> Element {
                     if sub_state.is_loading {
                         div { class: "space-y-3 p-6 pt-0",
                             for _ in 0..3 {
-                                SkeletonRow {}
+                                DashboardRowSkeleton {}
                             }
                         }
                     } else if upcoming_top5.is_empty() {

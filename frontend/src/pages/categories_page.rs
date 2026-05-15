@@ -1,7 +1,7 @@
 use crate::api::categories;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::SkeletonGrid;
+use crate::components::skeleton::CategoryCardSkeleton;
 use crate::models::category::*;
 use crate::state::categories::CATEGORIES;
 use crate::utils::icons::{ICON_NAMES, icon_display};
@@ -191,7 +191,13 @@ pub fn CategoriesPage() -> Element {
             }
 
             {if state.is_loading && state.categories.is_empty() {
-                rsx! { SkeletonGrid { count: Some(6) } }
+                rsx! {
+                    div { class: "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                        for _ in 0..6 {
+                            CategoryCardSkeleton {}
+                        }
+                    }
+                }
             } else if state.categories.is_empty() {
                 rsx! {
                     div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",

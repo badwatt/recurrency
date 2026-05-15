@@ -2,7 +2,7 @@ use crate::api::categories;
 use crate::api::reports;
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::{SkeletonCard, SkeletonDonut};
+use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
 use crate::models::report::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -151,14 +151,16 @@ pub fn ReportsPage() -> Element {
             {if is_loading() {
                 rsx! {
                     div { class: "flex flex-col gap-6",
+                        // Summary cards — same grid
                         div { class: "grid gap-4 md:grid-cols-4",
                             for _ in 0..4 {
-                                SkeletonCard {}
+                                ReportCardSkeleton {}
                             }
                         }
+                        // Donut + table — same 2-col layout
                         div { class: "grid gap-4 md:grid-cols-2",
-                            SkeletonDonut {}
-                            SkeletonCard {}
+                            ReportDonutSkeleton {}
+                            ReportTableSkeleton {}
                         }
                     }
                 }

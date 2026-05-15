@@ -8,7 +8,7 @@ use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::SkeletonGrid;
+use crate::components::skeleton::SubscriptionCardSkeleton;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
 use crate::components::subscription_form::SubscriptionForm;
@@ -426,9 +426,15 @@ pub fn SubscriptionsPage() -> Element {
                 }
             }
 
-            // ── Loading / Empty ──
+            // ── Content ──
             {if state.is_loading && state.subscriptions.is_empty() {
-                rsx! { SkeletonGrid { count: Some(6) } }
+                rsx! {
+                    div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                        for _ in 0..8 {
+                            SubscriptionCardSkeleton {}
+                        }
+                    }
+                }
             } else if state.subscriptions.is_empty() {
                 rsx! {
                     div { class: "rounded-xl border border-border/40 bg-card/80 p-6 flex h-64 flex-col items-center justify-center gap-4",
