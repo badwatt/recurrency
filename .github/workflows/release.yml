@@ -303,16 +303,7 @@ jobs:
           cp "$APK" "bin/android/$APK_NAME"
           ls -la "bin/android/$APK_NAME"
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: recurrency-android
-          path: bin/android/*.apk
-          retention-days: 1
-          overwrite: true
-          if-no-files-found: error
-
-      - name: Upload APK to Release
+false
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
