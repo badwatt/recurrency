@@ -22,22 +22,23 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf \
     cargo binstall dioxus-cli --no-confirm && \
     rustup target add wasm32-unknown-unknown
 
-WORKDIR /build/frontend
-COPY frontend/Cargo.toml frontend/Cargo.lock* ./
+WORKDIR /build
 
-# Cache dependencies
-RUN mkdir src && echo 'fn main() {}' > src/main.rs
-RUN cargo build --target wasm32-unknown-unknown --features web --release 2>/dev/null || true
-RUN rm -rf src
+# Cache dependencies — workspace-aware layout
+COPY Cargo.toml Cargo.lock* ./
+COPY frontend/Cargo.toml frontend/Cargo.toml
+RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
+RUN cargo build --target wasm32-unknown-unknown -p recurrency --features web --release 2>/dev/null || true
+RUN rm -rf frontend/src
 
-COPY frontend/ ./
+COPY frontend/ ./frontend/
 
 # Build Tailwind CSS
-RUN npm install --prefix . tailwindcss tailwindcss-animate && \
-    npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
+RUN npm install --prefix frontend tailwindcss tailwindcss-animate && \
+    npx tailwindcss -i frontend/assets/styles/tailwind.src.css -o frontend/assets/styles/tailwind.css --minify
 
 # Build Dioxus web bundle
-RUN dx bundle --platform web --release && \
+RUN cd frontend && dx bundle --platform web --release && \
     echo "=== Bundle output ===" && \
     ls -laR dist/ 2>/dev/null; \
     find dist/ -name 'index.html' -type f 2>/dev/null

@@ -8,16 +8,17 @@ ENV RUSTFLAGS="-C target-cpu=generic"
 
 WORKDIR /build
 
-# Cache dependencies
-COPY backend/Cargo.toml backend/Cargo.lock* ./
+# Cache dependencies — workspace-aware layout
+COPY Cargo.toml Cargo.lock* ./
+COPY backend/Cargo.toml backend/Cargo.toml
 COPY VERSION /build/VERSION
-RUN mkdir src && echo 'fn main() {}' > src/main.rs
-RUN cargo build --release -j 4 2>/dev/null || true
-RUN rm -rf src
+RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
+RUN cargo build --release -p recurrency-api -j 4 2>/dev/null || true
+RUN rm -rf backend/src
 
 # Build backend
-COPY backend/ ./
-RUN touch src/main.rs && cargo build --release -j 4
+COPY backend/ ./backend/
+RUN touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
 
 # ── Runtime ──────────────────────────────────────────────
 FROM debian:bookworm-slim
