@@ -38,6 +38,8 @@
 - ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions antes de push.
 - ⛔ **SIEMPRE** que sea posible elimina dependencias.
 - ⛔ Trata de tener el **MÍNIMO** número de dependencias en el proyecto.
+- ⛔ **NUNCA** valores hardcodeados. Usar constantes, configuración, o theme tokens. Colores, textos, URLs, dimensiones — todo configurables.
+- ⛔ **SIEMPRE** extraer lógica repetitive a componentes reutilizables. Si se repite 2 veces, extraer. Componentes > copy-paste.
 
 ---
 
