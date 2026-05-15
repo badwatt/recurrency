@@ -19,9 +19,17 @@ pub struct LogoSearchResponse {
 
 pub async fn search(
     Query(query): Query<SearchQuery>,
-) -> Result<Json<LogoSearchResponse>, crate::shared::error::AppError> {
-    let results = search_logos(&query.q).await?;
-    Ok(Json(LogoSearchResponse { results }))
+) -> Json<LogoSearchResponse> {
+    // Logo search is non-critical — return empty results on any error
+    // (DDG rate limits, network failures, parsing issues)
+    let results = match search_logos(&query.q).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!("Logo search failed for '{}': {}", query.q, e);
+            vec![]
+        }
+    };
+    Json(LogoSearchResponse { results })
 }
 
 #[cfg(test)]
