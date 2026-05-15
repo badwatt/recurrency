@@ -9,13 +9,14 @@ on:
 env:
   REGISTRY: ghcr.io
   DX_VERSION: "0.7.9"
+  CARGO_TERM_COLOR: always
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  # ── Prepare: extract version once ─────────────────────────
+  # ── Prepare: extract version + cache warm ──────────────────
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -28,7 +29,7 @@ jobs:
         id: version
         run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
-  # ── Backend tests ──────────────────────────────────────────
+  # ── Backend: lint + test ──────────────────────────────────
   test-backend:
     needs: prepare
     runs-on: ubuntu-latest
@@ -60,8 +61,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: pkg-config libssl-dev
+          version: 1.0
 
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2
@@ -69,16 +73,16 @@ jobs:
           workspaces: backend
           cache-on-failure: true
 
-      - name: Clippy
-        run: cd backend && cargo clippy --lib -- -D warnings
-
-      - name: Run backend tests
+      - name: Clippy + test
         env:
           DATABASE_URL: postgres://recurrency:recurrency@localhost:5432/recurrency_test
           JWT_SECRET: test-jwt-secret-key
-        run: cd backend && cargo test --lib
+        run: |
+          cd backend
+          cargo clippy --lib -- -D warnings
+          cargo test --lib
 
-  # ── Frontend tests ─────────────────────────────────────────
+  # ── Frontend: lint + test ──────────────────────────────────
   test-frontend:
     needs: prepare
     runs-on: ubuntu-latest
@@ -95,13 +99,18 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: pkg-config libssl-dev
+          version: 1.0
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Build Tailwind CSS
         run: cd frontend && npm ci && npm run build:css
@@ -112,11 +121,11 @@ jobs:
           workspaces: frontend
           cache-on-failure: true
 
-      - name: Clippy
-        run: cd frontend && cargo clippy --lib -- -D warnings
-
-      - name: Run frontend tests
-        run: cd frontend && cargo test -- --test-threads=1
+      - name: Clippy + test
+        run: |
+          cd frontend
+          cargo clippy --lib -- -D warnings
+          cargo test --lib
 
   # ── Build Docker images + create release ──────────────────
   docker:
@@ -199,8 +208,11 @@ jobs:
           toolchain: stable
           targets: aarch64-linux-android
 
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev imagemagick
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: pkg-config libssl-dev imagemagick
+          version: 1.0
 
       - name: Install Android NDK
         uses: nttld/setup-ndk@v1
@@ -228,6 +240,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Build Tailwind CSS
         run: cd frontend && npm ci && npm run build:css
