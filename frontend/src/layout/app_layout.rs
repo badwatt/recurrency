@@ -231,9 +231,7 @@ pub fn AppLayout() -> Element {
                                 let nav = navigator();
                                 AUTH.write().logout();
                                 AUTH.write().persist_to_storage();
-                                // Reset app mode so user can choose again
-                                APP_MODE.write().reset();
-                                nav.push(crate::Route::Setup {});
+                                nav.push(crate::Route::Login {});
                             },
                             title: "Logout",
                             {svg_icon(Icon::Logout, 20)}
