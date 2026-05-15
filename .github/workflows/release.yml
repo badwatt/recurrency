@@ -113,7 +113,7 @@ jobs:
         run: |
           cd frontend
           cargo clippy --lib -- -D warnings
-          cargo test --lib
+          cargo test --lib -- --test-threads=1
 
   # ── Build Docker images + create release ──────────────────
   docker:
