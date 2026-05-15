@@ -53,21 +53,25 @@ pub fn AppLayout() -> Element {
     });
 
     if !auth.initialized {
-        // App mode not initialized yet — redirect to setup
-        let mode = APP_MODE();
-        if !mode.initialized {
-            let nav = navigator();
-            nav.push(crate::Route::Setup {});
-            return rsx! { div {} };
+        // On native: redirect to Setup if app mode not configured
+        // On WASM: always show app loader (server URL auto-detected)
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mode = APP_MODE();
+            if !mode.initialized {
+                let nav = navigator();
+                nav.push(crate::Route::Setup {});
+                return rsx! { div {} };
+            }
         }
         return rsx! { AppLoader {} };
     }
 
     // Offline mode: skip auth, auto-authenticate with a local marker
+    // Only available on native (Android/desktop). WASM always uses server.
+    #[cfg(not(target_arch = "wasm32"))]
     if APP_MODE().mode.is_offline() {
-        // In local mode, we don't need auth — mark as authenticated
         if !auth.is_authenticated {
-            // Create a local user session
             use crate::models::auth::UserResponse;
             let local_user = UserResponse {
                 id: uuid::Uuid::nil(),

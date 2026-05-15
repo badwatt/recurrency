@@ -1,5 +1,4 @@
 use crate::storage::Storage;
-use crate::api::transactions;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::TransactionRowSkeleton;

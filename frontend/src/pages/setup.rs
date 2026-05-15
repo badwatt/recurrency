@@ -139,14 +139,16 @@ pub fn SetupPage() -> Element {
 
                 // Mode selection cards
                 div { class: "flex flex-col gap-3",
-                    // Offline mode card
-                    button {
-                        onclick: move |_| { mode.set("offline".to_string()); },
-                        class: if mode() == "offline" {
-                            "rounded-xl border-2 border-primary bg-primary/5 p-4 text-left transition-all hover:bg-primary/10"
-                        } else {
-                            "rounded-xl border border-border p-4 text-left transition-all hover:border-primary/50"
-                        },
+                    // Offline mode — only on native (Android/desktop)
+                    // Web users must connect to a server
+                    if !cfg!(target_arch = "wasm32") {
+                        button {
+                            onclick: move |_| { mode.set("offline".to_string()); },
+                            class: if mode() == "offline" {
+                                "rounded-xl border-2 border-primary bg-primary/5 p-4 text-left transition-all hover:bg-primary/10"
+                            } else {
+                                "rounded-xl border border-border p-4 text-left transition-all hover:border-primary/50"
+                            },
                         div { class: "flex items-center gap-3",
                             div { class: "flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10",
                                 // Server/Database icon
@@ -184,6 +186,7 @@ pub fn SetupPage() -> Element {
                                 }
                             }
                         }
+                    }
                     }
 
                     // Server mode card

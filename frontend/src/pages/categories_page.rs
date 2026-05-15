@@ -1,4 +1,3 @@
-use crate::api::categories;
 use crate::storage::Storage;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;

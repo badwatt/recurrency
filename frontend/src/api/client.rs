@@ -110,14 +110,10 @@ pub fn set_base_url(url: &str) {
 
 /// Check persistent storage for app mode (works without Dioxus runtime).
 fn is_offline_mode_from_storage() -> bool {
+    // WASM: offline mode not available, always false
     #[cfg(target_arch = "wasm32")]
     {
-        if let Some(window) = web_sys::window()
-            && let Ok(Some(storage)) = window.local_storage()
-            && let Ok(Some(mode)) = storage.get_item("RECURRENCY_APP_MODE")
-            && mode == "offline" {
-                return true;
-            }
+        false
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

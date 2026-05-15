@@ -344,7 +344,7 @@ pub async fn set_default_category(id: &Uuid) -> Result<(), ApiError> {
 // ── Reports ──
 
 pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::report::ReportResponse, ApiError> {
-    use crate::models::report::{MonthlySummary, CategoryBreakdown, ReportResponse, SpendingTrend};
+    use crate::models::report::{MonthlySummary, CategoryBreakdown, ReportResponse};
     use chrono::Datelike;
     use rust_decimal::Decimal;
 

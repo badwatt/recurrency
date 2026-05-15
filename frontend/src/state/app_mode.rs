@@ -43,6 +43,7 @@ impl Default for AppModeState {
 }
 
 fn hydrate_mode_from_storage() -> (AppMode, bool) {
+    // WASM: always require server. Offline mode not available on web.
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
@@ -54,14 +55,14 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                         if let Some(url) = server_url.filter(|u| !u.is_empty()) {
                             (AppMode::Server(url), true)
                         } else {
-                            (AppMode::Offline, false) // server mode but no URL → need setup
+                            (AppMode::Server(String::new()), false) // server mode but no URL → need setup
                         }
                     }
-                    Some("offline") | _ => (AppMode::Offline, true),
+                    _ => (AppMode::Server(String::new()), false), // WASM: default to server mode
                 };
             }
         }
-        (AppMode::Offline, false)
+        (AppMode::Server(String::new()), false)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
