@@ -10,10 +10,24 @@
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
   <meta name="theme-color" content="#FAF9F2" />
+  <link rel="preload" as="style" href="/assets/tailwind.css" />
+  <style>
+    /* Critical FOUC-prevention: hide body until Tailwind loads */
+    body { visibility: hidden; }
+    html.light body, html.dark body, html.mocha body { visibility: visible; }
+    #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
+    .rings { position: relative; width: 48px; height: 48px; }
+    .rings .r1, .rings .r2 { position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; }
+    .rings .r1 { border-top-color: #6366f1; animation: spin 1s linear infinite; }
+    .rings .r2 { border-bottom-color: #6366f1; animation: spin 1s linear infinite reverse; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #pre-wasm-loader p { margin-top: 12px; color: #666; font-size: 14px; }
+  </style>
+  <noscript><style>body{visibility:visible!important}</style></noscript>
   <title>Recurrency</title>
 </head>
 
-<body>
+<body class="hidden"><!-- hidden until theme applied -->
   <div id="pre-wasm-loader">
     <div class="rings">
       <div class="r1"></div>
@@ -39,6 +53,8 @@
         else if (cls === 'mocha') document.documentElement.classList.add('mocha');
         window.__recurrency_theme = cls;
         // Set loader bg via inline style (authoritative, no cascade)
+        // Show body once theme is determined
+        document.body.classList.remove('hidden');
         // Hide pre-WASM loader once Dioxus renders (uses rAF polling)
         (function() {
             function hideLoader() {

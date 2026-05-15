@@ -65,7 +65,7 @@ fn index_html_meta_theme_color_matches_css_variables() {
     // Fix: body-end script sets meta.content to correct hex values per theme.
     let html = include_str!("../../../index.html");
     // Script in body sets meta.content with dark/mocha/light hex values
-    let body_section = html.split("<body>").nth(1).unwrap_or("");
+    let body_section = html.split("\x3cbody").nth(1).unwrap_or("");
     assert!(
         body_section.contains("meta.content"),
         "Body script must set meta[name=theme-color] content"
@@ -128,7 +128,7 @@ fn index_html_has_loading_spinner_before_wasm() {
     // Before WASM loads, there's a gap where only index.html is visible.
     // Must show a themed loading spinner so users see a themed page, not blank.
     let html = include_str!("../../../index.html");
-    let body_section = html.split("\x3cbody>").nth(1).unwrap_or("").to_lowercase();
+    let body_section = html.split("\x3cbody").nth(1).unwrap_or("");
     // Must have a spinner element (id="pre-wasm-loader" or class containing "loading")
     let has_spinner = body_section.contains("pre-wasm-loader")
         || body_section.contains("loading")

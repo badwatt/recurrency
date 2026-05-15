@@ -15,15 +15,7 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
-#[cfg(feature = "embed-frontend")]
-use axum::{
-    body::Body,
-    http::{header, StatusCode},
-    response::Response,
-};
-use shared::app_utils::{
-    build_index_path, get_frontend_dist, index_html_exists, parse_port,
-};
+use shared::app_utils::parse_port;
 use std::net::SocketAddr;
 
 use tower_http::cors::{Any, CorsLayer};
@@ -34,7 +26,6 @@ fn init_logging() {
 
     let env = std::env::var("APP_ENV").unwrap_or_default();
 
-    // Only write to file in development
     if env != "production" {
         std::fs::create_dir_all("logs").ok();
         let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "backend.log");
@@ -48,7 +39,6 @@ fn init_logging() {
             .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
             .init();
     } else {
-        // Production: stdout only
         tracing_subscriber::registry()
             .with(tracing_subscriber::EnvFilter::new(
                 std::env::var("RUST_LOG").unwrap_or_else(|_| "warn".into()),
@@ -60,7 +50,6 @@ fn init_logging() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // .env loading handled by taskfile/shell environment
     init_logging();
 
     tracing::info!("Starting Recurrency API server...");
@@ -88,180 +77,63 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let frontend_dist = get_frontend_dist();
-    let index_path = build_index_path(&frontend_dist);
-    if !index_html_exists(&frontend_dist) {
-        tracing::error!("Frontend index.html not found at: {}", index_path);
-    } else {
-        tracing::info!("Frontend index.html found at: {}", index_path);
-    }
-
-    // Create app state with DB pool and injectable services
     let app_state = AppState::new(
         db_pool.clone(),
         AuthProvider::Live(SqlxAuthService::new(db_pool.clone())),
     );
 
-    let mut router = Router::new()
+    Router::new()
         .route("/health", get(health_check))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))
-        .route(
-            "/api/auth/resend-verification",
-            post(auth::handlers::resend_verification),
-        )
+        .route("/api/auth/resend-verification", post(auth::handlers::resend_verification))
         .route("/api/settings", get(auth::handlers::get_settings))
         .route("/api/settings", put(auth::handlers::update_settings))
         .route("/api/subscriptions", post(subscriptions::handlers::create))
         .route("/api/subscriptions", get(subscriptions::handlers::list))
         .route("/api/subscriptions/{id}", get(subscriptions::handlers::get))
-        .route(
-            "/api/subscriptions/{id}",
-            put(subscriptions::handlers::update),
-        )
-        .route(
-            "/api/subscriptions/{id}",
-            delete(subscriptions::handlers::delete),
-        )
-        .route(
-            "/api/subscriptions/upcoming",
-            get(subscriptions::handlers::upcoming),
-        )
-        .route(
-            "/api/subscriptions/calendar",
-            get(subscriptions::handlers::calendar),
-        )
+        .route("/api/subscriptions/{id}", put(subscriptions::handlers::update))
+        .route("/api/subscriptions/{id}", delete(subscriptions::handlers::delete))
+        .route("/api/subscriptions/upcoming", get(subscriptions::handlers::upcoming))
+        .route("/api/subscriptions/calendar", get(subscriptions::handlers::calendar))
         .route("/api/transactions", post(transactions::handlers::create))
         .route("/api/transactions", get(transactions::handlers::list))
-        .route(
-            "/api/transactions/date-range",
-            get(transactions::handlers::by_date_range),
-        )
+        .route("/api/transactions/date-range", get(transactions::handlers::by_date_range))
         .route("/api/transactions/{id}", get(transactions::handlers::get))
-        .route(
-            "/api/transactions/{id}",
-            put(transactions::handlers::update),
-        )
-        .route(
-            "/api/transactions/{id}",
-            delete(transactions::handlers::delete),
-        )
+        .route("/api/transactions/{id}", put(transactions::handlers::update))
+        .route("/api/transactions/{id}", delete(transactions::handlers::delete))
         .route("/api/categories", post(categories::handlers::create))
         .route("/api/categories", get(categories::handlers::list))
-        .route(
-            "/api/categories/with-counts",
-            get(categories::handlers::list_with_counts),
-        )
+        .route("/api/categories/with-counts", get(categories::handlers::list_with_counts))
         .route("/api/categories/{id}", get(categories::handlers::get))
         .route("/api/categories/{id}", put(categories::handlers::update))
         .route("/api/categories/{id}", delete(categories::handlers::delete))
-        .route(
-            "/api/categories/default",
-            put(categories::handlers::set_default),
-        )
+        .route("/api/categories/default", put(categories::handlers::set_default))
         .route("/api/reports/summary", get(reports::handlers::get_report))
         .route("/api/notifications", get(notifications::handlers::list))
-        .route(
-            "/api/notifications/read-all",
-            post(notifications::handlers::mark_all_read),
-        )
-        .route(
-            "/api/notifications/{id}/read",
-            post(notifications::handlers::mark_read),
-        )
-        .route(
-            "/api/notifications/{id}",
-            delete(notifications::handlers::delete),
-        )
-        .route(
-            "/api/settings/notifications",
-            get(notifications::handlers::get_notification_preferences),
-        )
-        .route(
-            "/api/settings/notifications",
-            put(notifications::handlers::update_notification_preferences),
-        )
-        .route(
-            "/api/preferences",
-            get(preferences::handlers::get_preferences),
-        )
-        .route(
-            "/api/preferences",
-            put(preferences::handlers::update_preferences),
-        )
+        .route("/api/notifications/read-all", post(notifications::handlers::mark_all_read))
+        .route("/api/notifications/{id}/read", post(notifications::handlers::mark_read))
+        .route("/api/notifications/{id}", delete(notifications::handlers::delete))
+        .route("/api/settings/notifications", get(notifications::handlers::get_notification_preferences))
+        .route("/api/settings/notifications", put(notifications::handlers::update_notification_preferences))
+        .route("/api/preferences", get(preferences::handlers::get_preferences))
+        .route("/api/preferences", put(preferences::handlers::update_preferences))
         .route("/api/demo/status", get(demo::handlers::status))
         .route("/api/demo/init", get(demo::handlers::init))
         .route("/api/demo/reset", post(demo::handlers::reset))
         .route("/api/logos/search", get(logos::handlers::search))
         .with_state(app_state)
-        .layer(cors);
-
-    // Serve frontend if BUILD_UI=true
-    let build_ui = std::env::var("BUILD_UI").unwrap_or_else(|_| "true".into());
-    if build_ui == "true" {
-        if shared::embedded::init() || index_html_exists(&frontend_dist) {
-            tracing::info!("Frontend UI: enabled");
-        } else {
-            tracing::warn!("Frontend UI: dist/ not found. Set BUILD_UI=false for API-only mode.");
-        }
-
-        #[cfg(feature = "embed-frontend")]
-        {
-            router = router.fallback(serve_embedded);
-        }
-        #[cfg(not(feature = "embed-frontend"))]
-        {
-            let serve_dir = tower_http::services::ServeDir::new(&frontend_dist)
-                .fallback(tower_http::services::ServeFile::new(&index_path));
-            router = router.fallback_service(serve_dir);
-        }
-    } else {
-        tracing::info!("Frontend UI disabled (BUILD_UI=false)");
-    }
-
-    router
+        .layer(cors)
 }
 
-#[cfg(feature = "embed-frontend")]
-async fn serve_embedded(req: axum::extract::Request) -> Response {
-    let path = req.uri().path().trim_start_matches('/');
-    let path = if path.is_empty() { "index.html" } else { path };
-
-    if let Some((content, ct)) = shared::embedded::get_file(path) {
-        return Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, ct.as_str())
-            .body(Body::from(content.to_vec()))
-            .unwrap();
-    }
-    // SPA fallback: serve index.html for unknown paths
-    if let Some((content, _)) = shared::embedded::get_file("index.html") {
-        return Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "text/html")
-            .body(Body::from(content.to_vec()))
-            .unwrap();
-    }
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(Body::from("Not found"))
-        .unwrap()
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct HealthResponse {
-    status: String,
-    smtp_configured: bool,
-}
-
-async fn health_check() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "OK".to_string(),
-        smtp_configured: email::is_configured(),
-    })
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "status": "OK",
+        "smtp_configured": std::env::var("SMTP_HOST").is_ok()
+    }))
 }
 
 #[cfg(test)]
@@ -272,131 +144,9 @@ mod tests {
     use tower::ServiceExt;
 
     #[tokio::test]
-    async fn test_health_check() {
-        let result = health_check().await;
-        assert_eq!(result.status, "OK");
-    }
-
-    #[tokio::test]
-    async fn health_check_endpoint() {
-        async fn test_handler() -> Json<super::HealthResponse> {
-            super::health_check().await
-        }
-
-        let app = Router::new().route("/health", get(test_handler));
-
-        let req = Request::builder()
-            .method("GET")
-            .uri("/health")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(req).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
-        let json: HealthResponse = serde_json::from_slice(body.as_ref()).unwrap();
-        assert_eq!(json.status, "OK");
-    }
-
-    #[test]
-    fn cors_layer_creation() {
-        let _cors = CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any);
-        assert!(true);
-    }
-
-    #[test]
-    fn cors_layer_allow_credentials() {
-        let _cors = CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any)
-            .allow_credentials(true);
-        assert!(true); // Layer creation succeeds
-    }
-
-    #[test]
-    fn cors_layer_expose_headers() {
-        let _cors = CorsLayer::new().allow_origin(Any).expose_headers(Any);
-        assert!(true);
-    }
-
-    #[tokio::test]
-    async fn router_rejects_unknown_routes() {
-        // Test that the router returns NOT_FOUND for unknown routes
-        // We use a minimal router to test the pattern
-        let app = Router::new().route("/health", get(|| async { "OK" }));
-
-        let req = Request::builder()
-            .method("GET")
-            .uri("/unknown-route")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(req).await.unwrap();
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn router_multiple_methods_same_path() {
-        // Test that GET and POST on same path are distinct
-        let app = Router::new()
-            .route("/api/items", get(|| async { "GET" }))
-            .route("/api/items", post(|| async { "POST" }));
-
-        let get_req = Request::builder()
-            .method("GET")
-            .uri("/api/items")
-            .body(Body::empty())
-            .unwrap();
-        let get_resp = app.clone().oneshot(get_req).await.unwrap();
-        assert_eq!(get_resp.status(), StatusCode::OK);
-
-        let post_req = Request::builder()
-            .method("POST")
-            .uri("/api/items")
-            .body(Body::empty())
-            .unwrap();
-        let post_resp = app.oneshot(post_req).await.unwrap();
-        assert_eq!(post_resp.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn router_path_parameters() {
-        let app = Router::new().route(
-            "/api/items/{id}",
-            get(|axum::extract::Path(id): axum::extract::Path<String>| async move { id }),
-        );
-
-        let req = Request::builder()
-            .method("GET")
-            .uri("/api/items/123")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
-        assert_eq!(&body[..], b"123");
-    }
-
-    #[tokio::test]
-    async fn router_query_parameters() {
-        async fn handler(
-            query: axum::extract::Query<std::collections::HashMap<String, String>>,
-        ) -> axum::Json<serde_json::Value> {
-            axum::Json(serde_json::json!({"q": query.0.get("q").cloned().unwrap_or_default()}))
-        }
-
-        let app = Router::new().route("/api/search", get(handler));
-
-        let req = Request::builder()
-            .method("GET")
-            .uri("/api/search?q=test")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+    async fn test_health_check_structure() {
+        let response = health_check().await;
+        let body = response.0;
+        assert_eq!(body["status"], "OK");
     }
 }

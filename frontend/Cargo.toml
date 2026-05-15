@@ -9,10 +9,6 @@ name = "recurrency"
 crate-type = ["cdylib", "rlib"]
 path = "src/main.rs"
 
-[[bin]]
-name = "recurrency"
-path = "src/main.rs"
-
 [dependencies]
 dioxus = { version = "0.7.9", features = ["router"] }
 web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }

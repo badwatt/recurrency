@@ -38,7 +38,10 @@ pub fn LoginPage() -> Element {
     use_future(move || async move {
         match demo::get_status().await {
             Ok(status) => demo_enabled.set(status.enabled),
-            Err(_) => demo_enabled.set(false),
+            Err(_) => {
+                eprintln!("[LoginPage] Failed to check demo status — server may not be ready");
+                demo_enabled.set(false);
+            }
         }
     });
 

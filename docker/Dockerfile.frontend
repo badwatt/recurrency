@@ -1,0 +1,56 @@
+# ── Frontend Dockerfile ─────────────────────────────────
+# Nginx serving static Dioxus bundle with FOUC prevention
+FROM ubuntu:24.04 AS builder
+
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+ENV RUSTFLAGS="-C target-cpu=generic" \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system deps
+RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl pkg-config libssl-dev ca-certificates npm && break || sleep 5; done && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Rust via rustup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install dx CLI + wasm target
+RUN curl -L --proto '=https' --tlsv1.2 -sSf \
+    https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
+    cargo binstall dioxus-cli --no-confirm && \
+    rustup target add wasm32-unknown-unknown
+
+WORKDIR /build/frontend
+COPY frontend/Cargo.toml frontend/Cargo.lock* ./
+
+# Cache dependencies
+RUN mkdir src && echo 'fn main() {}' > src/main.rs
+RUN cargo build --target wasm32-unknown-unknown --features web --release 2>/dev/null || true
+RUN rm -rf src
+
+COPY frontend/ ./
+
+# Build Tailwind CSS
+RUN npm install --prefix . tailwindcss tailwindcss-animate && \
+    npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
+
+# Build Dioxus web bundle
+RUN dx bundle --platform web --release && \
+    echo "=== Bundle output ===" && \
+    ls -laR dist/ 2>/dev/null; \
+    find dist/ -name 'index.html' -type f 2>/dev/null
+
+# ── Runtime: nginx ──────────────────────────────────────
+FROM nginx:alpine
+
+# Copy built frontend
+COPY --from=builder /build/frontend/dist/public /usr/share/nginx/html
+
+# nginx config: SPA routing + API proxy + FOUC prevention headers
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

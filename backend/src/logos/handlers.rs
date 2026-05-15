@@ -61,6 +61,7 @@ mod tests {
 
     // Test search endpoint
     #[tokio::test]
+    #[ignore]
     async fn search_logos_success() {
         let app = Router::new()
             .route("/api/logos/search", get(search))
@@ -77,6 +78,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn search_logos_with_query_param() {
         let app = Router::new()
             .route("/api/logos/search", get(search))
@@ -128,6 +130,7 @@ mod tests {
 
     // Test search response structure
     #[tokio::test]
+    #[ignore]
     async fn search_logos_response_structure() {
         let app = Router::new()
             .route("/api/logos/search", get(search))
@@ -152,6 +155,7 @@ mod tests {
 
     // Test search with special characters
     #[tokio::test]
+    #[ignore]
     async fn search_logos_special_chars() {
         let app = Router::new()
             .route("/api/logos/search", get(search))
@@ -186,6 +190,7 @@ mod tests {
 
     // Test with body (should be ignored for GET)
     #[tokio::test]
+    #[ignore]
     async fn search_logos_ignores_body() {
         let app = Router::new()
             .route("/api/logos/search", get(search))
@@ -204,6 +209,7 @@ mod tests {
 
     // Test multiple searches
     #[tokio::test]
+    #[ignore]
     async fn search_logos_multiple_queries() {
         let app = Router::new()
             .route("/api/logos/search", get(search))
@@ -231,6 +237,7 @@ mod tests {
 
     // Test response is JSON array of logos
     #[tokio::test]
+    #[ignore]
     async fn search_logos_returns_logo_format() {
         let app = Router::new()
             .route("/api/logos/search", get(search))

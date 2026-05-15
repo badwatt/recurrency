@@ -6,15 +6,10 @@ pub mod app_utils;
 pub mod auth_extractor;
 pub mod date_utils;
 pub mod db;
-#[cfg(feature = "embed-frontend")]
-pub mod embedded;
-
-#[cfg(not(feature = "embed-frontend"))]
-#[path = "embedded_test_stub.rs"]
-pub mod embedded;
 pub mod error;
 pub mod mocks;
 pub mod password_utils;
+pub mod test_env;
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;

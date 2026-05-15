@@ -48,7 +48,7 @@ mod tests {
     #[should_panic(expected = "DATABASE_URL must be set")]
     async fn create_pool_requires_database_url() {
         // Clear DATABASE_URL if set
-        std::env::remove_var("DATABASE_URL");
+        crate::shared::test_env::remove_env("DATABASE_URL");
         let _ = create_pool().await;
     }
 

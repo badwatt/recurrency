@@ -149,25 +149,25 @@ mod tests {
     #[test]
     #[serial]
     fn demo_secret_custom() {
-        env::set_var("DEMO_PASSWORD", "my_test_pass");
+        crate::shared::test_env::set_env("DEMO_PASSWORD", "my_test_pass");
         let secret_val = demo_password();
         assert_eq!(secret_val, "my_test_pass");
-        env::remove_var("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
     }
 
     #[test]
     #[serial]
     fn demo_secret_hash_custom() {
-        env::set_var("DEMO_PASSWORD_HASH", "precomputed$hash");
+        crate::shared::test_env::set_env("DEMO_PASSWORD_HASH", "precomputed$hash");
         let hash = demo_password_hash("anything").unwrap();
         assert_eq!(hash, "precomputed$hash");
-        env::remove_var("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
     }
 
     #[test]
     #[serial]
     fn demo_secret_hash_generated() {
-        env::remove_var("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
         let hash = demo_password_hash("testpass").unwrap();
         assert!(!hash.is_empty());
     }
@@ -177,51 +177,51 @@ mod tests {
     #[test]
     #[serial]
     fn demo_is_enabled_true_lowercase() {
-        env::remove_var("ENABLE_DEMO");
-        env::set_var("ENABLE_DEMO", "true");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "true");
         let enabled = is_demo_enabled();
         assert!(enabled);
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
     }
 
     #[test]
     #[serial]
     fn demo_is_enabled_true_uppercase() {
-        env::remove_var("ENABLE_DEMO");
-        env::set_var("ENABLE_DEMO", "TRUE");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "TRUE");
         let enabled = is_demo_enabled();
         assert!(enabled);
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
     }
 
     #[test]
     #[serial]
     fn demo_is_enabled_1() {
-        env::remove_var("ENABLE_DEMO");
-        env::set_var("ENABLE_DEMO", "1");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "1");
         let enabled = is_demo_enabled();
         assert!(!enabled);
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
     }
 
     #[test]
     #[serial]
     fn demo_is_enabled_yes() {
-        env::remove_var("ENABLE_DEMO");
-        env::set_var("ENABLE_DEMO", "yes");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "yes");
         let enabled = is_demo_enabled();
         assert!(!enabled); // "yes" not in "true" set
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
     }
 
     #[test]
     #[serial]
     fn demo_is_enabled_false() {
-        env::remove_var("ENABLE_DEMO");
-        env::set_var("ENABLE_DEMO", "false");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "false");
         let enabled = is_demo_enabled();
         assert!(!enabled);
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
     }
 
     // ── demo_email edge cases ──
@@ -230,10 +230,10 @@ mod tests {
     #[serial]
     fn demo_email_disabled_returns_empty() {
         // Must clear ALL demo env vars first
-        env::remove_var("ENABLE_DEMO");
-        env::remove_var("DEMO_EMAIL");
-        env::remove_var("DEMO_PASSWORD");
-        env::remove_var("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("DEMO_EMAIL");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
 
         let email = demo_email();
         assert_eq!(email, "");
@@ -243,34 +243,34 @@ mod tests {
     #[serial]
     fn demo_email_enabled_custom() {
         // Clear all first
-        env::remove_var("DEMO_EMAIL");
-        env::remove_var("DEMO_PASSWORD");
-        env::remove_var("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::remove_env("DEMO_EMAIL");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
 
-        env::set_var("ENABLE_DEMO", "true");
-        env::set_var("DEMO_EMAIL", "custom@demo.com");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "true");
+        crate::shared::test_env::set_env("DEMO_EMAIL", "custom@demo.com");
         let email = demo_email();
         assert_eq!(email, "custom@demo.com");
-        env::remove_var("ENABLE_DEMO");
-        env::remove_var("DEMO_EMAIL");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("DEMO_EMAIL");
     }
 
     #[test]
     #[serial]
     fn demo_email_enabled_generates_random() {
         // Clear all first
-        env::remove_var("ENABLE_DEMO");
-        env::remove_var("DEMO_EMAIL");
-        env::remove_var("DEMO_PASSWORD");
-        env::remove_var("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("DEMO_EMAIL");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
 
-        env::set_var("ENABLE_DEMO", "true");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "true");
         let email1 = demo_email();
         let email2 = demo_email();
         assert!(email1.starts_with("demo_"));
         assert!(email1.contains("@recurrency.local"));
         assert_ne!(email1, email2); // Should be different
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
     }
 
     // ── demo_password edge cases ──
@@ -278,7 +278,7 @@ mod tests {
     #[test]
     #[serial]
     fn demo_password_default_length() {
-        env::remove_var("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
         let password = demo_password();
         assert!(password.len() >= 16); // UUID without dashes is 32 chars
     }
@@ -286,7 +286,7 @@ mod tests {
     #[test]
     #[serial]
     fn demo_password_no_hyphens() {
-        env::remove_var("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
         let password = demo_password();
         assert!(!password.contains("-"));
     }
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     #[serial]
     fn demo_password_hash_uses_password_when_no_precomputed() {
-        env::remove_var("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
         let hash1 = demo_password_hash("pass1").unwrap();
         let hash2 = demo_password_hash("pass2").unwrap();
         assert_ne!(hash1, hash2);
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     #[serial]
     fn status_response_disabled() {
-        env::remove_var("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
         let enabled = is_demo_enabled();
         let email = if enabled { demo_email() } else { String::new() };
 
@@ -353,12 +353,12 @@ mod tests {
     #[test]
     #[serial]
     fn status_response_enabled_with_custom_email() {
-        env::remove_var("ENABLE_DEMO");
-        env::remove_var("DEMO_EMAIL");
-        env::remove_var("DEMO_PASSWORD");
-        env::remove_var("DEMO_PASSWORD_HASH");
-        env::set_var("ENABLE_DEMO", "true");
-        env::set_var("DEMO_EMAIL", "status@demo.com");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("DEMO_EMAIL");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD");
+        crate::shared::test_env::remove_env("DEMO_PASSWORD_HASH");
+        crate::shared::test_env::set_env("ENABLE_DEMO", "true");
+        crate::shared::test_env::set_env("DEMO_EMAIL", "status@demo.com");
 
         let enabled = is_demo_enabled();
         let email = demo_email();
@@ -366,8 +366,8 @@ mod tests {
         assert!(enabled);
         assert_eq!(email, "status@demo.com");
 
-        env::remove_var("ENABLE_DEMO");
-        env::remove_var("DEMO_EMAIL");
+        crate::shared::test_env::remove_env("ENABLE_DEMO");
+        crate::shared::test_env::remove_env("DEMO_EMAIL");
     }
 
     // ── init response structure ──

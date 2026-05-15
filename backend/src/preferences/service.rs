@@ -385,7 +385,7 @@ mod tests {
     #[test]
     fn apply_preference_theme_only() {
         let mut prefs = PreferencesResponse::default();
-        apply_preference(&mut prefs, "theme", "dark");
+        SqlxPreferencesService::apply_preference(&mut prefs, "theme", "dark");
         assert_eq!(prefs.theme, "dark");
         assert_eq!(prefs.subscriptions_view, "grid"); // unchanged
         assert_eq!(prefs.first_day_of_week, "monday"); // unchanged
@@ -394,7 +394,7 @@ mod tests {
     #[test]
     fn apply_preference_view_only() {
         let mut prefs = PreferencesResponse::default();
-        apply_preference(&mut prefs, "subscriptions_view", "list");
+        SqlxPreferencesService::apply_preference(&mut prefs, "subscriptions_view", "list");
         assert_eq!(prefs.theme, "system"); // unchanged
         assert_eq!(prefs.subscriptions_view, "list");
         assert_eq!(prefs.first_day_of_week, "monday"); // unchanged
@@ -403,14 +403,14 @@ mod tests {
     #[test]
     fn apply_preference_first_day_of_week() {
         let mut prefs = PreferencesResponse::default();
-        apply_preference(&mut prefs, "first_day_of_week", "sunday");
+        SqlxPreferencesService::apply_preference(&mut prefs, "first_day_of_week", "sunday");
         assert_eq!(prefs.first_day_of_week, "sunday");
     }
 
     #[test]
     fn apply_preference_date_format() {
         let mut prefs = PreferencesResponse::default();
-        apply_preference(&mut prefs, "date_format", "YYYY-MM-DD");
+        SqlxPreferencesService::apply_preference(&mut prefs, "date_format", "YYYY-MM-DD");
         assert_eq!(prefs.date_format, "YYYY-MM-DD");
     }
 
@@ -422,8 +422,8 @@ mod tests {
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
         };
-        apply_preference(&mut prefs, "theme", "midnight");
-        apply_preference(&mut prefs, "subscriptions_view", "compact");
+        SqlxPreferencesService::apply_preference(&mut prefs, "theme", "midnight");
+        SqlxPreferencesService::apply_preference(&mut prefs, "subscriptions_view", "compact");
         assert_eq!(prefs.theme, "midnight");
         assert_eq!(prefs.subscriptions_view, "compact");
     }

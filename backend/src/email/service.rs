@@ -123,24 +123,24 @@ mod tests {
     #[serial]
     fn test_is_configured() {
         // Should return false without SMTP env vars
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
         assert!(
             !is_configured(),
             "Should not be configured without SMTP env vars"
         );
 
         // Should return true with SMTP env vars
-        std::env::set_var("SMTP_HOST", "smtp.example.com");
-        std::env::set_var("SMTP_USER", "user@example.com");
-        std::env::set_var("SMTP_PASSWORD", "secret");
+        crate::shared::test_env::set_env("SMTP_HOST", "smtp.example.com");
+        crate::shared::test_env::set_env("SMTP_USER", "user@example.com");
+        crate::shared::test_env::set_env("SMTP_PASSWORD", "secret");
         assert!(is_configured(), "Should be configured with SMTP env vars");
 
         // Clean up
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
     }
 
     #[test]
@@ -156,12 +156,12 @@ mod tests {
     #[serial]
     fn test_get_config_none_and_some() {
         // Remove all SMTP env vars
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
-        std::env::remove_var("SMTP_PORT");
-        std::env::remove_var("SMTP_FROM");
-        std::env::remove_var("APP_NAME");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_PORT");
+        crate::shared::test_env::remove_env("SMTP_FROM");
+        crate::shared::test_env::remove_env("APP_NAME");
 
         // Should return None without env vars
         assert!(
@@ -170,12 +170,12 @@ mod tests {
         );
 
         // Set all env vars
-        std::env::set_var("SMTP_HOST", "smtp.gmail.com");
-        std::env::set_var("SMTP_USER", "user@gmail.com");
-        std::env::set_var("SMTP_PASSWORD", "test_pass_val");
-        std::env::set_var("SMTP_PORT", "587");
-        std::env::set_var("SMTP_FROM", "noreply@recurrency.app");
-        std::env::set_var("APP_NAME", "MyApp");
+        crate::shared::test_env::set_env("SMTP_HOST", "smtp.gmail.com");
+        crate::shared::test_env::set_env("SMTP_USER", "user@gmail.com");
+        crate::shared::test_env::set_env("SMTP_PASSWORD", "test_pass_val");
+        crate::shared::test_env::set_env("SMTP_PORT", "587");
+        crate::shared::test_env::set_env("SMTP_FROM", "noreply@recurrency.app");
+        crate::shared::test_env::set_env("APP_NAME", "MyApp");
 
         // Should return Some with all env vars
         let config = get_config();
@@ -192,23 +192,23 @@ mod tests {
         assert_eq!(cfg.app_name, "MyApp");
 
         // Clean up
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
-        std::env::remove_var("SMTP_PORT");
-        std::env::remove_var("SMTP_FROM");
-        std::env::remove_var("APP_NAME");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_PORT");
+        crate::shared::test_env::remove_env("SMTP_FROM");
+        crate::shared::test_env::remove_env("APP_NAME");
     }
 
     #[test]
     #[serial]
     fn test_get_config_default_values() {
-        std::env::set_var("SMTP_HOST", "smtp.test.com");
-        std::env::set_var("SMTP_USER", "test@test.com");
-        std::env::set_var("SMTP_PASSWORD", "pass");
-        std::env::remove_var("SMTP_PORT");
-        std::env::remove_var("SMTP_FROM");
-        std::env::remove_var("APP_NAME");
+        crate::shared::test_env::set_env("SMTP_HOST", "smtp.test.com");
+        crate::shared::test_env::set_env("SMTP_USER", "test@test.com");
+        crate::shared::test_env::set_env("SMTP_PASSWORD", "pass");
+        crate::shared::test_env::remove_env("SMTP_PORT");
+        crate::shared::test_env::remove_env("SMTP_FROM");
+        crate::shared::test_env::remove_env("APP_NAME");
 
         let config = get_config().unwrap();
         assert_eq!(config.port, 587); // default
@@ -216,9 +216,9 @@ mod tests {
         assert_eq!(config.app_name, "Recurrency"); // default
 
         // Clean up
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
     }
 
     #[test]
@@ -267,27 +267,27 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_config_invalid_port_defaults_to_587() {
-        std::env::set_var("SMTP_HOST", "smtp.test.com");
-        std::env::set_var("SMTP_USER", "test@test.com");
-        std::env::set_var("SMTP_PASSWORD", "pass");
-        std::env::set_var("SMTP_PORT", "not_a_number");
+        crate::shared::test_env::set_env("SMTP_HOST", "smtp.test.com");
+        crate::shared::test_env::set_env("SMTP_USER", "test@test.com");
+        crate::shared::test_env::set_env("SMTP_PASSWORD", "pass");
+        crate::shared::test_env::set_env("SMTP_PORT", "not_a_number");
 
         let config = get_config().unwrap();
         assert_eq!(config.port, 587);
 
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
-        std::env::remove_var("SMTP_PORT");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_PORT");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_send_verification_email_no_config() {
         // Clear SMTP config
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
         let result = send_verification_email("test@example.com", "123456").await;
         assert!(result.is_err(), "Should fail without SMTP config");
         let err = result.unwrap_err();
@@ -301,9 +301,9 @@ mod tests {
     #[serial]
     async fn test_send_verification_email_invalid_to_address() {
         // Set SMTP config but use invalid email address
-        std::env::set_var("SMTP_HOST", "smtp.test.com");
-        std::env::set_var("SMTP_USER", "test@test.com");
-        std::env::set_var("SMTP_PASSWORD", "pass");
+        crate::shared::test_env::set_env("SMTP_HOST", "smtp.test.com");
+        crate::shared::test_env::set_env("SMTP_USER", "test@test.com");
+        crate::shared::test_env::set_env("SMTP_PASSWORD", "pass");
         let result = send_verification_email("not-an-email", "123456").await;
         assert!(result.is_err(), "Should fail with invalid email");
         let err = result.unwrap_err();
@@ -311,19 +311,19 @@ mod tests {
             err.to_string().contains("Invalid to address"),
             "Error should mention invalid to address"
         );
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_send_verification_email_invalid_from_address() {
         // Set SMTP config with invalid from address
-        std::env::set_var("SMTP_HOST", "smtp.test.com");
-        std::env::set_var("SMTP_USER", "test@test.com");
-        std::env::set_var("SMTP_PASSWORD", "pass");
-        std::env::set_var("SMTP_FROM", "invalid from addr");
+        crate::shared::test_env::set_env("SMTP_HOST", "smtp.test.com");
+        crate::shared::test_env::set_env("SMTP_USER", "test@test.com");
+        crate::shared::test_env::set_env("SMTP_PASSWORD", "pass");
+        crate::shared::test_env::set_env("SMTP_FROM", "invalid from addr");
         let result = send_verification_email("valid@example.com", "123456").await;
         assert!(result.is_err(), "Should fail with invalid from address");
         let err = result.unwrap_err();
@@ -331,9 +331,9 @@ mod tests {
             err.to_string().contains("Invalid from address"),
             "Error should mention invalid from address"
         );
-        std::env::remove_var("SMTP_HOST");
-        std::env::remove_var("SMTP_USER");
-        std::env::remove_var("SMTP_PASSWORD");
-        std::env::remove_var("SMTP_FROM");
+        crate::shared::test_env::remove_env("SMTP_HOST");
+        crate::shared::test_env::remove_env("SMTP_USER");
+        crate::shared::test_env::remove_env("SMTP_PASSWORD");
+        crate::shared::test_env::remove_env("SMTP_FROM");
     }
 }

@@ -1,0 +1,38 @@
+# ── Backend Dockerfile ──────────────────────────────────
+# API-only, no frontend embedded
+FROM rust:1-bookworm AS builder
+
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+ENV RUSTFLAGS="-C target-cpu=generic"
+
+WORKDIR /build
+
+# Cache dependencies
+COPY backend/Cargo.toml backend/Cargo.lock* ./
+COPY VERSION /build/VERSION
+RUN mkdir src && echo 'fn main() {}' > src/main.rs
+RUN cargo build --release -j 4 2>/dev/null || true
+RUN rm -rf src
+
+# Build backend
+COPY backend/ ./
+RUN touch src/main.rs && cargo build --release -j 4
+
+# ── Runtime ──────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/release/recurrency-api /usr/local/bin/recurrency-api
+RUN chmod +x /usr/local/bin/recurrency-api
+
+ENV APP_HOST=0.0.0.0 \
+    APP_PORT=8080 \
+    RUST_LOG=info
+
+EXPOSE 8080
+
+CMD ["recurrency-api"]

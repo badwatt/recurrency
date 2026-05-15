@@ -35,6 +35,7 @@ fn generate_code() -> String {
 /// Authentication provider — enum dispatch replaces dyn trait.
 /// `Live` connects to PostgreSQL; `Mock` returns preset responses for tests.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub enum AuthProvider {
     Live(SqlxAuthService),
     Mock(crate::shared::mocks::MockAuthService),
@@ -69,6 +70,7 @@ impl AuthProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
         match self {
             AuthProvider::Live(s) => s.get_user_by_id_impl(user_id).await,
@@ -477,7 +479,7 @@ mod tests {
 
     #[test]
     fn generate_token_contains_email() {
-        std::env::set_var("JWT_SECRET", "test-secret-key");
+        crate::shared::test_env::set_env("JWT_SECRET", "test-secret-key");
         let user = User {
             id: Uuid::new_v4(),
             email: "token@test.com".to_string(),
@@ -502,13 +504,13 @@ mod tests {
     // get_jwt_secret
     #[test]
     fn get_jwt_secret_returns_value() {
-        std::env::set_var("JWT_SECRET", "test-secret-key");
+        crate::shared::test_env::set_env("JWT_SECRET", "test-secret-key");
         assert!(!get_jwt_secret().is_empty());
     }
 
     #[test]
     fn get_jwt_secret_same_on_repeat() {
-        std::env::set_var("JWT_SECRET", "test-secret-key");
+        crate::shared::test_env::set_env("JWT_SECRET", "test-secret-key");
         assert_eq!(get_jwt_secret(), get_jwt_secret());
     }
 
