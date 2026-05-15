@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_else_formatting)]
 use dioxus::prelude::*;
 
 use crate::api;

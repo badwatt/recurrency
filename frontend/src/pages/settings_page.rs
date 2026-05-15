@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_else_formatting)]
 use crate::api::app;
 use crate::api::notification_preferences;
 use crate::api::settings;

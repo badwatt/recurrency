@@ -296,7 +296,7 @@ pub fn CalendarPage() -> Element {
 
     // Sort upcoming items by billing date for mobile view
     let mut upcoming: Vec<_> = items.iter().collect();
-    upcoming.sort_by(|a, b| a.billing_date.cmp(&b.billing_date));
+    upcoming.sort_by_key(|a| a.billing_date);
     let upcoming_display: Vec<(String, String, String, String, Option<String>)> = upcoming
         .iter()
         .map(|item| {

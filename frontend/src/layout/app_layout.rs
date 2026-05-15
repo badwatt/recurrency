@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_else_formatting)]
 use crate::api::notifications;
 use crate::components::toast::ToastContainer;
 
