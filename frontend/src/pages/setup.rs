@@ -94,10 +94,7 @@ pub fn SetupPage() -> Element {
                         .await;
                     }
 
-                    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-                    {
-                        std::env::set_var("RECURRENCY_API_URL", &url);
-                    }
+                    // env var skipped: save_server_url() persists to file, read by get_base_url()
 
                     nav.push(Route::Login {});
                 }

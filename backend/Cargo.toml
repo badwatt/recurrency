@@ -1,9 +1,9 @@
 [package]
 name = "recurrency-api"
-version = "0.0.0"  # Real version from VERSION file via build.rs
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Recurrency API - Backend for subscription tracker"
-authors = ["Recurrency Team"]
 
 [dependencies]
 # Web framework
@@ -12,8 +12,8 @@ tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 
 # Serialization
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal"] }
@@ -23,19 +23,19 @@ jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 argon2 = "0.5"
 
 # UUID
-uuid = { version = "1", features = ["v4", "serde"] }
+uuid.workspace = true
 
 # Date/Time
-chrono = { version = "0.4", features = ["serde"] }
+chrono.workspace = true
 
 # Decimal for money
-rust_decimal = { version = "1", features = ["serde", "serde-with-str"] }
+rust_decimal.workspace = true
 
 # Validation
 validator = { version = "0.20", features = ["derive"] }
 
 # Error handling
-thiserror = "2.0.18"
+thiserror.workspace = true
 anyhow = "1"
 
 # Logging
@@ -51,7 +51,7 @@ dotenvy = "0.15"
 lettre = { version = "0.11.21", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
 
 # HTTP client for logo search
-reqwest = { version = "0.13", features = ["json"] }
+reqwest.workspace = true
 urlencoding = "2"
 mime_guess = "2"
 
@@ -70,8 +70,4 @@ embed-frontend = ["dep:include_dir"]
 serial_test = "3"
 tower = { version = "0.5", features = ["util"] }
 
-[profile.release]
-lto = "thin"
-codegen-units = 16
-strip = true
-opt-level = 2
+

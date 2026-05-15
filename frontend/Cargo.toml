@@ -1,7 +1,7 @@
 [package]
 name = "recurrency"
-version = "0.0.0"  # Real version from VERSION file via build.rs
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "Recurrency - Subscription tracker (Dioxus frontend)"
 
 [lib]
@@ -18,13 +18,13 @@ dioxus = { version = "0.7.5", features = ["router"] }
 web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
 sys-locale = "0.3.2"
 lucide-dioxus = { version = "2.577", features = ["all-icons"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.140"
-chrono = { version = "0.4.44", features = ["serde"] }
-rust_decimal = { version = "1.41.0", features = ["serde"] }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+rust_decimal.workspace = true
 rust_decimal_macros = "1.40.0"
-uuid = { version = "1.23.0", features = ["v4", "serde", "js"] }
-reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls"] }
+uuid = { workspace = true, features = ["v4", "serde", "js"] }
+reqwest = { workspace = true, default-features = false, features = ["json", "rustls"] }
 log = "0.4.27"
 gloo-timers = { version = "0.4.0", features = ["futures"], optional = true }
 tokio = { version = "1", features = ["time"] }  # always needed for native builds
@@ -45,8 +45,4 @@ server = ["dioxus/server"]
 
 test = ["gloo-timers"]
 
-[profile.release]
-lto = "thin"
-codegen-units = 16
-strip = true
-opt-level = 2
+
