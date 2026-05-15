@@ -324,6 +324,90 @@ pub async fn delete_category(id: &Uuid) -> Result<(), ApiError> {
     save_collection("categories", list)
 }
 
+pub async fn set_default_category(id: &Uuid) -> Result<(), ApiError> {
+    let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    if cache.is_none() {
+        *cache = load_collection("categories");
+    }
+    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
+    // Unset all defaults
+    for cat in list.iter_mut() {
+        cat.is_default = false;
+    }
+    // Set the target
+    if let Some(cat) = list.iter_mut().find(|c| &c.id == id) {
+        cat.is_default = true;
+    }
+    save_collection("categories", list)
+}
+
+// ── Reports ──
+
+pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::report::ReportResponse, ApiError> {
+    use crate::models::report::{MonthlySummary, CategoryBreakdown, ReportResponse, SpendingTrend};
+    use chrono::Datelike;
+    use rust_decimal::Decimal;
+
+    let subs = list_subscriptions().await.unwrap_or_default();
+    let txns = list_transactions().await.unwrap_or_default();
+    let cats = list_categories().await.unwrap_or_default();
+
+    // Filter subscriptions active in the given month
+    let month_subs: Vec<_> = subs.iter()
+        .filter(|s| {
+            let start = s.start_date;
+            // Subscription started before or during this month
+            (start.year() < year || (start.year() == year && start.month() <= month))
+            && s.is_active
+        })
+        .collect();
+
+    let subs_total: Decimal = month_subs.iter().map(|s| s.amount).sum();
+
+    // Filter transactions in the given month
+    let month_txns: Vec<_> = txns.iter()
+        .filter(|t| t.date.year() == year && t.date.month() == month)
+        .collect();
+
+    let txn_total: Decimal = month_txns.iter().map(|t| t.amount).sum();
+
+    // Category breakdown (from subscriptions)
+    let mut cat_map: std::collections::HashMap<Uuid, (String, Decimal, i64)> = std::collections::HashMap::new();
+    for s in &month_subs {
+        let entry = cat_map.entry(s.category_id).or_insert((String::new(), Decimal::ZERO, 0));
+        if let Some(cat) = cats.iter().find(|c| c.id == s.category_id) {
+            entry.0 = cat.name.clone();
+        }
+        entry.1 += s.amount;
+        entry.2 += 1;
+    }
+    let overall = subs_total + txn_total;
+    let category_breakdown: Vec<CategoryBreakdown> = cat_map.into_iter().map(|(_, (name, total, count))| {
+        let pct = if overall > Decimal::ZERO { (total / overall * Decimal::from(100)).to_string().parse::<f64>().unwrap_or(0.0) } else { 0.0 };
+        CategoryBreakdown {
+            category_id: None,
+            category_name: name,
+            total,
+            count,
+            percentage: pct,
+        }
+    }).collect();
+
+    Ok(ReportResponse {
+        monthly_summary: MonthlySummary {
+            year,
+            month,
+            subscriptions_total: subs_total,
+            transactions_total: txn_total,
+            overall_total: overall,
+            subscriptions_count: month_subs.len() as i64,
+            transactions_count: month_txns.len() as i64,
+        },
+        category_breakdown,
+        recent_trends: vec![],
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

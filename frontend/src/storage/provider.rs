@@ -118,6 +118,24 @@ impl Storage {
             crate::api::categories::delete(id).await
         }
     }
+
+    pub async fn set_default_category(id: &uuid::Uuid) -> Result<(), ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::set_default_category(id).await
+        } else {
+            crate::api::categories::set_default(id).await
+        }
+    }
+
+    // ── Reports ──
+
+    pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::report::ReportResponse, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::get_report_summary(year, month).await
+        } else {
+            crate::api::reports::get_summary(year, month).await
+        }
+    }
 }
 
 #[cfg(test)]

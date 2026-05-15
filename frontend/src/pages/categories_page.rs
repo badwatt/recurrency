@@ -1,4 +1,5 @@
 use crate::api::categories;
+use crate::storage::Storage;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::CategoryCardSkeleton;
@@ -70,7 +71,7 @@ pub fn CategoriesPage() -> Element {
             return;
         }
         CATEGORIES.write().set_loading();
-        match categories::list().await {
+        match Storage::list_categories().await {
             Ok(data) => CATEGORIES.write().set_data(data),
             Err(e) => CATEGORIES.write().set_error(e.to_string()),
         }
@@ -116,7 +117,7 @@ pub fn CategoriesPage() -> Element {
         form_saving.set(true);
         spawn(async move {
             let result = if let Some(id) = editing {
-                categories::update(
+                Storage::update_category(
                     &id,
                     &UpdateCategoryRequest {
                         name: Some(name_val),
@@ -126,7 +127,7 @@ pub fn CategoriesPage() -> Element {
                 )
                 .await
             } else {
-                categories::create(&CreateCategoryRequest {
+                Storage::create_category(&CreateCategoryRequest {
                     name: name_val,
                     icon: Some(icon),
                     color: Some(color),
@@ -137,7 +138,7 @@ pub fn CategoriesPage() -> Element {
             match result {
                 Ok(_) => {
                     dialog_open.set(false);
-                    match categories::list().await {
+                    match Storage::list_categories().await {
                         Ok(data) => CATEGORIES.write().set_data(data),
                         Err(e) => CATEGORIES.write().set_error(e.to_string()),
                     }
@@ -150,8 +151,8 @@ pub fn CategoriesPage() -> Element {
 
     let handle_delete = move |id: Uuid| {
         spawn(async move {
-            let _ = categories::delete(&id).await;
-            match categories::list().await {
+            let _ = Storage::delete_category(&id).await;
+            match Storage::list_categories().await {
                 Ok(data) => CATEGORIES.write().set_data(data),
                 Err(e) => CATEGORIES.write().set_error(e.to_string()),
             }
@@ -160,8 +161,8 @@ pub fn CategoriesPage() -> Element {
 
     let handle_set_default = move |id: Uuid| {
         spawn(async move {
-            let _ = categories::set_default(&id).await;
-            match categories::list().await {
+            let _ = Storage::set_default_category(&id).await;
+            match Storage::list_categories().await {
                 Ok(data) => CATEGORIES.write().set_data(data),
                 Err(e) => CATEGORIES.write().set_error(e.to_string()),
             }

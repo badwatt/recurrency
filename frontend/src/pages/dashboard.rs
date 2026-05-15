@@ -2,7 +2,7 @@ use chrono::Utc;
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::api::subscriptions as api_subs;
+use crate::storage::Storage;
 use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
 use crate::state::categories::CATEGORIES;
@@ -124,7 +124,7 @@ pub fn Dashboard() -> Element {
     use_hook(move || {
         spawn(async move {
             SUBSCRIPTIONS.write().set_loading();
-            match api_subs::list().await {
+            match Storage::list_subscriptions().await {
                 Ok(subs) => SUBSCRIPTIONS.write().set_data(subs),
                 Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
             }

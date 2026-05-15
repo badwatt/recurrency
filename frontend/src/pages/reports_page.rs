@@ -1,5 +1,5 @@
-use crate::api::categories;
-use crate::api::reports;
+use crate::api;
+use crate::storage::Storage;
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
@@ -75,7 +75,7 @@ pub fn ReportsPage() -> Element {
             return;
         }
         CATEGORIES.write().set_loading();
-        match categories::list().await {
+        match Storage::list_categories().await {
             Ok(data) => CATEGORIES.write().set_data(data),
             Err(e) => CATEGORIES.write().set_error(e.to_string()),
         }
@@ -91,7 +91,7 @@ pub fn ReportsPage() -> Element {
             is_loading.set(true);
             let y: i32 = y.parse().unwrap_or(now.year());
             let m: u32 = m.parse().unwrap_or(now.month());
-            match reports::get_summary(y, m).await {
+            match Storage::get_report_summary(y, m).await {
                 Ok(data) => report.set(Some(data)),
                 Err(e) => log::error!("Failed to fetch report: {}", e),
             }
