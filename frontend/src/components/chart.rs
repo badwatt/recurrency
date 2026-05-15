@@ -282,21 +282,10 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
     // SVG viewBox: center at 50,50 with radius ~40
     let center = 50.0_f64;
     let radius = 40.0_f64;
-    let label_radius = 54.0_f64;
     let circumference = 2.0 * std::f64::consts::PI * radius;
 
     let sw: f64 = stroke_width.parse().unwrap_or(12.0);
     let segments = compute_donut_segments(&data, total, circumference);
-
-    // Compute label positions (midpoint of each arc, non-rotated coords)
-    let label_positions: Vec<(f64, f64, String, f64, usize)> = segments.iter().enumerate().map(|(i, seg)| {
-        let mid_angle = (seg.offset + seg.dash_len / 2.0) / circumference * 360.0 - 90.0;
-        let rad = mid_angle.to_radians();
-        let x = center + label_radius * rad.cos();
-        let y = center + label_radius * rad.sin();
-        let pct = seg.dash_len / circumference * 100.0;
-        (x, y, seg.label.clone(), pct, i)
-    }).collect();
 
     rsx! {
         div { class: "flex flex-col items-center",
@@ -328,6 +317,7 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
                                 opacity: "{opacity}",
                                 onmouseenter: move |_| { on_hover.call(Some(i)); },
                                 onmouseleave: move |_| { on_hover.call(None); },
+                                style: "cursor: pointer",
                             }
                         }
                     }
@@ -354,35 +344,7 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
                                 opacity: "{opacity}",
                                 onmouseenter: move |_| { on_hover.call(Some(i)); },
                                 onmouseleave: move |_| { on_hover.call(None); },
-                            }
-                        }
-                    }
-                }
-            }
-            // Percentage labels outside donut
-            svg {
-                view_box: "0 0 {center*2.0} {center*2.0}",
-                width: "{size}",
-                height: "{size}",
-                xmlns: "http://www.w3.org/2000/svg",
-
-                for (x, y, label, pct, idx) in label_positions.iter() {
-                    if *pct >= 5.0 {
-                        {
-                            let opacity = if hovered_index == Some(*idx) || hovered_index.is_none() { "1.0" } else { "0.3" };
-                            rsx! {
-                                text {
-                                    key: "{label}-pct",
-                                    x: "{x}",
-                                    y: "{y}",
-                                    fill: "currentColor",
-                                    font_size: "5",
-                                    text_anchor: "middle",
-                                    dominant_baseline: "central",
-                                    class: "text-muted-foreground",
-                                    opacity: "{opacity}",
-                                    "{pct:.0}%"
-                                }
+                                style: "cursor: pointer",
                             }
                         }
                     }

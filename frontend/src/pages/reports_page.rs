@@ -287,7 +287,7 @@ pub fn ReportsPage() -> Element {
                                                     let color = color.to_string();
                                                     let is_hovered = hovered_category() == Some(i);
                                                     let opacity = if is_hovered || hovered_category().is_none() { "1.0" } else { "0.3" };
-                                                    let highlight = if is_hovered { "bg-muted/50 rounded px-1 -mx-1" } else { "" };
+                                                    let highlight = if is_hovered { "bg-muted/50 rounded px-1 -mx-1 cursor-pointer" } else { "cursor-pointer" };
                                                     rsx! {
                                                         div {
                                                             key: "{cat.category_name}",
