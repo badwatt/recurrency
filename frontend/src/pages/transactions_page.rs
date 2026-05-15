@@ -1,6 +1,7 @@
 use crate::api::transactions;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
+use crate::components::skeleton::SkeletonRow;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_image_with_fallback;
 use crate::components::logo_search::LogoSearch;
@@ -495,8 +496,10 @@ pub fn TransactionsPage() -> Element {
             // Content
             {if state.is_loading {
                 rsx! {
-                    div { class: "flex h-64 items-center justify-center",
-                        div { class: "h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" }
+                    div { class: "space-y-3",
+                        for _ in 0..5 {
+                            SkeletonRow {}
+                        }
                     }
                 }
             } else if state.transactions.is_empty() {

@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::components::page_header::PageHeader;
+use crate::components::skeleton::{Skeleton, SkeletonCalendar};
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::entry_form::{EntryForm as EditForm, validate_entry_form, EntityType};
@@ -572,11 +573,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 }
 
                 {if is_loading() {
-                    rsx! {
-                        div { class: "flex h-48 items-center justify-center",
-                            div { class: "h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" }
-                        }
-                    }
+                    rsx! { div { class: "space-y-2", Skeleton { class: "h-4 w-1/3" } Skeleton { class: "h-3 w-2/3" } } }
                 } else if upcoming_display.is_empty() {
                     rsx! {
                         div { class: "rounded-lg border border-border bg-card py-8 text-center text-muted-foreground",
@@ -641,11 +638,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                 // Calendar grid
                 div { class: "p-4",
                     {if is_loading() {
-                        rsx! {
-                            div { class: "flex h-96 items-center justify-center",
-                                div { class: "h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" }
-                            }
-                        }
+                        rsx! { SkeletonCalendar {} }
                     } else {
                         rsx! {
                             div { class: "grid grid-cols-7 gap-px bg-border",

@@ -16,3 +16,4 @@ pub use logo_image::logo_image_with_fallback;
 pub mod subscription_form;
 pub mod entry_form;
 pub mod page_header;
+pub mod skeleton;

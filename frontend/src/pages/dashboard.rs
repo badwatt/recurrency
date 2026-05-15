@@ -3,6 +3,7 @@ use dioxus::prelude::*;
 
 use crate::api::subscriptions as api_subs;
 use crate::components::logo_image_with_fallback;
+use crate::components::skeleton::{Skeleton, SkeletonRow};
 use crate::state::auth::AUTH;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::format::format_currency;
@@ -271,8 +272,10 @@ pub fn Dashboard() -> Element {
                         h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Upcoming payments" }
                     }
                     if sub_state.is_loading {
-                        div { class: "flex h-24 items-center justify-center",
-                            div { class: "h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" }
+                        div { class: "space-y-3 p-6 pt-0",
+                            for _ in 0..3 {
+                                SkeletonRow {}
+                            }
                         }
                     } else if upcoming_top5.is_empty() {
                         div { class: "p-6 pt-0",
