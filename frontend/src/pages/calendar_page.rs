@@ -673,7 +673,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                 "mb-1 flex h-7 w-7 items-center justify-center rounded-full text-sm"
                                             };
                                             let cell_cls = if info.is_today {
-                                                "relative group min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer ring-2 ring-primary"
+                                                "relative group min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer border-b-2 border-primary"
                                             } else {
                                                 "relative group min-h-[100px] bg-card p-2 hover:bg-muted/50 cursor-pointer"
                                             };
