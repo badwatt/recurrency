@@ -18,6 +18,7 @@ pub fn AppLoader() -> Element {
         }
     }
 }
+use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
 use crate::state::preferences::PREFERENCES;
@@ -52,10 +53,32 @@ pub fn AppLayout() -> Element {
     });
 
     if !auth.initialized {
+        // App mode not initialized yet — redirect to setup
+        let mode = APP_MODE();
+        if !mode.initialized {
+            let nav = navigator();
+            nav.push(crate::Route::Setup {});
+            return rsx! { div {} };
+        }
         return rsx! { AppLoader {} };
     }
 
-    if !auth.is_authenticated {
+    // Local mode: skip auth, auto-authenticate with a local marker
+    if APP_MODE().mode.is_local() {
+        // In local mode, we don't need auth — mark as authenticated
+        if !auth.is_authenticated {
+            // Create a local user session
+            use crate::models::auth::UserResponse;
+            let local_user = UserResponse {
+                id: uuid::Uuid::nil(),
+                email: "local@recurrency".to_string(),
+                name: Some("Local User".to_string()),
+                currency: "EUR".to_string(),
+                verified: true,
+            };
+            AUTH.write().set_authenticated("local".to_string(), local_user, false);
+        }
+    } else if !auth.is_authenticated {
         let nav = navigator();
         nav.push(crate::Route::Login {});
         return rsx! { div {} };

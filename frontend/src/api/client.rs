@@ -41,17 +41,54 @@ impl std::fmt::Display for ApiError {
     }
 }
 
-/// Runtime-overridable base URL. Set by SetupPage when user configures server URL.
+/// Runtime-overridable base URL. Set by app mode or setup page.
 /// Uses RwLock for thread-safe mutability without Dioxus runtime dependency (works in tests).
 static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 
+/// Returns true if the app is in local (SQLite) mode — no server needed.
+pub fn is_local_mode() -> bool {
+    // 1. Check BASE_URL_OVERRIDE — explicit URL override means server mode
+    if let Ok(lock) = BASE_URL_OVERRIDE.read() {
+        if lock.is_some() {
+            return false;
+        }
+    }
+    // 2. Try APP_MODE global signal (may panic without Dioxus runtime)
+    let mode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::state::app_mode::APP_MODE.try_read()
+    }));
+    if let Ok(Ok(mode_state)) = mode_result {
+        return mode_state.mode.is_local();
+    }
+    // 3. Fall back to persistent storage
+    is_local_mode_from_storage()
+}
+
 /// Returns the backend API base URL.
+/// Returns empty string in local mode (API calls should not be made).
 pub fn get_base_url() -> String {
+    // 1. Check override (set by tests or runtime) — always works without Dioxus runtime
     if let Ok(lock) = BASE_URL_OVERRIDE.read()
         && let Some(url) = lock.as_ref()
             && !url.is_empty() {
                 return url.clone();
             }
+    // 2. Check APP_MODE — may panic without Dioxus runtime, use catch_unwind
+    let mode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::state::app_mode::APP_MODE.try_read()
+    }));
+    if let Ok(Ok(mode_state)) = mode_result {
+        if mode_state.mode.is_local() {
+            return String::new(); // local mode: no server URL
+        }
+        if let Some(url) = mode_state.mode.server_url() {
+            return url.to_string();
+        }
+    }
+    // 3. Check persistent storage directly (works without Dioxus runtime)
+    if is_local_mode_from_storage() {
+        return String::new();
+    }
     get_base_url_impl()
 }
 
@@ -71,9 +108,33 @@ pub fn set_base_url(url: &str) {
     }
 }
 
-/// Implementation: resolve base URL from localStorage/env/origin.
+/// Check persistent storage for app mode (works without Dioxus runtime).
+fn is_local_mode_from_storage() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window()
+            && let Ok(Some(storage)) = window.local_storage()
+            && let Ok(Some(mode)) = storage.get_item("RECURRENCY_APP_MODE")
+            && mode == "local" {
+                return true;
+            }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
+            let mode_file = data_dir.join("recurrency").join("app_mode.txt");
+            if let Ok(mode) = std::fs::read_to_string(&mode_file)
+                && mode.trim() == "local" {
+                    return true;
+                }
+        }
+    }
+    false
+}
+
+/// Implementation: fallback base URL resolution from localStorage/env/origin.
 fn get_base_url_impl() -> String {
-    // 1. On WASM: check localStorage first, then default backend URL
+    // WASM: check localStorage for server URL
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
@@ -85,17 +146,14 @@ fn get_base_url_impl() -> String {
                     }
                 }
             }
-            // When served from same origin as backend (all-in-one docker),
-            // use current origin. In dev mode (dx serve on 1420), fallback to localhost:8080.
+            // Dev mode fallback
             if let Ok(origin) = window.location().origin() {
                 if !origin.contains(":1420") {
-                    eprintln!("[get_base_url] WASM origin: {}", origin);
                     return origin;
                 }
             }
         }
-        eprintln!("[get_base_url] WASM fallback: localhost:8080");
-        return "http://localhost:8080".to_string();
+        "http://localhost:8080".to_string()
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -103,17 +161,13 @@ fn get_base_url_impl() -> String {
         // Check env var first, then app data file
         if let Ok(url) = std::env::var("RECURRENCY_API_URL")
             && !url.is_empty() {
-                eprintln!("[get_base_url] Native env var: {}", url);
                 return url;
             }
-        // Try app data file (persisted by SetupPage.save_server_url)
-        // Must use get_app_data_dir() for Android compatibility
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
             if let Ok(url) = std::fs::read_to_string(&url_file) {
                 let url = url.trim().to_string();
                 if !url.is_empty() {
-                    eprintln!("[get_base_url] Native file: {}", url);
                     return url;
                 }
             }

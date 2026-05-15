@@ -7,8 +7,10 @@ use crate::models::auth::UpdateSettingsRequest;
 use crate::models::notification::{
     UpdateNotificationPreferenceRequest, UpdateNotificationPreferencesRequest,
 };
+use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::state::preferences::PREFERENCES;
+use crate::Route;
 use crate::utils::constants::CURRENCIES;
 use dioxus::prelude::*;
 
@@ -55,7 +57,6 @@ pub fn SettingsPage() -> Element {
     let mut smtp_configured = use_signal(|| true); // Default true to avoid flash
     let mut saving_name = use_signal(|| false);
     let mut saving_currency = use_signal(|| false);
-    let server_url = use_signal(crate::api::client::get_base_url);
 
     // Load notification preferences
     use_future(move || async move {
@@ -269,21 +270,77 @@ pub fn SettingsPage() -> Element {
                 }
             }
 
-            // Server card
+            // Connection mode card
             div { class: "rounded-xl bg-card/80 border border-border/40",
                 div { class: "p-6 border-b border-border",
-                    h2 { class: "text-lg font-semibold", "Server" }
-                    p { class: "text-sm text-muted-foreground", "Your Recurrency server connection" }
+                    h2 { class: "text-lg font-semibold", "Connection" }
+                    p { class: "text-sm text-muted-foreground",
+                        if APP_MODE().mode.is_local() {
+                            "Local mode — data stored on this device"
+                        } else {
+                            "Connected to your Recurrency server"
+                        }
+                    }
                 }
                 div { class: "p-6 space-y-4",
-                    div { class: "space-y-2",
-                        label { r#for: "settings-server", class: "text-sm font-medium", "Server URL" }
-                        input {
-                            id: "settings-server",
-                            r#type: "text",
-                            value: "{server_url}",
-                            disabled: true,
-                            class: "flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm opacity-50 cursor-not-allowed",
+                    // Current mode indicator
+                    div { class: "flex items-center gap-3",
+                        div { class: "flex h-9 w-9 items-center justify-center rounded-lg",
+                            if APP_MODE().mode.is_local() {
+                                // Database icon
+                                svg {
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    class: "h-5 w-5 text-primary",
+                                    path { d: "M12 2L2 7l10 5 10-5-10-5z" }
+                                    path { d: "M2 17l10 5 10-5" }
+                                    path { d: "M2 12l10 5 10-5" }
+                                }
+                            } else {
+                                // Cloud icon
+                                svg {
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    class: "h-5 w-5 text-blue-500",
+                                    circle { cx: "12", cy: "12", r: "3" }
+                                    path { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" }
+                                }
+                            }
+                        }
+                        div { class: "flex-1",
+                            p { class: "text-sm font-medium",
+                                if APP_MODE().mode.is_local() {
+                                    "Local Mode"
+                                } else {
+                                    "Server Mode"
+                                }
+                            }
+                            if !APP_MODE().mode.is_local() {
+                                p { class: "text-xs text-muted-foreground",
+                                    "{APP_MODE().mode.server_url().unwrap_or_default()}"
+                                }
+                            }
+                        }
+                    }
+                    // Change mode button
+                    {
+                        let nav = navigator();
+                        rsx! {
+                            button {
+                                onclick: move |_| {
+                                    nav.push(Route::Setup {});
+                                },
+                                class: "w-full rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors",
+                                "Change connection mode"
+                            }
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::state::preferences::PREFERENCES;
 use dioxus::prelude::*;
@@ -60,8 +61,7 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    // Hydrate auth state and preferences from localStorage on mount
-    // Also restore saved server URL on Android/desktop (where env var isn't persisted)
+    // Hydrate auth state, preferences, app mode from storage
     use_future(move || async move {
         if !AUTH().initialized {
             AUTH.write().hydrate_from_storage();
@@ -69,14 +69,22 @@ fn App() -> Element {
         }
         PREFERENCES.write().hydrate_from_storage();
 
+        // Hydrate app mode from persistent storage
+        // APP_MODE hydrates on first read via Default impl, but signal needs explicit write
+        let mode_state = APP_MODE();
+        if mode_state.initialized {
+            // Sync base URL with app mode
+            if let Some(url) = mode_state.mode.server_url() {
+                crate::api::client::set_base_url(url);
+            }
+        }
+
         // Restore saved server URL from persistent storage.
-        // On WASM (Docker): same-origin is used, no restore needed.
-        // On Android: read from app data file (dioxus::document::eval hangs on Android).
-        // On desktop: read from env var or app data file.
+        // On WASM: localStorage handled by get_base_url_impl()
+        // On Android/desktop: read from app data file
         #[cfg(target_arch = "wasm32")]
         {
-            // WASM: localStorage is handled by get_base_url_impl() at call time.
-            // No async eval needed here since web_sys localStorage is synchronous.
+            // WASM: localStorage handled at call time
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
