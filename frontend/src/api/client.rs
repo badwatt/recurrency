@@ -113,7 +113,7 @@ fn is_offline_mode_from_storage() -> bool {
     // WASM: offline mode not available, always false
     #[cfg(target_arch = "wasm32")]
     {
-        false
+        return false;
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

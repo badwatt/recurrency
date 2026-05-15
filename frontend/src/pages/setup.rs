@@ -23,6 +23,9 @@ fn save_server_url(url: &str) {
     }
 }
 
+/// Whether offline mode is available (native only, not web/WASM).
+const SHOW_OFFLINE: bool = !cfg!(target_arch = "wasm32");
+
 #[component]
 pub fn SetupPage() -> Element {
     let mut mode = use_signal(|| {
@@ -141,7 +144,7 @@ pub fn SetupPage() -> Element {
                 div { class: "flex flex-col gap-3",
                     // Offline mode — only on native (Android/desktop)
                     // Web users must connect to a server
-                    if !cfg!(target_arch = "wasm32") {
+                    if SHOW_OFFLINE {
                         button {
                             onclick: move |_| { mode.set("offline".to_string()); },
                             class: if mode() == "offline" {
