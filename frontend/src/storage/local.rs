@@ -91,7 +91,7 @@ fn save_collection<T: serde::Serialize>(name: &str, data: &Vec<T>) -> Result<(),
     let json = serde_json::to_string(data).map_err(|e| ApiError::Parse(e.to_string()))?;
     if let Some(window) = web_sys::window() {
         if let Ok(Some(storage)) = window.local_storage() {
-            storage.set_item(&key, &json).map_err(|e| ApiError::Network(e.to_string()))?;
+            storage.set_item(&key, &json).map_err(|e| ApiError::Network(format!("localStorage error: {:?}", e)))?;
         }
     }
     Ok(())
