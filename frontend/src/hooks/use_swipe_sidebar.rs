@@ -60,14 +60,11 @@ pub fn use_swipe_sidebar() -> Signal<bool> {
 
         let mut eval = dioxus::document::eval(js);
 
-        loop {
-            match eval.recv::<String>().await {
-                Ok(action) => match action.as_str() {
-                    "open" => sidebar_open.set(true),
-                    "close" => sidebar_open.set(false),
-                    _ => {}
-                },
-                Err(_) => break,
+        while let Ok(action) = eval.recv::<String>().await {
+            match action.as_str() {
+                "open" => sidebar_open.set(true),
+                "close" => sidebar_open.set(false),
+                _ => {}
             }
         }
     });

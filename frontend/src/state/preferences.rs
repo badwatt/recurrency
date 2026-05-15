@@ -97,14 +97,13 @@ impl PreferencesState {
         {
             if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
                 let theme_file = data_dir.join("recurrency").join("theme.txt");
-                if theme_file.exists() {
-                    if let Ok(theme) = std::fs::read_to_string(&theme_file) {
+                if theme_file.exists()
+                    && let Ok(theme) = std::fs::read_to_string(&theme_file) {
                         let theme = theme.trim().to_string();
                         if ["light", "dark", "mocha", "system"].contains(&theme.as_str()) {
                             self.preferences.theme = theme;
                         }
                     }
-                }
             }
         }
     }

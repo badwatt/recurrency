@@ -60,6 +60,7 @@ impl EntryForm {
     }
 
     /// Initialize form from existing entry data (for editing).
+    #[allow(clippy::too_many_arguments)]
     pub fn from_entry(
         name: &str,
         amount: &str,
@@ -157,7 +158,6 @@ impl EntryForm {
             category_id: category,
             notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
             logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
-            ..Default::default()
         })
     }
 

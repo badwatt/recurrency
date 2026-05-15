@@ -101,23 +101,20 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
         result.retain(|s| s.frequency == *freq);
     }
 
-    if let Some(ref cat_id) = filters.category_id {
-        if let Ok(uid) = Uuid::parse_str(cat_id) {
+    if let Some(ref cat_id) = filters.category_id
+        && let Ok(uid) = Uuid::parse_str(cat_id) {
             result.retain(|s| s.category_id == uid);
         }
-    }
 
-    if let Some(ref min_s) = filters.price_min {
-        if let Ok(min) = min_s.parse::<Decimal>() {
+    if let Some(ref min_s) = filters.price_min
+        && let Ok(min) = min_s.parse::<Decimal>() {
             result.retain(|s| s.amount >= min);
         }
-    }
 
-    if let Some(ref max_s) = filters.price_max {
-        if let Ok(max) = max_s.parse::<Decimal>() {
+    if let Some(ref max_s) = filters.price_max
+        && let Ok(max) = max_s.parse::<Decimal>() {
             result.retain(|s| s.amount <= max);
         }
-    }
 
     result
 }
@@ -262,14 +259,13 @@ pub fn SubscriptionsPage() -> Element {
         let _ = prefs_state;
         spawn(async move {
             let state = PREFERENCES();
-            if !state.initialized {
-                if let Ok(p) = api::preferences::get().await {
+            if !state.initialized
+                && let Ok(p) = api::preferences::get().await {
                     // Preserve theme from localStorage
                     let saved_theme = PREFERENCES().theme().to_string();
                     PREFERENCES.write().set_data(p);
                     PREFERENCES.write().set_theme(saved_theme);
                 }
-            }
         });
     });
 
@@ -985,6 +981,7 @@ fn render_list_card(
 
 // ── Dialog ───────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn render_dialog(
     mut form: Signal<DialogForm>,
     editing_id: Signal<Option<Uuid>>,

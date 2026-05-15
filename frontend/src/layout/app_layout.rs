@@ -2,6 +2,7 @@ use crate::api::notifications;
 use crate::components::toast::ToastContainer;
 
 // Branded app loader (auth init, pre-WASM)
+#[allow(non_snake_case)]
 pub fn AppLoader() -> Element {
     rsx! {
         div { class: "fixed inset-0 z-50 flex flex-col items-center justify-center bg-background",

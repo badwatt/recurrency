@@ -93,7 +93,8 @@ pub fn icon_display(name: &str) -> Element {
         "Utensils" => rsx! { Utensils { size: 16 } },
         "Beer" => rsx! { Beer { size: 16 } },
         "Wine" => rsx! { Wine { size: 16 } },
-        "Tag" | _ => rsx! { Tag { size: 16 } },
+        "Tag" => rsx! { Tag { size: 16 } },
+        _ => rsx! { Tag { size: 16 } },
     }
 }
 

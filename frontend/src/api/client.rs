@@ -47,13 +47,11 @@ static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 
 /// Returns the backend API base URL.
 pub fn get_base_url() -> String {
-    if let Ok(lock) = BASE_URL_OVERRIDE.read() {
-        if let Some(url) = lock.as_ref() {
-            if !url.is_empty() {
+    if let Ok(lock) = BASE_URL_OVERRIDE.read()
+        && let Some(url) = lock.as_ref()
+            && !url.is_empty() {
                 return url.clone();
             }
-        }
-    }
     get_base_url_impl()
 }
 
@@ -103,12 +101,11 @@ fn get_base_url_impl() -> String {
     #[cfg(not(target_arch = "wasm32"))]
     {
         // Check env var first, then app data file
-        if let Ok(url) = std::env::var("RECURRENCY_API_URL") {
-            if !url.is_empty() {
+        if let Ok(url) = std::env::var("RECURRENCY_API_URL")
+            && !url.is_empty() {
                 eprintln!("[get_base_url] Native env var: {}", url);
                 return url;
             }
-        }
         // Try app data file (persisted by SetupPage.save_server_url)
         // Must use get_app_data_dir() for Android compatibility
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {

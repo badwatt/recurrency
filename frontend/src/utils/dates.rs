@@ -41,7 +41,8 @@ pub fn format_date(date: &NaiveDate, format: &str) -> String {
     match format {
         "YYYY/MM/DD" => date.format("%Y/%m/%d").to_string(),
         "MM/DD/YYYY" => date.format("%m/%d/%Y").to_string(),
-        "DD/MM/YYYY" | _ => date.format("%d/%m/%Y").to_string(),
+        "DD/MM/YYYY" => date.format("%d/%m/%Y").to_string(),
+        _ => date.format("%d/%m/%Y").to_string(),
     }
 }
 

@@ -92,15 +92,14 @@ fn App() -> Element {
                     .unwrap_or_else(|| std::path::PathBuf::from("."));
                 let url_file: std::path::PathBuf =
                     data_dir.join("recurrency").join("server_url.txt");
-                if url_file.exists() {
-                    if let Ok(url) = std::fs::read_to_string(&url_file) {
+                if url_file.exists()
+                    && let Ok(url) = std::fs::read_to_string(&url_file) {
                         let url = url.trim().to_string();
                         if !url.is_empty() {
                             crate::api::client::set_base_url(&url);
                             eprintln!("[App] Server URL from file: {}", url);
                         }
                     }
-                }
             }
         }
     });

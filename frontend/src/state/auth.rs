@@ -112,11 +112,10 @@ impl AuthState {
                     if let Err(e) = std::fs::write(app_dir.join("auth-token.txt"), token) {
                         eprintln!("[Auth] Failed to write token: {}", e);
                     }
-                    if let Ok(user_json) = serde_json::to_string(user) {
-                        if let Err(e) = std::fs::write(app_dir.join("auth-user.json"), &user_json) {
+                    if let Ok(user_json) = serde_json::to_string(user)
+                        && let Err(e) = std::fs::write(app_dir.join("auth-user.json"), &user_json) {
                             eprintln!("[Auth] Failed to write user: {}", e);
                         }
-                    }
                 } else {
                     eprintln!("[Auth] get_app_data_dir() returned None — cannot persist auth");
                 }
@@ -179,8 +178,8 @@ impl AuthState {
                     std::fs::read_to_string(&user_file),
                 ) {
                     (Ok(token), Ok(user_json)) => {
-                        if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json) {
-                            if !token.is_empty() {
+                        if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json)
+                            && !token.is_empty() {
                                 eprintln!(
                                     "[Auth] Hydrate: token found (length {}), user hydrated",
                                     token.len()
@@ -191,7 +190,6 @@ impl AuthState {
                                 self.initialized = true;
                                 return true;
                             }
-                        }
                         eprintln!("[Auth] Hydrate: files found but parse failed");
                     }
                     (Err(e1), e2) => {
