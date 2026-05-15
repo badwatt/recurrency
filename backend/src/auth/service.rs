@@ -1,5 +1,4 @@
 use std::sync::OnceLock;
-use async_trait::async_trait;
 
 use crate::auth::models::{
     AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User,
@@ -32,20 +31,78 @@ fn generate_code() -> String {
     format!("{:06}", rand::random::<u32>() % 1_000_000)
 }
 
-/// AuthServiceTrait - trait for dependency injection (enables mocking in tests)
-#[async_trait]
-pub trait AuthServiceTrait: Send + Sync {
-    async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse>;
-    async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse>;
-    async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse>;
-    async fn resend_verification(&self, user_id: Uuid) -> AppResult<String>;
-    async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User>;
-    async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User>;
-    async fn verify_token(&self, token: &str) -> AppResult<Claims>;
-    async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse>;
+/// AuthProvider — enum dispatch for auth services. Mock for tests, Live for production.
+/// Authentication provider — enum dispatch replaces dyn trait.
+/// `Live` connects to PostgreSQL; `Mock` returns preset responses for tests.
+#[derive(Clone)]
+pub enum AuthProvider {
+    Live(SqlxAuthService),
+    Mock(crate::shared::mocks::MockAuthService),
+}
+
+impl AuthProvider {
+    pub async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
+        match self {
+            AuthProvider::Live(s) => s.register_impl(req).await,
+            AuthProvider::Mock(s) => s.register(req).await,
+        }
+    }
+
+    pub async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
+        match self {
+            AuthProvider::Live(s) => s.login_impl(req).await,
+            AuthProvider::Mock(s) => s.login(req).await,
+        }
+    }
+
+    pub async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
+        match self {
+            AuthProvider::Live(s) => s.verify_email_impl(user_id, code).await,
+            AuthProvider::Mock(s) => s.verify_email(user_id, code).await,
+        }
+    }
+
+    pub async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
+        match self {
+            AuthProvider::Live(s) => s.resend_verification_impl(user_id).await,
+            AuthProvider::Mock(s) => s.resend_verification(user_id).await,
+        }
+    }
+
+    pub async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
+        match self {
+            AuthProvider::Live(s) => s.get_user_by_id_impl(user_id).await,
+            AuthProvider::Mock(s) => s.get_user_by_id(user_id).await,
+        }
+    }
+
+    pub async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+        match self {
+            AuthProvider::Live(s) => s.update_settings_impl(user_id, req).await,
+            AuthProvider::Mock(s) => s.update_settings(user_id, req).await,
+        }
+    }
+
+    pub async fn verify_token(&self, token: &str) -> AppResult<Claims> {
+        match self {
+            AuthProvider::Live(_) => verify_token_internal(token),
+            AuthProvider::Mock(s) => s.verify_token(token).await,
+        }
+    }
+
+    pub async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
+        match self {
+            AuthProvider::Live(s) => {
+                let user = s.get_user_by_id_impl(user_id).await?;
+                Ok(user.into())
+            }
+            AuthProvider::Mock(s) => s.get_settings(user_id).await,
+        }
+    }
 }
 
 /// SqlxAuthService - production implementation using sqlx PgPool
+#[derive(Clone)]
 pub struct SqlxAuthService {
     pool: sqlx::PgPool,
 }
@@ -243,45 +300,6 @@ impl SqlxAuthService {
     }
 }
 
-#[async_trait]
-impl AuthServiceTrait for SqlxAuthService {
-    async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
-        self.register_impl(req).await
-    }
-
-    async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
-        self.login_impl(req).await
-    }
-
-    async fn verify_token(&self, _token: &str) -> AppResult<Claims> {
-        // This is a no-op for SQLx service - used only by mock in tests
-        Err(AppError::Internal(
-            "Use verify_token_internal directly".into(),
-        ))
-    }
-
-    async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
-        self.verify_email_impl(user_id, code).await
-    }
-
-    async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
-        self.resend_verification_impl(user_id).await
-    }
-
-    async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
-        self.get_user_by_id_impl(user_id).await
-    }
-
-    async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
-        self.update_settings_impl(user_id, req).await
-    }
-
-    async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
-        let user = self.get_user_by_id_impl(user_id).await?;
-        Ok(user.into())
-    }
-}
-
 // ── Helper functions (pure, no DB) ──
 
 /// Thin wrapper so existing handlers keep calling AuthService::verify_token.
@@ -296,21 +314,21 @@ impl AuthService {
     /// Delegates to SqlxAuthService.
     #[allow(dead_code)]
     pub async fn register(pool: &sqlx::PgPool, req: CreateUserRequest) -> AppResult<AuthResponse> {
-        SqlxAuthService::new(pool.clone()).register(req).await
+        SqlxAuthService::new(pool.clone()).register_impl(req).await
     }
 
     /// Convenience wrapper for integration tests.
     /// Delegates to SqlxAuthService.
     #[allow(dead_code)]
     pub async fn login(pool: &sqlx::PgPool, req: LoginRequest) -> AppResult<AuthResponse> {
-        SqlxAuthService::new(pool.clone()).login(req).await
+        SqlxAuthService::new(pool.clone()).login_impl(req).await
     }
 
     /// Convenience wrapper for integration tests.
     /// Delegates to SqlxAuthService.
     #[allow(dead_code)]
     pub async fn get_user_by_id(pool: &sqlx::PgPool, user_id: Uuid) -> AppResult<User> {
-        SqlxAuthService::new(pool.clone()).get_user_by_id(user_id).await
+        SqlxAuthService::new(pool.clone()).get_user_by_id_impl(user_id).await
     }
 }
 

@@ -7,7 +7,6 @@
 // let mock_auth = MockAuthService::success();
 // let result = mock_auth.register(req).await;
 
-use async_trait::async_trait;
 
 use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
@@ -19,7 +18,6 @@ use crate::auth::models::{
     AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User,
     UserResponse,
 };
-use crate::auth::service::AuthServiceTrait;
 use crate::categories::models::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::categories::service::CategoryWithCounts;
 use crate::notifications::models::{
@@ -84,6 +82,7 @@ impl MockConfig {
 // Auth Service Mock (trait defined in auth/service.rs)
 // ============================================================================
 
+#[derive(Clone)]
 pub struct MockAuthService {
     pub config: MockConfig,
     pub registered_users: Arc<std::sync::Mutex<Vec<User>>>,
@@ -142,9 +141,8 @@ impl MockAuthService {
     }
 }
 
-#[async_trait]
-impl AuthServiceTrait for MockAuthService {
-    async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
+impl MockAuthService {
+    pub async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
         self.register_calls.lock().unwrap().push(req.clone());
 
         if self.config.should_fail {
@@ -180,7 +178,7 @@ impl AuthServiceTrait for MockAuthService {
         })
     }
 
-    async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
+    pub async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
         self.login_calls.lock().unwrap().push(req.clone());
 
         if self.config.should_fail {
@@ -198,7 +196,7 @@ impl AuthServiceTrait for MockAuthService {
         Ok(self.make_auth_response(user, false))
     }
 
-    async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
+    pub async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
         if self.config.should_fail {
             return Err(AppError::BadRequest(self.config.error_message.clone()));
         }
@@ -226,7 +224,7 @@ impl AuthServiceTrait for MockAuthService {
         Ok(user.clone().into())
     }
 
-    async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
+    pub async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -246,7 +244,7 @@ impl AuthServiceTrait for MockAuthService {
         Ok(code.to_string())
     }
 
-    async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
+    pub async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -259,7 +257,7 @@ impl AuthServiceTrait for MockAuthService {
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))
     }
 
-    async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+    pub async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -281,7 +279,7 @@ impl AuthServiceTrait for MockAuthService {
         Ok(user.clone())
     }
 
-    async fn verify_token(&self, token: &str) -> AppResult<Claims> {
+    pub async fn verify_token(&self, token: &str) -> AppResult<Claims> {
         if self.config.should_fail {
             return Err(AppError::Unauthorized(self.config.error_message.clone()));
         }
@@ -303,7 +301,7 @@ impl AuthServiceTrait for MockAuthService {
         })
     }
 
-    async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
+    pub async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
         let user = self.get_user_by_id(user_id).await?;
         Ok(user.into())
     }
@@ -313,23 +311,7 @@ impl AuthServiceTrait for MockAuthService {
 // Category Service Trait + Mock
 // ============================================================================
 
-#[async_trait]
-pub trait CategoryServiceTrait: Send + Sync {
-    async fn create_uncategorized(&self, user_id: Uuid) -> AppResult<()>;
-    async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category>;
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Category>>;
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category>;
-    async fn update(
-        &self,
-        user_id: Uuid,
-        id: Uuid,
-        req: UpdateCategoryRequest,
-    ) -> AppResult<Category>;
-    async fn get_default(&self, user_id: Uuid) -> AppResult<Category>;
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
-    async fn set_default(&self, user_id: Uuid, id: Uuid) -> AppResult<Category>;
-    async fn get_with_counts(&self, user_id: Uuid) -> AppResult<Vec<CategoryWithCounts>>;
-}
+
 
 pub struct MockCategoryService {
     pub config: MockConfig,
@@ -390,9 +372,8 @@ impl MockCategoryService {
     }
 }
 
-#[async_trait]
-impl CategoryServiceTrait for MockCategoryService {
-    async fn create_uncategorized(&self, user_id: Uuid) -> AppResult<()> {
+impl MockCategoryService {
+    pub async fn create_uncategorized(&self, user_id: Uuid) -> AppResult<()> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -415,7 +396,7 @@ impl CategoryServiceTrait for MockCategoryService {
         Ok(())
     }
 
-    async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category> {
+    pub async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category> {
         self.create_calls
             .lock()
             .unwrap()
@@ -444,7 +425,7 @@ impl CategoryServiceTrait for MockCategoryService {
         Ok(category)
     }
 
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Category>> {
+    pub async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Category>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -457,7 +438,7 @@ impl CategoryServiceTrait for MockCategoryService {
             .collect())
     }
 
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
+    pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -469,7 +450,7 @@ impl CategoryServiceTrait for MockCategoryService {
             .ok_or_else(|| AppError::NotFound("Category not found".to_string()))
     }
 
-    async fn update(
+    pub async fn update(
         &self,
         user_id: Uuid,
         id: Uuid,
@@ -498,7 +479,7 @@ impl CategoryServiceTrait for MockCategoryService {
         Ok(cat.clone())
     }
 
-    async fn get_default(&self, user_id: Uuid) -> AppResult<Category> {
+    pub async fn get_default(&self, user_id: Uuid) -> AppResult<Category> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -510,7 +491,7 @@ impl CategoryServiceTrait for MockCategoryService {
             .ok_or_else(|| AppError::NotFound("Default category not found".to_string()))
     }
 
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
+    pub async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
         self.delete_calls.lock().unwrap().push((user_id, id));
 
         if self.config.should_fail {
@@ -535,7 +516,7 @@ impl CategoryServiceTrait for MockCategoryService {
         Ok(())
     }
 
-    async fn set_default(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
+    pub async fn set_default(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -561,7 +542,7 @@ impl CategoryServiceTrait for MockCategoryService {
         Ok(cat.clone())
     }
 
-    async fn get_with_counts(&self, user_id: Uuid) -> AppResult<Vec<CategoryWithCounts>> {
+    pub async fn get_with_counts(&self, user_id: Uuid) -> AppResult<Vec<CategoryWithCounts>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -587,30 +568,7 @@ impl CategoryServiceTrait for MockCategoryService {
 // Subscription Service Trait + Mock
 // ============================================================================
 
-#[async_trait]
-pub trait SubscriptionServiceTrait: Send + Sync {
-    async fn create(
-        &self,
-        user_id: Uuid,
-        req: CreateSubscriptionRequest,
-    ) -> AppResult<Subscription>;
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>>;
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription>;
-    async fn update(
-        &self,
-        user_id: Uuid,
-        id: Uuid,
-        req: UpdateSubscriptionRequest,
-    ) -> AppResult<Subscription>;
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
-    async fn get_upcoming(&self, user_id: Uuid, days: i64) -> AppResult<Vec<Subscription>>;
-    async fn get_calendar(
-        &self,
-        user_id: Uuid,
-        year: i32,
-        month: u32,
-    ) -> AppResult<Vec<CalendarItem>>;
-}
+
 
 pub struct MockSubscriptionService {
     pub config: MockConfig,
@@ -652,9 +610,8 @@ impl MockSubscriptionService {
     }
 }
 
-#[async_trait]
-impl SubscriptionServiceTrait for MockSubscriptionService {
-    async fn create(
+impl MockSubscriptionService {
+    pub async fn create(
         &self,
         user_id: Uuid,
         req: CreateSubscriptionRequest,
@@ -692,7 +649,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         Ok(subscription)
     }
 
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>> {
+    pub async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -705,7 +662,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
             .collect())
     }
 
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
+    pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -717,7 +674,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
             .ok_or_else(|| AppError::NotFound("Subscription not found".to_string()))
     }
 
-    async fn update(
+    pub async fn update(
         &self,
         user_id: Uuid,
         id: Uuid,
@@ -759,7 +716,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         Ok(sub.clone())
     }
 
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
+    pub async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -774,7 +731,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
         Ok(())
     }
 
-    async fn get_upcoming(&self, user_id: Uuid, _days: i64) -> AppResult<Vec<Subscription>> {
+    pub async fn get_upcoming(&self, user_id: Uuid, _days: i64) -> AppResult<Vec<Subscription>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -787,7 +744,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
             .collect())
     }
 
-    async fn get_calendar(
+    pub async fn get_calendar(
         &self,
         user_id: Uuid,
         year: i32,
@@ -820,25 +777,7 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
 // Transaction Service Trait + Mock
 // ============================================================================
 
-#[async_trait]
-pub trait TransactionServiceTrait: Send + Sync {
-    async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction>;
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Transaction>>;
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction>;
-    async fn update(
-        &self,
-        user_id: Uuid,
-        id: Uuid,
-        req: UpdateTransactionRequest,
-    ) -> AppResult<Transaction>;
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
-    async fn get_by_date_range(
-        &self,
-        user_id: Uuid,
-        from: NaiveDate,
-        to: NaiveDate,
-    ) -> AppResult<Vec<Transaction>>;
-}
+
 
 pub struct MockTransactionService {
     pub config: MockConfig,
@@ -880,9 +819,8 @@ impl MockTransactionService {
     }
 }
 
-#[async_trait]
-impl TransactionServiceTrait for MockTransactionService {
-    async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction> {
+impl MockTransactionService {
+    pub async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction> {
         self.create_calls
             .lock()
             .unwrap()
@@ -910,7 +848,7 @@ impl TransactionServiceTrait for MockTransactionService {
         Ok(transaction)
     }
 
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Transaction>> {
+    pub async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Transaction>> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -923,7 +861,7 @@ impl TransactionServiceTrait for MockTransactionService {
             .collect())
     }
 
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction> {
+    pub async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -936,7 +874,7 @@ impl TransactionServiceTrait for MockTransactionService {
             .ok_or_else(|| AppError::NotFound("Transaction not found".to_string()))
     }
 
-    async fn update(
+    pub async fn update(
         &self,
         user_id: Uuid,
         id: Uuid,
@@ -963,7 +901,7 @@ impl TransactionServiceTrait for MockTransactionService {
         Ok(t.clone())
     }
 
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
+    pub async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -978,7 +916,7 @@ impl TransactionServiceTrait for MockTransactionService {
         Ok(())
     }
 
-    async fn get_by_date_range(
+    pub async fn get_by_date_range(
         &self,
         user_id: Uuid,
         from: NaiveDate,
@@ -1001,22 +939,7 @@ impl TransactionServiceTrait for MockTransactionService {
 // Notification Service Trait + Mock
 // ============================================================================
 
-#[async_trait]
-pub trait NotificationServiceTrait: Send + Sync {
-    async fn list(&self, user_id: Uuid) -> AppResult<NotificationResponse>;
-    async fn mark_read(&self, user_id: Uuid, id: Uuid) -> AppResult<bool>;
-    async fn mark_all_read(&self, user_id: Uuid) -> AppResult<i64>;
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<bool>;
-    async fn get_notification_preferences(
-        &self,
-        user_id: Uuid,
-    ) -> AppResult<Vec<NotificationPreferenceResponse>>;
-    async fn update_notification_preferences(
-        &self,
-        user_id: Uuid,
-        prefs: Vec<UpdatePreferenceRequest>,
-    ) -> AppResult<Vec<NotificationPreferenceResponse>>;
-}
+
 
 pub struct MockNotificationService {
     pub config: MockConfig,
@@ -1074,9 +997,8 @@ impl MockNotificationService {
     }
 }
 
-#[async_trait]
-impl NotificationServiceTrait for MockNotificationService {
-    async fn list(&self, user_id: Uuid) -> AppResult<NotificationResponse> {
+impl MockNotificationService {
+    pub async fn list(&self, user_id: Uuid) -> AppResult<NotificationResponse> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1095,7 +1017,7 @@ impl NotificationServiceTrait for MockNotificationService {
         })
     }
 
-    async fn mark_read(&self, user_id: Uuid, id: Uuid) -> AppResult<bool> {
+    pub async fn mark_read(&self, user_id: Uuid, id: Uuid) -> AppResult<bool> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -1110,7 +1032,7 @@ impl NotificationServiceTrait for MockNotificationService {
         Ok(true)
     }
 
-    async fn mark_all_read(&self, user_id: Uuid) -> AppResult<i64> {
+    pub async fn mark_all_read(&self, user_id: Uuid) -> AppResult<i64> {
         if self.config.should_fail {
             return Err(AppError::Internal(self.config.error_message.clone()));
         }
@@ -1126,7 +1048,7 @@ impl NotificationServiceTrait for MockNotificationService {
         Ok(count)
     }
 
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<bool> {
+    pub async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<bool> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -1141,7 +1063,7 @@ impl NotificationServiceTrait for MockNotificationService {
         Ok(true)
     }
 
-    async fn get_notification_preferences(
+    pub async fn get_notification_preferences(
         &self,
         _user_id: Uuid,
     ) -> AppResult<Vec<NotificationPreferenceResponse>> {
@@ -1153,7 +1075,7 @@ impl NotificationServiceTrait for MockNotificationService {
         Ok(prefs.clone())
     }
 
-    async fn update_notification_preferences(
+    pub async fn update_notification_preferences(
         &self,
         _user_id: Uuid,
         updates: Vec<UpdatePreferenceRequest>,
@@ -1176,32 +1098,7 @@ impl NotificationServiceTrait for MockNotificationService {
 // Report Service Trait + Mock
 // ============================================================================
 
-#[async_trait]
-pub trait ReportServiceTrait: Send + Sync {
-    async fn get_monthly_summary(
-        &self,
-        user_id: Uuid,
-        year: i32,
-        month: u32,
-    ) -> AppResult<MonthlySummary>;
-    async fn get_category_breakdown(
-        &self,
-        user_id: Uuid,
-        year: i32,
-        month: u32,
-    ) -> AppResult<Vec<CategoryBreakdown>>;
-    async fn get_recent_trends(
-        &self,
-        user_id: Uuid,
-        months_count: i32,
-    ) -> AppResult<Vec<SpendingTrend>>;
-    async fn get_full_report(
-        &self,
-        user_id: Uuid,
-        year: i32,
-        month: u32,
-    ) -> AppResult<ReportResponse>;
-}
+
 
 pub struct MockReportService {
     pub config: MockConfig,
@@ -1271,9 +1168,8 @@ fn make_mock_trends(month: u32, year: i32, count: i32) -> Vec<SpendingTrend> {
         .collect()
 }
 
-#[async_trait]
-impl ReportServiceTrait for MockReportService {
-    async fn get_monthly_summary(
+impl MockReportService {
+    pub async fn get_monthly_summary(
         &self,
         user_id: Uuid,
         year: i32,
@@ -1286,7 +1182,7 @@ impl ReportServiceTrait for MockReportService {
         Ok(make_mock_summary(year, month))
     }
 
-    async fn get_category_breakdown(
+    pub async fn get_category_breakdown(
         &self,
         user_id: Uuid,
         year: i32,
@@ -1299,7 +1195,7 @@ impl ReportServiceTrait for MockReportService {
         Ok(make_mock_breakdown())
     }
 
-    async fn get_recent_trends(
+    pub async fn get_recent_trends(
         &self,
         user_id: Uuid,
         months_count: i32,
@@ -1311,7 +1207,7 @@ impl ReportServiceTrait for MockReportService {
         Ok(make_mock_trends(6, 2024, months_count))
     }
 
-    async fn get_full_report(
+    pub async fn get_full_report(
         &self,
         user_id: Uuid,
         year: i32,
@@ -1333,15 +1229,7 @@ impl ReportServiceTrait for MockReportService {
 // Preferences Service Trait + Mock
 // ============================================================================
 
-#[async_trait]
-pub trait PreferencesServiceTrait: Send + Sync {
-    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse>;
-    async fn update_preferences(
-        &self,
-        user_id: Uuid,
-        req: UpdatePreferencesRequest,
-    ) -> AppResult<PreferencesResponse>;
-}
+
 
 pub struct MockPreferencesService {
     pub config: MockConfig,
@@ -1371,9 +1259,8 @@ impl MockPreferencesService {
     }
 }
 
-#[async_trait]
-impl PreferencesServiceTrait for MockPreferencesService {
-    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse> {
+impl MockPreferencesService {
+    pub async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -1382,7 +1269,7 @@ impl PreferencesServiceTrait for MockPreferencesService {
         Ok(prefs.get(&user_id).cloned().unwrap_or_default())
     }
 
-    async fn update_preferences(
+    pub async fn update_preferences(
         &self,
         user_id: Uuid,
         req: UpdatePreferencesRequest,
@@ -1484,7 +1371,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn register_success() {
+        pub async fn register_success() {
             let mock = MockAuthService::success();
             let req = make_register_request("test@example.com");
             let result = mock.register(req).await;
@@ -1495,7 +1382,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn register_returns_token() {
+        pub async fn register_returns_token() {
             let mock = MockAuthService::success();
             let req = make_register_request("token@test.com");
             let result = mock.register(req).await.unwrap();
@@ -1504,7 +1391,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn register_duplicate_email_fails() {
+        pub async fn register_duplicate_email_fails() {
             let mock = MockAuthService::success();
             let req = make_register_request("dup@test.com");
             mock.register(req.clone()).await.unwrap();
@@ -1514,7 +1401,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn register_failure_returns_error() {
+        pub async fn register_failure_returns_error() {
             let mock = MockAuthService::failure("Registration failed");
             let req = make_register_request("fail@test.com");
             let result = mock.register(req).await;
@@ -1522,7 +1409,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn register_records_call() {
+        pub async fn register_records_call() {
             let mock = MockAuthService::success();
             let req = make_register_request("rec@test.com");
             mock.register(req.clone()).await.unwrap();
@@ -1532,7 +1419,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn login_success() {
+        pub async fn login_success() {
             let mock = MockAuthService::success();
             let req = make_register_request("login@test.com");
             mock.register(req.clone()).await.unwrap();
@@ -1546,7 +1433,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn login_records_call() {
+        pub async fn login_records_call() {
             let mock = MockAuthService::success();
             let login_req = LoginRequest {
                 email: "rec@login.com".to_string(),
@@ -1559,7 +1446,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn login_unknown_user_fails() {
+        pub async fn login_unknown_user_fails() {
             let mock = MockAuthService::success();
             let login_req = LoginRequest {
                 email: "nobody@test.com".to_string(),
@@ -1571,7 +1458,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn login_failure_returns_error() {
+        pub async fn login_failure_returns_error() {
             let mock = MockAuthService::failure("Login disabled");
             let login_req = LoginRequest {
                 email: "test@test.com".to_string(),
@@ -1582,7 +1469,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_email_success() {
+        pub async fn verify_email_success() {
             let mock = MockAuthService::success();
             let req = make_register_request("verify@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1593,7 +1480,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_email_invalid_user() {
+        pub async fn verify_email_invalid_user() {
             let mock = MockAuthService::success();
             let result = mock
                 .verify_email(Uuid::new_v4(), "123456".to_string())
@@ -1603,7 +1490,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_email_wrong_code() {
+        pub async fn verify_email_wrong_code() {
             let mock = MockAuthService::success();
             let req = make_register_request("code@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1614,7 +1501,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_email_already_verified() {
+        pub async fn verify_email_already_verified() {
             let mock = MockAuthService::success();
             let req = make_register_request("alreadyv@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1628,7 +1515,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_email_failure_config() {
+        pub async fn verify_email_failure_config() {
             let mock = MockAuthService::failure("Verify failed");
             let result = mock
                 .verify_email(Uuid::new_v4(), "123456".to_string())
@@ -1637,7 +1524,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_token_valid() {
+        pub async fn verify_token_valid() {
             let mock = MockAuthService::success();
             let req = make_register_request("token_valid@test.com");
             let token = mock.register(req).await.unwrap().token;
@@ -1647,21 +1534,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn verify_token_invalid_format() {
+        pub async fn verify_token_invalid_format() {
             let mock = MockAuthService::success();
             let result = mock.verify_token("invalid_token").await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn verify_token_failure() {
+        pub async fn verify_token_failure() {
             let mock = MockAuthService::failure("Token verification failed");
             let result = mock.verify_token("mock_token_invalid").await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn verify_token_extracts_user_id() {
+        pub async fn verify_token_extracts_user_id() {
             let mock = MockAuthService::success();
             let req = make_register_request("extract@test.com");
             let resp = mock.register(req).await.unwrap();
@@ -1670,7 +1557,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_user_by_id_success() {
+        pub async fn get_user_by_id_success() {
             let mock = MockAuthService::success();
             let req = make_register_request("getuser@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1681,14 +1568,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_user_by_id_not_found() {
+        pub async fn get_user_by_id_not_found() {
             let mock = MockAuthService::success();
             let result = mock.get_user_by_id(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn update_settings_success() {
+        pub async fn update_settings_success() {
             let mock = MockAuthService::success();
             let req = make_register_request("update@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1705,7 +1592,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_settings_user_not_found() {
+        pub async fn update_settings_user_not_found() {
             let mock = MockAuthService::success();
             let update_req = UpdateSettingsRequest {
                 name: Some("X".to_string()),
@@ -1716,7 +1603,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_settings_failure_config() {
+        pub async fn update_settings_failure_config() {
             let mock = MockAuthService::failure("No update");
             let update_req = UpdateSettingsRequest {
                 name: Some("X".to_string()),
@@ -1727,7 +1614,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn resend_verification_success() {
+        pub async fn resend_verification_success() {
             let mock = MockAuthService::success();
             let req = make_register_request("resend@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1738,7 +1625,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn resend_verification_already_verified() {
+        pub async fn resend_verification_already_verified() {
             let mock = MockAuthService::success();
             let req = make_register_request("already@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1751,14 +1638,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn resend_verification_user_not_found() {
+        pub async fn resend_verification_user_not_found() {
             let mock = MockAuthService::success();
             let result = mock.resend_verification(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_settings_returns_user_response() {
+        pub async fn get_settings_returns_user_response() {
             let mock = MockAuthService::success();
             let req = make_register_request("settings@test.com");
             let user_id = mock.register(req).await.unwrap().user.id;
@@ -1770,7 +1657,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn make_user_verified() {
+        pub async fn make_user_verified() {
             let mock = MockAuthService::success();
             let id = Uuid::new_v4();
             let user = mock.make_user(id, "v@t.com", "Verified", true);
@@ -1779,7 +1666,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn make_user_unverified() {
+        pub async fn make_user_unverified() {
             let mock = MockAuthService::success();
             let id = Uuid::new_v4();
             let user = mock.make_user(id, "u@t.com", "Unverified", false);
@@ -1802,7 +1689,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_success() {
+        pub async fn create_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let req = make_category_request("Test Category");
@@ -1815,7 +1702,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_first_becomes_default() {
+        pub async fn create_first_becomes_default() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let req = make_category_request("First");
@@ -1825,7 +1712,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_second_not_default() {
+        pub async fn create_second_not_default() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_category_request("First"))
@@ -1839,7 +1726,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_failure() {
+        pub async fn create_failure() {
             let mock = MockCategoryService::failure("Category creation failed");
             let req = make_category_request("Fail");
             let result = mock.create(Uuid::new_v4(), req).await;
@@ -1847,7 +1734,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_records_call() {
+        pub async fn create_records_call() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_category_request("Rec"))
@@ -1859,7 +1746,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_uncategorized_success() {
+        pub async fn create_uncategorized_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
 
@@ -1874,7 +1761,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_uncategorized_idempotent() {
+        pub async fn create_uncategorized_idempotent() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
 
@@ -1886,14 +1773,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_uncategorized_failure() {
+        pub async fn create_uncategorized_failure() {
             let mock = MockCategoryService::failure("DB error");
             let result = mock.create_uncategorized(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_all_returns_user_categories() {
+        pub async fn get_all_returns_user_categories() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
 
@@ -1910,7 +1797,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_filters_by_user() {
+        pub async fn get_all_filters_by_user() {
             let mock = MockCategoryService::success();
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
@@ -1928,14 +1815,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_failure() {
+        pub async fn get_all_failure() {
             let mock = MockCategoryService::failure("DB error");
             let result = mock.get_all(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_by_id_success() {
+        pub async fn get_by_id_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = mock
@@ -1949,21 +1836,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_by_id_not_found() {
+        pub async fn get_by_id_not_found() {
             let mock = MockCategoryService::success();
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_by_id_failure() {
+        pub async fn get_by_id_failure() {
             let mock = MockCategoryService::failure("DB error");
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn update_success() {
+        pub async fn update_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = mock
@@ -1982,7 +1869,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_records_call() {
+        pub async fn update_records_call() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = mock
@@ -2001,7 +1888,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_not_found() {
+        pub async fn update_not_found() {
             let mock = MockCategoryService::success();
             let req = UpdateCategoryRequest {
                 name: Some("X".to_string()),
@@ -2013,7 +1900,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_default_success() {
+        pub async fn get_default_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = mock
@@ -2027,7 +1914,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_default_after_set_default() {
+        pub async fn get_default_after_set_default() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let _cat1 = mock
@@ -2045,21 +1932,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_default_not_found() {
+        pub async fn get_default_not_found() {
             let mock = MockCategoryService::success();
             let result = mock.get_default(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_default_failure() {
+        pub async fn get_default_failure() {
             let mock = MockCategoryService::failure("DB error");
             let result = mock.get_default(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn delete_success() {
+        pub async fn delete_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_category_request("Default"))
@@ -2077,7 +1964,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_default_fails() {
+        pub async fn delete_default_fails() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = mock
@@ -2091,14 +1978,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_not_found() {
+        pub async fn delete_not_found() {
             let mock = MockCategoryService::success();
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn delete_records_call() {
+        pub async fn delete_records_call() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_category_request("Default"))
@@ -2114,7 +2001,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn set_default_success() {
+        pub async fn set_default_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
 
@@ -2136,21 +2023,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn set_default_not_found() {
+        pub async fn set_default_not_found() {
             let mock = MockCategoryService::success();
             let result = mock.set_default(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn set_default_failure() {
+        pub async fn set_default_failure() {
             let mock = MockCategoryService::failure("DB error");
             let result = mock.set_default(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_with_counts_success() {
+        pub async fn get_with_counts_success() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_category_request("Cat1"))
@@ -2169,7 +2056,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_with_counts_empty() {
+        pub async fn get_with_counts_empty() {
             let mock = MockCategoryService::success();
             let result = mock.get_with_counts(Uuid::new_v4()).await;
             assert!(result.is_ok());
@@ -2177,14 +2064,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_with_counts_failure() {
+        pub async fn get_with_counts_failure() {
             let mock = MockCategoryService::failure("DB error");
             let result = mock.get_with_counts(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn add_category_method() {
+        pub async fn add_category_method() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = Category {
@@ -2205,7 +2092,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn with_categories_constructor() {
+        pub async fn with_categories_constructor() {
             let user_id = Uuid::new_v4();
             let cat = Category {
                 id: Uuid::new_v4(),
@@ -2224,7 +2111,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn make_category_helper() {
+        pub async fn make_category_helper() {
             let mock = MockCategoryService::success();
             let id = Uuid::new_v4();
             let user_id = Uuid::new_v4();
@@ -2254,7 +2141,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_success() {
+        pub async fn create_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let req = make_subscription_request("Netflix");
@@ -2267,7 +2154,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_failure() {
+        pub async fn create_failure() {
             let mock = MockSubscriptionService::failure("Subscription creation failed");
             let req = make_subscription_request("Fail");
             let result = mock.create(Uuid::new_v4(), req).await;
@@ -2275,7 +2162,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_records_call() {
+        pub async fn create_records_call() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_subscription_request("Rec"))
@@ -2286,7 +2173,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_returns_user_subscriptions() {
+        pub async fn get_all_returns_user_subscriptions() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
 
@@ -2303,7 +2190,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_filters_by_user() {
+        pub async fn get_all_filters_by_user() {
             let mock = MockSubscriptionService::success();
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
@@ -2320,14 +2207,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_failure() {
+        pub async fn get_all_failure() {
             let mock = MockSubscriptionService::failure("DB error");
             let result = mock.get_all(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_by_id_success() {
+        pub async fn get_by_id_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -2341,14 +2228,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_by_id_not_found() {
+        pub async fn get_by_id_not_found() {
             let mock = MockSubscriptionService::success();
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn update_success() {
+        pub async fn update_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -2376,7 +2263,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_not_found() {
+        pub async fn update_not_found() {
             let mock = MockSubscriptionService::success();
             let req = UpdateSubscriptionRequest {
                 name: Some("X".to_string()),
@@ -2395,7 +2282,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_failure() {
+        pub async fn update_failure() {
             let mock = MockSubscriptionService::failure("DB error");
             let req = UpdateSubscriptionRequest {
                 name: None,
@@ -2414,7 +2301,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_success() {
+        pub async fn delete_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -2428,14 +2315,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_not_found() {
+        pub async fn delete_not_found() {
             let mock = MockSubscriptionService::success();
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_upcoming_returns_active_subs() {
+        pub async fn get_upcoming_returns_active_subs() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -2452,7 +2339,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_upcoming_no_results() {
+        pub async fn get_upcoming_no_results() {
             let mock = MockSubscriptionService::success();
             let result = mock.get_upcoming(Uuid::new_v4(), 7).await;
             assert!(result.is_ok());
@@ -2460,14 +2347,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_upcoming_failure() {
+        pub async fn get_upcoming_failure() {
             let mock = MockSubscriptionService::failure("DB error");
             let result = mock.get_upcoming(Uuid::new_v4(), 7).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_calendar_success() {
+        pub async fn get_calendar_success() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_subscription_request("Cal"))
@@ -2483,7 +2370,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_calendar_empty() {
+        pub async fn get_calendar_empty() {
             let mock = MockSubscriptionService::success();
             let result = mock.get_calendar(Uuid::new_v4(), 2024, 1).await;
             assert!(result.is_ok());
@@ -2491,14 +2378,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_calendar_failure() {
+        pub async fn get_calendar_failure() {
             let mock = MockSubscriptionService::failure("DB error");
             let result = mock.get_calendar(Uuid::new_v4(), 2024, 1).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn add_subscription_method() {
+        pub async fn add_subscription_method() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = Subscription {
@@ -2523,7 +2410,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn with_subscriptions_constructor() {
+        pub async fn with_subscriptions_constructor() {
             let user_id = Uuid::new_v4();
             let sub = Subscription {
                 id: Uuid::new_v4(),
@@ -2565,7 +2452,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_success() {
+        pub async fn create_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let req = make_transaction_request("Coffee");
@@ -2577,7 +2464,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_failure() {
+        pub async fn create_failure() {
             let mock = MockTransactionService::failure("Transaction creation failed");
             let req = make_transaction_request("Fail");
             let result = mock.create(Uuid::new_v4(), req).await;
@@ -2585,7 +2472,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn create_records_call() {
+        pub async fn create_records_call() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             mock.create(user_id, make_transaction_request("Rec"))
@@ -2596,7 +2483,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_returns_user_transactions() {
+        pub async fn get_all_returns_user_transactions() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
 
@@ -2613,7 +2500,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_filters_by_user() {
+        pub async fn get_all_filters_by_user() {
             let mock = MockTransactionService::success();
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
@@ -2630,14 +2517,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_all_failure() {
+        pub async fn get_all_failure() {
             let mock = MockTransactionService::failure("DB error");
             let result = mock.get_all(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_by_id_success() {
+        pub async fn get_by_id_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let trans = mock
@@ -2651,21 +2538,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_by_id_not_found() {
+        pub async fn get_by_id_not_found() {
             let mock = MockTransactionService::success();
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_by_id_failure() {
+        pub async fn get_by_id_failure() {
             let mock = MockTransactionService::failure("DB error");
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn update_success() {
+        pub async fn update_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let trans = mock
@@ -2689,7 +2576,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_not_found() {
+        pub async fn update_not_found() {
             let mock = MockTransactionService::success();
             let req = UpdateTransactionRequest {
                 name: Some("X".to_string()),
@@ -2705,7 +2592,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_failure() {
+        pub async fn update_failure() {
             let mock = MockTransactionService::failure("DB error");
             let req = UpdateTransactionRequest {
                 name: None,
@@ -2721,7 +2608,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_success() {
+        pub async fn delete_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let trans = mock
@@ -2735,21 +2622,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_not_found() {
+        pub async fn delete_not_found() {
             let mock = MockTransactionService::success();
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn delete_failure() {
+        pub async fn delete_failure() {
             let mock = MockTransactionService::failure("DB error");
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_by_date_range_success() {
+        pub async fn get_by_date_range_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
 
@@ -2785,7 +2672,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_by_date_range_empty() {
+        pub async fn get_by_date_range_empty() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let from = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
@@ -2797,7 +2684,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_by_date_range_failure() {
+        pub async fn get_by_date_range_failure() {
             let mock = MockTransactionService::failure("DB error");
             let from = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
             let to = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
@@ -2806,7 +2693,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn add_transaction_method() {
+        pub async fn add_transaction_method() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let t = Transaction {
@@ -2828,7 +2715,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn with_transactions_constructor() {
+        pub async fn with_transactions_constructor() {
             let user_id = Uuid::new_v4();
             let t = Transaction {
                 id: Uuid::new_v4(),
@@ -2867,7 +2754,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn list_success() {
+        pub async fn list_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             mock.add_notification(make_notification(user_id, "Test"));
@@ -2881,7 +2768,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn list_empty() {
+        pub async fn list_empty() {
             let mock = MockNotificationService::success();
             let result = mock.list(Uuid::new_v4()).await;
             assert!(result.is_ok());
@@ -2889,14 +2776,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn list_failure() {
+        pub async fn list_failure() {
             let mock = MockNotificationService::failure("Database error");
             let result = mock.list(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn list_filters_by_user() {
+        pub async fn list_filters_by_user() {
             let mock = MockNotificationService::success();
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
@@ -2909,7 +2796,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn mark_read_success() {
+        pub async fn mark_read_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let notif = make_notification(user_id, "To Mark");
@@ -2930,21 +2817,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn mark_read_not_found() {
+        pub async fn mark_read_not_found() {
             let mock = MockNotificationService::success();
             let result = mock.mark_read(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn mark_read_failure() {
+        pub async fn mark_read_failure() {
             let mock = MockNotificationService::failure("DB error");
             let result = mock.mark_read(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn mark_all_read_success() {
+        pub async fn mark_all_read_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             mock.add_notification(make_notification(user_id, "All 1"));
@@ -2959,7 +2846,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn mark_all_read_no_unread() {
+        pub async fn mark_all_read_no_unread() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let result = mock.mark_all_read(user_id).await;
@@ -2968,14 +2855,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn mark_all_read_failure() {
+        pub async fn mark_all_read_failure() {
             let mock = MockNotificationService::failure("DB error");
             let result = mock.mark_all_read(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn delete_success() {
+        pub async fn delete_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let notif = make_notification(user_id, "To Delete");
@@ -2991,21 +2878,21 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn delete_not_found() {
+        pub async fn delete_not_found() {
             let mock = MockNotificationService::success();
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn delete_failure() {
+        pub async fn delete_failure() {
             let mock = MockNotificationService::failure("DB error");
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_notification_preferences_default() {
+        pub async fn get_notification_preferences_default() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
 
@@ -3017,14 +2904,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_notification_preferences_failure() {
+        pub async fn get_notification_preferences_failure() {
             let mock = MockNotificationService::failure("DB error");
             let result = mock.get_notification_preferences(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn update_notification_preferences_enable_email() {
+        pub async fn update_notification_preferences_enable_email() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
 
@@ -3042,7 +2929,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_notification_preferences_multiple() {
+        pub async fn update_notification_preferences_multiple() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
 
@@ -3074,7 +2961,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_notification_preferences_failure() {
+        pub async fn update_notification_preferences_failure() {
             let mock = MockNotificationService::failure("DB error");
             let updates = vec![UpdatePreferenceRequest {
                 channel: "email".to_string(),
@@ -3088,7 +2975,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn add_notification_method() {
+        pub async fn add_notification_method() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             mock.add_notification(make_notification(user_id, "Direct"));
@@ -3097,7 +2984,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn with_notifications_constructor() {
+        pub async fn with_notifications_constructor() {
             let user_id = Uuid::new_v4();
             let notif = make_notification(user_id, "Pre");
             let mock = MockNotificationService::with_notifications(vec![notif]);
@@ -3106,7 +2993,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn mark_all_read_only_affects_target_user() {
+        pub async fn mark_all_read_only_affects_target_user() {
             let mock = MockNotificationService::success();
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
@@ -3125,7 +3012,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn get_monthly_summary_success() {
+        pub async fn get_monthly_summary_success() {
             let mock = MockReportService::success();
             let user_id = Uuid::new_v4();
 
@@ -3146,14 +3033,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_monthly_summary_failure() {
+        pub async fn get_monthly_summary_failure() {
             let mock = MockReportService::failure("Report generation failed");
             let result = mock.get_monthly_summary(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_category_breakdown_success() {
+        pub async fn get_category_breakdown_success() {
             let mock = MockReportService::success();
             let result = mock.get_category_breakdown(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_ok());
@@ -3164,14 +3051,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_category_breakdown_failure() {
+        pub async fn get_category_breakdown_failure() {
             let mock = MockReportService::failure("DB error");
             let result = mock.get_category_breakdown(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_recent_trends_success() {
+        pub async fn get_recent_trends_success() {
             let mock = MockReportService::success();
             let result = mock.get_recent_trends(Uuid::new_v4(), 3).await;
             assert!(result.is_ok());
@@ -3180,14 +3067,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_recent_trends_failure() {
+        pub async fn get_recent_trends_failure() {
             let mock = MockReportService::failure("DB error");
             let result = mock.get_recent_trends(Uuid::new_v4(), 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_full_report_success() {
+        pub async fn get_full_report_success() {
             let mock = MockReportService::success();
             let user_id = Uuid::new_v4();
 
@@ -3201,14 +3088,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_full_report_failure() {
+        pub async fn get_full_report_failure() {
             let mock = MockReportService::failure("Report generation failed");
             let result = mock.get_full_report(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn get_monthly_summary_different_months() {
+        pub async fn get_monthly_summary_different_months() {
             let mock = MockReportService::success();
             for m in 1..=12u32 {
                 let result = mock.get_monthly_summary(Uuid::new_v4(), 2024, m).await;
@@ -3218,7 +3105,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_recent_trends_zero_count() {
+        pub async fn get_recent_trends_zero_count() {
             let mock = MockReportService::success();
             let result = mock.get_recent_trends(Uuid::new_v4(), 0).await;
             assert!(result.is_ok());
@@ -3232,7 +3119,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn get_preferences_default() {
+        pub async fn get_preferences_default() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
 
@@ -3244,14 +3131,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn get_preferences_failure() {
+        pub async fn get_preferences_failure() {
             let mock = MockPreferencesService::failure("Preferences not found");
             let result = mock.get_preferences(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn update_preferences_theme() {
+        pub async fn update_preferences_theme() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
 
@@ -3267,7 +3154,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_preferences_view() {
+        pub async fn update_preferences_view() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
 
@@ -3283,7 +3170,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_preferences_persists() {
+        pub async fn update_preferences_persists() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
 
@@ -3301,7 +3188,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_preferences_preserves_unchanged() {
+        pub async fn update_preferences_preserves_unchanged() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
 
@@ -3326,7 +3213,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_preferences_failure() {
+        pub async fn update_preferences_failure() {
             let mock = MockPreferencesService::failure("Update failed");
             let req = UpdatePreferencesRequest {
                 theme: Some("dark".to_string()),
@@ -3339,7 +3226,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn update_preferences_both_none() {
+        pub async fn update_preferences_both_none() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
             // Set initial
@@ -3363,7 +3250,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn different_users_isolated() {
+        pub async fn different_users_isolated() {
             let mock = MockPreferencesService::success();
             let user1 = Uuid::new_v4();
             let user2 = Uuid::new_v4();
@@ -3564,7 +3451,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn auth_get_user_by_id_failure() {
+        pub async fn auth_get_user_by_id_failure() {
             let mock = MockAuthService::failure("no user");
             let result = mock.get_user_by_id(Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3572,7 +3459,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn auth_resend_verification_failure() {
+        pub async fn auth_resend_verification_failure() {
             let mock = MockAuthService::failure("resend fail");
             let result = mock.resend_verification(Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3580,7 +3467,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn category_update_failure_config() {
+        pub async fn category_update_failure_config() {
             let mock = MockCategoryService::failure("db gone");
             let req = UpdateCategoryRequest {
                 name: Some("X".to_string()),
@@ -3593,7 +3480,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn category_get_by_id_failure_config() {
+        pub async fn category_get_by_id_failure_config() {
             let mock = MockCategoryService::failure("db gone");
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3601,7 +3488,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn subscription_get_by_id_failure_config() {
+        pub async fn subscription_get_by_id_failure_config() {
             let mock = MockSubscriptionService::failure("db gone");
             let result = mock.get_by_id(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3609,7 +3496,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn category_delete_failure_config() {
+        pub async fn category_delete_failure_config() {
             let mock = MockCategoryService::failure("db gone");
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3617,7 +3504,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn subscription_update_amount() {
+        pub async fn subscription_update_amount() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -3655,7 +3542,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn subscription_delete_failure_config() {
+        pub async fn subscription_delete_failure_config() {
             let mock = MockSubscriptionService::failure("db gone");
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3663,7 +3550,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn transaction_delete_failure_config() {
+        pub async fn transaction_delete_failure_config() {
             let mock = MockTransactionService::failure("db gone");
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3671,7 +3558,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn report_trends_with_month_wrap() {
+        pub async fn report_trends_with_month_wrap() {
             let _mock = MockReportService::success();
             // month = 1, count = 3, should wrap to previous year
             let trends = make_mock_trends(1, 2024, 3);
@@ -3687,7 +3574,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn report_get_monthly_summary_success() {
+        pub async fn report_get_monthly_summary_success() {
             let mock = MockReportService::success();
             let user_id = Uuid::new_v4();
             let result = mock.get_monthly_summary(user_id, 2024, 6).await;
@@ -3698,14 +3585,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn report_get_monthly_summary_failure() {
+        pub async fn report_get_monthly_summary_failure() {
             let mock = MockReportService::failure("db error");
             let result = mock.get_monthly_summary(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn report_get_category_breakdown_success() {
+        pub async fn report_get_category_breakdown_success() {
             let mock = MockReportService::success();
             let user_id = Uuid::new_v4();
             let result = mock.get_category_breakdown(user_id, 2024, 6).await;
@@ -3715,14 +3602,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn report_get_category_breakdown_failure() {
+        pub async fn report_get_category_breakdown_failure() {
             let mock = MockReportService::failure("db error");
             let result = mock.get_category_breakdown(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn report_get_recent_trends_success() {
+        pub async fn report_get_recent_trends_success() {
             let mock = MockReportService::success();
             let user_id = Uuid::new_v4();
             let result = mock.get_recent_trends(user_id, 6).await;
@@ -3732,14 +3619,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn report_get_recent_trends_failure() {
+        pub async fn report_get_recent_trends_failure() {
             let mock = MockReportService::failure("db error");
             let result = mock.get_recent_trends(Uuid::new_v4(), 6).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn report_get_full_report_success() {
+        pub async fn report_get_full_report_success() {
             let mock = MockReportService::success();
             let user_id = Uuid::new_v4();
             let result = mock.get_full_report(user_id, 2024, 6).await;
@@ -3750,7 +3637,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn report_get_full_report_failure() {
+        pub async fn report_get_full_report_failure() {
             let mock = MockReportService::failure("db error");
             let result = mock.get_full_report(Uuid::new_v4(), 2024, 6).await;
             assert!(result.is_err());
@@ -3763,7 +3650,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn preferences_get_success() {
+        pub async fn preferences_get_success() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
             let result = mock.get_preferences(user_id).await;
@@ -3771,7 +3658,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn preferences_get_failure() {
+        pub async fn preferences_get_failure() {
             let mock = MockPreferencesService::failure("not found");
             let result = mock.get_preferences(Uuid::new_v4()).await;
             assert!(result.is_err());
@@ -3779,7 +3666,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn preferences_update_success() {
+        pub async fn preferences_update_success() {
             let mock = MockPreferencesService::success();
             let user_id = Uuid::new_v4();
             let req = UpdatePreferencesRequest {
@@ -3793,7 +3680,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn preferences_update_failure() {
+        pub async fn preferences_update_failure() {
             let mock = MockPreferencesService::failure("update failed");
             let req = UpdatePreferencesRequest {
                 theme: Some("light".to_string()),
@@ -3812,7 +3699,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn notification_list_success() {
+        pub async fn notification_list_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let result = mock.list(user_id).await;
@@ -3823,14 +3710,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_list_failure() {
+        pub async fn notification_list_failure() {
             let mock = MockNotificationService::failure("list failed");
             let result = mock.list(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn notification_mark_read_success() {
+        pub async fn notification_mark_read_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
 
@@ -3854,14 +3741,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_mark_read_failure() {
+        pub async fn notification_mark_read_failure() {
             let mock = MockNotificationService::failure("mark read failed");
             let result = mock.mark_read(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn notification_mark_all_read_success() {
+        pub async fn notification_mark_all_read_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let result = mock.mark_all_read(user_id).await;
@@ -3869,14 +3756,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_mark_all_read_failure() {
+        pub async fn notification_mark_all_read_failure() {
             let mock = MockNotificationService::failure("mark all failed");
             let result = mock.mark_all_read(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn notification_delete_success() {
+        pub async fn notification_delete_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
 
@@ -3900,14 +3787,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_delete_failure() {
+        pub async fn notification_delete_failure() {
             let mock = MockNotificationService::failure("delete failed");
             let result = mock.delete(Uuid::new_v4(), Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn notification_get_preferences_success() {
+        pub async fn notification_get_preferences_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let result = mock.get_notification_preferences(user_id).await;
@@ -3917,14 +3804,14 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_get_preferences_failure() {
+        pub async fn notification_get_preferences_failure() {
             let mock = MockNotificationService::failure("get prefs failed");
             let result = mock.get_notification_preferences(Uuid::new_v4()).await;
             assert!(result.is_err());
         }
 
         #[tokio::test]
-        async fn notification_update_preferences_success() {
+        pub async fn notification_update_preferences_success() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let prefs = vec![UpdatePreferenceRequest {
@@ -3937,7 +3824,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_update_preferences_failure() {
+        pub async fn notification_update_preferences_failure() {
             let mock = MockNotificationService::failure("update prefs failed");
             let result = mock
                 .update_notification_preferences(
@@ -3953,7 +3840,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn notification_add_to_mock() {
+        pub async fn notification_add_to_mock() {
             let mock = MockNotificationService::success();
             let user_id = Uuid::new_v4();
             let notif = Notification {
@@ -3977,7 +3864,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn subscription_update_frequency() {
+        pub async fn subscription_update_frequency() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -4015,7 +3902,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn subscription_update_next_billing_date() {
+        pub async fn subscription_update_next_billing_date() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -4052,7 +3939,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn subscription_update_deactivate() {
+        pub async fn subscription_update_deactivate() {
             let mock = MockSubscriptionService::success();
             let user_id = Uuid::new_v4();
             let sub = mock
@@ -4097,7 +3984,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn transaction_get_by_date_range_success() {
+        pub async fn transaction_get_by_date_range_success() {
             let mock = MockTransactionService::success();
             let user_id = Uuid::new_v4();
             let from = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
@@ -4107,7 +3994,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn transaction_get_by_date_range_failure() {
+        pub async fn transaction_get_by_date_range_failure() {
             let mock = MockTransactionService::failure("db error");
             let result = mock
                 .get_by_date_range(
@@ -4126,7 +4013,7 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn category_create_uncategorized_idempotent_many_calls() {
+        pub async fn category_create_uncategorized_idempotent_many_calls() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             for _ in 0..5 {
@@ -4137,7 +4024,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn category_update_only_name() {
+        pub async fn category_update_only_name() {
             let mock = MockCategoryService::success();
             let user_id = Uuid::new_v4();
             let cat = mock

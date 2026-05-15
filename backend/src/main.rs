@@ -25,7 +25,7 @@ use shared::app_utils::{
     build_index_path, get_frontend_dist, index_html_exists, parse_port,
 };
 use std::net::SocketAddr;
-use std::sync::Arc;
+
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -80,8 +80,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn build_app(db_pool: sqlx::PgPool) -> Router {
-    #[allow(unused_imports)]
-    use auth::service::{AuthServiceTrait, SqlxAuthService};
+    use auth::service::{AuthProvider, SqlxAuthService};
     use shared::app_state::AppState;
 
     let cors = CorsLayer::new()
@@ -100,7 +99,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
     // Create app state with DB pool and injectable services
     let app_state = AppState::new(
         db_pool.clone(),
-        Arc::new(SqlxAuthService::new(db_pool.clone())) as Arc<dyn AuthServiceTrait>,
+        AuthProvider::Live(SqlxAuthService::new(db_pool.clone())),
     );
 
     let mut router = Router::new()

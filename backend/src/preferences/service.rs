@@ -1,44 +1,30 @@
-use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::shared::error::AppResult;
 
-#[async_trait]
-pub trait PreferencesServiceTrait: Send + Sync {
-    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse>;
-    async fn update_preferences(
-        &self,
-        user_id: Uuid,
-        req: UpdatePreferencesRequest,
-    ) -> AppResult<PreferencesResponse>;
-}
-
 pub struct SqlxPreferencesService {
-    pool: PgPool,
+    pub pool: PgPool,
 }
 
 impl SqlxPreferencesService {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
 
-/// Apply a key-value preference to the response object.
-pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, value: &str) {
-    match key {
-        "theme" => response.theme = value.to_string(),
-        "subscriptions_view" => response.subscriptions_view = value.to_string(),
-        "first_day_of_week" => response.first_day_of_week = value.to_string(),
-        "date_format" => response.date_format = value.to_string(),
-        _ => {}
+    /// Apply a key-value preference to the response object.
+    pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, value: &str) {
+        match key {
+            "theme" => response.theme = value.to_string(),
+            "subscriptions_view" => response.subscriptions_view = value.to_string(),
+            "first_day_of_week" => response.first_day_of_week = value.to_string(),
+            "date_format" => response.date_format = value.to_string(),
+            _ => {}
+        }
     }
-}
 
-#[async_trait]
-impl PreferencesServiceTrait for SqlxPreferencesService {
-    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse> {
+    pub async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse> {
         let prefs = sqlx::query_as::<_, (String, String)>(
             "SELECT key, value FROM user_preferences WHERE user_id = $1",
         )
@@ -49,13 +35,13 @@ impl PreferencesServiceTrait for SqlxPreferencesService {
         let mut response = PreferencesResponse::default();
 
         for (key, value) in prefs {
-            apply_preference(&mut response, &key, &value);
+            SqlxPreferencesService::apply_preference(&mut response, &key, &value);
         }
 
         Ok(response)
     }
 
-    async fn update_preferences(
+    pub async fn update_preferences(
         &self,
         user_id: Uuid,
         req: UpdatePreferencesRequest,
@@ -150,7 +136,7 @@ mod tests {
     #[test]
     fn apply_preference_theme() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "theme", "dark");
+        SqlxPreferencesService::apply_preference(&mut response, "theme", "dark");
         assert_eq!(response.theme, "dark");
         assert_eq!(response.subscriptions_view, "grid"); // unchanged
     }
@@ -158,7 +144,7 @@ mod tests {
     #[test]
     fn apply_preference_subscriptions_view() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "subscriptions_view", "list");
+        SqlxPreferencesService::apply_preference(&mut response, "subscriptions_view", "list");
         assert_eq!(response.theme, "system"); // unchanged
         assert_eq!(response.subscriptions_view, "list");
     }
@@ -166,7 +152,7 @@ mod tests {
     #[test]
     fn apply_preference_unknown_key_ignored() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "unknown_key", "value");
+        SqlxPreferencesService::apply_preference(&mut response, "unknown_key", "value");
         assert_eq!(response.theme, "system");
         assert_eq!(response.subscriptions_view, "grid");
     }
@@ -174,8 +160,8 @@ mod tests {
     #[test]
     fn apply_preference_both() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "theme", "dark");
-        apply_preference(&mut response, "subscriptions_view", "table");
+        SqlxPreferencesService::apply_preference(&mut response, "theme", "dark");
+        SqlxPreferencesService::apply_preference(&mut response, "subscriptions_view", "table");
         assert_eq!(response.theme, "dark");
         assert_eq!(response.subscriptions_view, "table");
     }
@@ -183,8 +169,8 @@ mod tests {
     #[test]
     fn apply_preference_overwrite() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "theme", "dark");
-        apply_preference(&mut response, "theme", "light");
+        SqlxPreferencesService::apply_preference(&mut response, "theme", "dark");
+        SqlxPreferencesService::apply_preference(&mut response, "theme", "light");
         assert_eq!(response.theme, "light");
     }
 
@@ -269,37 +255,37 @@ mod tests {
     #[test]
     fn apply_preference_theme_case_sensitive() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "Theme", "dark"); // Wrong case
+        SqlxPreferencesService::apply_preference(&mut response, "Theme", "dark"); // Wrong case
         assert_eq!(response.theme, "system"); // Should not change
     }
 
     #[test]
     fn apply_preference_subscriptions_view_case_sensitive() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "SUBSCRIPTIONS_VIEW", "list"); // Wrong case
+        SqlxPreferencesService::apply_preference(&mut response, "SUBSCRIPTIONS_VIEW", "list"); // Wrong case
         assert_eq!(response.subscriptions_view, "grid"); // Should not change
     }
 
     #[test]
     fn apply_preference_empty_string_values() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "theme", "");
+        SqlxPreferencesService::apply_preference(&mut response, "theme", "");
         assert_eq!(response.theme, "");
     }
 
     #[test]
     fn apply_preference_unicode_values() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "theme", "ダーク");
+        SqlxPreferencesService::apply_preference(&mut response, "theme", "ダーク");
         assert_eq!(response.theme, "ダーク");
     }
 
     #[test]
     fn apply_preference_multiple_unknown_keys() {
         let mut response = PreferencesResponse::default();
-        apply_preference(&mut response, "lang", "en");
-        apply_preference(&mut response, "region", "US");
-        apply_preference(&mut response, "timezone", "UTC");
+        SqlxPreferencesService::apply_preference(&mut response, "lang", "en");
+        SqlxPreferencesService::apply_preference(&mut response, "region", "US");
+        SqlxPreferencesService::apply_preference(&mut response, "timezone", "UTC");
         // All should be ignored
         assert_eq!(response.theme, "system");
         assert_eq!(response.subscriptions_view, "grid");

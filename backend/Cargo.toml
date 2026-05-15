@@ -55,9 +55,6 @@ percent-encoding = "2"
 # Random (for demo credentials)
 rand = "0.10.1"
 
-# Async trait dispatch (dyn-compatible async traits)
-async-trait = "0.1"
-
 [features]
 embed-frontend = ["dep:include_dir"]
 
