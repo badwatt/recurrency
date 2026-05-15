@@ -361,8 +361,7 @@ pub fn TransactionsPage() -> Element {
             div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
                 div {
                     h1 { class: "text-3xl font-bold tracking-tight",
-                        Receipt { size: 16 }
-                        " Transactions"
+                        "Transactions"
                     }
                     p { class: "text-muted-foreground", "Track your one-time expenses" }
                 }
