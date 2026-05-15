@@ -262,7 +262,7 @@ pub struct DonutData {
 }
 
 #[component]
-pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> Element {
+pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hovered_index: Option<usize>, on_hover: EventHandler<Option<usize>>) -> Element {
     if data.is_empty() {
         return rsx! {
             div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
@@ -289,13 +289,13 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> E
     let segments = compute_donut_segments(&data, total, circumference);
 
     // Compute label positions (midpoint of each arc, non-rotated coords)
-    let label_positions: Vec<(f64, f64, String, f64)> = segments.iter().map(|seg| {
+    let label_positions: Vec<(f64, f64, String, f64, usize)> = segments.iter().enumerate().map(|(i, seg)| {
         let mid_angle = (seg.offset + seg.dash_len / 2.0) / circumference * 360.0 - 90.0;
         let rad = mid_angle.to_radians();
         let x = center + label_radius * rad.cos();
         let y = center + label_radius * rad.sin();
         let pct = seg.dash_len / circumference * 100.0;
-        (x, y, seg.label.clone(), pct)
+        (x, y, seg.label.clone(), pct, i)
     }).collect();
 
     rsx! {
@@ -308,34 +308,54 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> E
                 class: "transform -rotate-90",
 
                 // Border outlines (thin, behind color fills)
-                for seg in &segments {
-                    circle {
-                        key: "{seg.label}-border",
-                        cx: "{center}",
-                        cy: "{center}",
-                        r: "{radius}",
-                        fill: "none",
-                        stroke: "var(--border, #e5e7eb)",
-                        stroke_width: "{sw + 2.0}",
-                        stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
-                        stroke_dashoffset: "{-seg.offset}",
-                        stroke_linecap: "butt",
+                for (i, seg) in segments.iter().enumerate() {
+                    {
+                        let is_hovered = hovered_index == Some(i);
+                        let border_sw = if is_hovered { sw + 4.0 } else { sw + 2.0 };
+                        let opacity = if is_hovered || hovered_index.is_none() { "1.0" } else { "0.3" };
+                        rsx! {
+                            circle {
+                                key: "{seg.label}-border",
+                                cx: "{center}",
+                                cy: "{center}",
+                                r: "{radius}",
+                                fill: "none",
+                                stroke: "var(--border, #e5e7eb)",
+                                stroke_width: "{border_sw}",
+                                stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
+                                stroke_dashoffset: "{-seg.offset}",
+                                stroke_linecap: "butt",
+                                opacity: "{opacity}",
+                                onmouseenter: move |_| { on_hover.call(Some(i)); },
+                                onmouseleave: move |_| { on_hover.call(None); },
+                            }
+                        }
                     }
                 }
 
                 // Color fill segments
-                for seg in &segments {
-                    circle {
-                        key: "{seg.label}",
-                        cx: "{center}",
-                        cy: "{center}",
-                        r: "{radius}",
-                        fill: "none",
-                        stroke: "{seg.color}",
-                        stroke_width: "{sw}",
-                        stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
-                        stroke_dashoffset: "{-seg.offset}",
-                        stroke_linecap: "butt",
+                for (i, seg) in segments.iter().enumerate() {
+                    {
+                        let is_hovered = hovered_index == Some(i);
+                        let fill_sw = if is_hovered { sw + 4.0 } else { sw };
+                        let opacity = if is_hovered || hovered_index.is_none() { "1.0" } else { "0.3" };
+                        rsx! {
+                            circle {
+                                key: "{seg.label}",
+                                cx: "{center}",
+                                cy: "{center}",
+                                r: "{radius}",
+                                fill: "none",
+                                stroke: "{seg.color}",
+                                stroke_width: "{fill_sw}",
+                                stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
+                                stroke_dashoffset: "{-seg.offset}",
+                                stroke_linecap: "butt",
+                                opacity: "{opacity}",
+                                onmouseenter: move |_| { on_hover.call(Some(i)); },
+                                onmouseleave: move |_| { on_hover.call(None); },
+                            }
+                        }
                     }
                 }
             }
@@ -346,18 +366,24 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String) -> E
                 height: "{size}",
                 xmlns: "http://www.w3.org/2000/svg",
 
-                for (x, y, label, pct) in label_positions.iter() {
+                for (x, y, label, pct, idx) in label_positions.iter() {
                     if *pct >= 5.0 {
-                        text {
-                            key: "{label}-pct",
-                            x: "{x}",
-                            y: "{y}",
-                            fill: "currentColor",
-                            font_size: "5",
-                            text_anchor: "middle",
-                            dominant_baseline: "central",
-                            class: "text-muted-foreground",
-                            "{pct:.0}%"
+                        {
+                            let opacity = if hovered_index == Some(*idx) || hovered_index.is_none() { "1.0" } else { "0.3" };
+                            rsx! {
+                                text {
+                                    key: "{label}-pct",
+                                    x: "{x}",
+                                    y: "{y}",
+                                    fill: "currentColor",
+                                    font_size: "5",
+                                    text_anchor: "middle",
+                                    dominant_baseline: "central",
+                                    class: "text-muted-foreground",
+                                    opacity: "{opacity}",
+                                    "{pct:.0}%"
+                                }
+                            }
                         }
                     }
                 }

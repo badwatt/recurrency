@@ -1,6 +1,6 @@
 use crate::api::categories;
 use crate::api::reports;
-use crate::components::chart::{palette_color, DonutChart, DonutData, LineChart, LineData};
+use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
 use crate::models::report::*;
 use crate::state::auth::AUTH;
@@ -65,6 +65,7 @@ pub fn ReportsPage() -> Element {
     let mut selected_month = use_signal(|| now.month().to_string());
     let mut report = use_signal(|| None::<ReportResponse>);
     let mut is_loading = use_signal(|| true);
+    let mut hovered_category = use_signal(|| None::<usize>);
 
     // Load categories
     use_future(move || async move {
@@ -272,18 +273,28 @@ pub fn ReportsPage() -> Element {
                                                     data: donut_data,
                                                     size: "180".to_string(),
                                                     stroke_width: "12".to_string(),
+                                                    hovered_index: hovered_category(),
+                                                    on_hover: move |idx: Option<usize>| hovered_category.set(idx),
                                                 }
                                             }
                                         }
                                         // Legend
                                         div { class: "grid grid-cols-2 gap-x-4 gap-y-1.5 w-full",
-                                            for (_i, cat) in r.category_breakdown.iter().take(8).enumerate() {
+                                            for (i, cat) in r.category_breakdown.iter().take(8).enumerate() {
                                                 {
                                                     let cats_guard = CATEGORIES();
                                                     let (color, icon_str) = category_style_by_name(&cats_guard.categories, &cat.category_name);
                                                     let color = color.to_string();
+                                                    let is_hovered = hovered_category() == Some(i);
+                                                    let opacity = if is_hovered || hovered_category().is_none() { "1.0" } else { "0.3" };
+                                                    let highlight = if is_hovered { "bg-muted/50 rounded px-1 -mx-1" } else { "" };
                                                     rsx! {
-                                                        div { key: "{cat.category_name}", class: "flex items-center gap-1.5 text-sm",
+                                                        div {
+                                                            key: "{cat.category_name}",
+                                                            class: "flex items-center gap-1.5 text-sm {highlight}",
+                                                            style: "opacity: {opacity}",
+                                                            onmouseenter: move |_| hovered_category.set(Some(i)),
+                                                            onmouseleave: move |_| hovered_category.set(None),
                                                             div { class: "w-2.5 h-2.5 rounded-full shrink-0", style: "background-color: {color}" }
                                                             {icon_display(icon_str)}
                                                             span { class: "truncate text-muted-foreground",
