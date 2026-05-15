@@ -50,26 +50,63 @@ open http://localhost:1420
 
 ## Production (Docker)
 
-No clone needed. Pull pre-built images from GHCR:
+No clone needed. Save this as `compose.yml`, then `docker compose up -d`:
 
-```bash
-mkdir recurrency && cd recurrency
-curl -O https://raw.githubusercontent.com/alvaro17f/recurrency/main/docker/compose.ghcr.yml
-docker compose -f compose.ghcr.yml up -d
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recurrency
+      POSTGRES_PASSWORD: ${PGPASSWORD:-recurrency}
+      POSTGRES_DB: recurrency
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recurrency -d recurrency"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/alvaro17f/recurrency-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://recurrency:${PGPASSWORD:-recurrency}@db:5432/recurrency
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ENABLE_DEMO: ${ENABLE_DEMO:-true}
+      RUST_LOG: info
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/alvaro17f/recurrency-web:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
 ```
 
 - **Frontend:** http://localhost:80 (nginx proxies `/api` → backend)
-- **Backend:** http://localhost:8080 (Axum API)
+- **Backend:** http://localhost:8080
 
-Custom env (`.env` or shell):
+Custom env:
 
 ```bash
-JWT_SECRET=your-secret-key docker compose -f compose.ghcr.yml up -d
+JWT_SECRET=your-secret-key docker compose up -d
 ```
 
 ### Build from source
-
-Clone + build locally:
 
 ```bash
 git clone https://github.com/alvaro17f/recurrency.git
