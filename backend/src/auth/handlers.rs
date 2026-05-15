@@ -462,14 +462,15 @@ mod handler_integration_tests {
         let Some(app) = make_app().await else {
             return;
         };
-        // Register user first so mock has it
+        // Register user and get the mock token from the response
         let reg = serde_json::json!({"email": "settings@test.com", "password": "password123", "name": "Settings"});
-        let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
-        // Now call get_settings using Authorization header (query param approach is flaky)
+        let (_, resp): (_, serde_json::Value) = post_json(&app, "/api/auth/register", &reg).await;
+        let token = resp["token"].as_str().unwrap();
+        // Now call get_settings using Authorization header
         let req = Request::builder()
             .method("GET")
             .uri("/api/settings")
-            .header("Authorization", format!("Bearer {}", VALID_MOCK_TOKEN))
+            .header("Authorization", format!("Bearer {}", token))
             .body(Body::empty())
             .unwrap();
         let response = app.oneshot(req).await.unwrap();
@@ -520,15 +521,16 @@ mod handler_integration_tests {
         let Some(app) = make_app().await else {
             return;
         };
-        // Register user first so mock has it
+        // Register user and get the mock token from the response
         let reg = serde_json::json!({"email": "update@test.com", "password": "password123", "name": "Update"});
-        let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
+        let (_, resp): (_, serde_json::Value) = post_json(&app, "/api/auth/register", &reg).await;
+        let token = resp["token"].as_str().unwrap();
         // Now call update_settings using Authorization header
         let body = serde_json::json!({"name": "Updated Name", "currency": "GBP"});
         let req = Request::builder()
             .method("PUT")
             .uri("/api/settings")
-            .header("Authorization", format!("Bearer {}", VALID_MOCK_TOKEN))
+            .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
             .body(Body::from(serde_json::to_string(&body).unwrap()))
             .unwrap();
@@ -554,11 +556,12 @@ mod handler_integration_tests {
         let Some(app) = make_app().await else {
             return;
         };
-        // Register user first so mock has it
+        // Register user and get the mock token from the response
         let reg = serde_json::json!({"email": "verify@test.com", "password": "password123", "name": "Verify"});
-        let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
-        // Now call verify_email with mock token (user should be in mock's registered_users)
-        let uri = format!("/api/auth/verify-email?token={}", VALID_MOCK_TOKEN);
+        let (_, resp): (_, serde_json::Value) = post_json(&app, "/api/auth/register", &reg).await;
+        let token = resp["token"].as_str().unwrap();
+        // Now call verify_email with the registered user's token
+        let uri = format!("/api/auth/verify-email?token={}", token);
         let req = Request::builder()
             .method("POST")
             .uri(&uri)
@@ -602,11 +605,12 @@ mod handler_integration_tests {
         let Some(app) = make_app().await else {
             return;
         };
-        // Register user first so mock has it
+        // Register user and get the mock token from the response
         let reg = serde_json::json!({"email": "resend@test.com", "password": "password123", "name": "Resend"});
-        let _ = post_json::<_, serde_json::Value>(&app, "/api/auth/register", &reg).await;
+        let (_, resp): (_, serde_json::Value) = post_json(&app, "/api/auth/register", &reg).await;
+        let token = resp["token"].as_str().unwrap();
         // Now call resend_verification
-        let uri = format!("/api/auth/resend-verification?token={}", VALID_MOCK_TOKEN);
+        let uri = format!("/api/auth/resend-verification?token={}", token);
         let req = Request::builder()
             .method("POST")
             .uri(&uri)

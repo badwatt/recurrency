@@ -335,6 +335,19 @@ impl AuthService {
 }
 
 pub fn verify_token_internal(token: &str) -> AppResult<Claims> {
+    // In test builds, accept mock_token_<uuid> format used by MockAuthService
+    #[cfg(test)]
+    if token.starts_with("mock_token_") {
+        let uuid_str = token.trim_start_matches("mock_token_");
+        let user_id = Uuid::parse_str(uuid_str)
+            .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))?;
+        return Ok(Claims {
+            sub: user_id,
+            email: "mock@mock.com".to_string(),
+            exp: (Utc::now().timestamp() + 86400) as usize,
+            iat: Utc::now().timestamp() as usize,
+        });
+    }
     let token_data = decode::<Claims>(
         token,
         &DecodingKey::from_secret(get_jwt_secret()),
