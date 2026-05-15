@@ -8,7 +8,7 @@ use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
-use crate::components::subscription_form::{SubscriptionForm as EditForm, ValidationResult, validate_subscription_form};
+use crate::components::entry_form::{EntryForm as EditForm, ValidationResult, validate_entry_form, EntityType};
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, UpdateSubscriptionRequest};
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -382,7 +382,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
         let subs = SUBSCRIPTIONS();
         if let Some(sub) = subs.subscriptions.iter().find(|s| s.id == sub_id) {
             editing_id.set(Some(sub.id));
-            edit_form.set(EditForm::from_subscription(
+            edit_form.set(EditForm::from_entry(
                 &sub.name,
                 &sub.amount.to_string(),
                 &sub.currency,
@@ -430,8 +430,8 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
     // Handler: submit edit form
     let handle_edit_submit = move |_| {
         let f = edit_form();
-        let result = validate_subscription_form(
-            &f.name, &f.amount, &f.currency, &f.frequency, &f.start_date, &f.category_id,
+        let result = validate_entry_form(
+            &f.name, &f.amount, &f.currency, &f.frequency, &f.start_date, &f.category_id, EntityType::Subscription,
         );
         if !result.is_valid() {
             name_error.set(result.name_error.unwrap_or_default());
@@ -701,6 +701,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                                 &formatted_date,
                                                                 AUTH().currency(),
                                                                 &default_cat,
+                                                                EntityType::Subscription,
                                                             ));
                                                             editing_id.set(None);
                                                             name_error.set(String::new());
@@ -2087,7 +2088,7 @@ mod tests {
 
     #[test]
     fn edit_form_init_for_create_sets_defaults() {
-        let form = EditForm::init_for_create("2024-06-15", "EUR", "cat-123");
+        let form = EditForm::init_for_create("2024-06-15", "EUR", "cat-123", EntityType::Subscription);
         assert!(form.name.is_empty());
         assert!(form.amount.is_empty());
         assert_eq!(form.currency, "EUR");

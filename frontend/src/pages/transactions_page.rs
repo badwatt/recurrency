@@ -41,67 +41,8 @@ pub struct MonthGroup {
 }
 
 /// Filter + sort transactions and group by month (descending).
-/// Transaction validation result type.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct TransactionValidationResult {
-    pub name_error: Option<String>,
-    pub amount_error: Option<String>,
-    pub currency_error: Option<String>,
-    pub date_error: Option<String>,
-    pub category_error: Option<String>,
-}
-
-impl TransactionValidationResult {
-    pub fn is_valid(&self) -> bool {
-        self.name_error.is_none()
-            && self.amount_error.is_none()
-            && self.currency_error.is_none()
-            && self.date_error.is_none()
-            && self.category_error.is_none()
-    }
-}
-
-/// Pure validation function for transaction form.
-pub fn validate_transaction_form(
-    name: &str,
-    amount: &str,
-    currency: &str,
-    date: &str,
-    category_id: &str,
-) -> TransactionValidationResult {
-    use rust_decimal::Decimal;
-    let mut result = TransactionValidationResult::default();
-    if name.trim().is_empty() {
-        result.name_error = Some("Name is required".into());
-    } else if name.trim().len() < 2 {
-        result.name_error = Some("Name must be at least 2 characters".into());
-    }
-    if amount.is_empty() {
-        result.amount_error = Some("Amount is required".into());
-    } else {
-        match amount.parse::<Decimal>() {
-            Ok(a) if a <= Decimal::ZERO => {
-                result.amount_error = Some("Amount must be greater than 0".into());
-            }
-            Err(_) => {
-                result.amount_error = Some("Invalid amount format".into());
-            }
-            _ => {}
-        }
-    }
-    if currency.is_empty() {
-        result.currency_error = Some("Currency is required".into());
-    }
-    if date.is_empty() {
-        result.date_error = Some("Date is required".into());
-    } else if date.parse::<chrono::NaiveDate>().is_err() {
-        result.date_error = Some("Invalid date format".into());
-    }
-    if category_id.is_empty() {
-        result.category_error = Some("Category is required".into());
-    }
-    result
-}
+// TransactionValidationResult and validate_transaction_form moved to components/entry_form.rs
+use crate::components::entry_form::{TransactionValidationResult, validate_transaction_form};
 
 pub fn filter_sort_group(
     txns: &[Transaction],

@@ -2956,7 +2956,7 @@ mod dialog_form_tests {
     fn dialog_form_debug() {
         let form = DialogForm::default();
         let debug = format!("{:?}", form);
-        assert!(debug.contains("SubscriptionForm"));
+        assert!(debug.contains("EntryForm"));
     }
 
     #[test]
@@ -3006,7 +3006,7 @@ mod dialog_form_tests {
     fn dialog_form_debug_extended() {
         let form = DialogForm::default();
         let debug = format!("{:?}", form);
-        assert!(debug.contains("SubscriptionForm"));
+        assert!(debug.contains("EntryForm"));
     }
 
     #[test]
