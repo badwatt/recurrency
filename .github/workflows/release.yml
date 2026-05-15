@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
   DX_VERSION: "0.7.9"
 
 permissions:
@@ -33,6 +32,21 @@ jobs:
   test-backend:
     needs: prepare
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: recurrency
+          POSTGRES_PASSWORD: recurrency
+          POSTGRES_DB: recurrency_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v6
 
@@ -57,6 +71,7 @@ jobs:
 
       - name: Run backend tests
         env:
+          DATABASE_URL: postgres://recurrency:recurrency@localhost:5432/recurrency_test
           JWT_SECRET: test-jwt-secret-key
         run: cd backend && cargo test --lib
 
@@ -97,7 +112,7 @@ jobs:
       - name: Run frontend tests
         run: cd frontend && cargo test -- --test-threads=1
 
-  # ── Build Docker image + create release ──────────────────
+  # ── Build Docker images + create release ──────────────────
   docker:
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
@@ -122,23 +137,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ needs.prepare.outputs.version }}
-            type=raw,value=latest
-
-      - name: Build and push
+      # ── Backend image ──────────────────────────────────────
+      - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
-          file: docker/Dockerfile
+          file: docker/Dockerfile.backend
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}-backend:${{ needs.prepare.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}-backend:latest
+          build-args: |
+            APP_VERSION=${{ needs.prepare.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Frontend image ──────────────────────────────────────
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          file: docker/Dockerfile.frontend
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:${{ needs.prepare.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:latest
           build-args: |
             APP_VERSION=${{ needs.prepare.outputs.version }}
           cache-from: type=gha
@@ -212,13 +235,9 @@ jobs:
             convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
           fi
 
-      # dx bundle auto-detects HOST arch (x86_64 on CI runner) → APK incompatible with ARM phones.
-      # Force aarch64-linux-android via --target flag (covers 95%+ devices).
       - name: Build Android APK (aarch64 debug)
         run: cd frontend && dx bundle --platform android --target aarch64-linux-android
 
-      # Dioxus uses generic ic_launcher.webp icons — replace with our app logo.
-      # Android adaptive icons need: solid background + padded foreground.
       - name: Replace Android icons with app logo
         run: |
           cd frontend
@@ -228,7 +247,6 @@ jobs:
             exit 0
           fi
           echo "Found Android res directory: $RES_DIR"
-          # Generate mipmap icons from app icon at each density
           for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             case $dir in
               mipmap-mdpi)     SIZE=48 ;;
@@ -243,20 +261,11 @@ jobs:
               echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
             fi
           done
-          # Generate foreground icon with padding for adaptive icons.
-          # Android adaptive-icon: 108dp canvas, 72dp safe zone.
-          # Foreground must be 432px (108dp @ xxxhdpi) with icon centered in ~288px area.
           mkdir -p "$RES_DIR/drawable"
-          # Remove Dioxus-generated XMLs to avoid duplicate resource conflict and shadowing.
-          # drawable-v24/ic_launcher_foreground.xml (white vector) shadows our custom PNG on API 24+.
           rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
           rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
           convert assets/icons/icon-1024.png -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
-          echo "Generated drawable/ic_launcher_foreground.png (432x432 with padding)"
-          # Generate solid background color for adaptive icons
           convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
-          echo "Generated drawable/ic_launcher_background.png"
-          # Ensure mipmap ic_launcher.xml uses solid background + padded foreground
           for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
             if [ -f "$LAUNCHER_XML" ]; then
@@ -265,9 +274,6 @@ jobs:
             fi
           done
 
-      # Fix Dioxus #5251: generated AndroidManifest.xml has extractNativeLibs="false"
-      # which prevents native lib extraction → "not compatible with phone" error.
-      # Also: Java 8 target obsolete, lint crashes with AGP 8.8+.
       - name: Patch Android build files (Dioxus #5251)
         run: |
           cd frontend
@@ -276,16 +282,10 @@ jobs:
             APP_DIR=$(dirname $(dirname $(dirname "$ANDROID_DIR")))
             GRADLE_FILE="$APP_DIR/build.gradle.kts"
             MANIFEST="$ANDROID_DIR/AndroidManifest.xml"
-            echo "Patching: $MANIFEST"
-            echo "Patching: $GRADLE_FILE"
-            # Fix 1: Remove extractNativeLibs="false" (should be true or absent)
             sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
-            # Fix 2: Java 8 → 17
             sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
             sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-            # Fix 3: Add jniLibs useLegacyPackaging for native libs
             grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
-            # Fix 4: Rebuild with patched files, skip lint
             cd "$APP_DIR"
             ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
           fi

@@ -75,6 +75,7 @@ cmd_up() {
   export APP_PORT="${APP_PORT:-8080}"
   export JWT_SECRET="${JWT_SECRET:-dev-secret}"
   export ENABLE_DEMO="${ENABLE_DEMO:-true}"
+  export DATABASE_URL="${DATABASE_URL:-postgres://recurrency:recurrency_dev_password@localhost:5432/recurrency}"
   nix develop --no-eval-cache "$ROOT" -c cargo run 2>/dev/null &
   BACKEND_PID=$!
 
