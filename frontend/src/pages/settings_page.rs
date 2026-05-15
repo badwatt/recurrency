@@ -2,6 +2,7 @@ use crate::api::app;
 use crate::api::notification_preferences;
 use crate::api::settings;
 use crate::components::toast::TOAST;
+use crate::components::page_header::PageHeader;
 use crate::models::auth::UpdateSettingsRequest;
 use crate::models::notification::{
     UpdateNotificationPreferenceRequest, UpdateNotificationPreferencesRequest,
@@ -154,8 +155,9 @@ pub fn SettingsPage() -> Element {
 
     rsx! {
         div { class: "p-2 md:p-6 flex flex-col gap-6",
-            h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", "Settings" }
-            p { class: "text-muted-foreground", "Manage your account and preferences" }
+            div { class: "animate-in fade-in slide-in-from-bottom-4 duration-700",
+                PageHeader { title: "Settings", subtitle: "Manage your account and preferences" }
+            }
 
             // Profile card
             div { class: "rounded-xl bg-card/80 border border-border/40",

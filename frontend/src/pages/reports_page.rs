@@ -1,6 +1,7 @@
 use crate::api::categories;
 use crate::api::reports;
 use crate::components::chart::{palette_color, DonutChart, DonutData, LineChart, LineData};
+use crate::components::page_header::PageHeader;
 use crate::models::report::*;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -116,10 +117,7 @@ pub fn ReportsPage() -> Element {
         div { class: "p-4 md:p-6 flex flex-col gap-6 overflow-x-hidden",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
-                div {
-                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", "Reports" }
-                    p { class: "text-muted-foreground", "Analyze your spending patterns" }
-                }
+                PageHeader { title: "Reports", subtitle: "Analyze your spending patterns" }
                 div { class: "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3",
                     div { class: "flex items-center gap-2",
                         select {

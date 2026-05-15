@@ -1,5 +1,6 @@
 use crate::api::transactions;
 use crate::components::dialog::Dialog;
+use crate::components::page_header::PageHeader;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_image_with_fallback;
 use crate::components::logo_search::LogoSearch;
@@ -358,13 +359,8 @@ pub fn TransactionsPage() -> Element {
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
-                div {
-                    h1 { class: "text-3xl font-bold tracking-tight",
-                        "Transactions"
-                    }
-                    p { class: "text-muted-foreground", "Track your one-time expenses" }
-                }
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
+                PageHeader { title: "Transactions", subtitle: "Track your one-time expenses" }
                 button {
                     onclick: move |_| {
                         editing_id.set(None);

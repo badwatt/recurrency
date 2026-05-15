@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
+use crate::components::page_header::PageHeader;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
 use crate::components::subscription_form::SubscriptionForm;
@@ -409,11 +410,8 @@ pub fn SubscriptionsPage() -> Element {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
 
             // ── Header ──
-            div { class: "flex items-center justify-between gap-3",
-                div {
-                    h1 { class: "text-2xl sm:text-3xl font-extrabold tracking-tight", "Subscriptions" }
-                    p { class: "text-sm text-muted-foreground mt-1", "Track and manage recurring payments" }
-                }
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
+                PageHeader { title: "Subscriptions", subtitle: "Track and manage recurring payments" }
                 div { class: "flex items-center gap-2 shrink-0",
                     button {
                         class: "hidden sm:flex items-center gap-1.5 border border-border/60 rounded-lg px-3 py-2 hover:bg-muted text-sm transition-colors duration-200",

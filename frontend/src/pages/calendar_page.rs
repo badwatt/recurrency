@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::api;
 use crate::api::subscriptions as sub_api;
+use crate::components::page_header::PageHeader;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::entry_form::{EntryForm as EditForm, validate_entry_form, EntityType};
@@ -552,11 +553,8 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
-                div {
-                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter animate-in fade-in slide-in-from-bottom-4 duration-700", "Calendar" }
-                    p { class: "text-sm text-muted-foreground mt-1", "Upcoming subscription payments" }
-                }
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
+                PageHeader { title: "Calendar", subtitle: "Upcoming subscription payments" }
                 div { class: "text-right hidden md:block animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150",
                     p { class: "text-2xl font-bold tracking-tight", "{total_display}" }
                     p { class: "text-xs text-muted-foreground", "Total this month" }

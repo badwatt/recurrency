@@ -1,5 +1,6 @@
 use crate::api::categories;
 use crate::components::dialog::Dialog;
+use crate::components::page_header::PageHeader;
 use crate::models::category::*;
 use crate::state::categories::CATEGORIES;
 use crate::utils::icons::{ICON_NAMES, icon_display};
@@ -180,10 +181,7 @@ pub fn CategoriesPage() -> Element {
         div { class: "p-4 md:p-6 flex flex-col gap-6",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
-                div {
-                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", "Categories" }
-                    p { class: "text-muted-foreground", "Organize your expenses with categories" }
-                }
+                PageHeader { title: "Categories", subtitle: "Organize your expenses with categories" }
                 button {
                     onclick: open_create,
                     class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",

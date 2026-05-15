@@ -158,10 +158,10 @@ pub fn Dashboard() -> Element {
     rsx! {
         div { class: "p-4 md:p-8 flex flex-col gap-8",
             // Hero: greeting + large monthly total
-            div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
+            div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700",
                 div {
                     p { class: "text-sm text-muted-foreground font-medium", "Welcome back, {user_name}" }
-                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter text-foreground mt-1 animate-in fade-in slide-in-from-bottom-4 duration-700",
+                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter text-foreground mt-1",
                         "Dashboard"
                     }
                 }
