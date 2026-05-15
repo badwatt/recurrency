@@ -3,8 +3,9 @@ use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Subsc
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
 use crate::api::client::ApiError;
 use chrono::{Datelike, Utc};
+
+#[allow(unused_imports)]
 use rust_decimal::Decimal;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 // ── Local JSON storage ────────────────────────────────────────
@@ -34,7 +35,7 @@ const DEFAULT_CATEGORIES: &[(&str, &str, &str)] = &[
 ];
 
 fn default_categories() -> Vec<Category> {
-    DEFAULT_CATEGORIES.iter().enumerate().map(|(i, (name, icon, color))| Category {
+    DEFAULT_CATEGORIES.iter().map(|(name, icon, color)| Category {
         id: Uuid::new_v4(),
         user_id: uuid::Uuid::nil(),
         name: name.to_string(),
@@ -72,8 +73,6 @@ fn save_collection<T: serde::Serialize>(name: &str, data: &Vec<T>) -> Result<(),
 
 #[cfg(target_arch = "wasm32")]
 fn load_collection<T: serde::de::DeserializeOwned>(name: &str) -> Option<Vec<T>> {
-    use crate::api::client::get_base_url; // ensure we don't call in local mode
-    let _ = get_base_url(); // suppress unused warning
     let key = format!("recurrency_local_{}", name);
     if let Some(window) = web_sys::window() {
         if let Ok(Some(storage)) = window.local_storage() {
@@ -186,10 +185,8 @@ pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, 
 
 fn compute_billing_date(sub: &Subscription, year: i32, month: u32) -> chrono::NaiveDate {
     // Use next_billing_date if it falls in the target month, otherwise use start_date day
-    if let Some(nbd) = sub.next_billing_date {
-        if nbd.year() == year && nbd.month() == month {
-            return nbd;
-        }
+    if let Some(nbd) = sub.next_billing_date && nbd.year() == year && nbd.month() == month {
+        return nbd;
     }
     let day = sub.start_date.day().min(28u32);
     chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(sub.start_date)

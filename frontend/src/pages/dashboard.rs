@@ -267,7 +267,7 @@ pub fn Dashboard() -> Element {
                                 div { class: "mt-4 space-y-2",
                                     for (cat_id, count) in sorted.iter().take(4) {
                                         {
-                                            let cat_name = cats.get_by_id(*cat_id)
+                                            let cat_name = cats.get_by_id(cat_id)
                                                 .map(|c| c.name.clone())
                                                 .unwrap_or_else(|| "Uncategorized".into());
                                             let count = *count;

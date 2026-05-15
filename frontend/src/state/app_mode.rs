@@ -23,6 +23,7 @@ impl AppMode {
 }
 
 impl Default for AppMode {
+    #[allow(clippy::derivable_impls)]
     fn default() -> Self {
         AppMode::Offline
     }
@@ -68,10 +69,8 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         // Env var override
-        if let Ok(url) = std::env::var("RECURRENCY_API_URL") {
-            if !url.is_empty() {
-                return (AppMode::Server(url), true);
-            }
+        if let Ok(url) = std::env::var("RECURRENCY_API_URL") && !url.is_empty() {
+            return (AppMode::Server(url), true);
         }
         // Try app data file
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {

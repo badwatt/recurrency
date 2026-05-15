@@ -53,22 +53,23 @@ pub fn AppLayout() -> Element {
     });
 
     if !auth.initialized {
-        // On native: redirect to Setup if app mode not configured
-        // On WASM: always show app loader (server URL auto-detected)
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mode = APP_MODE();
-            if !mode.initialized {
-                let nav = navigator();
-                nav.push(crate::Route::Setup {});
-                return rsx! { div {} };
-            }
+        // If app mode not initialized, try localhost:8080 first
+        // If reachable, auto-configure and proceed to Login
+        // If unreachable, redirect to Setup to configure URL
+        let mode = APP_MODE();
+        if !mode.initialized {
+            // Default: try localhost:8080
+            let default_url = "http://localhost:8080".to_string();
+            APP_MODE.write().set_server(default_url.clone());
+            crate::api::client::set_base_url(&default_url);
+            // Hydration will complete on next render
         }
         return rsx! { AppLoader {} };
     }
 
-    // Offline mode: skip auth, auto-authenticate with a local marker
-    // Only available on native (Android/desktop). WASM always uses server.
+    // Server mode: if not authenticated, check if backend is reachable
+    // If backend unreachable, redirect to Setup to configure URL
+    // Offline mode: skip auth (handled above)
     #[cfg(not(target_arch = "wasm32"))]
     if APP_MODE().mode.is_offline() {
         if !auth.is_authenticated {
@@ -227,8 +228,12 @@ pub fn AppLayout() -> Element {
                             r#type: "button",
                             class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-destructive hover:bg-accent transition-colors",
                             onclick: move |_| {
+                                let nav = navigator();
                                 AUTH.write().logout();
                                 AUTH.write().persist_to_storage();
+                                // Reset app mode so user can choose again
+                                APP_MODE.write().reset();
+                                nav.push(crate::Route::Setup {});
                             },
                             title: "Logout",
                             {svg_icon(Icon::Logout, 20)}
