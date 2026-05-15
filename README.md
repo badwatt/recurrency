@@ -50,19 +50,21 @@ open http://localhost:1420
 
 ## Production (Docker)
 
+Two images: API backend + nginx frontend.
+
 ```bash
-docker run -d --name recurrency \
-  -p 3000:80 \
-  -e JWT_SECRET=your-secret-key \
-  -e ENABLE_DEMO=true \
-  ghcr.io/alvaro17f/recurrency:latest
+cd docker
+docker compose up -d
 ```
 
-Or with `docker compose`:
+- **Frontend:** http://localhost:80 (nginx proxies `/api` → backend)
+- **Backend:** http://localhost:8080 (Axum API)
+- **PostgreSQL:** localhost:5432
+
+Custom env (`.env` or shell):
 
 ```bash
-docker compose pull
-docker compose up -d
+JWT_SECRET=your-secret-key PGPASSWORD=recurrency docker compose up -d
 ```
 
 ---
@@ -74,7 +76,7 @@ docker compose up -d
 | `DATABASE_URL` | — | PostgreSQL connection |
 | `JWT_SECRET` | `change-me-in-production` | Secret for JWT tokens |
 | `ENABLE_DEMO` | `true` | Show demo login button |
-| `FRONTEND_DIST` | `/frontend/dist` | Path to frontend static files |
+| `PGPASSWORD` | `recurrency` | PostgreSQL password |
 | `SMTP_HOST` | — | SMTP server |
 | `SMTP_PORT` | `587` | SMTP port |
 | `SMTP_USER` | — | SMTP username |
@@ -118,8 +120,8 @@ docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | **85.83%** | **85.65%** | **84.55%** | 1127 |
-| **Frontend** | **80.04%** | **71.33%** | **79.75%** | 1506 |
+| **Backend** | — | — | — | 1108 |
+| **Frontend** | — | — | — | 1559 |
 
 Full coverage report (Nix dev shell):
 
