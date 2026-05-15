@@ -424,7 +424,7 @@ pub fn SubscriptionsPage() -> Element {
                         if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
                     }
                     button {
-                        class: "bg-amber-500 hover:bg-amber-600 text-black font-semibold px-4 py-2.5 rounded-lg text-sm active:scale-[0.97] transition-all duration-200",
+                        class: "bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
                         onclick: move |_| handle_create.call(()),
                         "+ Add"
                     }
@@ -444,7 +444,7 @@ pub fn SubscriptionsPage() -> Element {
                         p { class: "text-lg font-medium", "No subscriptions yet" }
                         p { class: "text-sm text-muted-foreground", "Click the button above to add your first subscription" }
                         button {
-                            class: "bg-amber-500 hover:bg-amber-600 text-black font-semibold px-4 py-2 rounded-lg text-sm active:scale-[0.97] transition-all duration-200",
+                            class: "bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
                             onclick: move |_| handle_create.call(()),
                             "+ Add Subscription"
                         }
