@@ -25,13 +25,17 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf \
 WORKDIR /build
 
 # Cache dependencies — workspace-aware layout
+# Workspace Cargo.toml lists backend + frontend members; need stub backend/Cargo.toml
 COPY Cargo.toml Cargo.lock* ./
+COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
+RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
 RUN cargo build --target wasm32-unknown-unknown -p recurrency --features web --release 2>/dev/null || true
-RUN rm -rf frontend/src
+RUN rm -rf frontend/src backend/src
 
 COPY frontend/ ./frontend/
+RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 
 # Build Tailwind CSS
 RUN npm install --prefix frontend tailwindcss tailwindcss-animate && \

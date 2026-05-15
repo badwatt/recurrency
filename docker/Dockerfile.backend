@@ -9,15 +9,19 @@ ENV RUSTFLAGS="-C target-cpu=generic"
 WORKDIR /build
 
 # Cache dependencies — workspace-aware layout
+# Workspace Cargo.toml lists backend + frontend members; need stub frontend/Cargo.toml
 COPY Cargo.toml Cargo.lock* ./
 COPY backend/Cargo.toml backend/Cargo.toml
+COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY VERSION /build/VERSION
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
+RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
 RUN cargo build --release -p recurrency-api -j 4 2>/dev/null || true
-RUN rm -rf backend/src
+RUN rm -rf backend/src frontend/src
 
 # Build backend
 COPY backend/ ./backend/
+RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
 RUN touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
 
 # ── Runtime ──────────────────────────────────────────────
