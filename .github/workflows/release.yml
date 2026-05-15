@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 jobs:
-  # ── Prepare: extract version + cache warm ──────────────────
+  # ── Prepare: extract version ───────────────────────────────
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -61,11 +61,8 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: pkg-config libssl-dev
-          version: 1.0
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2
@@ -99,11 +96,8 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: pkg-config libssl-dev
-          version: 1.0
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -208,11 +202,8 @@ jobs:
           toolchain: stable
           targets: aarch64-linux-android
 
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: pkg-config libssl-dev imagemagick
-          version: 1.0
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev imagemagick
 
       - name: Install Android NDK
         uses: nttld/setup-ndk@v1
