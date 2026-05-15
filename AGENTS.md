@@ -36,6 +36,8 @@
 - ⛔ **SIEMPRE** usar la skill `rust-best-practices`.
 - ⛔ **NUNCA** hacer bump de `VERSION` sin consultar al usuario. Dispara CI actions.
 - ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions antes de push.
+- ⛔ **SIEMPRE** que sea posible elimina dependencias.
+- ⛔ Trata de tener el **MÍNIMO** número de dependencias en el proyecto.
 
 ---
 
@@ -382,6 +384,8 @@ git add -A && git commit -m "feat(scope): description"
 - ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions.
 - ⛔ **SIEMPRE** usar skill `rust-best-practices`.
 - ⛔ **SIEMPRE** mantener dependencias actualizadas.
+- ⛔ **SIEMPRE** eliminar dependencias innecesarias.
+- ⛔ Mínimo número de dependencias posible en el proyecto.
 
 ---
 
