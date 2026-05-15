@@ -259,13 +259,12 @@ pub fn ReportsPage() -> Element {
                                 } else {
                                     div { class: "flex flex-col items-center gap-4",
                                         {
-                                            let donut_data: Vec<DonutData> = r.category_breakdown.iter().enumerate().map(|(i, cat)| {
-                                                let pos = cats.categories.iter().position(|c2| c2.name == cat.category_name).unwrap_or(i);
-                                                let color = palette_color(pos).to_string();
+                                            let donut_data: Vec<DonutData> = r.category_breakdown.iter().map(|cat| {
+                                                let (color, _) = category_style_by_name(&cats.categories, &cat.category_name);
                                                 DonutData {
                                                     label: cat.category_name.clone(),
                                                     value: cat.percentage,
-                                                    color,
+                                                    color: color.to_string(),
                                                 }
                                             }).collect();
                                             rsx! {
