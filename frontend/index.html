@@ -14,13 +14,20 @@
     /* Critical FOUC-prevention: hide body until Tailwind loads */
     body { visibility: hidden; }
     html.light body, html.dark body, html.mocha body { visibility: visible; }
-    #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
-    .rings { position: relative; width: 48px; height: 48px; }
-    .rings .r1, .rings .r2 { position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; }
-    .rings .r1 { border-top-color: #6366f1; animation: spin 1s linear infinite; }
-    .rings .r2 { border-bottom-color: #6366f1; animation: spin 1s linear infinite reverse; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #pre-wasm-loader p { margin-top: 12px; color: #666; font-size: 14px; }
+    #pre-wasm-loader { display: flex; flex-direction: column; gap: 24px; padding: 32px; max-width: 448px; margin: 0 auto; min-height: 100vh; justify-content: center; font-family: system-ui, -apple-system, sans-serif; }
+    .sk { background: #e5e7eb; border-radius: 6px; animation: pulse 1.5s ease-in-out infinite; }
+    html.dark .sk, html.mocha .sk { background: #374151; }
+    .sk-title { height: 32px; width: 50%; }
+    .sk-sub { height: 12px; width: 33%; margin-top: 8px; }
+    .sk-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+    .sk-row-dot { height: 36px; width: 36px; border-radius: 50%; flex-shrink: 0; }
+    .sk-row-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .sk-row-line { height: 10px; }
+    .sk-row-val { height: 10px; width: 64px; flex-shrink: 0; }
+    .sk-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .sk-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    html.dark .sk-card, html.mocha .sk-card { border-color: #374151; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   </style>
   <noscript><style>body{visibility:visible!important}</style></noscript>
   <title>Recurrency</title>
@@ -28,11 +35,44 @@
 
 <body class="hidden"><!-- hidden until theme applied -->
   <div id="pre-wasm-loader">
-    <div class="rings">
-      <div class="r1"></div>
-      <div class="r2"></div>
+    <div>
+      <div class="sk sk-title"></div>
+      <div class="sk sk-sub"></div>
     </div>
-    <p>Loading...</p>
+    <div class="sk-row">
+      <div class="sk sk-row-dot"></div>
+      <div class="sk-row-lines">
+        <div class="sk sk-row-line" style="width:33%"></div>
+        <div class="sk sk-row-line" style="width:25%"></div>
+      </div>
+      <div class="sk sk-row-val"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk sk-row-dot"></div>
+      <div class="sk-row-lines">
+        <div class="sk sk-row-line" style="width:40%"></div>
+        <div class="sk sk-row-line" style="width:20%"></div>
+      </div>
+      <div class="sk sk-row-val"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk sk-row-dot"></div>
+      <div class="sk-row-lines">
+        <div class="sk sk-row-line" style="width:30%"></div>
+        <div class="sk sk-row-line" style="width:35%"></div>
+      </div>
+      <div class="sk sk-row-val"></div>
+    </div>
+    <div class="sk-cards">
+      <div class="sk-card">
+        <div class="sk" style="height:16px;width:60%"></div>
+        <div class="sk" style="height:12px;width:40%"></div>
+      </div>
+      <div class="sk-card">
+        <div class="sk" style="height:16px;width:50%"></div>
+        <div class="sk" style="height:12px;width:35%"></div>
+      </div>
+    </div>
   </div>
   <div id="main"></div>
   <script>
