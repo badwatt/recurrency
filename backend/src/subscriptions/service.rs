@@ -242,7 +242,7 @@ pub struct CalendarItem {
 }
 
 pub(crate) fn sort_calendar_items(items: &mut [CalendarItem]) {
-    items.sort_by(|a, b| a.billing_date.cmp(&b.billing_date));
+    items.sort_by_key(|a| a.billing_date);
 }
 
 /// Generate billing dates for a given subscription within a month.

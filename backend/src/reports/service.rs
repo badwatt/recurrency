@@ -74,7 +74,7 @@ pub(crate) fn combine_category_totals(
         })
         .collect();
 
-    breakdown.sort_by(|a, b| b.total.cmp(&a.total));
+    breakdown.sort_by_key(|b| std::cmp::Reverse(b.total));
     breakdown
 }
 
