@@ -8,7 +8,7 @@ use crate::api;
 use crate::api::subscriptions as sub_api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
-use crate::components::entry_form::{EntryForm as EditForm, ValidationResult, validate_entry_form, EntityType};
+use crate::components::entry_form::{EntryForm as EditForm, validate_entry_form, EntityType};
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, UpdateSubscriptionRequest};
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;

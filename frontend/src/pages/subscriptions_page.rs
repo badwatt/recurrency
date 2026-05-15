@@ -9,7 +9,9 @@ use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
-use crate::components::subscription_form::{SubscriptionForm, ValidationResult, validate_subscription_form};
+use crate::components::subscription_form::SubscriptionForm;
+#[allow(unused_imports)]
+use crate::components::entry_form::{ValidationResult, validate_subscription_form};
 use crate::models::subscription::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };

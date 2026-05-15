@@ -42,6 +42,7 @@ pub struct MonthGroup {
 
 /// Filter + sort transactions and group by month (descending).
 // TransactionValidationResult and validate_transaction_form moved to components/entry_form.rs
+#[allow(unused_imports)]
 use crate::components::entry_form::{TransactionValidationResult, validate_transaction_form};
 
 pub fn filter_sort_group(
