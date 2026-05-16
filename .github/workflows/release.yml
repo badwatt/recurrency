@@ -142,7 +142,8 @@ jobs:
       - name: Build and push backend image
         uses: docker/build-push-action@v7
         with:
-          file: docker/Dockerfile.backend
+          file: docker/Dockerfile
+          target: backend
           context: .
           push: true
           tags: |
@@ -157,7 +158,8 @@ jobs:
       - name: Build and push frontend image
         uses: docker/build-push-action@v7
         with:
-          file: docker/Dockerfile.frontend
+          file: docker/Dockerfile
+          target: frontend
           context: .
           push: true
           tags: |
@@ -173,6 +175,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           file: docker/Dockerfile
+          target: all-in-one
           context: .
           push: true
           tags: |

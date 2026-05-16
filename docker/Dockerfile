@@ -1,3 +1,10 @@
+# ── Unified Dockerfile: backend / frontend / all-in-one ───
+# Build with --target backend, --target frontend, or --target all-in-one
+
+# ═══════════════════════════════════════════════════════════
+# Shared builder stages (cached across all targets)
+# ═══════════════════════════════════════════════════════════
+
 # ── Backend builder ──────────────────────────────────────
 FROM rust:1-bookworm AS backend-builder
 
@@ -51,12 +58,44 @@ RUN cd frontend && dx bundle --platform web --release && \
     ls -laR dist/ 2>/dev/null; \
     find dist/ -name 'index.html' -type f 2>/dev/null
 
-# ── All-in-One Runtime ───────────────────────────────────
-FROM debian:bookworm-slim
+# ═══════════════════════════════════════════════════════════
+# Runtime targets
+# ═══════════════════════════════════════════════════════════
+
+# ── Target: backend only ─────────────────────────────────
+FROM debian:bookworm-slim AS backend
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=backend-builder /build/target/release/recurrency-backend /usr/local/bin/recurrency-backend
+RUN chmod +x /usr/local/bin/recurrency-backend
+
+ENV APP_HOST=0.0.0.0 \
+    APP_PORT=8080 \
+    RUST_LOG=info
+
+EXPOSE 8080
+
+CMD ["recurrency-backend"]
+
+# ── Target: frontend only ────────────────────────────────
+FROM nginx:alpine AS frontend
+
+COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html
+RUN rm -f /etc/nginx/conf.d/default.conf
+COPY docker/nginx-standalone.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+
+# ── Target: all-in-one ───────────────────────────────────
+FROM debian:bookworm-slim AS all-in-one
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install PostgreSQL 15, nginx, ca-certificates
 # Prevent services from auto-starting during build
 RUN echo '#!/bin/sh\nexit 101' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -75,7 +114,7 @@ RUN chmod +x /usr/local/bin/recurrency-backend
 # Frontend static files
 COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html
 
-# Nginx config (all-in-one: proxies to localhost:8080)
+# Nginx config
 COPY docker/nginx.conf /etc/nginx/sites-available/recurrency
 RUN ln -sf /etc/nginx/sites-available/recurrency /etc/nginx/sites-enabled/recurrency
 
