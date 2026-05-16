@@ -14,6 +14,7 @@ identifier = "com.alvaro17f.recurrency"
 icon = ["assets/icons/icon-1024.png"]
 
 [android]
+name = "Recurrency"
 build_targets = ["aarch64-linux-android"]
 out_dir = "../bin/android"
 min_sdk_version = 21

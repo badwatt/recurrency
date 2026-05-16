@@ -296,6 +296,9 @@ jobs:
             GRADLE_FILE="$APP_DIR/build.gradle.kts"
             MANIFEST="$ANDROID_DIR/AndroidManifest.xml"
             sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
+            # Fix app name: crate name recurrency-frontend → Recurrency
+            sed -i 's/android:label="recurrency-frontend"/android:label="Recurrency"/g' "$MANIFEST"
+            sed -i 's/android:label="RecurrencyFrontend"/android:label="Recurrency"/g' "$MANIFEST"
             sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
             sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
             grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
