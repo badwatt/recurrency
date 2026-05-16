@@ -72,7 +72,9 @@ RUN chmod +x /usr/local/bin/recurrency-backend
 COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html
 
 # Nginx config (all-in-one: proxies to localhost:8080)
-COPY docker/nginx.conf /etc/nginx/sites-available/default
+RUN rm -f /etc/nginx/sites-enabled/default
+COPY docker/nginx.conf /etc/nginx/sites-available/recurrency
+RUN ln -sf /etc/nginx/sites-available/recurrency /etc/nginx/sites-enabled/recurrency
 
 # Entrypoint
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
