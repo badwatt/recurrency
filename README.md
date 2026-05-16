@@ -50,51 +50,19 @@ open http://localhost:1420
 
 ## Production (Docker)
 
-No clone needed. Save this as `compose.yml`, then `docker compose up -d`:
+No clone needed. Use the pre-configured compose file with GHCR images:
 
-```yaml
-services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: recurrency
-      POSTGRES_PASSWORD: ${PGPASSWORD:-recurrency}
-      POSTGRES_DB: recurrency
-    volumes:
-      - recurrency_db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U recurrency -d recurrency"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+```bash
+curl -O https://raw.githubusercontent.com/alvaro17f/recurrency/main/docker/docker-compose.yml
+docker compose up -d
+```
 
-  backend:
-    image: ghcr.io/alvaro17f/recurrency-backend:latest
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      DATABASE_URL: postgres://recurrency:${PGPASSWORD:-recurrency}@db:5432/recurrency
-      APP_HOST: "0.0.0.0"
-      APP_PORT: "8080"
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      ENABLE_DEMO: ${ENABLE_DEMO:-true}
-      RUST_LOG: info
-    depends_on:
-      db:
-        condition: service_healthy
+Or clone and run:
 
-  frontend:
-    image: ghcr.io/alvaro17f/recurrency-frontend:latest
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-
-volumes:
-  recurrency_db:
+```bash
+git clone https://github.com/alvaro17f/recurrency.git
+cd recurrency/docker
+docker compose up -d
 ```
 
 - **Frontend:** http://localhost:80 (nginx proxies `/api` → backend)
@@ -104,14 +72,6 @@ Custom env:
 
 ```bash
 JWT_SECRET=your-secret-key docker compose up -d
-```
-
-### Build from source
-
-```bash
-git clone https://github.com/alvaro17f/recurrency.git
-cd recurrency/docker
-docker compose up -d
 ```
 
 ---
