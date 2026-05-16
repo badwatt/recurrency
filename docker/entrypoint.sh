@@ -25,7 +25,6 @@ echo "Starting PostgreSQL..."
 su - postgres -c "/usr/lib/postgresql/15/bin/pg_ctl start -D /var/lib/postgresql/15/main -o '-c config_file=/etc/postgresql/15/main/postgresql.conf' -l /var/log/postgresql/postgresql.log" || true
 
 # ── Wait for PostgreSQL to accept real queries ─────────
-# pg_isready only checks TCP — we need actual DB connectivity
 echo "Waiting for PostgreSQL to be ready..."
 PGPASSWORD="${PGPASSWORD:-recurrency}"
 export PGPASSWORD
@@ -52,7 +51,6 @@ if ! psql "postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}" -c "SELEC
 fi
 
 # ── Verify connectivity ─────────────────────────────────
-# Run a real query with the exact connection string backend will use
 echo "Verifying database connectivity..."
 for i in $(seq 1 30); do
     if psql "postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}" -c "SELECT 1" >/dev/null 2>&1; then
@@ -65,12 +63,36 @@ done
 # ── Set environment for backend ───────────────────────────
 export DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
 export APP_HOST="${APP_HOST:-0.0.0.0}"
-export APP_PORT="${APP_PORT:-80}"
+export APP_PORT="${APP_PORT:-8080}"
 export JWT_SECRET="${JWT_SECRET:-change-me-in-production}"
 export ENABLE_DEMO="${ENABLE_DEMO:-false}"
 
-echo "Starting Recurrency on port ${APP_PORT}..."
-echo "Frontend: http://localhost:${APP_PORT}"
-echo "API:      http://localhost:${APP_PORT}/api"
+# ── Start backend on internal port ──────────────────────
+echo "Starting backend on port ${APP_PORT}..."
+/usr/local/bin/recurrency-api &
+BACKEND_PID=$!
+
+# ── Wait for backend to be ready ───────────────────────
+echo "Waiting for backend..."
+for i in $(seq 1 30); do
+    if curl -sf http://localhost:${APP_PORT}/api/health >/dev/null 2>&1 || curl -sf http://localhost:${APP_PORT}/ >/dev/null 2>&1; then
+        echo "Backend is ready."
+        break
+    fi
+    sleep 1
+done
+
+# ── Start nginx on port 80 ──────────────────────────────
+echo "Starting nginx on port 80..."
+nginx -g 'daemon off;' &
+NGINX_PID=$!
+
 echo ""
-exec /usr/local/bin/recurrency-api
+echo "=== Recurrency is running ==="
+echo "  Frontend:  http://localhost:80"
+echo "  API:       http://localhost:80/api"
+echo "  Backend:   http://localhost:${APP_PORT} (internal)"
+echo ""
+
+# Wait for any process to exit
+wait -n $BACKEND_PID $NGINX_PID 2>/dev/null || wait $BACKEND_PID $NGINX_PID

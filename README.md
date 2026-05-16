@@ -50,23 +50,19 @@ open http://localhost:1420
 
 ## Production (Docker)
 
-No clone needed. Use the pre-configured compose file with GHCR images:
+Single container with PostgreSQL + backend + frontend:
 
 ```bash
+# Pull and run
+docker run -d -p 80:80 -e JWT_SECRET=your-secret ghcr.io/alvaro17f/recurrency:latest
+
+# Or use the compose file
 curl -O https://raw.githubusercontent.com/alvaro17f/recurrency/main/docker/docker-compose.yml
 docker compose up -d
 ```
 
-Or clone and run:
-
-```bash
-git clone https://github.com/alvaro17f/recurrency.git
-cd recurrency/docker
-docker compose up -d
-```
-
-- **Frontend:** http://localhost:80 (nginx proxies `/api` → backend)
-- **Backend:** http://localhost:8080
+- **App:** http://localhost:80 (nginx proxies `/api` → backend)
+- **API:** http://localhost:80/api
 
 Custom env:
 

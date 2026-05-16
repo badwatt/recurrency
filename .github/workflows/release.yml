@@ -168,6 +168,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # ── All-in-One image ────────────────────────────────────
+      - name: Build and push all-in-one image
+        uses: docker/build-push-action@v7
+        with:
+          file: docker/Dockerfile
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:${{ needs.prepare.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}:latest
+          build-args: |
+            APP_VERSION=${{ needs.prepare.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
