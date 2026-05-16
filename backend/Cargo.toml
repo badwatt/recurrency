@@ -1,5 +1,5 @@
 [package]
-name = "recurrency-api"
+name = "recurrency-backend"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

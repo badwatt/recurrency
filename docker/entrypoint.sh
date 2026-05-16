@@ -69,7 +69,7 @@ export ENABLE_DEMO="${ENABLE_DEMO:-false}"
 
 # ── Start backend on internal port ──────────────────────
 echo "Starting backend on port ${APP_PORT}..."
-/usr/local/bin/recurrency-api &
+/usr/local/bin/recurrency-backend &
 BACKEND_PID=$!
 
 # ── Wait for backend to be ready ───────────────────────

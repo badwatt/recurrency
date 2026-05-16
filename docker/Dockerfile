@@ -13,11 +13,11 @@ COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY VERSION /build/VERSION
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-api -j 4 2>/dev/null || true
+RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-backend -j 4 2>/dev/null || true
 
 COPY backend/ ./backend/
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
+RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-backend -j 4
 
 # ── Frontend builder ─────────────────────────────────────
 FROM rust:1-bookworm AS frontend-builder
@@ -39,7 +39,7 @@ COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
-RUN --mount=type=cache,target=/build/target cargo build --target wasm32-unknown-unknown -p recurrency --features web --release 2>/dev/null || true
+RUN --mount=type=cache,target=/build/target cargo build -p recurrency-frontend --features web --release 2>/dev/null || true
 
 COPY frontend/ ./frontend/
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
@@ -65,8 +65,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Backend binary
-COPY --from=backend-builder /build/target/release/recurrency-api /usr/local/bin/recurrency-api
-RUN chmod +x /usr/local/bin/recurrency-api
+COPY --from=backend-builder /build/target/release/recurrency-backend /usr/local/bin/recurrency-backend
+RUN chmod +x /usr/local/bin/recurrency-backend
 
 # Frontend static files
 COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html

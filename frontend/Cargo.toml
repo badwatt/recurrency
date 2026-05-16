@@ -1,11 +1,11 @@
 [package]
-name = "recurrency"
+name = "recurrency-frontend"
 version.workspace = true
 edition.workspace = true
 description = "Recurrency - Subscription tracker (Dioxus frontend)"
 
 [lib]
-name = "recurrency"
+name = "recurrency_frontend"
 crate-type = ["cdylib", "rlib"]
 path = "src/main.rs"
 
