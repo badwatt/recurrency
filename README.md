@@ -62,7 +62,7 @@ services:
       POSTGRES_PASSWORD: ${PGPASSWORD:-recurrency}
       POSTGRES_DB: recurrency
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - recurrency_db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U recurrency -d recurrency"]
       interval: 5s
@@ -94,7 +94,7 @@ services:
       - backend
 
 volumes:
-  postgres_data:
+  recurrency_db:
 ```
 
 - **Frontend:** http://localhost:80 (nginx proxies `/api` → backend)
