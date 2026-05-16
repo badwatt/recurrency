@@ -304,27 +304,7 @@ jobs:
             if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
               echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks"
               # Add signing config to gradle
-              cat >> "$GRADLE_FILE" << 'GRADLE_EOF'
-
-android.signingConfigs {
-    create("release") {
-        storeFile = file("release.jks")
-        storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-        keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-        keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-    }
-}
-
-android.buildTypes {
-    getByName("release") {
-        signingConfig = signingConfigs.getByName("release")
-        isMinifyEnabled = false
-    }
-    getByName("debug") {
-        signingConfig = signingConfigs.getByName("release")
-    }
-}
-GRADLE_EOF
+              printf '\nandroid.signingConfigs {\n    create("release") {\n        storeFile = file("release.jks")\n        storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")\n        keyAlias = System.getenv("ANDROID_KEY_ALIAS")\n        keyPassword = System.getenv("ANDROID_KEY_PASSWORD")\n    }\n}\n\nandroid.buildTypes {\n    getByName("release") {\n        signingConfig = signingConfigs.getByName("release")\n        isMinifyEnabled = false\n    }\n    getByName("debug") {\n        signingConfig = signingConfigs.getByName("release")\n    }\n}\n' >> "$GRADLE_FILE"
               cd "$APP_DIR"
               ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease || true
             else
