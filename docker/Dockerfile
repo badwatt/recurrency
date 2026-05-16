@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-
 
 COPY backend/ ./backend/
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-backend -j 4
+RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-backend -j 4 && cp /build/target/release/recurrency-backend /build/recurrency-backend
 
 # ── Frontend builder ─────────────────────────────────────
 FROM rust:1-bookworm AS frontend-builder
@@ -69,7 +69,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=backend-builder /build/target/release/recurrency-backend /usr/local/bin/recurrency-backend
+COPY --from=backend-builder /build/recurrency-backend /usr/local/bin/recurrency-backend
 RUN chmod +x /usr/local/bin/recurrency-backend
 
 ENV APP_HOST=0.0.0.0 \
@@ -108,7 +108,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -f /etc/nginx/sites-enabled/default
 
 # Backend binary
-COPY --from=backend-builder /build/target/release/recurrency-backend /usr/local/bin/recurrency-backend
+COPY --from=backend-builder /build/recurrency-backend /usr/local/bin/recurrency-backend
 RUN chmod +x /usr/local/bin/recurrency-backend
 
 # Frontend static files
