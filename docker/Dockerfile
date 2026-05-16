@@ -1,7 +1,3 @@
-# ── Recurrency All-in-One ──────────────────────────────────
-# Single image: PostgreSQL + Backend + Frontend (nginx)
-# Build targets: backend binary + frontend static files
-
 # ── Backend builder ──────────────────────────────────────
 FROM rust:1-bookworm AS backend-builder
 
@@ -17,42 +13,33 @@ COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY VERSION /build/VERSION
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN cargo build --release -p recurrency-api -j 4 2>/dev/null || true
-RUN rm -rf backend/src frontend/src
+RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-api -j 4 2>/dev/null || true
 
 COPY backend/ ./backend/
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
+RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
 
 # ── Frontend builder ─────────────────────────────────────
-FROM ubuntu:24.04 AS frontend-builder
+FROM rust:1-bookworm AS frontend-builder
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
-ENV RUSTFLAGS="-C target-cpu=generic" \
-    DEBIAN_FRONTEND=noninteractive
-
-RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl pkg-config libssl-dev ca-certificates npm && break || sleep 5; done && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-RUN curl -L --proto '=https' --tlsv1.2 -sSf \
-    https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
-    cargo binstall dioxus-cli --no-confirm && \
-    rustup target add wasm32-unknown-unknown
+ENV RUSTFLAGS="-C target-cpu=generic"
 
 WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev npm && \
+    rm -rf /var/lib/apt/lists/* && \
+    rustup target add wasm32-unknown-unknown && \
+    curl -L https://github.com/DioxusLabs/dioxus/releases/download/v0.7.9/dx-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/dx
 
 COPY Cargo.toml Cargo.lock* ./
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
-RUN cargo build --target wasm32-unknown-unknown -p recurrency --features web --release 2>/dev/null || true
-RUN rm -rf frontend/src backend/src
+RUN --mount=type=cache,target=/build/target cargo build --target wasm32-unknown-unknown -p recurrency --features web --release 2>/dev/null || true
 
 COPY frontend/ ./frontend/
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
@@ -60,14 +47,16 @@ RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN cd frontend && npm install tailwindcss tailwindcss-animate && \
     npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
 
-RUN cd frontend && dx bundle --platform web --release
+RUN cd frontend && dx bundle --platform web --release && \
+    ls -laR dist/ 2>/dev/null; \
+    find dist/ -name 'index.html' -type f 2>/dev/null
 
 # ── All-in-One Runtime ───────────────────────────────────
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install PostgreSQL 15, nginx, and ca-certificates
+# Install PostgreSQL 15, nginx, ca-certificates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-15 \
     nginx \
@@ -82,7 +71,7 @@ RUN chmod +x /usr/local/bin/recurrency-api
 # Frontend static files
 COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html
 
-# Nginx config
+# Nginx config (all-in-one: proxies to localhost:8080)
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 
 # Entrypoint
@@ -94,7 +83,7 @@ RUN mkdir -p /var/lib/postgresql/15/main && chown postgres:postgres /var/lib/pos
 RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql
 
 ENV APP_HOST=0.0.0.0 \
-    APP_PORT=80 \
+    APP_PORT=8080 \
     RUST_LOG=info \
     DATABASE_URL="" \
     JWT_SECRET=change-me-in-production \

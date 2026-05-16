@@ -16,13 +16,12 @@ COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY VERSION /build/VERSION
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN cargo build --release -p recurrency-api -j 4 2>/dev/null || true
-RUN rm -rf backend/src frontend/src
+RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-api -j 4 2>/dev/null || true
 
 # Build backend
 COPY backend/ ./backend/
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
+RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-api -j 4
 
 # ── Runtime ──────────────────────────────────────────────
 FROM debian:bookworm-slim
