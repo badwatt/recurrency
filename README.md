@@ -70,7 +70,7 @@ services:
       retries: 5
 
   backend:
-    image: ghcr.io/alvaro17f/recurrency-api:latest
+    image: ghcr.io/alvaro17f/recurrency-backend:latest
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -86,7 +86,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: ghcr.io/alvaro17f/recurrency-web:latest
+    image: ghcr.io/alvaro17f/recurrency-frontend:latest
     restart: unless-stopped
     ports:
       - "80:80"
