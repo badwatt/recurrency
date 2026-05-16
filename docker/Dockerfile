@@ -27,19 +27,24 @@ RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
 RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-backend -j 4 && cp /build/target/release/recurrency-backend /build/recurrency-backend
 
 # ── Frontend builder ─────────────────────────────────────
-FROM rust:1-bookworm AS frontend-builder
+FROM ubuntu:24.04 AS frontend-builder
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
-ENV RUSTFLAGS="-C target-cpu=generic"
+ENV RUSTFLAGS="-C target-cpu=generic" \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev npm && \
+# Install Rust + system deps + dx CLI
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl pkg-config libssl-dev ca-certificates npm && \
     rm -rf /var/lib/apt/lists/* && \
-    rustup target add wasm32-unknown-unknown && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
     curl -L https://github.com/DioxusLabs/dioxus/releases/download/v0.7.9/dx-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/dx
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 COPY Cargo.toml Cargo.lock* ./
 COPY backend/Cargo.toml backend/Cargo.toml
