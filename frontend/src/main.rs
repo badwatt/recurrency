@@ -113,6 +113,11 @@ fn App() -> Element {
         }
     });
 
+    // Show body after Dioxus renders with stylesheet in DOM — prevents FOUC
+    use_effect(move || {
+        dioxus::document::eval(r#"document.body.style.visibility = 'visible'"#);
+    });
+
     rsx! {
         // Wrapper div uses CSS variables for theme-aware background/text.
         // Pre-wasm loader (index.html) handles initial FOUC prevention.

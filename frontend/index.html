@@ -13,11 +13,6 @@
   <style>
     /* Critical FOUC-prevention: hide body until Tailwind loads */
     body { visibility: hidden; }
-    html.light body, html.dark body, html.mocha body { visibility: visible; }
-    /* Critical inline colors — prevents FOUC before Tailwind CSS loads */
-    html body { background-color: #FAF9F2; color: #212121; font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
-    html.dark body { background-color: #0d0d11; color: #ededed; }
-    html.mocha body { background-color: #1e1e2e; color: #c4d0f0; }
     #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
     ._loader-ring { width: 48px; height: 48px; position: relative; }
     .loader-ring track { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #e5e7eb; }
@@ -68,8 +63,7 @@
         else document.documentElement.classList.add('light');
         window.__recurrency_theme = cls;
         // Set loader bg via inline style (authoritative, no cascade)
-        // Show body once theme is determined
-        document.body.classList.remove('hidden');
+        // Body stays hidden — Dioxus shows it after rendering with CSS
         // Hide pre-WASM loader once Dioxus renders (uses rAF polling)
         (function() {
             function hideLoader() {
