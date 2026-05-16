@@ -57,12 +57,16 @@ FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install PostgreSQL 15, nginx, ca-certificates
+# Prevent services from auto-starting during build
+RUN echo '#!/bin/sh\nexit 101' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-15 \
     nginx \
     ca-certificates \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && nginx -s stop 2>/dev/null || true \
+    && rm -f /etc/nginx/sites-enabled/default
 
 # Backend binary
 COPY --from=backend-builder /build/target/release/recurrency-backend /usr/local/bin/recurrency-backend
@@ -72,7 +76,6 @@ RUN chmod +x /usr/local/bin/recurrency-backend
 COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html
 
 # Nginx config (all-in-one: proxies to localhost:8080)
-RUN rm -f /etc/nginx/sites-enabled/default
 COPY docker/nginx.conf /etc/nginx/sites-available/recurrency
 RUN ln -sf /etc/nginx/sites-available/recurrency /etc/nginx/sites-enabled/recurrency
 
