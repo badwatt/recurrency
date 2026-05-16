@@ -93,7 +93,7 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                 }
             }
         }
-        (AppMode::Offline, false)
+        (AppMode::Offline, true)
     }
 }
 

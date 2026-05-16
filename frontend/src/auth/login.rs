@@ -1,5 +1,6 @@
 #[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
 use crate::api::{auth, client::get_base_url, demo, client::ApiError};
+use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
@@ -23,7 +24,7 @@ pub fn LoginPage() -> Element {
     let needs_setup = false;
 
     #[cfg(not(target_arch = "wasm32"))]
-    let needs_setup = get_base_url() == "http://localhost:8080";
+    let needs_setup = !APP_MODE().mode.is_offline() && get_base_url() == "http://localhost:8080";
 
     // Auto-redirect to Setup if no server configured (native only)
     let nav = navigator();
