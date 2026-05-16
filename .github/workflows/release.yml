@@ -299,9 +299,44 @@ jobs:
             sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
             sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
             grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
-            cd "$APP_DIR"
-            ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
+
+            # Decode release keystore from secrets
+            if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+              echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks"
+              # Add signing config to gradle
+              cat >> "$GRADLE_FILE" << 'GRADLE_EOF'
+
+android.signingConfigs {
+    create("release") {
+        storeFile = file("release.jks")
+        storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+        keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+        keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+    }
+}
+
+android.buildTypes {
+    getByName("release") {
+        signingConfig = signingConfigs.getByName("release")
+        isMinifyEnabled = false
+    }
+    getByName("debug") {
+        signingConfig = signingConfigs.getByName("release")
+    }
+}
+GRADLE_EOF
+              cd "$APP_DIR"
+              ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease || true
+            else
+              cd "$APP_DIR"
+              ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
+            fi
           fi
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Locate APK
         run: |
