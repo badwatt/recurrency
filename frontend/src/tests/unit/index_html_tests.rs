@@ -206,3 +206,27 @@ fn index_html_theme_variables_in_tailwind_src() {
         }
     }
 }
+
+#[test]
+fn index_html_body_must_not_have_hidden_class() {
+    // Tailwind .hidden sets display: none, which would make the entire page
+    // invisible forever since no JS removes the class after the 0d8bb26 fix.
+    let html = include_str!("../../../index.html");
+    let body_tag = html.split("\x3cbody").nth(1).unwrap_or("").split('\x3e').next().unwrap_or("");
+    assert!(
+        !body_tag.contains("hidden"),
+        "<body> must NOT have class='hidden' — Tailwind display:none hides page permanently"
+    );
+}
+
+#[test]
+fn index_html_body_hidden_via_css_visibility() {
+    // Body must be hidden via inline CSS visibility, not display:none class,
+    // so Dioxus use_effect can reveal it by setting style.visibility='visible'.
+    let html = include_str!("../../../index.html");
+    let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
+    assert!(
+        style_section.contains("body { visibility: hidden; }"),
+        "index.html inline style must hide body with visibility:hidden"
+    );
+}
