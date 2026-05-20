@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # Parse --out-dir argument
 OUT_DIR=""
 for arg in "$@"; do
@@ -10,7 +12,7 @@ for arg in "$@"; do
   esac
 done
 
-cd "$(dirname "$0")/../frontend"
+cd "$ROOT/frontend"
 
 # Resolve Java from nix-shell (filter out shell banner)
 JAVA_HOME="$(nix-shell -p jdk17 --run 'echo $JAVA_HOME' 2>/dev/null | grep -E '^/' | head -1)"

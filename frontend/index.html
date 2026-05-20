@@ -13,6 +13,12 @@
   <style>
     /* Critical FOUC-prevention: hide body until Tailwind loads */
     body { visibility: hidden; }
+    /* Pre-wasm-loader must be visible during load despite hidden body */
+    #pre-wasm-loader { visibility: visible !important; }
+    /* Critical: themed background before Tailwind CSS loads — prevents white flash on Android WebView */
+    html, #pre-wasm-loader { background-color: #FAF9F2; color: #212121; }
+    html.dark, html.dark #pre-wasm-loader { background-color: #0d0d11; color: #ededed; }
+    html.mocha, html.mocha #pre-wasm-loader { background-color: #1e1e2e; color: #c4d0f0; }
     #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
     ._loader-ring { width: 48px; height: 48px; position: relative; }
     .loader-ring track { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #e5e7eb; }

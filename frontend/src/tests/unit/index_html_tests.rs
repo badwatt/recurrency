@@ -230,3 +230,39 @@ fn index_html_body_hidden_via_css_visibility() {
         "index.html inline style must hide body with visibility:hidden"
     );
 }
+
+#[test]
+fn index_html_pre_wasm_loader_visible() {
+    // Body hidden via visibility:hidden also hides children.
+    // Loader inside body must override visibility so spinner shows during load.
+    let html = include_str!("../../../index.html");
+    let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
+    assert!(
+        style_section.contains("visibility: visible") && style_section.contains("pre-wasm-loader"),
+        "#pre-wasm-loader must override visibility despite hidden body"
+    );
+}
+
+#[test]
+fn index_html_critical_theming_prevents_android_fouc() {
+    // Android WebView shows default white before CSS loads.
+    // Inline critical background colors on html prevent white flash before Tailwind.
+    let html = include_str!("../../../index.html");
+    let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
+    assert!(
+        style_section.contains("html, #pre-wasm-loader { background-color:"),
+        "index.html must set html background-color inline for light theme"
+    );
+    assert!(
+        style_section.contains("html.dark, html.dark #pre-wasm-loader { background-color:"),
+        "index.html must set html.dark background-color inline"
+    );
+    assert!(
+        style_section.contains("html.mocha, html.mocha #pre-wasm-loader { background-color:"),
+        "index.html must set html.mocha background-color inline"
+    );
+    // Verify exact hex values match Tailwind theme
+    assert!(style_section.contains("#FAF9F2"), "Light theme bg must be #FAF9F2");
+    assert!(style_section.contains("#0d0d11"), "Dark theme bg must be #0d0d11");
+    assert!(style_section.contains("#1e1e2e"), "Mocha theme bg must be #1e1e2e");
+}
