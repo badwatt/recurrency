@@ -48,7 +48,8 @@ export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$ANDROID_NDK_HOME/toolchains/l
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUNNER="echo"
 
 ICON="assets/icons/icon-1024.png"
-VERSION=$(cat ../VERSION | tr -d '\n')
+# Resolve version from workspace Cargo.toml (no VERSION file exists)
+VERSION=$(grep '^version' "$ROOT/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
 APK_NAME="recurrency-${VERSION}-aarch64.apk"
 KEYSTORE="debug.keystore"
 KEY_ALIAS="debug"
@@ -63,11 +64,11 @@ fi
 echo "--- Building Android APK (aarch64) ---"
 # Clean previous Android build to avoid duplicate resource conflicts.
 # Dioxus generates ic_launcher_background.xml, previous builds leave .png residue.
-rm -rf target/dx/recurrency/release/android 2>/dev/null || true
+rm -rf target/dx/recurrency-frontend/release/android 2>/dev/null || true
 dx bundle --platform android --target aarch64-linux-android --release
 
 # Replace icons
-RES_DIR="target/dx/recurrency/release/android/app/app/src/main/res"
+RES_DIR="target/dx/recurrency-frontend/release/android/app/app/src/main/res"
 echo "--- Replacing Android icons ---"
 for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     case $dir in
@@ -79,7 +80,7 @@ for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     esac
     TARGET="$RES_DIR/$dir/ic_launcher.webp"
     if [ -f "$TARGET" ]; then
-        convert "$ICON" -resize ${SIZE}x${SIZE} "$TARGET"
+        magick convert "$ICON" -resize ${SIZE}x${SIZE} "$TARGET"
         echo "  ${SIZE}×${SIZE} icon replaced"
     fi
 done
@@ -92,10 +93,10 @@ mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
 # drawable-v24/ic_launcher_foreground.xml (white vector) shadows our custom PNG on API 24+.
 rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
 rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
-convert "$ICON" -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
+magick convert "$ICON" -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
 echo "--- Generated ic_launcher_foreground.png (432x432 with padding) ---"
 
-convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
+magick convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
 echo "--- Generated ic_launcher_background.png (432x432 solid color) ---"
 
 # Patch adaptive-icon XMLs: solid background + padded foreground
@@ -112,7 +113,7 @@ XMLEOF
         echo "--- Patched $LAUNCHER_XML ---"
     fi
 done
-GRADLE_FILE="target/dx/recurrency/release/android/app/app/build.gradle.kts"
+GRADLE_FILE="target/dx/recurrency-frontend/release/android/app/app/build.gradle.kts"
 if [ -f "$GRADLE_FILE" ]; then
     sed -i 's/extractNativeLibs="false"/extractNativeLibs="true"/g' "$GRADLE_FILE"
     sed -i 's/jvmTarget = "1\.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
@@ -121,7 +122,7 @@ fi
 
 # Reassemble + sign APK
 echo "--- Building signed APK ---"
-cd target/dx/recurrency/release/android/app
+cd target/dx/recurrency-frontend/release/android/app
 ./gradlew clean 2>&1 | tail -1
 if ! ./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1; then
     echo "ERROR: Gradle build failed. Full output above."
@@ -130,9 +131,9 @@ if ! ./gradlew assembleRelease -x lintVitalRelease -x lint 2>&1; then
 fi
 cd -
 
-UNSIGNED=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk/release -name "*-unsigned.apk" | head -1)
+UNSIGNED=$(find target/dx/recurrency-frontend/release/android/app/app/build/outputs/apk/release -name "*-unsigned.apk" | head -1)
 if [ -z "$UNSIGNED" ]; then
-    UNSIGNED=$(find target/dx/recurrency/release/android/app/app/build/outputs/apk -name "*.apk" | head -1)
+    UNSIGNED=$(find target/dx/recurrency-frontend/release/android/app/app/build/outputs/apk -name "*.apk" | head -1)
 fi
 echo "Unsigned APK: $UNSIGNED"
 
