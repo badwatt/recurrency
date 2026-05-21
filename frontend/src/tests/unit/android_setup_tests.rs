@@ -49,6 +49,18 @@ fn test_build_android_script_uses_magick_convert() {
 
 
 
+/// TDD RED: build-android.sh must default output dir to $ROOT/bin/android.
+#[test]
+fn test_build_android_script_defaults_out_dir() {
+    let script = include_str!("../../../../scripts/build-android.sh");
+    assert!(
+        script.contains("if [ -z \"$OUT_DIR\" ]; then") && script.contains("OUT_DIR=\"$ROOT/bin/android\""),
+        "build-android.sh must default OUT_DIR to $ROOT/bin/android when --out-dir absent"
+    );
+}
+
+
+
 /// TDD RED: save_server_url must write server_url.txt on native Android.
 #[test]
 fn test_save_server_url_uses_android_fallback() {

@@ -14,6 +14,11 @@ done
 
 cd "$ROOT/frontend"
 
+# Default output dir when called without --out-dir (e.g. directly)
+if [ -z "$OUT_DIR" ]; then
+    OUT_DIR="$ROOT/bin/android"
+fi
+
 # Resolve Java from nix-shell (filter out shell banner)
 JAVA_HOME="$(nix-shell -p jdk17 --run 'echo $JAVA_HOME' 2>/dev/null | grep -E '^/' | head -1)"
 if [ -z "$JAVA_HOME" ] || [ ! -d "$JAVA_HOME" ]; then
