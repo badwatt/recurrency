@@ -329,8 +329,10 @@ jobs:
               cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug
               exit 0
             }
-            printf '\nandroid.signingConfigs { create("release") { storeFile = file("release.jks"); storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD"); keyAlias = System.getenv("ANDROID_KEY_ALIAS"); keyPassword = System.getenv("ANDROID_KEY_PASSWORD") } }\n' >> "$GRADLE_FILE"
-            sed -i '/buildTypes {/a\        release { signingConfig signingConfigs.release }' "$GRADLE_FILE"
+            # Insert signing config inside existing android block
+            sed -i '/android {/a\    signingConfigs {\n        create("release") {\n            storeFile = file("release.jks")\n            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")\n            keyAlias = System.getenv("ANDROID_KEY_ALIAS")\n            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")\n        }\n    }' "$GRADLE_FILE"
+            # Assign release signing config to buildTypes
+            sed -i '/buildTypes {/a\        release { signingConfig = signingConfigs.getByName("release") }' "$GRADLE_FILE"
             cd "$APP_DIR" && ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease
           else
             cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug
