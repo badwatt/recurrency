@@ -44,8 +44,12 @@ impl PreferencesState {
     }
 
     pub fn set_theme(&mut self, theme: String) {
-        self.preferences.theme = theme.clone();
-        self.persist_theme(&theme);
+        // Only accept valid themes; reject unknown values (e.g. "system")
+        let valid = ["light", "dark", "mocha"];
+        if valid.contains(&theme.as_str()) {
+            self.preferences.theme = theme.clone();
+            self.persist_theme(&theme);
+        }
     }
 
     pub fn set_subscriptions_view(&mut self, view: String) {
@@ -118,7 +122,7 @@ mod tests {
     #[test]
     fn default_is_system_grid_monday() {
         let state = PreferencesState::default();
-        assert_eq!(state.theme(), "system");
+        assert_eq!(state.theme(), "mocha");
         assert_eq!(state.subscriptions_view(), "grid");
         assert_eq!(state.first_day_of_week(), "monday");
     }
@@ -205,8 +209,9 @@ mod tests {
         assert_eq!(state.theme(), "light");
         state.set_theme("dark".into());
         assert_eq!(state.theme(), "dark");
+        // "system" is rejected — theme stays "dark"
         state.set_theme("system".into());
-        assert_eq!(state.theme(), "system");
+        assert_eq!(state.theme(), "dark");
     }
 
     #[test]
@@ -272,7 +277,7 @@ mod tests {
     #[test]
     fn preferences_state_theme_cycle() {
         let mut state = PreferencesState::default();
-        assert_eq!(state.theme(), "system");
+        assert_eq!(state.theme(), "mocha");
         state.set_theme("light".into());
         assert_eq!(state.theme(), "light");
         state.set_theme("dark".into());
@@ -280,7 +285,7 @@ mod tests {
         state.set_theme("mocha".into());
         assert_eq!(state.theme(), "mocha");
         state.set_theme("system".into());
-        assert_eq!(state.theme(), "system");
+        assert_eq!(state.theme(), "mocha");
     }
 
     #[test]
@@ -294,7 +299,7 @@ mod tests {
     #[test]
     fn preferences_response_default_values() {
         let resp = PreferencesResponse::default();
-        assert_eq!(resp.theme, "system");
+        assert_eq!(resp.theme, "mocha");
         assert_eq!(resp.subscriptions_view, "grid");
         assert_eq!(resp.first_day_of_week, "monday");
     }

@@ -11,11 +11,14 @@ fn cabinet_grotesk_is_sans_font_family() {
 
 #[test]
 fn font_import_in_tailwind_src() {
-    let css = include_str!("../../../assets/styles/tailwind.src.css");
-    assert!(
-        css.contains("Cabinet+Grotesk"),
-        "tailwind.src.css must import Cabinet Grotesk from Google Fonts"
-    );
+    // Fonts are self-hosted via Dioxus assets (frontend/assets/fonts/).
+    // No Google Fonts @import — eliminates external CDN dependency.
+    let fonts_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts");
+    assert!(fonts_dir.exists(), "assets/fonts directory must exist");
+    let woff2_count = std::fs::read_dir(&fonts_dir)
+        .map(|entries| entries.filter(|e| e.as_ref().unwrap().path().extension().map_or(false, |ext| ext == "woff2")).count())
+        .unwrap_or(0);
+    assert!(woff2_count >= 2, "Must have at least 2 woff2 font files, found {}", woff2_count);
 }
 
 #[test]

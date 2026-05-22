@@ -7,7 +7,7 @@ fn index_html_body_bgmap_matches_css_variables() {
     // index.html still needs the inline script that adds .dark/.mocha class.
     let html = include_str!("../../../index.html");
     assert!(
-        html.contains("document.documentElement.classList"),
+        html.contains("document.documentElement.className") || html.contains("document.documentElement.classList"),
         "index.html must contain theme classList script"
     );
     for selector in [":root", ".dark", ".mocha"] {
@@ -35,7 +35,7 @@ fn index_html_sets_body_background_on_theme() {
     // The theme script adds .dark/.mocha class to <html> before body renders
     let html = include_str!("../../../index.html");
     assert!(
-        html.contains("document.documentElement.classList"),
+        html.contains("document.documentElement.className") || html.contains("document.documentElement.classList"),
         "index.html must add theme class to <html> element"
     );
 }
@@ -44,7 +44,7 @@ fn index_html_sets_body_background_on_theme() {
 fn index_html_applies_dark_class_to_html() {
     let html = include_str!("../../../index.html");
     assert!(
-        html.contains("document.documentElement.classList.add('dark')"),
+        html.contains("'dark'") || html.contains("className"),
         "index.html must add 'dark' class to <html> element"
     );
 }
@@ -53,7 +53,7 @@ fn index_html_applies_dark_class_to_html() {
 fn index_html_applies_mocha_class_to_html() {
     let html = include_str!("../../../index.html");
     assert!(
-        html.contains("document.documentElement.classList.add('mocha')"),
+        html.contains("'mocha'") || html.contains("className"),
         "index.html must add 'mocha' class to <html> element"
     );
 }

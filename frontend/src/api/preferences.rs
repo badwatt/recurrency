@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn preferences_response_default() {
         let prefs = PreferencesResponse::default();
-        assert_eq!(prefs.theme, "system");
+        assert_eq!(prefs.theme, "mocha");
         assert_eq!(prefs.subscriptions_view, "grid");
         assert_eq!(prefs.first_day_of_week, "monday");
     }
