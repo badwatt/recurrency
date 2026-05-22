@@ -16,14 +16,24 @@ permissions:
   packages: write
 
 jobs:
+  # ── Cleanup: Delete old artifacts to free up storage ─────
+  cleanup-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: geekyeggo/delete-artifact@v6
+        with:
+          name: |
+            docker-*
+            build-*
+          failOnError: false
+
   # ── Prepare: extract version from workspace Cargo.toml ────
   prepare:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Get version
         id: version
@@ -56,23 +66,27 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Install system deps (minimal)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libssl-dev >/dev/null 2>&1
 
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2
         with:
           workspaces: backend
           cache-on-failure: true
+          cache-all-crates: true
 
-      - name: Clippy + test
+      - name: Clippy + test (parallel)
         env:
           DATABASE_URL: postgres://recurrency:recurrency@localhost:5432/recurrency_test
           JWT_SECRET: test-jwt-secret-key
+          CARGO_BUILD_JOBS: 4
         run: |
           cd backend
-          cargo clippy --lib -- -D warnings
-          cargo test --lib
+          cargo clippy --lib --jobs 4 -- -D warnings
+          cargo test --lib --jobs 4
 
   # ── Frontend: lint + test ──────────────────────────────────
   test-frontend:
@@ -87,11 +101,10 @@ jobs:
           targets: wasm32-unknown-unknown
           components: clippy
 
-      - name: Install nightly clippy
-        run: rustup component add clippy --toolchain nightly-x86_64-unknown-linux-gnu
-
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Install system deps (minimal)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libssl-dev >/dev/null 2>&1
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -101,29 +114,31 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build Tailwind CSS
-        run: cd frontend && npm ci && npm run build:css
+        run: cd frontend && npm ci --silent && npm run build:css
 
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2
         with:
           workspaces: frontend
           cache-on-failure: true
+          cache-all-crates: true
 
-      - name: Clippy + test
+      - name: Clippy + test (parallel)
+        env:
+          CARGO_BUILD_JOBS: 4
         run: |
           cd frontend
-          cargo clippy --lib -- -D warnings
-          cargo test --lib -- --test-threads=1
+          cargo clippy --lib --jobs 4 -- -D warnings
+          cargo test --lib --jobs 4
 
-  # ── Build Docker images + create release ──────────────────
+  # ─��� Build Docker images + create release ──────────────────
   docker:
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ needs.prepare.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -198,8 +213,7 @@ jobs:
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -207,12 +221,13 @@ jobs:
           toolchain: stable
           targets: aarch64-linux-android
 
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev imagemagick
+      - name: Install system deps (minimal)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libssl-dev imagemagick >/dev/null 2>&1
 
       - name: Install Android NDK
         uses: nttld/setup-ndk@v1
-        id: ndk
         with:
           ndk-version: r27
           add-to-path: true
@@ -229,9 +244,6 @@ jobs:
         with:
           tool: dioxus-cli@${{ env.DX_VERSION }}
 
-      - name: Verify dx CLI
-        run: which dx && dx --version
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -240,111 +252,100 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build Tailwind CSS
-        run: cd frontend && npm ci && npm run build:css
+        run: cd frontend && npm ci --silent && npm run build:css
 
-      - name: Ensure icon exists
-        run: |
-          if [ ! -f frontend/assets/icon.png ]; then
-            convert -size 512x512 xc:#0ea5e9 frontend/assets/icon.png
-          fi
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend
+          cache-on-failure: true
+          cache-all-crates: true
 
-      - name: Build Android APK (aarch64 debug)
+      - name: Build Android APK (aarch64)
+        env:
+          CARGO_BUILD_JOBS: 4
+          RUST_BACKTRACE: 1
         run: cd frontend && dx bundle --platform android --target aarch64-linux-android
 
-      - name: Replace Android icons with app logo
+      - name: Setup icons and patch Android build
         run: |
+          set -e
           cd frontend
-          RES_DIR=$(find target/dx -name 'ic_launcher.webp' -path '*/mipmap-hdpi/*' -exec dirname {} \; | head -1 | xargs dirname)
-          if [ -z "$RES_DIR" ]; then
-            echo "Warning: Could not find Android res directory, skipping icon replacement"
-            exit 0
+
+          # Find manifest
+          MANIFEST=$(find target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' 2>/dev/null | head -1)
+          if [ -z "$MANIFEST" ]; then
+            echo "ERROR: AndroidManifest.xml not found"
+            exit 1
           fi
-          echo "Found Android res directory: $RES_DIR"
-          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            case $dir in
-              mipmap-mdpi)     SIZE=48 ;;
-              mipmap-hdpi)     SIZE=72 ;;
-              mipmap-xhdpi)   SIZE=96 ;;
-              mipmap-xxhdpi)  SIZE=144 ;;
-              mipmap-xxxhdpi) SIZE=192 ;;
-            esac
-            TARGET="$RES_DIR/$dir/ic_launcher.webp"
-            if [ -f "$TARGET" ]; then
-              convert assets/icons/icon-1024.png -resize ${SIZE}x${SIZE} "$TARGET"
-              echo "Replaced $TARGET with ${SIZE}x${SIZE} icon"
-            fi
-          done
-          mkdir -p "$RES_DIR/drawable"
-          rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
-          rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
-          convert assets/icons/icon-1024.png -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
-          convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
-          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
-            if [ -f "$LAUNCHER_XML" ]; then
-              printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '  <background android:drawable="@drawable/ic_launcher_background"/>' '  <foreground android:drawable="@drawable/ic_launcher_foreground"/>' '</adaptive-icon>' > "$LAUNCHER_XML"
-              echo "Replaced $LAUNCHER_XML"
-            fi
+
+          ANDROID_DIR=$(dirname "$MANIFEST")
+          APP_DIR=$(dirname $(dirname $(dirname "$ANDROID_DIR")))
+          RES_DIR="$APP_DIR/src/main/res"
+          GRADLE_FILE="$APP_DIR/build.gradle.kts"
+
+          # Verify icon exists
+          if [ ! -f "assets/icons/icon-1024.png" ]; then
+            echo "ERROR: assets/icons/icon-1024.png not found"
+            exit 1
+          fi
+
+          # Replace icons in one pass (optimized)
+          for size_px in 48:mdpi 72:hdpi 96:xhdpi 144:xxhdpi 192:xxxhdpi; do
+            size="${size_px%%:*}"
+            dpi="${size_px##*:}"
+            mkdir -p "$RES_DIR/mipmap-$dpi"
+            convert assets/icons/icon-1024.png -resize ${size}x${size} "$RES_DIR/mipmap-$dpi/ic_launcher.png"
           done
 
-      - name: Patch Android build files (Dioxus #5251)
-        run: |
-          cd frontend
-          ANDROID_DIR=$(find target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' -exec dirname {} \; | head -1)
-          if [ -n "$ANDROID_DIR" ]; then
-            APP_DIR=$(dirname $(dirname $(dirname "$ANDROID_DIR")))
-            GRADLE_FILE="$APP_DIR/build.gradle.kts"
-            MANIFEST="$ANDROID_DIR/AndroidManifest.xml"
-            sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
-            # Fix app name: crate name recurrency-frontend → Recurrency
-            sed -i 's/android:label="recurrency-frontend"/android:label="Recurrency"/g' "$MANIFEST"
-            sed -i 's/android:label="RecurrencyFrontend"/android:label="Recurrency"/g' "$MANIFEST"
-            sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
-            sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-            grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
+          # Patch manifest and gradle
+          sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
+          sed -i 's/android:label="recurrency-frontend"/android:label="Recurrency"/g' "$MANIFEST"
+          sed -i 's/android:label="RecurrencyFrontend"/android:label="Recurrency"/g' "$MANIFEST"
+          sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
+          sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
+          grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
 
-            # Decode release keystore from secrets
-            if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-              echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null || {
-                echo "WARNING: Failed to decode keystore, falling back to debug build"
-                cd "$APP_DIR"
-                ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
-                exit 0
-              }
-              # Add signing config to gradle
-              printf '\nandroid.signingConfigs {\n    create("release") {\n        storeFile = file("release.jks")\n        storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")\n        keyAlias = System.getenv("ANDROID_KEY_ALIAS")\n        keyPassword = System.getenv("ANDROID_KEY_PASSWORD")\n    }\n}\n\nandroid.buildTypes {\n    getByName("release") {\n        signingConfig = signingConfigs.getByName("release")\n        isMinifyEnabled = false\n    }\n    getByName("debug") {\n        signingConfig = signingConfigs.getByName("release")\n    }\n}\n' >> "$GRADLE_FILE"
-              cd "$APP_DIR"
-              ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease || true
-            else
-              cd "$APP_DIR"
-              ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug || true
-            fi
-          fi
+      - name: Build APK
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
-      - name: Locate APK
         run: |
-          echo "Searching for APK..."
-          find frontend/target/dx frontend/bin -name '*.apk' -type f 2>/dev/null || true
-          APK=$(find frontend/target/dx frontend/bin -name '*.apk' -type f 2>/dev/null | head -1)
-          if [ -z "$APK" ]; then
-            APK=$(find . -name '*.apk' -type f -not -path './bin/android/*' 2>/dev/null | head -1)
+          set -e
+          cd frontend
+
+          APP_DIR=$(find target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' -exec dirname {} \; 2>/dev/null | head -1)
+          APP_DIR=$(dirname $(dirname $(dirname "$APP_DIR")))
+          GRADLE_FILE="$APP_DIR/build.gradle.kts"
+
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null || {
+              echo "WARNING: Failed to decode keystore, building debug APK"
+              cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug
+              exit 0
+            }
+            printf '\nandroid.signingConfigs { create("release") { storeFile = file("release.jks"); storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD"); keyAlias = System.getenv("ANDROID_KEY_ALIAS"); keyPassword = System.getenv("ANDROID_KEY_PASSWORD") } }\n' >> "$GRADLE_FILE"
+            sed -i '/buildTypes {/a\        release { signingConfig signingConfigs.release }' "$GRADLE_FILE"
+            cd "$APP_DIR" && ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease
+          else
+            cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug
           fi
+
+      - name: Upload APK to Release
+        run: |
+          APK=$(find frontend/target/dx . -name '*.apk' -type f 2>/dev/null | head -1)
           if [ -z "$APK" ]; then
-            echo "FATAL: No APK found"
+            echo "ERROR: No APK found"
             exit 1
           fi
-          echo "Found APK: $APK"
           mkdir -p bin/android
           APK_NAME="recurrency-${{ needs.prepare.outputs.version }}-aarch64.apk"
           cp "$APK" "bin/android/$APK_NAME"
-          ls -la "bin/android/$APK_NAME"
+          ls -lh "bin/android/$APK_NAME"
 
-      - name: Upload APK to Release
+      - name: Release APK
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
