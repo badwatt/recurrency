@@ -99,10 +99,10 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
         with:
           targets: wasm32-unknown-unknown
-          components: clippy
+          components: clippy, rustfmt
 
       - name: Install system deps (minimal)
         run: |
