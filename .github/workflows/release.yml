@@ -66,6 +66,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install nightly clippy
+        run: rustup component add clippy --toolchain nightly-x86_64-unknown-linux-gnu
+
       - name: Install system deps (minimal)
         run: |
           sudo apt-get update -qq
