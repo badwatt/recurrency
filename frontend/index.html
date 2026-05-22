@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark mocha">
 
 <head>
   <meta charset="UTF-8" />
@@ -9,26 +9,26 @@
   <meta property="og:description" content="Subscription & expense tracker. Treat every expense like a subscription." />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="theme-color" content="#FAF9F2" />
+  <meta name="theme-color" content="#1e1e2e" />
   <style>
-    /* Critical FOUC-prevention: hide body until Tailwind loads */
+    /* Critical FOUC-prevention: hide body until Dioxus renders */
     body { visibility: hidden; }
     /* Pre-wasm-loader must be visible during load despite hidden body */
     #pre-wasm-loader { visibility: visible !important; }
-    /* Critical: themed background before Tailwind CSS loads — prevents white flash on Android WebView */
-    html, #pre-wasm-loader { background-color: #FAF9F2; color: #212121; }
+    /* Theme backgrounds — matches :root CSS vars for each theme */
+    html, #pre-wasm-loader { background-color: #1e1e2e; color: #cdd6f4; }
+    html.light, html.light #pre-wasm-loader { background-color: #FAF9F2; color: #212121; }
     html.dark, html.dark #pre-wasm-loader { background-color: #0d0d11; color: #ededed; }
-    html.mocha, html.mocha #pre-wasm-loader { background-color: #1e1e2e; color: #c4d0f0; }
-    #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
+    html.mocha, html.mocha #pre-wasm-loader { background-color: #1e1e2e; color: #cdd6f4; }
+    #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
     ._loader-ring { width: 48px; height: 48px; position: relative; }
-    .loader-ring track { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #e5e7eb; }
-    html.dark .loader-ring track, html.mocha .loader-ring track { border-color: #374151; }
+    .loader-ring track { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #3b4261; }
     .loader-ring arc { position: absolute; inset: 0; border-radius: 50%; border: 2px solid transparent; border-top-color: #6366f1; animation: loader-spin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
     .loader-ring arc:nth-child(3) { inset: 6px; border-top-color: #818cf8; animation-duration: 1.4s; animation-direction: reverse; }
     @keyframes loader-spin { to { transform: rotate(360deg); } }
-    .loader-brand { margin-top: 24px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #111827; }
-    html.dark .loader-brand, html.mocha .loader-brand { color: #f9fafb; }
-    .loader-tagline { margin-top: 6px; font-size: 13px; color: #9ca3af; }
+    .loader-brand { margin-top: 24px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #cdd6f4; }
+    html.light .loader-brand { color: #212121; }
+    .loader-tagline { margin-top: 6px; font-size: 13px; color: #a6adc8; }
     .loader-dots { display: inline-block; }
     .loader-dots span { animation: loader-dot 1.2s infinite; opacity: 0; }
     .loader-dots span:nth-child(1) { animation-delay: 0s; }
@@ -37,6 +37,14 @@
     @keyframes loader-dot { 0%, 60%, 100% { opacity: 0; } 30% { opacity: 1; } }
   </style>
   <noscript><style>body{visibility:visible!important}</style></noscript>
+  <script>
+    // Safety net: if WASM fails or takes >15s, show body anyway
+    setTimeout(function(){
+      if(document.body.style.visibility === 'hidden' || getComputedStyle(document.body).visibility === 'hidden') {
+        document.body.style.visibility = 'visible';
+      }
+    }, 15000);
+  </script>
   <title>Recurrency</title>
 </head>
 
@@ -52,42 +60,23 @@
   </div>
   <div id="main"></div>
   <script>
-    // Set loader background immediately after body exists.
-    // This runs synchronously before any rendering, so inline style
-    // overrides the CSS default (no cascade delay).
+    // Set theme class on <html> — prevents flash of wrong theme.
+    // Mocha is default. Always add 'dark' for Tailwind dark: utilities.
     (function () {
       try {
         var stored = localStorage.getItem('recurrency-theme');
-        var theme = stored || 'system';
-        var cls = 'light';
+        var theme = stored || 'mocha';
+        var cls = 'mocha';
         if (theme === 'dark') cls = 'dark';
+        else if (theme === 'light') cls = 'light';
         else if (theme === 'mocha') cls = 'mocha';
-        else if (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) cls = 'dark';
-        // Add theme class to html
-        if (cls === 'dark') document.documentElement.classList.add('dark');
-        else if (cls === 'mocha') document.documentElement.classList.add('mocha');
-        else document.documentElement.classList.add('light');
-        window.__recurrency_theme = cls;
-        // Set loader bg via inline style (authoritative, no cascade)
-        // Body stays hidden — Dioxus shows it after rendering with CSS
-        // Hide pre-WASM loader once Dioxus renders (uses rAF polling)
-        (function() {
-            function hideLoader() {
-                var loader = document.getElementById('pre-wasm-loader');
-                var main = document.getElementById('main');
-                if (loader && (main.children.length > 0 || loader.style.display === 'none')) {
-                    loader.style.display = 'none';
-                    return;
-                }
-                requestAnimationFrame(hideLoader);
-            }
-            requestAnimationFrame(hideLoader);
-        })();
-        // Update meta theme-color
+        else if (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) cls = 'mocha';
+        else if (theme === 'system') cls = 'light';
+        var extra = cls === 'light' ? '' : ' dark';
+        document.documentElement.className = cls + extra;
+        var colors = { light: '#FAF9F2', dark: '#0d0d11', mocha: '#1e1e2e' };
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) {
-          meta.content = cls === 'dark' ? '#0d0d11' : cls === 'mocha' ? '#1e1e2e' : '#FAF9F2';
-        }
+        if (meta) meta.content = colors[cls] || colors.mocha;
       } catch (e) { }
     })();
   </script>

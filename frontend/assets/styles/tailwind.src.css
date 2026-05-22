@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;600;700;800&display=swap');
+/* Fonts loaded via Dioxus assets in App component — eliminates @import chain that blocked CSS on Android */
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +6,31 @@
 
 @layer base {
   :root {
+    --background: 240 21% 15%;
+    --foreground: 226 64% 88%;
+    --card: 240 21% 12%;
+    --card-foreground: 226 64% 88%;
+    --popover: 240 21% 12%;
+    --popover-foreground: 226 64% 88%;
+    --primary: 232 97% 85%;
+    --primary-foreground: 240 23% 9%;
+    --secondary: 234 13% 31%;
+    --secondary-foreground: 226 64% 88%;
+    --muted: 234 13% 31%;
+    --muted-foreground: 228 17% 64%;
+    --accent: 237 16% 23%;
+    --accent-foreground: 226 64% 88%;
+    --destructive: 343 81% 75%;
+    --destructive-foreground: 226 64% 88%;
+    --border: 234 13% 31%;
+    --input: 234 13% 31%;
+    --ring: 232 97% 85%;
+    --radius: 0.5rem;
+    --loader-bg: #1e1e2e;
+    --loader-fg: #fff;
+  }
+
+  html.light {
     --background: 53 44% 96%;
     --foreground: 0 0% 13%;
     --card: 0 0% 100%;
@@ -25,12 +50,11 @@
     --border: 0 0% 87%;
     --input: 0 0% 87%;
     --ring: 0 0% 13%;
-    --radius: 0.5rem;
     --loader-bg: #FAF9F2;
     --loader-fg: #202020;
   }
 
-  .dark {
+  html.dark {
     --background: 255 15% 5%;
     --foreground: 0 0% 93%;
     --card: 255 15% 8%;
@@ -54,7 +78,7 @@
     --loader-fg: #fff;
   }
 
-  .mocha {
+  html.mocha {
     --background: 240 21% 15%;
     --foreground: 226 64% 88%;
     --card: 240 21% 12%;
@@ -77,10 +101,6 @@
     --loader-bg: #1e1e2e;
     --loader-fg: #fff;
   }
-}
-
-html:not(.dark):not(.mocha) {
-  /* light mode is default, no class needed */
 }
 
 @layer base {

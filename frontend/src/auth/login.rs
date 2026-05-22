@@ -258,7 +258,7 @@ pub fn LoginPage() -> Element {
                         div {
                             class: "flex-1",
                             p { class: "text-sm font-medium", "Using default server URL" }
-                            p { class: "text-xs text-amber-600 mt-1", "localhost:8080 — Configure your server URL in Settings if connecting to a remote server." }
+                            p { class: "text-xs text-amber-600 mt-1", "Configure your server URL to connect to a remote server." }
                         }
                     }
                 }

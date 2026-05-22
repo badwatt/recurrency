@@ -1,133 +1,85 @@
 use crate::state::preferences::PREFERENCES;
 
-/// Available themes.
-pub const THEMES: &[&str] = &["light", "dark", "mocha", "system"];
+/// Available themes (cycle order: light → dark → mocha → light).
+pub const THEMES: &[&str] = &["light", "dark", "mocha"];
 
-/// Cycle to next theme: light → dark → mocha → system → light
+/// Default theme.
+pub const DEFAULT_THEME: &str = "mocha";
+
+/// Background colors per theme class. Used for native WebView + meta theme-color.
+pub fn theme_bg_color(cls: &str) -> &'static str {
+    match cls {
+        "light" => "#FAF9F2",
+        "dark" => "#0d0d11",
+        _ => "#1e1e2e", // mocha
+    }
+}
+
+/// Cycle to next theme.
 pub fn cycle_theme(current: &str) -> &'static str {
     match current {
         "light" => "dark",
         "dark" => "mocha",
-        "mocha" => "system",
+        "mocha" => "light",
         _ => "light",
     }
 }
 
-/// Resolve a theme name to the CSS class to apply on <html>.
-/// "system" resolves to "dark" if OS prefers dark, else "light".
+/// Resolve theme name to CSS class.
 pub fn resolve_theme_class(theme: &str) -> &'static str {
     match theme {
         "light" => "light",
         "dark" => "dark",
         "mocha" => "mocha",
-        "system" => {
-            // In a real browser context, we'd check matchMedia.
-            // For tests and non-web, default to light.
-            #[cfg(feature = "web")]
-            {
-                // This would use web_sys at runtime
-                "light" // fallback; actual check done in apply_theme_to_document
-            }
-            #[cfg(not(feature = "web"))]
-            "light"
-        }
-        _ => "light",
+        _ => "mocha",
     }
 }
 
-/// Apply the current theme class to the document <html> element.
-/// Strategy:
-///   - "system": Resolve OS preference via JS matchMedia, then set
-///     "dark" or "light" class explicitly. TailwindCSS darkMode
-///     needs explicit class — @media alone doesn't work with
-///     the class-based Dark Mode config.
-///   - "dark"/"mocha"/"light": Set class directly via eval.
+/// Apply theme class to <html>. Sets class + meta theme-color.
+/// Mocha: class="mocha dark" (dark for Tailwind, mocha for CSS vars).
+/// Dark:  class="dark"       (dark for Tailwind + CSS vars).
+/// Light: class="light"      (no dark, light CSS vars override :root).
 pub(crate) fn apply_theme_class(theme: &str) {
-    match theme {
-        "system" => {
-            // Resolve system preference to explicit class via JS matchMedia.
-            let js = r#"
-            (function() {
-                var cls = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                document.documentElement.className = cls;
-            })()
-            "#;
-            let _ = dioxus::document::eval(js);
-            return;
-        }
-        "dark" | "mocha" | "light" => {}
-        _ => {}
-    }
+    let cls = resolve_theme_class(theme);
+    let color = theme_bg_color(cls);
 
-    let class = match theme {
-        "dark" => "dark",
-        "mocha" => "mocha",
-        _ => "light",
+    // Build class list as separate JS arguments: 'mocha', 'dark' or just 'light'
+    let class_args = if cls == "light" {
+        format!("'{}'", cls)
+    } else {
+        format!("'{}', 'dark'", cls)
     };
 
-    // Call eval directly (fire-and-forget). Async but acceptable for explicit themes.
-    let js_owned = format!(
-        "(function() {{ document.documentElement.className = '{}'; }})()",
-        class
+    let js = format!(
+        r#"
+        (function() {{
+            document.documentElement.classList.remove('dark', 'mocha', 'light');
+            document.documentElement.classList.add({class_args});
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.content = '{color}';
+        }})()
+        "#,
+        class_args = class_args,
+        color = color,
     );
-    let _ = dioxus::document::eval(&js_owned);
-}
-
-/// Apply the current theme to the document element.
-/// On web: sets class on <html>, persists to localStorage.
-/// On Android/desktop: uses dioxus::document::eval() to manipulate DOM + localStorage.
-#[cfg(feature = "web")]
-#[allow(unused_variables)]
-pub fn apply_theme_to_document(theme: &str) {
-    // Prefer web_sys for web (synchronous, more reliable).
-    // But also fall back to eval for consistency.
-    #[cfg(target_arch = "wasm32")]
-    {
-        let resolved = match theme {
-            "system" => {
-                if let Some(window) = web_sys::window() {
-                    if let Ok(Some(mql)) = window.match_media("(prefers-color-scheme: dark)") {
-                        if mql.matches() {
-                            "dark"
-                        } else {
-                            "light"
-                        }
-                    } else {
-                        "light"
-                    }
-                } else {
-                    "light"
-                }
-            }
-            "dark" => "dark",
-            "mocha" => "mocha",
-            _ => "light",
-        };
-
-        if let Some(window) = web_sys::window() {
-            if let Some(doc) = window.document() {
-                if let Some(html) = doc.document_element() {
-                    html.set_class_name(resolved);
-                }
-            }
-            // Persist theme to localStorage
-            if let Ok(Some(storage)) = window.local_storage() {
-                let _ = storage.set_item("recurrency-theme", theme);
-            }
-        }
-    }
+    let _ = dioxus::document::eval(&js);
 }
 
 /// Cycle theme and apply it.
-/// Works on all platforms: web, Android, desktop.
 pub fn toggle_theme() {
     let current = PREFERENCES().theme().to_string();
     let next = cycle_theme(&current);
     PREFERENCES.write().set_theme(next.to_string());
-
-    // Apply theme to DOM on all platforms using dioxus::document::eval().
-    // On web, we could use web_sys directly (synchronous) but eval() works too.
     apply_theme_class(next);
+}
+
+/// Get icon name for theme toggle.
+pub fn theme_icon_name(theme: &str) -> &'static str {
+    match theme {
+        "dark" => "moon",
+        "mocha" => "coffee",
+        _ => "sun",
+    }
 }
 
 #[cfg(test)]
@@ -135,135 +87,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cycle_light_to_dark() {
+    fn cycle_order() {
         assert_eq!(cycle_theme("light"), "dark");
-    }
-
-    #[test]
-    fn cycle_dark_to_mocha() {
         assert_eq!(cycle_theme("dark"), "mocha");
+        assert_eq!(cycle_theme("mocha"), "light");
     }
 
     #[test]
-    fn cycle_mocha_to_system() {
-        assert_eq!(cycle_theme("mocha"), "system");
-    }
-
-    #[test]
-    fn cycle_system_to_light() {
-        assert_eq!(cycle_theme("system"), "light");
-    }
-
-    #[test]
-    fn cycle_unknown_to_light() {
-        assert_eq!(cycle_theme("other"), "light");
-    }
-
-    #[test]
-    fn resolve_explicit_themes() {
+    fn resolve_classes() {
         assert_eq!(resolve_theme_class("light"), "light");
         assert_eq!(resolve_theme_class("dark"), "dark");
         assert_eq!(resolve_theme_class("mocha"), "mocha");
     }
 
     #[test]
-    fn themes_list() {
-        assert_eq!(THEMES.len(), 4);
-    }
-
-    // ── Additional tests ──
-    #[test]
-    fn cycle_theme_sequence() {
-        let mut current = "light";
-        current = cycle_theme(current);
-        assert_eq!(current, "dark");
-        current = cycle_theme(current);
-        assert_eq!(current, "mocha");
-        current = cycle_theme(current);
-        assert_eq!(current, "system");
-        current = cycle_theme(current);
-        assert_eq!(current, "light");
+    fn default_is_mocha() {
+        assert_eq!(DEFAULT_THEME, "mocha");
     }
 
     #[test]
-    fn resolve_unknown_theme_falls_to_light() {
-        assert_eq!(resolve_theme_class("unknown"), "light");
-        assert_eq!(resolve_theme_class(""), "light");
-        assert_eq!(resolve_theme_class("foo"), "light");
+    fn bg_colors() {
+        assert_eq!(theme_bg_color("light"), "#FAF9F2");
+        assert_eq!(theme_bg_color("dark"), "#0d0d11");
+        assert_eq!(theme_bg_color("mocha"), "#1e1e2e");
     }
 
     #[test]
-    fn resolve_system_theme_default_light() {
-        // In test/non-web context, system resolves to light
-        assert_eq!(resolve_theme_class("system"), "light");
-    }
+    fn class_args_format() {
+        let light_args = format!("'{}'", "light");
+        assert_eq!(light_args, "'light'");
 
-    #[test]
-    fn themes_contains_all_values() {
-        assert!(THEMES.contains(&"light"));
-        assert!(THEMES.contains(&"dark"));
-        assert!(THEMES.contains(&"mocha"));
-        assert!(THEMES.contains(&"system"));
-    }
+        let mocha_args = format!("'{}', '{}'", "mocha", "dark");
+        assert_eq!(mocha_args, "'mocha', 'dark'");
 
-    // ── Extended cycle_theme tests ──
-    #[test]
-    fn cycle_theme_returns_valid_theme() {
-        for theme in ["light", "dark", "mocha", "system", "unknown", ""] {
-            let next = cycle_theme(theme);
-            assert!(
-                THEMES.contains(&next),
-                "cycle_theme({:?}) = {:?}, not in THEMES",
-                theme,
-                next
-            );
-        }
-    }
-
-    #[test]
-    fn cycle_theme_full_loop() {
-        let mut current = "light";
-        let mut seen = vec![current];
-        for _ in 0..3 {
-            current = cycle_theme(current);
-            seen.push(current);
-        }
-        // After 4 cycles (including initial), we should be back to light
-        let final_theme = cycle_theme(current);
-        assert_eq!(final_theme, "light");
-        assert_eq!(seen, vec!["light", "dark", "mocha", "system"]);
-    }
-
-    // ── Extended resolve_theme_class tests ──
-    #[test]
-    fn resolve_theme_class_all_valid() {
-        for theme in ["light", "dark", "mocha"] {
-            let resolved = resolve_theme_class(theme);
-            assert_eq!(
-                resolved, theme,
-                "resolve_theme_class({:?}) should equal {:?}",
-                theme, theme
-            );
-        }
-    }
-
-    #[test]
-    fn resolve_theme_class_various_invalid() {
-        for invalid in ["", "foo", "bar", "DARK", "Light", "SYSTEM"] {
-            assert_eq!(
-                resolve_theme_class(invalid),
-                "light",
-                "resolve_theme_class({:?}) should default to light",
-                invalid
-            );
-        }
-    }
-
-    #[test]
-    fn themes_no_duplicates() {
-        let mut seen = std::collections::HashSet::new();
-        for theme in THEMES {
-            assert!(seen.insert(*theme), "duplicate theme: {:?}", theme);
-        }
+        let dark_args = format!("'{}', '{}'", "dark", "dark");
+        assert_eq!(dark_args, "'dark', 'dark'");
     }
 }

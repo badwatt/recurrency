@@ -1,4 +1,6 @@
 #![allow(clippy::suspicious_else_formatting)]
+use crate::state::preferences::PREFERENCES;
+use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::api::notifications;
 use crate::components::toast::ToastContainer;
 
@@ -22,8 +24,6 @@ pub fn AppLoader() -> Element {
 use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
-use crate::state::preferences::PREFERENCES;
-use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use dioxus::prelude::*;
 
 /// Icon enum for nav and theme icons.
@@ -49,7 +49,7 @@ pub fn AppLayout() -> Element {
 
     use_future(move || async move {
         let _ = dioxus::document::eval(
-            "document.getElementById('pre-wasm-loader').style.display='none';",
+            "var p=document.getElementById('pre-wasm-loader');if(p)p.style.display='none';",
         );
     });
 
@@ -68,52 +68,19 @@ pub fn AppLayout() -> Element {
         return rsx! { AppLoader {} };
     }
 
-    // Server mode: if not authenticated, check if backend is reachable
-    // If backend unreachable, redirect to Setup to configure URL
-    // Offline mode: skip auth (handled above)
-    #[cfg(not(target_arch = "wasm32"))]
-    if APP_MODE().mode.is_offline() {
-        if !auth.is_authenticated {
-            use crate::models::auth::UserResponse;
-            let local_user = UserResponse {
-                id: uuid::Uuid::nil(),
-                email: "local@recurrency".to_string(),
-                name: Some("Local User".to_string()),
-                currency: "EUR".to_string(),
-                verified: true,
-            };
-            AUTH.write().set_authenticated("offline".to_string(), local_user, false);
-        }
-    } else if !auth.is_authenticated {
+    // If not authenticated, redirect to Login
+    if !auth.is_authenticated {
         let nav = navigator();
         nav.push(crate::Route::Login {});
         return rsx! { div {} };
     }
 
     let current_route: crate::Route = use_route();
-
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
         apply_theme_class(&theme);
     });
 
-    #[cfg(feature = "web")]
-    use_effect(move || {
-        let js = r#"
-        (function() {
-            if (window.__recurrency_system_listener) return;
-            window.__recurrency_system_listener = true;
-            var mql = window.matchMedia('(prefers-color-scheme: dark)');
-            mql.addEventListener('change', function(e) {
-                var stored = localStorage.getItem('recurrency-theme');
-                if (stored === 'system') {
-                    document.documentElement.className = e.matches ? 'dark' : 'light';
-                }
-            });
-        })()
-        "#;
-        let _ = dioxus::document::eval(js);
-    });
 
     // Notification click-outside overlay (at App level, outside backdrop-blur header)
     let mut notif_overlay = use_signal(|| false);
@@ -212,7 +179,7 @@ pub fn AppLayout() -> Element {
                             }
                         }
                     }
-                    // Right: theme toggle + notification bell + settings + logout
+                    // Right: notification bell + settings + logout
                     div { class: "flex items-center gap-1",
                         ThemeToggleButton {}
                         NotificationBell {}
@@ -282,6 +249,12 @@ pub fn AppLayout() -> Element {
                         icon: Icon::Calendar,
                     }
                     MobileTab {
+                        to: crate::Route::Categories {},
+                        label: "Cats".to_string(),
+                        active: matches!(current_route, crate::Route::Categories {}),
+                        icon: Icon::Categories,
+                    }
+                    MobileTab {
                         to: crate::Route::Reports {},
                         label: "Reports".to_string(),
                         active: matches!(current_route, crate::Route::Reports {}),
@@ -335,26 +308,29 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
     }
 }
 
+
 // ── Theme toggle button ──
 #[component]
 fn ThemeToggleButton() -> Element {
     let theme_signal = PREFERENCES();
-
     rsx! {
         button {
             r#type: "button",
             class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
             onclick: move |_| toggle_theme(),
             title: "Toggle theme",
-            {
+            {{
                 let theme = theme_signal.theme().to_string();
-                let (icon, _label) = theme_icon_and_label(&theme);
+                let icon = match theme.as_str() {
+                    "dark" => Icon::Moon,
+                    "mocha" => Icon::Coffee,
+                    _ => Icon::Sun,
+                };
                 rsx! { {svg_icon(icon, 20)} }
-            }
+            }}
         }
     }
 }
-
 // ── Notification bell ──
 #[component]
 fn NotificationBell() -> Element {
@@ -488,17 +464,6 @@ fn LogoIcon() -> Element {
     }
 }
 
-// ── Helper: theme icon and label ──
-pub fn theme_icon_and_label(theme: &str) -> (Icon, &'static str) {
-    match theme {
-        "dark" => (Icon::Moon, "Dark"),
-        "mocha" => (Icon::Coffee, "Mocha"),
-        "system" => (Icon::Monitor, "System"),
-        _ => (Icon::Sun, "Light"),
-    }
-}
-
-// ── Helper: nav link classes ──
 pub fn navlink_class(active: bool) -> &'static str {
     if active {
         "inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-colors"
@@ -793,39 +758,6 @@ mod tests {
         assert_ne!(Icon::Sun as u8, Icon::Moon as u8);
     }
 
-    #[test]
-    fn theme_light_icon_is_sun() {
-        let (icon, label) = theme_icon_and_label("light");
-        assert_eq!(icon, Icon::Sun);
-        assert!(!label.is_empty());
-    }
-
-    #[test]
-    fn theme_dark_icon_is_moon() {
-        let (icon, label) = theme_icon_and_label("dark");
-        assert_eq!(icon, Icon::Moon);
-        assert!(!label.is_empty());
-    }
-
-    #[test]
-    fn theme_mocha_icon_is_coffee() {
-        let (icon, label) = theme_icon_and_label("mocha");
-        assert_eq!(icon, Icon::Coffee);
-        assert!(!label.is_empty());
-    }
-
-    #[test]
-    fn theme_system_icon_is_monitor() {
-        let (icon, label) = theme_icon_and_label("system");
-        assert_eq!(icon, Icon::Monitor);
-        assert!(!label.is_empty());
-    }
-
-    #[test]
-    fn theme_unknown_icon_is_sun() {
-        let (icon, _) = theme_icon_and_label("unknown");
-        assert_eq!(icon, Icon::Sun);
-    }
 
     #[test]
     fn notification_item_unread_has_dot() {

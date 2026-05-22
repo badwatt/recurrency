@@ -34,7 +34,7 @@ pub fn SetupPage() -> Element {
         let current = APP_MODE();
         match &current.mode {
             AppMode::Server(url) if !url.is_empty() => url.clone(),
-            _ => "http://localhost:8080".to_string(),
+            _ => String::new(),
         }
     });
     let mut error = use_signal(String::new);
@@ -328,9 +328,10 @@ mod tests {
     }
 
     #[test]
-    fn setup_page_default_url_is_localhost() {
+    fn setup_page_default_url_is_empty() {
         let src = include_str!("setup.rs");
-        assert!(src.contains("http://localhost:8080"), "Default URL should be localhost:8080");
+        // Default URL should be empty — user must enter their server URL
+        assert!(src.contains("_ => String::new()"), "Default URL should be empty");
     }
 
     #[test]

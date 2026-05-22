@@ -55,6 +55,44 @@ pub enum Route {
 
 const TAILWIND_CSS: Asset = asset!("/assets/styles/tailwind.css", AssetOptions::css().with_static_head(true));
 
+// Self-hosted fonts — registered as Dioxus assets so they're bundled in APK
+// Eliminates @import chain to Google Fonts CDN that caused FOUC on Android
+const CABINET_GROTESK_400: Asset = asset!("/assets/fonts/cabinet-grotesk-400.woff2");
+const CABINET_GROTESK_500: Asset = asset!("/assets/fonts/cabinet-grotesk-500.woff2");
+const CABINET_GROTESK_700: Asset = asset!("/assets/fonts/cabinet-grotesk-700.woff2");
+const CABINET_GROTESK_800: Asset = asset!("/assets/fonts/cabinet-grotesk-800.woff2");
+const JETBRAINS_MONO: Asset = asset!("/assets/fonts/jetbrains-mono-latin.woff2");
+
+/// CSS that hides body until styles load — prevents FOUC.
+/// Mocha default. Theme class applied by apply_theme_class at runtime.
+const FOUC_PREVENTION_CSS: &str = r#"
+body { visibility: hidden; }
+html { background-color: #1e1e2e; color: #c4d0f0; }
+html.light { background-color: #FAF9F2; color: #212121; }
+html.dark { background-color: #0d0d11; color: #ededed; }
+html.mocha { background-color: #1e1e2e; color: #c4d0f0; }
+"#;
+
+/// Generate @font-face CSS using Dioxus-resolved asset URLs.
+/// This avoids hardcoded paths that break in Android APK bundles.
+fn font_face_css() -> String {
+    format!(
+        r#"
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg400}) format('woff2'); font-weight: 400; font-display: swap; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg500}) format('woff2'); font-weight: 500; font-display: swap; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg700}) format('woff2'); font-weight: 600; font-display: swap; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg700}) format('woff2'); font-weight: 700; font-display: swap; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg800}) format('woff2'); font-weight: 800; font-display: swap; font-style: normal; }}
+        @font-face {{ font-family: 'JetBrains Mono'; src: url({jm}) format('woff2'); font-weight: 400 700; font-display: swap; font-style: normal; }}
+        "#,
+        cg400 = CABINET_GROTESK_400,
+        cg500 = CABINET_GROTESK_500,
+        cg700 = CABINET_GROTESK_700,
+        cg800 = CABINET_GROTESK_800,
+        jm = JETBRAINS_MONO,
+    )
+}
+
 
 fn main() {
     dioxus::launch(App);
@@ -113,18 +151,78 @@ fn App() -> Element {
         }
     });
 
-    // Show body after Dioxus renders with stylesheet in DOM — prevents FOUC
+    // Show body only after CSS + fonts are fully applied — prevents FOUC on Android.
+    // Uses link.onload events instead of sheet.cssRules (which throws SecurityError
+    // on Android WebView's custom protocol, causing premature body reveal).
     use_effect(move || {
-        dioxus::document::eval(r#"document.body.style.visibility = 'visible'"#);
+        dioxus::document::eval(r#"
+            (function() {
+                function reveal() {
+                    document.fonts.ready.then(function() {
+                        requestAnimationFrame(function() {
+                            requestAnimationFrame(function() {
+                                document.body.style.setProperty('visibility', 'visible', 'important');
+                                // Remove native Android loader after content visible
+                                var d = document.getElementById('dxloader');
+                                if (d) d.remove();
+                            });
+                        });
+                    });
+                }
+
+                var links = document.querySelectorAll('link[rel="stylesheet"]');
+                if (links.length === 0) {
+                    // No stylesheets yet — poll until one appears
+                    var poll = setInterval(function() {
+                        var l = document.querySelectorAll('link[rel="stylesheet"]');
+                        if (l.length > 0) {
+                            clearInterval(poll);
+                            waitForStylesheets(l);
+                        }
+                    }, 50);
+                    setTimeout(function() { clearInterval(poll); reveal(); }, 3000);
+                    return;
+                }
+                waitForStylesheets(links);
+
+                function waitForStylesheets(links) {
+                    var remaining = links.length;
+                    function done() {
+                        remaining--;
+                        if (remaining <= 0) reveal();
+                    }
+                    for (var i = 0; i < links.length; i++) {
+                        // Check if already loaded (sheet exists and is accessible)
+                        var loaded = false;
+                        try { loaded = links[i].sheet && links[i].sheet.cssRules && links[i].sheet.cssRules.length > 0; } catch(e) { loaded = false; }
+                        if (loaded) {
+                            done();
+                        } else if (links[i].complete) {
+                            done();
+                        } else {
+                            links[i].addEventListener('load', done);
+                            links[i].addEventListener('error', done);
+                        }
+                    }
+                    // Safety: reveal after 3s no matter what
+                    setTimeout(reveal, 3000);
+                }
+            })();
+        "#);
     });
 
     rsx! {
+        // CRITICAL: Hide body until CSS + fonts load — prevents FOUC.
+        // Dioxus mobile ignores index.html, generates minimal HTML with body visible.
+        // This \u003cstyle\u003e in \u003chead\u003e hides body + sets themed background BEFORE any paint.
+        document::Style { {FOUC_PREVENTION_CSS} }
+        // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK
+        document::Style { {font_face_css()} }
+        document::Stylesheet { href: TAILWIND_CSS }
         // Wrapper div uses CSS variables for theme-aware background/text.
-        // Pre-wasm loader (index.html) handles initial FOUC prevention.
         div {
             class: "min-h-dvh bg-background text-foreground",
             style: "font-family:'Cabinet Grotesk',system-ui,-apple-system,sans-serif;",
-            document::Stylesheet { href: TAILWIND_CSS }
             Router::<Route> {}
         }
     }

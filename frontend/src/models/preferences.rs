@@ -11,7 +11,7 @@ pub struct PreferencesResponse {
 impl Default for PreferencesResponse {
     fn default() -> Self {
         Self {
-            theme: "system".into(),
+            theme: "mocha".into(),
             subscriptions_view: "grid".into(),
             first_day_of_week: "monday".into(),
             date_format: "DD/MM/YYYY".into(),
@@ -33,7 +33,7 @@ mod tests {
     #[test]
     fn default_preferences() {
         let prefs = PreferencesResponse::default();
-        assert_eq!(prefs.theme, "system");
+        assert_eq!(prefs.theme, "mocha");
         assert_eq!(prefs.subscriptions_view, "grid");
         assert_eq!(prefs.first_day_of_week, "monday");
         assert_eq!(prefs.date_format, "DD/MM/YYYY");

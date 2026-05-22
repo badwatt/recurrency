@@ -125,6 +125,22 @@ if [ -f "$GRADLE_FILE" ]; then
     echo "--- Patched Gradle: extractNativeLibs=true, jvmTarget=17 ---"
 fi
 
+# Fix app name: Dioxus generates "RecurrencyFrontend" from Cargo crate name.
+# Override to match Dioxus.toml [android] name field.
+STRINGS_XML="target/dx/recurrency-frontend/release/android/app/app/src/main/res/values/strings.xml"
+if [ -f "$STRINGS_XML" ]; then
+    sed -i 's/RecurrencyFrontend/Recurrency/g' "$STRINGS_XML"
+    echo "--- Patched strings.xml: app_name → Recurrency ---"
+fi
+
+# Fix FOUC: set WebView background to mocha + inject native loader via document start script.
+# Uses a Python script to patch RustWebView.kt (sed can't handle complex JS injection).
+WEBVIEW_KT="target/dx/recurrency-frontend/release/android/app/app/src/main/kotlin/dev/dioxus/main/RustWebView.kt"
+if [ -f "$WEBVIEW_KT" ]; then
+    python3 "$ROOT/scripts/patch_webview.py" "$WEBVIEW_KT"
+    echo "--- Patched RustWebView.kt ---"
+fi
+
 # Reassemble + sign APK
 echo "--- Building signed APK ---"
 cd target/dx/recurrency-frontend/release/android/app
