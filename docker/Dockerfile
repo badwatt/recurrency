@@ -131,12 +131,19 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 RUN mkdir -p /var/lib/postgresql/15/main && chown postgres:postgres /var/lib/postgresql/15/main
 RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql
 
+# SECURITY: Use ARG for secrets (only available at build time, not in final image)
+ARG JWT_SECRET=change-me-in-production
+ARG DATABASE_URL=
+ARG ENABLE_DEMO=false
+
+# Environment variables (safe, non-sensitive)
 ENV APP_HOST=0.0.0.0 \
     APP_PORT=8080 \
     RUST_LOG=info \
-    DATABASE_URL="" \
-    JWT_SECRET=change-me-in-production \
-    ENABLE_DEMO=false
+    ENABLE_DEMO=${ENABLE_DEMO}
+
+# Pass secrets as runtime configuration (via entrypoint or volume)
+# Do NOT set JWT_SECRET as ENV - it should come from secrets at runtime
 
 EXPOSE 80
 
