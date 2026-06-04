@@ -72,74 +72,10 @@ echo "--- Building Android APK (aarch64) ---"
 rm -rf target/dx/recurrency-frontend/release/android 2>/dev/null || true
 dx bundle --platform android --target aarch64-linux-android --release
 
-# Replace icons
-RES_DIR="target/dx/recurrency-frontend/release/android/app/app/src/main/res"
-echo "--- Replacing Android icons ---"
-for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-    case $dir in
-        mipmap-mdpi) SIZE=48;;
-        mipmap-hdpi) SIZE=72;;
-        mipmap-xhdpi) SIZE=96;;
-        mipmap-xxhdpi) SIZE=144;;
-        mipmap-xxxhdpi) SIZE=192;;
-    esac
-    TARGET="$RES_DIR/$dir/ic_launcher.webp"
-    if [ -f "$TARGET" ]; then
-        magick convert "$ICON" -resize ${SIZE}x${SIZE} "$TARGET"
-        echo "  ${SIZE}×${SIZE} icon replaced"
-    fi
-done
-
-# Generate foreground with padding + solid background for adaptive icons
-# Android adaptive-icon: 108dp canvas, 72dp safe zone.
-# Foreground: 432x432 canvas, 216x216 centered icon
-mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
-# Remove Dioxus-generated XMLs to avoid duplicate resource conflict and shadowing.
-# drawable-v24/ic_launcher_foreground.xml (white vector) shadows our custom PNG on API 24+.
-rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
-rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
-magick convert "$ICON" -resize 216x216 -gravity center -extent 432x432 "$RES_DIR/drawable/ic_launcher_foreground.png"
-echo "--- Generated ic_launcher_foreground.png (432x432 with padding) ---"
-
-magick convert -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
-echo "--- Generated ic_launcher_background.png (432x432 solid color) ---"
-
-# Patch adaptive-icon XMLs: solid background + padded foreground
-for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-    LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
-    if [ -f "$LAUNCHER_XML" ]; then
-        cat > "$LAUNCHER_XML" << 'XMLEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-  <background android:drawable="@drawable/ic_launcher_background"/>
-  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-XMLEOF
-        echo "--- Patched $LAUNCHER_XML ---"
-    fi
-done
-GRADLE_FILE="target/dx/recurrency-frontend/release/android/app/app/build.gradle.kts"
-if [ -f "$GRADLE_FILE" ]; then
-    sed -i 's/extractNativeLibs="false"/extractNativeLibs="true"/g' "$GRADLE_FILE"
-    sed -i 's/jvmTarget = "1\.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-    echo "--- Patched Gradle: extractNativeLibs=true, jvmTarget=17 ---"
-fi
-
-# Fix app name: Dioxus generates "RecurrencyFrontend" from Cargo crate name.
-# Override to match Dioxus.toml [android] name field.
-STRINGS_XML="target/dx/recurrency-frontend/release/android/app/app/src/main/res/values/strings.xml"
-if [ -f "$STRINGS_XML" ]; then
-    sed -i 's/RecurrencyFrontend/Recurrency/g' "$STRINGS_XML"
-    echo "--- Patched strings.xml: app_name → Recurrency ---"
-fi
-
-# Fix FOUC: set WebView background to mocha + inject native loader via document start script.
-# Uses a Python script to patch RustWebView.kt (sed can't handle complex JS injection).
-WEBVIEW_KT="target/dx/recurrency-frontend/release/android/app/app/src/main/kotlin/dev/dioxus/main/RustWebView.kt"
-if [ -f "$WEBVIEW_KT" ]; then
-    python3 "$ROOT/scripts/patch_webview.py" "$WEBVIEW_KT"
-    echo "--- Patched RustWebView.kt ---"
-fi
+# Replace icons, patch gradle, fix app name (shared with CI workflow).
+# Export ICON so the shared script can pick it up.
+export ICON
+bash "$ROOT/scripts/patch-android-build.sh"
 
 # Reassemble + sign APK
 echo "--- Building signed APK ---"

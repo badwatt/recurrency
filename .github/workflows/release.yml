@@ -268,46 +268,26 @@ jobs:
         env:
           CARGO_BUILD_JOBS: 4
           RUST_BACKTRACE: 1
-        run: cd frontend && dx bundle --platform android --target aarch64-linux-android
+        run: cd frontend && dx bundle --platform android --target aarch64-linux-android --release
 
       - name: Setup icons and patch Android build
+        # Shared patch script: replaces launcher icons, fixes app name in
+        # strings.xml, patches Gradle (extractNativeLibs, jvmTarget), and
+        # patches RustWebView.kt for FOUC. Same script used by build-android.sh.
         run: |
           set -e
-          cd frontend
-
-          # Find manifest
-          MANIFEST=$(find target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' 2>/dev/null | head -1)
+          MANIFEST=$(find frontend/target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' 2>/dev/null | head -1)
           if [ -z "$MANIFEST" ]; then
             echo "ERROR: AndroidManifest.xml not found"
             exit 1
           fi
-
           ANDROID_DIR=$(dirname "$MANIFEST")
           APP_DIR=$(dirname $(dirname $(dirname "$ANDROID_DIR")))
           RES_DIR="$APP_DIR/src/main/res"
           GRADLE_FILE="$APP_DIR/build.gradle.kts"
-
-          # Verify icon exists
-          if [ ! -f "assets/icons/icon-1024.png" ]; then
-            echo "ERROR: assets/icons/icon-1024.png not found"
-            exit 1
-          fi
-
-          # Replace icons in one pass (optimized)
-          for size_px in 48:mdpi 72:hdpi 96:xhdpi 144:xxhdpi 192:xxxhdpi; do
-            size="${size_px%%:*}"
-            dpi="${size_px##*:}"
-            mkdir -p "$RES_DIR/mipmap-$dpi"
-            convert assets/icons/icon-1024.png -resize ${size}x${size} "$RES_DIR/mipmap-$dpi/ic_launcher.png"
-          done
-
-          # Patch manifest and gradle
-          sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST"
-          sed -i 's/android:label="recurrency-frontend"/android:label="Recurrency"/g' "$MANIFEST"
-          sed -i 's/android:label="RecurrencyFrontend"/android:label="Recurrency"/g' "$MANIFEST"
-          sed -i 's/VERSION_1_8/VERSION_17/g' "$GRADLE_FILE"
-          sed -i 's/jvmTarget = "1.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
-          grep -q 'useLegacyPackaging' "$GRADLE_FILE" || sed -i '/android {/a\    packagingOptions { jniLibs { useLegacyPackaging = true } }' "$GRADLE_FILE"
+          WEBVIEW_KT="$APP_DIR/src/main/kotlin/dev/dioxus/main/RustWebView.kt"
+          ICON="assets/icons/icon-1024.png"
+          bash scripts/patch-android-build.sh "$RES_DIR" "$GRADLE_FILE" "$WEBVIEW_KT"
 
       - name: Build APK
         env:

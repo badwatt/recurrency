@@ -44,7 +44,8 @@ impl Default for AppModeState {
 }
 
 fn hydrate_mode_from_storage() -> (AppMode, bool) {
-    // WASM: always require server. Offline mode not available on web.
+    // WASM: read user choice (server or offline) from localStorage.
+    // Offline mode is allowed on web — user explicitly picks it in Setup.
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
@@ -52,6 +53,7 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                 let mode_str = storage.get_item("RECURRENCY_APP_MODE").ok().flatten();
                 let server_url = storage.get_item("RECURRENCY_API_URL").ok().flatten();
                 return match mode_str.as_deref() {
+                    Some("offline") => (AppMode::Offline, true),
                     Some("server") => {
                         if let Some(url) = server_url.filter(|u| !u.is_empty()) {
                             (AppMode::Server(url), true)
@@ -59,7 +61,7 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                             (AppMode::Server(String::new()), false) // server mode but no URL → need setup
                         }
                     }
-                    _ => (AppMode::Server(String::new()), false), // WASM: default to server mode
+                    _ => (AppMode::Server(String::new()), false), // WASM default: server (need setup)
                 };
             }
         }
@@ -260,5 +262,31 @@ mod tests {
         // Just ensure hydration doesn't panic (no storage in test env)
         let (mode, _initialized) = hydrate_mode_from_storage();
         assert!(mode.is_offline() || mode.server_url().is_some());
+    }
+
+    #[test]
+    fn set_local_marks_initialized() {
+        // Bug fix: set_local() must mark initialized=true so the AppLayout
+        // does not fall into the "force server mode" branch on Android.
+        let mut state = AppModeState::default();
+        state.reset(); // forces initialized=false
+        assert!(!state.initialized);
+        state.set_local();
+        assert!(state.initialized, "set_local must mark initialized");
+        assert!(state.mode.is_offline());
+    }
+
+    #[test]
+    fn setup_offline_option_always_available() {
+        // Bug fix: "Use without server" must show on web (WASM) too, not just native.
+        let src = include_str!("../pages/setup.rs");
+        assert!(
+            src.contains("SHOW_OFFLINE: bool = true"),
+            "Setup page must show offline option on all platforms"
+        );
+        assert!(
+            src.contains("Use without server"),
+            "Setup page must contain offline button text"
+        );
     }
 }

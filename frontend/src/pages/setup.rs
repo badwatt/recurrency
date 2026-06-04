@@ -5,8 +5,9 @@ use crate::state::app_mode::{AppMode, APP_MODE};
 use crate::Route;
 use dioxus::prelude::*;
 
-/// Whether offline mode is available (native only, not web/WASM).
-const SHOW_OFFLINE: bool = !cfg!(target_arch = "wasm32");
+/// Whether offline mode is selectable in Setup.
+/// Available on all platforms — user can pick local-only on web or native.
+const SHOW_OFFLINE: bool = true;
 
 /// Persist server URL to filesystem (native) or localStorage (WASM).
 fn save_server_url(url: &str) {

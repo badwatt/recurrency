@@ -21,7 +21,6 @@ pub fn AppLoader() -> Element {
         }
     }
 }
-use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::state::notifications::NOTIFICATIONS;
 use dioxus::prelude::*;
@@ -54,17 +53,7 @@ pub fn AppLayout() -> Element {
     });
 
     if !auth.initialized {
-        // If app mode not initialized, try localhost:8080 first
-        // If reachable, auto-configure and proceed to Login
-        // If unreachable, redirect to Setup to configure URL
-        let mode = APP_MODE();
-        if !mode.initialized {
-            // Default: try localhost:8080
-            let default_url = "http://localhost:8080".to_string();
-            APP_MODE.write().set_server(default_url.clone());
-            crate::api::client::set_base_url(&default_url);
-            // Hydration will complete on next render
-        }
+        // Wait for auth hydration. Mode is hydrated independently via Default impl.
         return rsx! { AppLoader {} };
     }
 

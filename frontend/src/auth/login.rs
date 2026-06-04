@@ -5,7 +5,7 @@ use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
 
-const SHOW_OFFLINE: bool = !cfg!(target_arch = "wasm32");
+const SHOW_OFFLINE: bool = true;
 
 #[component]
 pub fn LoginPage() -> Element {
