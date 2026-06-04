@@ -75,7 +75,9 @@ $IM_CMD -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png
 echo "--- Generated ic_launcher_background.png (432x432 solid) ---"
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
-for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+# mipmap-anydpi-v26 is the API 26+ adaptive icon; the dpi-specific
+# mipmap-Xdpi/ic_launcher.xml files are only used for older APIs.
+for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
     if [ -f "$LAUNCHER_XML" ]; then
         cat > "$LAUNCHER_XML" << 'XMLEOF'
