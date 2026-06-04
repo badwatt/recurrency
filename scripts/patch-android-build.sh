@@ -114,6 +114,15 @@ if [ -n "$PARENT_RES_DIR" ] && [ -d "$PARENT_RES_DIR/drawable" ]; then
     fi
 fi
 
+# Debug: list all ic_launcher files for AAPT
+echo "--- All ic_launcher files available to AAPT: ---"
+find "$RES_DIR" -name 'ic_launcher*' 2>/dev/null
+if [ -n "$PARENT_RES_DIR" ] && [ -d "$PARENT_RES_DIR" ]; then
+    echo "--- Single-app res also contains: ---"
+    find "$PARENT_RES_DIR" -name 'ic_launcher*' 2>/dev/null
+fi
+echo "--- End listing ---"
+
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
 # mipmap-anydpi-v26 is the API 26+ adaptive icon; the dpi-specific
 # mipmap-Xdpi/ic_launcher.xml files are only used for older APIs.
