@@ -277,12 +277,14 @@ jobs:
         # Shared patch script: replaces launcher icons, fixes app name in
         # strings.xml, patches Gradle (extractNativeLibs, jvmTarget), and
         # patches RustWebView.kt for FOUC. Same script used by build-android.sh.
-        # dx 0.7.9 generates .../release/android/app/app/src/main/AndroidManifest.xml
-        # (note the doubled 'app/app'); use defaults from patch script instead of
-        # computing paths here — keeps CI and local script in sync.
+        # Run from frontend/ since dx bundle writes to frontend/target/dx/.
+        # ICON env is the source PNG; script's defaults point at res/gradle/webview.
         run: |
           set -e
-          bash scripts/patch-android-build.sh
+          cd frontend
+          ICON="$PWD/assets/icons/icon-1024.png"
+          export ICON
+          bash ../scripts/patch-android-build.sh
 
       - name: Build APK
         env:
