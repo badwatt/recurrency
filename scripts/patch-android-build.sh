@@ -8,15 +8,16 @@
 #
 # Usage: patch-android-build.sh <res_dir> <gradle_file> <webview_kt>
 # All args optional — defaults assume dx 0.7.9 layout under
-# target/dx/recurrency-frontend/release/android/app/app/.
+# target/dx/recurrency-frontend/release/android/app/ (gradlew at this
+# level; build outputs under app/app/build/).
 
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-RES_DIR="${1:-target/dx/recurrency-frontend/release/android/app/app/src/main/res}"
-GRADLE_FILE="${2:-target/dx/recurrency-frontend/release/android/app/app/build.gradle.kts}"
-WEBVIEW_KT="${3:-target/dx/recurrency-frontend/release/android/app/app/src/main/kotlin/dev/dioxus/main/RustWebView.kt}"
+RES_DIR="${1:-target/dx/recurrency-frontend/release/android/app/src/main/res}"
+GRADLE_FILE="${2:-target/dx/recurrency-frontend/release/android/app/build.gradle.kts}"
+WEBVIEW_KT="${3:-target/dx/recurrency-frontend/release/android/app/src/main/kotlin/dev/dioxus/main/RustWebView.kt}"
 
 ICON="${ICON:-assets/icons/icon-1024.png}"
 

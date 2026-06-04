@@ -296,8 +296,10 @@ jobs:
           set -e
           cd frontend
 
-          GRADLE_FILE="target/dx/recurrency-frontend/release/android/app/app/build.gradle.kts"
-          APP_DIR="target/dx/recurrency-frontend/release/android/app/app"
+          # gradlew sits at target/dx/.../release/android/app/ (single app)
+          # dx 0.7.9 writes build outputs under app/app/build/ (double app)
+          APP_DIR="target/dx/recurrency-frontend/release/android/app"
+          GRADLE_FILE="$APP_DIR/build.gradle.kts"
 
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null || {
