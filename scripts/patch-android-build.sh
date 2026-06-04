@@ -63,9 +63,19 @@ done
 # Android adaptive-icon: 108dp canvas, 72dp safe zone.
 # Foreground: 432x432 canvas, 216x216 centered icon.
 mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
+# Some dx 0.7.9 outputs may resolve @drawable refs from a sibling res dir.
+# Also create the drawables in the parent (single-app) res dir if it exists.
+PARENT_RES_DIR="$(dirname "$RES_DIR")"
+if [ -d "$PARENT_RES_DIR" ] && [ "$PARENT_RES_DIR" != "$RES_DIR" ]; then
+    mkdir -p "$PARENT_RES_DIR/drawable"
+    PARENT_DRAWABLE_DIR="$PARENT_RES_DIR/drawable"
+else
+    PARENT_DRAWABLE_DIR=""
+fi
 # Remove Dioxus-generated XMLs that shadow our custom drawables on API 24+.
 # Remove from all drawable* dirs and any ic_launcher XML anywhere in res/.
 find "$RES_DIR" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
+[ -n "$PARENT_DRAWABLE_DIR" ] && find "$PARENT_DRAWABLE_DIR" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
 
 $IM_CMD "$ICON" -resize 216x216 -gravity center -extent 432x432 \
     "$RES_DIR/drawable/ic_launcher_foreground.png"
@@ -74,20 +84,27 @@ echo "--- Generated ic_launcher_foreground.png (432x432 padded) ---"
 $IM_CMD -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
 echo "--- Generated ic_launcher_background.png (432x432 solid) ---"
 
-# Verify drawables exist — AAPT will fail silently otherwise.
-if [ ! -f "$RES_DIR/drawable/ic_launcher_foreground.png" ]; then
-    echo "ERROR: ic_launcher_foreground.png was not created at $RES_DIR/drawable/"
-    exit 1
-fi
-if [ ! -f "$RES_DIR/drawable/ic_launcher_background.png" ]; then
-    echo "ERROR: ic_launcher_background.png was not created at $RES_DIR/drawable/"
-    exit 1
+# Also write to parent if exists
+if [ -n "$PARENT_DRAWABLE_DIR" ]; then
+    $IM_CMD "$ICON" -resize 216x216 -gravity center -extent 432x432 \
+        "$PARENT_DRAWABLE_DIR/ic_launcher_foreground.png"
+    $IM_CMD -size 432x432 xc:'#0ea5e9' \
+        "$PARENT_DRAWABLE_DIR/ic_launcher_background.png"
+    echo "--- Also wrote drawables to parent: $PARENT_DRAWABLE_DIR ---"
 fi
 
-# Debug: list all drawable files for AAPT
-echo "--- Drawable files available to AAPT: ---"
-find "$RES_DIR" -name 'ic_launcher*' 2>/dev/null
-echo "--- End drawable list ---"
+# Verify drawables exist — AAPT will fail silently otherwise.
+for DIR in "$RES_DIR/drawable" "${PARENT_DRAWABLE_DIR:-}"; do
+    if [ -z "$DIR" ]; then continue; fi
+    if [ ! -f "$DIR/ic_launcher_foreground.png" ]; then
+        echo "ERROR: ic_launcher_foreground.png was not created at $DIR/"
+        exit 1
+    fi
+    if [ ! -f "$DIR/ic_launcher_background.png" ]; then
+        echo "ERROR: ic_launcher_background.png was not created at $DIR/"
+        exit 1
+    fi
+done
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
 # mipmap-anydpi-v26 is the API 26+ adaptive icon; the dpi-specific
