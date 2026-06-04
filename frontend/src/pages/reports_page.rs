@@ -126,7 +126,7 @@ pub fn ReportsPage() -> Element {
                             onchange: move |e| selected_month.set(e.value()),
                             class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm",
                             for (val, label) in MONTH_OPTIONS {
-                                option { value: {val.to_string()}, "{label}" }
+                                option { value: {val.to_string()}, {label.to_string()} }
                             }
                         }
                         select {
@@ -134,7 +134,7 @@ pub fn ReportsPage() -> Element {
                             onchange: move |e| selected_year.set(e.value()),
                             class: "flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm",
                             for y in &years {
-                                option { value: {y.to_string()}, "{y}" }
+                                option { value: {y.to_string()}, {y.to_string()} }
                             }
                         }
                     }
@@ -308,8 +308,7 @@ pub fn ReportsPage() -> Element {
                                                             div { class: "w-2.5 h-2.5 rounded-full shrink-0", style: "background-color: {color}" }
                                                             {icon_display(icon_str)}
                                                             span { class: "truncate text-muted-foreground",
-                                                                "{cat.category_name}"
-                                                            }
+                                                                {cat.category_name.to_string()}                                                            }
                                                             span { class: "font-medium ml-auto", "{cat.percentage:.0}%" }
                                                         }
                                                     }
@@ -341,8 +340,7 @@ pub fn ReportsPage() -> Element {
                                                         }
                                                         {icon_display(icon_str)}
                                                         span { class: "font-medium",
-                                                            "{cat.category_name}"
-                                                        }
+                                                            {cat.category_name.to_string()}                                                        }
                                                     }
                                                     div { class: "flex items-center gap-4",
                                                         span { class: "text-muted-foreground", "{cat.count} items" }

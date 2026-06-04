@@ -74,8 +74,7 @@ pub fn logo_image_with_fallback(
                         id: {fb_id.to_string()},
                         class: "flex h-full w-full items-center justify-center font-semibold text-muted-foreground",
                         style: "display:none;",
-                        "{first_letter}"
-                    }
+                        {first_letter.to_string()}                    }
                 }
             }
         }

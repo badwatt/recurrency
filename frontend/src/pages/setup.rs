@@ -154,7 +154,7 @@ pub fn SetupPage() -> Element {
                         }
                     }
                     if !error().is_empty() {
-                        p { class: "text-sm text-red-500", "{error}" }
+                        p { class: "text-sm text-red-500", {error.to_string()} }
                     }
                     p { class: "text-xs text-muted-foreground text-center",
                         "Make sure your server is running and accessible from this device"

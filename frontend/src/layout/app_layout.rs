@@ -270,7 +270,7 @@ fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Elem
             },
             class: navlink_class(active),
             {svg_icon(icon, 18)}
-            span { class: "hidden lg:inline", "{label}" }
+            span { class: "hidden lg:inline", {label.to_string()} }
         }
     }
 }
@@ -292,7 +292,7 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
                 "flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground"
             },
             {svg_icon(icon, 22)}
-            span { class: "text-[10px] font-medium", "{label}" }
+            span { class: "text-[10px] font-medium", {label.to_string()} }
         }
     }
 }
@@ -410,11 +410,11 @@ fn NotificationItem(notification: crate::models::notification::Notification) -> 
             class: notification_item_classes(is_read),
             div { class: notification_dot_class(is_read) }
             div { class: "flex-1 min-w-0",
-                p { class: "text-sm font-medium text-foreground truncate", "{notification.title}" }
+                p { class: "text-sm font-medium text-foreground truncate", {notification.title.to_string()} }
                 if let Some(message) = &notification.message {
-                    p { class: "text-xs text-muted-foreground mt-0.5 line-clamp-2", "{message}" }
+                    p { class: "text-xs text-muted-foreground mt-0.5 line-clamp-2", {message.to_string()} }
                 }
-                p { class: "text-[10px] text-muted-foreground/60 mt-1", "{notification.created_at}" }
+                p { class: "text-[10px] text-muted-foreground/60 mt-1", {notification.created_at.to_string()} }
             }
             if !is_read {
                 button {

@@ -237,7 +237,7 @@ pub fn CategoriesPage() -> Element {
                                         }
                                         // Name
                                         div { class: "flex-1 min-w-0",
-                                            p { class: "font-medium truncate text-sm sm:text-base", "{cat.name}" }
+                                            p { class: "font-medium truncate text-sm sm:text-base", {cat.name.to_string()} }
                                             if is_default {
                                                 span { class: "text-xs text-muted-foreground", "Default" }
                                             }

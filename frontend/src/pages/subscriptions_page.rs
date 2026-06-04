@@ -398,8 +398,7 @@ pub fn SubscriptionsPage() -> Element {
         return rsx! {
             div { class: "p-4 md:p-6",
                 div { class: "rounded-lg border border-red-500 bg-red-500/10 p-4 text-red-600",
-                    "{err}"
-                }
+                    {err.to_string()}                }
             }
         };
     }
@@ -472,8 +471,7 @@ pub fn SubscriptionsPage() -> Element {
                                     "▾ Filters"
                                     if active_filter_count > 0 {
                                         span { class: "ml-1 bg-secondary text-secondary-foreground rounded-full px-1.5 text-[10px]",
-                                            "{active_filter_count}"
-                                        }
+                                            {active_filter_count.to_string()}                                        }
                                     }
                                 }
                                 if filters_popover() {
@@ -503,7 +501,7 @@ pub fn SubscriptionsPage() -> Element {
                                                     filters.write().status = if v == "all" { None } else { Some(v) };
                                                 },
                                                 for (val, label) in STATUS_OPTIONS {
-                                                    option { value: {val.to_string()}, "{label}" }
+                                                    option { value: {val.to_string()}, {label.to_string()} }
                                                 }
                                             }
                                         }
@@ -520,7 +518,7 @@ pub fn SubscriptionsPage() -> Element {
                                                 },
                                                 option { value: "all", "All frequencies" }
                                                 for (val, label) in FREQUENCIES {
-                                                    option { value: {val.to_string()}, "{label}" }
+                                                    option { value: {val.to_string()}, {label.to_string()} }
                                                 }
                                             }
                                         }
@@ -537,7 +535,7 @@ pub fn SubscriptionsPage() -> Element {
                                                 },
                                                 option { value: "all", "All categories" }
                                                 for (id, name) in category_options.iter() {
-                                                    option { value: {id.to_string()}, "{name}" }
+                                                    option { value: {id.to_string()}, {name.to_string()} }
                                                 }
                                             }
                                         }
@@ -602,14 +600,13 @@ pub fn SubscriptionsPage() -> Element {
                                         sort.write().field = e.value();
                                     },
                                     for (val, label) in SORT_OPTIONS {
-                                        option { value: {val.to_string()}, "{label}" }
+                                        option { value: {val.to_string()}, {label.to_string()} }
                                     }
                                 }
                                 button {
                                     class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors duration-200",
                                     onclick: move |_| toggle_sort_direction.call(()),
-                                    "{sort_arrow}"
-                                }
+                                    {sort_arrow.to_string()}                                }
                             }
                         }
 
@@ -850,20 +847,19 @@ fn render_grid_card(
 
                 // Name + next billing
                 div { class: "min-w-0",
-                    p { class: "font-semibold truncate text-sm leading-tight", "{name}" }
-                    p { class: "text-xs text-muted-foreground mt-1", "{next_text}" }
+                    p { class: "font-semibold truncate text-sm leading-tight", {name.to_string()} }
+                    p { class: "text-xs text-muted-foreground mt-1", {next_text.to_string()} }
                 }
 
                 // Amount
-                p { class: "font-extrabold text-2xl tracking-tight", "{formatted}" }
+                p { class: "font-extrabold text-2xl tracking-tight", {formatted.to_string()} }
 
                 // Category badge
                 span {
                     class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
                     style: "color: {color}; background-color: {color}15; border: 1px solid {color}25;",
                     {icon_display(&cat_icon)}
-                    "{cat_name}"
-                }
+                    {cat_name.to_string()}                }
 
                 // Action buttons
                 div { class: "flex items-center gap-0.5 mt-auto pt-1",
@@ -942,8 +938,8 @@ fn render_list_card(
                     }
 
                     div { class: "flex-1 min-w-0",
-                        p { class: "font-medium truncate text-sm sm:text-base", "{name}" }
-                        p { class: "text-xs text-muted-foreground truncate", "{next_text}" }
+                        p { class: "font-medium truncate text-sm sm:text-base", {name.to_string()} }
+                        p { class: "text-xs text-muted-foreground truncate", {next_text.to_string()} }
                     }
 
                     div { class: "flex items-center gap-2 sm:gap-4 shrink-0",
@@ -951,9 +947,8 @@ fn render_list_card(
                             class: "hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
                             style: "color: {color}; background-color: {color}15;",
                             {icon_display(&cat_icon)}
-                            "{cat_name}"
-                        }
-                        p { class: "font-medium text-sm sm:text-base", "{formatted}" }
+                            {cat_name.to_string()}                        }
+                        p { class: "font-medium text-sm sm:text-base", {formatted.to_string()} }
 
                         div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
                             Tooltip { content: sub.notes.clone().unwrap_or_default(),
@@ -1143,11 +1138,10 @@ fn render_dialog(
 
                             dialog_open.set(false);
                         },
-                        "{submit_label}"
-                    }
+                        {submit_label.to_string()}                    }
                 }
             },
-            p { class: "text-sm text-muted-foreground", "{desc}" }
+            p { class: "text-sm text-muted-foreground", {desc.to_string()} }
             div { class: "space-y-4",
                 // Name
                 div { class: "space-y-1.5",
@@ -1162,7 +1156,7 @@ fn render_dialog(
                         },
                     }
                     if !name_err.is_empty() {
-                        p { class: "text-xs text-red-500", "{name_err}" }
+                        p { class: "text-xs text-red-500", {name_err.to_string()} }
                     }
                 }
 
@@ -1183,7 +1177,7 @@ fn render_dialog(
                             },
                         }
                         if !amount_err.is_empty() {
-                            p { class: "text-xs text-red-500", "{amount_err}" }
+                            p { class: "text-xs text-red-500", {amount_err.to_string()} }
                         }
                     }
                     div { class: "space-y-1.5",
@@ -1196,11 +1190,11 @@ fn render_dialog(
                                 currency_error.set(String::new());
                             },
                             for (val, label) in CURRENCIES {
-                                option { value: {val.to_string()}, "{label}" }
+                                option { value: {val.to_string()}, {label.to_string()} }
                             }
                         }
                         if !currency_err.is_empty() {
-                            p { class: "text-xs text-red-500", "{currency_err}" }
+                            p { class: "text-xs text-red-500", {currency_err.to_string()} }
                         }
                     }
                 }
@@ -1217,11 +1211,11 @@ fn render_dialog(
                                 frequency_error.set(String::new());
                             },
                             for (val, label) in FREQUENCIES {
-                                option { value: {val.to_string()}, selected: form_frequency == *val, "{label}" }
+                                option { value: {val.to_string()}, selected: form_frequency == *val, {label.to_string()} }
                             }
                         }
                         if !frequency_err.is_empty() {
-                            p { class: "text-xs text-red-500", "{frequency_err}" }
+                            p { class: "text-xs text-red-500", {frequency_err.to_string()} }
                         }
                     }
                     div { class: "space-y-1.5",
@@ -1236,7 +1230,7 @@ fn render_dialog(
                             },
                         }
                         if !start_date_err.is_empty() {
-                            p { class: "text-xs text-red-500", "{start_date_err}" }
+                            p { class: "text-xs text-red-500", {start_date_err.to_string()} }
                         }
                     }
                 }

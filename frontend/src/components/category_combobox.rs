@@ -67,7 +67,7 @@ pub fn CategoryCombobox(
                             class: "inline-block h-3 w-3 rounded-full shrink-0",
                             style: "background-color: {display_color}",
                         }
-                        span { class: "truncate", "{display_text}" }
+                        span { class: "truncate", {display_text.to_string()} }
                     }
                 }
                 div { class: "flex items-center gap-1 shrink-0 ml-2",
@@ -264,8 +264,7 @@ pub fn CategoryCombobox(
                                                 style: "background-color: {cat_color}",
                                             }
                                             {crate::utils::icons::icon_display(&cat_icon)}
-                                            "{cat_name}"
-                                            if is_selected {
+                                            {cat_name.to_string()}                                            if is_selected {
                                                 svg {
                                                     class: "h-4 w-4 shrink-0 text-primary",
                                                     view_box: "0 0 24 24",
@@ -314,7 +313,7 @@ pub fn CategoryCombobox(
             }
 
             if !error.is_empty() {
-                p { class: "text-xs text-red-500 mt-1", "{error}" }
+                p { class: "text-xs text-red-500 mt-1", {error.to_string()} }
             }
         }
     }

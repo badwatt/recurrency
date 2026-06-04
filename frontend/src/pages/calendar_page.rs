@@ -556,7 +556,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
                 PageHeader { title: "Calendar", subtitle: "Upcoming subscription payments" }
                 div { class: "text-right hidden md:block animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150",
-                    p { class: "text-2xl font-bold tracking-tight", "{total_display}" }
+                    p { class: "text-2xl font-bold tracking-tight", {total_display.to_string()} }
                     p { class: "text-xs text-muted-foreground", "Total this month" }
                 }
             }
@@ -568,7 +568,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                         {icon_calendar()}
                         "Upcoming Payments"
                     }
-                    p { class: "text-lg font-bold", "{total_display}" }
+                    p { class: "text-lg font-bold", {total_display.to_string()} }
                 }
 
                 {if is_loading() {
@@ -601,11 +601,11 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                     }
                                                 }
                                                 div {
-                                                    p { class: "font-medium", "{name}" }
-                                                    p { class: "text-sm text-muted-foreground", "{date_str}" }
+                                                    p { class: "font-medium", {name.to_string()} }
+                                                    p { class: "text-sm text-muted-foreground", {date_str.to_string()} }
                                                 }
                                             }
-                                            p { class: "text-lg font-semibold", "{amount_str}" }
+                                            p { class: "text-lg font-semibold", {amount_str.to_string()} }
                                         }
                                     }
                                 }}
@@ -625,7 +625,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                             class: "h-9 w-9 inline-flex items-center justify-center rounded-md border border-border hover:bg-accent",
                             ChevronLeft { size: 16 }
                         }
-                        h2 { class: "text-xl font-semibold min-w-[200px] text-center", "{month_label}" }
+                        h2 { class: "text-xl font-semibold min-w-[200px] text-center", {month_label.to_string()} }
                         button {
                             onclick: go_next,
                             class: "h-9 w-9 inline-flex items-center justify-center rounded-md border border-border hover:bg-accent",
@@ -650,8 +650,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                 for day_name in weekday_headers {
                                     {rsx! {
                                         div { class: "bg-muted p-2 text-center text-sm font-medium text-muted-foreground",
-                                            "{day_name}"
-                                        }
+                                            {day_name.to_string()}                                        }
                                     }}
                                 }
                                 // Day cells
@@ -680,7 +679,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                     class: {cell_cls.to_string()},
                                                     onclick: move |_| selected_day.set(Some((year, month, d))),
                                                     // Day number
-                                                    div { class: {today_cls.to_string()}, "{d}" }
+                                                    div { class: {today_cls.to_string()}, {d.to_string()} }
                                                     // Add subscription button (top-right, visible on hover)
                                                     button {
                                                         r#type: "button",
@@ -723,8 +722,8 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                                     } else {
                                                                         span { class: "shrink-0", {icon_credit_card()} }
                                                                     }
-                                                                    span { class: "truncate", "{item.name}" }
-                                                                    span { class: "ml-auto shrink-0 font-medium", "{item.amount_str}" }
+                                                                    span { class: "truncate", {item.name.to_string()} }
+                                                                    span { class: "ml-auto shrink-0 font-medium", {item.amount_str.to_string()} }
                                                                 }
                                                             }}
                                                         }
@@ -775,14 +774,13 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                         // Top row: name + amount
                                         div { class: "flex items-start justify-between gap-2",
                                             div { class: "flex-1 min-w-0",
-                                                p { class: "font-semibold truncate", "{item.name}" }
+                                                p { class: "font-semibold truncate", {item.name.to_string()} }
                                                 div { class: "flex items-center gap-2 mt-1 flex-wrap",
                                                     span {
                                                         class: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
                                                         style: "color: {cat_color}; background-color: {cat_color}15;",
                                                         {icon_display(cat_icon)}
-                                                        "{cat_name}"
-                                                    }
+                                                        {cat_name.to_string()}                                                    }
                                                     span { class: "text-xs text-muted-foreground",
                                                         "{format_frequency(&item.frequency)}"
                                                     }
@@ -829,7 +827,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                     div {
                         class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-[425px] shadow-lg sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
                         onclick: move |e| e.stop_propagation(),
-                        h2 { class: "text-lg font-semibold", "{edit_title}" }
+                        h2 { class: "text-lg font-semibold", {edit_title.to_string()} }
                         p { class: "text-sm text-muted-foreground mb-4", "Make changes to your subscription here." }
 
                         div { class: "space-y-4",
@@ -846,7 +844,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                     },
                                 }
                                 if !name_err.is_empty() {
-                                    p { class: "text-xs text-red-500", "{name_err}" }
+                                    p { class: "text-xs text-red-500", {name_err.to_string()} }
                                 }
                             }
 
@@ -867,7 +865,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                         },
                                     }
                                     if !amount_err.is_empty() {
-                                        p { class: "text-xs text-red-500", "{amount_err}" }
+                                        p { class: "text-xs text-red-500", {amount_err.to_string()} }
                                     }
                                 }
                                 div { class: "space-y-1.5",
@@ -880,11 +878,11 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                             currency_error.set(String::new());
                                         },
                                         for (val, label) in CURRENCIES {
-                                            option { value: {val.to_string()}, "{label}" }
+                                            option { value: {val.to_string()}, {label.to_string()} }
                                         }
                                     }
                                     if !currency_err.is_empty() {
-                                        p { class: "text-xs text-red-500", "{currency_err}" }
+                                        p { class: "text-xs text-red-500", {currency_err.to_string()} }
                                     }
                                 }
                             }
@@ -901,11 +899,11 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                             frequency_error.set(String::new());
                                         },
                                         for (val, label) in FREQUENCIES {
-                                            option { value: {val.to_string()}, selected: form_frequency == *val, "{label}" }
+                                            option { value: {val.to_string()}, selected: form_frequency == *val, {label.to_string()} }
                                         }
                                     }
                                     if !frequency_err.is_empty() {
-                                        p { class: "text-xs text-red-500", "{frequency_err}" }
+                                        p { class: "text-xs text-red-500", {frequency_err.to_string()} }
                                     }
                                 }
                                 div { class: "space-y-1.5",
@@ -920,7 +918,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                         },
                                     }
                                     if !start_date_err.is_empty() {
-                                        p { class: "text-xs text-red-500", "{start_date_err}" }
+                                        p { class: "text-xs text-red-500", {start_date_err.to_string()} }
                                     }
                                 }
                             }

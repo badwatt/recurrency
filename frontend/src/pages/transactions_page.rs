@@ -426,7 +426,7 @@ pub fn TransactionsPage() -> Element {
                                         },
                                         option { value: "", "All categories" }
                                         for cat in &cats.categories {
-                                            option { value: {cat.id.to_string()}, "{cat.name}" }
+                                            option { value: {cat.id.to_string()}, {cat.name.to_string()} }
                                         }
                                     }
                                 }
@@ -576,7 +576,7 @@ pub fn TransactionsPage() -> Element {
                                                     }
                                                     // Name + date
                                                     div { class: "flex-1 min-w-0",
-                                                        p { class: "font-medium truncate text-sm sm:text-base", "{txn.name}" }
+                                                        p { class: "font-medium truncate text-sm sm:text-base", {txn.name.to_string()} }
                                                         p { class: "text-xs text-muted-foreground",
                                                             {format_date(&txn.date, &PREFERENCES().date_format())}
                                                         }
@@ -592,8 +592,7 @@ pub fn TransactionsPage() -> Element {
                                                             span { class: "font-normal text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded",
                                                                 style: "color: {cat_color}; background-color: {bg}",
                                                                 {icon_display(&cat_icon)}
-                                                                "{cat_name}"
-                                                            }
+                                                                {cat_name.to_string()}                                                            }
                                                         }
                                                     }
                                                     // Amount
@@ -710,7 +709,7 @@ pub fn TransactionsPage() -> Element {
                                 },
                                 class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
                                 for (val, label) in crate::utils::constants::CURRENCIES {
-                                    option { value: {val.to_string()}, "{label}" }
+                                    option { value: {val.to_string()}, {label.to_string()} }
                                 }
                             }
                             if !currency_error().is_empty() {

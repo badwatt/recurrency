@@ -10,8 +10,7 @@ pub fn Tooltip(content: String, children: Element) -> Element {
             div { class: "peer", {children} }
             div { class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden peer-hover:block z-50 pointer-events-none",
                 div { class: "bg-foreground text-background text-xs rounded px-2 py-1 whitespace-pre-wrap max-w-xs",
-                    "{content}"
-                }
+                    {content.to_string()}                }
             }
         }
     }

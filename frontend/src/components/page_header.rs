@@ -6,8 +6,8 @@ use dioxus::prelude::*;
 pub fn PageHeader(title: String, subtitle: String) -> Element {
     rsx! {
         div {
-            h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", "{title}" }
-            p { class: "text-muted-foreground", "{subtitle}" }
+            h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter", {title.to_string()} }
+            p { class: "text-muted-foreground", {subtitle.to_string()} }
         }
     }
 }

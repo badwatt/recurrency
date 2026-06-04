@@ -231,7 +231,7 @@ pub fn Dashboard() -> Element {
                     div { class: "grid grid-cols-2 md:grid-cols-4 gap-4 mt-4",
                         div {
                             p { class: "text-xs text-muted-foreground", "Active subs" }
-                            p { class: "text-2xl font-bold text-foreground mt-1", "{total_active}" }
+                            p { class: "text-2xl font-bold text-foreground mt-1", {total_active.to_string()} }
                         }
                         div {
                             p { class: "text-xs text-muted-foreground", "Due this week" }
@@ -273,8 +273,8 @@ pub fn Dashboard() -> Element {
                                             let count = *count;
                                             rsx! {
                                                 div { key: "{cat_id}", class: "flex items-center justify-between",
-                                                    span { class: "text-sm text-foreground truncate", "{cat_name}" }
-                                                    span { class: "text-sm text-muted-foreground", "{count}" }
+                                                    span { class: "text-sm text-foreground truncate", {cat_name.to_string()} }
+                                                    span { class: "text-sm text-muted-foreground", {count.to_string()} }
                                                 }
                                             }
                                         }
@@ -321,11 +321,10 @@ pub fn Dashboard() -> Element {
                                                     {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-full w-full object-cover")}
                                                 }
                                                 div { class: "min-w-0",
-                                                    p { class: "text-sm font-medium text-foreground truncate", "{sub.name}" }
+                                                    p { class: "text-sm font-medium text-foreground truncate", {sub.name.to_string()} }
                                                     p {
                                                         class: if overdue { "text-xs text-destructive" } else { "text-xs text-muted-foreground" },
-                                                        "{date_str}"
-                                                    }
+                                                        {date_str.to_string()}                                                    }
                                                 }
                                             }
                                             div { class: "text-right shrink-0 ml-4",
@@ -333,8 +332,7 @@ pub fn Dashboard() -> Element {
                                                 if let Some(label) = days_label {
                                                     p {
                                                         class: if overdue { "text-xs font-medium text-destructive" } else if today { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
-                                                        "{label}"
-                                                    }
+                                                        {label.to_string()}                                                    }
                                                 }
                                             }
                                         }

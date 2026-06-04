@@ -234,7 +234,7 @@ pub fn SettingsPage() -> Element {
                             disabled: saving_currency(),
                             class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
                             for (val, label) in CURRENCIES {
-                                option { value: {val.to_string()}, "{label}" }
+                                option { value: {val.to_string()}, {label.to_string()} }
                             }
                         }
                     }
@@ -362,8 +362,8 @@ pub fn SettingsPage() -> Element {
                             div { key: "{key}",
                                 div { class: "flex items-center justify-between gap-4",
                                     div { class: "min-w-0",
-                                        p { class: "font-medium truncate", "{label}" }
-                                        p { class: "text-sm text-muted-foreground truncate", "{desc}" }
+                                        p { class: "font-medium truncate", {label.to_string()} }
+                                        p { class: "text-sm text-muted-foreground truncate", {desc.to_string()} }
                                         if is_email_disabled {
                                             div { class: "flex items-center gap-1.5 text-amber-600 mt-1",
                                                 svg {
