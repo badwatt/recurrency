@@ -277,20 +277,12 @@ jobs:
         # Shared patch script: replaces launcher icons, fixes app name in
         # strings.xml, patches Gradle (extractNativeLibs, jvmTarget), and
         # patches RustWebView.kt for FOUC. Same script used by build-android.sh.
+        # dx 0.7.9 generates .../release/android/app/app/src/main/AndroidManifest.xml
+        # (note the doubled 'app/app'); use defaults from patch script instead of
+        # computing paths here — keeps CI and local script in sync.
         run: |
           set -e
-          MANIFEST=$(find frontend/target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' 2>/dev/null | head -1)
-          if [ -z "$MANIFEST" ]; then
-            echo "ERROR: AndroidManifest.xml not found"
-            exit 1
-          fi
-          ANDROID_DIR=$(dirname "$MANIFEST")
-          APP_DIR=$(dirname $(dirname $(dirname "$ANDROID_DIR")))
-          RES_DIR="$APP_DIR/src/main/res"
-          GRADLE_FILE="$APP_DIR/build.gradle.kts"
-          WEBVIEW_KT="$APP_DIR/src/main/kotlin/dev/dioxus/main/RustWebView.kt"
-          ICON="assets/icons/icon-1024.png"
-          bash scripts/patch-android-build.sh "$RES_DIR" "$GRADLE_FILE" "$WEBVIEW_KT"
+          bash scripts/patch-android-build.sh
 
       - name: Build APK
         env:
@@ -302,9 +294,8 @@ jobs:
           set -e
           cd frontend
 
-          APP_DIR=$(find target/dx -name 'AndroidManifest.xml' -path '*/app/src/main/*' -exec dirname {} \; 2>/dev/null | head -1)
-          APP_DIR=$(dirname $(dirname $(dirname "$APP_DIR")))
-          GRADLE_FILE="$APP_DIR/build.gradle.kts"
+          GRADLE_FILE="target/dx/recurrency-frontend/release/android/app/app/build.gradle.kts"
+          APP_DIR="target/dx/recurrency-frontend/release/android/app/app"
 
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null || {
