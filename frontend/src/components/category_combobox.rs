@@ -122,7 +122,7 @@ pub fn CategoryCombobox(
                                 class: "w-full h-9 rounded-md border bg-background px-3 text-sm",
                                 r#type: "text",
                                 placeholder: "Category name",
-                                value: {create_name.to_string()},
+                                value: create_name.to_string(),
                                 autofocus: true,
                                 oninput: move |e: Event<FormData>| {
                                     create_name.set(e.value());
@@ -217,7 +217,7 @@ pub fn CategoryCombobox(
                                 class: "w-full h-9 border-0 bg-transparent text-sm focus:outline-none focus:ring-0",
                                 r#type: "text",
                                 placeholder: "Search or create category...",
-                                value: {search_val.to_string()},
+                                value: search_val.to_string(),
                                 oninput: move |e: Event<FormData>| {
                                     search.set(e.value());
                                 },

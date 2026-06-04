@@ -174,7 +174,7 @@ pub fn SettingsPage() -> Element {
                         input {
                             id: "settings-email",
                             r#type: "email",
-                            value: {user_email.to_string()},
+                            value: user_email.to_string(),
                             disabled: true,
                             class: "flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm opacity-50 cursor-not-allowed",
                         }
@@ -185,7 +185,7 @@ pub fn SettingsPage() -> Element {
                         input {
                             id: "settings-name",
                             r#type: "text",
-                            value: {name.to_string()},
+                            value: name.to_string(),
                             oninput: move |e| name.set(e.value()),
                             onblur: move |_| {
                                 let n = name();
@@ -229,12 +229,12 @@ pub fn SettingsPage() -> Element {
                         label { r#for: "settings-currency", class: "text-sm font-medium", "Default Currency" }
                         select {
                             id: "settings-currency",
-                            value: {cur.to_string()},
+                            value: cur.to_string(),
                             onchange: move |e| handle_save_currency(e.value()),
                             disabled: saving_currency(),
                             class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
                             for (val, label) in CURRENCIES {
-                                option { value: {val.to_string()}, {label.to_string()} }
+                                option { value: val.to_string(), {label.to_string()} }
                             }
                         }
                     }

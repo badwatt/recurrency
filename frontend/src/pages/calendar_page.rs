@@ -676,10 +676,10 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                             rsx! {
                                                 div {
                                                     key: "{idx}",
-                                                    class: {cell_cls.to_string()},
+                                                    class: cell_cls.to_string(),
                                                     onclick: move |_| selected_day.set(Some((year, month, d))),
                                                     // Day number
-                                                    div { class: {today_cls.to_string()}, {d.to_string()} }
+                                                    div { class: today_cls.to_string(), {d.to_string()} }
                                                     // Add subscription button (top-right, visible on hover)
                                                     button {
                                                         r#type: "button",
@@ -715,7 +715,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                                                 div {
                                                                     key: "{item.subscription_id}",
                                                                     class: "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs",
-                                                                    title: {item.title_str.to_string()},
+                                                                    title: item.title_str.to_string(),
                                                                     if let Some(url) = &item.logo_url {
                                                                         {logo_image_with_fallback(&format!("cal-{}", item.subscription_id), Some(url.as_str()), &item.name, "h-4 w-4 rounded object-contain")
                                                                         }
@@ -837,7 +837,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                 input {
                                     class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                                     placeholder: "Netflix, Spotify, etc.",
-                                    value: {form_name.to_string()},
+                                    value: form_name.to_string(),
                                     oninput: move |e: Event<FormData>| {
                                         edit_form.write().name = e.value();
                                         name_error.set(String::new());
@@ -858,7 +858,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                         min: "0",
                                         class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                                         placeholder: "9.99",
-                                        value: {form_amount.to_string()},
+                                        value: form_amount.to_string(),
                                         oninput: move |e: Event<FormData>| {
                                             edit_form.write().amount = e.value();
                                             amount_error.set(String::new());
@@ -872,13 +872,13 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                     label { class: "text-sm font-medium", "Currency" }
                                     select {
                                         class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                                        value: {form_currency.to_string()},
+                                        value: form_currency.to_string(),
                                         onchange: move |e: Event<FormData>| {
                                             edit_form.write().currency = e.value();
                                             currency_error.set(String::new());
                                         },
                                         for (val, label) in CURRENCIES {
-                                            option { value: {val.to_string()}, {label.to_string()} }
+                                            option { value: val.to_string(), {label.to_string()} }
                                         }
                                     }
                                     if !currency_err.is_empty() {
@@ -893,13 +893,13 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                     label { class: "text-sm font-medium", "Frequency" }
                                     select {
                                         class: if frequency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                                        value: {form_frequency.to_string()},
+                                        value: form_frequency.to_string(),
                                         onchange: move |e: Event<FormData>| {
                                             edit_form.write().frequency = e.value();
                                             frequency_error.set(String::new());
                                         },
                                         for (val, label) in FREQUENCIES {
-                                            option { value: {val.to_string()}, selected: form_frequency == *val, {label.to_string()} }
+                                            option { value: val.to_string(), selected: form_frequency == *val, {label.to_string()} }
                                         }
                                     }
                                     if !frequency_err.is_empty() {
@@ -911,7 +911,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                     input {
                                         r#type: "date",
                                         class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                                        value: {form_start_date.to_string()},
+                                        value: form_start_date.to_string(),
                                         oninput: move |e: Event<FormData>| {
                                             edit_form.write().start_date = e.value();
                                             start_date_error.set(String::new());
@@ -944,7 +944,7 @@ fn category_icon_for_item(item: &CalendarItem) -> String {
                                 textarea {
                                     class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
                                     placeholder: "Additional notes...",
-                                    value: {form_notes.to_string()},
+                                    value: form_notes.to_string(),
                                     oninput: move |e: Event<FormData>| edit_form.write().notes = e.value(),
                                 }
                             }

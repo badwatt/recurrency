@@ -287,7 +287,7 @@ pub fn CategoriesPage() -> Element {
                         label { class: "text-sm font-medium", "Name" }
                         input {
                             r#type: "text",
-                            value: {form_name.to_string()},
+                            value: form_name.to_string(),
                             oninput: move |e| {
                                 form_name.set(e.value());
                                 name_error.set(String::new());

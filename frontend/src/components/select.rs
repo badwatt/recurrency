@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 pub fn Select(value: String, on_change: EventHandler<String>, children: Element) -> Element {
     rsx! {
         select {
-            value: {value.to_string()},
+            value: value.to_string(),
             onchange: move |e: FormEvent| on_change.call(e.value()),
             class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
             {children}
@@ -48,7 +48,7 @@ mod tests {
         let src = include_str!("select.rs");
         assert!(src.contains("value:"), "Select must bind value attribute");
         assert!(
-            src.contains("value: {value.to_string()}"),
+            src.contains("value: value.to_string()"),
             "Value binding must use .to_string() to avoid clippy::useless_format"
         );
     }

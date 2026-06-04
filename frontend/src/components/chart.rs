@@ -30,7 +30,7 @@ pub fn BarChart(data: Vec<BarData>, height: String) -> Element {
         svg {
             view_box: "0 0 {chart_width} {svg_height}",
             width: "100%",
-            height: {height.to_string()},
+            height: height.to_string(),
             xmlns: "http://www.w3.org/2000/svg",
 
             for (i, item) in data.iter().enumerate() {
@@ -47,7 +47,7 @@ pub fn BarChart(data: Vec<BarData>, height: String) -> Element {
                     rsx! {
                         // Label
                         text {
-                            x: {label_x.to_string()},
+                            x: label_x.to_string(),
                             y: "{y + bar_height / 2.0 + 4.0}",
                             fill: "currentColor",
                             class: "text-sm text-foreground",
@@ -56,25 +56,25 @@ pub fn BarChart(data: Vec<BarData>, height: String) -> Element {
                         }
                         // Bar background
                         rect {
-                            x: {bar_x.to_string()},
+                            x: bar_x.to_string(),
                             y: "{y + 4.0}",
-                            width: {bar_max_width.to_string()},
+                            width: bar_max_width.to_string(),
                             height: "{bar_height - 8.0}",
                             fill: "rgba(255,255,255,0.05)",
                             rx: "4",
                         }
                         // Bar fill
                         rect {
-                            x: {bar_x.to_string()},
+                            x: bar_x.to_string(),
                             y: "{y + 4.0}",
-                            width: {bar_w.to_string()},
+                            width: bar_w.to_string(),
                             height: "{bar_height - 8.0}",
-                            fill: {color.to_string()},
+                            fill: color.to_string(),
                             rx: "4",
                         }
                         // Value
                         text {
-                            x: {value_x.to_string()},
+                            x: value_x.to_string(),
                             y: "{y + bar_height / 2.0 + 4.0}",
                             fill: "currentColor",
                             class: "text-sm text-muted-foreground",
@@ -169,17 +169,17 @@ pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element 
         svg {
             view_box: "0 0 {view_width} {view_height}",
             width: "100%",
-            height: {height.to_string()},
+            height: height.to_string(),
             xmlns: "http://www.w3.org/2000/svg",
             class: "overflow-visible",
 
             // Defs: gradient for area fill
             defs {
                 linearGradient {
-                    id: {grad_id.to_string()},
+                    id: grad_id.to_string(),
                     x1: "0", y1: "0", x2: "0", y2: "1",
-                    stop { offset: "0%", stop_color: {color.to_string()}, stop_opacity: "0.3" }
-                    stop { offset: "100%", stop_color: {color.to_string()}, stop_opacity: "0.02" }
+                    stop { offset: "0%", stop_color: color.to_string(), stop_opacity: "0.3" }
+                    stop { offset: "100%", stop_color: color.to_string(), stop_opacity: "0.02" }
                 }
             }
 
@@ -191,10 +191,10 @@ pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element 
                     rsx! {
                         line {
                             key: "grid-{i}",
-                            x1: {padding_left.to_string()},
-                            y1: {y.to_string()},
+                            x1: padding_left.to_string(),
+                            y1: y.to_string(),
                             x2: "{padding_left + chart_w}",
-                            y2: {y.to_string()},
+                            y2: y.to_string(),
                             stroke: "currentColor",
                             stroke_opacity: "0.07",
                             stroke_dasharray: "3,3",
@@ -214,15 +214,15 @@ pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element 
 
             // Area fill
             path {
-                d: {area_path.to_string()},
+                d: area_path.to_string(),
                 fill: "url(#{grad_id})",
             }
 
             // Line
             path {
-                d: {line_path.to_string()},
+                d: line_path.to_string(),
                 fill: "none",
-                stroke: {color.to_string()},
+                stroke: color.to_string(),
                 stroke_width: "2.5",
                 stroke_linecap: "round",
                 stroke_linejoin: "round",
@@ -232,15 +232,15 @@ pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element 
             for (i, (x, y)) in points.iter().enumerate() {
                 circle {
                     key: "dot-{i}",
-                    cx: {x.to_string()},
-                    cy: {y.to_string()},
+                    cx: x.to_string(),
+                    cy: y.to_string(),
                     r: "3.5",
-                    fill: {color.to_string()},
+                    fill: color.to_string(),
                     stroke: "var(--card, #fff)",
                     stroke_width: "2",
                 }
                 text {
-                    x: {x.to_string()},
+                    x: x.to_string(),
                     y: "{padding_top + chart_h + 18.0}",
                     fill: "currentColor",
                     class: "text-xs fill-muted-foreground",
@@ -291,8 +291,8 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
         div { class: "flex flex-col items-center",
             svg {
                 view_box: "0 0 {center*2.0} {center*2.0}",
-                width: {size.to_string()},
-                height: {size.to_string()},
+                width: size.to_string(),
+                height: size.to_string(),
                 xmlns: "http://www.w3.org/2000/svg",
                 class: "transform -rotate-90",
 
@@ -305,16 +305,16 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
                         rsx! {
                             circle {
                                 key: "{seg.label}-border",
-                                cx: {center.to_string()},
-                                cy: {center.to_string()},
-                                r: {radius.to_string()},
+                                cx: center.to_string(),
+                                cy: center.to_string(),
+                                r: radius.to_string(),
                                 fill: "none",
                                 stroke: "var(--border, #e5e7eb)",
-                                stroke_width: {border_sw.to_string()},
+                                stroke_width: border_sw.to_string(),
                                 stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
                                 stroke_dashoffset: "{-seg.offset}",
                                 stroke_linecap: "butt",
-                                opacity: {opacity.to_string()},
+                                opacity: opacity.to_string(),
                                 onmouseenter: move |_| { on_hover.call(Some(i)); },
                                 onmouseleave: move |_| { on_hover.call(None); },
                                 style: "cursor: pointer",
@@ -332,16 +332,16 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
                         rsx! {
                             circle {
                                 key: "{seg.label}",
-                                cx: {center.to_string()},
-                                cy: {center.to_string()},
-                                r: {radius.to_string()},
+                                cx: center.to_string(),
+                                cy: center.to_string(),
+                                r: radius.to_string(),
                                 fill: "none",
-                                stroke: {seg.color.to_string()},
-                                stroke_width: {fill_sw.to_string()},
+                                stroke: seg.color.to_string(),
+                                stroke_width: fill_sw.to_string(),
                                 stroke_dasharray: "{seg.dash_len} {circumference - seg.dash_len}",
                                 stroke_dashoffset: "{-seg.offset}",
                                 stroke_linecap: "butt",
-                                opacity: {opacity.to_string()},
+                                opacity: opacity.to_string(),
                                 onmouseenter: move |_| { on_hover.call(Some(i)); },
                                 onmouseleave: move |_| { on_hover.call(None); },
                                 style: "cursor: pointer",
