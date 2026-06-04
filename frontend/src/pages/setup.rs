@@ -145,7 +145,7 @@ pub fn SetupPage() -> Element {
                             id: "setup-server-url",
                             r#type: "text",
                             placeholder: "http://192.168.1.100:8080",
-                            value: "{server_url}",
+                            value: {server_url.to_string()},
                             oninput: move |e| {
                                 server_url.set(e.value());
                                 error.set(String::new());

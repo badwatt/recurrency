@@ -503,7 +503,7 @@ pub fn SubscriptionsPage() -> Element {
                                                     filters.write().status = if v == "all" { None } else { Some(v) };
                                                 },
                                                 for (val, label) in STATUS_OPTIONS {
-                                                    option { value: "{val}", "{label}" }
+                                                    option { value: {val.to_string()}, "{label}" }
                                                 }
                                             }
                                         }
@@ -520,7 +520,7 @@ pub fn SubscriptionsPage() -> Element {
                                                 },
                                                 option { value: "all", "All frequencies" }
                                                 for (val, label) in FREQUENCIES {
-                                                    option { value: "{val}", "{label}" }
+                                                    option { value: {val.to_string()}, "{label}" }
                                                 }
                                             }
                                         }
@@ -537,7 +537,7 @@ pub fn SubscriptionsPage() -> Element {
                                                 },
                                                 option { value: "all", "All categories" }
                                                 for (id, name) in category_options.iter() {
-                                                    option { value: "{id}", "{name}" }
+                                                    option { value: {id.to_string()}, "{name}" }
                                                 }
                                             }
                                         }
@@ -597,12 +597,12 @@ pub fn SubscriptionsPage() -> Element {
                                 span { class: "text-sm text-muted-foreground", ArrowUpDown { size: 16 } }
                                 select {
                                     class: "h-8 w-[130px] sm:w-[150px] rounded-md border bg-background px-2 text-sm",
-                                    value: "{sort_val.field}",
+                                    value: {sort_val.field.to_string()},
                                     onchange: move |e: Event<FormData>| {
                                         sort.write().field = e.value();
                                     },
                                     for (val, label) in SORT_OPTIONS {
-                                        option { value: "{val}", "{label}" }
+                                        option { value: {val.to_string()}, "{label}" }
                                     }
                                 }
                                 button {
@@ -727,7 +727,7 @@ pub fn SubscriptionsPage() -> Element {
                             textarea {
                                 class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
                                 placeholder: "Add notes...",
-                                value: "{notes_dialog_value}",
+                                value: {notes_dialog_value.to_string()},
                                 oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
                             }
                         }
@@ -822,7 +822,7 @@ fn render_grid_card(
             if let Some(ref url) = logo_url {
                 div { class: "absolute inset-0 opacity-[0.06] flex items-center justify-center pointer-events-none select-none",
                     img {
-                        src: "{url}",
+                        src: {url.to_string()},
                         alt: "",
                         class: "w-full h-full object-contain scale-[2.5]",
                     }
@@ -1155,7 +1155,7 @@ fn render_dialog(
                     input {
                         class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                         placeholder: "Netflix, Spotify, etc.",
-                        value: "{form_name}",
+                        value: {form_name.to_string()},
                         oninput: move |e: Event<FormData>| {
                             form.write().name = e.value();
                             name_error.set(String::new());
@@ -1176,7 +1176,7 @@ fn render_dialog(
                             min: "0",
                             class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                             placeholder: "9.99",
-                            value: "{form_amount}",
+                            value: {form_amount.to_string()},
                             oninput: move |e: Event<FormData>| {
                                 form.write().amount = e.value();
                                 amount_error.set(String::new());
@@ -1190,13 +1190,13 @@ fn render_dialog(
                         label { class: "text-sm font-medium", "Currency" }
                         select {
                             class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                            value: "{form_currency}",
+                            value: {form_currency.to_string()},
                             onchange: move |e: Event<FormData>| {
                                 form.write().currency = e.value();
                                 currency_error.set(String::new());
                             },
                             for (val, label) in CURRENCIES {
-                                option { value: "{val}", "{label}" }
+                                option { value: {val.to_string()}, "{label}" }
                             }
                         }
                         if !currency_err.is_empty() {
@@ -1211,13 +1211,13 @@ fn render_dialog(
                         label { class: "text-sm font-medium", "Frequency" }
                         select {
                             class: if frequency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                            value: "{form_frequency}",
+                            value: {form_frequency.to_string()},
                             onchange: move |e: Event<FormData>| {
                                 form.write().frequency = e.value();
                                 frequency_error.set(String::new());
                             },
                             for (val, label) in FREQUENCIES {
-                                option { value: "{val}", selected: form_frequency == *val, "{label}" }
+                                option { value: {val.to_string()}, selected: form_frequency == *val, "{label}" }
                             }
                         }
                         if !frequency_err.is_empty() {
@@ -1229,7 +1229,7 @@ fn render_dialog(
                         input {
                             r#type: "date",
                             class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                            value: "{form_start_date}",
+                            value: {form_start_date.to_string()},
                             oninput: move |e: Event<FormData>| {
                                 form.write().start_date = e.value();
                                 start_date_error.set(String::new());
@@ -1272,7 +1272,7 @@ fn render_dialog(
                     textarea {
                         class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
                         placeholder: "Additional notes...",
-                        value: "{form_notes}",
+                        value: {form_notes.to_string()},
                         oninput: move |e: Event<FormData>| form.write().notes = e.value(),
                     }
                 }

@@ -426,7 +426,7 @@ pub fn TransactionsPage() -> Element {
                                         },
                                         option { value: "", "All categories" }
                                         for cat in &cats.categories {
-                                            option { value: "{cat.id}", "{cat.name}" }
+                                            option { value: {cat.id.to_string()}, "{cat.name}" }
                                         }
                                     }
                                 }
@@ -671,7 +671,7 @@ pub fn TransactionsPage() -> Element {
                         label { class: "text-sm font-medium", "Name" }
                         input {
                             r#type: "text",
-                            value: "{form_name}",
+                            value: {form_name.to_string()},
                             oninput: move |e| {
                                 form_name.set(e.value());
                                 name_error.set(String::new());
@@ -689,7 +689,7 @@ pub fn TransactionsPage() -> Element {
                             input {
                                 r#type: "number",
                                 step: "0.01",
-                                value: "{form_amount}",
+                                value: {form_amount.to_string()},
                                 oninput: move |e| {
                                     form_amount.set(e.value());
                                     amount_error.set(String::new());
@@ -703,14 +703,14 @@ pub fn TransactionsPage() -> Element {
                         div { class: "space-y-2",
                             label { class: "text-sm font-medium", "Currency" }
                             select {
-                                value: "{form_currency}",
+                                value: {form_currency.to_string()},
                                 onchange: move |e| {
                                     form_currency.set(e.value());
                                     currency_error.set(String::new());
                                 },
                                 class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
                                 for (val, label) in crate::utils::constants::CURRENCIES {
-                                    option { value: "{val}", "{label}" }
+                                    option { value: {val.to_string()}, "{label}" }
                                 }
                             }
                             if !currency_error().is_empty() {
@@ -723,7 +723,7 @@ pub fn TransactionsPage() -> Element {
                         label { class: "text-sm font-medium", "Date" }
                         input {
                             r#type: "date",
-                            value: "{form_date}",
+                            value: {form_date.to_string()},
                             oninput: move |e| {
                                 form_date.set(e.value());
                                 date_error.set(String::new());
@@ -752,7 +752,7 @@ pub fn TransactionsPage() -> Element {
                     div { class: "space-y-2",
                         label { class: "text-sm font-medium", "Notes" }
                         textarea {
-                            value: "{form_notes}",
+                            value: {form_notes.to_string()},
                             oninput: move |e| form_notes.set(e.value()),
                             class: "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]",
                         }
@@ -819,7 +819,7 @@ pub fn TransactionsPage() -> Element {
                             textarea {
                                 class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
                                 placeholder: "Add notes...",
-                                value: "{notes_dialog_value}",
+                                value: {notes_dialog_value.to_string()},
                                 oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
                             }
                         }

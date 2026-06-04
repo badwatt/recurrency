@@ -122,19 +122,19 @@ pub fn ReportsPage() -> Element {
                 div { class: "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3",
                     div { class: "flex items-center gap-2",
                         select {
-                            value: "{selected_month}",
+                            value: {selected_month.to_string()},
                             onchange: move |e| selected_month.set(e.value()),
                             class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm",
                             for (val, label) in MONTH_OPTIONS {
-                                option { value: "{val}", "{label}" }
+                                option { value: {val.to_string()}, "{label}" }
                             }
                         }
                         select {
-                            value: "{selected_year}",
+                            value: {selected_year.to_string()},
                             onchange: move |e| selected_year.set(e.value()),
                             class: "flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm",
                             for y in &years {
-                                option { value: "{y}", "{y}" }
+                                option { value: {y.to_string()}, "{y}" }
                             }
                         }
                     }

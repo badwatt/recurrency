@@ -112,7 +112,7 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                             button {
                                 r#type: "button",
                                 class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 hover:bg-accent transition-colors",
-                                title: "{logo.url}",
+                                title: {logo.url.to_string()},
                                 onclick: {
                                     let url = logo.url.clone();
                                     let on_sel = on_select;

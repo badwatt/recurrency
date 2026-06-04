@@ -295,7 +295,7 @@ pub fn LoginPage() -> Element {
                             id: "login-email",
                             r#type: "email",
                             placeholder: "email@example.com",
-                            value: "{email}",
+                            value: {email.to_string()},
                             oninput: move |e| email.set(e.value()),
                             required: true,
                             class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
@@ -312,7 +312,7 @@ pub fn LoginPage() -> Element {
                         input {
                             id: "login-password",
                             r#type: "password",
-                            value: "{auth_field}",
+                            value: {auth_field.to_string()},
                             oninput: move |e| auth_field.set(e.value()),
                             required: true,
                             minlength: 8,

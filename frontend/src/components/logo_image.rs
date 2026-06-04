@@ -30,13 +30,13 @@ pub fn logo_image_with_fallback(
             let _wrapper_id_clone = wrapper_id.clone();
             rsx! {
                 div {
-                    id: "{wrapper_id}",
+                    id: {wrapper_id.to_string()},
                     class: "flex items-center justify-center rounded-md overflow-hidden bg-primary/10",
                     img {
-                        id: "{img_id}",
-                        src: "{url_str}",
-                        alt: "{name}",
-                        class: "{img_class}",
+                        id: {img_id.to_string()},
+                        src: {url_str.to_string()},
+                        alt: {name.to_string()},
+                        class: {img_class.to_string()},
                         onerror: move |_| {
                             let _ = dioxus::document::eval(&format!(
                                 "document.getElementById('{}').style.display='none'; \
@@ -71,7 +71,7 @@ pub fn logo_image_with_fallback(
                         },
                     }
                     span {
-                        id: "{fb_id}",
+                        id: {fb_id.to_string()},
                         class: "flex h-full w-full items-center justify-center font-semibold text-muted-foreground",
                         style: "display:none;",
                         "{first_letter}"

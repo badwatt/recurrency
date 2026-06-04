@@ -102,7 +102,7 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
                         input {
                             r#type: "text",
                             placeholder: "Enter 6-digit code",
-                            value: "{code}",
+                            value: {code.to_string()},
                             oninput: on_code_input,
                             maxlength: 6,
                             autofocus: true,
