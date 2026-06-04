@@ -64,10 +64,8 @@ done
 # Foreground: 432x432 canvas, 216x216 centered icon.
 mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
 # Remove Dioxus-generated XMLs that shadow our custom drawables on API 24+.
-rm -f "$RES_DIR/drawable/ic_launcher_background.xml" 2>/dev/null || true
-rm -f "$RES_DIR/drawable/ic_launcher_foreground.xml" 2>/dev/null || true
-rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml" 2>/dev/null || true
-rm -f "$RES_DIR/drawable-v24/ic_launcher_background.xml" 2>/dev/null || true
+# Remove from all drawable* dirs and any ic_launcher XML anywhere in res/.
+find "$RES_DIR" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
 
 $IM_CMD "$ICON" -resize 216x216 -gravity center -extent 432x432 \
     "$RES_DIR/drawable/ic_launcher_foreground.png"
@@ -85,6 +83,11 @@ if [ ! -f "$RES_DIR/drawable/ic_launcher_background.png" ]; then
     echo "ERROR: ic_launcher_background.png was not created at $RES_DIR/drawable/"
     exit 1
 fi
+
+# Debug: list all drawable files for AAPT
+echo "--- Drawable files available to AAPT: ---"
+find "$RES_DIR" -name 'ic_launcher*' 2>/dev/null
+echo "--- End drawable list ---"
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
 # mipmap-anydpi-v26 is the API 26+ adaptive icon; the dpi-specific
