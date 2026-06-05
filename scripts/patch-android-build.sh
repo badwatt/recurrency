@@ -97,37 +97,29 @@ if [ ! -f "$RES_DIR/drawable/ic_launcher_background.png" ]; then
 fi
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
-# mipmap-anydpi-v26 is the API 26+ adaptive icon. Override to
-# reference our solid background + padded foreground drawables.
-# The mipmap-{mdpi,hdpi,...}/ic_launcher.webp files in this dir
-# (created by dx 0.7.9) are legacy launcher icons for pre-API 26.
-# We also delete any dx-generated ic_launcher.xml shadows in those
-# dirs to avoid the v26 ref pulling from a wrong location.
-for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-    LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
-    if [ -f "$LAUNCHER_XML" ]; then
-        cat > "$LAUNCHER_XML" << 'XMLEOF'
+# mipmap-anydpi-v26 is the API 26+ adaptive icon. dx 0.7.9 may put it
+# in the inner (app/app/src/main/res/) dir which AAPT reads with
+# inconsistent sourceSet scoping. Delete the inner one and write
+# only to the single-app res dir (where Gradle's :app sourceSet
+# points by default). This makes AAPT look up @drawable refs from
+# the single-app drawable/ dir we also write to.
+SINGLE_APP_RES="$(echo "$RES_DIR" | sed 's@/app/app/@/app/@')"
+# Remove dx-generated adaptive icon XMLs from the inner res dir.
+rm -f "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml" 2>/dev/null || true
+for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+    rm -f "$RES_DIR/$dir/ic_launcher.xml" 2>/dev/null || true
+done
+# Write the adaptive icon XML to the single-app res dir.
+if [ "$SINGLE_APP_RES" != "$RES_DIR" ]; then
+    mkdir -p "$SINGLE_APP_RES/mipmap-anydpi-v26"
+    cat > "$SINGLE_APP_RES/mipmap-anydpi-v26/ic_launcher.xml" << 'XMLEOF'
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
   <background android:drawable="@drawable/ic_launcher_background"/>
   <foreground android:drawable="@drawable/ic_launcher_foreground"/>
 </adaptive-icon>
 XMLEOF
-        echo "--- Patched $LAUNCHER_XML ---"
-    fi
-done
-
-# Copy the adaptive icon XML to the single-app res dir too.
-# Gradle's :app sourceSet points to app/src/main/res (single app).
-SINGLE_APP_RES="$(echo "$RES_DIR" | sed 's@/app/app/@/app/@')"
-if [ "$SINGLE_APP_RES" != "$RES_DIR" ]; then
-    for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-        if [ -f "$RES_DIR/$dir/ic_launcher.xml" ]; then
-            mkdir -p "$SINGLE_APP_RES/$dir"
-            cp "$RES_DIR/$dir/ic_launcher.xml" "$SINGLE_APP_RES/$dir/"
-        fi
-    done
-    echo "--- Copied adaptive icon XMLs to single-app res ---"
+    echo "--- Wrote adaptive icon XML to single-app res ---"
 fi
 
 # ── 4. Patch Gradle: extractNativeLibs=true, jvmTarget=17 ──
