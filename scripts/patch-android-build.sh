@@ -76,7 +76,7 @@ echo "--- Generated ic_launcher_background.png (432x432 solid) ---"
 # Also write to single-app res (where Gradle's :app sourceSet points).
 # RES_DIR = .../app/app/src/main/res. Single-app = .../app/src/main/res.
 # Use sed to collapse the doubled 'app/app' to a single 'app/'.
-SINGLE_APP_RES="$(echo "$RES_DIR" | sed 's|/app/app/|/app/|')"
+SINGLE_APP_RES="$(echo "$RES_DIR" | sed 's@/app/app/@/app/@')"
 if [ "$SINGLE_APP_RES" != "$RES_DIR" ] && [ -d "$(dirname "$SINGLE_APP_RES")" ]; then
     mkdir -p "$SINGLE_APP_RES/drawable"
     cp "$RES_DIR/drawable/ic_launcher_foreground.png" "$SINGLE_APP_RES/drawable/"
