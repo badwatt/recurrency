@@ -63,23 +63,8 @@ done
 # Android adaptive-icon: 108dp canvas, 72dp safe zone.
 # Foreground: 432x432 canvas, 216x216 centered icon.
 mkdir -p "$RES_DIR/drawable" "$RES_DIR/drawable-nodpi"
-# Some dx 0.7.9 outputs may resolve @drawable refs from a sibling res dir.
-# Also create the drawables in the parent (single-app) res dir if it exists.
-# PARENT_RES_DIR is the single-app res dir (dx 0.7.9 puts most files in
-# app/app/src/main/res; the single-app app/src/main/res is for Gradle).
-PARENT_RES_DIR="${RES_DIR%/app/app/src/main/res}/app/src/main/res"
-if [ "$PARENT_RES_DIR" = "$RES_DIR" ] || [ ! -d "$(dirname "$PARENT_RES_DIR")" ]; then
-    PARENT_RES_DIR=""
-fi
-if [ -d "$PARENT_RES_DIR" ] && [ "$PARENT_RES_DIR" != "$RES_DIR" ]; then
-    mkdir -p "$PARENT_RES_DIR/drawable"
-else
-    PARENT_RES_DIR=""
-fi
 # Remove Dioxus-generated XMLs that shadow our custom drawables on API 24+.
-# Remove from all drawable* dirs and any ic_launcher XML anywhere in res/.
 find "$RES_DIR" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
-[ -n "$PARENT_RES_DIR" ] && find "$PARENT_RES_DIR/drawable" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
 
 $IM_CMD "$ICON" -resize 216x216 -gravity center -extent 432x432 \
     "$RES_DIR/drawable/ic_launcher_foreground.png"
@@ -88,14 +73,18 @@ echo "--- Generated ic_launcher_foreground.png (432x432 padded) ---"
 $IM_CMD -size 432x432 xc:'#0ea5e9' "$RES_DIR/drawable/ic_launcher_background.png"
 echo "--- Generated ic_launcher_background.png (432x432 solid) ---"
 
-# Also write to parent (single-app) res dir if it exists.
-if [ -n "$PARENT_RES_DIR" ]; then
-    mkdir -p "$PARENT_RES_DIR/drawable"
-    $IM_CMD "$ICON" -resize 216x216 -gravity center -extent 432x432 \
-        "$PARENT_RES_DIR/drawable/ic_launcher_foreground.png"
-    $IM_CMD -size 432x432 xc:'#0ea5e9' \
-        "$PARENT_RES_DIR/drawable/ic_launcher_background.png"
-    echo "--- Also wrote drawables to single-app res: $PARENT_RES_DIR/drawable ---"
+# Also write to single-app res (where Gradle's :app sourceSet points).
+# dx 0.7.9 puts sources under app/app/src/main/res but Gradle's :app
+# source set defaults to app/src/main/res. Copying the drawables ensures
+# AAPT can resolve @drawable/ic_launcher_foreground refs.
+SINGLE_APP_RES="${RES_DIR%/app/app/src/main/res}/app/src/main/res"
+if [ -d "$(dirname "$SINGLE_APP_RES")" ]; then
+    mkdir -p "$SINGLE_APP_RES/drawable"
+    cp "$RES_DIR/drawable/ic_launcher_foreground.png" "$SINGLE_APP_RES/drawable/"
+    cp "$RES_DIR/drawable/ic_launcher_background.png" "$SINGLE_APP_RES/drawable/"
+    # Remove any dx-generated XML shadows in single-app res too.
+    find "$SINGLE_APP_RES" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
+    echo "--- Copied drawables to single-app res: $SINGLE_APP_RES/drawable ---"
 fi
 
 # Verify drawables exist — AAPT will fail silently otherwise.
@@ -107,21 +96,6 @@ if [ ! -f "$RES_DIR/drawable/ic_launcher_background.png" ]; then
     echo "ERROR: ic_launcher_background.png was not created at $RES_DIR/drawable/"
     exit 1
 fi
-if [ -n "$PARENT_RES_DIR" ] && [ -d "$PARENT_RES_DIR/drawable" ]; then
-    if [ ! -f "$PARENT_RES_DIR/drawable/ic_launcher_foreground.png" ]; then
-        echo "ERROR: ic_launcher_foreground.png not at $PARENT_RES_DIR/drawable/"
-        exit 1
-    fi
-fi
-
-# Debug: list all ic_launcher files for AAPT
-echo "--- All ic_launcher files available to AAPT: ---"
-find "$RES_DIR" -name 'ic_launcher*' 2>/dev/null
-if [ -n "$PARENT_RES_DIR" ] && [ -d "$PARENT_RES_DIR" ]; then
-    echo "--- Single-app res also contains: ---"
-    find "$PARENT_RES_DIR" -name 'ic_launcher*' 2>/dev/null
-fi
-echo "--- End listing ---"
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
 # mipmap-anydpi-v26 is the API 26+ adaptive icon; the dpi-specific
