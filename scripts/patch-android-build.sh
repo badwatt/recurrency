@@ -85,6 +85,14 @@ if [ -d "$(dirname "$SINGLE_APP_RES")" ]; then
     # Remove any dx-generated XML shadows in single-app res too.
     find "$SINGLE_APP_RES" -name 'ic_launcher_*.xml' -delete 2>/dev/null || true
     echo "--- Copied drawables to single-app res: $SINGLE_APP_RES/drawable ---"
+    # Also copy the mipmap webp launchers so legacy mipmap lookups work.
+    for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+        if [ -d "$RES_DIR/$dir" ]; then
+            mkdir -p "$SINGLE_APP_RES/$dir"
+            cp "$RES_DIR/$dir"/*.webp "$SINGLE_APP_RES/$dir/" 2>/dev/null || true
+        fi
+    done
+    echo "--- Copied mipmap webp to single-app res ---"
 fi
 
 # Verify drawables exist — AAPT will fail silently otherwise.
@@ -98,8 +106,8 @@ if [ ! -f "$RES_DIR/drawable/ic_launcher_background.png" ]; then
 fi
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
-# mipmap-anydpi-v26 is the API 26+ adaptive icon; the dpi-specific
-# mipmap-Xdpi/ic_launcher.xml files are only used for older APIs.
+# mipmap-anydpi-v26 is the API 26+ adaptive icon. We override to point
+# at our solid background + padded foreground drawables.
 for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
     if [ -f "$LAUNCHER_XML" ]; then
@@ -113,6 +121,20 @@ XMLEOF
         echo "--- Patched $LAUNCHER_XML ---"
     fi
 done
+
+# Also write the adaptive icon XMLs to the single-app res so the
+# :app Gradle module (whose source set is app/src/main/res) finds them
+# along with the drawables.
+SINGLE_APP_RES="${RES_DIR%/app/app/src/main/res}/app/src/main/res"
+if [ -d "$(dirname "$SINGLE_APP_RES")" ]; then
+    for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+        mkdir -p "$SINGLE_APP_RES/$dir"
+        if [ -f "$RES_DIR/$dir/ic_launcher.xml" ]; then
+            cp "$RES_DIR/$dir/ic_launcher.xml" "$SINGLE_APP_RES/$dir/"
+        fi
+    done
+    echo "--- Copied adaptive icon XMLs to single-app res ---"
+fi
 
 # ── 4. Patch Gradle: extractNativeLibs=true, jvmTarget=17 ──
 if [ -f "$GRADLE_FILE" ]; then
