@@ -97,12 +97,12 @@ if [ ! -f "$RES_DIR/drawable/ic_launcher_background.png" ]; then
 fi
 
 # ── 3. Patch adaptive-icon XMLs: background + foreground ──
-# mipmap-anydpi-v26 is the API 26+ adaptive icon. Override it to
-# point at our solid background + padded foreground drawables.
-# For the dpi-specific mipmap dirs, the ic_launcher.webp (legacy
-# icon) is what AAPT reads on pre-API 26 devices — no XML needed.
-# But Dioxus 0.7.9 may also create ic_launcher.xml in those dirs; we
-# override to the same adaptive-icon shape to keep behavior consistent.
+# mipmap-anydpi-v26 is the API 26+ adaptive icon. Override to
+# reference our solid background + padded foreground drawables.
+# The mipmap-{mdpi,hdpi,...}/ic_launcher.webp files in this dir
+# (created by dx 0.7.9) are legacy launcher icons for pre-API 26.
+# We also delete any dx-generated ic_launcher.xml shadows in those
+# dirs to avoid the v26 ref pulling from a wrong location.
 for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
     LAUNCHER_XML="$RES_DIR/$dir/ic_launcher.xml"
     if [ -f "$LAUNCHER_XML" ]; then
@@ -116,6 +116,19 @@ XMLEOF
         echo "--- Patched $LAUNCHER_XML ---"
     fi
 done
+
+# Copy the adaptive icon XML to the single-app res dir too.
+# Gradle's :app sourceSet points to app/src/main/res (single app).
+SINGLE_APP_RES="$(echo "$RES_DIR" | sed 's@/app/app/@/app/@')"
+if [ "$SINGLE_APP_RES" != "$RES_DIR" ]; then
+    for dir in mipmap-anydpi-v26 mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+        if [ -f "$RES_DIR/$dir/ic_launcher.xml" ]; then
+            mkdir -p "$SINGLE_APP_RES/$dir"
+            cp "$RES_DIR/$dir/ic_launcher.xml" "$SINGLE_APP_RES/$dir/"
+        fi
+    done
+    echo "--- Copied adaptive icon XMLs to single-app res ---"
+fi
 
 # ── 4. Patch Gradle: extractNativeLibs=true, jvmTarget=17 ──
 if [ -f "$GRADLE_FILE" ]; then
