@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  DX_VERSION: "0.7.9"
+  DX_VERSION: "0.7.10"
   CARGO_TERM_COLOR: always
 
 permissions:
