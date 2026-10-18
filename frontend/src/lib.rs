@@ -1,3 +1,6 @@
+// Many items are only referenced from `#[cfg(test)]` modules or only on the
+// wasm target, so `dead_code` fires on the host library build even though the
+// code is used. Keep a crate-level allow rather than annotating ~40 items.
 #![allow(dead_code)]
 
 use crate::state::app_mode::APP_MODE;

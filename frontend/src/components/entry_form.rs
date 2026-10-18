@@ -13,13 +13,6 @@ pub enum EntityType {
     Transaction,
 }
 
-/// Which mode the dialog is in.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DialogMode {
-    Add,
-    Edit,
-}
-
 /// Shared form state for subscription/transaction create/edit dialogs.
 #[derive(Debug, Clone, Default)]
 pub struct EntryForm {

@@ -1,8 +1,5 @@
 use crate::state::preferences::PREFERENCES;
 
-/// Available themes (cycle order: light → dark → mocha → light).
-pub const THEMES: &[&str] = &["light", "dark", "mocha"];
-
 /// Default theme.
 pub const DEFAULT_THEME: &str = "mocha";
 
@@ -71,15 +68,6 @@ pub fn toggle_theme() {
     let next = cycle_theme(&current);
     PREFERENCES.write().set_theme(next.to_string());
     apply_theme_class(next);
-}
-
-/// Get icon name for theme toggle.
-pub fn theme_icon_name(theme: &str) -> &'static str {
-    match theme {
-        "dark" => "moon",
-        "mocha" => "coffee",
-        _ => "sun",
-    }
 }
 
 #[cfg(test)]
