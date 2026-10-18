@@ -7,6 +7,70 @@ use crate::shared::error::{AppError, AppResult};
 
 pub struct CategoryService;
 
+/// Category port, injected into `AppState` as `Arc<dyn CategoryServiceTrait>`.
+#[async_trait::async_trait]
+pub trait CategoryServiceTrait: Send + Sync {
+    async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category>;
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Category>>;
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category>;
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateCategoryRequest,
+    ) -> AppResult<Category>;
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
+    async fn set_default(&self, user_id: Uuid, id: Uuid) -> AppResult<Category>;
+    async fn get_with_counts(&self, user_id: Uuid) -> AppResult<Vec<CategoryWithCounts>>;
+}
+
+/// SQLx adapter delegating to the existing, tested [`CategoryService`] functions.
+pub struct SqlxCategoryService {
+    pool: PgPool,
+}
+
+impl SqlxCategoryService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl CategoryServiceTrait for SqlxCategoryService {
+    async fn create(&self, user_id: Uuid, req: CreateCategoryRequest) -> AppResult<Category> {
+        CategoryService::create(&self.pool, user_id, req).await
+    }
+
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Category>> {
+        CategoryService::get_all(&self.pool, user_id).await
+    }
+
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
+        CategoryService::get_by_id(&self.pool, user_id, id).await
+    }
+
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateCategoryRequest,
+    ) -> AppResult<Category> {
+        CategoryService::update(&self.pool, user_id, id, req).await
+    }
+
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
+        CategoryService::delete(&self.pool, user_id, id).await
+    }
+
+    async fn set_default(&self, user_id: Uuid, id: Uuid) -> AppResult<Category> {
+        CategoryService::set_default(&self.pool, user_id, id).await
+    }
+
+    async fn get_with_counts(&self, user_id: Uuid) -> AppResult<Vec<CategoryWithCounts>> {
+        CategoryService::get_with_counts(&self.pool, user_id).await
+    }
+}
+
 impl CategoryService {
     /// Creates "Uncategorized" category for a new user and sets it as default
     pub async fn create_uncategorized(pool: &PgPool, user_id: Uuid) -> AppResult<()> {

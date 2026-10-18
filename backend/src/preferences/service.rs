@@ -106,6 +106,32 @@ impl SqlxPreferencesService {
     }
 }
 
+/// Preferences port, injected into `AppState` as `Arc<dyn PreferencesServiceTrait>`.
+#[async_trait::async_trait]
+pub trait PreferencesServiceTrait: Send + Sync {
+    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse>;
+    async fn update_preferences(
+        &self,
+        user_id: Uuid,
+        req: UpdatePreferencesRequest,
+    ) -> AppResult<PreferencesResponse>;
+}
+
+#[async_trait::async_trait]
+impl PreferencesServiceTrait for SqlxPreferencesService {
+    async fn get_preferences(&self, user_id: Uuid) -> AppResult<PreferencesResponse> {
+        SqlxPreferencesService::get_preferences(self, user_id).await
+    }
+
+    async fn update_preferences(
+        &self,
+        user_id: Uuid,
+        req: UpdatePreferencesRequest,
+    ) -> AppResult<PreferencesResponse> {
+        SqlxPreferencesService::update_preferences(self, user_id, req).await
+    }
+}
+
 // Backward compatibility: keep PreferencesService for now
 pub struct PreferencesService;
 

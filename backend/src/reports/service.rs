@@ -10,6 +10,83 @@ use crate::shared::error::AppResult;
 
 pub struct ReportService;
 
+/// Report port, injected into `AppState` as `Arc<dyn ReportServiceTrait>`.
+#[async_trait::async_trait]
+pub trait ReportServiceTrait: Send + Sync {
+    async fn get_monthly_summary(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<MonthlySummary>;
+    async fn get_category_breakdown(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CategoryBreakdown>>;
+    async fn get_recent_trends(
+        &self,
+        user_id: Uuid,
+        months_count: i32,
+    ) -> AppResult<Vec<SpendingTrend>>;
+    async fn get_full_report(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<ReportResponse>;
+}
+
+/// SQLx adapter delegating to the existing, tested [`ReportService`] functions.
+pub struct SqlxReportService {
+    pool: PgPool,
+}
+
+impl SqlxReportService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl ReportServiceTrait for SqlxReportService {
+    async fn get_monthly_summary(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<MonthlySummary> {
+        ReportService::get_monthly_summary(&self.pool, user_id, year, month).await
+    }
+
+    async fn get_category_breakdown(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CategoryBreakdown>> {
+        ReportService::get_category_breakdown(&self.pool, user_id, year, month).await
+    }
+
+    async fn get_recent_trends(
+        &self,
+        user_id: Uuid,
+        months_count: i32,
+    ) -> AppResult<Vec<SpendingTrend>> {
+        ReportService::get_recent_trends(&self.pool, user_id, months_count).await
+    }
+
+    async fn get_full_report(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<ReportResponse> {
+        ReportService::get_full_report(&self.pool, user_id, year, month).await
+    }
+}
+
 /// Calculate the first and last date of a given year/month.
 pub(crate) fn month_date_range(year: i32, month: u32) -> (chrono::NaiveDate, chrono::NaiveDate) {
     let from_date = chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap();

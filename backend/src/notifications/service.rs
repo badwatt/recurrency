@@ -19,6 +19,69 @@ pub const INSERT_NOTIFICATION_SQL: &str =
 
 pub struct NotificationService;
 
+/// Notification port, injected into `AppState` as `Arc<dyn NotificationServiceTrait>`.
+#[async_trait::async_trait]
+pub trait NotificationServiceTrait: Send + Sync {
+    async fn list(&self, user_id: Uuid) -> AppResult<NotificationResponse>;
+    async fn mark_read(&self, user_id: Uuid, id: Uuid) -> AppResult<bool>;
+    async fn mark_all_read(&self, user_id: Uuid) -> AppResult<i64>;
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<bool>;
+    async fn get_notification_preferences(
+        &self,
+        user_id: Uuid,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>>;
+    async fn update_notification_preferences(
+        &self,
+        user_id: Uuid,
+        prefs: Vec<UpdatePreferenceRequest>,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>>;
+}
+
+/// SQLx adapter delegating to the existing, tested [`NotificationService`] functions.
+pub struct SqlxNotificationService {
+    pool: PgPool,
+}
+
+impl SqlxNotificationService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl NotificationServiceTrait for SqlxNotificationService {
+    async fn list(&self, user_id: Uuid) -> AppResult<NotificationResponse> {
+        NotificationService::list(&self.pool, user_id).await
+    }
+
+    async fn mark_read(&self, user_id: Uuid, id: Uuid) -> AppResult<bool> {
+        NotificationService::mark_read(&self.pool, user_id, id).await
+    }
+
+    async fn mark_all_read(&self, user_id: Uuid) -> AppResult<i64> {
+        NotificationService::mark_all_read(&self.pool, user_id).await
+    }
+
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<bool> {
+        NotificationService::delete(&self.pool, user_id, id).await
+    }
+
+    async fn get_notification_preferences(
+        &self,
+        user_id: Uuid,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>> {
+        NotificationService::get_notification_preferences(&self.pool, user_id).await
+    }
+
+    async fn update_notification_preferences(
+        &self,
+        user_id: Uuid,
+        prefs: Vec<UpdatePreferenceRequest>,
+    ) -> AppResult<Vec<NotificationPreferenceResponse>> {
+        NotificationService::update_notification_preferences(&self.pool, user_id, prefs).await
+    }
+}
+
 impl NotificationService {
     pub async fn list(pool: &PgPool, user_id: Uuid) -> AppResult<NotificationResponse> {
         let unread_count: (i64,) = sqlx::query_as(

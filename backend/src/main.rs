@@ -63,18 +63,14 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn build_app(db_pool: sqlx::PgPool) -> Router {
-    use auth::service::{AuthServiceTrait, SqlxAuthService};
     use shared::app_state::AppState;
-    use std::sync::Arc;
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let auth_service: Arc<dyn AuthServiceTrait> =
-        Arc::new(SqlxAuthService::new(db_pool.clone()));
-    let app_state = AppState::new(db_pool.clone(), auth_service);
+    let app_state = AppState::new(db_pool.clone());
 
     Router::new()
         .route("/health", get(health_check))

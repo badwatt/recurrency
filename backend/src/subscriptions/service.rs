@@ -13,6 +13,76 @@ use crate::subscriptions::models::{
 
 pub struct SubscriptionService;
 
+/// Subscription port, injected into `AppState` as `Arc<dyn SubscriptionServiceTrait>`.
+#[async_trait::async_trait]
+pub trait SubscriptionServiceTrait: Send + Sync {
+    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<Subscription>;
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>>;
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription>;
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateSubscriptionRequest,
+    ) -> AppResult<Subscription>;
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
+    async fn get_upcoming(&self, user_id: Uuid, days: i64) -> AppResult<Vec<Subscription>>;
+    async fn get_calendar(&self, user_id: Uuid, year: i32, month: u32)
+    -> AppResult<Vec<CalendarItem>>;
+}
+
+/// SQLx adapter delegating to the existing, tested [`SubscriptionService`] functions.
+pub struct SqlxSubscriptionService {
+    pool: PgPool,
+}
+
+impl SqlxSubscriptionService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl SubscriptionServiceTrait for SqlxSubscriptionService {
+    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<Subscription> {
+        SubscriptionService::create(&self.pool, user_id, req).await
+    }
+
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>> {
+        SubscriptionService::get_all(&self.pool, user_id).await
+    }
+
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
+        SubscriptionService::get_by_id(&self.pool, user_id, id).await
+    }
+
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateSubscriptionRequest,
+    ) -> AppResult<Subscription> {
+        SubscriptionService::update(&self.pool, user_id, id, req).await
+    }
+
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
+        SubscriptionService::delete(&self.pool, user_id, id).await
+    }
+
+    async fn get_upcoming(&self, user_id: Uuid, days: i64) -> AppResult<Vec<Subscription>> {
+        SubscriptionService::get_upcoming(&self.pool, user_id, days).await
+    }
+
+    async fn get_calendar(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CalendarItem>> {
+        SubscriptionService::get_calendar(&self.pool, user_id, year, month).await
+    }
+}
+
 impl SubscriptionService {
     pub async fn create(
         pool: &PgPool,

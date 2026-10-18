@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::categories::models::{
     CategoryResponse, CreateCategoryRequest, SetDefaultRequest, UpdateCategoryRequest,
 };
-use crate::categories::service::{CategoryService, CategoryWithCounts};
+use crate::categories::service::CategoryWithCounts;
 use crate::shared::app_state::AppState;
 use crate::shared::error::AppResult;
 
@@ -27,7 +27,7 @@ pub async fn create(
     )?)
     .await?;
 
-    let category = CategoryService::create(&state.pool, claims.sub, req).await?;
+    let category = state.category_service.create(claims.sub, req).await?;
 
     Ok((StatusCode::CREATED, Json(category.into())))
 }
@@ -43,7 +43,7 @@ pub async fn list(
     )?)
     .await?;
 
-    let categories = CategoryService::get_all(&state.pool, claims.sub).await?;
+    let categories = state.category_service.get_all(claims.sub).await?;
 
     Ok(Json(categories.into_iter().map(Into::into).collect()))
 }
@@ -59,7 +59,7 @@ pub async fn list_with_counts(
     )?)
     .await?;
 
-    let categories = CategoryService::get_with_counts(&state.pool, claims.sub).await?;
+    let categories = state.category_service.get_with_counts(claims.sub).await?;
 
     Ok(Json(categories))
 }
@@ -76,7 +76,7 @@ pub async fn get(
     )?)
     .await?;
 
-    let category = CategoryService::get_by_id(&state.pool, claims.sub, id).await?;
+    let category = state.category_service.get_by_id(claims.sub, id).await?;
 
     Ok(Json(category.into()))
 }
@@ -94,7 +94,7 @@ pub async fn update(
     )?)
     .await?;
 
-    let category = CategoryService::update(&state.pool, claims.sub, id, req).await?;
+    let category = state.category_service.update(claims.sub, id, req).await?;
 
     Ok(Json(category.into()))
 }
@@ -111,7 +111,7 @@ pub async fn delete(
     )?)
     .await?;
 
-    CategoryService::delete(&state.pool, claims.sub, id).await?;
+    state.category_service.delete(claims.sub, id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -128,7 +128,7 @@ pub async fn set_default(
     )?)
     .await?;
 
-    let category = CategoryService::set_default(&state.pool, claims.sub, req.id).await?;
+    let category = state.category_service.set_default(claims.sub, req.id).await?;
 
     Ok(Json(category.into()))
 }

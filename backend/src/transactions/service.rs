@@ -10,6 +10,75 @@ use crate::transactions::models::{
 
 pub struct TransactionService;
 
+/// Transaction port, injected into `AppState` as `Arc<dyn TransactionServiceTrait>`.
+#[async_trait::async_trait]
+pub trait TransactionServiceTrait: Send + Sync {
+    async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction>;
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Transaction>>;
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction>;
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateTransactionRequest,
+    ) -> AppResult<Transaction>;
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
+    async fn get_by_date_range(
+        &self,
+        user_id: Uuid,
+        from_date: NaiveDate,
+        to_date: NaiveDate,
+    ) -> AppResult<Vec<Transaction>>;
+}
+
+/// SQLx adapter delegating to the existing, tested [`TransactionService`] functions.
+pub struct SqlxTransactionService {
+    pool: PgPool,
+}
+
+impl SqlxTransactionService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl TransactionServiceTrait for SqlxTransactionService {
+    async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction> {
+        TransactionService::create(&self.pool, user_id, req).await
+    }
+
+    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Transaction>> {
+        TransactionService::get_all(&self.pool, user_id).await
+    }
+
+    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Transaction> {
+        TransactionService::get_by_id(&self.pool, user_id, id).await
+    }
+
+    async fn update(
+        &self,
+        user_id: Uuid,
+        id: Uuid,
+        req: UpdateTransactionRequest,
+    ) -> AppResult<Transaction> {
+        TransactionService::update(&self.pool, user_id, id, req).await
+    }
+
+    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()> {
+        TransactionService::delete(&self.pool, user_id, id).await
+    }
+
+    async fn get_by_date_range(
+        &self,
+        user_id: Uuid,
+        from_date: NaiveDate,
+        to_date: NaiveDate,
+    ) -> AppResult<Vec<Transaction>> {
+        TransactionService::get_by_date_range(&self.pool, user_id, from_date, to_date).await
+    }
+}
+
 /// Resolve updated fields from an existing transaction + update request.
 /// Returns tuple: (name, amount, currency, date, category_id, notes, logo_url).
 pub fn resolve_update_fields(

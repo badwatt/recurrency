@@ -10,7 +10,6 @@ use crate::shared::error::{AppError, AppResult};
 use crate::transactions::models::{
     CreateTransactionRequest, TransactionResponse, UpdateTransactionRequest,
 };
-use crate::transactions::service::TransactionService;
 
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::{AuthQuery, OptionalQuery};
@@ -34,7 +33,7 @@ pub async fn create(
     )?)
     .await?;
 
-    let transaction = TransactionService::create(&state.pool, claims.sub, req).await?;
+    let transaction = state.transaction_service.create(claims.sub, req).await?;
 
     Ok((StatusCode::CREATED, Json(transaction.into())))
 }
@@ -50,7 +49,7 @@ pub async fn list(
     )?)
     .await?;
 
-    let transactions = TransactionService::get_all(&state.pool, claims.sub).await?;
+    let transactions = state.transaction_service.get_all(claims.sub).await?;
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }
@@ -67,7 +66,7 @@ pub async fn get(
     )?)
     .await?;
 
-    let transaction = TransactionService::get_by_id(&state.pool, claims.sub, id).await?;
+    let transaction = state.transaction_service.get_by_id(claims.sub, id).await?;
 
     Ok(Json(transaction.into()))
 }
@@ -85,7 +84,7 @@ pub async fn update(
     )?)
     .await?;
 
-    let transaction = TransactionService::update(&state.pool, claims.sub, id, req).await?;
+    let transaction = state.transaction_service.update(claims.sub, id, req).await?;
 
     Ok(Json(transaction.into()))
 }
@@ -102,7 +101,7 @@ pub async fn delete(
     )?)
     .await?;
 
-    TransactionService::delete(&state.pool, claims.sub, id).await?;
+    state.transaction_service.delete(claims.sub, id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -131,7 +130,7 @@ pub async fn by_date_range(
     };
 
     let transactions =
-        TransactionService::get_by_date_range(&state.pool, claims.sub, from_date, to_date).await?;
+        state.transaction_service.get_by_date_range(claims.sub, from_date, to_date).await?;
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }

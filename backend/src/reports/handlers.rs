@@ -2,7 +2,6 @@ use axum::{extract::State, http::HeaderMap, Json};
 use chrono::Datelike;
 
 use crate::reports::models::ReportResponse;
-use crate::reports::service::ReportService;
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
@@ -33,7 +32,7 @@ pub async fn get_report(
         .and_then(|q| q.month)
         .unwrap_or(today.month());
 
-    let report = ReportService::get_full_report(&state.pool, claims.sub, year, month).await?;
+    let report = state.report_service.get_full_report(claims.sub, year, month).await?;
 
     Ok(Json(report))
 }

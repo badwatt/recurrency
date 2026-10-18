@@ -12,7 +12,7 @@ use crate::shared::error::AppResult;
 use crate::subscriptions::models::{
     CreateSubscriptionRequest, SubscriptionResponse, UpdateSubscriptionRequest,
 };
-use crate::subscriptions::service::{CalendarItem, SubscriptionService};
+use crate::subscriptions::service::CalendarItem;
 
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::{AuthQuery, OptionalQuery};
@@ -38,7 +38,7 @@ pub async fn create(
     )?)
     .await?;
 
-    let subscription = SubscriptionService::create(&state.pool, claims.sub, req).await?;
+    let subscription = state.subscription_service.create(claims.sub, req).await?;
 
     Ok((StatusCode::CREATED, Json(subscription.into())))
 }
@@ -54,7 +54,7 @@ pub async fn list(
     )?)
     .await?;
 
-    let subscriptions = SubscriptionService::get_all(&state.pool, claims.sub).await?;
+    let subscriptions = state.subscription_service.get_all(claims.sub).await?;
 
     Ok(Json(subscriptions.into_iter().map(Into::into).collect()))
 }
@@ -71,7 +71,7 @@ pub async fn get(
     )?)
     .await?;
 
-    let subscription = SubscriptionService::get_by_id(&state.pool, claims.sub, id).await?;
+    let subscription = state.subscription_service.get_by_id(claims.sub, id).await?;
 
     Ok(Json(subscription.into()))
 }
@@ -89,7 +89,7 @@ pub async fn update(
     )?)
     .await?;
 
-    let subscription = SubscriptionService::update(&state.pool, claims.sub, id, req).await?;
+    let subscription = state.subscription_service.update(claims.sub, id, req).await?;
 
     Ok(Json(subscription.into()))
 }
@@ -106,7 +106,7 @@ pub async fn delete(
     )?)
     .await?;
 
-    SubscriptionService::delete(&state.pool, claims.sub, id).await?;
+    state.subscription_service.delete(claims.sub, id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -122,7 +122,7 @@ pub async fn upcoming(
     )?)
     .await?;
 
-    let subscriptions = SubscriptionService::get_upcoming(&state.pool, claims.sub, 7).await?;
+    let subscriptions = state.subscription_service.get_upcoming(claims.sub, 7).await?;
 
     Ok(Json(subscriptions.into_iter().map(Into::into).collect()))
 }
@@ -145,7 +145,7 @@ pub async fn calendar(
         .and_then(|q| q.month)
         .unwrap_or(today.month());
 
-    let items = SubscriptionService::get_calendar(&state.pool, claims.sub, year, month).await?;
+    let items = state.subscription_service.get_calendar(claims.sub, year, month).await?;
 
     Ok(Json(items))
 }
