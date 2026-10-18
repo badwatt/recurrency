@@ -1,5 +1,15 @@
 
     use super::*;
+use crate::utils::constants::CURRENCIES;
+
+const SETTINGS_SOURCES: &str = concat!(
+    include_str!("../settings_page.rs"),
+    include_str!("../settings_page/profile_card.rs"),
+    include_str!("../settings_page/preferences_card.rs"),
+    include_str!("../settings_page/connection_card.rs"),
+    include_str!("../settings_page/notifications_card.rs"),
+);
+
 
     #[test]
     fn notification_channels_count() {
@@ -311,13 +321,13 @@
     // ── RSX structure checks ──
     #[test]
     fn settings_page_has_form_layout() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("Settings"), "Should have Settings title");
     }
 
     #[test]
     fn settings_page_has_name_input() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("name") && src.contains("oninput"),
             "Should have name input"
@@ -326,7 +336,7 @@
 
     #[test]
     fn settings_page_has_currency_select() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("currency") || src.contains("Select"),
             "Should have currency selector"
@@ -335,7 +345,7 @@
 
     #[test]
     fn settings_page_has_notification_toggles() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("notification") || src.contains("NOTIFICATION_CHANNELS"),
             "Should have notification toggles"
@@ -344,13 +354,13 @@
 
     #[test]
     fn settings_page_uses_toast() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("TOAST"), "Should use TOAST for notifications");
     }
 
     #[test]
     fn settings_page_has_save_handlers() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("handle_save") || src.contains("on_change"),
             "Should have save handlers"
@@ -360,13 +370,13 @@
     // ── State initialization checks ──
     #[test]
     fn settings_page_loads_auth_state() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("AUTH()"), "Should load AUTH state");
     }
 
     #[test]
     fn settings_page_loads_notification_prefs() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("notification_preferences") || src.contains("NOTIFICATION_CHANNELS"),
             "Should load notification preferences"
@@ -376,13 +386,13 @@
     // ── API call checks ──
     #[test]
     fn settings_page_calls_settings_api() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("settings::"), "Should call settings API");
     }
 
     #[test]
     fn settings_page_calls_notification_prefs_api() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("notification_preferences::"),
             "Should call notification preferences API"
@@ -394,13 +404,13 @@
     // ── Additional unique tests ──
     #[test]
     fn settings_page_uses_signals() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("use_signal"), "Should use signals for state");
     }
 
     #[test]
     fn settings_page_uses_effect() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("use_effect"),
             "Should use effect for side effects"
@@ -409,7 +419,7 @@
 
     #[test]
     fn settings_page_uses_future() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("use_future"),
             "Should use future for async loading"
@@ -418,7 +428,7 @@
 
     #[test]
     fn settings_page_uses_spawn() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("spawn"),
             "Should use spawn for async operations"
@@ -427,19 +437,19 @@
 
     #[test]
     fn settings_page_logs_errors() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("log::error"), "Should log errors");
     }
 
     #[test]
     fn settings_page_syncs_form_with_auth() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(src.contains("AUTH().user"), "Should read user from AUTH");
     }
 
     #[test]
     fn settings_page_has_loading_states() {
-        let src = include_str!("../settings_page.rs");
+        let src = SETTINGS_SOURCES;
         assert!(
             src.contains("_loading") || src.contains("loading"),
             "Should have loading state"
