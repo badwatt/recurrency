@@ -53,6 +53,7 @@ fn generate_code() -> String {
 #[allow(dead_code)]
 pub enum AuthProvider {
     Live(SqlxAuthService),
+    #[cfg(test)]
     Mock(crate::shared::mocks::MockAuthService),
 }
 
@@ -60,6 +61,7 @@ impl AuthProvider {
     pub async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
         match self {
             AuthProvider::Live(s) => s.register_impl(req).await,
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.register(req).await,
         }
     }
@@ -67,6 +69,7 @@ impl AuthProvider {
     pub async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
         match self {
             AuthProvider::Live(s) => s.login_impl(req).await,
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.login(req).await,
         }
     }
@@ -74,6 +77,7 @@ impl AuthProvider {
     pub async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
         match self {
             AuthProvider::Live(s) => s.verify_email_impl(user_id, code).await,
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.verify_email(user_id, code).await,
         }
     }
@@ -81,6 +85,7 @@ impl AuthProvider {
     pub async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
         match self {
             AuthProvider::Live(s) => s.resend_verification_impl(user_id).await,
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.resend_verification(user_id).await,
         }
     }
@@ -89,6 +94,7 @@ impl AuthProvider {
     pub async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
         match self {
             AuthProvider::Live(s) => s.get_user_by_id_impl(user_id).await,
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.get_user_by_id(user_id).await,
         }
     }
@@ -96,6 +102,7 @@ impl AuthProvider {
     pub async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
         match self {
             AuthProvider::Live(s) => s.update_settings_impl(user_id, req).await,
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.update_settings(user_id, req).await,
         }
     }
@@ -103,6 +110,7 @@ impl AuthProvider {
     pub async fn verify_token(&self, token: &str) -> AppResult<Claims> {
         match self {
             AuthProvider::Live(_) => verify_token_internal(token),
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.verify_token(token).await,
         }
     }
@@ -113,6 +121,7 @@ impl AuthProvider {
                 let user = s.get_user_by_id_impl(user_id).await?;
                 Ok(user.into())
             }
+            #[cfg(test)]
             AuthProvider::Mock(s) => s.get_settings(user_id).await,
         }
     }
