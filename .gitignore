@@ -45,7 +45,7 @@ Thumbs.db
 
 # Rust
 /target/
-Cargo.lock
+# Cargo.lock is committed: this is an application workspace, not a library.
 **/*.rs.bk
 
 # Backend
