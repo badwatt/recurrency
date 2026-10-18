@@ -291,10 +291,8 @@ mod tests {
 
     #[test]
     fn transaction_edit_dialog_uses_dialog_component() {
-        let src = include_str!("../pages/transactions_page.rs");
-        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        let before_notes = prod.split("// ── Notes dialog").next().unwrap_or("");
-        assert!(before_notes.contains("Dialog {"), "transaction edit dialog must use Dialog component");
-        assert!(before_notes.contains("footer:"), "transaction edit dialog must use footer prop");
+        let src = include_str!("../pages/transactions_page/dialog.rs");
+        assert!(src.contains("Dialog {"), "transaction edit dialog must use Dialog component");
+        assert!(src.contains("footer:"), "transaction edit dialog must use footer prop");
     }
 }

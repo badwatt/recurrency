@@ -1,5 +1,7 @@
 
     use super::*;
+use std::str::FromStr;
+use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
     fn make_txn(name: &str, amount: Decimal, date: NaiveDate, cat_id: Uuid) -> Transaction {
@@ -805,28 +807,12 @@
     // ── TDD: Transaction dialog click-outside ──
     #[test]
     fn transaction_dialog_card_has_stop_propagation() {
-        // Add/Edit transaction modal card must have stop_propagation.
-        // Bug: inline backdrop has onclick but card doesn't stop_propagation →
-        // clicks inside dialog propagate to backdrop → dialog closes.
-        let src = include_str!("../transactions_page.rs");
-        // Find the Add/Edit dialog overlay section (NOT the notes dialog)
-        let dialog_section = src.split("Dialog overlay").nth(1).unwrap_or("");
-        let before_notes = dialog_section
-            .split("Notes dialog")
-            .next()
-            .unwrap_or(dialog_section);
-        // Card inside dialog must have stop_propagation (not just in test comments)
-        let code_lines: Vec<&str> = before_notes
-            .lines()
-            .filter(|l| !l.trim().starts_with("//"))
-            .collect();
-        let code_text = code_lines.join("\n");
-        let has_stop_prop_on_card = code_text.contains("e.stop_propagation()");
-        let uses_dialog_comp =
-            before_notes.contains("Dialog {") || before_notes.contains("Dialog(");
+        // Add/Edit transaction modal now uses the shared Dialog component,
+        // which owns the backdrop and click-outside handling.
+        let src = include_str!("../transactions_page/dialog.rs");
         assert!(
-            has_stop_prop_on_card || uses_dialog_comp,
-            "Transaction Add/Edit dialog card must have onclick stop_propagation or use Dialog component"
+            src.contains("Dialog {"),
+            "Transaction Add/Edit dialog must use the Dialog component"
         );
     }
 
@@ -1734,7 +1720,7 @@
 
     #[test]
     fn transaction_sort_uses_sm_ml_auto() {
-        let prod = include_str!("../transactions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
+        let prod = include_str!("../transactions_page/filter_sort_bar.rs");
         assert!(prod.contains("sm:ml-auto"),
             "Transaction sort section must push to right on desktop");
     }
