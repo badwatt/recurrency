@@ -26,8 +26,12 @@ use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 
+mod delete_dialog;
 mod logic;
+mod notes_dialog;
 pub use logic::*;
+use delete_dialog::DeleteSubscriptionDialog;
+use notes_dialog::NotesSubscriptionDialog;
 
 // Filter/sort types + pure logic live in logic.rs
 
@@ -48,7 +52,7 @@ pub fn SubscriptionsPage() -> Element {
     let mut notes_dialog_open: Signal<bool> = use_signal(|| false);
     let mut notes_dialog_sub_id: Signal<Option<Uuid>> = use_signal(|| None);
     let mut notes_dialog_value: Signal<String> = use_signal(String::new);
-    let mut notes_saving: Signal<bool> = use_signal(|| false);
+    let notes_saving: Signal<bool> = use_signal(|| false);
 
     // Validation error signals
     let mut name_error: Signal<String> = use_signal(String::new);
@@ -484,97 +488,21 @@ pub fn SubscriptionsPage() -> Element {
 
             // ── Delete confirmation ──
             if delete_confirm_id().is_some() {
-                Dialog {
-                    open: true,
-                    on_close: move |_| delete_confirm_id.set(None),
-                    title: "Delete subscription?".to_string(),
-                    footer: rsx! {
-                        div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                            button {
-                                class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
-                                onclick: move |_| delete_confirm_id.set(None),
-                                "Cancel"
-                            }
-                            button {
-                                class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700",
-                                onclick: move |_| {
-                                    let id = delete_confirm_id().unwrap();
-                                    spawn(async move {
-                                        let _ = Storage::delete_subscription(&id).await;
-                                        match Storage::list_subscriptions().await {
-                                            Ok(data) => SUBSCRIPTIONS.write().set_data(data),
-                                            Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
-                                        }
-                                    });
-                                    delete_confirm_id.set(None);
-                                },
-                                "Delete"
-                            }
-                        }
-                    },
-                    p { class: "text-sm text-muted-foreground", "This action cannot be undone." }
-                }
+                DeleteSubscriptionDialog { confirm_id: delete_confirm_id }
             }
 
             // ── Notes dialog ──
             if notes_dialog_open() {
-                {
-                    let sub_name = notes_dialog_sub_id().map(|id| {
-                        SUBSCRIPTIONS().subscriptions.iter().find(|s| s.id == id).map(|s| s.name.clone()).unwrap_or_default()
-                    }).unwrap_or_default();
-                    let title = format!("Notes: {}", sub_name);
-                    rsx! {
-                        Dialog {
-                            open: true,
-                            on_close: move |_| notes_dialog_open.set(false),
-                            title: title,
-                            footer: rsx! {
-                                div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                                    button {
-                                        class: "border border-border/60 px-4 py-2 rounded-lg text-sm hover:bg-muted transition-colors duration-200",
-                                        onclick: move |_| notes_dialog_open.set(false),
-                                        "Cancel"
-                                    }
-                                    button {
-                                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
-                                        disabled: notes_saving(),
-                                        onclick: move |_| {
-                                            let id = notes_dialog_sub_id().unwrap();
-                                            let notes = notes_dialog_value();
-                                            let is_empty = notes.is_empty();
-                                            notes_saving.set(true);
-                                            spawn(async move {
-                                                let req = UpdateSubscriptionRequest {
-                                                    notes: if is_empty { None } else { Some(notes) },
-                                                    ..Default::default()
-                                                };
-                                                let _ = Storage::update_subscription(&id, &req).await;
-                                                match Storage::list_subscriptions().await {
-                                                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
-                                                    Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
-                                                }
-                                                notes_saving.set(false);
-                                                notes_dialog_open.set(false);
-                                            });
-                                        },
-                                        if notes_saving() { "Saving..." } else { "Save" }
-                                    }
-                                }
-                            },
-                            textarea {
-                                class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
-                                placeholder: "Add notes...",
-                                value: notes_dialog_value.to_string(),
-                                oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
-                            }
-                        }
-                    }
+                NotesSubscriptionDialog {
+                    open: notes_dialog_open,
+                    sub_id: notes_dialog_sub_id,
+                    value: notes_dialog_value,
+                    saving: notes_saving,
                 }
             }
         }
     }
 }
-
 // ── Grid card ────────────────────────────────────────────────────────
 
 fn render_grid_card(
