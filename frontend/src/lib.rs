@@ -2,6 +2,9 @@
 // wasm target, so `dead_code` fires on the host library build even though the
 // code is used. Keep a crate-level allow rather than annotating ~40 items.
 #![allow(dead_code)]
+// dioxus-router's `Routable` derive emits code that newer nightly compilers
+// flag as `unreachable_code`; it is macro-generated, not ours.
+#![allow(unreachable_code)]
 
 use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
