@@ -53,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
     init_logging();
 
     tracing::info!("Starting Recurrency API server...");
+    auth::service::init_jwt_secret().map_err(anyhow::Error::msg)?;
     let db_pool = shared::db::create_pool_with_retry().await?;
     shared::db::run_migrations(&db_pool).await?;
     tracing::info!("Database connected and migrations complete");

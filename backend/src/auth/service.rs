@@ -17,13 +17,28 @@ use crate::email::{is_configured, send_verification_email};
 
 static JWT_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
 
+/// Validate and resolve the JWT secret from an environment value.
+/// A missing or empty secret is rejected so misconfiguration is caught at startup.
+fn resolve_jwt_secret(value: Option<String>) -> Result<Vec<u8>, String> {
+    match value {
+        Some(secret) if !secret.is_empty() => Ok(secret.into_bytes()),
+        _ => Err("JWT_SECRET environment variable must be set".to_string()),
+    }
+}
+
+/// Initialize the JWT secret from the environment. Call once at startup so a
+/// missing secret fails fast with a clear message instead of panicking on the
+/// first login request.
+pub fn init_jwt_secret() -> Result<(), String> {
+    let secret = resolve_jwt_secret(std::env::var("JWT_SECRET").ok())?;
+    // Ignore if already set (e.g. by a test).
+    let _ = JWT_SECRET.set(secret);
+    Ok(())
+}
+
 fn get_jwt_secret() -> &'static [u8] {
     JWT_SECRET
-        .get_or_init(|| {
-            std::env::var("JWT_SECRET")
-                .expect("JWT_SECRET environment variable must be set")
-                .into_bytes()
-        })
+        .get_or_init(|| resolve_jwt_secret(std::env::var("JWT_SECRET").ok()).unwrap_or_default())
         .as_slice()
 }
 
@@ -404,6 +419,24 @@ mod tests {
     }
 
     // verify_password
+    #[test]
+    fn resolve_jwt_secret_missing_is_error() {
+        assert!(resolve_jwt_secret(None).is_err());
+    }
+
+    #[test]
+    fn resolve_jwt_secret_empty_is_error() {
+        assert!(resolve_jwt_secret(Some(String::new())).is_err());
+    }
+
+    #[test]
+    fn resolve_jwt_secret_value_ok() {
+        assert_eq!(
+            resolve_jwt_secret(Some("abc".into())).unwrap(),
+            b"abc".to_vec()
+        );
+    }
+
     #[test]
     fn verify_password_unicode() {
         let hash = hash_password("tëst_päss_日本語").unwrap();
