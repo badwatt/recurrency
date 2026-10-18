@@ -18,10 +18,13 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "def
 thiserror = "2"
 
 # Release profile tuned for runtime speed over compile time.
+# `strip = "debuginfo"` (not `true`): with `strip = true`, newer LLVM (23)
+# passes --strip-all to wasm-ld, dropping the `__wasm_bindgen_unstable`
+# section that wasm-bindgen needs (dioxus#5766).
 # `panic = "abort"` is intentionally NOT set: the frontend relies on
 # `std::panic::catch_unwind` to contain panics on Android/native.
 [profile.release]
 lto = "thin"
 codegen-units = 1
-strip = true
+strip = "debuginfo"
 opt-level = 3
