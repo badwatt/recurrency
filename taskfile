@@ -168,7 +168,7 @@ cmd_build_app() {
   mkdir -p "$ROOT/bin"
   cd "$ROOT/frontend" && nix develop --no-eval-cache "$ROOT" -c dx bundle --platform web --release
   cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo build --release
-  cp "$ROOT/backend/target/release/recurrency-api" "$ROOT/bin/recurrency-aio"
+  cp "$ROOT/backend/target/release/recurrency-backend" "$ROOT/bin/recurrency-aio"
   ok "Build complete: bin/recurrency-aio"
 }
 
@@ -176,7 +176,7 @@ cmd_build_api() {
   info "Building API..."
   mkdir -p "$ROOT/bin"
   cd "$ROOT/backend" && nix develop --no-eval-cache "$ROOT" -c cargo build --release
-  cp "$ROOT/backend/target/release/recurrency-api" "$ROOT/bin/recurrency-aio"
+  cp "$ROOT/backend/target/release/recurrency-backend" "$ROOT/bin/recurrency-aio"
   ok "API built: bin/recurrency-aio"
 }
 
@@ -200,11 +200,31 @@ cmd_build_desktop() {
 
 cmd_clear() {
   info "Clearing all build artifacts..."
-  rm -rf backend/target/release/recurrency-api 2>/dev/null || true
+  rm -rf backend/target/release/recurrency-backend 2>/dev/null || true
   rm -rf frontend/dist 2>/dev/null || true
   rm -rf bin/android bin/desktop 2>/dev/null || true
   rm -rf frontend/target 2>/dev/null || true
   ok "All build artifacts cleared"
+}
+
+cmd_clear_app() {
+  info "Clearing api + web artifacts..."
+  rm -f "$ROOT/bin/recurrency-aio" 2>/dev/null || true
+  rm -rf "$ROOT/frontend/dist" 2>/dev/null || true
+  ok "API + web artifacts cleared"
+}
+
+cmd_clear_api() {
+  info "Clearing API artifacts..."
+  rm -f "$ROOT/bin/recurrency-aio" 2>/dev/null || true
+  rm -f "$ROOT/backend/target/release/recurrency-backend" 2>/dev/null || true
+  ok "API artifacts cleared"
+}
+
+cmd_clear_web() {
+  info "Clearing web artifacts..."
+  rm -rf "$ROOT/frontend/dist" 2>/dev/null || true
+  ok "Web artifacts cleared"
 }
 
 

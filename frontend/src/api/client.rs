@@ -85,7 +85,9 @@ pub fn get_base_url() -> String {
             return url.to_string();
         }
     }
-    // 3. Check persistent storage directly (works without Dioxus runtime)
+    // Persistent storage is shared across parallel tests and can flap between
+    // "offline" and "server", so tests skip it and use env/default only.
+    #[cfg(not(test))]
     if is_offline_mode_from_storage() {
         return String::new();
     }
