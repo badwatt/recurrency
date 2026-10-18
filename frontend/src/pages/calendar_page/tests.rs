@@ -947,7 +947,11 @@
 
     #[test]
     fn calendar_page_month_navigation() {
-        let src = include_str!("../calendar_page.rs");
+        let src = format!(
+            "{}{}",
+            include_str!("../calendar_page.rs"),
+            include_str!("../calendar_page/logic.rs")
+        );
         // Must have prev/next month navigation
         assert!(
             src.contains("prev_month")
