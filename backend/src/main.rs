@@ -12,6 +12,7 @@ use recurrency_backend::shared::app_utils::parse_port;
 use std::net::SocketAddr;
 
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn init_logging() {
@@ -74,6 +75,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
 
     Router::new()
         .route("/health", get(health_check))
+        .route("/api/health", get(health_check))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
         .route("/api/auth/verify", get(auth::handlers::verify))
@@ -116,6 +118,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/demo/reset", post(demo::handlers::reset))
         .route("/api/logos/search", get(logos::handlers::search))
         .with_state(app_state)
+        .layer(TraceLayer::new_for_http())
         .layer(cors)
 }
 

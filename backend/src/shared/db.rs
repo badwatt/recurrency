@@ -1,11 +1,27 @@
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;
 
+/// Maximum number of connections in the pool when DATABASE_MAX_CONNECTIONS is
+/// unset or invalid.
+const DEFAULT_MAX_CONNECTIONS: u32 = 5;
+
+/// Parse the desired pool size. Rejects 0 and invalid values so the pool is
+/// always usable.
+fn parse_max_connections(value: Option<&str>) -> u32 {
+    value
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(DEFAULT_MAX_CONNECTIONS)
+}
+
 pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let max_connections =
+        parse_max_connections(std::env::var("DATABASE_MAX_CONNECTIONS").ok().as_deref());
 
     PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(max_connections)
+        .min_connections(1)
         .acquire_timeout(Duration::from_secs(30))
         .connect(&database_url)
         .await
@@ -42,6 +58,22 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_max_connections_default_on_none() {
+        assert_eq!(parse_max_connections(None), DEFAULT_MAX_CONNECTIONS);
+    }
+
+    #[test]
+    fn parse_max_connections_rejects_zero_and_invalid() {
+        assert_eq!(parse_max_connections(Some("0")), DEFAULT_MAX_CONNECTIONS);
+        assert_eq!(parse_max_connections(Some("abc")), DEFAULT_MAX_CONNECTIONS);
+    }
+
+    #[test]
+    fn parse_max_connections_accepts_positive() {
+        assert_eq!(parse_max_connections(Some("20")), 20);
+    }
 
     // Test pool creation requires DATABASE_URL
     #[tokio::test]
