@@ -1,7 +1,6 @@
 use axum::{extract::State, http::HeaderMap, Json};
 use chrono::Datelike;
 
-use crate::auth::service::AuthService;
 use crate::reports::models::ReportResponse;
 use crate::reports::service::ReportService;
 use crate::shared::app_state::AppState;
@@ -21,7 +20,7 @@ pub async fn get_report(
     OptionalQuery(query): OptionalQuery<ReportQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<ReportResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)

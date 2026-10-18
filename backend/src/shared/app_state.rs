@@ -1,14 +1,15 @@
-use crate::auth::service::AuthProvider;
+use crate::auth::service::AuthServiceTrait;
+use std::sync::Arc;
 
 /// Application state - holds DB pool and injectable services
 #[derive(Clone)]
 pub struct AppState {
     pub pool: sqlx::PgPool,
-    pub auth_service: AuthProvider,
+    pub auth_service: Arc<dyn AuthServiceTrait>,
 }
 
 impl AppState {
-    pub fn new(pool: sqlx::PgPool, auth_service: AuthProvider) -> Self {
+    pub fn new(pool: sqlx::PgPool, auth_service: Arc<dyn AuthServiceTrait>) -> Self {
         Self { pool, auth_service }
     }
 }
@@ -30,7 +31,7 @@ pub async fn create_test_app_state() -> Option<AppState> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
     let pool = sqlx::PgPool::connect(&database_url).await.ok()?;
     let mock = MockAuthService::success();
-    Some(AppState::new(pool, AuthProvider::Mock(mock)))
+    Some(AppState::new(pool, Arc::new(mock)))
 }
 
 #[cfg(test)]
@@ -42,7 +43,7 @@ mod tests {
     async fn app_state_new() {
         let mock = MockAuthService::success();
         let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
-        let state = AppState::new(pool, AuthProvider::Mock(mock));
+        let state = AppState::new(pool, Arc::new(mock));
         let _pool: &sqlx::PgPool = std::ops::Deref::deref(&state);
         let _cloned = state.clone();
     }
@@ -51,7 +52,7 @@ mod tests {
     async fn app_state_verify_token_invalid() {
         let mock = MockAuthService::success();
         let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
-        let state = AppState::new(pool, AuthProvider::Mock(mock));
+        let state = AppState::new(pool, Arc::new(mock));
         let result = state.auth_service.verify_token("any_token").await;
         assert!(result.is_err());
     }
@@ -60,7 +61,7 @@ mod tests {
     async fn app_state_verify_mock_token_valid() {
         let mock = MockAuthService::success();
         let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
-        let state = AppState::new(pool, AuthProvider::Mock(mock));
+        let state = AppState::new(pool, Arc::new(mock));
         let result = state
             .auth_service
             .verify_token("mock_token_00000000-0000-0000-0000-000000000001")

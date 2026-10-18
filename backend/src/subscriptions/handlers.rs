@@ -7,7 +7,6 @@ use chrono::Datelike;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::auth::service::AuthService;
 use crate::shared::app_state::AppState;
 use crate::shared::error::AppResult;
 use crate::subscriptions::models::{
@@ -33,7 +32,7 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<SubscriptionResponse>)> {
     req.validate()?;
 
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -49,7 +48,7 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<SubscriptionResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -66,7 +65,7 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<SubscriptionResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -84,7 +83,7 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateSubscriptionRequest>,
 ) -> AppResult<Json<SubscriptionResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -101,7 +100,7 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -117,7 +116,7 @@ pub async fn upcoming(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<SubscriptionResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -133,7 +132,7 @@ pub async fn calendar(
     OptionalQuery(query): OptionalQuery<CalendarQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<CalendarItem>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)

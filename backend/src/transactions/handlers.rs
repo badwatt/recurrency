@@ -5,7 +5,6 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::auth::service::AuthService;
 use crate::shared::app_state::AppState;
 use crate::shared::error::{AppError, AppResult};
 use crate::transactions::models::{
@@ -29,7 +28,7 @@ pub async fn create(
     headers: HeaderMap,
     Json(req): Json<CreateTransactionRequest>,
 ) -> AppResult<(StatusCode, Json<TransactionResponse>)> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -45,7 +44,7 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -62,7 +61,7 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<TransactionResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -80,7 +79,7 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateTransactionRequest>,
 ) -> AppResult<Json<TransactionResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -97,7 +96,7 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -113,7 +112,7 @@ pub async fn by_date_range(
     OptionalQuery(query): OptionalQuery<DateRangeQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)

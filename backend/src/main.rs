@@ -1,21 +1,14 @@
-mod email;
-mod auth;
-mod categories;
-mod demo;
-mod logos;
-mod notifications;
-mod preferences;
-mod reports;
-mod shared;
-mod subscriptions;
-mod transactions;
+use recurrency_backend::{
+    auth, categories, demo, logos, notifications, preferences, reports, shared, subscriptions,
+    transactions,
+};
 
 use axum::{
     extract::Json,
     routing::{delete, get, post, put},
     Router,
 };
-use shared::app_utils::parse_port;
+use recurrency_backend::shared::app_utils::parse_port;
 use std::net::SocketAddr;
 
 use tower_http::cors::{Any, CorsLayer};
@@ -70,18 +63,18 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn build_app(db_pool: sqlx::PgPool) -> Router {
-    use auth::service::{AuthProvider, SqlxAuthService};
+    use auth::service::{AuthServiceTrait, SqlxAuthService};
     use shared::app_state::AppState;
+    use std::sync::Arc;
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let app_state = AppState::new(
-        db_pool.clone(),
-        AuthProvider::Live(SqlxAuthService::new(db_pool.clone())),
-    );
+    let auth_service: Arc<dyn AuthServiceTrait> =
+        Arc::new(SqlxAuthService::new(db_pool.clone()));
+    let app_state = AppState::new(db_pool.clone(), auth_service);
 
     Router::new()
         .route("/health", get(health_check))

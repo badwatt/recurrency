@@ -8,7 +8,6 @@ use crate::auth::models::{
     AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest,
     UserResponse,
 };
-use crate::auth::service::verify_token_internal;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
 use crate::shared::OptionalQuery;
@@ -65,7 +64,7 @@ pub async fn get_settings(
 ) -> AppResult<Json<UserResponse>> {
     let token =
         extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
-    let claims = verify_token_internal(&token)?;
+    let claims = state.auth_service.verify_token(&token).await?;
     let user = state.auth_service.get_settings(claims.sub).await?;
     Ok(Json(user))
 }
@@ -78,7 +77,7 @@ pub async fn update_settings(
 ) -> AppResult<Json<SettingsResponse>> {
     let token =
         extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
-    let claims = verify_token_internal(&token)?;
+    let claims = state.auth_service.verify_token(&token).await?;
     let user = state.auth_service.update_settings(claims.sub, req).await?;
     Ok(Json(user.into()))
 }
@@ -103,7 +102,7 @@ pub async fn verify_email(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?;
-    let claims = verify_token_internal(&token)?;
+    let claims = state.auth_service.verify_token(&token).await?;
     let user = state
         .auth_service
         .verify_email(claims.sub, body.code)
@@ -120,7 +119,7 @@ pub async fn resend_verification(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?;
-    let claims = verify_token_internal(&token)?;
+    let claims = state.auth_service.verify_token(&token).await?;
     let _ = state.auth_service.resend_verification(claims.sub).await?;
     Ok(Json(
         serde_json::json!({"message": "Verification code sent"}),

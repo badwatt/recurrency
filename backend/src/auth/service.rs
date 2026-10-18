@@ -46,85 +46,18 @@ fn generate_code() -> String {
     format!("{:06}", rand::random::<u32>() % 1_000_000)
 }
 
-/// AuthProvider — enum dispatch for auth services. Mock for tests, Live for production.
-/// Authentication provider — enum dispatch replaces dyn trait.
-/// `Live` connects to PostgreSQL; `Mock` returns preset responses for tests.
-#[derive(Clone)]
-#[allow(dead_code)]
-pub enum AuthProvider {
-    Live(SqlxAuthService),
-    #[cfg(test)]
-    Mock(crate::shared::mocks::MockAuthService),
-}
-
-impl AuthProvider {
-    pub async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
-        match self {
-            AuthProvider::Live(s) => s.register_impl(req).await,
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.register(req).await,
-        }
-    }
-
-    pub async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
-        match self {
-            AuthProvider::Live(s) => s.login_impl(req).await,
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.login(req).await,
-        }
-    }
-
-    pub async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
-        match self {
-            AuthProvider::Live(s) => s.verify_email_impl(user_id, code).await,
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.verify_email(user_id, code).await,
-        }
-    }
-
-    pub async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
-        match self {
-            AuthProvider::Live(s) => s.resend_verification_impl(user_id).await,
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.resend_verification(user_id).await,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
-        match self {
-            AuthProvider::Live(s) => s.get_user_by_id_impl(user_id).await,
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.get_user_by_id(user_id).await,
-        }
-    }
-
-    pub async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
-        match self {
-            AuthProvider::Live(s) => s.update_settings_impl(user_id, req).await,
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.update_settings(user_id, req).await,
-        }
-    }
-
-    pub async fn verify_token(&self, token: &str) -> AppResult<Claims> {
-        match self {
-            AuthProvider::Live(_) => verify_token_internal(token),
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.verify_token(token).await,
-        }
-    }
-
-    pub async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
-        match self {
-            AuthProvider::Live(s) => {
-                let user = s.get_user_by_id_impl(user_id).await?;
-                Ok(user.into())
-            }
-            #[cfg(test)]
-            AuthProvider::Mock(s) => s.get_settings(user_id).await,
-        }
-    }
+/// Authentication port. Injected into `AppState` as `Arc<dyn AuthServiceTrait>`
+/// so the PostgreSQL adapter can be swapped for a mock in tests (hexagonal).
+#[async_trait::async_trait]
+pub trait AuthServiceTrait: Send + Sync {
+    async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse>;
+    async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse>;
+    async fn verify_token(&self, token: &str) -> AppResult<Claims>;
+    async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User>;
+    async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse>;
+    async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User>;
+    async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse>;
+    async fn resend_verification(&self, user_id: Uuid) -> AppResult<String>;
 }
 
 /// SqlxAuthService - production implementation using sqlx PgPool
@@ -326,9 +259,45 @@ impl SqlxAuthService {
     }
 }
 
+#[async_trait::async_trait]
+impl AuthServiceTrait for SqlxAuthService {
+    async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
+        self.register_impl(req).await
+    }
+
+    async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
+        self.login_impl(req).await
+    }
+
+    async fn verify_token(&self, token: &str) -> AppResult<Claims> {
+        verify_token_internal(token)
+    }
+
+    async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
+        self.get_user_by_id_impl(user_id).await
+    }
+
+    async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
+        Ok(self.get_user_by_id_impl(user_id).await?.into())
+    }
+
+    async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+        self.update_settings_impl(user_id, req).await
+    }
+
+    async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
+        self.verify_email_impl(user_id, code).await
+    }
+
+    async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
+        self.resend_verification_impl(user_id).await
+    }
+}
+
 // ── Helper functions (pure, no DB) ──
 
-/// Thin wrapper so existing handlers keep calling AuthService::verify_token.
+/// Convenience stateless helpers for integration tests and the public
+/// `GET /api/auth/verify` route. Handlers use `AppState::auth_service` instead.
 pub struct AuthService;
 
 impl AuthService {

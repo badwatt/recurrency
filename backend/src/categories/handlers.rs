@@ -5,7 +5,6 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::auth::service::AuthService;
 use crate::categories::models::{
     CategoryResponse, CreateCategoryRequest, SetDefaultRequest, UpdateCategoryRequest,
 };
@@ -22,7 +21,7 @@ pub async fn create(
     headers: HeaderMap,
     Json(req): Json<CreateCategoryRequest>,
 ) -> AppResult<(StatusCode, Json<CategoryResponse>)> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -38,7 +37,7 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<CategoryResponse>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -54,7 +53,7 @@ pub async fn list_with_counts(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<CategoryWithCounts>>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -71,7 +70,7 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<CategoryResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -89,7 +88,7 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateCategoryRequest>,
 ) -> AppResult<Json<CategoryResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -106,7 +105,7 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -123,7 +122,7 @@ pub async fn set_default(
     headers: HeaderMap,
     Json(req): Json<SetDefaultRequest>,
 ) -> AppResult<Json<CategoryResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)

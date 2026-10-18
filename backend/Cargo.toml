@@ -39,6 +39,9 @@ validator = { version = "0.20", features = ["derive"] }
 thiserror.workspace = true
 anyhow = "1"
 
+# Async traits for hexagonal service ports
+async-trait = "0.1"
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

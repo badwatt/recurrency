@@ -5,7 +5,6 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::auth::service::AuthService;
 use crate::notifications::models::{
     NotificationPreferencesResponse, NotificationResponse, UpdateNotificationPreferencesRequest,
 };
@@ -25,7 +24,7 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<NotificationResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -40,7 +39,7 @@ pub async fn mark_read(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -56,7 +55,7 @@ pub async fn mark_all_read(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -71,7 +70,7 @@ pub async fn delete(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -88,7 +87,7 @@ pub async fn get_notification_preferences(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -104,7 +103,7 @@ pub async fn update_notification_preferences(
     headers: HeaderMap,
     Json(req): Json<UpdateNotificationPreferencesRequest>,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)

@@ -307,6 +307,41 @@ impl MockAuthService {
     }
 }
 
+#[async_trait::async_trait]
+impl crate::auth::service::AuthServiceTrait for MockAuthService {
+    async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
+        MockAuthService::register(self, req).await
+    }
+
+    async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse> {
+        MockAuthService::login(self, req).await
+    }
+
+    async fn verify_token(&self, token: &str) -> AppResult<Claims> {
+        MockAuthService::verify_token(self, token).await
+    }
+
+    async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
+        MockAuthService::get_user_by_id(self, user_id).await
+    }
+
+    async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse> {
+        MockAuthService::get_settings(self, user_id).await
+    }
+
+    async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+        MockAuthService::update_settings(self, user_id, req).await
+    }
+
+    async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
+        MockAuthService::verify_email(self, user_id, code).await
+    }
+
+    async fn resend_verification(&self, user_id: Uuid) -> AppResult<String> {
+        MockAuthService::resend_verification(self, user_id).await
+    }
+}
+
 // ============================================================================
 // Category Service Trait + Mock
 // ============================================================================

@@ -1,6 +1,5 @@
 use axum::{extract::State, http::HeaderMap, Json};
 
-use crate::auth::service::AuthService;
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
 use crate::preferences::service::PreferencesService;
 use crate::shared::app_state::AppState;
@@ -18,7 +17,7 @@ pub async fn get_preferences(
     OptionalQuery(query): OptionalQuery<PreferencesQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<PreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
@@ -33,7 +32,7 @@ pub async fn update_preferences(
     headers: HeaderMap,
     Json(req): Json<UpdatePreferencesRequest>,
 ) -> AppResult<Json<PreferencesResponse>> {
-    let claims = AuthService::verify_token(&extract_token_from_request(
+    let claims = state.auth_service.verify_token(&extract_token_from_request(
         query.as_ref().and_then(|q| q.token.as_ref()),
         &headers,
     )?)
