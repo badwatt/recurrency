@@ -3,6 +3,7 @@ use recurrency_backend::{
     transactions,
 };
 
+use axum::http::HeaderValue;
 use axum::{
     extract::Json,
     routing::{delete, get, post, put},
@@ -66,10 +67,7 @@ async fn main() -> anyhow::Result<()> {
 fn build_app(db_pool: sqlx::PgPool) -> Router {
     use shared::app_state::AppState;
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = cors_layer();
 
     let app_state = AppState::new(db_pool.clone());
 
@@ -129,6 +127,35 @@ async fn health_check() -> Json<serde_json::Value> {
     }))
 }
 
+/// Resolve the allowed CORS origin. `None` means permissive (`*`), which is
+/// fine for a token-in-header API with no cookies. Set `CORS_ALLOWED_ORIGIN`
+/// to restrict the app to a single origin in production.
+fn resolve_cors_origin(value: Option<&str>) -> Result<Option<HeaderValue>, String> {
+    match value.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(None),
+        Some(origin) => origin
+            .parse::<HeaderValue>()
+            .map(Some)
+            .map_err(|_| format!("invalid CORS_ALLOWED_ORIGIN: {origin}")),
+    }
+}
+
+fn cors_layer() -> CorsLayer {
+    let origin = resolve_cors_origin(std::env::var("CORS_ALLOWED_ORIGIN").ok().as_deref())
+        .expect("CORS_ALLOWED_ORIGIN must be a valid HTTP header value");
+
+    match origin {
+        Some(value) => CorsLayer::new()
+            .allow_origin(value)
+            .allow_methods(Any)
+            .allow_headers(Any),
+        None => CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,5 +165,29 @@ mod tests {
         let response = health_check().await;
         let body = response.0;
         assert_eq!(body["status"], "OK");
+    }
+
+    #[test]
+    fn cors_origin_unset_is_permissive() {
+        assert!(resolve_cors_origin(None).unwrap().is_none());
+    }
+
+    #[test]
+    fn cors_origin_blank_is_permissive() {
+        assert!(resolve_cors_origin(Some("   ")).unwrap().is_none());
+    }
+
+    #[test]
+    fn cors_origin_valid_is_parsed() {
+        assert!(
+            resolve_cors_origin(Some("https://app.example.com"))
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn cors_origin_invalid_is_error() {
+        assert!(resolve_cors_origin(Some("bad\norigin")).is_err());
     }
 }

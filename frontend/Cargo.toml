@@ -38,6 +38,5 @@ desktop = ["dioxus/desktop"]
 mobile = ["dioxus/mobile"]
 server = ["dioxus/server"]
 
-test = ["gloo-timers"]
 
 
