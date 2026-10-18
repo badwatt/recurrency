@@ -7,6 +7,18 @@ use dioxus::prelude::*;
 
 const SHOW_OFFLINE: bool = true;
 
+/// Where the login page should redirect on mount, if anywhere.
+///
+/// Offline mode has no credentials to collect, so it must never trap the user
+/// on the login screen — it goes straight to the dashboard.
+pub fn offline_login_target(is_offline: bool) -> Option<Route> {
+    if is_offline {
+        Some(Route::Dashboard {})
+    } else {
+        None
+    }
+}
+
 #[component]
 pub fn LoginPage() -> Element {
     let mut email = use_signal(String::new);
@@ -26,10 +38,16 @@ pub fn LoginPage() -> Element {
     #[cfg(not(target_arch = "wasm32"))]
     let needs_setup = !APP_MODE().mode.is_offline() && get_base_url() == "http://localhost:8080";
 
-    // Auto-redirect to Setup if no server configured (native only)
+    let offline = APP_MODE().mode.is_offline();
+
+    // Auto-redirect: offline mode enters the app; native server mode without a
+    // configured URL goes to Setup.
     let nav = navigator();
     use_effect(move || {
-        if needs_setup {
+        if let Some(route) = offline_login_target(offline) {
+            eprintln!("[LoginPage] Offline mode — entering app without login");
+            nav.push(route);
+        } else if needs_setup {
             eprintln!("[LoginPage] No server configured — redirecting to Setup");
             nav.push(Route::Setup {});
         }
@@ -39,6 +57,9 @@ pub fn LoginPage() -> Element {
     // Skip demo status check on Android (reqwest hangs)
     #[cfg(not(target_os = "android"))]
     use_future(move || async move {
+        if APP_MODE().mode.is_offline() {
+            return;
+        }
         match demo::get_status().await {
             Ok(status) => demo_enabled.set(status.enabled),
             Err(_) => {
@@ -386,6 +407,15 @@ mod tests {
             currency: "EUR".into(),
             verified,
         }
+    }
+
+    #[test]
+    fn offline_login_targets_dashboard() {
+        assert_eq!(
+            super::offline_login_target(true),
+            Some(crate::Route::Dashboard {})
+        );
+        assert_eq!(super::offline_login_target(false), None);
     }
 
     #[test]

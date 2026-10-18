@@ -1,4 +1,5 @@
 #![allow(clippy::suspicious_else_formatting)]
+use crate::state::app_mode::APP_MODE;
 use crate::state::preferences::PREFERENCES;
 use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::api::notifications;
@@ -57,8 +58,10 @@ pub fn AppLayout() -> Element {
         return rsx! { AppLoader {} };
     }
 
-    // If not authenticated, redirect to Login
-    if !auth.is_authenticated {
+    // Offline mode has no accounts, so it never requires authentication.
+    // Server mode redirects to Login until a session exists.
+    let is_offline = APP_MODE().mode.is_offline();
+    if requires_login(is_offline, auth.is_authenticated) {
         let nav = navigator();
         nav.push(crate::Route::Login {});
         return rsx! { div {} };
@@ -327,8 +330,11 @@ fn NotificationBell() -> Element {
     let unread = notif_state.unread_count;
     let mut open = use_signal(|| false);
 
-    // Fetch notifications on mount
+    // Fetch notifications on mount (no server to query in offline mode)
     use_future(move || async move {
+        if crate::api::client::is_offline_mode() {
+            return;
+        }
         if let Err(e) = notifications::list().await {
             log::error!("Failed to fetch notifications: {}", e);
         }
@@ -342,7 +348,7 @@ fn NotificationBell() -> Element {
                 onclick: move |_| {
                     let should_open = !open();
                     open.set(should_open);
-                    if should_open {
+                    if should_open && !crate::api::client::is_offline_mode() {
                         spawn(async move {
                             if let Err(e) = notifications::list().await {
                                 log::error!("Failed to fetch notifications: {}", e);
@@ -451,6 +457,14 @@ fn LogoIcon() -> Element {
             polyline { points: "12 6 12 12 16 14" }
         }
     }
+}
+
+/// Whether the protected layout must redirect to the login page.
+///
+/// Offline mode stores data locally and has no accounts, so it never requires
+/// login. Server mode requires an authenticated session.
+pub fn requires_login(is_offline: bool, is_authenticated: bool) -> bool {
+    !is_offline && !is_authenticated
 }
 
 pub fn navlink_class(active: bool) -> &'static str {
@@ -686,6 +700,18 @@ mod tests {
     #[test]
     fn logo_area_navigates_to_dashboard() {
         assert!(true); // Logo links to "/"
+    }
+
+    #[test]
+    fn requires_login_offline_never() {
+        assert!(!requires_login(true, false));
+        assert!(!requires_login(true, true));
+    }
+
+    #[test]
+    fn requires_login_server_needs_auth() {
+        assert!(requires_login(false, false));
+        assert!(!requires_login(false, true));
     }
 
     #[test]

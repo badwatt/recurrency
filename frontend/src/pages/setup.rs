@@ -29,6 +29,12 @@ fn save_server_url(url: &str) {
     }
 }
 
+/// Route entered when the user picks "Use without server".
+/// Offline mode has no accounts, so it goes straight into the app instead of Login.
+pub fn offline_entry_route() -> Route {
+    Route::Dashboard {}
+}
+
 #[component]
 pub fn SetupPage() -> Element {
     let mut server_url = use_signal(|| {
@@ -181,7 +187,7 @@ pub fn SetupPage() -> Element {
                         onclick: move |_| {
                             APP_MODE.write().set_local();
                             let nav = navigator();
-                            nav.push(Route::Login {});
+                            nav.push(offline_entry_route());
                         },
                         class: "w-full rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors",
                         "Use without server"
@@ -195,6 +201,11 @@ pub fn SetupPage() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn offline_entry_goes_to_dashboard() {
+        assert_eq!(offline_entry_route(), crate::Route::Dashboard {});
+    }
 
     #[test]
     fn default_base_url_not_empty() {
