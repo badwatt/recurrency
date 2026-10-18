@@ -48,7 +48,10 @@ static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 /// Returns true if the app is in local (SQLite) mode — no server needed.
 pub fn is_offline_mode() -> bool {
     // 1. Check BASE_URL_OVERRIDE — explicit URL override means server mode
-    if let Ok(lock) = BASE_URL_OVERRIDE.read() && lock.is_some() {
+    if let Ok(lock) = BASE_URL_OVERRIDE.read()
+        && lock.is_some()
+    {
+        return false;
     }
     // 2. Try APP_MODE global signal (may panic without Dioxus runtime)
     let mode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
