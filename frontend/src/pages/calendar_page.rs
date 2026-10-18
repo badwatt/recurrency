@@ -18,7 +18,7 @@ use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, Local};
 
 mod logic;
 pub use logic::*;

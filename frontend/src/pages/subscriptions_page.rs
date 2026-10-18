@@ -23,7 +23,6 @@ use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
-use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 

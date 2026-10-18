@@ -135,7 +135,7 @@ fn format_month(year: i32, month: u32) -> String {
 #[component]
 pub fn TransactionsPage() -> Element {
     let mut filters = use_signal(FilterConfig::default);
-    let mut sort_cfg = use_signal(|| SortConfig {
+    let sort_cfg = use_signal(|| SortConfig {
         field: "date".into(),
         direction: "desc".into(),
     });
