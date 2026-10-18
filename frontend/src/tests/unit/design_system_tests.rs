@@ -22,11 +22,11 @@ fn font_import_in_tailwind_src() {
 }
 
 #[test]
-fn cabinet_grotesk_in_main_inline_style() {
-    let main_rs = include_str!("../../main.rs");
+fn cabinet_grotesk_in_app_inline_style() {
+    let app_rs = include_str!("../../lib.rs");
     assert!(
-        main_rs.contains("Cabinet Grotesk") || main_rs.contains("Cabinet+Grotesk"),
-        "main.rs inline style must reference Cabinet Grotesk font"
+        app_rs.contains("Cabinet Grotesk") || app_rs.contains("Cabinet+Grotesk"),
+        "app inline style must reference Cabinet Grotesk font"
     );
 }
 

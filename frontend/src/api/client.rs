@@ -123,7 +123,7 @@ fn is_offline_mode_from_storage() -> bool {
                     }
             }
         }
-        return false;
+        false
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -134,8 +134,8 @@ fn is_offline_mode_from_storage() -> bool {
                     return true;
                 }
         }
+        false
     }
-    false
 }
 
 /// Implementation: fallback base URL resolution from localStorage/env/origin.
