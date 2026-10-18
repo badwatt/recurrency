@@ -38,8 +38,10 @@
   </style>
   <noscript><style>body{visibility:visible!important}</style></noscript>
   <script>
-    // Safety net: if WASM fails or takes >15s, show body anyway
+    // Safety net: if WASM fails or takes >15s, show body + drop the loader anyway
     setTimeout(function(){
+      var p = document.getElementById('pre-wasm-loader');
+      if (p) p.remove();
       if(document.body.style.visibility === 'hidden' || getComputedStyle(document.body).visibility === 'hidden') {
         document.body.style.visibility = 'visible';
       }

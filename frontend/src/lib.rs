@@ -169,9 +169,14 @@ fn App() -> Element {
                         requestAnimationFrame(function() {
                             requestAnimationFrame(function() {
                                 document.body.style.setProperty('visibility', 'visible', 'important');
-                                // Remove native Android loader after content visible
-                                var d = document.getElementById('dxloader');
-                                if (d) d.remove();
+                                // The app has mounted: drop the pre-WASM loaders on
+                                // every route (they are only removed by AppLayout
+                                // otherwise, so public routes like /login stayed
+                                // covered forever).
+                                ['pre-wasm-loader', 'dxloader'].forEach(function (id) {
+                                    var el = document.getElementById(id);
+                                    if (el) el.remove();
+                                });
                             });
                         });
                     });
