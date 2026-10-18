@@ -41,6 +41,8 @@
             # Wasm toolchain
             dioxus-cli
             wasm-bindgen-cli
+            # Needed by `dx bundle --release` (wasm-opt)
+            binaryen
 
             # Node.js & Bun
             nodejs_22

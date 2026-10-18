@@ -36,13 +36,16 @@ ENV RUSTFLAGS="-C target-cpu=generic" \
 
 WORKDIR /build
 
-# Install Rust + system deps + dx CLI
+# Install Rust + system deps + dx CLI + wasm tooling
+# binaryen provides wasm-opt (needed by `dx bundle --release`); wasm-bindgen-cli
+# must match the wasm-bindgen crate pinned in Cargo.lock (0.2.122).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl pkg-config libssl-dev ca-certificates npm && \
+    build-essential curl pkg-config libssl-dev ca-certificates npm binaryen && \
     rm -rf /var/lib/apt/lists/* && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
     curl -L https://github.com/DioxusLabs/dioxus/releases/download/v0.7.10/dx-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin && \
+    curl -L https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.122/wasm-bindgen-0.2.122-x86_64-unknown-linux-musl.tar.gz | tar xz -C /usr/local/bin --strip-components=1 && \
     chmod +x /usr/local/bin/dx
 ENV PATH="/root/.cargo/bin:${PATH}"
 
