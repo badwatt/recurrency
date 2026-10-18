@@ -21,6 +21,17 @@ sed -i "s/^#\?listen_addresses.*$/listen_addresses = 'localhost'/" "$PG_CONF" 2>
 grep -q "^listen_addresses" "$PG_CONF" || echo "listen_addresses = 'localhost'" >> "$PG_CONF"
 
 # ── Start PostgreSQL ────────────────────────────────────
+# Self-heal ownership: volumes created by older images (where Postgres ran as
+# root) can be owned by root:root, which makes pg_ctl fail to open
+# postmaster.pid. Reclaim the datadir (and the pg_ctl log dir) before starting.
+echo "Fixing data directory ownership..."
+chown -R postgres:postgres /var/lib/postgresql/15/main
+# A freshly started container cannot have a live postmaster; a recycled PID
+# would otherwise trigger a false "another server might be running".
+rm -f /var/lib/postgresql/15/main/postmaster.pid
+mkdir -p /var/log/postgresql
+chown -R postgres:postgres /var/log/postgresql
+
 echo "Starting PostgreSQL..."
 su - postgres -c "/usr/lib/postgresql/15/bin/pg_ctl start -D /var/lib/postgresql/15/main -o '-c config_file=/etc/postgresql/15/main/postgresql.conf' -l /var/log/postgresql/postgresql.log" || true
 
