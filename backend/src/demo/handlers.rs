@@ -3,7 +3,6 @@ use std::env;
 use axum::{extract::State, http::HeaderMap, Json};
 use uuid::Uuid;
 
-use crate::demo::service::DemoService;
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::{AppError, AppResult};
@@ -65,23 +64,11 @@ pub async fn init(State(state): State<AppState>) -> AppResult<Json<serde_json::V
     let password = demo_password();
     let hash = demo_password_hash(&password)?;
 
-    sqlx::query(
-        r#"
-        INSERT INTO users (id, email, password_hash, name, currency, verified, created_at, updated_at)
-        VALUES ($1, $2, $3, 'Demo User', 'EUR', true, NOW(), NOW())
-        ON CONFLICT (email) DO UPDATE SET
-            password_hash = EXCLUDED.password_hash,
-            verified = true,
-            name = EXCLUDED.name,
-            updated_at = NOW()
-        "#,
-    )
-    .bind(Uuid::new_v4())
-    .bind(&email)
-    .bind(&hash)
-    .execute(&state.pool)
-    .await
-    .map_err(|e| AppError::Internal(format!("Failed to init demo user: {}", e)))?;
+    state
+        .demo_service
+        .create_demo_user(&email, &hash)
+        .await
+        .map_err(AppError::Internal)?;
 
     Ok(Json(serde_json::json!({
         "email": email,
@@ -109,7 +96,7 @@ pub async fn reset(
     )?)
     .await?;
 
-    match DemoService::reset_demo_data(&state.pool, claims.sub).await {
+    match state.demo_service.reset_demo_data(claims.sub).await {
         Ok(()) => Ok(Json(serde_json::json!({
             "success": true,
             "message": "Demo data has been reset successfully"

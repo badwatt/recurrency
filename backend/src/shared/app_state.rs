@@ -1,5 +1,6 @@
 use crate::auth::service::{AuthServiceTrait, SqlxAuthService};
 use crate::categories::service::{CategoryServiceTrait, SqlxCategoryService};
+use crate::demo::service::{DemoServiceTrait, SqlxDemoService};
 use crate::notifications::service::{NotificationServiceTrait, SqlxNotificationService};
 use crate::preferences::service::{PreferencesServiceTrait, SqlxPreferencesService};
 use crate::reports::service::{ReportServiceTrait, SqlxReportService};
@@ -15,6 +16,7 @@ pub struct AppState {
     pub subscription_service: Arc<dyn SubscriptionServiceTrait>,
     pub transaction_service: Arc<dyn TransactionServiceTrait>,
     pub category_service: Arc<dyn CategoryServiceTrait>,
+    pub demo_service: Arc<dyn DemoServiceTrait>,
     pub notification_service: Arc<dyn NotificationServiceTrait>,
     pub report_service: Arc<dyn ReportServiceTrait>,
     pub preferences_service: Arc<dyn PreferencesServiceTrait>,
@@ -28,6 +30,7 @@ impl AppState {
             subscription_service: Arc::new(SqlxSubscriptionService::new(pool.clone())),
             transaction_service: Arc::new(SqlxTransactionService::new(pool.clone())),
             category_service: Arc::new(SqlxCategoryService::new(pool.clone())),
+            demo_service: Arc::new(SqlxDemoService::new(pool.clone())),
             notification_service: Arc::new(SqlxNotificationService::new(pool.clone())),
             report_service: Arc::new(SqlxReportService::new(pool.clone())),
             preferences_service: Arc::new(SqlxPreferencesService::new(pool.clone())),

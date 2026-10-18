@@ -7,7 +7,62 @@ use crate::shared::date_utils::days_in_month;
 
 pub struct DemoService;
 
+/// Demo port, injected into `AppState` as `Arc<dyn DemoServiceTrait>`.
+#[async_trait::async_trait]
+pub trait DemoServiceTrait: Send + Sync {
+    async fn create_demo_user(&self, email: &str, password_hash: &str) -> Result<(), String>;
+    async fn reset_demo_data(&self, user_id: Uuid) -> Result<(), String>;
+}
+
+/// SQLx adapter delegating to the existing, tested [`DemoService`] functions.
+pub struct SqlxDemoService {
+    pool: PgPool,
+}
+
+impl SqlxDemoService {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl DemoServiceTrait for SqlxDemoService {
+    async fn create_demo_user(&self, email: &str, password_hash: &str) -> Result<(), String> {
+        DemoService::create_demo_user(&self.pool, email, password_hash).await
+    }
+
+    async fn reset_demo_data(&self, user_id: Uuid) -> Result<(), String> {
+        DemoService::reset_demo_data(&self.pool, user_id).await
+    }
+}
+
 impl DemoService {
+    /// Upsert the demo user (idempotent).
+    pub async fn create_demo_user(
+        pool: &PgPool,
+        email: &str,
+        password_hash: &str,
+    ) -> Result<(), String> {
+        sqlx::query(
+            r#"
+            INSERT INTO users (id, email, password_hash, name, currency, verified, created_at, updated_at)
+            VALUES ($1, $2, $3, 'Demo User', 'EUR', true, NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE SET
+                password_hash = EXCLUDED.password_hash,
+                verified = true,
+                name = EXCLUDED.name,
+                updated_at = NOW()
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(email)
+        .bind(password_hash)
+        .execute(pool)
+        .await
+        .map_err(|e| format!("Failed to init demo user: {}", e))?;
+        Ok(())
+    }
+
     pub async fn reset_demo_data(pool: &PgPool, user_id: Uuid) -> Result<(), String> {
         // Clear existing data (delete subs and txns first due to FK constraints)
         sqlx::query("DELETE FROM subscriptions WHERE user_id = $1")
