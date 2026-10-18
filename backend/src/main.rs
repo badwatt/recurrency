@@ -133,9 +133,6 @@ async fn health_check() -> Json<serde_json::Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::Body;
-    use axum::http::{Request, StatusCode};
-    use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_health_check_structure() {

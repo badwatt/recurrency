@@ -5,6 +5,11 @@ edition.workspace = true
 authors.workspace = true
 description = "Recurrency API - Backend for subscription tracker"
 
+[features]
+# Integration tests need a running PostgreSQL (docker/docker-compose.dev.yml).
+# Run them with: cargo test --features integration-tests
+integration-tests = []
+
 [dependencies]
 # Web framework
 axum = { version = "0.8.9", features = ["macros"] }

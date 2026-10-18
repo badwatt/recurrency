@@ -1,3 +1,4 @@
+#![cfg(feature = "integration-tests")]
 //! Integration tests for auth, subscriptions, and categories with real database.
 //!
 //! Requires TEST_DATABASE_URL env var or .env.test file.
@@ -8,13 +9,13 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use recurrency_api::auth::models::{CreateUserRequest, LoginRequest};
-use recurrency_api::auth::service::AuthService;
-use recurrency_api::categories::models::CreateCategoryRequest;
-use recurrency_api::categories::service::CategoryService;
-use recurrency_api::shared::error::AppError;
-use recurrency_api::subscriptions::models::{CreateSubscriptionRequest, UpdateSubscriptionRequest};
-use recurrency_api::subscriptions::service::SubscriptionService;
+use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest};
+use recurrency_backend::auth::service::AuthService;
+use recurrency_backend::categories::models::CreateCategoryRequest;
+use recurrency_backend::categories::service::CategoryService;
+use recurrency_backend::shared::error::AppError;
+use recurrency_backend::subscriptions::models::{CreateSubscriptionRequest, UpdateSubscriptionRequest};
+use recurrency_backend::subscriptions::service::SubscriptionService;
 
 // ── Test Fixtures ─────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ async fn create_subscription(
     name: &str,
     amount: Decimal,
     frequency: &str,
-) -> recurrency_api::subscriptions::models::Subscription {
+) -> recurrency_backend::subscriptions::models::Subscription {
     let req = CreateSubscriptionRequest {
         name: name.to_string(),
         amount,
@@ -79,7 +80,7 @@ async fn create_subscription_with_date(
     amount: Decimal,
     frequency: &str,
     start_date: NaiveDate,
-) -> recurrency_api::subscriptions::models::Subscription {
+) -> recurrency_backend::subscriptions::models::Subscription {
     let req = CreateSubscriptionRequest {
         name: name.to_string(),
         amount,
