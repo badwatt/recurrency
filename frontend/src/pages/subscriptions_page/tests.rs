@@ -818,7 +818,7 @@
         // Add/Edit subscription dialog card must have stop_propagation.
         // Bug: inline backdrop has onclick but card doesn't stop_propagation →
         // clicks inside dialog propagate to backdrop → dialog closes.
-        let src = include_str!("../subscriptions_page.rs");
+        let src = include_str!("../subscriptions_page/dialog.rs");
         // Find the render_dialog function (the Add/Edit dialog)
         let dialog_fn = src.split("fn render_dialog").nth(1).unwrap_or("");
         let code_lines: Vec<&str> = dialog_fn

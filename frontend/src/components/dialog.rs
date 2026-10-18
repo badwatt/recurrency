@@ -282,11 +282,9 @@ mod tests {
 
     #[test]
     fn subscription_edit_dialog_uses_dialog_component() {
-        let src = include_str!("../pages/subscriptions_page.rs");
-        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        let dialog_section = prod.split("fn render_dialog").nth(1).unwrap_or("");
-        assert!(dialog_section.contains("Dialog {"), "subscription edit dialog must use Dialog component");
-        assert!(dialog_section.contains("footer:"), "subscription edit dialog must use footer prop");
+        let src = include_str!("../pages/subscriptions_page/dialog.rs");
+        assert!(src.contains("Dialog {"), "subscription edit dialog must use Dialog component");
+        assert!(src.contains("footer:"), "subscription edit dialog must use footer prop");
     }
 
     #[test]
