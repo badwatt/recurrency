@@ -1,5 +1,9 @@
 
     use super::*;
+use rust_decimal::Decimal;
+
+use crate::components::entry_form::{EntryForm as EditForm, EntityType};
+
 use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
@@ -522,31 +526,15 @@ use chrono::NaiveDate;
     // ── TDD: Calendar subscription dialog click-outside ──
     #[test]
     fn calendar_sub_dialog_card_has_stop_propagation() {
-        // Add/Edit subscription dialog in calendar must have stop_propagation on card
-        // and onclick close on backdrop.
-        // Bug: backdrop has no onclick, card has no stop_propagation.
-        let src = include_str!("../calendar_page.rs");
-        // Find the edit_dialog_open section
-        let dialog_section = src.split("edit_dialog_open()").nth(1).unwrap_or("");
-        let before_next_section = dialog_section.split("Notes dialog").next().unwrap_or(
-            dialog_section
-                .split("Calendar day")
-                .next()
-                .unwrap_or(dialog_section),
-        );
-        let code_lines: Vec<&str> = before_next_section
-            .lines()
-            .filter(|l| !l.trim().starts_with("//"))
-            .collect();
-        let code_text = code_lines.join("\n");
-        let has_stop_prop = code_text.contains("e.stop_propagation()");
-        let has_backdrop_close = code_text.contains("edit_dialog_open.set(false)");
+        // Add/Edit subscription dialog now lives in edit_dialog.rs and must stop
+        // propagation on the card and close the backdrop on click.
+        let src = include_str!("../calendar_page/edit_dialog.rs");
         assert!(
-            has_stop_prop,
+            src.contains("e.stop_propagation()"),
             "Calendar subscription dialog card must have stop_propagation"
         );
         assert!(
-            has_backdrop_close,
+            src.contains("open.set(false)"),
             "Calendar subscription dialog backdrop must close on click"
         );
     }
@@ -1076,13 +1064,11 @@ use chrono::NaiveDate;
 
     #[test]
     fn handle_edit_submit_has_create_branch() {
-        // Bug: calendar '+' button opens add dialog but submit only updates,
-        // never creates. handle_edit_submit must have else branch calling
-        // Storage::create_subscription when editing_id is None.
-        let src = include_str!("../calendar_page.rs");
-        let section = src.split("handle_edit_submit").nth(1).unwrap_or("");
+        // The submit handler lives in edit_dialog.rs and must have an else
+        // branch calling Storage::create_subscription when editing_id is None.
+        let src = include_str!("../calendar_page/edit_dialog.rs");
         assert!(
-            section.contains("Storage::create_subscription"),
+            src.contains("Storage::create_subscription"),
             "handle_edit_submit must call Storage::create_subscription for new subscriptions"
         );
     }
