@@ -301,6 +301,10 @@ jobs:
           APP_DIR="target/dx/recurrency-frontend/release/android/app"
           GRADLE_FILE="$APP_DIR/build.gradle.kts"
 
+          # dx bundle already ran Gradle on the unpatched res; drop its build
+          # outputs so the APK is repackaged from the patched resources.
+          rm -rf "$APP_DIR/build" "$APP_DIR/app/build"
+
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null || {
               echo "WARNING: Failed to decode keystore, building debug APK"
@@ -318,11 +322,16 @@ jobs:
 
       - name: Upload APK to Release
         run: |
-          APK=$(find frontend/target/dx . -name '*.apk' -type f 2>/dev/null | head -1)
+          APK=$(find frontend/target/dx -name 'app-release.apk' -type f 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find frontend/target/dx . -name '*.apk' -type f 2>/dev/null | head -1)
+          fi
           if [ -z "$APK" ]; then
             echo "ERROR: No APK found"
             exit 1
           fi
+          echo "Using APK: $APK"
+          unzip -l "$APK" | grep -i ic_launcher || true
           mkdir -p bin/android
           APK_NAME="recurrency-${{ needs.prepare.outputs.version }}-aarch64.apk"
           cp "$APK" "bin/android/$APK_NAME"
