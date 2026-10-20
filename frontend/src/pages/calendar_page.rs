@@ -189,11 +189,11 @@ pub fn CalendarPage() -> Element {
     };
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Calendar", subtitle: "Upcoming subscription payments" }
-                div { class: "text-right hidden md:block animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150",
+                div { class: "text-right hidden md:block",
                     p { class: "text-2xl font-bold tracking-tight", {total_display.to_string()} }
                     p { class: "text-xs text-muted-foreground", "Total this month" }
                 }
@@ -254,7 +254,7 @@ pub fn CalendarPage() -> Element {
             }
 
             // Desktop: Full calendar
-            div { class: "hidden md:block rounded-xl bg-card/80 border border-border/40 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200",
+            div { class: "hidden md:block rounded-xl bg-card/80 border border-border/40",
                 // Navigation header
                 div { class: "flex items-center justify-between p-4 border-b border-border",
                     div { class: "flex items-center gap-4",

@@ -37,8 +37,8 @@ pub fn is_email_disabled(channel: &str, smtp_configured: bool) -> bool {
 #[component]
 pub fn SettingsPage() -> Element {
     rsx! {
-        div { class: "p-2 md:p-6 flex flex-col gap-6",
-            div { class: "animate-in fade-in slide-in-from-bottom-4 duration-700",
+        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
+            div { class: "",
                 PageHeader { title: "Settings", subtitle: "Manage your account and preferences" }
             }
 

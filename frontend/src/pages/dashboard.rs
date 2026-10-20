@@ -122,16 +122,16 @@ pub fn Dashboard() -> Element {
     let nav = navigator();
 
     rsx! {
-        div { class: "p-4 md:p-8 flex flex-col gap-8",
+        div { class: "p-4 md:p-8 flex flex-col gap-8 animate-in fade-in duration-300",
             // Hero: greeting + large monthly total
-            div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700",
+            div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
                 div {
                     p { class: "text-sm text-muted-foreground font-medium", "Welcome back, {user_name}" }
                     h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter text-foreground mt-1",
                         "Dashboard"
                     }
                 }
-                div { class: "text-right animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150",
+                div { class: "text-right",
                     p { class: "text-xs text-muted-foreground uppercase tracking-widest font-medium", "Monthly spend" }
                     div { class: "text-4xl md:text-5xl font-bold text-foreground tracking-tight",
                         "{format_currency(monthly_total, currency)}"
@@ -143,7 +143,7 @@ pub fn Dashboard() -> Element {
             }
 
             // Quick actions
-            div { class: "flex gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300",
+            div { class: "flex gap-2",
                 {
                     let nav1 = nav;
                     rsx! {
@@ -189,7 +189,7 @@ pub fn Dashboard() -> Element {
             // Bento grid: stats + lists
             div { class: "grid gap-4 md:grid-cols-3 auto-rows-min",
                 // Card 1: Stats overview (spans 2 cols on md+)
-                div { class: "md:col-span-2 rounded-xl bg-card border border-border/50 p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100",
+                div { class: "md:col-span-2 rounded-xl bg-card border border-border/50 p-6",
                     h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Overview" }
                     div { class: "grid grid-cols-2 md:grid-cols-4 gap-4 mt-4",
                         div {
@@ -212,7 +212,7 @@ pub fn Dashboard() -> Element {
                 }
 
                 // Card 2: Category breakdown (compact)
-                div { class: "rounded-xl bg-card border border-border/50 p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200",
+                div { class: "rounded-xl bg-card border border-border/50 p-6",
                     h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Categories" }
                     {
                         let cats = CATEGORIES();
@@ -252,7 +252,7 @@ pub fn Dashboard() -> Element {
                 }
 
                 // Card 3: Upcoming payments (spans full width)
-                div { class: "md:col-span-3 rounded-xl bg-card border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300",
+                div { class: "md:col-span-3 rounded-xl bg-card border border-border/50",
                     div { class: "p-6 pb-2",
                         h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Upcoming payments" }
                     }

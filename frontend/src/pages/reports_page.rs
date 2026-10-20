@@ -115,9 +115,9 @@ pub fn ReportsPage() -> Element {
     };
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 overflow-x-hidden",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 overflow-x-hidden animate-in fade-in duration-300",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
+            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Reports", subtitle: "Analyze your spending patterns" }
                 div { class: "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3",
                     div { class: "flex items-center gap-2",

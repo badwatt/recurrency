@@ -1,38 +1,65 @@
-use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
 use dioxus::prelude::*;
+
+/// Build candidate logo URLs for a company name or domain. Done client-side so
+/// it works in offline mode (no backend) and without relying on the fragile
+/// DuckDuckGo scrape. The browser loads the images directly.
+fn logo_candidates(query: &str) -> Vec<LogoResult> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let domains: Vec<String> = if q.contains('.') {
+        vec![q.clone()]
+    } else {
+        let slug: String = q.chars().filter(|c| c.is_alphanumeric()).collect();
+        if slug.is_empty() {
+            return Vec::new();
+        }
+        vec![
+            format!("{slug}.com"),
+            format!("{slug}.io"),
+            format!("{slug}.app"),
+        ]
+    };
+
+    let mut out = Vec::new();
+    for d in &domains {
+        for url in [
+            format!("https://www.google.com/s2/favicons?domain={d}&sz=256"),
+            format!("https://icons.duckduckgo.com/ip3/{d}.ico"),
+            format!("https://logo.clearbit.com/{d}"),
+        ] {
+            out.push(LogoResult {
+                thumbnail: url.clone(),
+                url,
+                width: None,
+                height: None,
+            });
+        }
+    }
+    out
+}
 
 #[component]
 pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventHandler<String>) -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut query = use_signal(|| default_query.clone());
     let mut results = use_signal(Vec::<LogoResult>::new);
-    let mut searching = use_signal(|| false);
     let mut error_msg = use_signal(String::new);
 
     let mut do_search = move || {
-        if query().is_empty() || searching() { return; }
         let q = query();
-        searching.set(true);
         error_msg.set(String::new());
-        results.set(vec![]);
-        spawn(async move {
-            match api::logos::search(&q).await {
-                Ok(resp) => {
-                    if resp.results.is_empty() {
-                        error_msg.set("No logos found. Try a different search term.".into());
-                    } else {
-                        results.set(resp.results);
-                    }
-                }
-                Err(e) => {
-                    error_msg.set(format!("Search failed: {}", e));
-                }
-            }
-            searching.set(false);
-        });
+        let found = logo_candidates(&q);
+        if found.is_empty() {
+            results.set(vec![]);
+            error_msg.set("Enter a company name or domain".into());
+        } else {
+            results.set(found);
+        }
     };
 
     rsx! {
@@ -45,6 +72,9 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                 r#type: "button",
                 class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
                 onclick: move |_| {
+                    if !default_query.is_empty() {
+                        query.set(default_query.clone());
+                    }
                     results.set(vec![]);
                     error_msg.set(String::new());
                     dialog_open.set(true);
@@ -87,15 +117,9 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                     button {
                         r#type: "button",
                         class: "inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
-                        disabled: searching() || query().is_empty(),
+                        disabled: query().is_empty(),
                         onclick: move |_| do_search(),
-                        if searching() { "Searching…" } else { "Search" }
-                    }
-                }
-
-                if searching() {
-                    div { class: "flex h-32 items-center justify-center",
-                        div { class: "h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" }
+                        "Search"
                     }
                 }
 
