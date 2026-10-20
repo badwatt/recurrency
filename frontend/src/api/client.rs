@@ -188,6 +188,13 @@ pub fn get_token() -> Option<String> {
     AUTH.cloned().token.clone()
 }
 
+/// Clear the runtime base URL override (used when switching to offline mode).
+pub fn clear_base_url() {
+    if let Ok(mut lock) = BASE_URL_OVERRIDE.write() {
+        *lock = None;
+    }
+}
+
 /// Build a URL with the base URL. Auth is handled via headers, not URL.
 pub fn auth_url(path: &str) -> String {
     let base = get_base_url();

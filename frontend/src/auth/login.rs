@@ -384,16 +384,20 @@ pub fn LoginPage() -> Element {
                         Link {
                             to: Route::Setup {},
                             class: "text-primary hover:underline",
-                            {format!("Change server ({})", crate::api::client::get_base_url())}
+                            {if offline { "Connect to a server".to_string() } else { format!("Change server ({})", crate::api::client::get_base_url()) }}
                         }
                     }
-                    if SHOW_OFFLINE {
-                        p { class: "text-center text-sm text-muted-foreground",
-                            Link {
-                                to: Route::Setup {},
-                                class: "text-muted-foreground hover:text-foreground hover:underline",
-                                "Use without server"
-                            }
+                    // Switch to offline right here: clear any server URL/session
+                    // and re-render this page as the local-account login.
+                    if SHOW_OFFLINE && !offline {
+                        button {
+                            r#type: "button",
+                            class: "w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline",
+                            onclick: move |_| {
+                                APP_MODE.write().set_local();
+                                AUTH.write().logout();
+                            },
+                            "Use without server"
                         }
                     }
                 }

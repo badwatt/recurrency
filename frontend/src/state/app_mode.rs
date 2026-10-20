@@ -103,6 +103,9 @@ impl AppModeState {
     pub fn set_local(&mut self) {
         self.mode = AppMode::Offline;
         self.initialized = true;
+        // Leaving server mode must not leave a stale base URL behind: an
+        // override would make is_offline_mode() report server mode.
+        crate::api::client::clear_base_url();
         self.persist();
     }
 
@@ -123,13 +126,15 @@ impl AppModeState {
         {
             if let Some(window) = web_sys::window() {
                 if let Ok(Some(storage)) = window.local_storage() {
-                    let mode_str = match &self.mode {
-                        AppMode::Offline => "offline",
-                        AppMode::Server(_) => "server",
-                    };
-                    let _ = storage.set_item("RECURRENCY_APP_MODE", mode_str);
-                    if let AppMode::Server(url) = &self.mode {
-                        let _ = storage.set_item("RECURRENCY_API_URL", url);
+                    match &self.mode {
+                        AppMode::Offline => {
+                            let _ = storage.set_item("RECURRENCY_APP_MODE", "offline");
+                            let _ = storage.remove_item("RECURRENCY_API_URL");
+                        }
+                        AppMode::Server(url) => {
+                            let _ = storage.set_item("RECURRENCY_APP_MODE", "server");
+                            let _ = storage.set_item("RECURRENCY_API_URL", url);
+                        }
                     }
                 }
             }
@@ -140,13 +145,15 @@ impl AppModeState {
             if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
                 let app_dir = data_dir.join("recurrency");
                 let _ = std::fs::create_dir_all(&app_dir);
-                let mode_str = match &self.mode {
-                    AppMode::Offline => "offline",
-                    AppMode::Server(_) => "server",
-                };
-                let _ = std::fs::write(app_dir.join("app_mode.txt"), mode_str);
-                if let AppMode::Server(url) = &self.mode {
-                    let _ = std::fs::write(app_dir.join("server_url.txt"), url);
+                match &self.mode {
+                    AppMode::Offline => {
+                        let _ = std::fs::write(app_dir.join("app_mode.txt"), "offline");
+                        let _ = std::fs::remove_file(app_dir.join("server_url.txt"));
+                    }
+                    AppMode::Server(url) => {
+                        let _ = std::fs::write(app_dir.join("app_mode.txt"), "server");
+                        let _ = std::fs::write(app_dir.join("server_url.txt"), url);
+                    }
                 }
             }
         }
