@@ -11,7 +11,7 @@ watch_path = ["src", "styles", "assets"]
 
 [bundle]
 identifier = "com.alvaro17f.recurrency"
-icon = ["assets/icons/icon-1024.png"]
+icon = ["assets/icons/clock-1024.png"]
 
 [android]
 name = "Recurrency"

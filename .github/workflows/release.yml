@@ -282,7 +282,7 @@ jobs:
         run: |
           set -e
           cd frontend
-          ICON="$PWD/assets/icons/icon-1024.png"
+          ICON="$PWD/assets/icons/clock-1024.png"
           export ICON
           bash ../scripts/patch-android-build.sh
 

@@ -52,7 +52,7 @@ export CXXFLAGS="-target aarch64-linux-android28 -fPIC"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUNNER="echo"
 
-ICON="assets/icons/icon-1024.png"
+ICON="assets/icons/clock-1024.png"
 # Resolve version from workspace Cargo.toml (no VERSION file exists)
 VERSION=$(grep '^version' "$ROOT/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
 APK_NAME="recurrency-${VERSION}-aarch64.apk"

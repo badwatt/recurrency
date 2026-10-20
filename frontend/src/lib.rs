@@ -69,6 +69,10 @@ const CABINET_GROTESK_700: Asset = asset!("/assets/fonts/cabinet-grotesk-700.wof
 const CABINET_GROTESK_800: Asset = asset!("/assets/fonts/cabinet-grotesk-800.woff2");
 const JETBRAINS_MONO: Asset = asset!("/assets/fonts/jetbrains-mono-latin.woff2");
 
+// Favicons for the web build.
+const FAVICON: Asset = asset!("/assets/icons/clock-32.png");
+const APPLE_TOUCH_ICON: Asset = asset!("/assets/icons/clock-256.png");
+
 /// CSS that hides body until styles load — prevents FOUC.
 /// Mocha default. Theme class applied by apply_theme_class at runtime.
 const FOUC_PREVENTION_CSS: &str = r#"
@@ -240,6 +244,8 @@ fn App() -> Element {
         document::Style { {FOUC_PREVENTION_CSS} }
         // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK
         document::Style { {font_face_css()} }
+        document::Link { rel: "icon", r#type: "image/png", href: FAVICON.to_string() }
+        document::Link { rel: "apple-touch-icon", href: APPLE_TOUCH_ICON.to_string() }
         document::Stylesheet { href: TAILWIND_CSS }
         // Wrapper div uses CSS variables for theme-aware background/text.
         div {
