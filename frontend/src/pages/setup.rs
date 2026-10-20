@@ -36,6 +36,12 @@ pub fn offline_entry_route() -> Route {
     Route::Login {}
 }
 
+/// Whether choosing "Use without server" while already offline and logged in
+/// should simply return to the app (settings) instead of logging out.
+pub fn offline_stays_in_app(already_offline: bool, authenticated: bool) -> bool {
+    already_offline && authenticated
+}
+
 #[component]
 pub fn SetupPage() -> Element {
     let mut server_url = use_signal(|| {
@@ -190,10 +196,17 @@ pub fn SetupPage() -> Element {
                 if SHOW_OFFLINE {
                     button {
                         onclick: move |_| {
+                            let already_offline = APP_MODE().mode.is_offline();
+                            let authenticated = AUTH().is_authenticated;
+                            if offline_stays_in_app(already_offline, authenticated) {
+                                // Already using local data: go back to settings
+                                // without touching the session.
+                                navigator().push(Route::Settings {});
+                                return;
+                            }
                             APP_MODE.write().set_local();
                             AUTH.write().logout();
-                            let nav = navigator();
-                            nav.push(offline_entry_route());
+                            navigator().push(offline_entry_route());
                         },
                         class: "w-full rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors",
                         "Use without server"
@@ -211,6 +224,14 @@ mod tests {
     #[test]
     fn offline_entry_goes_to_login() {
         assert_eq!(offline_entry_route(), crate::Route::Login {});
+    }
+
+    #[test]
+    fn staying_offline_requires_an_active_session() {
+        assert!(offline_stays_in_app(true, true));
+        assert!(!offline_stays_in_app(true, false));
+        assert!(!offline_stays_in_app(false, true));
+        assert!(!offline_stays_in_app(false, false));
     }
 
     #[test]
