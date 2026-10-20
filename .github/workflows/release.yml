@@ -340,17 +340,17 @@ jobs:
             APKSIGNER=$(command -v apksigner || find "$SDK" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
             ZIPALIGN=$(command -v zipalign || find "$SDK" -name zipalign -type f 2>/dev/null | sort -V | tail -1)
             if [ -n "$APKSIGNER" ]; then
-              if ! "$APKSIGNER" verify "$APK_REL" >/dev/null 2>&1; then
-                echo "APK unsigned — signing $APK_REL"
-                if [ -n "$ZIPALIGN" ]; then
-                  "$ZIPALIGN" -p -f 4 "$APK_REL" "$APK_REL.aligned" && mv "$APK_REL.aligned" "$APK_REL"
-                fi
-                "$APKSIGNER" sign --ks "$APP_DIR/release.jks" \
-                  --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
-                  --key-pass "pass:$ANDROID_KEY_PASSWORD" \
-                  --ks-key-alias "$ANDROID_KEY_ALIAS" "$APK_REL"
+              if [ -n "$ZIPALIGN" ]; then
+                "$ZIPALIGN" -p -f 4 "$APK_REL" "$APK_REL.aligned" && mv "$APK_REL.aligned" "$APK_REL"
               fi
-              "$APKSIGNER" verify "$APK_REL" && echo "APK signature verified"
+              # Sign with v1+v2+v3 so old and new Android versions accept it.
+              "$APKSIGNER" sign --ks "$APP_DIR/release.jks" \
+                --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+                --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+                --ks-key-alias "$ANDROID_KEY_ALIAS" \
+                --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+                "$APK_REL"
+              "$APKSIGNER" verify --verbose "$APK_REL"
             else
               echo "WARNING: apksigner not found; cannot verify the APK signature"
             fi
