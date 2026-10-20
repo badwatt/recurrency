@@ -19,6 +19,20 @@ pub fn RegisterPage() -> Element {
         evt.prevent_default();
         error_msg.set(String::new());
         loading.set(true);
+
+        // Offline mode: create an on-device account.
+        if crate::api::client::is_offline_mode() {
+            match crate::storage::local_auth::register(&email(), &auth_field(), &name()) {
+                Ok(user) => {
+                    AUTH.write().set_authenticated("offline".into(), user, false);
+                    navigator().push(Route::Dashboard {});
+                }
+                Err(e) => error_msg.set(e),
+            }
+            loading.set(false);
+            return;
+        }
+
         match auth::register(email(), auth_field(), name()).await {
             Ok(resp) => {
                 if resp.requires_verification {

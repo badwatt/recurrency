@@ -7,18 +7,6 @@ use dioxus::prelude::*;
 
 const SHOW_OFFLINE: bool = true;
 
-/// Where the login page should redirect on mount, if anywhere.
-///
-/// Offline mode has no credentials to collect, so it must never trap the user
-/// on the login screen — it goes straight to the dashboard.
-pub fn offline_login_target(is_offline: bool) -> Option<Route> {
-    if is_offline {
-        Some(Route::Dashboard {})
-    } else {
-        None
-    }
-}
-
 #[component]
 pub fn LoginPage() -> Element {
     let mut email = use_signal(String::new);
@@ -40,14 +28,11 @@ pub fn LoginPage() -> Element {
 
     let offline = APP_MODE().mode.is_offline();
 
-    // Auto-redirect: offline mode enters the app; native server mode without a
-    // configured URL goes to Setup.
+    // Native server mode without a configured URL goes to Setup. Offline mode
+    // also has a login (the local account), so it never auto-enters the app.
     let nav = navigator();
     use_effect(move || {
-        if let Some(route) = offline_login_target(offline) {
-            eprintln!("[LoginPage] Offline mode — entering app without login");
-            nav.push(route);
-        } else if needs_setup {
+        if needs_setup {
             eprintln!("[LoginPage] No server configured — redirecting to Setup");
             nav.push(Route::Setup {});
         }
@@ -79,6 +64,19 @@ pub fn LoginPage() -> Element {
         let email_val = email();
         let password_val = auth_field();
         let nav = nav;
+
+        // Offline mode authenticates against the on-device account store.
+        if APP_MODE().mode.is_offline() {
+            match crate::storage::local_auth::login(&email_val, &password_val) {
+                Ok(user) => {
+                    AUTH.write().set_authenticated("offline".into(), user, false);
+                    navigator().push(Route::Dashboard {});
+                }
+                Err(e) => error.set(e),
+            }
+            loading.set(false);
+            return;
+        }
 
         // Use Dioxus spawn (tied to component scope — cancelled on unmount).
         // Async closures in event handlers may not cancel properly on Android.
@@ -349,8 +347,8 @@ pub fn LoginPage() -> Element {
                         if loading() { "Signing in..." } else { "Sign in" }
                     }
 
-                    // Demo button
-                    if demo_enabled() {
+                    // Demo button (server mode only)
+                    if demo_enabled() && !offline {
                         button {
                             r#type: "button",
                             disabled: demo_loading(),
@@ -360,13 +358,24 @@ pub fn LoginPage() -> Element {
                         }
                     }
 
+                    // Local account hint (offline mode)
+                    if offline {
+                        p { class: "text-center text-xs text-muted-foreground",
+                            if crate::storage::local_auth::has_accounts() {
+                                "Signing in to the account stored on this device."
+                            } else {
+                                "No local account on this device yet — create one below."
+                            }
+                        }
+                    }
+
                     // Register link
                     p { class: "text-center text-sm text-muted-foreground",
-                        "Don't have an account? "
+                        if offline { "No account on this device? " } else { "Don't have an account? " }
                         Link {
                             to: Route::Register {},
                             class: "text-primary hover:underline",
-                            "Sign up"
+                            if offline { "Create one" } else { "Sign up" }
                         }
                     }
 
@@ -407,15 +416,6 @@ mod tests {
             currency: "EUR".into(),
             verified,
         }
-    }
-
-    #[test]
-    fn offline_login_targets_dashboard() {
-        assert_eq!(
-            super::offline_login_target(true),
-            Some(crate::Route::Dashboard {})
-        );
-        assert_eq!(super::offline_login_target(false), None);
     }
 
     #[test]

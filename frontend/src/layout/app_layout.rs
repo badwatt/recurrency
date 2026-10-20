@@ -1,5 +1,4 @@
 #![allow(clippy::suspicious_else_formatting)]
-use crate::state::app_mode::APP_MODE;
 use crate::state::preferences::PREFERENCES;
 use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::api::notifications;
@@ -58,10 +57,9 @@ pub fn AppLayout() -> Element {
         return rsx! { AppLoader {} };
     }
 
-    // Offline mode has no accounts, so it never requires authentication.
-    // Server mode redirects to Login until a session exists.
-    let is_offline = APP_MODE().mode.is_offline();
-    if requires_login(is_offline, auth.is_authenticated) {
+    // Both modes require a session: server mode uses a JWT, offline mode uses
+    // a local account. An unauthenticated user is redirected to Login.
+    if requires_login(auth.is_authenticated) {
         let nav = navigator();
         nav.push(crate::Route::Login {});
         return rsx! { div {} };
@@ -75,7 +73,7 @@ pub fn AppLayout() -> Element {
 
 
     // Notification click-outside overlay (at App level, outside backdrop-blur header)
-    let mut notif_overlay = use_signal(|| false);
+    let mut notif_open = use_signal(|| false);
 
     // Mobile bottom bar: hide on scroll down, show on scroll up
     use_effect(move || {
@@ -174,7 +172,7 @@ pub fn AppLayout() -> Element {
                     // Right: notification bell + settings + logout
                     div { class: "flex items-center gap-1",
                         ThemeToggleButton {}
-                        NotificationBell {}
+                        NotificationBell { open: notif_open }
                         a {
                             href: "/settings",
                             onclick: move |e| {
@@ -200,11 +198,15 @@ pub fn AppLayout() -> Element {
                 }
             }
 
-            // ── Main content ──
-            if notif_overlay() {
+            // Click-outside layer for the notification panel. It lives here
+            // (outside the header) because `backdrop-filter` on the header
+            // makes `position: fixed` children relative to the header, which
+            // previously limited click-outside to the header area. z-20 keeps
+            // it below the header (z-30) so the panel stays interactive.
+            if notif_open() {
                 div {
-                    class: "fixed inset-0 z-40",
-                    onclick: move |_| { notif_overlay.set(false); },
+                    class: "fixed inset-0 z-20",
+                    onclick: move |_| { notif_open.set(false); },
                 }
             }
 
@@ -325,10 +327,10 @@ fn ThemeToggleButton() -> Element {
 }
 // ── Notification bell ──
 #[component]
-fn NotificationBell() -> Element {
+fn NotificationBell(open: Signal<bool>) -> Element {
     let notif_state = NOTIFICATIONS();
     let unread = notif_state.unread_count;
-    let mut open = use_signal(|| false);
+    let mut open = open;
 
     // Fetch notifications on mount (no server to query in offline mode)
     use_future(move || async move {
@@ -398,11 +400,6 @@ fn NotificationBell() -> Element {
                         }
                     }
                 }
-                // Click-outside overlay
-                div {
-                    class: "fixed inset-0 z-40",
-                    onclick: move |_| open.set(false),
-                }
             }
         }
     }
@@ -461,10 +458,10 @@ fn LogoIcon() -> Element {
 
 /// Whether the protected layout must redirect to the login page.
 ///
-/// Offline mode stores data locally and has no accounts, so it never requires
-/// login. Server mode requires an authenticated session.
-pub fn requires_login(is_offline: bool, is_authenticated: bool) -> bool {
-    !is_offline && !is_authenticated
+/// Both server and offline modes require an authenticated session (offline
+/// uses an on-device account).
+pub fn requires_login(is_authenticated: bool) -> bool {
+    !is_authenticated
 }
 
 pub fn navlink_class(active: bool) -> &'static str {
@@ -703,15 +700,9 @@ mod tests {
     }
 
     #[test]
-    fn requires_login_offline_never() {
-        assert!(!requires_login(true, false));
-        assert!(!requires_login(true, true));
-    }
-
-    #[test]
-    fn requires_login_server_needs_auth() {
-        assert!(requires_login(false, false));
-        assert!(!requires_login(false, true));
+    fn requires_login_needs_auth() {
+        assert!(requires_login(false));
+        assert!(!requires_login(true));
     }
 
     #[test]

@@ -125,6 +125,16 @@ fn App() -> Element {
             }
         }
 
+        // A session created in one mode must not leak into the other: an
+        // offline session (token "offline") is invalid in server mode and a
+        // server JWT is meaningless offline.
+        let offline = mode_state.mode.is_offline();
+        if let Some(token) = AUTH().token.clone()
+            && (token == "offline") != offline
+        {
+            AUTH.write().logout();
+        }
+
         // Restore saved server URL from persistent storage.
         // On WASM: localStorage handled by get_base_url_impl()
         // On Android/desktop: read from app data file

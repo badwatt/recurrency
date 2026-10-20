@@ -15,6 +15,7 @@ web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document
 lucide-dioxus = { version = "2.577.0", features = ["all-icons"] }
 serde.workspace = true
 serde_json.workspace = true
+sha2 = "0.10"
 chrono.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros = "1.40.0"

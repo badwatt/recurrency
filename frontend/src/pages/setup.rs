@@ -2,6 +2,7 @@ use crate::api::client::set_base_url;
 #[cfg(test)]
 use crate::api::client::get_base_url;
 use crate::state::app_mode::{AppMode, APP_MODE};
+use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
 
@@ -30,9 +31,9 @@ fn save_server_url(url: &str) {
 }
 
 /// Route entered when the user picks "Use without server".
-/// Offline mode has no accounts, so it goes straight into the app instead of Login.
+/// Offline mode still requires a (local) login, so it goes to Login.
 pub fn offline_entry_route() -> Route {
-    Route::Dashboard {}
+    Route::Login {}
 }
 
 #[component]
@@ -101,6 +102,8 @@ pub fn SetupPage() -> Element {
                         set_base_url(&url);
                         APP_MODE.write().set_server(url.clone());
                         save_server_url(&url);
+                        // Mode change: force a fresh login.
+                        AUTH.write().logout();
                         let nav = navigator();
                         nav.push(Route::Login {});
                     }
@@ -123,6 +126,8 @@ pub fn SetupPage() -> Element {
                     "localStorage.setItem('RECURRENCY_API_URL','{}')",
                     url
                 )).await;
+                // Mode change: force a fresh login.
+                AUTH.write().logout();
                 let nav = navigator();
                 nav.push(Route::Login {});
             }
@@ -186,6 +191,7 @@ pub fn SetupPage() -> Element {
                     button {
                         onclick: move |_| {
                             APP_MODE.write().set_local();
+                            AUTH.write().logout();
                             let nav = navigator();
                             nav.push(offline_entry_route());
                         },
@@ -203,8 +209,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn offline_entry_goes_to_dashboard() {
-        assert_eq!(offline_entry_route(), crate::Route::Dashboard {});
+    fn offline_entry_goes_to_login() {
+        assert_eq!(offline_entry_route(), crate::Route::Login {});
     }
 
     #[test]
