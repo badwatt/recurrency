@@ -32,6 +32,14 @@ pub fn resolve_theme_class(theme: &str) -> &'static str {
     }
 }
 
+/// JS snippet that forwards the active theme to Android's system bars.
+/// Guarded so web/desktop builds (no bridge) are unaffected.
+pub(crate) fn system_bars_js(color: &str, is_light: bool) -> String {
+    format!(
+        "try{{if(window.RecurrencyAndroid&&window.RecurrencyAndroid.setSystemBars){{window.RecurrencyAndroid.setSystemBars('{color}',{is_light});}}}}catch(e){{}}"
+    )
+}
+
 /// Apply theme class to <html>. Sets class + meta theme-color.
 /// Mocha: class="mocha dark" (dark for Tailwind, mocha for CSS vars).
 /// Dark:  class="dark"       (dark for Tailwind + CSS vars).
@@ -46,6 +54,7 @@ pub(crate) fn apply_theme_class(theme: &str) {
     } else {
         format!("'{}', 'dark'", cls)
     };
+    let bars = system_bars_js(color, cls == "light");
 
     let js = format!(
         r#"
@@ -54,10 +63,12 @@ pub(crate) fn apply_theme_class(theme: &str) {
             document.documentElement.classList.add({class_args});
             var meta = document.querySelector('meta[name="theme-color"]');
             if (meta) meta.content = '{color}';
+            {bars}
         }})()
         "#,
         class_args = class_args,
         color = color,
+        bars = bars,
     );
     let _ = dioxus::document::eval(&js);
 }
@@ -110,5 +121,17 @@ mod tests {
 
         let dark_args = format!("'{}', '{}'", "dark", "dark");
         assert_eq!(dark_args, "'dark', 'dark'");
+    }
+
+    #[test]
+    fn system_bars_js_forwards_color_and_contrast() {
+        let light = system_bars_js("#FAF9F2", true);
+        assert!(light.contains("RecurrencyAndroid.setSystemBars"));
+        assert!(light.contains("'#FAF9F2'"));
+        assert!(light.contains(",true"));
+
+        let mocha = system_bars_js("#1e1e2e", false);
+        assert!(mocha.contains("'#1e1e2e'"));
+        assert!(mocha.contains(",false"));
     }
 }

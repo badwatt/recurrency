@@ -98,6 +98,29 @@ patch_res_dir() {
         printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="app_name">Recurrency</string>\n</resources>\n' > "$strings"
     fi
     echo "  app_name → Recurrency"
+
+    # 4. System bars follow the app theme. Mocha is the default; the web app
+    #    updates the colors at runtime through the RecurrencyAndroid bridge.
+    local styles="$res/values/styles.xml"
+    if [ -f "$styles" ]; then
+        if ! grep -q 'android:statusBarColor' "$styles"; then
+            sed -i '/<style name="AppTheme"/a\        <item name="android:statusBarColor">#1e1e2e</item>\n        <item name="android:navigationBarColor">#1e1e2e</item>\n        <item name="android:windowLightStatusBar">false</item>\n        <item name="android:windowLightNavigationBar">false</item>\n        <item name="android:windowBackground">#1e1e2e</item>' "$styles"
+        fi
+    else
+        cat > "$styles" <<'XMLEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="@style/Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#1e1e2e</item>
+        <item name="android:navigationBarColor">#1e1e2e</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">#1e1e2e</item>
+    </style>
+</resources>
+XMLEOF
+    fi
+    echo "  system bars → mocha default"
 }
 
 for res in "${RES_DIRS[@]}"; do

@@ -86,6 +86,23 @@ fn index_html_meta_theme_color_matches_css_variables() {
 }
 
 #[test]
+fn index_html_forwards_theme_to_android_system_bars() {
+    let html = include_str!("../../../index.html");
+    assert!(
+        html.contains("RecurrencyAndroid"),
+        "index.html must use the Android system-bars bridge"
+    );
+    assert!(
+        html.contains("setSystemBars"),
+        "index.html must call setSystemBars with the theme color"
+    );
+    assert!(
+        html.contains("cls === 'light'"),
+        "system-bar icon contrast must follow the light theme"
+    );
+}
+
+#[test]
 fn tailwind_src_has_theme_and_loader_css() {
     let css = include_str!("../../../assets/styles/tailwind.src.css");
     // Theme selectors

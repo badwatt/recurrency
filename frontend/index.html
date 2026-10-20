@@ -79,8 +79,15 @@
         var extra = cls === 'light' ? '' : ' dark';
         document.documentElement.className = cls + extra;
         var colors = { light: '#FAF9F2', dark: '#0d0d11', mocha: '#1e1e2e' };
+        var color = colors[cls] || colors.mocha;
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.content = colors[cls] || colors.mocha;
+        if (meta) meta.content = color;
+        // Android: paint status/navigation bars + icon contrast from the theme.
+        try {
+          if (window.RecurrencyAndroid && window.RecurrencyAndroid.setSystemBars) {
+            window.RecurrencyAndroid.setSystemBars(color, cls === 'light');
+          }
+        } catch (err) { }
       } catch (e) { }
     })();
   </script>

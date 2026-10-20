@@ -12,6 +12,11 @@ content = re.sub(
     '', content
 )
 
+# Remove any existing system-bars bridge (keeps the patch idempotent)
+BRIDGE_MARKER = '// --- Recurrency system bars bridge ---'
+content = re.sub(r'(?s)\n*' + re.escape(BRIDGE_MARKER) + r'.*$', '\n', content)
+content = re.sub(r'\n\s*addJavascriptInterface\(SystemBarsBridge\(this\), "RecurrencyAndroid"\)', '', content)
+
 CSS = (
     'body{visibility:hidden}'
     'html{background:#1e1e2e;color:#cdd6f4}'
@@ -47,6 +52,8 @@ CSS = (
 )
 
 inject_lines = [
+    '        // Expose the system-bars bridge so the theme can paint status/nav bars.',
+    '        addJavascriptInterface(SystemBarsBridge(this), "RecurrencyAndroid")',
     '        // Prevent FOUC: mocha background + themed native loader.',
     '        // setBackgroundColor paints mocha behind WebView — eliminates white flash.',
     '        // addDocumentStartJavaScript injects CSS + loader HTML before WASM loads.',
@@ -86,6 +93,37 @@ content = content.replace(
     "settings.javaScriptCanOpenWindowsAutomatically = true",
     "settings.javaScriptCanOpenWindowsAutomatically = true\n" + inject
 )
+
+BRIDGE_CLASS = '''
+// --- Recurrency system bars bridge ---
+private class SystemBarsBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun setSystemBars(color: String, light: Boolean) {
+        val activity = view.context as? android.app.Activity ?: return
+        activity.runOnUiThread {
+            val window = activity.window
+            val parsed = try {
+                android.graphics.Color.parseColor(color)
+            } catch (e: IllegalArgumentException) {
+                return@runOnUiThread
+            }
+            window.statusBarColor = parsed
+            window.navigationBarColor = parsed
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                window.isStatusBarContrastEnforced = false
+                window.isNavigationBarContrastEnforced = false
+            }
+            androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
+                isAppearanceLightStatusBars = light
+                isAppearanceLightNavigationBars = light
+            }
+            view.setBackgroundColor(parsed)
+        }
+    }
+}
+'''
+
+content = content.rstrip() + '\n' + BRIDGE_CLASS
 
 with open(path, 'w') as f:
     f.write(content)
