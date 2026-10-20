@@ -144,7 +144,7 @@ jobs:
 
   # ─��� Build Docker images + create release ──────────────────
   docker:
-    if: ${{ !inputs.skip_docker }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_docker != true }}
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     outputs:
