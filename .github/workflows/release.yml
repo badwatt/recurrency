@@ -5,6 +5,11 @@ on:
     paths:
       - "Cargo.toml"
   workflow_dispatch:
+    inputs:
+      skip_docker:
+        description: "Skip docker image build (APK-only run)"
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -139,6 +144,7 @@ jobs:
 
   # ─��� Build Docker images + create release ──────────────────
   docker:
+    if: ${{ !inputs.skip_docker }}
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     outputs:
@@ -299,25 +305,55 @@ jobs:
           # gradlew sits at target/dx/.../release/android/app/ (single app)
           # dx 0.7.9 writes build outputs under app/app/build/ (double app)
           APP_DIR="target/dx/recurrency-frontend/release/android/app"
-          GRADLE_FILE="$APP_DIR/build.gradle.kts"
+          GRADLE_FILE=$(find "$APP_DIR" -maxdepth 2 -name build.gradle.kts -exec grep -l 'com.android.application' {} \; 2>/dev/null | head -1)
+          if [ -z "$GRADLE_FILE" ]; then
+            GRADLE_FILE="$APP_DIR/build.gradle.kts"
+          fi
+          echo "Using Gradle module: $GRADLE_FILE"
 
           # dx bundle already ran Gradle on the unpatched res; drop its build
           # outputs so the APK is repackaged from the patched resources.
           rm -rf "$APP_DIR/build" "$APP_DIR/app/build"
 
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null || {
-              echo "WARNING: Failed to decode keystore, building debug APK"
-              cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug
-              exit 0
-            }
-            # Insert signing config inside existing android block
-            sed -i '/android {/a\    signingConfigs {\n        create("release") {\n            storeFile = file("release.jks")\n            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")\n            keyAlias = System.getenv("ANDROID_KEY_ALIAS")\n            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")\n        }\n    }' "$GRADLE_FILE"
-            # Assign release signing config to buildTypes
-            sed -i '/buildTypes {/a\        release { signingConfig = signingConfigs.getByName("release") }' "$GRADLE_FILE"
-            cd "$APP_DIR" && ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease
+          KEYSTORE_OK=0
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/release.jks" 2>/dev/null; then
+            KEYSTORE_OK=1
+            export ANDROID_KEYSTORE_PATH="$(cd "$APP_DIR" && pwd)/release.jks"
+            # Insert the signing config in the module's android block (once).
+            if ! grep -q 'signingConfigs' "$GRADLE_FILE"; then
+              sed -i '/android {/a\    signingConfigs {\n        create("release") {\n            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))\n            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")\n            keyAlias = System.getenv("ANDROID_KEY_ALIAS")\n            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")\n        }\n    }' "$GRADLE_FILE"
+            fi
+            # Attach it to the existing release build type (no duplicate block).
+            if ! grep -q 'signingConfig = signingConfigs.getByName("release")' "$GRADLE_FILE"; then
+              sed -i '/getByName("release") {/a\            signingConfig = signingConfigs.getByName("release")' "$GRADLE_FILE"
+            fi
+            (cd "$APP_DIR" && ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease)
           else
-            cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug
+            echo "WARNING: no usable keystore; building debug APK"
+            (cd "$APP_DIR" && ./gradlew assembleDebug -x lintVitalAnalyzeDebug -x lintVitalDebug -x lintVitalReportDebug)
+          fi
+
+          # Guarantee the uploaded APK is signed (Android rejects unsigned APKs).
+          APK_REL=$(find "$APP_DIR" -path '*/build/outputs/apk/*' -name '*.apk' -type f 2>/dev/null | head -1)
+          if [ -n "$APK_REL" ] && [ "$KEYSTORE_OK" = "1" ]; then
+            SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+            APKSIGNER=$(command -v apksigner || find "$SDK" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+            ZIPALIGN=$(command -v zipalign || find "$SDK" -name zipalign -type f 2>/dev/null | sort -V | tail -1)
+            if [ -n "$APKSIGNER" ]; then
+              if ! "$APKSIGNER" verify "$APK_REL" >/dev/null 2>&1; then
+                echo "APK unsigned — signing $APK_REL"
+                if [ -n "$ZIPALIGN" ]; then
+                  "$ZIPALIGN" -p -f 4 "$APK_REL" "$APK_REL.aligned" && mv "$APK_REL.aligned" "$APK_REL"
+                fi
+                "$APKSIGNER" sign --ks "$APP_DIR/release.jks" \
+                  --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+                  --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+                  --ks-key-alias "$ANDROID_KEY_ALIAS" "$APK_REL"
+              fi
+              "$APKSIGNER" verify "$APK_REL" && echo "APK signature verified"
+            else
+              echo "WARNING: apksigner not found; cannot verify the APK signature"
+            fi
           fi
 
       - name: Upload APK to Release
