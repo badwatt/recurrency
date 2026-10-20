@@ -20,12 +20,18 @@ RES_HINT="${1:-target/dx/recurrency-frontend/release/android/app/app/src/main/re
 GRADLE_FILE="${2:-target/dx/recurrency-frontend/release/android/app/build.gradle.kts}"
 WEBVIEW_KT="${3:-target/dx/recurrency-frontend/release/android/app/app/src/main/kotlin/dev/dioxus/main/RustWebView.kt}"
 
-ICON="${ICON:-assets/icons/clock-1024.png}"
+ICON="${ICON:-frontend/assets/icons/clock-1024.png}"
 
-# Resolve ICON path relative to ROOT if relative
+# Resolve ICON path relative to ROOT (or ROOT/frontend) if relative
 case "$ICON" in
     /*) ;;
-    *)  ICON="$ROOT/$ICON" ;;
+    *)
+        if [ -f "$ROOT/$ICON" ]; then
+            ICON="$ROOT/$ICON"
+        else
+            ICON="$ROOT/frontend/$ICON"
+        fi
+        ;;
 esac
 
 if [ ! -f "$ICON" ]; then
@@ -61,16 +67,6 @@ if [ "${#RES_DIRS[@]}" -eq 0 ]; then
     exit 1
 fi
 
-write_adaptive_xml() {
-    cat << 'XMLEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-  <background android:drawable="@drawable/ic_launcher_background"/>
-  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-XMLEOF
-}
-
 patch_res_dir() {
     local res="$1"
     echo "--- Patching res: $res ---"
@@ -85,21 +81,14 @@ patch_res_dir() {
     done
     echo "  launcher webp written (mdpi..xxxhdpi)"
 
-    # 2. Adaptive icon foreground/background (108dp canvas, icon in safe zone).
-    mkdir -p "$res/drawable"
-    $IM_CMD "$ICON" -resize 216x216 -gravity center -extent 432x432 \
-        "$res/drawable/ic_launcher_foreground.png"
-    $IM_CMD -size 432x432 xc:'#6366f1' "$res/drawable/ic_launcher_background.png"
+    # 2. Drop every adaptive-icon / vector XML so the launcher falls back to
+    #    our raster mipmaps. dx's adaptive XML references @drawable resources
+    #    that AAPT does not merge from this res dir, which breaks resource
+    #    linking (`resource drawable/ic_launcher_foreground not found`).
+    find "$res" -name '*ic_launcher*.xml' -delete 2>/dev/null || true
+    echo "  removed adaptive/vector launcher XMLs"
 
-    # 3. Drop dx-generated launcher XMLs (they shadow our drawables) and write
-    #    our own adaptive icon for API 26+.
-    find "$res" -name 'ic_launcher*.xml' -delete 2>/dev/null || true
-    mkdir -p "$res/mipmap-anydpi-v26"
-    write_adaptive_xml > "$res/mipmap-anydpi-v26/ic_launcher.xml"
-    write_adaptive_xml > "$res/mipmap-anydpi-v26/ic_launcher_round.xml"
-    echo "  adaptive icon XML written"
-
-    # 4. App name: dx derives it from the Cargo crate name
+    # 3. App name: dx derives it from the Cargo crate name
     #    ("RecurrencyFrontend"). Force "Recurrency" here.
     mkdir -p "$res/values"
     local strings="$res/values/strings.xml"
