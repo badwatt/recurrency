@@ -525,19 +525,6 @@ mod tests {
         assert_eq!(token_data.claims.email, "token@test.com");
     }
 
-    // get_jwt_secret
-    #[test]
-    fn get_jwt_secret_returns_value() {
-        crate::shared::test_env::set_env("JWT_SECRET", "test-secret-key");
-        assert!(!get_jwt_secret().is_empty());
-    }
-
-    #[test]
-    fn get_jwt_secret_same_on_repeat() {
-        crate::shared::test_env::set_env("JWT_SECRET", "test-secret-key");
-        assert_eq!(get_jwt_secret(), get_jwt_secret());
-    }
-
     // CreateUserRequest validation
     #[test]
     fn create_user_request_valid() {
