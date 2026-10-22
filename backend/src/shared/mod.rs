@@ -8,6 +8,7 @@ pub mod date_utils;
 pub mod db;
 pub mod error;
 #[cfg(test)]
+#[cfg(test)]
 pub mod mocks;
 pub mod password_utils;
 pub mod test_env;

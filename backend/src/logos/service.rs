@@ -1,7 +1,20 @@
-use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use serde::{Deserialize, Serialize};
 
 use crate::shared::error::{AppError, AppResult};
+
+/// Percent-encode every byte except ASCII alphanumerics. Equivalent to
+/// `percent_encoding::NON_ALPHANUMERIC`, which is what DuckDuckGo expects.
+fn encode_query(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for byte in input.bytes() {
+        if byte.is_ascii_alphanumeric() {
+            out.push(byte as char);
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
+}
 
 #[derive(Debug, Serialize)]
 pub struct LogoResult {
@@ -63,7 +76,7 @@ pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
     // Get VQD token
     let vqd_url = format!(
         "https://duckduckgo.com/?q={}",
-        percent_encode(search_term.as_bytes(), NON_ALPHANUMERIC)
+        encode_query(&search_term)
     );
 
     let vqd_response = client
@@ -118,6 +131,13 @@ pub async fn search_logos(query: &str) -> AppResult<Vec<LogoResult>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encode_query_matches_non_alphanumeric() {
+        assert_eq!(encode_query("Netflix"), "Netflix");
+        assert_eq!(encode_query("a b&c"), "a%20b%26c");
+        assert_eq!(encode_query("a-b"), "a%2Db");
+    }
 
     #[test]
     fn test_extract_vqd_single_quotes() {

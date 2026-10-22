@@ -17,38 +17,25 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn init_logging() {
-    use tracing_appender::rolling::{RollingFileAppender, Rotation};
-
-    let env = std::env::var("APP_ENV").unwrap_or_default();
-
-    if env != "production" {
-        std::fs::create_dir_all("logs").ok();
-        let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "backend.log");
-        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-        std::mem::forget(_guard);
-
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::EnvFilter::new(
-                std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-            ))
-            .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
-            .init();
+    let default_level = if std::env::var("APP_ENV").unwrap_or_default() == "production" {
+        "warn"
     } else {
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::EnvFilter::new(
-                std::env::var("RUST_LOG").unwrap_or_else(|_| "warn".into()),
-            ))
-            .with(tracing_subscriber::fmt::layer())
-            .init();
-    }
+        "info"
+    };
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| default_level.into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
     tracing::info!("Starting Recurrency API server...");
-    auth::service::init_jwt_secret().map_err(anyhow::Error::msg)?;
+    auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
     let db_pool = shared::db::create_pool_with_retry().await?;
     shared::db::run_migrations(&db_pool).await?;
     tracing::info!("Database connected and migrations complete");

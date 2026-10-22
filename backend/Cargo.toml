@@ -12,8 +12,8 @@ integration-tests = []
 
 [dependencies]
 # Web framework
-axum = { version = "0.8.9", features = ["macros"] }
-tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8.9" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # Serialization
@@ -42,7 +42,6 @@ validator = { version = "0.20", features = ["derive"] }
 
 # Error handling
 thiserror.workspace = true
-anyhow = "1"
 
 # Async traits for hexagonal service ports
 async-trait = "0.1"
@@ -50,14 +49,12 @@ async-trait = "0.1"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
 
 # Email
 lettre = { version = "0.11.21", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
 
 # HTTP client for logo search
 reqwest.workspace = true
-percent-encoding = "2"
 
 # Random (for demo credentials)
 rand = "0.10.1"
