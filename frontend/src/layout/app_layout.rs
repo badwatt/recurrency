@@ -40,6 +40,8 @@ pub enum Icon {
     Moon,
     Coffee,
     Monitor,
+    Bell,
+    Close,
 }
 
 #[component]
@@ -256,6 +258,10 @@ pub fn AppLayout() -> Element {
                     }
                 }
             }
+
+            if notif_open() {
+                MobileNotificationsPanel { open: notif_open }
+            }
         }
 
         ToastContainer {}
@@ -358,7 +364,7 @@ fn NotificationBell(open: Signal<bool>) -> Element {
                         });
                     }
                 },
-                {svg_icon(Icon::Dashboard, 20)}
+                {svg_icon(Icon::Bell, 20)}
                 if unread > 0 {
                     span { class: "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-md bg-primary px-1 text-[10px] font-bold text-primary-foreground",
                         "{notification_badge_text(unread as usize)}"
@@ -369,7 +375,7 @@ fn NotificationBell(open: Signal<bool>) -> Element {
             // Dropdown panel
             if open() {
                 div {
-                    class: "absolute right-0 top-full mt-2 w-80 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden",
+                    class: "hidden md:block absolute right-0 top-full mt-2 w-80 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "flex items-center justify-between px-4 py-3 border-b border-border",
                         h3 { class: "text-sm font-semibold text-foreground", "Notifications" }
@@ -379,8 +385,9 @@ fn NotificationBell(open: Signal<bool>) -> Element {
                                 class: "text-xs text-muted-foreground hover:text-foreground transition-colors",
                                 onclick: move |_| {
                                     spawn(async move {
-                                        if let Err(e) = notifications::mark_all_as_read().await {
-                                            log::error!("Failed to mark all read: {}", e);
+                                        match notifications::mark_all_as_read().await {
+                                            Ok(()) => NOTIFICATIONS.write().mark_all_as_read(),
+                                            Err(e) => log::error!("Failed to mark all read: {}", e),
                                         }
                                     });
                                 },
@@ -389,15 +396,7 @@ fn NotificationBell(open: Signal<bool>) -> Element {
                         }
                     }
                     div { class: "max-h-80 overflow-y-auto",
-                        if notif_state.notifications.is_empty() {
-                            div { class: "px-4 py-8 text-center text-sm text-muted-foreground",
-                                "No notifications yet"
-                            }
-                        } else {
-                            for notification in &notif_state.notifications {
-                                NotificationItem { notification: notification.clone() }
-                            }
-                        }
+                        NotificationList {}
                     }
                 }
             }
@@ -426,12 +425,85 @@ fn NotificationItem(notification: crate::models::notification::Notification) -> 
                     onclick: move |_| {
                         let id = notification.id;
                         spawn(async move {
-                            if let Err(e) = notifications::mark_as_read(&id).await {
-                                log::error!("Failed to mark read: {}", e);
+                            match notifications::mark_as_read(&id).await {
+                                Ok(()) => NOTIFICATIONS.write().mark_as_read(&id),
+                                Err(e) => log::error!("Failed to mark read: {}", e),
                             }
                         });
                     },
                     {svg_icon(Icon::Dashboard, 14)}
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn NotificationList() -> Element {
+    let notif_state = NOTIFICATIONS();
+    rsx! {
+        if notif_state.notifications.is_empty() {
+            div { class: "px-4 py-8 text-center text-sm text-muted-foreground",
+                "No notifications yet"
+            }
+        } else {
+            for notification in &notif_state.notifications {
+                NotificationItem { notification: notification.clone() }
+            }
+        }
+    }
+}
+
+/// Full-screen notification sheet for mobile. Rendered at the layout root so
+/// `position: fixed` is not clipped by the header's backdrop-blur.
+#[component]
+fn MobileNotificationsPanel(open: Signal<bool>) -> Element {
+    let notif_state = NOTIFICATIONS();
+    let mut open = open;
+    let has_notifications = !notif_state.notifications.is_empty();
+
+    rsx! {
+        div { class: "fixed inset-0 z-50 flex flex-col bg-background md:hidden",
+            div { class: "flex h-14 shrink-0 items-center justify-between border-b border-border px-4",
+                h2 { class: "text-base font-semibold text-foreground", "Notifications" }
+                button {
+                    r#type: "button",
+                    class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                    aria_label: "Close notifications",
+                    onclick: move |_| open.set(false),
+                    {svg_icon(Icon::Close, 20)}
+                }
+            }
+            div { class: "flex-1 overflow-y-auto overscroll-contain",
+                NotificationList {}
+            }
+            div { class: "shrink-0 space-y-2 border-t border-border p-4",
+                button {
+                    r#type: "button",
+                    disabled: !has_notifications,
+                    class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50",
+                    onclick: move |_| {
+                        spawn(async move {
+                            let ids: Vec<_> = NOTIFICATIONS()
+                                .notifications
+                                .iter()
+                                .map(|n| n.id)
+                                .collect();
+                            for id in ids {
+                                if let Err(e) = notifications::delete(&id).await {
+                                    log::error!("Failed to delete notification: {}", e);
+                                }
+                            }
+                            NOTIFICATIONS.write().clear();
+                        });
+                    },
+                    "Dismiss all"
+                }
+                button {
+                    r#type: "button",
+                    class: "inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors",
+                    onclick: move |_| open.set(false),
+                    "Close"
                 }
             }
         }
@@ -685,6 +757,34 @@ fn svg_icon(icon: Icon, size: i32) -> Element {
                 rect { x: "2", y: "3", width: "20", height: "14", rx: "2" }
                 line { x1: "8", y1: "21", x2: "16", y2: "21" }
                 line { x1: "12", y1: "17", x2: "12", y2: "21" }
+            }
+        },
+        Icon::Bell => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                path { d: "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" }
+                path { d: "M10.3 21a1.94 1.94 0 0 0 3.4 0" }
+            }
+        },
+        Icon::Close => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                path { d: "M18 6 6 18" }
+                path { d: "M6 6l12 12" }
             }
         },
     }

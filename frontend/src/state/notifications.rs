@@ -44,6 +44,11 @@ impl NotificationsState {
         self.unread_count = self.notifications.iter().filter(|n| !n.is_read).count() as i64;
     }
 
+    pub fn clear(&mut self) {
+        self.notifications.clear();
+        self.unread_count = 0;
+    }
+
     pub fn toggle(&mut self) {
         self.is_open = !self.is_open;
     }
@@ -107,6 +112,16 @@ mod tests {
         state.notifications = vec![n];
         state.unread_count = 1;
         state.delete(&id);
+        assert!(state.notifications.is_empty());
+        assert_eq!(state.unread_count, 0);
+    }
+
+    #[test]
+    fn clear_resets_notifications_and_unread() {
+        let mut state = NotificationsState::default();
+        state.notifications = vec![make_notification(false), make_notification(true)];
+        state.unread_count = 1;
+        state.clear();
         assert!(state.notifications.is_empty());
         assert_eq!(state.unread_count, 0);
     }
