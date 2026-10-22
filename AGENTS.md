@@ -35,6 +35,7 @@
 - ⛔ **NUNCA** errores ni warnings. NINGUNO. Incluye `cargo clippy`.
 - ⛔ **SIEMPRE** usar la skill `rust-best-practices`.
 - ⛔ **NUNCA** hacer bump de `VERSION` sin consultar al usuario. Dispara CI actions.
+- ⛔ **SIEMPRE** usar **Semver** (`MAJOR.MINOR.PATCH`) para las versiones del proyecto: `MAJOR` para cambios incompatibles, `MINOR` para funcionalidad nueva compatible y `PATCH` para correcciones o refactors compatibles.
 - ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions antes de push.
 - ⛔ **SIEMPRE** que sea posible elimina dependencias.
 - ⛔ Trata de tener el **MÍNIMO** número de dependencias en el proyecto.
