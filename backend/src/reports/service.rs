@@ -164,52 +164,40 @@ impl ReportService {
     ) -> AppResult<MonthlySummary> {
         let (from_date, to_date) = month_date_range(year, month);
 
-        // Get subscriptions total (normalized to monthly)
-        let subscriptions: Vec<(Decimal,)> = sqlx::query_as(
+        // One round-trip: two scalar aggregates for subscriptions (constant)
+        // and two for the month's transactions (was three separate queries).
+        let (subscriptions_total, subscriptions_count, transactions_total, transactions_count): (
+            Decimal,
+            i64,
+            Decimal,
+            i64,
+        ) = sqlx::query_as(
             r#"
-            SELECT COALESCE(SUM(
-                CASE frequency
-                    WHEN 'weekly' THEN amount * 4.33
-                    WHEN 'monthly' THEN amount
-                    WHEN 'quarterly' THEN amount / 3
-                    WHEN 'yearly' THEN amount / 12
-                    ELSE amount
-                END
-            ), 0) as total
-            FROM subscriptions 
-            WHERE user_id = $1 AND is_active = true
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(pool)
-        .await?;
-
-        let subscriptions_total = subscriptions.first().map(|r| r.0).unwrap_or(Decimal::ZERO);
-
-        // Get transactions total for the month
-        let transactions: Vec<(Decimal, i64)> = sqlx::query_as(
-            r#"
-            SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
-            FROM transactions 
-            WHERE user_id = $1 AND date >= $2 AND date <= $3
+            SELECT
+                COALESCE((
+                    SELECT SUM(CASE frequency
+                        WHEN 'weekly' THEN amount * 4.33
+                        WHEN 'monthly' THEN amount
+                        WHEN 'quarterly' THEN amount / 3
+                        WHEN 'yearly' THEN amount / 12
+                        ELSE amount
+                    END)
+                    FROM subscriptions
+                    WHERE user_id = $1 AND is_active = true
+                ), 0) AS subscriptions_total,
+                (SELECT COUNT(*) FROM subscriptions
+                 WHERE user_id = $1 AND is_active = true) AS subscriptions_count,
+                COALESCE((
+                    SELECT SUM(amount) FROM transactions
+                    WHERE user_id = $1 AND date >= $2 AND date <= $3
+                ), 0) AS transactions_total,
+                (SELECT COUNT(*) FROM transactions
+                 WHERE user_id = $1 AND date >= $2 AND date <= $3) AS transactions_count
             "#,
         )
         .bind(user_id)
         .bind(from_date)
         .bind(to_date)
-        .fetch_all(pool)
-        .await?;
-
-        let (transactions_total, transactions_count) = transactions
-            .first()
-            .map(|r| (r.0, r.1))
-            .unwrap_or((Decimal::ZERO, 0));
-
-        // Count active subscriptions
-        let subscription_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM subscriptions WHERE user_id = $1 AND is_active = true",
-        )
-        .bind(user_id)
         .fetch_one(pool)
         .await?;
 
@@ -219,7 +207,7 @@ impl ReportService {
             subscriptions_total,
             transactions_total,
             overall_total: subscriptions_total + transactions_total,
-            subscriptions_count: subscription_count.0,
+            subscriptions_count,
             transactions_count,
         })
     }
@@ -280,22 +268,78 @@ impl ReportService {
         user_id: Uuid,
         months_count: i32,
     ) -> AppResult<Vec<SpendingTrend>> {
-        let mut trends = Vec::new();
-
-        for i in 0..months_count {
-            let target_date = subtract_months_from_date(chrono::Utc::now().date_naive(), i);
-            let year = target_date.year();
-            let month = target_date.month();
-
-            let summary = Self::get_monthly_summary(pool, user_id, year, month).await?;
-
-            trends.push(SpendingTrend {
-                period: format!("{}/{:02}", month, year % 100),
-                total: summary.overall_total,
-            });
+        let months = recent_months(chrono::Utc::now().date_naive(), months_count);
+        if months.is_empty() {
+            return Ok(Vec::new());
         }
 
-        Ok(trends)
+        // Subscriptions are normalized to a monthly amount and do not depend on
+        // the month, so fetch them once. Transactions are grouped by month in a
+        // single query over the whole window (was one summary query per month).
+        let subscriptions_total: (Decimal,) = sqlx::query_as(
+            r#"
+            SELECT COALESCE(SUM(
+                CASE frequency
+                    WHEN 'weekly' THEN amount * 4.33
+                    WHEN 'monthly' THEN amount
+                    WHEN 'quarterly' THEN amount / 3
+                    WHEN 'yearly' THEN amount / 12
+                    ELSE amount
+                END
+            ), 0) as total
+            FROM subscriptions
+            WHERE user_id = $1 AND is_active = true
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+        let earliest = months
+            .iter()
+            .map(|m| m.2)
+            .min()
+            .expect("months is non-empty");
+        let latest = months
+            .iter()
+            .map(|m| m.3)
+            .max()
+            .expect("months is non-empty");
+
+        let by_month: Vec<(i32, i32, Decimal)> = sqlx::query_as(
+            r#"
+            SELECT EXTRACT(YEAR FROM date)::int AS year,
+                   EXTRACT(MONTH FROM date)::int AS month,
+                   COALESCE(SUM(amount), 0) AS total
+            FROM transactions
+            WHERE user_id = $1 AND date >= $2 AND date <= $3
+            GROUP BY year, month
+            "#,
+        )
+        .bind(user_id)
+        .bind(earliest)
+        .bind(latest)
+        .fetch_all(pool)
+        .await?;
+
+        let mut transaction_totals: HashMap<(i32, u32), Decimal> = HashMap::new();
+        for (year, month, total) in by_month {
+            if let Ok(month) = u32::try_from(month) {
+                transaction_totals.insert((year, month), total);
+            }
+        }
+
+        Ok(months
+            .into_iter()
+            .map(|(year, month, _, _)| SpendingTrend {
+                period: format!("{}/{:02}", month, year % 100),
+                total: subscriptions_total.0
+                    + transaction_totals
+                        .get(&(year, month))
+                        .copied()
+                        .unwrap_or(Decimal::ZERO),
+            })
+            .collect())
     }
 
     pub async fn get_full_report(
@@ -337,6 +381,24 @@ pub(crate) fn subtract_months_from_date(date: chrono::NaiveDate, months: i32) ->
     let max_day = days_in_month(new_year, new_month);
     let new_day = day.min(max_day);
     chrono::NaiveDate::from_ymd_opt(new_year, new_month, new_day).unwrap_or(date)
+}
+
+/// Calendar months covered by a recent-trends window, newest first.
+/// `today` is injected so the window is deterministic in tests.
+pub(crate) fn recent_months(
+    today: chrono::NaiveDate,
+    months_count: i32,
+) -> Vec<(i32, u32, chrono::NaiveDate, chrono::NaiveDate)> {
+    if months_count <= 0 {
+        return Vec::new();
+    }
+    (0..months_count)
+        .map(|i| {
+            let date = subtract_months_from_date(today, i);
+            let (from, to) = month_date_range(date.year(), date.month());
+            (date.year(), date.month(), from, to)
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -932,4 +994,27 @@ fn subtract_months_january_to_december() {
     let result = subtract_months_from_date(date, 1);
     assert_eq!(result.month(), 12);
     assert_eq!(result.year(), 2023);
+}
+
+#[test]
+fn recent_months_newest_first_and_wraps_year() {
+    let today = chrono::NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
+    let months = recent_months(today, 4);
+    let labels: Vec<(i32, u32)> = months.iter().map(|m| (m.0, m.1)).collect();
+    assert_eq!(labels, vec![(2024, 2), (2024, 1), (2023, 12), (2023, 11)]);
+    assert_eq!(
+        months[0].2,
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()
+    );
+    assert_eq!(
+        months[0].3,
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 29).unwrap()
+    );
+}
+
+#[test]
+fn recent_months_non_positive_is_empty() {
+    let today = chrono::NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
+    assert!(recent_months(today, 0).is_empty());
+    assert!(recent_months(today, -3).is_empty());
 }
