@@ -12,7 +12,38 @@ path = "src/lib.rs"
 [dependencies]
 dioxus = { version = "0.7.10", features = ["router"] }
 web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
-lucide-dioxus = { version = "2.577.0", features = ["all-icons"] }
+lucide-dioxus = { version = "2.577.0", default-features = false, features = [
+    "accessibility",
+    "account",
+    "arrows",
+    "buildings",
+    "charts",
+    "connectivity",
+    "development",
+    "devices",
+    "files",
+    "finance",
+    "food-beverage",
+    "gaming",
+    "home",
+    "mail",
+    "math",
+    "medical",
+    "multimedia",
+    "nature",
+    "navigation",
+    "notifications",
+    "people",
+    "photography",
+    "science",
+    "security",
+    "shopping",
+    "sustainability",
+    "text",
+    "transportation",
+    "travel",
+    "weather",
+] }
 serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10"
