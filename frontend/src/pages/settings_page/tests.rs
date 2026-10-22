@@ -10,6 +10,16 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page/notifications_card.rs"),
 );
 
+    #[test]
+    fn app_version_matches_cargo() {
+        assert_eq!(APP_VERSION, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn settings_page_renders_version() {
+        assert!(SETTINGS_SOURCES.contains("APP_VERSION"));
+    }
+
 
     #[test]
     fn notification_channels_count() {

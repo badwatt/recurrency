@@ -4,13 +4,46 @@ use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
+use std::sync::Mutex;
 
 const SHOW_OFFLINE: bool = true;
 
+/// In-memory draft of the login form. The Login component unmounts when the
+/// user opens Setup (change server), so its signals are lost; this keeps what
+/// was typed until a login succeeds. Never persisted to disk.
+static LOGIN_DRAFT: Mutex<(String, String)> = Mutex::new((String::new(), String::new()));
+
+fn draft_email() -> String {
+    LOGIN_DRAFT.lock().map(|d| d.0.clone()).unwrap_or_default()
+}
+
+fn draft_password() -> String {
+    LOGIN_DRAFT.lock().map(|d| d.1.clone()).unwrap_or_default()
+}
+
+fn set_draft_email(value: &str) {
+    if let Ok(mut draft) = LOGIN_DRAFT.lock() {
+        draft.0 = value.to_string();
+    }
+}
+
+fn set_draft_password(value: &str) {
+    if let Ok(mut draft) = LOGIN_DRAFT.lock() {
+        draft.1 = value.to_string();
+    }
+}
+
+fn clear_login_draft() {
+    if let Ok(mut draft) = LOGIN_DRAFT.lock() {
+        draft.0.clear();
+        draft.1.clear();
+    }
+}
+
 #[component]
 pub fn LoginPage() -> Element {
-    let mut email = use_signal(String::new);
-    let mut auth_field = use_signal(String::new);
+    let mut email = use_signal(draft_email);
+    let mut auth_field = use_signal(draft_password);
     let mut error = use_signal(String::new);
     let mut loading = use_signal(|| false);
     let mut demo_loading = use_signal(|| false);
@@ -70,6 +103,7 @@ pub fn LoginPage() -> Element {
             match crate::storage::local_auth::login(&email_val, &password_val) {
                 Ok(user) => {
                     AUTH.write().set_authenticated("offline".into(), user, false);
+                    clear_login_draft();
                     navigator().push(Route::Dashboard {});
                 }
                 Err(e) => error.set(e),
@@ -112,6 +146,7 @@ pub fn LoginPage() -> Element {
                     Ok(Ok(Ok(resp))) => {
                         AUTH.write()
                             .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                        clear_login_draft();
                         nav.push(Route::Dashboard {});
                     }
                     Ok(Ok(Err(e))) => {
@@ -131,6 +166,7 @@ pub fn LoginPage() -> Element {
                     Ok(resp) => {
                         AUTH.write()
                             .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                        clear_login_draft();
                         nav.push(Route::Dashboard {});
                     }
                     Err(e) => {
@@ -315,7 +351,11 @@ pub fn LoginPage() -> Element {
                             r#type: "email",
                             placeholder: "email@example.com",
                             value: email.to_string(),
-                            oninput: move |e| email.set(e.value()),
+                            oninput: move |e| {
+                                let value = e.value();
+                                email.set(value.clone());
+                                set_draft_email(&value);
+                            },
                             required: true,
                             class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
                         }
@@ -332,7 +372,11 @@ pub fn LoginPage() -> Element {
                             id: "login-password",
                             r#type: "password",
                             value: auth_field.to_string(),
-                            oninput: move |e| auth_field.set(e.value()),
+                            oninput: move |e| {
+                                let value = e.value();
+                                auth_field.set(value.clone());
+                                set_draft_password(&value);
+                            },
                             required: true,
                             minlength: 8,
                             class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
@@ -408,9 +452,21 @@ pub fn LoginPage() -> Element {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::auth::UserResponse;
     use crate::state::auth::AuthState;
     use uuid::Uuid;
+
+    #[test]
+    fn login_draft_round_trips_and_clears() {
+        set_draft_email("user@example.com");
+        set_draft_password("secret123");
+        assert_eq!(draft_email(), "user@example.com");
+        assert_eq!(draft_password(), "secret123");
+        clear_login_draft();
+        assert!(draft_email().is_empty());
+        assert!(draft_password().is_empty());
+    }
 
     fn sample_user(verified: bool) -> UserResponse {
         UserResponse {

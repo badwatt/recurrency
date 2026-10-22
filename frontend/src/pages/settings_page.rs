@@ -34,6 +34,9 @@ pub fn is_email_disabled(channel: &str, smtp_configured: bool) -> bool {
     channel == "email" && !smtp_configured
 }
 
+/// App version shown at the bottom of Settings.
+pub(crate) const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[component]
 pub fn SettingsPage() -> Element {
     rsx! {
@@ -46,6 +49,10 @@ pub fn SettingsPage() -> Element {
             PreferencesCard {}
             ConnectionCard {}
             NotificationsCard {}
+
+            p { class: "text-center text-xs text-muted-foreground/70 pt-1",
+                {format!("Recurrency v{APP_VERSION}")}
+            }
         }
     }
 }
