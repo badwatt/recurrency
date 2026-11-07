@@ -1,4 +1,4 @@
-use crate::api::client::{ApiError, get_client};
+use crate::api::client::{ApiError, api_get, get_client, is_offline_mode};
 use crate::models::logo::{LogoResult, LogoSearchResponse};
 use serde::Deserialize;
 
@@ -388,10 +388,37 @@ async fn commons_logos(query: &str, skip_files: &[String]) -> Vec<LogoResult> {
     commons_pages_to_logos(pages)
 }
 
-/// Search brand logos by name or domain through the Iconify API. If the full
-/// query has no match, retry with its most specific words ("Ollama Cloud" →
-/// "Ollama") so multi-word subscription names still find their brand.
+/// Server-side search. The backend queries selfh.st icons, Dashboard Icons,
+/// DuckDuckGo images and Brave images.
+async fn backend_search(query: &str) -> Result<LogoSearchResponse, ApiError> {
+    let encoded = percent_encode(query);
+    api_get(&format!("/api/logos/search?q={encoded}")).await
+}
+
+/// Search logos. In server mode the backend is queried first; offline mode and
+/// empty/failed server results fall back to the client-side sources (Iconify,
+/// Wikidata P154 and Wikimedia Commons).
 pub async fn search(query: &str) -> Result<LogoSearchResponse, ApiError> {
+    let query = query.trim();
+    if query.is_empty() {
+        return Ok(LogoSearchResponse { results: vec![] });
+    }
+
+    if !is_offline_mode() {
+        match backend_search(query).await {
+            Ok(response) if !response.results.is_empty() => return Ok(response),
+            Ok(_) => {}
+            Err(error) => log::warn!("Server logo search failed: {error}"),
+        }
+    }
+
+    client_side_search(query).await
+}
+
+/// Client-side fallback used in offline mode or when the backend has no match.
+/// Iconify first (full query, then its most specific words), then the official
+/// Wikidata logo and Wikimedia Commons file search.
+async fn client_side_search(query: &str) -> Result<LogoSearchResponse, ApiError> {
     let query = query.trim();
     if query.is_empty() {
         return Ok(LogoSearchResponse { results: vec![] });
@@ -722,6 +749,24 @@ mod tests {
         let pages: Vec<CommonsPage> = response.query.unwrap().pages.into_values().collect();
         assert_eq!(pages[0].title, "File:Logo.svg");
         assert_eq!(pages[0].imageinfo[0].mime.as_deref(), Some("image/svg+xml"));
+    }
+
+    #[test]
+    fn search_prefers_the_backend_logo_endpoint() {
+        let src = include_str!("logos.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(
+            prod.contains("/api/logos/search"),
+            "server mode must query the backend logo search"
+        );
+        assert!(
+            prod.contains("client_side_search"),
+            "offline mode must keep the client-side fallback"
+        );
+        assert!(
+            prod.contains("is_offline_mode"),
+            "offline mode must skip the backend request"
+        );
     }
 
     #[test]

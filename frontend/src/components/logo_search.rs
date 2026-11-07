@@ -178,7 +178,14 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                                     class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 hover:bg-accent transition-colors",
                                     title: logo.url.to_string(),
                                     onclick: {
-                                        let url = logo.url.clone();
+                                        // Prefer the thumbnail: search-engine
+                                        // images often block hotlinking, while
+                                        // their cached thumbnails do not.
+                                        let url = if logo.thumbnail.is_empty() {
+                                            logo.url.clone()
+                                        } else {
+                                            logo.thumbnail.clone()
+                                        };
                                         let on_sel = on_select;
                                         move |_| {
                                             on_sel.call(url.clone());
