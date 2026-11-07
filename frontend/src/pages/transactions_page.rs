@@ -279,7 +279,7 @@ pub fn TransactionsPage() -> Element {
                                                 div { class: "flex items-center gap-2 sm:gap-4",
                                                     // Icon
                                                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
-                                                        {logo_image_with_fallback(&format!("txn-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-full w-full object-contain p-1")}
+                                                        {logo_image_with_fallback(&format!("txn-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-9 w-9 sm:h-10 sm:w-10 object-contain p-1")}
                                                         if txn.logo_url.is_none() {
                                                             span { class: "text-muted-foreground",
                                                                 Receipt { size: 16 }

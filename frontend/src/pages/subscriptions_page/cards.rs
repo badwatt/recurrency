@@ -66,7 +66,7 @@ pub fn render_grid_card(
                 // Top row: logo + status badge
                 div { class: "flex items-start justify-between gap-2",
                     div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted overflow-hidden",
-                        {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-contain")}
+                        {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-12 w-12 object-contain")}
                         if logo_url.is_none() {
                             span { class: "text-muted-foreground", CreditCard { size: 22 } }
                         }
@@ -165,7 +165,7 @@ pub fn render_list_card(
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
-                        {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-full w-full object-contain")}
+                        {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-9 w-9 sm:h-10 sm:w-10 object-contain")}
                         if logo_url.is_none() {
                             span { class: "text-muted-foreground", CreditCard { size: 20 } }
                         }

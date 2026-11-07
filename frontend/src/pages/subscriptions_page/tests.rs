@@ -1702,14 +1702,25 @@
 
     #[test]
     fn logo_avatars_fit_the_frame() {
+        // The logo wrapper has no size of its own. If the <img> uses
+        // h-full/w-full it resolves against that auto-sized wrapper and the
+        // outer overflow-hidden container crops the image. Give the image an
+        // explicit size matching its frame and use object-contain.
         let cards = include_str!("cards.rs");
         let dashboard = include_str!("../dashboard.rs");
-        assert!(
-            !cards.contains("object-cover"),
-            "subscription logos must fit inside their frame (object-contain), not be cropped"
-        );
-        assert!(
-            !dashboard.contains("object-cover"),
-            "dashboard logos must fit inside their frame (object-contain), not be cropped"
-        );
+        let transactions = include_str!("../transactions_page.rs");
+        for (name, src) in [
+            ("subscriptions", cards),
+            ("dashboard", dashboard),
+            ("transactions", transactions),
+        ] {
+            assert!(
+                !src.contains("object-cover"),
+                "{name} logos must fit inside their frame (object-contain)"
+            );
+            assert!(
+                !src.contains("\"h-full w-full"),
+                "{name} logos need an explicit size so the auto-sized wrapper does not overflow"
+            );
+        }
     }
