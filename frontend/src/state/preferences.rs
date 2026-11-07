@@ -3,12 +3,76 @@ use dioxus::prelude::*;
 
 #[allow(dead_code)]
 const THEME_KEY: &str = "recurrency-theme";
+const VIEW_KEY: &str = "recurrency-subscriptions-view";
+
+const THEME_FILE: &str = "theme.txt";
+const VIEW_FILE: &str = "subscriptions_view.txt";
+
+/// Themes the user can pick in settings ("system" is resolved in JS).
+const SETTABLE_THEMES: [&str; 3] = ["light", "dark", "mocha"];
+/// Values accepted when rehydrating from local storage.
+const STORED_THEMES: [&str; 4] = ["light", "dark", "mocha", "system"];
+const VALID_VIEWS: [&str; 2] = ["grid", "list"];
+
+/// Persist a preference value to localStorage (WASM) or a file (native).
+fn persist_local(key: &str, file_name: &str, value: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = file_name;
+        if let Some(storage) = web_sys::window()
+            .and_then(|w| w.local_storage().ok())
+            .flatten()
+        {
+            let _ = storage.set_item(key, value);
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = key;
+        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
+            let app_dir = data_dir.join("recurrency");
+            if std::fs::create_dir_all(&app_dir).is_ok() {
+                let _ = std::fs::write(app_dir.join(file_name), value);
+            }
+        }
+    }
+}
+
+/// Read a persisted preference value from localStorage (WASM) or a file (native).
+fn read_local(key: &str, file_name: &str) -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = file_name;
+        if let Some(storage) = web_sys::window()
+            .and_then(|w| w.local_storage().ok())
+            .flatten()
+            && let Ok(Some(value)) = storage.get_item(key)
+        {
+            return Some(value);
+        }
+        None
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = key;
+        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
+            let path = data_dir.join("recurrency").join(file_name);
+            if let Ok(value) = std::fs::read_to_string(&path) {
+                return Some(value);
+            }
+        }
+        None
+    }
+}
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PreferencesState {
     pub preferences: PreferencesResponse,
     pub is_loading: bool,
     pub initialized: bool,
+    /// True when the view mode was set locally (hydrated or toggled), meaning
+    /// it must take precedence over the server value fetched later.
+    view_from_local: bool,
 }
 
 impl PreferencesState {
@@ -44,76 +108,67 @@ impl PreferencesState {
     }
 
     pub fn set_theme(&mut self, theme: String) {
-        // Only accept valid themes; reject unknown values (e.g. "system")
-        let valid = ["light", "dark", "mocha"];
-        if valid.contains(&theme.as_str()) {
+        // Only accept valid themes; reject unknown values
+        if SETTABLE_THEMES.contains(&theme.as_str()) {
             self.preferences.theme = theme.clone();
-            self.persist_theme(&theme);
+            persist_local(THEME_KEY, THEME_FILE, &theme);
         }
     }
 
     pub fn set_subscriptions_view(&mut self, view: String) {
+        if VALID_VIEWS.contains(&view.as_str()) {
+            persist_local(VIEW_KEY, VIEW_FILE, &view);
+            self.view_from_local = true;
+        }
         self.preferences.subscriptions_view = view;
+    }
+
+    /// Whether the current view mode was set locally and must win over the
+    /// server preferences fetched after startup.
+    pub fn has_local_view(&self) -> bool {
+        self.view_from_local
     }
 
     pub fn set_first_day_of_week(&mut self, day: String) {
         self.preferences.first_day_of_week = day;
     }
 
-    /// Persist theme to localStorage (WASM) or file (native).
-    fn persist_theme(&self, theme: &str) {
-        #[cfg(target_arch = "wasm32")]
+    /// Apply locally persisted preferences, ignoring unknown values.
+    pub fn apply_local_preferences(
+        &mut self,
+        theme: Option<&str>,
+        subscriptions_view: Option<&str>,
+    ) {
+        if let Some(theme) = theme.map(str::trim)
+            && STORED_THEMES.contains(&theme)
         {
-            if let Some(storage) = web_sys::window()
-                .and_then(|w| w.local_storage().ok())
-                .flatten()
-            {
-                let _ = storage.set_item(THEME_KEY, theme);
-            }
+            self.preferences.theme = theme.to_string();
         }
-        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(view) = subscriptions_view.map(str::trim)
+            && VALID_VIEWS.contains(&view)
         {
-            if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-                let app_dir = data_dir.join("recurrency");
-                if std::fs::create_dir_all(&app_dir).is_ok() {
-                    let _ = std::fs::write(app_dir.join("theme.txt"), theme);
-                }
-            }
+            self.preferences.subscriptions_view = view.to_string();
+            self.view_from_local = true;
         }
     }
 
-    /// Hydrate theme from localStorage (WASM) or file (native) on startup.
+    /// Hydrate theme and view mode from localStorage (WASM) or files (native).
     pub fn hydrate_from_storage(&mut self) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            if let Some(storage) = web_sys::window()
-                .and_then(|w| w.local_storage().ok())
-                .flatten()
-            {
-                if let Ok(Some(theme)) = storage.get_item(THEME_KEY) {
-                    if ["light", "dark", "mocha", "system"].contains(&theme.as_str()) {
-                        self.preferences.theme = theme;
-                    }
-                }
-            }
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-                let theme_file = data_dir.join("recurrency").join("theme.txt");
-                if theme_file.exists()
-                    && let Ok(theme) = std::fs::read_to_string(&theme_file) {
-                        let theme = theme.trim().to_string();
-                        if ["light", "dark", "mocha", "system"].contains(&theme.as_str()) {
-                            self.preferences.theme = theme;
-                        }
-                    }
-            }
-        }
+        let theme = read_local(THEME_KEY, THEME_FILE);
+        let view = read_local(VIEW_KEY, VIEW_FILE);
+        self.apply_local_preferences(theme.as_deref(), view.as_deref());
+    }
+
+    /// Build the state already hydrated from persistent storage so the first
+    /// render uses the user's saved theme and view mode (no grid flash).
+    pub fn hydrated() -> Self {
+        let mut state = Self::default();
+        state.hydrate_from_storage();
+        state
     }
 }
 
-pub static PREFERENCES: GlobalSignal<PreferencesState> = Signal::global(PreferencesState::default);
+pub static PREFERENCES: GlobalSignal<PreferencesState> = Signal::global(PreferencesState::hydrated);
 
 #[cfg(test)]
 mod tests {
@@ -302,5 +357,87 @@ mod tests {
         assert_eq!(resp.theme, "mocha");
         assert_eq!(resp.subscriptions_view, "grid");
         assert_eq!(resp.first_day_of_week, "monday");
+    }
+
+    // ── Local hydration (view mode persistence) ──
+    #[test]
+    fn apply_local_preferences_restores_list_view() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(None, Some("list"));
+        assert_eq!(state.subscriptions_view(), "list");
+    }
+
+    #[test]
+    fn apply_local_preferences_restores_theme_and_view() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(Some("light"), Some("list"));
+        assert_eq!(state.theme(), "light");
+        assert_eq!(state.subscriptions_view(), "list");
+    }
+
+    #[test]
+    fn apply_local_preferences_ignores_invalid_view() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(None, Some("table"));
+        assert_eq!(state.subscriptions_view(), "grid");
+    }
+
+    #[test]
+    fn apply_local_preferences_ignores_invalid_theme() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(Some("neon"), Some("list"));
+        assert_eq!(state.theme(), "mocha");
+        assert_eq!(state.subscriptions_view(), "list");
+    }
+
+    #[test]
+    fn apply_local_preferences_trims_stored_values() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(Some(" dark\n"), Some(" list\n"));
+        assert_eq!(state.theme(), "dark");
+        assert_eq!(state.subscriptions_view(), "list");
+    }
+
+    #[test]
+    fn apply_local_preferences_none_keeps_defaults() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(None, None);
+        assert_eq!(state, PreferencesState::default());
+    }
+
+    #[test]
+    fn apply_local_preferences_marks_view_as_local() {
+        let mut state = PreferencesState::default();
+        assert!(!state.has_local_view());
+        state.apply_local_preferences(None, Some("list"));
+        assert!(state.has_local_view());
+    }
+
+    #[test]
+    fn invalid_stored_view_is_not_marked_as_local() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(None, Some("table"));
+        assert!(!state.has_local_view());
+    }
+
+    #[test]
+    fn toggling_view_marks_it_as_local() {
+        let mut state = PreferencesState::default();
+        assert!(!state.has_local_view());
+        state.set_subscriptions_view("list".into());
+        assert!(state.has_local_view());
+    }
+
+    #[test]
+    fn invalid_view_is_not_marked_as_local() {
+        let mut state = PreferencesState::default();
+        state.set_subscriptions_view("table".into());
+        assert!(!state.has_local_view());
+    }
+
+    #[test]
+    fn valid_views_are_grid_and_list() {
+        assert!(VALID_VIEWS.contains(&"grid"));
+        assert!(VALID_VIEWS.contains(&"list"));
     }
 }

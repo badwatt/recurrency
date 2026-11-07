@@ -1645,3 +1645,45 @@
             assert_eq!(s1.direction, s2.direction);
         }
     }
+
+    #[test]
+    fn loading_skeleton_matches_saved_view_mode() {
+        let src = include_str!("../subscriptions_page.rs");
+        let loading: String = src
+            .split("state.is_loading && state.subscriptions.is_empty()")
+            .nth(1)
+            .unwrap_or("")
+            .chars()
+            .take(1200)
+            .collect();
+        assert!(
+            loading.contains("SubscriptionListSkeleton"),
+            "list view must render the list skeleton while loading, not a grid"
+        );
+        assert!(
+            loading.contains("view_mode == \"list\""),
+            "skeleton choice must depend on the persisted view mode"
+        );
+    }
+
+    #[test]
+    fn server_preferences_preserve_local_view_mode() {
+        let src = include_str!("../subscriptions_page.rs");
+        assert!(
+            src.contains("saved_view") && src.contains("has_local_view"),
+            "a locally persisted view mode must win over the server value"
+        );
+    }
+
+    #[test]
+    fn subscriptions_wait_for_preferences_before_rendering_content() {
+        let src = include_str!("../subscriptions_page.rs");
+        assert!(
+            src.contains("prefs_ready"),
+            "the list/grid content must wait for the view mode to be known"
+        );
+        assert!(
+            src.contains("is_offline_mode"),
+            "offline mode must not wait for server preferences"
+        );
+    }

@@ -9,7 +9,7 @@ use crate::storage::Storage;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::SubscriptionCardSkeleton;
+use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
 use crate::components::subscription_form::SubscriptionForm;
@@ -72,6 +72,12 @@ pub fn SubscriptionsPage() -> Element {
     let auth_state = AUTH();
 
     let view_mode = prefs_state.preferences.subscriptions_view.clone();
+    // In server mode the view mode is known only after the preferences load;
+    // render a neutral placeholder until then so a stored "list" never flashes
+    // as the grid first. Offline mode and local views are authoritative.
+    let prefs_ready = prefs_state.initialized
+        || prefs_state.has_local_view()
+        || crate::api::client::is_offline_mode();
     let default_currency = auth_state.currency().to_string();
 
     // Fetch on mount (force re-fetch to ensure fresh data)
@@ -107,14 +113,46 @@ pub fn SubscriptionsPage() -> Element {
     use_effect(move || {
         let _ = prefs_state;
         spawn(async move {
-            let state = PREFERENCES();
-            if !state.initialized
-                && let Ok(p) = api::preferences::get().await {
-                    // Preserve theme from localStorage
+            if PREFERENCES().initialized {
+                return;
+            }
+            match api::preferences::get().await {
+                Ok(p) => {
+                    // Preserve local UI preferences; a view mode persisted on
+                    // this device must win over the server value.
                     let saved_theme = PREFERENCES().theme().to_string();
+                    let saved_view = PREFERENCES().subscriptions_view().to_string();
+                    let local_view = PREFERENCES().has_local_view();
                     PREFERENCES.write().set_data(p);
                     PREFERENCES.write().set_theme(saved_theme);
+                    // Adopt the server view when nothing was stored locally, and
+                    // persist the effective value so the next launch hydrates it
+                    // before the first render (no grid flash).
+                    let effective_view = if local_view {
+                        saved_view
+                    } else {
+                        PREFERENCES().subscriptions_view().to_string()
+                    };
+                    PREFERENCES.write().set_subscriptions_view(effective_view);
                 }
+                // Server preferences unavailable: unblock the page with the
+                // local defaults instead of keeping the loading state forever.
+                Err(_) => PREFERENCES.write().initialized = true,
+            }
+        });
+
+        // Safety net: never stall the page on a hanging preferences request.
+        spawn(async move {
+            if PREFERENCES().initialized || PREFERENCES().has_local_view() {
+                return;
+            }
+            #[cfg(target_arch = "wasm32")]
+            gloo_timers::future::TimeoutFuture::new(3000).await;
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            if !PREFERENCES().initialized {
+                PREFERENCES.write().initialized = true;
+            }
         });
     });
 
@@ -275,11 +313,25 @@ pub fn SubscriptionsPage() -> Element {
             }
 
             // ── Content ──
-            {if state.is_loading && state.subscriptions.is_empty() {
+            {if !prefs_ready {
                 rsx! {
-                    div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-                        for _ in 0..8 {
-                            SubscriptionCardSkeleton {}
+                    div { class: "flex h-64 items-center justify-center rounded-xl border border-border/40 bg-card/80",
+                        p { class: "text-sm text-muted-foreground", "Loading subscriptions…" }
+                    }
+                }
+            } else if state.is_loading && state.subscriptions.is_empty() {
+                rsx! {
+                    if view_mode == "list" {
+                        div { class: "space-y-3",
+                            for _ in 0..6 {
+                                SubscriptionListSkeleton {}
+                            }
+                        }
+                    } else {
+                        div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                            for _ in 0..8 {
+                                SubscriptionCardSkeleton {}
+                            }
                         }
                     }
                 }

@@ -1,11 +1,23 @@
+use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
 use dioxus::prelude::*;
 
-/// Build candidate logo URLs for a company name or domain. Done client-side so
-/// it works in offline mode (no backend) and without relying on the fragile
-/// DuckDuckGo scrape. The browser loads the images directly.
+const LOGO_PAGE_SIZE: usize = 8;
+
+fn page_count(total: usize) -> usize {
+    total.div_ceil(LOGO_PAGE_SIZE)
+}
+
+fn page_bounds(page: usize, total: usize) -> (usize, usize) {
+    let start = page.saturating_mul(LOGO_PAGE_SIZE).min(total);
+    let end = (start + LOGO_PAGE_SIZE).min(total);
+    (start, end)
+}
+
+/// Build candidate logo URLs for a company name or domain as a fallback for
+/// when the online logo search has no match (e.g. offline or niche brands).
 fn logo_candidates(query: &str) -> Vec<LogoResult> {
     let q = query.trim().to_lowercase();
     if q.is_empty() {
@@ -30,7 +42,7 @@ fn logo_candidates(query: &str) -> Vec<LogoResult> {
         for url in [
             format!("https://www.google.com/s2/favicons?domain={d}&sz=256"),
             format!("https://icons.duckduckgo.com/ip3/{d}.ico"),
-            format!("https://logo.clearbit.com/{d}"),
+            format!("https://unavatar.io/{d}"),
         ] {
             out.push(LogoResult {
                 thumbnail: url.clone(),
@@ -49,18 +61,40 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
     let mut query = use_signal(|| default_query.clone());
     let mut results = use_signal(Vec::<LogoResult>::new);
     let mut error_msg = use_signal(String::new);
+    let mut searching = use_signal(|| false);
+    let mut page = use_signal(|| 0usize);
 
     let mut do_search = move || {
-        let q = query();
-        error_msg.set(String::new());
-        let found = logo_candidates(&q);
-        if found.is_empty() {
-            results.set(vec![]);
-            error_msg.set("Enter a company name or domain".into());
-        } else {
-            results.set(found);
+        let q = query().trim().to_string();
+        if q.is_empty() || searching() {
+            return;
         }
+        searching.set(true);
+        error_msg.set(String::new());
+        results.set(vec![]);
+        page.set(0);
+        spawn(async move {
+            let found = match api::logos::search(&q).await {
+                Ok(response) if !response.results.is_empty() => response.results,
+                // No brand match (or the API is unreachable): fall back to
+                // direct favicon providers for the guessed domain.
+                _ => logo_candidates(&q),
+            };
+            if found.is_empty() {
+                error_msg.set("No logos found. Try the company website (e.g. spotify.com).".into());
+            } else {
+                results.set(found);
+            }
+            searching.set(false);
+        });
     };
+
+    let all_results = results();
+    let total = all_results.len();
+    let pages = page_count(total);
+    let current_page = page().min(pages.saturating_sub(1));
+    let (start, end) = page_bounds(current_page, total);
+    let page_label = format!("Page {} of {}", current_page + 1, pages);
 
     rsx! {
         // Selected logo preview + button
@@ -77,6 +111,7 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                     }
                     results.set(vec![]);
                     error_msg.set(String::new());
+                    page.set(0);
                     dialog_open.set(true);
                 },
                 if !selected_url.is_empty() { "Change" } else { "Add logo" }
@@ -117,10 +152,14 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                     button {
                         r#type: "button",
                         class: "inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
-                        disabled: query().is_empty(),
+                        disabled: searching() || query().trim().is_empty(),
                         onclick: move |_| do_search(),
-                        "Search"
+                        if searching() { "Searching…" } else { "Search" }
                     }
+                }
+
+                if searching() {
+                    div { class: "text-sm text-muted-foreground", "Searching logos…" }
                 }
 
                 if !error_msg().is_empty() {
@@ -130,26 +169,49 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                     }
                 }
 
-                if !results().is_empty() {
-                    div { class: "grid grid-cols-4 gap-3 mt-4",
-                        for logo in results() {
-                            button {
-                                r#type: "button",
-                                class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 hover:bg-accent transition-colors",
-                                title: logo.url.to_string(),
-                                onclick: {
-                                    let url = logo.url.clone();
-                                    let on_sel = on_select;
-                                    move |_| {
-                                        on_sel.call(url.clone());
-                                        dialog_open.set(false);
-                                    }
-                                },
-                                {logo_image_with_fallback(&format!("search-result-{}", logo.url),
-                                    Some(logo.thumbnail.as_str()),
-                                    "Logo",
-                                    "max-h-full max-w-full object-contain"
-                                )}
+                if !all_results.is_empty() {
+                    div { class: "space-y-3 mt-4",
+                        div { class: "grid grid-cols-4 gap-3",
+                            for logo in all_results[start..end].iter() {
+                                button {
+                                    r#type: "button",
+                                    class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 hover:bg-accent transition-colors",
+                                    title: logo.url.to_string(),
+                                    onclick: {
+                                        let url = logo.url.clone();
+                                        let on_sel = on_select;
+                                        move |_| {
+                                            on_sel.call(url.clone());
+                                            dialog_open.set(false);
+                                        }
+                                    },
+                                    {logo_image_with_fallback(&format!("search-result-{}", logo.url),
+                                        Some(logo.thumbnail.as_str()),
+                                        "Logo",
+                                        // Scale up tiny favicons so every tile is legible.
+                                        "h-12 w-12 sm:h-16 sm:w-16 object-contain"
+                                    )}
+                                }
+                            }
+                        }
+
+                        if pages > 1 {
+                            div { class: "flex items-center justify-between gap-2",
+                                button {
+                                    r#type: "button",
+                                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                                    disabled: current_page == 0,
+                                    onclick: move |_| page.set(current_page.saturating_sub(1)),
+                                    "‹ Prev"
+                                }
+                                span { class: "text-xs text-muted-foreground", {page_label.clone()} }
+                                button {
+                                    r#type: "button",
+                                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                                    disabled: current_page + 1 >= pages,
+                                    onclick: move |_| page.set(current_page + 1),
+                                    "Next ›"
+                                }
                             }
                         }
                     }
@@ -161,6 +223,7 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::logo::LogoResult;
 
     #[test]
@@ -417,5 +480,85 @@ mod tests {
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         assert!(prod.contains("onkeydown"),
             "LogoSearch input must support Enter key to trigger search");
+    }
+
+    // ── Pagination ──
+    #[test]
+    fn page_count_empty_is_zero() {
+        assert_eq!(page_count(0), 0);
+    }
+
+    #[test]
+    fn page_count_single_page() {
+        assert_eq!(page_count(1), 1);
+        assert_eq!(page_count(LOGO_PAGE_SIZE), 1);
+    }
+
+    #[test]
+    fn page_count_rounds_up() {
+        assert_eq!(page_count(LOGO_PAGE_SIZE + 1), 2);
+        assert_eq!(page_count(LOGO_PAGE_SIZE * 3), 3);
+        assert_eq!(page_count(LOGO_PAGE_SIZE * 3 + 1), 4);
+    }
+
+    #[test]
+    fn page_bounds_first_page() {
+        assert_eq!(page_bounds(0, 20), (0, LOGO_PAGE_SIZE));
+    }
+
+    #[test]
+    fn page_bounds_last_partial_page() {
+        assert_eq!(page_bounds(2, 20), (16, 20));
+    }
+
+    #[test]
+    fn page_bounds_clamps_out_of_range() {
+        assert_eq!(page_bounds(9, 20), (20, 20));
+        assert_eq!(page_bounds(0, 0), (0, 0));
+    }
+
+    // ── Fallback candidates ──
+    #[test]
+    fn candidates_for_name_guess_common_domains() {
+        let candidates = logo_candidates("Netflix");
+        assert_eq!(candidates.len(), 9);
+        assert!(candidates.iter().any(|c| c.url.contains("netflix.com")));
+        assert!(candidates.iter().any(|c| c.url.contains("netflix.io")));
+        assert!(candidates.iter().any(|c| c.url.contains("netflix.app")));
+    }
+
+    #[test]
+    fn candidates_use_live_logo_providers() {
+        let candidates = logo_candidates("spotify");
+        assert!(candidates.iter().any(|c| c.url.contains("unavatar.io")));
+        assert!(!candidates.iter().any(|c| c.url.contains("clearbit")));
+    }
+
+    #[test]
+    fn candidates_accept_a_domain() {
+        let candidates = logo_candidates("spotify.com");
+        assert_eq!(candidates.len(), 3);
+        assert!(candidates.iter().all(|c| c.url.contains("spotify.com")));
+    }
+
+    #[test]
+    fn candidates_empty_query_has_no_results() {
+        assert!(logo_candidates("   ").is_empty());
+        assert!(logo_candidates("!!!").is_empty());
+    }
+
+    // ── Online search wiring ──
+    #[test]
+    fn logo_search_uses_online_logo_api() {
+        let src = include_str!("logo_search.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or("");
+        assert!(
+            prod.contains("api::logos::search"),
+            "LogoSearch must query the logo API instead of only guessing domains"
+        );
+        assert!(
+            prod.contains("page_count"),
+            "LogoSearch results must be paginated"
+        );
     }
 }
