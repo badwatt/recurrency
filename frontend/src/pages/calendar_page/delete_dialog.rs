@@ -13,8 +13,13 @@ pub fn DeleteSubscriptionDialog(
     current_year: Signal<i32>,
     current_month: Signal<u32>,
 ) -> Element {
+    let mut deleting = use_signal(|| false);
     let handle_delete_confirm = move |_| {
+        if deleting() {
+            return;
+        }
         if let Some(id) = confirm_id() {
+            deleting.set(true);
             spawn(async move {
                 let _ = Storage::delete_subscription(&id).await;
                 match Storage::list_subscriptions().await {
@@ -27,8 +32,10 @@ pub fn DeleteSubscriptionDialog(
                 if let Ok(items) = Storage::calendar_month(y, m).await {
                     calendar_items.set(items)
                 }
+                // Close after refreshing: closing unmounts this component and
+                // cancels its in-flight tasks.
+                confirm_id.set(None);
             });
-            confirm_id.set(None);
         }
     };
 
@@ -41,14 +48,20 @@ pub fn DeleteSubscriptionDialog(
                 }
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                     button {
-                        class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
-                        onclick: move |_| confirm_id.set(None),
+                        class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted disabled:opacity-50",
+                        disabled: deleting(),
+                        onclick: move |_| {
+                            if !deleting() {
+                                confirm_id.set(None);
+                            }
+                        },
                         "Cancel"
                     }
                     button {
-                        class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700",
+                        class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700 disabled:opacity-50",
+                        disabled: deleting(),
                         onclick: handle_delete_confirm,
-                        "Delete"
+                        if deleting() { "Deleting..." } else { "Delete" }
                     }
                 }
             }

@@ -63,18 +63,12 @@ pub fn EditSubscriptionDialog(
     let mut frequency_error: Signal<String> = use_signal(String::new);
     let mut start_date_error: Signal<String> = use_signal(String::new);
     let mut category_error: Signal<String> = use_signal(String::new);
-
-    let refresh_calendar = move || {
-        let y = current_year();
-        let m = current_month();
-        spawn(async move {
-            if let Ok(items) = Storage::calendar_month(y, m).await {
-                calendar_items.set(items)
-            }
-        });
-    };
+    let mut saving = use_signal(|| false);
 
     let handle_edit_submit = move |_| {
+        if saving() {
+            return;
+        }
         let f = edit_form();
         let result = validate_entry_form(
             &f.name,
@@ -95,6 +89,7 @@ pub fn EditSubscriptionDialog(
             return;
         }
 
+        saving.set(true);
         let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
         let category = if f.category_id.is_empty() {
             None
@@ -125,14 +120,22 @@ pub fn EditSubscriptionDialog(
                 },
                 ..Default::default()
             };
+            // Refresh everything before closing: the dialog is a child
+            // component, and closing it cancels any task still in flight.
             spawn(async move {
                 let _ = Storage::update_subscription(&id, &req).await;
                 match Storage::list_subscriptions().await {
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
+                if let Ok(items) =
+                    Storage::calendar_month(current_year(), current_month()).await
+                {
+                    calendar_items.set(items);
+                }
+                saving.set(false);
+                open.set(false);
             });
-            refresh_calendar();
         } else {
             let req = CreateSubscriptionRequest {
                 name: f.name,
@@ -161,11 +164,15 @@ pub fn EditSubscriptionDialog(
                     Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                     Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
                 }
+                if let Ok(items) =
+                    Storage::calendar_month(current_year(), current_month()).await
+                {
+                    calendar_items.set(items);
+                }
+                saving.set(false);
+                open.set(false);
             });
-            refresh_calendar();
         }
-
-        open.set(false);
     };
 
     let form_name = edit_form().name;
@@ -193,7 +200,11 @@ pub fn EditSubscriptionDialog(
     rsx! {
         div {
             class: "fixed inset-0 z-[60] flex items-center justify-center bg-black/50",
-            onclick: move |_| open.set(false),
+            onclick: move |_| {
+                if !saving() {
+                    open.set(false);
+                }
+            },
             div {
                 class: "bg-background rounded-none sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-[425px] shadow-lg sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col",
                 onclick: move |e| e.stop_propagation(),
@@ -323,14 +334,20 @@ pub fn EditSubscriptionDialog(
                 // Footer
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6",
                     button {
-                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
-                        onclick: move |_| open.set(false),
+                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted disabled:opacity-50",
+                        disabled: saving(),
+                        onclick: move |_| {
+                            if !saving() {
+                                open.set(false);
+                            }
+                        },
                         "Cancel"
                     }
                     button {
-                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90 disabled:opacity-50",
+                        disabled: saving(),
                         onclick: handle_edit_submit,
-                        "Save Changes"
+                        if saving() { "Saving..." } else { "Save Changes" }
                     }
                 }
             }

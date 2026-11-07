@@ -181,28 +181,43 @@ pub fn TransactionDialog(
 
             match result {
                 Ok(_) => {
-                    open.set(false);
+                    // Refresh before closing: closing unmounts this component
+                    // and Dioxus cancels its spawned tasks, so a refresh that
+                    // started after `open.set(false)` would never finish.
                     match Storage::list_transactions().await {
                         Ok(data) => TRANSACTIONS.write().set_data(data),
                         Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
                     }
+                    form_saving.set(false);
+                    open.set(false);
                 }
-                Err(e) => log::error!("Save failed: {}", e),
+                Err(e) => {
+                    log::error!("Save failed: {}", e);
+                    form_saving.set(false);
+                }
             }
-            form_saving.set(false);
         });
     };
 
     rsx! {
         Dialog {
             open: true,
-            on_close: move |_| open.set(false),
+            on_close: move |_| {
+                if !form_saving() {
+                    open.set(false);
+                }
+            },
             title: if editing_id().is_some() { "Edit Transaction" } else { "Add Transaction" },
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
                     button {
-                        onclick: move |_| open.set(false),
-                        class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
+                        onclick: move |_| {
+                            if !form_saving() {
+                                open.set(false);
+                            }
+                        },
+                        disabled: form_saving(),
+                        class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent disabled:opacity-50",
                         "Cancel"
                     }
                     button {

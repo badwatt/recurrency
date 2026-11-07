@@ -1724,3 +1724,15 @@ use chrono::NaiveDate;
         assert!(prod.contains("sm:ml-auto"),
             "Transaction sort section must push to right on desktop");
     }
+
+    #[test]
+    fn save_refreshes_list_before_closing_dialog() {
+        let src = include_str!("dialog.rs");
+        let save_block = src.split("match result {").nth(1).unwrap_or("");
+        let refresh = save_block.find("list_transactions").unwrap_or(usize::MAX);
+        let close = save_block.find("open.set(false);").unwrap_or(usize::MAX);
+        assert!(
+            refresh < close,
+            "the save task must refresh the list before closing: unmounting the dialog cancels its spawned tasks"
+        );
+    }

@@ -1109,3 +1109,30 @@ use chrono::NaiveDate;
         assert!(prod.contains("logo_image_with_fallback"),
             "Calendar item rendering must use logo_image_with_fallback");
     }
+
+    #[test]
+    fn edit_dialog_refreshes_calendar_before_closing() {
+        let src = include_str!("edit_dialog.rs");
+        for call in ["Storage::update_subscription", "Storage::create_subscription"] {
+            let branch = src.split(call).nth(1).unwrap_or("");
+            let refresh = branch.find("calendar_month").unwrap_or(usize::MAX);
+            let close = branch.find("open.set(false)").unwrap_or(usize::MAX);
+            assert!(
+                refresh < close,
+                "{call} must refresh the calendar before closing the dialog"
+            );
+        }
+    }
+
+    #[test]
+    fn delete_dialog_refreshes_before_closing() {
+        let src = include_str!("delete_dialog.rs");
+        let task = src.split("Storage::delete_subscription").nth(1).unwrap_or("");
+        let subscriptions = task.find("list_subscriptions").unwrap_or(usize::MAX);
+        let calendar = task.find("calendar_month").unwrap_or(usize::MAX);
+        let close = task.find("confirm_id.set(None)").unwrap_or(0);
+        assert!(
+            subscriptions < close && calendar < close,
+            "the delete task must refresh subscriptions and calendar before closing"
+        );
+    }

@@ -1687,3 +1687,15 @@
             "offline mode must not wait for server preferences"
         );
     }
+
+    #[test]
+    fn delete_dialog_refreshes_before_closing() {
+        let src = include_str!("delete_dialog.rs");
+        let task = src.split("Storage::delete_subscription").nth(1).unwrap_or("");
+        let refresh = task.find("list_subscriptions").unwrap_or(usize::MAX);
+        let close = task.find("confirm_id.set(None)").unwrap_or(0);
+        assert!(
+            refresh < close,
+            "the delete task must refresh subscriptions before closing the dialog"
+        );
+    }
