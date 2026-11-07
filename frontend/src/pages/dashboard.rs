@@ -281,7 +281,7 @@ pub fn Dashboard() -> Element {
                                         div { key: "{sub.id}", class: "flex items-center justify-between py-2",
                                             div { class: "flex items-center gap-3 min-w-0",
                                                 div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-secondary",
-                                                    {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-full w-full object-cover")}
+                                                    {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-full w-full object-contain")}
                                                 }
                                                 div { class: "min-w-0",
                                                     p { class: "text-sm font-medium text-foreground truncate", {sub.name.to_string()} }

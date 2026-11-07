@@ -1699,3 +1699,17 @@
             "the delete task must refresh subscriptions before closing the dialog"
         );
     }
+
+    #[test]
+    fn logo_avatars_fit_the_frame() {
+        let cards = include_str!("cards.rs");
+        let dashboard = include_str!("../dashboard.rs");
+        assert!(
+            !cards.contains("object-cover"),
+            "subscription logos must fit inside their frame (object-contain), not be cropped"
+        );
+        assert!(
+            !dashboard.contains("object-cover"),
+            "dashboard logos must fit inside their frame (object-contain), not be cropped"
+        );
+    }
