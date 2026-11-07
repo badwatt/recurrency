@@ -1136,3 +1136,19 @@ use chrono::NaiveDate;
             "the delete task must refresh subscriptions and calendar before closing"
         );
     }
+
+
+    #[test]
+    fn empty_day_cell_opens_add_dialog() {
+        let items: Vec<CalendarItem> = vec![];
+        let info = day_cell_info(&items, 2024, 1, 15, "EUR");
+        assert!(day_cell_is_empty(&info));
+    }
+
+    #[test]
+    fn day_cell_with_payments_opens_details() {
+        let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let items = vec![make_calendar_item("Netflix", dec!(12), date)];
+        let info = day_cell_info(&items, 2024, 1, 15, "EUR");
+        assert!(!day_cell_is_empty(&info));
+    }

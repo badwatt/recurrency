@@ -311,11 +311,23 @@ pub fn CalendarPage() -> Element {
                                             };
                                             // Format date for pre-filling the subscription form
                                             let formatted_date = format!("{:04}-{:02}-{:02}", year, month, d);
+                                            // Empty days go straight to the add dialog;
+                                            // days with payments open the detail modal.
+                                            let empty_day = day_cell_is_empty(info);
+                                            let cell_date = formatted_date.clone();
                                             rsx! {
                                                 div {
                                                     key: "{idx}",
                                                     class: cell_cls.to_string(),
-                                                    onclick: move |_| selected_day.set(Some((year, month, d))),
+                                                    onclick: move |_| {
+                                                        if empty_day {
+                                                            prefill_date.set(Some(cell_date.clone()));
+                                                            editing_id.set(None);
+                                                            edit_dialog_open.set(true);
+                                                        } else {
+                                                            selected_day.set(Some((year, month, d)));
+                                                        }
+                                                    },
                                                     // Day number
                                                     div { class: today_cls.to_string(), {d.to_string()} }
                                                     // Add subscription button (top-right, visible on hover)

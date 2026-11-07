@@ -125,6 +125,12 @@ pub struct DayCellInfo {
     pub extra_count: usize,
 }
 
+/// An empty day cell opens the "add subscription" dialog; a day with payments
+/// opens the day detail modal instead.
+pub fn day_cell_is_empty(info: &DayCellInfo) -> bool {
+    info.items.is_empty() && info.extra_count == 0
+}
+
 pub fn day_cell_info(
     items: &[CalendarItem],
     year: i32,
