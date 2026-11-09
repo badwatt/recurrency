@@ -34,6 +34,17 @@ fn test_build_android_script_reads_version_from_cargo_toml() {
     );
 }
 
+/// The shared Android patch script must derive versionCode from Cargo.toml.
+/// The workspace version is the single source of truth.
+#[test]
+fn test_patch_android_derives_version_code_from_cargo_toml() {
+    let script = include_str!("../../../../scripts/patch-android-build.sh");
+    assert!(
+        script.contains("Cargo.toml") && script.contains("versionCode"),
+        "patch-android-build.sh must derive versionCode from Cargo.toml"
+    );
+}
+
 /// TDD RED: build-android.sh must use 'magick convert' for ImageMagick 7.
 /// Plain 'convert' is deprecated in IMv7 and causes warnings.
 #[test]

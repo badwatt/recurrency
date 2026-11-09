@@ -133,7 +133,19 @@ while IFS= read -r manifest; do
 done < <(find "$ANDROID_ROOT" -name AndroidManifest.xml -type f 2>/dev/null)
 echo "--- Patched AndroidManifest label ---"
 
-# 6. Patch Gradle: extractNativeLibs=true, jvmTarget=17
+# 6. Derive versionCode from the workspace Cargo.toml (single source of truth).
+APP_VERSION=$(grep '^version' "$ROOT/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+APP_VERSION="${APP_VERSION%%-*}"
+IFS=. read -r V_MAJOR V_MINOR V_PATCH <<< "$APP_VERSION"
+VERSION_CODE=$((10#$V_MAJOR * 10000 + 10#$V_MINOR * 100 + 10#$V_PATCH))
+while IFS= read -r app_gradle; do
+    if grep -q 'com.android.application' "$app_gradle"; then
+        sed -i -E "s/versionCode = [0-9]+/versionCode = $VERSION_CODE/" "$app_gradle"
+        echo "--- Patched versionCode=$VERSION_CODE in $app_gradle ---"
+    fi
+done < <(find "$ANDROID_ROOT" -maxdepth 3 -name build.gradle.kts -type f 2>/dev/null)
+
+# 7. Patch Gradle: extractNativeLibs=true, jvmTarget=17
 if [ -f "$GRADLE_FILE" ]; then
     sed -i 's/extractNativeLibs="false"/extractNativeLibs="true"/g' "$GRADLE_FILE"
     sed -i 's/jvmTarget = "1\.8"/jvmTarget = "17"/g' "$GRADLE_FILE"
@@ -142,7 +154,7 @@ else
     echo "WARNING: gradle file not found at $GRADLE_FILE"
 fi
 
-# 7. Patch WebView (FOUC + native loader)
+# 8. Patch WebView (FOUC + native loader)
 if [ -f "$WEBVIEW_KT" ] && [ -f "$ROOT/scripts/patch_webview.py" ]; then
     python3 "$ROOT/scripts/patch_webview.py" "$WEBVIEW_KT"
     echo "--- Patched RustWebView.kt ---"
