@@ -8,8 +8,6 @@
 # ── Backend builder ──────────────────────────────────────
 FROM rust:1-bookworm AS backend-builder
 
-ARG APP_VERSION=dev
-ENV APP_VERSION=${APP_VERSION}
 ENV RUSTFLAGS="-C target-cpu=generic"
 
 WORKDIR /build
@@ -17,7 +15,6 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock* ./
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
-COPY VERSION /build/VERSION
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
 RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-backend -j 4 2>/dev/null || true
@@ -29,8 +26,6 @@ RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo b
 # ── Frontend builder ─────────────────────────────────────
 FROM ubuntu:24.04 AS frontend-builder
 
-ARG APP_VERSION=dev
-ENV APP_VERSION=${APP_VERSION}
 ENV RUSTFLAGS="-C target-cpu=generic" \
     DEBIAN_FRONTEND=noninteractive
 

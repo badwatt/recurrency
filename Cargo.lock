@@ -5249,7 +5249,7 @@ dependencies = [
 
 [[package]]
 name = "recurrency-backend"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "argon2",
  "async-trait",
@@ -5277,7 +5277,7 @@ dependencies = [
 
 [[package]]
 name = "recurrency-frontend"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "chrono",
  "dioxus",
