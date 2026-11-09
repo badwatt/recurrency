@@ -9,6 +9,7 @@ use validator::Validate;
 pub struct Subscription {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub account_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
@@ -32,6 +33,8 @@ pub struct CreateSubscriptionRequest {
     #[validate(length(min = 1, message = "Frequency is required"))]
     pub frequency: String, // weekly, monthly, quarterly, yearly
     pub start_date: NaiveDate,
+    #[serde(default)]
+    pub account_id: Uuid,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -45,6 +48,7 @@ pub struct UpdateSubscriptionRequest {
     pub frequency: Option<String>,
     pub start_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
+    pub account_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
     pub is_active: Option<bool>,
     pub notes: Option<String>,
@@ -55,6 +59,7 @@ pub struct UpdateSubscriptionRequest {
 pub struct SubscriptionResponse {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub account_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
@@ -74,6 +79,7 @@ impl From<Subscription> for SubscriptionResponse {
         Self {
             id: s.id,
             user_id: s.user_id,
+            account_id: s.account_id,
             category_id: s.category_id,
             name: s.name,
             amount: s.amount,
@@ -98,6 +104,7 @@ mod tests {
     #[test]
     fn create_subscription_request_valid() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::new_v4(),
             name: "Netflix".to_string(),
             amount: Decimal::from(1599),
             currency: "USD".to_string(),
@@ -118,6 +125,7 @@ mod tests {
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            account_id: Uuid::new_v4(),
             category_id: None,
             notes: None,
             logo_url: None,
@@ -128,6 +136,7 @@ mod tests {
     #[test]
     fn create_subscription_request_empty_frequency_fails() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::new_v4(),
             name: "Netflix".to_string(),
             amount: Decimal::TEN,
             currency: "USD".to_string(),
@@ -143,6 +152,7 @@ mod tests {
     #[test]
     fn update_subscription_all_none() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             name: None,
             amount: None,
             currency: None,
@@ -168,6 +178,7 @@ mod tests {
             frequency: Some("yearly".to_string()),
             start_date: None,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2025, 6, 1).unwrap()),
+            account_id: None,
             category_id: None,
             is_active: Some(false),
             notes: None,
@@ -184,6 +195,7 @@ mod tests {
         let user_id = Uuid::new_v4();
         let cat_id = Uuid::new_v4();
         let sub = Subscription {
+            account_id: Uuid::new_v4(),
             id: uid,
             user_id,
             category_id: cat_id,
@@ -211,6 +223,7 @@ mod tests {
         let resp = SubscriptionResponse {
             id: uid,
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "Netflix".to_string(),
             amount: Decimal::from(1599),
@@ -235,6 +248,7 @@ mod tests {
     fn create_subscription_all_frequencies() {
         for freq in &["weekly", "monthly", "quarterly", "yearly"] {
             let req = CreateSubscriptionRequest {
+                account_id: Uuid::new_v4(),
                 name: "Test".to_string(),
                 amount: Decimal::TEN,
                 currency: "USD".to_string(),
@@ -253,6 +267,7 @@ mod tests {
         let resp = SubscriptionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "Netflix".to_string(),
             amount: Decimal::from(1599),
@@ -274,6 +289,7 @@ mod tests {
     #[test]
     fn subscription_inactive_status() {
         let resp = SubscriptionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -302,6 +318,7 @@ mod tests {
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            account_id: Uuid::new_v4(),
             category_id: Some(cat_id),
             notes: None,
             logo_url: None,
@@ -313,6 +330,7 @@ mod tests {
     #[test]
     fn update_subscription_with_next_billing_date() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             name: None,
             amount: None,
             currency: None,
@@ -331,6 +349,7 @@ mod tests {
     #[test]
     fn subscription_response_next_billing_date_some() {
         let resp = SubscriptionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -354,6 +373,7 @@ mod tests {
         let resp = SubscriptionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "No Next Date".to_string(),
             amount: Decimal::ONE,

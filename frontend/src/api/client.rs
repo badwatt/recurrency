@@ -71,7 +71,7 @@ pub fn get_base_url() -> String {
     if let Ok(lock) = BASE_URL_OVERRIDE.read()
         && let Some(url) = lock.as_ref()
             && !url.is_empty() {
-                return url.clone();
+                return normalize_base_url(url);
             }
     // 2. Check APP_MODE — may panic without Dioxus runtime, use catch_unwind
     let mode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -82,7 +82,7 @@ pub fn get_base_url() -> String {
             return String::new(); // local mode: no server URL
         }
         if let Some(url) = mode_state.mode.server_url() {
-            return url.to_string();
+            return normalize_base_url(url);
         }
     }
     // Persistent storage is shared across parallel tests and can flap between
@@ -148,14 +148,14 @@ fn get_base_url_impl() -> String {
                 if let Ok(Some(url)) = storage.get_item("RECURRENCY_API_URL") {
                     if !url.is_empty() {
                         eprintln!("[get_base_url] WASM localStorage: {}", url);
-                        return url;
+                        return normalize_base_url(&url);
                     }
                 }
             }
             // Dev mode fallback
             if let Ok(origin) = window.location().origin() {
                 if !origin.contains(":1420") {
-                    return origin;
+                    return normalize_base_url(&origin);
                 }
             }
         }
@@ -198,7 +198,34 @@ pub fn clear_base_url() {
 /// Build a URL with the base URL. Auth is handled via headers, not URL.
 pub fn auth_url(path: &str) -> String {
     let base = get_base_url();
-    format!("{}{}", base, path)
+    format!("{}{}", base.trim_end_matches('/'), path)
+}
+
+/// Normalize a configured server URL. Empty values fall back to the local API,
+/// and in the web dev server (ports 1420/1421) a URL pointing at the frontend
+/// origin is corrected to the backend so `/api/*` never hits the static server.
+fn normalize_base_url(url: &str) -> String {
+    let trimmed = url.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        return "http://localhost:8080".to_string();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window()
+            && let Ok(origin) = window.location().origin()
+            && (origin.contains(":1420") || origin.contains(":1421"))
+            && (trimmed == origin
+                || trimmed == "http://localhost:1420"
+                || trimmed == "http://127.0.0.1:1420"
+                || trimmed == "http://localhost:1421"
+                || trimmed == "http://127.0.0.1:1421")
+        {
+            return "http://localhost:8080".to_string();
+        }
+    }
+
+    trimmed.to_string()
 }
 
 /// Build auth headers for a request.
@@ -1094,6 +1121,18 @@ mod tests {
         fn assert_deserializable<T: serde::de::DeserializeOwned>() {}
         // Vec<T> is also DeserializeOwned
         assert_deserializable::<Vec<serde_json::Value>>();
+    }
+
+    #[test]
+    fn normalize_base_url_trims_trailing_slash() {
+        assert_eq!(super::normalize_base_url("http://localhost:8080/"), "http://localhost:8080");
+        assert_eq!(super::normalize_base_url("  http://localhost:8080///  "), "http://localhost:8080");
+    }
+
+    #[test]
+    fn normalize_base_url_empty_uses_local_api() {
+        assert_eq!(super::normalize_base_url(""), "http://localhost:8080");
+        assert_eq!(super::normalize_base_url("   "), "http://localhost:8080");
     }
 
     // ── Base URL override survives multiple get_base_url calls ──

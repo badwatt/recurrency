@@ -46,6 +46,8 @@ pub enum Route {
         Transactions {},
         #[route("/calendar")]
         Calendar {},
+        #[route("/accounts")]
+        Accounts {},
         #[route("/categories")]
         Categories {},
         #[route("/reports")]
@@ -292,6 +294,12 @@ fn Calendar() -> Element {
 }
 
 #[component]
+#[allow(non_snake_case)]
+fn Accounts() -> Element {
+    rsx! { crate::pages::AccountsPage {} }
+}
+
+#[allow(non_snake_case)]
 fn Categories() -> Element {
     rsx! { crate::pages::CategoriesPage {} }
 }

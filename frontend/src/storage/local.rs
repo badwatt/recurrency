@@ -1,3 +1,4 @@
+use crate::models::account::{Account, CreateAccountRequest, UpdateAccountRequest};
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest};
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
@@ -18,6 +19,7 @@ use uuid::Uuid;
 static SUBSCRIPTIONS: std::sync::Mutex<Option<Vec<Subscription>>> = std::sync::Mutex::new(None);
 static TRANSACTIONS: std::sync::Mutex<Option<Vec<Transaction>>> = std::sync::Mutex::new(None);
 static CATEGORIES: std::sync::Mutex<Option<Vec<Category>>> = std::sync::Mutex::new(None);
+static ACCOUNTS: std::sync::Mutex<Option<Vec<Account>>> = std::sync::Mutex::new(None);
 
 // ── Default categories ──
 
@@ -99,6 +101,7 @@ fn save_collection<T: serde::Serialize>(name: &str, data: &Vec<T>) -> Result<(),
 // ── Subscription operations ──
 
 pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
+    ensure_accounts().await?;
     let mut cache = SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("subscriptions");
@@ -107,7 +110,14 @@ pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
 }
 
 pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subscription, ApiError> {
+    ensure_accounts().await?;
+    let account_id = if req.account_id.is_nil() {
+        default_account_id()?
+    } else {
+        req.account_id
+    };
     let sub = Subscription {
+        account_id,
         id: Uuid::new_v4(),
         user_id: Uuid::nil(),
         category_id: req.category_id.unwrap_or(Uuid::nil()),
@@ -146,6 +156,7 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
     if let Some(frequency) = &req.frequency { sub.frequency = frequency.clone(); }
     if let Some(start_date) = req.start_date { sub.start_date = start_date; }
     if let Some(next_billing_date) = req.next_billing_date { sub.next_billing_date = Some(next_billing_date); }
+    if let Some(account_id) = req.account_id { sub.account_id = account_id; }
     if let Some(category_id) = req.category_id { sub.category_id = category_id; }
     if let Some(is_active) = req.is_active { sub.is_active = is_active; }
     if let Some(notes) = &req.notes { sub.notes = Some(notes.clone()); }
@@ -195,6 +206,7 @@ fn compute_billing_date(sub: &Subscription, year: i32, month: u32) -> chrono::Na
 // ── Transaction operations ──
 
 pub async fn list_transactions() -> Result<Vec<Transaction>, ApiError> {
+    ensure_accounts().await?;
     let mut cache = TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("transactions");
@@ -203,7 +215,14 @@ pub async fn list_transactions() -> Result<Vec<Transaction>, ApiError> {
 }
 
 pub async fn create_transaction(req: &CreateTransactionRequest) -> Result<Transaction, ApiError> {
+    ensure_accounts().await?;
+    let account_id = if req.account_id.is_nil() {
+        default_account_id()?
+    } else {
+        req.account_id
+    };
     let txn = Transaction {
+        account_id,
         id: Uuid::new_v4(),
         user_id: Uuid::nil(),
         category_id: req.category_id.unwrap_or(Uuid::nil()),
@@ -237,6 +256,7 @@ pub async fn update_transaction(id: &Uuid, req: &UpdateTransactionRequest) -> Re
     if let Some(amount) = req.amount { txn.amount = amount; }
     if let Some(currency) = &req.currency { txn.currency = currency.clone(); }
     if let Some(date) = req.date { txn.date = date; }
+    if let Some(account_id) = req.account_id { txn.account_id = account_id; }
     if let Some(category_id) = req.category_id { txn.category_id = category_id; }
     if let Some(notes) = &req.notes { txn.notes = Some(notes.clone()); }
     if let Some(logo_url) = &req.logo_url { txn.logo_url = Some(logo_url.clone()); }
@@ -254,6 +274,224 @@ pub async fn delete_transaction(id: &Uuid) -> Result<(), ApiError> {
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No transactions".into()))?;
     list.retain(|t| &t.id != id);
     save_collection("transactions", list)
+}
+
+
+// ── Account operations ──
+
+fn default_account_id() -> Result<Uuid, ApiError> {
+    let cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    cache
+        .as_ref()
+        .and_then(|accounts| accounts.iter().find(|a| a.is_default).or_else(|| accounts.first()))
+        .map(|a| a.id)
+        .ok_or_else(|| ApiError::Network("No accounts".into()))
+}
+
+/// Seed accounts from legacy categories when local data predates accounts,
+/// or create a single General account for a brand-new user.
+async fn ensure_accounts() -> Result<(), ApiError> {
+    if ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?.is_some() {
+        return Ok(());
+    }
+
+    let mut accounts = load_collection::<Account>("accounts").unwrap_or_default();
+    if accounts.is_empty() {
+        let has_data = load_collection::<Subscription>("subscriptions")
+            .is_some_and(|v| !v.is_empty())
+            || load_collection::<Transaction>("transactions").is_some_and(|v| !v.is_empty());
+
+        if has_data {
+            accounts = list_categories()
+                .await?
+                .into_iter()
+                .map(|c| Account {
+                    id: c.id,
+                    user_id: c.user_id,
+                    name: c.name,
+                    icon: c.icon,
+                    color: c.color,
+                    is_default: c.is_default,
+                    created_at: c.created_at,
+                    updated_at: c.updated_at,
+                })
+                .collect();
+        }
+
+        if accounts.is_empty() {
+            accounts.push(Account {
+                id: Uuid::new_v4(),
+                user_id: Uuid::nil(),
+                name: "General".into(),
+                icon: Some("Wallet".into()),
+                color: Some("#6b7280".into()),
+                is_default: true,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            });
+        }
+
+        save_collection("accounts", &accounts)?;
+    }
+
+    if accounts.iter().filter(|a| a.is_default).count() != 1 {
+        for (index, account) in accounts.iter_mut().enumerate() {
+            account.is_default = index == 0;
+        }
+        save_collection("accounts", &accounts)?;
+    }
+
+    let default_id = accounts
+        .iter()
+        .find(|a| a.is_default)
+        .or_else(|| accounts.first())
+        .map(|a| a.id)
+        .unwrap_or(Uuid::nil());
+    let known_ids: std::collections::HashSet<Uuid> = accounts.iter().map(|a| a.id).collect();
+
+    if let Some(mut subs) = load_collection::<Subscription>("subscriptions") {
+        let mut changed = false;
+        for sub in &mut subs {
+            if sub.account_id.is_nil() {
+                sub.account_id = if known_ids.contains(&sub.category_id) {
+                    sub.category_id
+                } else {
+                    default_id
+                };
+                changed = true;
+            }
+        }
+        if changed {
+            save_collection("subscriptions", &subs)?;
+        }
+    }
+
+    if let Some(mut txns) = load_collection::<Transaction>("transactions") {
+        let mut changed = false;
+        for txn in &mut txns {
+            if txn.account_id.is_nil() {
+                txn.account_id = if known_ids.contains(&txn.category_id) {
+                    txn.category_id
+                } else {
+                    default_id
+                };
+                changed = true;
+            }
+        }
+        if changed {
+            save_collection("transactions", &txns)?;
+        }
+    }
+
+    *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts);
+    Ok(())
+}
+
+pub async fn list_accounts() -> Result<Vec<Account>, ApiError> {
+    ensure_accounts().await?;
+    let cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    Ok(cache.clone().unwrap_or_default())
+}
+
+pub async fn create_account(req: &CreateAccountRequest) -> Result<Account, ApiError> {
+    ensure_accounts().await?;
+    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache.get_or_insert_with(Vec::new);
+    let is_default = list.is_empty();
+    let account = Account {
+        id: Uuid::new_v4(),
+        user_id: Uuid::nil(),
+        name: req.name.clone(),
+        icon: req.icon.clone(),
+        color: req.color.clone(),
+        is_default,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+    list.push(account.clone());
+    save_collection("accounts", list)?;
+    Ok(account)
+}
+
+pub async fn update_account(id: &Uuid, req: &UpdateAccountRequest) -> Result<Account, ApiError> {
+    ensure_accounts().await?;
+    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No accounts".into()))?;
+    let account = list
+        .iter_mut()
+        .find(|a| &a.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    if let Some(name) = &req.name {
+        account.name = name.clone();
+    }
+    if let Some(icon) = &req.icon {
+        account.icon = Some(icon.clone());
+    }
+    if let Some(color) = &req.color {
+        account.color = Some(color.clone());
+    }
+    account.updated_at = Utc::now();
+    let updated = account.clone();
+    save_collection("accounts", list)?;
+    Ok(updated)
+}
+
+pub async fn delete_account(id: &Uuid) -> Result<(), ApiError> {
+    ensure_accounts().await?;
+    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No accounts".into()))?;
+    let target = list
+        .iter()
+        .find(|a| &a.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    if target.is_default {
+        return Err(ApiError::Http(400, "Cannot delete the default account".into()));
+    }
+    let default_id = list
+        .iter()
+        .find(|a| a.is_default)
+        .map(|a| a.id)
+        .ok_or_else(|| ApiError::Network("Default account missing".into()))?;
+
+    if let Ok(mut subs) = SUBSCRIPTIONS.lock() {
+        if subs.is_none() {
+            *subs = load_collection("subscriptions");
+        }
+        if let Some(items) = subs.as_mut() {
+            for sub in items.iter_mut().filter(|s| s.account_id == *id) {
+                sub.account_id = default_id;
+            }
+            save_collection("subscriptions", items)?;
+        }
+    }
+    if let Ok(mut txns) = TRANSACTIONS.lock() {
+        if txns.is_none() {
+            *txns = load_collection("transactions");
+        }
+        if let Some(items) = txns.as_mut() {
+            for txn in items.iter_mut().filter(|t| t.account_id == *id) {
+                txn.account_id = default_id;
+            }
+            save_collection("transactions", items)?;
+        }
+    }
+
+    list.retain(|a| &a.id != id);
+    save_collection("accounts", list)
+}
+
+pub async fn set_default_account(id: &Uuid) -> Result<(), ApiError> {
+    ensure_accounts().await?;
+    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No accounts".into()))?;
+    if !list.iter().any(|a| &a.id == id) {
+        return Err(ApiError::Http(404, "Not found".into()));
+    }
+    for account in list.iter_mut() {
+        account.is_default = &account.id == id;
+        account.updated_at = Utc::now();
+    }
+    save_collection("accounts", list)
 }
 
 // ── Category operations ──
@@ -434,6 +672,7 @@ mod tests {
     #[test]
     fn compute_billing_date_uses_start_day() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::nil(),
             category_id: Uuid::nil(),
@@ -456,6 +695,7 @@ mod tests {
     #[test]
     fn compute_billing_date_clamps_day() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::nil(),
             category_id: Uuid::nil(),

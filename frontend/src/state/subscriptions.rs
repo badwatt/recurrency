@@ -78,7 +78,7 @@ impl SubscriptionsState {
 fn monthly_normalized(sub: &Subscription) -> rust_decimal::Decimal {
     use rust_decimal::Decimal;
     match sub.frequency.as_str() {
-        "weekly" => sub.amount * Decimal::from(4),
+        "weekly" => sub.amount * Decimal::from_str_exact("4.33").unwrap_or(Decimal::ZERO),
         "monthly" => sub.amount,
         "quarterly" => sub.amount / Decimal::from(3),
         "yearly" => sub.amount / Decimal::from(12),
@@ -110,6 +110,7 @@ mod tests {
         next_billing: Option<NaiveDate>,
     ) -> Subscription {
         Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -151,11 +152,11 @@ mod tests {
         let mut state = SubscriptionsState::default();
         state.subscriptions = vec![
             make_sub("A", dec!(10), "monthly", true, None), // 10/mo
-            make_sub("B", dec!(5), "weekly", true, None),   // 20/mo (5*4)
+            make_sub("B", dec!(5), "weekly", true, None),   // 21.65/mo (5*4.33)
             make_sub("C", dec!(30), "quarterly", true, None), // 10/mo (30/3)
             make_sub("D", dec!(120), "yearly", true, None), // 10/mo (120/12)
         ];
-        assert_eq!(state.monthly_total(), dec!(50));
+        assert_eq!(state.monthly_total(), dec!(51.65));
     }
 
     #[test]
@@ -259,7 +260,7 @@ mod tests {
     fn monthly_total_weekly_frequency() {
         let mut state = SubscriptionsState::default();
         state.subscriptions = vec![make_sub("Weekly", dec!(5), "weekly", true, None)];
-        assert_eq!(state.monthly_total(), dec!(20));
+        assert_eq!(state.monthly_total(), dec!(21.65));
     }
 
     #[test]
@@ -328,9 +329,9 @@ mod tests {
         let mut state = SubscriptionsState::default();
         state.subscriptions = vec![
             make_sub("A", dec!(10), "monthly", true, None), // 10*12 = 120
-            make_sub("B", dec!(5), "weekly", true, None),   // 20*12 = 240
+            make_sub("B", dec!(5), "weekly", true, None),   // 21.65*12 = 259.80
         ];
-        assert_eq!(state.yearly_total(), dec!(360));
+        assert_eq!(state.yearly_total(), dec!(379.80));
     }
 
     #[test]

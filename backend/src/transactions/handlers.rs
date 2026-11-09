@@ -341,6 +341,7 @@ mod tests {
         let resp = TransactionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "Lunch".to_string(),
             amount: rust_decimal::Decimal::new(1599, 2),
@@ -360,6 +361,7 @@ mod tests {
     #[test]
     fn transaction_response_without_optional_fields() {
         let resp = TransactionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -521,6 +523,7 @@ mod tests {
         let resp = TransactionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "Expensive".to_string(),
             amount: rust_decimal::Decimal::new(99999999, 2),
@@ -538,6 +541,7 @@ mod tests {
     #[test]
     fn transaction_response_zero_amount_edge() {
         let resp = TransactionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -557,6 +561,7 @@ mod tests {
     fn transaction_response_long_notes_edge() {
         let long_notes = "A".repeat(1000);
         let resp = TransactionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -578,6 +583,7 @@ mod tests {
         let resp = TransactionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "Test".to_string(),
             amount: rust_decimal::Decimal::new(100, 2),
@@ -638,6 +644,7 @@ fn transaction_response_zero_amount() {
     let resp = TransactionResponse {
         id: Uuid::new_v4(),
         user_id: Uuid::new_v4(),
+        account_id: Uuid::new_v4(),
         category_id: Uuid::new_v4(),
         name: "Zero".to_string(),
         amount: rust_decimal::Decimal::ZERO,
@@ -655,6 +662,7 @@ fn transaction_response_zero_amount() {
 fn transaction_response_negative_amount() {
     use crate::transactions::models::TransactionResponse;
     let resp = TransactionResponse {
+        account_id: Uuid::new_v4(),
         id: Uuid::new_v4(),
         user_id: Uuid::new_v4(),
         category_id: Uuid::new_v4(),

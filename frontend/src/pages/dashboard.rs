@@ -1,19 +1,249 @@
-use chrono::Local;
+use chrono::{Datelike, Local, NaiveDate};
 use dioxus::prelude::*;
+use rust_decimal::Decimal;
+use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::storage::Storage;
 use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
-use crate::state::categories::CATEGORIES;
+use crate::models::account::Account;
+use crate::models::subscription::Subscription;
+use crate::models::transaction::Transaction;
+use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::state::transactions::TRANSACTIONS;
+use crate::storage::Storage;
 use crate::utils::format::format_currency;
+use crate::utils::icons::icon_display;
 
-// ── Pure helper functions (testable without Dioxus) ──────────────────────────
+// ── Pure helpers (testable without Dioxus) ───────────────────────────────────
+
+/// Convert a subscription amount to its monthly equivalent.
+/// Weekly uses 52/12 weeks, matching the reports backend.
+pub fn monthly_equivalent(amount: Decimal, frequency: &str) -> Decimal {
+    match frequency {
+        "weekly" => amount * Decimal::from_str_exact("4.33").unwrap_or(Decimal::ZERO),
+        "monthly" => amount,
+        "quarterly" => amount / Decimal::from(3),
+        "yearly" => amount / Decimal::from(12),
+        _ => amount,
+    }
+}
+
+/// Days in a month, clamped for leap years.
+pub fn days_in_month(year: i32, month: u32) -> u32 {
+    let first_next = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }
+    .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).expect("valid month"));
+    first_next
+        .pred_opt()
+        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).expect("valid month"))
+        .day()
+}
+
+/// Add months to a date, clamping the day (e.g. Jan 31 + 1 month = Feb 28/29).
+pub fn add_months(date: NaiveDate, months: i32) -> NaiveDate {
+    let total = date.year() * 12 + date.month() as i32 - 1 + months;
+    let year = total.div_euclid(12);
+    let month = (total.rem_euclid(12) + 1) as u32;
+    let day = date.day().min(days_in_month(year, month));
+    NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
+}
+
+fn advance_date(date: NaiveDate, frequency: &str) -> NaiveDate {
+    match frequency {
+        "weekly" => date + chrono::Duration::weeks(1),
+        "monthly" => add_months(date, 1),
+        "quarterly" => add_months(date, 3),
+        "yearly" => add_months(date, 12),
+        _ => date + chrono::Duration::days(30),
+    }
+}
+
+/// Actual subscription charge dates that fall inside the given month.
+pub fn billing_dates_in_month(
+    next_billing_date: Option<NaiveDate>,
+    start_date: NaiveDate,
+    frequency: &str,
+    year: i32,
+    month: u32,
+) -> Vec<NaiveDate> {
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
+    let month_end =
+        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).expect("valid month end");
+
+    let mut date = next_billing_date.unwrap_or(start_date);
+    let mut guard = 0;
+    while date < month_start && guard < 1000 {
+        date = advance_date(date, frequency);
+        guard += 1;
+    }
+
+    let mut dates = Vec::new();
+    while date <= month_end && guard < 2000 {
+        dates.push(date);
+        date = advance_date(date, frequency);
+        guard += 1;
+    }
+    dates
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AccountBudget {
+    pub account_id: Uuid,
+    pub name: String,
+    pub color: String,
+    pub icon: String,
+    pub subscriptions: Decimal,
+    pub manual: Decimal,
+    pub budget: Decimal,
+    pub pending: Decimal,
+    pub subscription_count: usize,
+    pub manual_count: usize,
+    pub pending_count: usize,
+}
+
+impl AccountBudget {
+    pub fn has_movements(&self) -> bool {
+        self.budget > Decimal::ZERO
+            || self.pending > Decimal::ZERO
+            || self.subscription_count > 0
+            || self.manual_count > 0
+    }
+}
+
+/// Build the monthly transfer plan per account. `today` is injected so the
+/// pending calculation is deterministic in tests.
+pub fn build_account_budgets(
+    accounts: &[Account],
+    subscriptions: &[Subscription],
+    transactions: &[Transaction],
+    today: NaiveDate,
+) -> Vec<AccountBudget> {
+    let mut plan: HashMap<Uuid, AccountBudget> = accounts
+        .iter()
+        .map(|account| {
+            (
+                account.id,
+                AccountBudget {
+                    account_id: account.id,
+                    name: account.name.clone(),
+                    color: account
+                        .color
+                        .clone()
+                        .unwrap_or_else(|| "#6b7280".to_string()),
+                    icon: account.icon.clone().unwrap_or_else(|| "Tag".to_string()),
+                    subscriptions: Decimal::ZERO,
+                    manual: Decimal::ZERO,
+                    budget: Decimal::ZERO,
+                    pending: Decimal::ZERO,
+                    subscription_count: 0,
+                    manual_count: 0,
+                    pending_count: 0,
+                },
+            )
+        })
+        .collect();
+
+    for sub in subscriptions.iter().filter(|s| s.is_active) {
+        let entry = plan.entry(sub.account_id).or_insert_with(|| AccountBudget {
+            account_id: sub.account_id,
+            name: "No account".to_string(),
+            color: "#6b7280".to_string(),
+            icon: "Tag".to_string(),
+            subscriptions: Decimal::ZERO,
+            manual: Decimal::ZERO,
+            budget: Decimal::ZERO,
+            pending: Decimal::ZERO,
+            subscription_count: 0,
+            manual_count: 0,
+            pending_count: 0,
+        });
+
+        let monthly = monthly_equivalent(sub.amount, &sub.frequency);
+        entry.subscriptions += monthly;
+        entry.budget += monthly;
+        entry.subscription_count += 1;
+
+        for date in billing_dates_in_month(
+            sub.next_billing_date,
+            sub.start_date,
+            &sub.frequency,
+            today.year(),
+            today.month(),
+        ) {
+            if date >= today {
+                entry.pending += sub.amount;
+                entry.pending_count += 1;
+            }
+        }
+    }
+
+    for txn in transactions
+        .iter()
+        .filter(|t| t.date.year() == today.year() && t.date.month() == today.month())
+    {
+        let entry = plan.entry(txn.account_id).or_insert_with(|| AccountBudget {
+            account_id: txn.account_id,
+            name: "No account".to_string(),
+            color: "#6b7280".to_string(),
+            icon: "Tag".to_string(),
+            subscriptions: Decimal::ZERO,
+            manual: Decimal::ZERO,
+            budget: Decimal::ZERO,
+            pending: Decimal::ZERO,
+            subscription_count: 0,
+            manual_count: 0,
+            pending_count: 0,
+        });
+        entry.manual += txn.amount;
+        entry.budget += txn.amount;
+        entry.manual_count += 1;
+        // A manual payment recorded today is already paid; only future-dated
+        // manual payments remain pending.
+        if txn.date > today {
+            entry.pending += txn.amount;
+            entry.pending_count += 1;
+        }
+    }
+
+    let mut result: Vec<AccountBudget> = plan.into_values().collect();
+    result.sort_by(|a, b| {
+        b.budget
+            .cmp(&a.budget)
+            .then_with(|| b.pending.cmp(&a.pending))
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    result
+}
+
+pub fn total_budget(plan: &[AccountBudget]) -> Decimal {
+    plan.iter().map(|b| b.budget).sum()
+}
+
+pub fn total_pending(plan: &[AccountBudget]) -> Decimal {
+    plan.iter().map(|b| b.pending).sum()
+}
+
+/// Share of the fixed budget that is still pending from today, capped at 100.
+pub fn pending_ratio(budget: Decimal, pending: Decimal) -> f64 {
+    if budget <= Decimal::ZERO {
+        return 0.0;
+    }
+    let ratio = pending / budget * Decimal::from(100);
+    ratio
+        .min(Decimal::from(100))
+        .to_string()
+        .parse::<f64>()
+        .unwrap_or(0.0)
+}
 
 /// Format a billing date into a human-readable relative string.
-pub fn next_billing_days_text(date: Option<chrono::NaiveDate>) -> Option<String> {
+pub fn next_billing_days_text(date: Option<NaiveDate>) -> Option<String> {
     date.map(|d| {
         let now = Local::now().date_naive();
         let diff = (d - now).num_days();
@@ -29,55 +259,16 @@ pub fn next_billing_days_text(date: Option<chrono::NaiveDate>) -> Option<String>
     })
 }
 
-/// Format a date as "Mon, Jan 5" style short string.
-pub fn format_date_short_fn(d: chrono::NaiveDate) -> String {
+pub fn format_date_short_fn(d: NaiveDate) -> String {
     d.format("%a, %b %-d").to_string()
 }
 
-/// Check if a date is overdue (before today).
-pub fn is_overdue_fn(d: chrono::NaiveDate) -> bool {
+pub fn is_overdue_fn(d: NaiveDate) -> bool {
     d < Local::now().date_naive()
 }
 
-/// Check if a date is today.
-pub fn is_today_fn(d: chrono::NaiveDate) -> bool {
+pub fn is_today_fn(d: NaiveDate) -> bool {
     d == Local::now().date_naive()
-}
-
-// ── SVG Icon Components ──────────────────────────────────────────────────────
-
-fn icon_credit_card() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            class: "h-4 w-4 text-muted-foreground",
-            rect { x: "1", y: "4", width: "22", height: "16", rx: "2" }
-            line { x1: "1", y1: "10", x2: "23", y2: "10" }
-        }
-    }
-}
-
-fn icon_calendar() -> Element {
-    rsx! {
-        svg {
-            view_box: "0 0 24 24",
-            fill: "none",
-            stroke: "currentColor",
-            stroke_width: "2",
-            stroke_linecap: "round",
-            stroke_linejoin: "round",
-            class: "h-4 w-4 text-muted-foreground",
-            rect { x: "3", y: "4", width: "18", height: "18", rx: "2", ry: "2" }
-            line { x1: "16", y1: "2", x2: "16", y2: "6" }
-            line { x1: "8", y1: "2", x2: "8", y2: "6" }
-            line { x1: "3", y1: "10", x2: "21", y2: "10" }
-        }
-    }
 }
 
 // ── Dashboard Component ──────────────────────────────────────────────────────
@@ -86,164 +277,409 @@ fn icon_calendar() -> Element {
 pub fn Dashboard() -> Element {
     use_hook(move || {
         spawn(async move {
-            SUBSCRIPTIONS.write().set_loading();
+            if ACCOUNTS().accounts.is_empty() {
+                ACCOUNTS.write().set_loading();
+            }
+            if SUBSCRIPTIONS().subscriptions.is_empty() {
+                SUBSCRIPTIONS.write().set_loading();
+            }
+            if TRANSACTIONS().transactions.is_empty() {
+                TRANSACTIONS.write().set_loading();
+            }
+
+            match Storage::list_accounts().await {
+                Ok(data) => ACCOUNTS.write().set_data(data),
+                Err(e) => ACCOUNTS.write().set_error(e.to_string()),
+            }
             match Storage::list_subscriptions().await {
-                Ok(subs) => SUBSCRIPTIONS.write().set_data(subs),
+                Ok(data) => SUBSCRIPTIONS.write().set_data(data),
                 Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+            }
+            match Storage::list_transactions().await {
+                Ok(data) => TRANSACTIONS.write().set_data(data),
+                Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
             }
         });
     });
 
+    let accounts_state = ACCOUNTS();
     let sub_state = SUBSCRIPTIONS();
+    let txns_state = TRANSACTIONS();
     let auth_state = AUTH();
 
-    let active = sub_state.active();
-    let monthly_total = sub_state.monthly_total();
-    let yearly_total = sub_state.yearly_total();
-    let due_week = sub_state.due_this_week();
-    let due_month = sub_state.due_this_month();
-    let total_active = active.len();
+    let today = Local::now().date_naive();
+    let plan = build_account_budgets(
+        &accounts_state.accounts,
+        &sub_state.subscriptions,
+        &txns_state.transactions,
+        today,
+    );
+    let visible: Vec<AccountBudget> = plan.iter().filter(|b| b.has_movements()).cloned().collect();
+    let hidden_count = plan.len().saturating_sub(visible.len());
 
-    let currency = auth_state.currency();
+    let budget_total = total_budget(&visible);
+    let pending_total = total_pending(&visible);
+    let pending_count: usize = visible.iter().map(|b| b.pending_count).sum();
+    let accounts_with_pending = visible.iter().filter(|b| b.pending > Decimal::ZERO).count();
+    let manual_count: usize = visible.iter().map(|b| b.manual_count).sum();
+    let active_count = sub_state.active().len();
+    let ratio = pending_ratio(budget_total, pending_total);
+    let over_budget = pending_total > budget_total;
+    let days_left = days_in_month(today.year(), today.month()).saturating_sub(today.day());
+    let month_label = today.format("%B %Y").to_string();
 
-    let mut upcoming: Vec<_> = active
-        .iter()
+    let currency = auth_state.currency().to_string();
+    let user_name = auth_state
+        .user
+        .as_ref()
+        .and_then(|u| u.name.clone())
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| "there".to_string());
+
+    let mut upcoming: Vec<_> = sub_state
+        .active()
+        .into_iter()
         .filter(|s| s.next_billing_date.is_some())
         .collect();
     upcoming.sort_by_key(|s| s.next_billing_date);
     let upcoming_top5: Vec<_> = upcoming.iter().take(5).collect();
 
-    let user_name = auth_state
-        .user
-        .as_ref()
-        .and_then(|u| u.name.clone())
-        .unwrap_or_default();
+    let mut hovered_account = use_signal(|| None::<Uuid>);
+
+    let mut manual_payments: Vec<_> = txns_state
+        .transactions
+        .iter()
+        .filter(|t| t.date.year() == today.year() && t.date.month() == today.month())
+        .collect();
+    manual_payments.sort_by_key(|t| std::cmp::Reverse(t.date));
+    let manual_top4: Vec<_> = manual_payments.iter().take(4).collect();
+
+    let is_loading = (sub_state.is_loading && sub_state.subscriptions.is_empty())
+        || (accounts_state.is_loading && accounts_state.accounts.is_empty())
+        || (txns_state.is_loading && txns_state.transactions.is_empty());
 
     let nav = navigator();
 
     rsx! {
-        div { class: "p-4 md:p-8 flex flex-col gap-8 animate-in fade-in duration-300",
-            // Hero: greeting + large monthly total
+        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 animate-in fade-in duration-300",
+            // Header
             div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
                 div {
                     p { class: "text-sm text-muted-foreground font-medium", "Welcome back, {user_name}" }
-                    h1 { class: "text-4xl md:text-5xl font-bold tracking-tighter text-foreground mt-1",
-                        "Dashboard"
+                    h1 { class: "text-3xl md:text-4xl font-bold tracking-tighter text-foreground mt-1",
+                        "This month's plan"
+                    }
+                    p { class: "text-sm text-muted-foreground mt-2",
+                        "What to transfer into each account, and what is still left to pay."
                     }
                 }
-                div { class: "text-right",
-                    p { class: "text-xs text-muted-foreground uppercase tracking-widest font-medium", "Monthly spend" }
-                    div { class: "text-4xl md:text-5xl font-bold text-foreground tracking-tight",
-                        "{format_currency(monthly_total, currency)}"
-                    }
-                    p { class: "text-xs text-muted-foreground mt-1",
-                        "{total_active} active subscriptions · {format_currency(yearly_total, currency)} / year"
-                    }
-                }
-            }
-
-            // Quick actions
-            div { class: "flex gap-2",
-                {
-                    let nav1 = nav;
-                    rsx! {
-                        a {
-                            href: "/subscriptions",
-                            class: "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
-                            onclick: move |e| { e.prevent_default(); nav1.push(crate::Route::Subscriptions {}); },
-                            svg {
-                                view_box: "0 0 24 24",
-                                fill: "none",
-                                stroke: "currentColor",
-                                stroke_width: "2",
-                                class: "h-4 w-4",
-                                line { x1: "12", y1: "5", x2: "12", y2: "19" }
-                                line { x1: "5", y1: "12", x2: "19", y2: "12" }
-                            }
-                            "Add subscription"
-                        }
-                    }
-                }
-                {
-                    let nav2 = nav;
-                    rsx! {
-                        a {
-                            href: "/transactions",
-                            class: "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent active:scale-[0.97] transition-all duration-200",
-                            onclick: move |e| { e.prevent_default(); nav2.push(crate::Route::Transactions {}); },
-                            svg {
-                                view_box: "0 0 24 24",
-                                fill: "none",
-                                stroke: "currentColor",
-                                stroke_width: "2",
-                                class: "h-4 w-4",
-                                line { x1: "12", y1: "1", x2: "12", y2: "23" }
-                                path { d: "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 1 1 0 7H6" }
-                            }
-                            "Add transaction"
-                        }
-                    }
-                }
-            }
-
-            // Bento grid: stats + lists
-            div { class: "grid gap-4 md:grid-cols-3 auto-rows-min",
-                // Card 1: Stats overview (spans 2 cols on md+)
-                div { class: "md:col-span-2 rounded-xl bg-card border border-border/50 p-6",
-                    h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Overview" }
-                    div { class: "grid grid-cols-2 md:grid-cols-4 gap-4 mt-4",
-                        div {
-                            p { class: "text-xs text-muted-foreground", "Active subs" }
-                            p { class: "text-2xl font-bold text-foreground mt-1", {total_active.to_string()} }
-                        }
-                        div {
-                            p { class: "text-xs text-muted-foreground", "Due this week" }
-                            p { class: "text-2xl font-bold text-foreground mt-1", "{due_week.len()}" }
-                        }
-                        div {
-                            p { class: "text-xs text-muted-foreground", "Due this month" }
-                            p { class: "text-2xl font-bold text-foreground mt-1", "{due_month.len()}" }
-                        }
-                        div {
-                            p { class: "text-xs text-muted-foreground", "Yearly cost" }
-                            p { class: "text-2xl font-bold text-foreground mt-1", "{format_currency(yearly_total, currency)}" }
-                        }
-                    }
-                }
-
-                // Card 2: Category breakdown (compact)
-                div { class: "rounded-xl bg-card border border-border/50 p-6",
-                    h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Categories" }
+                div { class: "flex flex-wrap gap-2",
                     {
-                        let cats = CATEGORIES();
-                        if total_active == 0 || cats.categories.is_empty() {
-                            rsx! { p { class: "text-sm text-muted-foreground mt-4", "No subscriptions yet" } }
-                        } else {
-                            // Count subs per category
-                            let mut cat_counts: std::collections::HashMap<Uuid, usize> = std::collections::HashMap::new();
-                            for sub in &active {
-                                *cat_counts.entry(sub.category_id).or_insert(0) += 1;
+                        let nav1 = nav;
+                        rsx! {
+                            a {
+                                href: "/subscriptions",
+                                class: "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
+                                onclick: move |e| { e.prevent_default(); nav1.push(crate::Route::Subscriptions {}); },
+                                svg {
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    class: "h-4 w-4",
+                                    line { x1: "12", y1: "5", x2: "12", y2: "19" }
+                                    line { x1: "5", y1: "12", x2: "19", y2: "12" }
+                                }
+                                "Add subscription"
                             }
-                            let mut sorted: Vec<_> = cat_counts.iter().collect();
-                            sorted.sort_by(|a, b| b.1.cmp(a.1));
+                        }
+                    }
+                    {
+                        let nav2 = nav;
+                        rsx! {
+                            a {
+                                href: "/transactions",
+                                class: "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent active:scale-[0.97] transition-all duration-200",
+                                onclick: move |e| { e.prevent_default(); nav2.push(crate::Route::Transactions {}); },
+                                svg {
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    class: "h-4 w-4",
+                                    line { x1: "12", y1: "1", x2: "12", y2: "23" }
+                                    path { d: "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 1 1 0 7H6" }
+                                }
+                                "Add transaction"
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Hero: fixed budget + pending from today
+            div { class: "rounded-2xl border border-border/60 bg-card overflow-hidden",
+                div { class: "grid lg:grid-cols-[1.15fr_0.85fr]",
+                    div { class: "p-6 md:p-8",
+                        p { class: "text-xs text-muted-foreground uppercase tracking-[0.18em] font-semibold",
+                            "Plan for {month_label}"
+                        }
+                        p { class: "text-sm text-muted-foreground mt-5", "Transfer this month" }
+                        div { class: "text-4xl md:text-6xl font-bold text-foreground tracking-tight font-mono tabular-nums mt-1",
+                            "{format_currency(budget_total, &currency)}"
+                        }
+                        p { class: "text-xs text-muted-foreground mt-2",
+                            "Fixed monthly budget: normalized subscriptions + manual payments."
+                        }
+                        div { class: "flex flex-wrap items-center gap-x-5 gap-y-2 mt-6 text-xs text-muted-foreground",
+                            span { class: "inline-flex items-center gap-1.5",
+                                span { class: "h-1.5 w-1.5 rounded-full bg-primary" }
+                                "{visible.len()} accounts"
+                            }
+                            span { "{active_count} active subscriptions" }
+                            span { "{manual_count} manual payments" }
+                        }
+                    }
+                    div { class: "border-t lg:border-t-0 lg:border-l border-border/60 p-6 md:p-8 bg-muted/20",
+                        p { class: "text-xs text-muted-foreground uppercase tracking-[0.18em] font-semibold",
+                            "Pending from today"
+                        }
+                        div {
+                            class: if pending_total > Decimal::ZERO { "text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-foreground" } else { "text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-muted-foreground" },
+                            "{format_currency(pending_total, &currency)}"
+                        }
+                        p { class: "text-xs text-muted-foreground mt-2",
+                            {if pending_count == 0 {
+                                "All covered through today.".to_string()
+                            } else if days_left == 0 {
+                                format!("{} payments · last day of the month", pending_count)
+                            } else {
+                                format!("{} payments · {} days left", pending_count, days_left)
+                            }}
+                        }
+                        div { class: "mt-5 h-2 rounded-full bg-muted overflow-hidden",
+                            div {
+                                class: if over_budget { "h-full rounded-full bg-amber-500" } else { "h-full rounded-full bg-primary" },
+                                style: "width: {ratio:.0}%",
+                            }
+                        }
+                        p { class: "text-[11px] text-muted-foreground mt-2",
+                            {if budget_total <= Decimal::ZERO {
+                                "No budget this month.".to_string()
+                            } else if over_budget {
+                                format!(
+                                    "Over the plan by {}",
+                                    format_currency(pending_total - budget_total, &currency)
+                                )
+                            } else {
+                                format!("{:.0}% of the budget pending", ratio)
+                            }}
+                        }
+                    }
+                }
+            }
+
+            // Account ledger
+            div { class: "rounded-xl border border-border/60 bg-card overflow-hidden",
+                div { class: "p-5 md:p-6 pb-3 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2",
+                    div {
+                        h2 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]",
+                            "Transfer by account"
+                        }
+                        p { class: "text-sm text-muted-foreground mt-1",
+                            "Fixed budget and actual pending from today."
+                        }
+                    }
+                    p { class: "text-xs text-muted-foreground",
+                        "{accounts_with_pending} accounts with pending payments"
+                    }
+                }
+
+                if is_loading {
+                    div { class: "space-y-3 p-5 md:p-6 pt-2",
+                        for _ in 0..4 {
+                            DashboardRowSkeleton {}
+                        }
+                    }
+                } else if visible.is_empty() {
+                    div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
+                        div { class: "h-12 w-12 rounded-full bg-muted flex items-center justify-center",
+                            {icon_display("Wallet")}
+                        }
+                        p { class: "text-base font-medium", "No movements this month" }
+                        p { class: "text-sm text-muted-foreground max-w-md",
+                            "Add a subscription or manual payment and the per-account plan will appear here."
+                        }
+                        {
+                            let nav3 = nav;
                             rsx! {
-                                div { class: "mt-4 space-y-2",
-                                    for (cat_id, count) in sorted.iter().take(4) {
-                                        {
-                                            let cat_name = cats.get_by_id(cat_id)
-                                                .map(|c| c.name.clone())
-                                                .unwrap_or_else(|| "Uncategorized".into());
-                                            let count = *count;
-                                            rsx! {
-                                                div { key: "{cat_id}", class: "flex items-center justify-between",
-                                                    span { class: "text-sm text-foreground truncate", {cat_name.to_string()} }
-                                                    span { class: "text-sm text-muted-foreground", {count.to_string()} }
-                                                }
+                                button {
+                                    class: "mt-2 inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                                    onclick: move |_| { nav3.push(crate::Route::Subscriptions {}); },
+                                    "Add subscription"
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_9rem_9rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
+                        span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Account" }
+                        span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Budget" }
+                        span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Pending" }
+                    }
+                    div { class: "divide-y divide-border/50",
+                        for account in visible.iter() {
+                            {
+                                let color = account.color.clone();
+                                let icon = account.icon.clone();
+                                let name = account.name.clone();
+                                let account_id = account.account_id;
+                                let pending_class = if account.pending > Decimal::ZERO {
+                                    "text-sm font-semibold font-mono tabular-nums text-foreground"
+                                } else {
+                                    "text-sm font-semibold font-mono tabular-nums text-muted-foreground"
+                                };
+                                let breakdown = if account.manual > Decimal::ZERO {
+                                    format!(
+                                        "{} subscriptions · {} manual",
+                                        account.subscription_count, account.manual_count
+                                    )
+                                } else {
+                                    format!("{} subscriptions", account.subscription_count)
+                                };
+                                rsx! {
+                                    div {
+                                        key: "{account.account_id}",
+                                        class: "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_9rem_9rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors",
+                                        tabindex: "0",
+                                        onmouseenter: move |_| hovered_account.set(Some(account_id)),
+                                        onmouseleave: move |_| hovered_account.set(None),
+                                        onfocus: move |_| hovered_account.set(Some(account_id)),
+                                        onblur: move |_| hovered_account.set(None),
+                                        div { class: "col-span-2 sm:col-span-1 flex items-center gap-3 min-w-0",
+                                            div {
+                                                class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                                                style: "background-color: {color}20; color: {color}",
+                                                {icon_display(&icon)}
+                                            }
+                                            div { class: "min-w-0",
+                                                p { class: "text-sm font-semibold text-foreground truncate", {name} }
+                                                p { class: "text-xs text-muted-foreground truncate", {breakdown} }
+                                            }
+                                        }
+                                        div { class: "text-left sm:text-right",
+                                            p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
+                                            p { class: "text-sm font-semibold font-mono tabular-nums text-foreground",
+                                                "{format_currency(account.budget, &currency)}"
+                                            }
+                                            p { class: "text-[11px] text-muted-foreground",
+                                                "{format_currency(account.subscriptions, &currency)} recurring"
+                                            }
+                                        }
+                                        div { class: "text-right",
+                                            p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                            p { class: "{pending_class}",
+                                                "{format_currency(account.pending, &currency)}"
+                                            }
+                                            p { class: "text-[11px] text-muted-foreground",
+                                                {if account.pending_count == 0 {
+                                                    "Up to date".to_string()
+                                                } else {
+                                                    format!("{} payments", account.pending_count)
+                                                }}
                                             }
                                         }
                                     }
-                                    if sorted.len() > 4 {
-                                        p { class: "text-xs text-muted-foreground", "+{sorted.len() - 4} more" }
+                                }
+                            }
+                        }
+                    }
+                    div { class: "px-5 md:px-6 py-4 bg-muted/30 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+                        div {
+                            p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Month total" }
+                            p { class: "text-xs text-muted-foreground",
+                                {if hidden_count > 0 {
+                                    format!("{} accounts with movements · {} without movements", visible.len(), hidden_count)
+                                } else {
+                                    format!("{} accounts", visible.len())
+                                }}
+                            }
+                        }
+                        div { class: "flex items-center gap-8 sm:gap-12",
+                            div { class: "text-left sm:text-right",
+                                p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
+                                p { class: "text-base font-bold font-mono tabular-nums", "{format_currency(budget_total, &currency)}" }
+                            }
+                            div { class: "text-right",
+                                p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                p { class: "text-base font-bold font-mono tabular-nums", "{format_currency(pending_total, &currency)}" }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Secondary: upcoming payments + manual payments
+            div { class: "grid gap-4 lg:grid-cols-3 items-start",
+                div { class: "lg:col-span-2 rounded-xl bg-card border border-border/60",
+                    div { class: "p-5 md:p-6 pb-2 flex items-center justify-between",
+                        div {
+                            h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]", "Upcoming payments" }
+                            p { class: "text-xs text-muted-foreground mt-1", "Subscriptions with a billing date." }
+                        }
+                        {
+                            let nav4 = nav;
+                            rsx! {
+                                button {
+                                    class: "text-xs font-medium text-primary hover:underline",
+                                    onclick: move |_| { nav4.push(crate::Route::Calendar {}); },
+                                    "View calendar"
+                                }
+                            }
+                        }
+                    }
+                    if upcoming_top5.is_empty() {
+                        p { class: "p-6 pt-2 text-sm text-muted-foreground", "No upcoming payments." }
+                    } else {
+                        div { class: "px-5 md:px-6 pb-4 space-y-1",
+                            for sub in upcoming_top5 {
+                                {
+                                    let next_date = sub.next_billing_date.unwrap();
+                                    let overdue = is_overdue_fn(next_date);
+                                    let today_flag = is_today_fn(next_date);
+                                    let date_str = format_date_short_fn(next_date);
+                                    let days_label = next_billing_days_text(Some(next_date));
+                                    let logo_url = sub.logo_url.clone();
+                                    let account_name = ACCOUNTS().name_for(&sub.account_id);
+                                    rsx! {
+                                        {
+                                            let linked = hovered_account() == Some(sub.account_id);
+                                            let row_class = if linked { "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors" } else { "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg transition-colors" };
+                                            rsx! {
+                                        div { key: "{sub.id}", class: "{row_class}",
+                                            div { class: "flex items-center gap-3 min-w-0",
+                                                div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-secondary",
+                                                    {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-9 w-9 object-contain")}
+                                                }
+                                                div { class: "min-w-0",
+                                                    p { class: "text-sm font-medium text-foreground truncate", {sub.name.to_string()} }
+                                                    p { class: "text-xs text-muted-foreground truncate",
+                                                        "{account_name} · {date_str}"
+                                                    }
+                                                }
+                                            }
+                                            div { class: "text-right shrink-0 ml-4",
+                                                p { class: "text-sm font-semibold font-mono tabular-nums text-foreground", "{format_currency(sub.amount, &currency)}" }
+                                                if let Some(label) = days_label {
+                                                    p {
+                                                        class: if overdue { "text-xs font-medium text-destructive" } else if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
+                                                        {label.to_string()}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -251,52 +687,46 @@ pub fn Dashboard() -> Element {
                     }
                 }
 
-                // Card 3: Upcoming payments (spans full width)
-                div { class: "md:col-span-3 rounded-xl bg-card border border-border/50",
-                    div { class: "p-6 pb-2",
-                        h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-wider", "Upcoming payments" }
-                    }
-                    if sub_state.is_loading {
-                        div { class: "space-y-3 p-6 pt-0",
-                            for _ in 0..3 {
-                                DashboardRowSkeleton {}
+                div { class: "rounded-xl bg-card border border-border/60",
+                    div { class: "p-5 md:p-6 pb-2 flex items-center justify-between",
+                        div {
+                            h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]", "Manual payments" }
+                            p { class: "text-xs text-muted-foreground mt-1", "This month." }
+                        }
+                        {
+                            let nav5 = nav;
+                            rsx! {
+                                button {
+                                    class: "text-xs font-medium text-primary hover:underline",
+                                    onclick: move |_| { nav5.push(crate::Route::Transactions {}); },
+                                    "View all"
+                                }
                             }
                         }
-                    } else if upcoming_top5.is_empty() {
-                        div { class: "p-6 pt-0",
-                            p { class: "text-sm text-muted-foreground", "No upcoming payments" }
-                        }
+                    }
+                    if manual_top4.is_empty() {
+                        p { class: "p-6 pt-2 text-sm text-muted-foreground", "No manual payments this month." }
                     } else {
-                        div { class: "p-6 pt-2 space-y-3",
-                            for sub in upcoming_top5 {
+                        div { class: "px-5 md:px-6 pb-4 space-y-2",
+                            for txn in manual_top4 {
                                 {
-                                    let next_date = sub.next_billing_date.unwrap();
-                                    let overdue = is_overdue_fn(next_date);
-                                    let today = is_today_fn(next_date);
-                                    let date_str = format_date_short_fn(next_date);
-                                    let days_label = next_billing_days_text(Some(next_date));
-                                    let logo_url = sub.logo_url.clone();
-
+                                    let account_name = ACCOUNTS().name_for(&txn.account_id);
                                     rsx! {
-                                        div { key: "{sub.id}", class: "flex items-center justify-between py-2",
-                                            div { class: "flex items-center gap-3 min-w-0",
-                                                div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-secondary",
-                                                    {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-9 w-9 object-contain")}
-                                                }
-                                                div { class: "min-w-0",
-                                                    p { class: "text-sm font-medium text-foreground truncate", {sub.name.to_string()} }
-                                                    p {
-                                                        class: if overdue { "text-xs text-destructive" } else { "text-xs text-muted-foreground" },
-                                                        {date_str.to_string()}                                                    }
+                                        {
+                                            let linked = hovered_account() == Some(txn.account_id);
+                                            let row_class = if linked { "flex items-center justify-between gap-3 py-1.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors" } else { "flex items-center justify-between gap-3 py-1.5 -mx-2 px-2 rounded-lg transition-colors" };
+                                            rsx! {
+                                        div { key: "{txn.id}", class: "{row_class}",
+                                            div { class: "min-w-0",
+                                                p { class: "text-sm text-foreground truncate", {txn.name.to_string()} }
+                                                p { class: "text-xs text-muted-foreground truncate",
+                                                    "{account_name} · {txn.date.format(\"%b %-d\")}"
                                                 }
                                             }
-                                            div { class: "text-right shrink-0 ml-4",
-                                                p { class: "text-sm font-semibold text-foreground", "{format_currency(sub.amount, currency)}" }
-                                                if let Some(label) = days_label {
-                                                    p {
-                                                        class: if overdue { "text-xs font-medium text-destructive" } else if today { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
-                                                        {label.to_string()}                                                    }
-                                                }
+                                            p { class: "text-sm font-semibold font-mono tabular-nums shrink-0",
+                                                "{format_currency(txn.amount, &currency)}"
+                                            }
+                                        }
                                             }
                                         }
                                     }
@@ -312,30 +742,64 @@ pub fn Dashboard() -> Element {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::subscription::Subscription;
-    use crate::state::subscriptions::SubscriptionsState;
-    use chrono::{Datelike, Days, Local, NaiveDate};
+    use super::*;
+    use chrono::NaiveDate;
     use rust_decimal_macros::dec;
-    use uuid::Uuid;
 
-    fn make_sub(
-        name: &str,
-        amount: rust_decimal::Decimal,
+    fn date(y: i32, m: u32, d: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, d).expect("valid test date")
+    }
+
+    fn account(name: &str) -> Account {
+        Account {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: name.into(),
+            icon: None,
+            color: None,
+            is_default: false,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        }
+    }
+
+    fn subscription(
+        account_id: Uuid,
+        amount: Decimal,
         frequency: &str,
-        active: bool,
-        next_billing: Option<NaiveDate>,
+        start_date: NaiveDate,
+        next_billing_date: Option<NaiveDate>,
+        is_active: bool,
     ) -> Subscription {
         Subscription {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id,
             category_id: Uuid::new_v4(),
-            name: name.into(),
+            name: "Test".into(),
             amount,
             currency: "EUR".into(),
             frequency: frequency.into(),
-            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            next_billing_date: next_billing,
-            is_active: active,
+            start_date,
+            next_billing_date,
+            is_active,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        }
+    }
+
+    fn transaction(account_id: Uuid, amount: Decimal, date: NaiveDate) -> Transaction {
+        Transaction {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            account_id,
+            category_id: Uuid::new_v4(),
+            name: "Manual".into(),
+            amount,
+            currency: "EUR".into(),
+            date,
             notes: None,
             logo_url: None,
             created_at: chrono::DateTime::UNIX_EPOCH,
@@ -344,360 +808,181 @@ mod tests {
     }
 
     #[test]
-    fn monthly_total_empty() {
-        let state = SubscriptionsState::default();
-        assert_eq!(state.monthly_total(), dec!(0));
+    fn monthly_equivalent_normalizes_frequencies() {
+        assert_eq!(monthly_equivalent(dec!(15), "monthly"), dec!(15));
+        assert_eq!(monthly_equivalent(dec!(30), "quarterly"), dec!(10));
+        assert_eq!(monthly_equivalent(dec!(120), "yearly"), dec!(10));
+        assert_eq!(monthly_equivalent(dec!(5), "weekly"), dec!(21.65));
+        assert_eq!(monthly_equivalent(dec!(5), "biweekly"), dec!(5));
     }
 
     #[test]
-    fn monthly_total_single_monthly() {
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![make_sub("Netflix", dec!(15.99), "monthly", true, None)];
-        assert_eq!(state.monthly_total(), dec!(15.99));
+    fn add_months_clamps_end_of_month() {
+        assert_eq!(add_months(date(2024, 1, 31), 1), date(2024, 2, 29));
+        assert_eq!(add_months(date(2023, 1, 31), 1), date(2023, 2, 28));
+        assert_eq!(add_months(date(2024, 12, 15), 1), date(2025, 1, 15));
     }
 
     #[test]
-    fn monthly_total_weekly_normalized() {
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![make_sub("Weekly", dec!(5), "weekly", true, None)];
-        assert_eq!(state.monthly_total(), dec!(20));
+    fn billing_dates_monthly_inside_month() {
+        let dates = billing_dates_in_month(
+            Some(date(2024, 6, 15)),
+            date(2024, 1, 15),
+            "monthly",
+            2024,
+            6,
+        );
+        assert_eq!(dates, vec![date(2024, 6, 15)]);
     }
 
     #[test]
-    fn monthly_total_quarterly_normalized() {
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![make_sub("Quarterly", dec!(30), "quarterly", true, None)];
-        assert_eq!(state.monthly_total(), dec!(10));
+    fn billing_dates_weekly_multiple() {
+        let dates =
+            billing_dates_in_month(Some(date(2024, 6, 3)), date(2024, 6, 3), "weekly", 2024, 6);
+        assert_eq!(dates.len(), 4);
+        assert_eq!(dates[0], date(2024, 6, 3));
+        assert_eq!(dates[3], date(2024, 6, 24));
     }
 
     #[test]
-    fn monthly_total_yearly_normalized() {
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![make_sub("Yearly", dec!(120), "yearly", true, None)];
-        assert_eq!(state.monthly_total(), dec!(10));
+    fn billing_dates_yearly_only_in_billing_month() {
+        let none =
+            billing_dates_in_month(Some(date(2024, 7, 1)), date(2024, 1, 1), "yearly", 2024, 6);
+        assert!(none.is_empty());
+        let some =
+            billing_dates_in_month(Some(date(2024, 6, 10)), date(2024, 1, 1), "yearly", 2024, 6);
+        assert_eq!(some, vec![date(2024, 6, 10)]);
     }
 
     #[test]
-    fn yearly_total_matches_monthly_times_12() {
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![
-            make_sub("A", dec!(10), "monthly", true, None),
-            make_sub("B", dec!(5), "weekly", true, None),
+    fn build_plan_splits_subscriptions_and_manual_payments() {
+        let main = account("Main");
+        let savings = account("Savings");
+        let main_id = main.id;
+        let savings_id = savings.id;
+        let today = date(2024, 6, 15);
+
+        let subs = vec![
+            subscription(
+                main_id,
+                dec!(10),
+                "monthly",
+                date(2024, 1, 1),
+                Some(date(2024, 6, 20)),
+                true,
+            ),
+            subscription(
+                savings_id,
+                dec!(120),
+                "yearly",
+                date(2024, 1, 1),
+                Some(date(2024, 6, 10)),
+                true,
+            ),
+            subscription(
+                main_id,
+                dec!(99),
+                "monthly",
+                date(2024, 1, 1),
+                Some(date(2024, 6, 20)),
+                false,
+            ),
         ];
-        let monthly = state.monthly_total();
-        let yearly = state.yearly_total();
-        assert_eq!(yearly, monthly * dec!(12));
-    }
-
-    #[test]
-    fn monthly_total_ignores_inactive() {
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![
-            make_sub("Active", dec!(10), "monthly", true, None),
-            make_sub("Inactive", dec!(999), "monthly", false, None),
+        let txns = vec![
+            transaction(main_id, dec!(5), date(2024, 6, 10)),
+            transaction(main_id, dec!(7), date(2024, 6, 20)),
+            transaction(main_id, dec!(8), date(2024, 5, 20)),
         ];
-        assert_eq!(state.monthly_total(), dec!(10));
+
+        let plan = build_account_budgets(&[main, savings], &subs, &txns, today);
+        let main_plan = plan.iter().find(|b| b.account_id == main_id).unwrap();
+        let savings_plan = plan.iter().find(|b| b.account_id == savings_id).unwrap();
+
+        assert_eq!(main_plan.subscriptions, dec!(10));
+        assert_eq!(main_plan.manual, dec!(12));
+        assert_eq!(main_plan.budget, dec!(22));
+        assert_eq!(main_plan.pending, dec!(17));
+        assert_eq!(main_plan.pending_count, 2);
+
+        let today_txn = transaction(main_id, dec!(4), today);
+        let plan_with_today = build_account_budgets(&[account("Main")], &[], &[today_txn], today);
+        assert_eq!(plan_with_today[0].budget, dec!(4));
+        assert_eq!(plan_with_today[0].pending, dec!(0));
+
+        assert_eq!(savings_plan.subscriptions, dec!(10));
+        assert_eq!(savings_plan.pending, dec!(0));
+        assert_eq!(savings_plan.budget, dec!(10));
     }
 
     #[test]
-    fn due_this_week_counts_correctly() {
-        let now = Local::now().date_naive();
-        let in_3_days = now.checked_add_days(Days::new(3)).unwrap();
-        let in_10_days = now.checked_add_days(Days::new(10)).unwrap();
+    fn build_plan_includes_unassigned_bucket() {
+        let today = date(2024, 6, 15);
+        let orphan = subscription(
+            Uuid::nil(),
+            dec!(10),
+            "monthly",
+            date(2024, 1, 1),
+            Some(date(2024, 6, 20)),
+            true,
+        );
+        let plan = build_account_budgets(&[], &[orphan], &[], today);
+        assert_eq!(plan.len(), 1);
+        assert_eq!(plan[0].name, "No account");
+        assert_eq!(plan[0].pending, dec!(10));
+    }
 
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![
-            make_sub("Due", dec!(10), "monthly", true, Some(in_3_days)),
-            make_sub("Not Due", dec!(10), "monthly", true, Some(in_10_days)),
-            make_sub("No Date", dec!(10), "monthly", true, None),
+    #[test]
+    fn totals_and_ratio() {
+        let plan = vec![
+            AccountBudget {
+                account_id: Uuid::new_v4(),
+                name: "A".into(),
+                color: "#000".into(),
+                icon: "Tag".into(),
+                subscriptions: dec!(10),
+                manual: dec!(5),
+                budget: dec!(15),
+                pending: dec!(7.5),
+                subscription_count: 1,
+                manual_count: 1,
+                pending_count: 1,
+            },
+            AccountBudget {
+                account_id: Uuid::new_v4(),
+                name: "B".into(),
+                color: "#000".into(),
+                icon: "Tag".into(),
+                subscriptions: dec!(20),
+                manual: dec!(0),
+                budget: dec!(20),
+                pending: dec!(30),
+                subscription_count: 1,
+                manual_count: 0,
+                pending_count: 1,
+            },
         ];
-        assert_eq!(state.due_this_week().len(), 1);
-        assert_eq!(state.due_this_week()[0].name, "Due");
+        assert_eq!(total_budget(&plan), dec!(35));
+        assert_eq!(total_pending(&plan), dec!(37.5));
+        assert_eq!(pending_ratio(dec!(35), dec!(37.5)), 100.0);
+        assert_eq!(pending_ratio(dec!(20), dec!(10)), 50.0);
+        assert_eq!(pending_ratio(dec!(0), dec!(10)), 0.0);
     }
 
     #[test]
-    fn due_this_week_ignores_inactive() {
-        let now = Local::now().date_naive();
-        let in_2_days = now.checked_add_days(Days::new(2)).unwrap();
-
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![
-            make_sub("Active Due", dec!(10), "monthly", true, Some(in_2_days)),
-            make_sub("Inactive Due", dec!(10), "monthly", false, Some(in_2_days)),
-        ];
-        assert_eq!(state.due_this_week().len(), 1);
-    }
-
-    #[test]
-    fn due_this_month_counts_correctly() {
-        let now = Local::now().date_naive();
-        // Same month, later in month
-        let same_month = if now.day() < 28 {
-            NaiveDate::from_ymd_opt(now.year(), now.month(), now.day() + 1).unwrap()
-        } else {
-            now
+    fn has_movements_ignores_empty_accounts() {
+        let empty = AccountBudget {
+            account_id: Uuid::new_v4(),
+            name: "Empty".into(),
+            color: "#000".into(),
+            icon: "Tag".into(),
+            subscriptions: Decimal::ZERO,
+            manual: Decimal::ZERO,
+            budget: Decimal::ZERO,
+            pending: Decimal::ZERO,
+            subscription_count: 0,
+            manual_count: 0,
+            pending_count: 0,
         };
-
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![
-            make_sub("ThisMonth", dec!(10), "monthly", true, Some(same_month)),
-            make_sub("NoDate", dec!(10), "monthly", true, None),
-        ];
-        // At least 1 if the constructed date is in the same month
-        if same_month.month() == now.month() && same_month.year() == now.year() {
-            assert!(state.due_this_month().len() >= 1);
-        }
-    }
-
-    #[test]
-    fn due_this_month_ignores_inactive() {
-        let now = Local::now().date_naive();
-        let same_month = if now.day() < 28 {
-            NaiveDate::from_ymd_opt(now.year(), now.month(), now.day() + 1).unwrap()
-        } else {
-            now
-        };
-
-        let mut state = SubscriptionsState::default();
-        state.subscriptions = vec![
-            make_sub("Active", dec!(10), "monthly", true, Some(same_month)),
-            make_sub("Inactive", dec!(10), "monthly", false, Some(same_month)),
-        ];
-        let due = state.due_this_month();
-        assert!(due.iter().all(|s| s.is_active));
-    }
-
-    #[test]
-    fn page_content_uses_gap_not_space_y() {
-        // space-y-6 adds unwanted margin-top to first child element.
-        // Must use flex flex-col gap-6 instead — gap doesn't add to first child.
-        // Bug: space-y-6 margin-top on greeting, first card, etc.
-        let bad = "space-y-6";
-        // Check page layout code only (before "mod tests")
-        let pages = [
-            (include_str!("dashboard.rs"), "dashboard"),
-            (include_str!("subscriptions_page.rs"), "subscriptions"),
-            (include_str!("transactions_page.rs"), "transactions"),
-            (include_str!("calendar_page.rs"), "calendar"),
-            (include_str!("categories_page.rs"), "categories"),
-            (include_str!("settings_page.rs"), "settings"),
-            (include_str!("reports_page.rs"), "reports"),
-        ];
-        for (src, name) in pages {
-            // Only check code before tests module to avoid false positives
-            let code = src.split("mod tests").next().unwrap_or(src);
-            assert!(
-                !code.contains(bad),
-                "{} page must use flex flex-col gap-6 instead of space-y-6",
-                name
-            );
-        }
-    }
-
-    // ── Additional dashboard page structure tests ──
-    #[test]
-    fn dashboard_uses_state_subscriptions() {
-        let src = include_str!("dashboard.rs");
-        assert!(
-            src.contains("SUBSCRIPTIONS") || src.contains("subscriptions"),
-            "Dashboard should use subscriptions state"
-        );
-    }
-
-    #[test]
-    fn dashboard_uses_auth_state() {
-        let src = include_str!("dashboard.rs");
-        assert!(
-            src.contains("AUTH") || src.contains("auth"),
-            "Dashboard should use auth state"
-        );
-    }
-
-    #[test]
-    fn dashboard_uses_currency_format() {
-        let src = include_str!("dashboard.rs");
-        assert!(
-            src.contains("format_currency") || src.contains("currency"),
-            "Dashboard should format currencies"
-        );
-    }
-
-    #[test]
-    fn dashboard_has_svg_icons() {
-        let src = include_str!("dashboard.rs");
-        assert!(src.contains("svg"), "Dashboard should use SVG icons");
-    }
-
-    // ── Pure function tests: next_billing_days_text ──
-    #[test]
-    fn next_billing_days_text_none() {
-        assert_eq!(super::next_billing_days_text(None), None);
-    }
-
-    #[test]
-    fn next_billing_days_text_today() {
-        let today = Local::now().date_naive();
-        assert_eq!(
-            super::next_billing_days_text(Some(today)),
-            Some("Today".to_string())
-        );
-    }
-
-    #[test]
-    fn next_billing_days_text_tomorrow() {
-        let tomorrow = Local::now().date_naive() + Days::new(1);
-        assert_eq!(
-            super::next_billing_days_text(Some(tomorrow)),
-            Some("Tomorrow".to_string())
-        );
-    }
-
-    #[test]
-    fn next_billing_days_text_overdue() {
-        let yesterday = Local::now().date_naive() - Days::new(1);
-        assert_eq!(
-            super::next_billing_days_text(Some(yesterday)),
-            Some("Overdue".to_string())
-        );
-    }
-
-    #[test]
-    fn next_billing_days_text_future() {
-        let in_5_days = Local::now().date_naive() + Days::new(5);
-        let result = super::next_billing_days_text(Some(in_5_days)).unwrap();
-        assert_eq!(result, "5 days");
-    }
-
-    #[test]
-    fn next_billing_days_text_far_future() {
-        let in_30_days = Local::now().date_naive() + Days::new(30);
-        let result = super::next_billing_days_text(Some(in_30_days)).unwrap();
-        assert_eq!(result, "30 days");
-    }
-
-    // ── Pure function tests: format_date_short_fn ──
-    #[test]
-    fn format_date_short_basic() {
-        let d = chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let result = super::format_date_short_fn(d);
-        assert!(result.contains("Jun"));
-        assert!(result.contains("15"));
-    }
-
-    #[test]
-    fn format_date_short_january() {
-        let d = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-        let result = super::format_date_short_fn(d);
-        assert!(result.contains("Jan"));
-        assert!(result.contains("1"));
-    }
-
-    #[test]
-    fn format_date_short_december() {
-        let d = chrono::NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
-        let result = super::format_date_short_fn(d);
-        assert!(result.contains("Dec"));
-        assert!(result.contains("31"));
-    }
-
-    // ── Pure function tests: is_overdue_fn ──
-    #[test]
-    fn is_overdue_past_date() {
-        let yesterday = Local::now().date_naive() - Days::new(1);
-        assert!(super::is_overdue_fn(yesterday));
-    }
-
-    #[test]
-    fn is_overdue_today_is_not_overdue() {
-        let today = Local::now().date_naive();
-        assert!(!super::is_overdue_fn(today));
-    }
-
-    #[test]
-    fn is_overdue_future_date() {
-        let tomorrow = Local::now().date_naive() + Days::new(1);
-        assert!(!super::is_overdue_fn(tomorrow));
-    }
-
-    #[test]
-    fn is_overdue_far_past() {
-        let far_past = Local::now().date_naive() - Days::new(365);
-        assert!(super::is_overdue_fn(far_past));
-    }
-
-    // ── Pure function tests: is_today_fn ──
-    #[test]
-    fn is_today_actual_today() {
-        let today = Local::now().date_naive();
-        assert!(super::is_today_fn(today));
-    }
-
-    #[test]
-    fn is_today_yesterday_is_not() {
-        let yesterday = Local::now().date_naive() - Days::new(1);
-        assert!(!super::is_today_fn(yesterday));
-    }
-
-    #[test]
-    fn is_today_tomorrow_is_not() {
-        let tomorrow = Local::now().date_naive() + Days::new(1);
-        assert!(!super::is_today_fn(tomorrow));
-    }
-
-    // ── Additional next_billing_days_text edge cases ──
-    #[test]
-    fn next_billing_days_text_yesterday() {
-        let yesterday = Local::now().date_naive() - Days::new(1);
-        assert_eq!(
-            super::next_billing_days_text(Some(yesterday)),
-            Some("Overdue".to_string())
-        );
-    }
-
-    #[test]
-    fn next_billing_days_text_distant_past() {
-        let distant_past = Local::now().date_naive() - Days::new(100);
-        assert_eq!(
-            super::next_billing_days_text(Some(distant_past)),
-            Some("Overdue".to_string())
-        );
-    }
-
-    #[test]
-    fn next_billing_days_text_two_days() {
-        let in_2_days = Local::now().date_naive() + Days::new(2);
-        let result = super::next_billing_days_text(Some(in_2_days)).unwrap();
-        assert_eq!(result, "2 days");
-    }
-
-    #[test]
-    fn next_billing_days_text_seven_days() {
-        let in_7_days = Local::now().date_naive() + Days::new(7);
-        let result = super::next_billing_days_text(Some(in_7_days)).unwrap();
-        assert_eq!(result, "7 days");
-    }
-
-    // ── Additional format_date_short_fn edge cases ──
-    #[test]
-    fn format_date_short_february_29() {
-        let d = chrono::NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
-        let result = super::format_date_short_fn(d);
-        assert!(result.contains("Feb"));
-        assert!(result.contains("29"));
-    }
-
-    #[test]
-    fn format_date_short_mid_year() {
-        let d = chrono::NaiveDate::from_ymd_opt(2024, 7, 4).unwrap();
-        let result = super::format_date_short_fn(d);
-        assert!(result.contains("Jul"));
-        assert!(result.contains("4"));
-    }
-
-    // ── Additional is_overdue edge cases ──
-    #[test]
-    fn is_overdue_distant_future_not() {
-        let far_future = Local::now().date_naive() + Days::new(365);
-        assert!(!super::is_overdue_fn(far_future));
+        assert!(!empty.has_movements());
     }
 }

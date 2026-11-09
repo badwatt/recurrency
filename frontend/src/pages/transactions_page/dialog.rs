@@ -1,7 +1,9 @@
+use crate::components::AccountCombobox;
 use crate::components::dialog::Dialog;
 use crate::components::logo_search::LogoSearch;
 use crate::components::CategoryCombobox;
 use crate::models::transaction::{CreateTransactionRequest, UpdateTransactionRequest};
+use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::transactions::TRANSACTIONS;
@@ -44,6 +46,12 @@ pub fn TransactionDialog(
         .as_ref()
         .map(|t| Some(t.category_id))
         .unwrap_or_else(|| CATEGORIES().default_category().map(|c| c.id));
+    let init_account = existing
+        .as_ref()
+        .map(|t| t.account_id)
+        .filter(|id| !id.is_nil())
+        .or_else(|| ACCOUNTS().default_account().map(|a| a.id))
+        .unwrap_or_else(Uuid::nil);
     let init_notes = existing
         .as_ref()
         .and_then(|t| t.notes.clone())
@@ -58,6 +66,7 @@ pub fn TransactionDialog(
     let mut form_currency = use_signal(move || init_currency);
     let mut form_date = use_signal(move || init_date);
     let mut form_category_id = use_signal(move || init_category);
+    let mut form_account_id = use_signal(move || init_account);
     let mut form_notes = use_signal(move || init_notes);
     let mut form_logo_url = use_signal(move || init_logo);
     let mut form_saving = use_signal(|| false);
@@ -66,7 +75,23 @@ pub fn TransactionDialog(
     let mut amount_error = use_signal(String::new);
     let mut currency_error = use_signal(String::new);
     let mut date_error = use_signal(String::new);
+    let mut account_error = use_signal(String::new);
     let mut category_error = use_signal(String::new);
+
+    use_future(move || async move {
+        if ACCOUNTS().accounts.is_empty() && !ACCOUNTS().is_loading {
+            ACCOUNTS.write().set_loading();
+            match Storage::list_accounts().await {
+                Ok(data) => ACCOUNTS.write().set_data(data),
+                Err(e) => ACCOUNTS.write().set_error(e.to_string()),
+            }
+        }
+        if form_account_id().is_nil()
+            && let Some(default) = ACCOUNTS().default_account()
+        {
+            form_account_id.set(default.id);
+        }
+    });
 
     let handle_save = move |_| {
         let mut valid = true;
@@ -74,6 +99,7 @@ pub fn TransactionDialog(
         let amount_str = form_amount();
         let currency_val = form_currency();
         let date_str = form_date();
+        let account_id_val = form_account_id();
         let cat_id_val = form_category_id();
 
         if name_val.trim().is_empty() {
@@ -114,8 +140,8 @@ pub fn TransactionDialog(
             valid = false;
         }
 
-        if cat_id_val.is_none() {
-            category_error.set("Category is required".into());
+        if account_id_val.is_nil() {
+            account_error.set("Account is required".into());
             valid = false;
         }
 
@@ -132,6 +158,7 @@ pub fn TransactionDialog(
             Err(_) => return,
         };
         let editing = editing_id();
+        let account_id = account_id_val;
         let cat_id = cat_id_val;
 
         form_saving.set(true);
@@ -140,6 +167,7 @@ pub fn TransactionDialog(
                 Storage::update_transaction(
                     &id,
                     &UpdateTransactionRequest {
+                        account_id: if account_id.is_nil() { None } else { Some(account_id) },
                         name: Some(name_val),
                         amount: Some(amount),
                         currency: Some(form_currency()),
@@ -160,6 +188,7 @@ pub fn TransactionDialog(
                 .await
             } else {
                 Storage::create_transaction(&CreateTransactionRequest {
+                    account_id,
                     name: name_val,
                     amount,
                     currency: form_currency(),
@@ -297,9 +326,21 @@ pub fn TransactionDialog(
                         p { class: "text-xs text-red-500", "{date_error()}" }
                     }
                 }
-                // Category
+                // Account (search or create, same combobox as categories)
                 div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Category" }
+                    label { class: "text-sm font-medium", "Account" }
+                    AccountCombobox {
+                        selected_id: form_account_id().to_string(),
+                        on_change: move |id: String| {
+                            form_account_id.set(Uuid::parse_str(&id).unwrap_or(Uuid::nil()));
+                            account_error.set(String::new());
+                        },
+                        error: if account_error().is_empty() { None } else { Some(account_error()) },
+                    }
+                }
+                // Category (optional)
+                div { class: "space-y-2",
+                    label { class: "text-sm font-medium", "Category (optional)" }
                     {rsx! {
                         CategoryCombobox {
                             selected_id: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
@@ -307,7 +348,7 @@ pub fn TransactionDialog(
                                 form_category_id.set(if id.is_empty() { None } else { Uuid::parse_str(&id).ok() });
                                 category_error.set(String::new());
                             },
-                            error: if category_error().is_empty() { None } else { Some(category_error()) },
+                            error: None,
                         }
                     }}
                 }

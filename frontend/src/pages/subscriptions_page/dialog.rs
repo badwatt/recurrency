@@ -1,4 +1,5 @@
 use super::*;
+use crate::components::AccountCombobox;
 
 // ── Dialog ───────────────────────────────────────────────────────────
 
@@ -12,7 +13,9 @@ pub fn render_dialog(
     mut currency_error: Signal<String>,
     mut frequency_error: Signal<String>,
     mut start_date_error: Signal<String>,
+    mut account_error: Signal<String>,
     mut category_error: Signal<String>,
+    mut form_account_id: Signal<String>,
 ) -> Element {
     let is_editing = editing_id().is_some();
     let title = if is_editing {
@@ -36,6 +39,8 @@ pub fn render_dialog(
     let form_currency = form().currency;
     let form_frequency = form().frequency;
     let form_start_date = form().start_date;
+    let form_account = form_account_id();
+    let selected_account = form_account.clone();
     let form_category_id = form().category_id;
     let form_notes = form().notes;
     let form_logo_url = form().logo_url;
@@ -45,7 +50,7 @@ pub fn render_dialog(
     let currency_err = currency_error();
     let frequency_err = frequency_error();
     let start_date_err = start_date_error();
-    let category_err = category_error();
+    let account_err = account_error();
 
     rsx! {
         Dialog {
@@ -105,19 +110,21 @@ pub fn render_dialog(
                                 valid = false;
                             }
 
-                            // Validate category
-                            if f.category_id.is_empty() {
-                                category_error.set("Category is required".into());
+                            // Validate account
+                            if form_account.is_empty() {
+                                account_error.set("Account is required".into());
                                 valid = false;
                             }
 
                             if !valid { return; }
 
                             let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
+                            let account = Uuid::parse_str(&form_account).ok();
                             let category = if f.category_id.is_empty() { None } else { Uuid::parse_str(&f.category_id).ok() };
 
                             if let Some(id) = editing_id() {
                                 let req = UpdateSubscriptionRequest {
+                                    account_id: account,
                                     name: Some(f.name),
                                     amount: Some(amount),
                                     currency: Some(f.currency),
@@ -137,6 +144,7 @@ pub fn render_dialog(
                                 });
                             } else {
                                 let req = CreateSubscriptionRequest {
+                                    account_id: account.unwrap_or(Uuid::nil()),
                                     name: f.name,
                                     amount,
                                     currency: f.currency,
@@ -254,9 +262,22 @@ pub fn render_dialog(
                     }
                 }
 
-                // Category
+                // Account (search or create, same combobox as categories)
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Category" }
+                    label { class: "text-sm font-medium", "Account" }
+                    AccountCombobox {
+                        selected_id: selected_account.clone(),
+                        on_change: move |id: String| {
+                            form_account_id.set(id);
+                            account_error.set(String::new());
+                        },
+                        error: if account_err.is_empty() { None } else { Some(account_err.to_string()) },
+                    }
+                }
+
+                // Category (optional)
+                div { class: "space-y-1.5",
+                    label { class: "text-sm font-medium", "Category (optional)" }
                     {rsx! {
                         crate::components::CategoryCombobox {
                             selected_id: form_category_id,
@@ -264,7 +285,7 @@ pub fn render_dialog(
                                 form.write().category_id = id;
                                 category_error.set(String::new());
                             },
-                            error: if category_err.is_empty() { None } else { Some(category_err) },
+                            error: None,
                         }
                     }}
                 }

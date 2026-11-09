@@ -12,6 +12,7 @@
         cat_id: Uuid,
     ) -> Subscription {
         Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: cat_id,
@@ -274,6 +275,7 @@
         let cat = Uuid::new_v4();
         let mut subs = vec![
             Subscription {
+                account_id: Uuid::nil(),
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
                 category_id: cat,
@@ -290,6 +292,7 @@
                 updated_at: chrono::DateTime::UNIX_EPOCH,
             },
             Subscription {
+                account_id: Uuid::nil(),
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
                 category_id: cat,

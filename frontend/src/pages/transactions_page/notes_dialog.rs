@@ -54,6 +54,7 @@ pub fn NotesDialog(open: Signal<bool>, txn_id: Signal<Option<Uuid>>) -> Element 
                             notes_saving.set(true);
                             spawn(async move {
                                 let req = UpdateTransactionRequest {
+                                    account_id: None,
                                     notes: if is_empty { None } else { Some(notes) },
                                     ..Default::default()
                                 };

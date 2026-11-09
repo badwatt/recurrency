@@ -6,6 +6,7 @@ use chrono::NaiveDate;
 
     fn make_txn(name: &str, amount: Decimal, date: NaiveDate, cat_id: Uuid) -> Transaction {
         Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: cat_id,

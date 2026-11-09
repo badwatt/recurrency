@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub struct Transaction {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub account_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
@@ -25,6 +26,8 @@ pub struct CreateTransactionRequest {
     pub amount: Decimal,
     pub currency: String,
     pub date: NaiveDate,
+    #[serde(default)]
+    pub account_id: Uuid,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -36,6 +39,7 @@ pub struct UpdateTransactionRequest {
     pub amount: Option<Decimal>,
     pub currency: Option<String>,
     pub date: Option<NaiveDate>,
+    pub account_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -45,6 +49,7 @@ pub struct UpdateTransactionRequest {
 pub struct TransactionResponse {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub account_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
@@ -61,6 +66,7 @@ impl From<Transaction> for TransactionResponse {
         Self {
             id: t.id,
             user_id: t.user_id,
+            account_id: t.account_id,
             category_id: t.category_id,
             name: t.name,
             amount: t.amount,
@@ -81,6 +87,7 @@ mod tests {
     #[test]
     fn create_transaction_request_fields() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::new_v4(),
             name: "Coffee".to_string(),
             amount: Decimal::from(450),
             currency: "EUR".to_string(),
@@ -96,6 +103,7 @@ mod tests {
     #[test]
     fn update_transaction_all_none() {
         let req = UpdateTransactionRequest {
+            account_id: None,
             name: None,
             amount: None,
             currency: None,
@@ -115,6 +123,7 @@ mod tests {
             amount: Some(Decimal::TEN),
             currency: None,
             date: Some(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()),
+            account_id: None,
             category_id: None,
             notes: Some("Updated notes".to_string()),
             logo_url: None,
@@ -129,6 +138,7 @@ mod tests {
         let user_id = Uuid::new_v4();
         let cat_id = Uuid::new_v4();
         let resp = TransactionResponse {
+            account_id: Uuid::new_v4(),
             id: uid,
             user_id,
             category_id: cat_id,
@@ -152,6 +162,7 @@ mod tests {
         let user_id = Uuid::new_v4();
         let cat_id = Uuid::new_v4();
         let t = Transaction {
+            account_id: Uuid::new_v4(),
             id: uid,
             user_id,
             category_id: cat_id,
@@ -177,6 +188,7 @@ mod tests {
             amount: Decimal::from(5000),
             currency: "USD".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            account_id: Uuid::new_v4(),
             category_id: None,
             notes: None,
             logo_url: None,
@@ -188,6 +200,7 @@ mod tests {
     #[test]
     fn transaction_with_logo_url() {
         let t = Transaction {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -207,6 +220,7 @@ mod tests {
     #[test]
     fn transaction_without_optional_fields() {
         let t = Transaction {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -231,6 +245,7 @@ mod tests {
             amount: Decimal::from(7500),
             currency: "USD".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            account_id: Uuid::new_v4(),
             category_id: Some(cat_id),
             notes: Some("Restaurant".to_string()),
             logo_url: None,
@@ -242,6 +257,7 @@ mod tests {
     #[test]
     fn update_transaction_with_logo_url() {
         let req = UpdateTransactionRequest {
+            account_id: None,
             name: None,
             amount: None,
             currency: None,
@@ -256,6 +272,7 @@ mod tests {
     #[test]
     fn transaction_response_with_notes_and_logo() {
         let resp = TransactionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -281,6 +298,7 @@ mod tests {
         let t = Transaction {
             id: uid,
             user_id,
+            account_id: Uuid::new_v4(),
             category_id: cat_id,
             name: "Lunch".to_string(),
             amount: Decimal::from(1200),

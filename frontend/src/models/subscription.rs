@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub struct Subscription {
     pub id: Uuid,
     pub user_id: Uuid,
+    #[serde(default)]
+    pub account_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
@@ -28,6 +30,8 @@ pub struct CreateSubscriptionRequest {
     pub currency: String,
     pub frequency: String,
     pub start_date: NaiveDate,
+    #[serde(default)]
+    pub account_id: Uuid,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -41,6 +45,7 @@ pub struct UpdateSubscriptionRequest {
     pub frequency: Option<String>,
     pub start_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
+    pub account_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
     pub is_active: Option<bool>,
     pub notes: Option<String>,
@@ -66,6 +71,7 @@ mod tests {
 
     fn sample_subscription() -> Subscription {
         Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -104,6 +110,7 @@ mod tests {
     #[test]
     fn create_request_serialization() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Spotify".into(),
             amount: dec!(9.99),
             currency: "EUR".into(),
@@ -201,6 +208,7 @@ mod tests {
     #[test]
     fn update_request_partial_fields() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             name: Some("New Name".into()),
             amount: Some(dec!(20)),
             is_active: Some(false),
@@ -236,6 +244,7 @@ mod tests {
     #[test]
     fn create_request_with_category() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Hulu".into(),
             amount: dec!(12.99),
             currency: "USD".into(),
@@ -255,6 +264,7 @@ mod tests {
     #[test]
     fn update_request_is_active_toggle() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             is_active: Some(false),
             ..Default::default()
         };
@@ -268,6 +278,7 @@ mod tests {
     #[test]
     fn update_request_with_notes() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             notes: Some("Updated notes".into()),
             ..Default::default()
         };
@@ -307,6 +318,7 @@ mod subscription_tests {
 
     fn make_test_sub(name: &str, frequency: &str, active: bool) -> Subscription {
         Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -347,6 +359,7 @@ mod subscription_tests {
     fn subscription_from_request_defaults() {
         let cat = Uuid::new_v4();
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Netflix".into(),
             amount: dec!(9.99),
             currency: "EUR".into(),
@@ -364,6 +377,7 @@ mod subscription_tests {
     fn subscription_from_request_full() {
         let cat = Uuid::new_v4();
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Spotify".into(),
             amount: dec!(5.99),
             currency: "USD".into(),
@@ -400,6 +414,7 @@ mod subscription_tests {
     #[test]
     fn update_request_partial() {
         let req: UpdateSubscriptionRequest = UpdateSubscriptionRequest {
+            account_id: None,
             name: Some("Updated Name".into()),
             amount: None,
             currency: None,
@@ -428,6 +443,7 @@ mod subscription_tests {
     #[test]
     fn subscription_default_amount_is_zero() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -474,6 +490,7 @@ mod subscription_tests {
     #[test]
     fn subscription_large_amount() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -495,6 +512,7 @@ mod subscription_tests {
     #[test]
     fn subscription_small_amount() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -517,6 +535,7 @@ mod subscription_tests {
     fn subscription_currencies() {
         for currency in &["USD", "EUR", "GBP", "JPY", "CAD"] {
             let sub = Subscription {
+                account_id: Uuid::nil(),
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
@@ -556,6 +575,7 @@ mod subscription_tests {
     fn subscription_with_next_billing_date() {
         let next = NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -596,6 +616,7 @@ mod subscription_tests {
     #[test]
     fn update_request_all_fields() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             name: Some("Updated".into()),
             amount: Some(dec!(20)),
             currency: Some("USD".into()),

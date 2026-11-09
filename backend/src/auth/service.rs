@@ -130,6 +130,11 @@ impl SqlxAuthService {
             return Err(e);
         }
 
+        if let Err(e) = crate::accounts::service::AccountService::create_default(&self.pool, user.id).await {
+            tracing::error!("Failed to create default account: {}", e);
+            return Err(e);
+        }
+
         Ok(AuthResponse {
             token,
             user: user.into(),

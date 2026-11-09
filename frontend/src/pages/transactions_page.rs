@@ -3,6 +3,7 @@ use crate::components::page_header::PageHeader;
 use crate::components::skeleton::TransactionRowSkeleton;
 use crate::components::tooltip::Tooltip;
 use crate::models::transaction::*;
+use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
@@ -169,9 +170,20 @@ pub fn TransactionsPage() -> Element {
         }
     });
 
+    use_future(move || async move {
+        if !ACCOUNTS().accounts.is_empty() {
+            return;
+        }
+        ACCOUNTS.write().set_loading();
+        match Storage::list_accounts().await {
+            Ok(data) => ACCOUNTS.write().set_data(data),
+            Err(e) => ACCOUNTS.write().set_error(e.to_string()),
+        }
+    });
+
     let currency = AUTH().currency().to_string();
     let state = TRANSACTIONS();
-    let cats = CATEGORIES();
+    let accounts = ACCOUNTS();
 
     let groups = filter_sort_group(&state.transactions, &filters(), &sort_cfg());
 
@@ -293,18 +305,19 @@ pub fn TransactionsPage() -> Element {
                                                             {format_date(&txn.date, &PREFERENCES().date_format())}
                                                         }
                                                     }
-                                                    // Category badge
+                                                    // Account badge
                                                     {
-                                                        let cat = cats.get_by_id(&txn.category_id);
-                                                        let cat_name = cat.map(|c| c.name.as_str()).unwrap_or("Uncategorized");
-                                                        let cat_icon = cat.and_then(|c| c.icon.clone()).unwrap_or_else(|| "Tag".into());
-                                                        let cat_color = cat.and_then(|c| c.color.clone()).unwrap_or_else(|| "#6b7280".into());
-                                                        let bg = format!("{}20", cat_color);
+                                                        let account = accounts.get_by_id(&txn.account_id);
+                                                        let account_name = account.map(|a| a.name.as_str()).unwrap_or("No account");
+                                                        let account_icon = account.and_then(|a| a.icon.clone()).unwrap_or_else(|| "Tag".into());
+                                                        let account_color = account.and_then(|a| a.color.clone()).unwrap_or_else(|| "#6b7280".into());
+                                                        let bg = format!("{}20", account_color);
                                                         rsx! {
                                                             span { class: "font-normal text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded",
-                                                                style: "color: {cat_color}; background-color: {bg}",
-                                                                {icon_display(&cat_icon)}
-                                                                {cat_name.to_string()}                                                            }
+                                                                style: "color: {account_color}; background-color: {bg}",
+                                                                {icon_display(&account_icon)}
+                                                                {account_name.to_string()}
+                                                            }
                                                         }
                                                     }
                                                     // Amount

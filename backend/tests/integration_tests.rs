@@ -9,6 +9,8 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
+use recurrency_backend::accounts::service::AccountService;
 use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest};
 use recurrency_backend::auth::service::AuthService;
 use recurrency_backend::categories::models::CreateCategoryRequest;
@@ -64,6 +66,7 @@ async fn create_subscription(
         currency: "USD".to_string(),
         frequency: frequency.to_string(),
         start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        account_id: Uuid::nil(),
         category_id: None,
         notes: None,
         logo_url: None,
@@ -87,6 +90,7 @@ async fn create_subscription_with_date(
         currency: "USD".to_string(),
         frequency: frequency.to_string(),
         start_date,
+        account_id: Uuid::nil(),
         category_id: None,
         notes: None,
         logo_url: None,
@@ -300,6 +304,7 @@ async fn subscription_update_name(pool: PgPool) {
         frequency: None,
         start_date: None,
         next_billing_date: None,
+        account_id: None,
         category_id: None,
         is_active: None,
         notes: None,
@@ -323,6 +328,7 @@ async fn subscription_update_deactivate(pool: PgPool) {
         frequency: None,
         start_date: None,
         next_billing_date: None,
+        account_id: None,
         category_id: None,
         is_active: Some(false),
         notes: None,
@@ -387,6 +393,7 @@ async fn subscription_get_upcoming_excludes_inactive(pool: PgPool) {
         frequency: None,
         start_date: None,
         next_billing_date: None,
+        account_id: None,
         category_id: None,
         is_active: Some(false),
         notes: None,
@@ -502,4 +509,95 @@ async fn category_subscription_auto_default(pool: PgPool) {
 
     let sub = create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
     assert_eq!(sub.category_id, default_cat.id);
+}
+
+
+// ── Account Tests ─────────────────────────────────────────────────────────────
+
+#[sqlx::test]
+async fn account_default_created_on_registration(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let accounts = AccountService::get_all(&pool, user_id).await.unwrap();
+    assert_eq!(accounts.len(), 1);
+    assert!(accounts[0].is_default);
+    assert_eq!(accounts[0].name, "General");
+}
+
+#[sqlx::test]
+async fn account_create_update_and_set_default(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let created = AccountService::create(
+        &pool,
+        user_id,
+        CreateAccountRequest {
+            name: "Savings".to_string(),
+            icon: Some("Wallet".to_string()),
+            color: Some("#22c55e".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+    assert!(!created.is_default);
+
+    let updated = AccountService::update(
+        &pool,
+        user_id,
+        created.id,
+        UpdateAccountRequest {
+            name: Some("Broker".to_string()),
+            icon: serde_json::Value::Null,
+            color: serde_json::Value::Null,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.name, "Broker");
+    assert!(updated.icon.is_none());
+
+    let default = AccountService::set_default(&pool, user_id, created.id)
+        .await
+        .unwrap();
+    assert!(default.is_default);
+    let all = AccountService::get_all(&pool, user_id).await.unwrap();
+    assert_eq!(all.iter().filter(|a| a.is_default).count(), 1);
+}
+
+#[sqlx::test]
+async fn account_delete_reassigns_subscriptions_to_default(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let default = AccountService::get_default(&pool, user_id).await.unwrap();
+    let extra = AccountService::create(
+        &pool,
+        user_id,
+        CreateAccountRequest {
+            name: "Extra".to_string(),
+            icon: None,
+            color: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    let sub = SubscriptionService::create(
+        &pool,
+        user_id,
+        CreateSubscriptionRequest {
+            name: "Netflix".to_string(),
+            amount: Decimal::from(999),
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            account_id: extra.id,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(sub.account_id, extra.id);
+
+    AccountService::delete(&pool, user_id, extra.id).await.unwrap();
+    let sub_after = SubscriptionService::get_by_id(&pool, user_id, sub.id).await.unwrap();
+    assert_eq!(sub_after.account_id, default.id);
 }

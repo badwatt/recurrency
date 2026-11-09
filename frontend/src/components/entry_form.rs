@@ -99,6 +99,7 @@ impl EntryForm {
         let amount = self.parse_amount()?;
         let category = self.parse_category_id();
         Some(crate::models::subscription::UpdateSubscriptionRequest {
+            account_id: None,
             name: Some(self.name.clone()),
             amount: Some(amount),
             currency: Some(self.currency.clone()),
@@ -121,6 +122,7 @@ impl EntryForm {
         let amount = self.parse_amount()?;
         let category = self.parse_category_id();
         Some(crate::models::subscription::CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: self.name.clone(),
             amount,
             currency: self.currency.clone(),
@@ -142,6 +144,7 @@ impl EntryForm {
         let amount = self.parse_amount()?;
         let category = self.parse_category_id();
         Some(crate::models::transaction::UpdateTransactionRequest {
+            account_id: None,
             name: Some(self.name.clone()),
             amount: Some(amount),
             currency: Some(self.currency.clone()),
@@ -162,6 +165,7 @@ impl EntryForm {
         let amount = self.parse_amount()?;
         let category = self.parse_category_id();
         Some(crate::models::transaction::CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: self.name.clone(),
             amount,
             currency: self.currency.clone(),

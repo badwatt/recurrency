@@ -663,6 +663,7 @@ impl MockSubscriptionService {
         let subscription = Subscription {
             id: Uuid::new_v4(),
             user_id,
+            account_id: Uuid::new_v4(),
             category_id: req.category_id.unwrap_or(Uuid::nil()),
             name: req.name,
             amount: req.amount,
@@ -868,6 +869,7 @@ impl MockTransactionService {
         let transaction = Transaction {
             id: Uuid::new_v4(),
             user_id,
+            account_id: Uuid::new_v4(),
             category_id: req.category_id.unwrap_or(Uuid::nil()),
             name: req.name,
             amount: req.amount,
@@ -2169,6 +2171,7 @@ mod tests {
                 currency: "USD".to_string(),
                 frequency: "monthly".to_string(),
                 start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
                 notes: None,
                 logo_url: None,
@@ -2285,6 +2288,7 @@ mod tests {
                 frequency: None,
                 start_date: None,
                 next_billing_date: None,
+                account_id: None,
                 category_id: None,
                 is_active: Some(false),
                 notes: None,
@@ -2301,6 +2305,7 @@ mod tests {
         pub async fn update_not_found() {
             let mock = MockSubscriptionService::success();
             let req = UpdateSubscriptionRequest {
+                account_id: None,
                 name: Some("X".to_string()),
                 amount: None,
                 currency: None,
@@ -2326,6 +2331,7 @@ mod tests {
                 frequency: None,
                 start_date: None,
                 next_billing_date: None,
+                account_id: None,
                 category_id: None,
                 is_active: None,
                 notes: None,
@@ -2426,6 +2432,7 @@ mod tests {
             let sub = Subscription {
                 id: Uuid::new_v4(),
                 user_id,
+                account_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
                 name: "Direct".to_string(),
                 amount: Decimal::TEN,
@@ -2448,6 +2455,7 @@ mod tests {
         pub async fn with_subscriptions_constructor() {
             let user_id = Uuid::new_v4();
             let sub = Subscription {
+                account_id: Uuid::new_v4(),
                 id: Uuid::new_v4(),
                 user_id,
                 category_id: Uuid::new_v4(),
@@ -2480,6 +2488,7 @@ mod tests {
                 amount: Decimal::from_str("25.00").unwrap(),
                 currency: "USD".to_string(),
                 date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+                account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
                 notes: Some("Test transaction".to_string()),
                 logo_url: None,
@@ -2600,6 +2609,7 @@ mod tests {
                 amount: Some(Decimal::from_str("50.00").unwrap()),
                 currency: None,
                 date: None,
+                account_id: None,
                 category_id: None,
                 notes: None,
                 logo_url: None,
@@ -2614,6 +2624,7 @@ mod tests {
         pub async fn update_not_found() {
             let mock = MockTransactionService::success();
             let req = UpdateTransactionRequest {
+                account_id: None,
                 name: Some("X".to_string()),
                 amount: None,
                 currency: None,
@@ -2630,6 +2641,7 @@ mod tests {
         pub async fn update_failure() {
             let mock = MockTransactionService::failure("DB error");
             let req = UpdateTransactionRequest {
+                account_id: None,
                 name: None,
                 amount: None,
                 currency: None,
@@ -2680,11 +2692,13 @@ mod tests {
                 amount: Decimal::from_str("50.00").unwrap(),
                 currency: "USD".to_string(),
                 date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+                account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
                 notes: None,
                 logo_url: None,
             };
             let req2 = CreateTransactionRequest {
+                account_id: Uuid::new_v4(),
                 name: "July".to_string(),
                 amount: Decimal::from_str("75.00").unwrap(),
                 currency: "USD".to_string(),
@@ -2734,6 +2748,7 @@ mod tests {
             let t = Transaction {
                 id: Uuid::new_v4(),
                 user_id,
+                account_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
                 name: "Direct".to_string(),
                 amount: Decimal::TEN,
@@ -2753,6 +2768,7 @@ mod tests {
         pub async fn with_transactions_constructor() {
             let user_id = Uuid::new_v4();
             let t = Transaction {
+                account_id: Uuid::new_v4(),
                 id: Uuid::new_v4(),
                 user_id,
                 category_id: Uuid::new_v4(),
@@ -3376,6 +3392,7 @@ mod tests {
             let sub = Subscription {
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
+                account_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
                 name: "Clone Sub".to_string(),
                 amount: Decimal::from_str("9.99").unwrap(),
@@ -3398,6 +3415,7 @@ mod tests {
         #[test]
         fn transaction_clone_preserves_fields() {
             let trans = Transaction {
+                account_id: Uuid::new_v4(),
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
@@ -3551,6 +3569,7 @@ mod tests {
                         currency: "USD".to_string(),
                         frequency: "monthly".to_string(),
                         start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        account_id: Uuid::new_v4(),
                         category_id: None,
                         notes: None,
                         logo_url: None,
@@ -3560,6 +3579,7 @@ mod tests {
                 .unwrap();
 
             let req = UpdateSubscriptionRequest {
+                account_id: None,
                 name: None,
                 amount: Some(Decimal::from_str("19.99").unwrap()),
                 currency: None,
@@ -3911,6 +3931,7 @@ mod tests {
                         currency: "USD".to_string(),
                         frequency: "monthly".to_string(),
                         start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                        account_id: Uuid::new_v4(),
                         category_id: None,
                         notes: None,
                         logo_url: None,
@@ -3920,6 +3941,7 @@ mod tests {
                 .unwrap();
 
             let req = UpdateSubscriptionRequest {
+                account_id: None,
                 name: None,
                 amount: None,
                 currency: None,
@@ -3944,6 +3966,7 @@ mod tests {
                 .create(
                     user_id,
                     CreateSubscriptionRequest {
+                        account_id: Uuid::new_v4(),
                         name: "Test".to_string(),
                         amount: Decimal::from_str("10.00").unwrap(),
                         currency: "USD".to_string(),
@@ -3964,6 +3987,7 @@ mod tests {
                 frequency: None,
                 start_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
+                account_id: None,
                 category_id: None,
                 is_active: None,
                 notes: None,
@@ -3981,6 +4005,7 @@ mod tests {
                 .create(
                     user_id,
                     CreateSubscriptionRequest {
+                        account_id: Uuid::new_v4(),
                         name: "Active".to_string(),
                         amount: Decimal::from_str("10.00").unwrap(),
                         currency: "USD".to_string(),
@@ -3996,6 +4021,7 @@ mod tests {
             assert!(sub.is_active);
 
             let req = UpdateSubscriptionRequest {
+                account_id: None,
                 name: None,
                 amount: None,
                 currency: None,

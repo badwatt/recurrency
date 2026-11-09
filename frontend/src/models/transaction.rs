@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub struct Transaction {
     pub id: Uuid,
     pub user_id: Uuid,
+    #[serde(default)]
+    pub account_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub amount: Decimal,
@@ -24,6 +26,8 @@ pub struct CreateTransactionRequest {
     pub amount: Decimal,
     pub currency: String,
     pub date: NaiveDate,
+    #[serde(default)]
+    pub account_id: Uuid,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -35,6 +39,7 @@ pub struct UpdateTransactionRequest {
     pub amount: Option<Decimal>,
     pub currency: Option<String>,
     pub date: Option<NaiveDate>,
+    pub account_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -48,6 +53,7 @@ mod tests {
     #[test]
     fn transaction_serialization_roundtrip() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -68,6 +74,7 @@ mod tests {
     #[test]
     fn create_request_minimal() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Coffee".into(),
             amount: dec!(3.50),
             currency: "EUR".into(),
@@ -95,6 +102,7 @@ mod tests {
     #[test]
     fn update_request_partial() {
         let req = UpdateTransactionRequest {
+            account_id: None,
             name: Some("Updated".into()),
             amount: Some(dec!(99.99)),
             ..Default::default()
@@ -109,6 +117,7 @@ mod tests {
     #[test]
     fn transaction_with_notes() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -133,6 +142,7 @@ mod tests {
     #[test]
     fn create_request_with_category() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Dinner".into(),
             amount: dec!(25.00),
             currency: "USD".into(),
@@ -155,6 +165,7 @@ mod transaction_model_tests {
 
     fn make_test_txn(name: &str, amount: Decimal, date_str: &str) -> Transaction {
         Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -195,6 +206,7 @@ mod transaction_model_tests {
     #[test]
     fn transaction_with_notes() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -213,6 +225,7 @@ mod transaction_model_tests {
     #[test]
     fn transaction_with_logo() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -240,6 +253,7 @@ mod transaction_model_tests {
     fn transaction_currencies() {
         for currency in &["USD", "EUR", "GBP", "JPY"] {
             let txn = Transaction {
+                account_id: Uuid::nil(),
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
@@ -274,6 +288,7 @@ mod transaction_model_tests {
     fn create_transaction_request() {
         let cat = Uuid::new_v4();
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Coffee".into(),
             amount: dec!(4.50),
             currency: "EUR".into(),
@@ -291,6 +306,7 @@ mod transaction_model_tests {
     fn create_transaction_request_with_all_fields() {
         let cat = Uuid::new_v4();
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Lunch".into(),
             amount: dec!(25),
             currency: "USD".into(),
@@ -306,6 +322,7 @@ mod transaction_model_tests {
     #[test]
     fn update_transaction_request_partial() {
         let req: UpdateTransactionRequest = UpdateTransactionRequest {
+            account_id: None,
             name: Some("Updated Lunch".into()),
             amount: None,
             currency: None,
@@ -322,6 +339,7 @@ mod transaction_model_tests {
     fn update_transaction_request_all() {
         let cat = Uuid::new_v4();
         let req = UpdateTransactionRequest {
+            account_id: None,
             name: Some("New Name".into()),
             amount: Some(dec!(100)),
             currency: Some("GBP".into()),
@@ -357,6 +375,7 @@ mod transaction_model_tests {
     #[test]
     fn transaction_create_request_all_fields() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Test".into(),
             amount: dec!(10),
             currency: "EUR".into(),
@@ -375,6 +394,7 @@ mod transaction_model_tests {
     #[test]
     fn transaction_update_request_partial_fields() {
         let req = UpdateTransactionRequest {
+            account_id: None,
             name: Some("Updated".into()),
             amount: None,
             currency: None,

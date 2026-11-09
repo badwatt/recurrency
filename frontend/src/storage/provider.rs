@@ -1,3 +1,4 @@
+use crate::models::account::{Account, CreateAccountRequest, UpdateAccountRequest};
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest};
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
@@ -85,6 +86,48 @@ impl Storage {
         }
     }
 
+    // ── Accounts ──
+
+    pub async fn list_accounts() -> Result<Vec<Account>, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::list_accounts().await
+        } else {
+            crate::api::accounts::list().await
+        }
+    }
+
+    pub async fn create_account(req: &CreateAccountRequest) -> Result<Account, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::create_account(req).await
+        } else {
+            crate::api::accounts::create(req).await
+        }
+    }
+
+    pub async fn update_account(id: &uuid::Uuid, req: &UpdateAccountRequest) -> Result<Account, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::update_account(id, req).await
+        } else {
+            crate::api::accounts::update(id, req).await
+        }
+    }
+
+    pub async fn delete_account(id: &uuid::Uuid) -> Result<(), ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::delete_account(id).await
+        } else {
+            crate::api::accounts::delete(id).await
+        }
+    }
+
+    pub async fn set_default_account(id: &uuid::Uuid) -> Result<(), ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::set_default_account(id).await
+        } else {
+            crate::api::accounts::set_default(id).await
+        }
+    }
+
     // ── Categories ──
 
     pub async fn list_categories() -> Result<Vec<Category>, ApiError> {
@@ -140,8 +183,6 @@ impl Storage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn storage_module_compiles() {
         // Storage is a stateless dispatcher, no constructor needed

@@ -14,16 +14,16 @@ pub fn render_grid_card(
     let formatted = format_currency(sub.amount, &sub.currency);
     let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &PREFERENCES().date_format());
 
-    let (color, cat_icon, cat_name) = {
-        let cats = CATEGORIES();
-        if let Some(c) = cats.get_by_id(&sub.category_id) {
+    let (color, account_icon, account_name) = {
+        let accounts = ACCOUNTS();
+        if let Some(a) = accounts.get_by_id(&sub.account_id) {
             (
-                c.color.clone().unwrap_or_else(|| "#6b7280".to_string()),
-                c.icon.clone().unwrap_or_else(|| "Tag".to_string()),
-                c.name.clone(),
+                a.color.clone().unwrap_or_else(|| "#6b7280".to_string()),
+                a.icon.clone().unwrap_or_else(|| "Tag".to_string()),
+                a.name.clone(),
             )
         } else {
-            ("#6b7280".to_string(), "Tag".to_string(), "Uncategorized".to_string())
+            ("#6b7280".to_string(), "Tag".to_string(), "No account".to_string())
         }
     };
 
@@ -43,7 +43,7 @@ pub fn render_grid_card(
             class: "group relative overflow-hidden rounded-xl border border-border/40 bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
             style: "animation: fadeSlideIn 0.5s ease-out both; animation-delay: {stagger_delay}ms;",
 
-            // Category color top accent strip
+            // Account color top accent strip
             div {
                 class: "absolute top-0 left-0 right-0 h-[3px]",
                 style: "background: {color};",
@@ -88,12 +88,12 @@ pub fn render_grid_card(
                 // Amount
                 p { class: "font-extrabold text-2xl tracking-tight", {formatted.to_string()} }
 
-                // Category badge
+                // Account badge
                 span {
                     class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
                     style: "color: {color}; background-color: {color}15; border: 1px solid {color}25;",
-                    {icon_display(&cat_icon)}
-                    {cat_name.to_string()}                }
+                    {icon_display(&account_icon)}
+                    {account_name.to_string()}                }
 
                 // Action buttons
                 div { class: "flex items-center gap-0.5 mt-auto pt-1",
@@ -138,16 +138,16 @@ pub fn render_list_card(
     let formatted = format_currency(sub.amount, &sub.currency);
     let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &PREFERENCES().date_format());
 
-    let (color, cat_icon, cat_name) = {
-        let cats = CATEGORIES();
-        if let Some(c) = cats.get_by_id(&sub.category_id) {
+    let (color, account_icon, account_name) = {
+        let accounts = ACCOUNTS();
+        if let Some(a) = accounts.get_by_id(&sub.account_id) {
             (
-                c.color.clone().unwrap_or_else(|| "#6b7280".into()),
-                c.icon.clone().unwrap_or_else(|| "Tag".into()),
-                c.name.clone(),
+                a.color.clone().unwrap_or_else(|| "#6b7280".into()),
+                a.icon.clone().unwrap_or_else(|| "Tag".into()),
+                a.name.clone(),
             )
         } else {
-            ("#6b7280".into(), "Tag".into(), "Uncategorized".into())
+            ("#6b7280".into(), "Tag".into(), "No account".into())
         }
     };
 
@@ -180,8 +180,8 @@ pub fn render_list_card(
                         span {
                             class: "hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
                             style: "color: {color}; background-color: {color}15;",
-                            {icon_display(&cat_icon)}
-                            {cat_name.to_string()}                        }
+                            {icon_display(&account_icon)}
+                            {account_name.to_string()}                        }
                         p { class: "font-medium text-sm sm:text-base", {formatted.to_string()} }
 
                         div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",

@@ -58,6 +58,7 @@ mod tests {
 
     fn make_txn(name: &str, date: NaiveDate) -> Transaction {
         Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),

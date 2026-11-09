@@ -18,6 +18,7 @@ use crate::components::entry_form::{ValidationResult, validate_subscription_form
 use crate::models::subscription::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
+use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
@@ -64,7 +65,9 @@ pub fn SubscriptionsPage() -> Element {
     let mut currency_error: Signal<String> = use_signal(String::new);
     let mut frequency_error: Signal<String> = use_signal(String::new);
     let mut start_date_error: Signal<String> = use_signal(String::new);
+    let mut account_error: Signal<String> = use_signal(String::new);
     let mut category_error: Signal<String> = use_signal(String::new);
+    let mut form_account_id: Signal<String> = use_signal(String::new);
 
     let subs_state = SUBSCRIPTIONS();
     let cats_state = CATEGORIES();
@@ -108,6 +111,24 @@ pub fn SubscriptionsPage() -> Element {
                 }
             }
         });
+    });
+
+    use_effect(move || {
+        let state = ACCOUNTS();
+        if !state.is_loading && state.accounts.is_empty() && state.error.is_none() {
+            spawn(async move {
+                ACCOUNTS.write().set_loading();
+                match Storage::list_accounts().await {
+                    Ok(data) => ACCOUNTS.write().set_data(data),
+                    Err(e) => ACCOUNTS.write().set_error(e.to_string()),
+                }
+                if form_account_id().is_empty()
+                    && let Some(default) = ACCOUNTS().default_account()
+                {
+                    form_account_id.set(default.id.to_string());
+                }
+            });
+        }
     });
 
     use_effect(move || {
@@ -159,6 +180,7 @@ pub fn SubscriptionsPage() -> Element {
     // Callbacks
     let handle_edit: Callback<Subscription> = use_callback(move |sub: Subscription| {
         editing_id.set(Some(sub.id));
+        form_account_id.set(sub.account_id.to_string());
         form.set(DialogForm {
             name: sub.name,
             amount: sub.amount.to_string(),
@@ -174,6 +196,7 @@ pub fn SubscriptionsPage() -> Element {
         currency_error.set(String::new());
         frequency_error.set(String::new());
         start_date_error.set(String::new());
+        account_error.set(String::new());
         category_error.set(String::new());
         dialog_open.set(true);
     });
@@ -187,6 +210,7 @@ pub fn SubscriptionsPage() -> Element {
         let new_active = !sub.is_active;
         spawn(async move {
             let req = UpdateSubscriptionRequest {
+                account_id: None,
                 is_active: Some(new_active),
                 ..Default::default()
             };
@@ -204,6 +228,11 @@ pub fn SubscriptionsPage() -> Element {
             .default_category()
             .map(|c| c.id.to_string())
             .unwrap_or_default();
+        let default_account = ACCOUNTS()
+            .default_account()
+            .map(|a| a.id.to_string())
+            .unwrap_or_default();
+        form_account_id.set(default_account);
         form.set(DialogForm {
             name: String::new(),
             amount: String::new(),
@@ -219,6 +248,7 @@ pub fn SubscriptionsPage() -> Element {
         currency_error.set(String::new());
         frequency_error.set(String::new());
         start_date_error.set(String::new());
+        account_error.set(String::new());
         category_error.set(String::new());
         dialog_open.set(true);
     });
@@ -539,7 +569,7 @@ pub fn SubscriptionsPage() -> Element {
 
             // ── Create/Edit Dialog ──
             if dialog_open() {
-                {render_dialog(form, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, category_error)}
+                {render_dialog(form, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, account_error, category_error, form_account_id)}
             }
 
             // ── Delete confirmation ──

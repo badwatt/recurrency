@@ -192,7 +192,7 @@ pub fn ReportsPage() -> Element {
                                     {format_currency(r.monthly_summary.subscriptions_total, &currency)}
                                 }
                                 p { class: "text-xs text-muted-foreground",
-                                    "{r.monthly_summary.subscriptions_count} active"
+                                    "{r.monthly_summary.subscriptions_count} active · {format_currency(r.monthly_summary.subscriptions_total * rust_decimal::Decimal::from(12), &currency)} / year"
                                 }
                             }
                             // One-time

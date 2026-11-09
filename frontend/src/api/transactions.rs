@@ -57,6 +57,7 @@ mod tests {
     #[test]
     fn transaction_model_fields() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -78,6 +79,7 @@ mod tests {
     #[test]
     fn transaction_with_notes() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -97,6 +99,7 @@ mod tests {
     #[test]
     fn create_transaction_request_required_fields() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Lunch".into(),
             amount: dec!(12.50),
             currency: "EUR".into(),
@@ -113,6 +116,7 @@ mod tests {
     #[test]
     fn create_transaction_request_with_notes() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Book".into(),
             amount: dec!(19.99),
             currency: "USD".into(),
@@ -127,6 +131,7 @@ mod tests {
     #[test]
     fn update_transaction_request_partial() {
         let req = UpdateTransactionRequest {
+            account_id: None,
             name: Some("Updated".into()),
             amount: Some(dec!(30.00)),
             currency: None,
@@ -159,6 +164,7 @@ mod tests {
     #[test]
     fn transaction_serialization_roundtrip() {
         let txn = Transaction {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -179,6 +185,7 @@ mod tests {
     #[test]
     fn create_request_serialization() {
         let req = CreateTransactionRequest {
+            account_id: Uuid::nil(),
             name: "Coffee".into(),
             amount: dec!(4.5),
             currency: "EUR".into(),

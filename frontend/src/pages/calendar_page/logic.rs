@@ -2,7 +2,7 @@
 //! the page component so they can be unit-tested without the Dioxus runtime.
 
 use crate::models::subscription::CalendarItem;
-use crate::state::categories::CATEGORIES;
+use crate::state::accounts::ACCOUNTS;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::format::format_currency;
 use chrono::{Datelike, Local, NaiveDate};
@@ -160,12 +160,12 @@ pub fn category_name_for_item(item: &CalendarItem) -> String {
         .iter()
         .find(|s| s.id == item.subscription_id)
     {
-        let cats = CATEGORIES();
-        if let Some(cat) = cats.get_by_id(&sub.category_id) {
-            return cat.name.clone();
+        let accounts = ACCOUNTS();
+        if let Some(account) = accounts.get_by_id(&sub.account_id) {
+            return account.name.clone();
         }
     }
-    "Uncategorized".to_string()
+    "No account".to_string()
 }
 
 /// Helper: find category color for a CalendarItem.
@@ -176,9 +176,9 @@ pub fn category_color_for_item(item: &CalendarItem) -> String {
         .iter()
         .find(|s| s.id == item.subscription_id)
     {
-        let cats = CATEGORIES();
-        if let Some(cat) = cats.get_by_id(&sub.category_id) {
-            return cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
+        let accounts = ACCOUNTS();
+        if let Some(account) = accounts.get_by_id(&sub.account_id) {
+            return account.color.clone().unwrap_or_else(|| "#6b7280".to_string());
         }
     }
     "#6b7280".to_string()
@@ -192,9 +192,9 @@ pub fn category_icon_for_item(item: &CalendarItem) -> String {
         .iter()
         .find(|s| s.id == item.subscription_id)
     {
-        let cats = CATEGORIES();
-        if let Some(cat) = cats.get_by_id(&sub.category_id) {
-            return cat.icon.clone().unwrap_or_else(|| "Tag".to_string());
+        let accounts = ACCOUNTS();
+        if let Some(account) = accounts.get_by_id(&sub.account_id) {
+            return account.icon.clone().unwrap_or_else(|| "Tag".to_string());
         }
     }
     "Tag".to_string()

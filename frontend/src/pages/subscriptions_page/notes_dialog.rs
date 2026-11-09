@@ -51,6 +51,7 @@ pub fn NotesSubscriptionDialog(
                             saving.set(true);
                             spawn(async move {
                                 let req = UpdateSubscriptionRequest {
+                                    account_id: None,
                                     notes: if is_empty { None } else { Some(notes) },
                                     ..Default::default()
                                 };

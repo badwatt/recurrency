@@ -83,6 +83,7 @@ mod tests {
     #[test]
     fn create_subscription_request_fields() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Netflix".into(),
             amount: dec!(15.99),
             currency: "USD".into(),
@@ -102,6 +103,7 @@ mod tests {
     #[test]
     fn create_subscription_request_with_notes() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Spotify".into(),
             amount: dec!(9.99),
             currency: "EUR".into(),
@@ -118,6 +120,7 @@ mod tests {
     #[test]
     fn update_subscription_request_partial() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             name: Some("Netflix Premium".into()),
             amount: Some(dec!(19.99)),
             currency: None,
@@ -150,6 +153,7 @@ mod tests {
     #[test]
     fn subscription_model_fields() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -174,6 +178,7 @@ mod tests {
     #[test]
     fn subscription_inactive() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -243,6 +248,7 @@ mod tests {
     #[test]
     fn subscription_serialization_roundtrip() {
         let sub = Subscription {
+            account_id: Uuid::nil(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -266,6 +272,7 @@ mod tests {
     #[test]
     fn create_request_serialization() {
         let req = CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
             name: "Netflix".into(),
             amount: dec!(15.99),
             currency: "USD".into(),
@@ -283,6 +290,7 @@ mod tests {
     #[test]
     fn update_request_serialization_partial() {
         let req = UpdateSubscriptionRequest {
+            account_id: None,
             name: Some("Updated Name".into()),
             amount: Some(dec!(20.00)),
             currency: None,

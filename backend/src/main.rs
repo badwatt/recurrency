@@ -1,6 +1,6 @@
 use recurrency_backend::{
-    auth, categories, demo, logos, notifications, preferences, reports, shared, subscriptions,
-    transactions,
+    accounts, auth, categories, demo, logos, notifications, preferences, reports, shared,
+    subscriptions, transactions,
 };
 
 use axum::http::HeaderValue;
@@ -82,6 +82,13 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/transactions/{id}", get(transactions::handlers::get))
         .route("/api/transactions/{id}", put(transactions::handlers::update))
         .route("/api/transactions/{id}", delete(transactions::handlers::delete))
+        .route("/api/accounts", post(accounts::handlers::create))
+        .route("/api/accounts", get(accounts::handlers::list))
+        .route("/api/accounts/with-counts", get(accounts::handlers::list_with_counts))
+        .route("/api/accounts/{id}", get(accounts::handlers::get))
+        .route("/api/accounts/{id}", put(accounts::handlers::update))
+        .route("/api/accounts/{id}", delete(accounts::handlers::delete))
+        .route("/api/accounts/default", put(accounts::handlers::set_default))
         .route("/api/categories", post(categories::handlers::create))
         .route("/api/categories", get(categories::handlers::list))
         .route("/api/categories/with-counts", get(categories::handlers::list_with_counts))

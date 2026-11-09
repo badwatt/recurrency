@@ -77,12 +77,30 @@ impl DemoService {
             .await
             .map_err(|e| e.to_string())?;
 
+        // Delete all accounts for the user
+        sqlx::query("DELETE FROM accounts WHERE user_id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
         // Delete all categories for the user
         sqlx::query("DELETE FROM categories WHERE user_id = $1")
             .bind(user_id)
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
+
+        // Create default account and category
+        sqlx::query(
+            "INSERT INTO accounts (id, user_id, name, icon, color, is_default, created_at, updated_at)
+             VALUES ($1, $2, 'General', 'Wallet', '#6b7280', true, NOW(), NOW())"
+        )
+        .bind(Uuid::new_v4())
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
         // Create default "Uncategorized" category
         sqlx::query(
@@ -103,6 +121,14 @@ impl DemoService {
                 .await
                 .map_err(|e| e.to_string())?;
         let default_category_id = default_category.0;
+
+        let default_account: (Uuid,) =
+            sqlx::query_as("SELECT id FROM accounts WHERE user_id = $1 AND is_default = true")
+                .bind(user_id)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+        let default_account_id = default_account.0;
 
         sqlx::query("DELETE FROM user_preferences WHERE user_id = $1")
             .bind(user_id)
@@ -144,11 +170,12 @@ impl DemoService {
             let next_date = calc_next_date(this_month, this_year, today_day, day);
 
             sqlx::query(
-                "INSERT INTO subscriptions (id, user_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active)
-                 VALUES ($1, $2, $3, $4, $5, 'EUR', 'monthly', $6, $7, true)"
+                "INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'EUR', 'monthly', $7, $8, true)"
             )
                 .bind(Uuid::new_v4())
                 .bind(user_id)
+                .bind(default_account_id)
                 .bind(default_category_id)
                 .bind(name)
                 .bind(Decimal::from_str_exact(amount).unwrap_or(Decimal::ZERO))
@@ -169,11 +196,12 @@ impl DemoService {
         for (name, amount, ago) in txns {
             let date = today - chrono::Duration::days(ago);
             sqlx::query(
-                "INSERT INTO transactions (id, user_id, category_id, name, amount, currency, date)
-                 VALUES ($1, $2, $3, $4, $5, 'EUR', $6)",
+                "INSERT INTO transactions (id, user_id, account_id, category_id, name, amount, currency, date)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'EUR', $7)",
             )
             .bind(Uuid::new_v4())
             .bind(user_id)
+            .bind(default_account_id)
             .bind(default_category_id)
             .bind(name)
             .bind(Decimal::from_str_exact(amount).unwrap_or(Decimal::ZERO))

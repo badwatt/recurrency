@@ -158,6 +158,12 @@ pub fn AppLayout() -> Element {
                                 icon: Icon::Calendar,
                             }
                             TopNavLink {
+                                to: crate::Route::Accounts {},
+                                label: "Accounts".to_string(),
+                                active: matches!(current_route, crate::Route::Accounts {}),
+                                icon: Icon::Categories,
+                            }
+                            TopNavLink {
                                 to: crate::Route::Categories {},
                                 label: "Categories".to_string(),
                                 active: matches!(current_route, crate::Route::Categories {}),
@@ -243,6 +249,12 @@ pub fn AppLayout() -> Element {
                         label: "Cal".to_string(),
                         active: matches!(current_route, crate::Route::Calendar {}),
                         icon: Icon::Calendar,
+                    }
+                    MobileTab {
+                        to: crate::Route::Accounts {},
+                        label: "Accts".to_string(),
+                        active: matches!(current_route, crate::Route::Accounts {}),
+                        icon: Icon::Categories,
                     }
                     MobileTab {
                         to: crate::Route::Categories {},

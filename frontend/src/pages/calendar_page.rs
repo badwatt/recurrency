@@ -9,6 +9,7 @@ use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::models::subscription::CalendarItem;
 use crate::state::auth::AUTH;
+use crate::state::accounts::ACCOUNTS;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
@@ -70,7 +71,7 @@ pub fn CalendarPage() -> Element {
         });
     });
 
-    // Ensure categories are loaded for category lookups
+    // Ensure categories are loaded for the edit dialog.
     use_effect(move || {
         spawn(async move {
             let state = CATEGORIES();
@@ -79,6 +80,20 @@ pub fn CalendarPage() -> Element {
                 match Storage::list_categories().await {
                     Ok(data) => CATEGORIES.write().set_data(data),
                     Err(e) => CATEGORIES.write().set_error(e.to_string()),
+                }
+            }
+        });
+    });
+
+    // Ensure accounts are loaded for calendar lookups.
+    use_effect(move || {
+        spawn(async move {
+            let state = ACCOUNTS();
+            if !state.is_loading && state.accounts.is_empty() && state.error.is_none() {
+                ACCOUNTS.write().set_loading();
+                match Storage::list_accounts().await {
+                    Ok(data) => ACCOUNTS.write().set_data(data),
+                    Err(e) => ACCOUNTS.write().set_error(e.to_string()),
                 }
             }
         });

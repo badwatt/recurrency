@@ -372,6 +372,7 @@ mod tests {
         let resp = SubscriptionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "Netflix".to_string(),
             amount: rust_decimal::Decimal::new(1599, 2),
@@ -475,6 +476,7 @@ mod tests {
             let resp = SubscriptionResponse {
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
+                account_id: Uuid::new_v4(),
                 category_id: Uuid::new_v4(),
                 name: "Test".to_string(),
                 amount: rust_decimal::Decimal::from(1000),
@@ -497,6 +499,7 @@ mod tests {
     fn subscription_response_without_notes() {
         use crate::subscriptions::models::SubscriptionResponse;
         let resp = SubscriptionResponse {
+            account_id: Uuid::new_v4(),
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
@@ -526,6 +529,7 @@ mod tests {
         let resp = SubscriptionResponse {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
             category_id: Uuid::new_v4(),
             name: "No Logo".to_string(),
             amount: rust_decimal::Decimal::from(500),
@@ -739,6 +743,7 @@ fn resolve_subscription_name_unicode() {
     let existing = Subscription {
         id: Uuid::new_v4(),
         user_id: Uuid::new_v4(),
+        account_id: Uuid::new_v4(),
         category_id: Uuid::new_v4(),
         name: "Café Premium 日本語".to_string(),
         amount: rust_decimal::Decimal::TEN,
@@ -753,6 +758,7 @@ fn resolve_subscription_name_unicode() {
         updated_at: chrono::Utc::now(),
     };
     let req = UpdateSubscriptionRequest {
+        account_id: None,
         name: Some("New Name".to_string()),
         amount: None,
         currency: None,
@@ -773,6 +779,7 @@ fn resolve_subscription_name_unicode() {
 fn resolve_subscription_all_none_preserves_existing() {
     use crate::subscriptions::models::Subscription;
     let existing = Subscription {
+        account_id: Uuid::new_v4(),
         id: Uuid::new_v4(),
         user_id: Uuid::new_v4(),
         category_id: Uuid::new_v4(),
@@ -795,6 +802,7 @@ fn resolve_subscription_all_none_preserves_existing() {
         frequency: None,
         start_date: None,
         next_billing_date: None,
+        account_id: None,
         category_id: None,
         is_active: None,
         notes: None,
@@ -811,6 +819,7 @@ fn resolve_subscription_all_none_preserves_existing() {
 fn resolve_subscription_partial_update_amount_only() {
     use crate::subscriptions::models::Subscription;
     let existing = Subscription {
+        account_id: Uuid::new_v4(),
         id: Uuid::new_v4(),
         user_id: Uuid::new_v4(),
         category_id: Uuid::new_v4(),
@@ -827,6 +836,7 @@ fn resolve_subscription_partial_update_amount_only() {
         updated_at: chrono::Utc::now(),
     };
     let req = UpdateSubscriptionRequest {
+        account_id: None,
         name: None,
         amount: Some(rust_decimal::Decimal::from(2000)),
         currency: None,
@@ -851,6 +861,7 @@ fn resolve_subscription_start_date_change() {
     let existing = Subscription {
         id: Uuid::new_v4(),
         user_id: Uuid::new_v4(),
+        account_id: Uuid::new_v4(),
         category_id: Uuid::new_v4(),
         name: "Sub".to_string(),
         amount: rust_decimal::Decimal::TEN,
@@ -865,6 +876,7 @@ fn resolve_subscription_start_date_change() {
         updated_at: chrono::Utc::now(),
     };
     let req = UpdateSubscriptionRequest {
+        account_id: None,
         name: None,
         amount: None,
         currency: None,

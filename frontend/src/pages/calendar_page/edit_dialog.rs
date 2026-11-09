@@ -99,6 +99,7 @@ pub fn EditSubscriptionDialog(
 
         if let Some(id) = editing_id() {
             let req = UpdateSubscriptionRequest {
+                account_id: None,
                 name: Some(f.name),
                 amount: Some(amount),
                 currency: Some(f.currency),
@@ -138,6 +139,7 @@ pub fn EditSubscriptionDialog(
             });
         } else {
             let req = CreateSubscriptionRequest {
+                account_id: Uuid::nil(),
                 name: f.name,
                 amount,
                 currency: f.currency,
