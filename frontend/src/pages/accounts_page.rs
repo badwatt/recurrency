@@ -46,7 +46,7 @@ fn icon_plus() -> Element {
 }
 
 #[component]
-pub fn AccountsPage() -> Element {
+pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut editing_id = use_signal(|| None::<Uuid>);
     let mut form_name = use_signal(String::new);
@@ -193,10 +193,12 @@ pub fn AccountsPage() -> Element {
     }
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
+        div { class: if embedded { "flex flex-col gap-6" } else { "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300" },
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
-                PageHeader { title: "Accounts", subtitle: "The accounts you move money into each month" }
+            div { class: if embedded { "flex justify-end" } else { "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3" },
+                if !embedded {
+                    PageHeader { title: "Accounts", subtitle: "The accounts you move money into each month" }
+                }
                 button {
                     onclick: open_create,
                     class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",

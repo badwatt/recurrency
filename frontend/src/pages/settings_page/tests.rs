@@ -8,6 +8,7 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page/preferences_card.rs"),
     include_str!("../settings_page/connection_card.rs"),
     include_str!("../settings_page/notifications_card.rs"),
+    include_str!("../../layout/settings_layout.rs"),
 );
 
     #[test]
@@ -18,17 +19,27 @@ const SETTINGS_SOURCES: &str = concat!(
     #[test]
     fn settings_page_exposes_money_section() {
         assert!(SETTINGS_SOURCES.contains("Money"));
-        assert!(SETTINGS_SOURCES.contains("Route::SettingsAccounts"));
-        assert!(SETTINGS_SOURCES.contains("Route::SettingsCategories"));
+        assert!(SETTINGS_SOURCES.contains("AccountsPage"));
+        assert!(SETTINGS_SOURCES.contains("CategoriesPage"));
+        assert!(SETTINGS_SOURCES.contains("role: \"tablist\""));
     }
 
     #[test]
-    fn layout_uses_contextual_settings_nav() {
+    fn app_layout_keeps_topbar_and_has_no_logout() {
         let layout = include_str!("../../layout/app_layout.rs");
-        assert!(layout.contains("SettingsTopLink"));
-        assert!(layout.contains("in_settings"));
-        assert!(layout.contains("Route::SettingsNotifications"));
-        assert!(layout.contains("Done"));
+        assert!(layout.contains("TopNavLink"));
+        assert!(!layout.contains("SettingsTopLink"));
+        assert!(!layout.contains("AUTH.write().logout()"));
+        assert!(!layout.contains("Done"));
+    }
+
+    #[test]
+    fn settings_layout_owns_navigation_and_logout() {
+        let layout = include_str!("../../layout/settings_layout.rs");
+        assert!(layout.contains("SettingsSection"));
+        assert!(layout.contains("Outlet::<crate::Route>"));
+        assert!(layout.contains("Log out"));
+        assert!(layout.contains("Settings sections"));
     }
 
     #[test]
@@ -47,9 +58,11 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn settings_pages_are_width_constrained() {
-        assert!(SETTINGS_SOURCES.contains("max-w-2xl"));
-        assert!(SETTINGS_SOURCES.contains("max-w-5xl"));
+    fn app_and_settings_share_a_width() {
+        let app = include_str!("../../layout/app_layout.rs");
+        assert!(app.contains("max-w-7xl"));
+        assert!(!app.contains("max-w-screen-2xl"));
+        assert!(SETTINGS_SOURCES.contains("max-w-7xl"));
     }
 
     #[test]
@@ -60,6 +73,12 @@ const SETTINGS_SOURCES: &str = concat!(
     #[test]
     fn settings_page_renders_version() {
         assert!(SETTINGS_SOURCES.contains("APP_VERSION"));
+    }
+
+    #[test]
+    fn settings_profile_contains_session_logout() {
+        assert!(SETTINGS_SOURCES.contains("SessionCard"));
+        assert!(SETTINGS_SOURCES.contains("persist_to_storage"));
     }
 
 

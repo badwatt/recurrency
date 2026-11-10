@@ -46,28 +46,31 @@ pub enum Route {
         Transactions {},
         #[route("/calendar")]
         Calendar {},
-        #[route("/accounts")]
-        Accounts {},
-        #[route("/categories")]
-        Categories {},
         #[route("/reports")]
         Reports {},
-        #[route("/settings")]
-        Settings {},
-        #[route("/settings/profile")]
-        SettingsProfile {},
-        #[route("/settings/preferences")]
-        SettingsPreferences {},
-        #[route("/settings/money")]
-        SettingsMoney {},
-        #[route("/settings/notifications")]
-        SettingsNotifications {},
-        #[route("/settings/connection")]
-        SettingsConnection {},
-        #[route("/settings/accounts")]
-        SettingsAccounts {},
-        #[route("/settings/categories")]
-        SettingsCategories {},
+
+        #[layout(layout::SettingsLayout)]
+            #[route("/settings")]
+            Settings {},
+            #[route("/settings/profile")]
+            SettingsProfile {},
+            #[route("/settings/preferences")]
+            SettingsPreferences {},
+            #[route("/settings/money")]
+            SettingsMoney {},
+            #[route("/settings/notifications")]
+            SettingsNotifications {},
+            #[route("/settings/connection")]
+            SettingsConnection {},
+            #[route("/settings/accounts")]
+            SettingsAccounts {},
+            #[route("/settings/categories")]
+            SettingsCategories {},
+            #[route("/accounts")]
+            Accounts {},
+            #[route("/categories")]
+            Categories {},
+        #[end_layout]
     #[end_layout]
 
     // Catch all → redirect to /
@@ -354,32 +357,13 @@ fn SettingsConnection() -> Element {
 }
 
 #[component]
-fn SettingsBackLink() -> Element {
-    rsx! {
-        div { class: "px-2 md:px-6 pt-3 text-sm",
-            Link {
-                to: Route::SettingsMoney {},
-                class: "text-muted-foreground hover:text-foreground transition-colors",
-                "← Money"
-            }
-        }
-    }
-}
-
-#[component]
 fn SettingsAccounts() -> Element {
-    rsx! {
-        SettingsBackLink {}
-        crate::pages::AccountsPage {}
-    }
+    rsx! { crate::pages::AccountsPage {} }
 }
 
 #[component]
 fn SettingsCategories() -> Element {
-    rsx! {
-        SettingsBackLink {}
-        crate::pages::CategoriesPage {}
-    }
+    rsx! { crate::pages::CategoriesPage {} }
 }
 
 #[component]
