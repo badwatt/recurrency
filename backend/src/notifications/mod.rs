@@ -6,4 +6,5 @@ pub mod models;
 pub mod providers;
 pub mod scheduler;
 pub mod settings;
+pub mod summary;
 pub mod service;

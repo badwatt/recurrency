@@ -9,8 +9,7 @@ use crate::notifications::crypto::decrypt_with_secret;
 use crate::notifications::providers::{NotificationMessage, send_message};
 use crate::notifications::service::notification_secret;
 use crate::shared::date_utils::days_in_month;
-use crate::reports::service::SqlxReportService;
-use crate::reports::service::ReportServiceTrait;
+use crate::notifications::summary::{build_message, SummaryAccount, SummarySubscription, SummaryTransaction};
 
 #[derive(Debug, Clone)]
 pub struct ScheduleSpec {
@@ -174,7 +173,9 @@ async fn tick(pool: &PgPool) -> Result<(), String> {
             continue;
         };
 
-        let message = build_summary(pool, settings.user_id, &currency).await?;
+        let timezone = Tz::from_str(&settings.timezone).unwrap_or(chrono_tz::UTC);
+        let today = Utc::now().with_timezone(&timezone).date_naive();
+        let message = build_summary(pool, settings.user_id, &currency, today).await?;
         let channels = sqlx::query_as::<_, (String, Vec<u8>)>(
             "SELECT provider, config FROM notification_channels WHERE user_id = $1 AND enabled = true",
         )
@@ -226,19 +227,71 @@ async fn tick(pool: &PgPool) -> Result<(), String> {
     Ok(())
 }
 
-async fn build_summary(pool: &PgPool, user_id: uuid::Uuid, currency: &str) -> Result<NotificationMessage, String> {
-    let today = Utc::now().date_naive();
-    let report = SqlxReportService::new(pool.clone())
-        .get_full_report(user_id, today.year(), today.month())
-        .await
-        .map_err(|error| error.to_string())?;
-    let summary = report.monthly_summary;
+async fn build_summary(
+    pool: &PgPool,
+    user_id: uuid::Uuid,
+    currency: &str,
+    today: chrono::NaiveDate,
+) -> Result<NotificationMessage, String> {
+    let accounts = sqlx::query_as::<_, (uuid::Uuid, String)>(
+        "SELECT id, name FROM accounts WHERE user_id = $1 ORDER BY name",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|error| error.to_string())?
+    .into_iter()
+    .map(|(id, name)| SummaryAccount { id, name })
+    .collect::<Vec<_>>();
+
+    let subscriptions = sqlx::query_as::<
+        _,
+        (uuid::Uuid, rust_decimal::Decimal, String, chrono::NaiveDate, Option<chrono::NaiveDate>, bool),
+    >(
+        "SELECT account_id, amount, frequency, start_date, next_billing_date, is_active FROM subscriptions WHERE user_id = $1",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|error| error.to_string())?
+    .into_iter()
+    .map(|(account_id, amount, frequency, start_date, next_billing_date, is_active)| {
+        SummarySubscription {
+            account_id,
+            amount,
+            frequency,
+            start_date,
+            next_billing_date,
+            is_active,
+        }
+    })
+    .collect::<Vec<_>>();
+
+    let transactions = sqlx::query_as::<_, (uuid::Uuid, rust_decimal::Decimal, chrono::NaiveDate)>(
+        "SELECT account_id, amount, date FROM transactions WHERE user_id = $1 AND date >= $2 AND date <= $3",
+    )
+    .bind(user_id)
+    .bind(today.with_day(1).ok_or_else(|| "Invalid summary date".to_string())?)
+    .bind(
+        today
+            .with_day(days_in_month(today.year(), today.month()))
+            .ok_or_else(|| "Invalid summary date".to_string())?,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| error.to_string())?
+    .into_iter()
+    .map(|(account_id, amount, date)| SummaryTransaction {
+        account_id,
+        amount,
+        date,
+    })
+    .collect::<Vec<_>>();
+
+    let body = build_message(&accounts, &subscriptions, &transactions, today, currency);
     Ok(NotificationMessage {
         title: format!("Recurrency summary {}/{:02}", today.year(), today.month()),
-        body: format!(
-            "Recurring: {currency} {}\nOne-time: {currency} {}\nTotal: {currency} {}",
-            summary.subscriptions_total, summary.transactions_total, summary.overall_total
-        ),
+        body,
     })
 }
 
