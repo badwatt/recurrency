@@ -10,7 +10,6 @@ use crate::storage::Storage;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
 use dioxus::prelude::*;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 /// Create/edit subscription dialog. Mounted fresh each time it opens, so the
@@ -90,7 +89,7 @@ pub fn EditSubscriptionDialog(
         }
 
         saving.set(true);
-        let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
+        let amount = f.amount.parse::<Decimal>().unwrap_or(Decimal::ZERO);
         let category = if f.category_id.is_empty() {
             None
         } else {

@@ -84,7 +84,7 @@ pub fn render_dialog(
                             if f.amount.is_empty() {
                                 amount_error.set("Amount is required".into());
                                 valid = false;
-                            } else if amount_result.is_err() || amount_result.as_ref().unwrap_or(&dec!(0)) <= &dec!(0) {
+                            } else if amount_result.is_err() || amount_result.as_ref().unwrap_or(&Decimal::ZERO) <= &Decimal::ZERO {
                                 amount_error.set("Amount must be greater than 0".into());
                                 valid = false;
                             }
@@ -118,7 +118,7 @@ pub fn render_dialog(
 
                             if !valid { return; }
 
-                            let amount = f.amount.parse::<Decimal>().unwrap_or(dec!(0));
+                            let amount = f.amount.parse::<Decimal>().unwrap_or(Decimal::ZERO);
                             let account = Uuid::parse_str(&form_account).ok();
                             let category = if f.category_id.is_empty() { None } else { Uuid::parse_str(&f.category_id).ok() };
 

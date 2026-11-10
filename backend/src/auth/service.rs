@@ -43,7 +43,7 @@ fn get_jwt_secret() -> &'static [u8] {
 }
 
 fn generate_code() -> String {
-    format!("{:06}", rand::random::<u32>() % 1_000_000)
+    format!("{:06}", Uuid::new_v4().as_u128() % 1_000_000)
 }
 
 /// Authentication port. Injected into `AppState` as `Arc<dyn AuthServiceTrait>`
@@ -402,6 +402,13 @@ mod tests {
     }
 
     // verify_password
+    #[test]
+    fn generate_code_has_six_digits() {
+        let code = generate_code();
+        assert_eq!(code.len(), 6);
+        assert!(code.chars().all(|c| c.is_ascii_digit()));
+    }
+
     #[test]
     fn resolve_jwt_secret_missing_is_error() {
         assert!(resolve_jwt_secret(None).is_err());

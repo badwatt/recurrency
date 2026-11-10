@@ -167,7 +167,7 @@ JWT_SECRET=your-secret-key docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1128 |
+| **Backend** | — | — | — | 1129 |
 | **Frontend** | — | — | — | 1636 |
 
 Full coverage report (Nix dev shell):

@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use lucide_dioxus::{CreditCard, FileText, Pause, Pencil, Play, Trash2, X, ArrowUpDown};
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 use crate::api;

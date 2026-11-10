@@ -12,9 +12,9 @@ integration-tests = []
 
 [dependencies]
 # Web framework
-axum = { version = "0.8.9" }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6", default-features = false, features = ["cors", "trace"] }
 
 # Serialization
 serde.workspace = true
@@ -22,7 +22,7 @@ serde_json.workspace = true
 serde_urlencoded = "0.7"
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal", "macros", "migrate"] }
 
 # Authentication
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
@@ -55,9 +55,6 @@ lettre = { version = "0.11.21", default-features = false, features = ["tokio1-na
 
 # HTTP client for logo search
 reqwest.workspace = true
-
-# Random (for demo credentials)
-rand = "0.10.1"
 
 [dev-dependencies]
 serial_test = "3"
