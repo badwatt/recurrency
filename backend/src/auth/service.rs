@@ -6,10 +6,10 @@ use crate::auth::models::{
 };
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
-use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use argon2::Argon2;
+use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, decode, encode};
 use uuid::Uuid;
 
 use crate::categories::service::CategoryService;
@@ -17,12 +17,20 @@ use crate::email::{is_configured, send_verification_email};
 
 static JWT_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
 
+/// Must never be accepted as a production signing key.
+const INSECURE_JWT_SECRET: &str = "change-me-in-production";
+
 /// Validate and resolve the JWT secret from an environment value.
 /// A missing or empty secret is rejected so misconfiguration is caught at startup.
 fn resolve_jwt_secret(value: Option<String>) -> Result<Vec<u8>, String> {
     match value {
-        Some(secret) if !secret.is_empty() => Ok(secret.into_bytes()),
-        _ => Err("JWT_SECRET environment variable must be set".to_string()),
+        Some(secret) if !secret.is_empty() && secret != INSECURE_JWT_SECRET => {
+            Ok(secret.into_bytes())
+        }
+        Some(_) => Err(format!(
+            "JWT_SECRET must not be the insecure placeholder {INSECURE_JWT_SECRET}"
+        )),
+        None => Err("JWT_SECRET environment variable must be set".to_string()),
     }
 }
 
@@ -53,6 +61,9 @@ pub trait AuthServiceTrait: Send + Sync {
     async fn register(&self, req: CreateUserRequest) -> AppResult<AuthResponse>;
     async fn login(&self, req: LoginRequest) -> AppResult<AuthResponse>;
     async fn verify_token(&self, token: &str) -> AppResult<Claims>;
+    /// Accepts a valid token even when the user still needs email verification.
+    /// Only the verification/resend handlers may use this.
+    async fn verify_verification_token(&self, token: &str) -> AppResult<Claims>;
     async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User>;
     async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse>;
     async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User>;
@@ -130,7 +141,9 @@ impl SqlxAuthService {
             return Err(e);
         }
 
-        if let Err(e) = crate::accounts::service::AccountService::create_default(&self.pool, user.id).await {
+        if let Err(e) =
+            crate::accounts::service::AccountService::create_default(&self.pool, user.id).await
+        {
             tracing::error!("Failed to create default account: {}", e);
             return Err(e);
         }
@@ -275,6 +288,20 @@ impl AuthServiceTrait for SqlxAuthService {
     }
 
     async fn verify_token(&self, token: &str) -> AppResult<Claims> {
+        let claims = verify_token_internal(token)?;
+        let verified: Option<bool> = sqlx::query_scalar("SELECT verified FROM users WHERE id = $1")
+            .bind(claims.sub)
+            .fetch_optional(&self.pool)
+            .await?;
+        if verified != Some(true) {
+            return Err(AppError::Unauthorized(
+                "Email verification required".to_string(),
+            ));
+        }
+        Ok(claims)
+    }
+
+    async fn verify_verification_token(&self, token: &str) -> AppResult<Claims> {
         verify_token_internal(token)
     }
 
@@ -328,7 +355,9 @@ impl AuthService {
     /// Delegates to SqlxAuthService.
     #[allow(dead_code)]
     pub async fn get_user_by_id(pool: &sqlx::PgPool, user_id: Uuid) -> AppResult<User> {
-        SqlxAuthService::new(pool.clone()).get_user_by_id_impl(user_id).await
+        SqlxAuthService::new(pool.clone())
+            .get_user_by_id_impl(user_id)
+            .await
     }
 }
 
@@ -417,6 +446,11 @@ mod tests {
     #[test]
     fn resolve_jwt_secret_empty_is_error() {
         assert!(resolve_jwt_secret(Some(String::new())).is_err());
+    }
+
+    #[test]
+    fn resolve_jwt_secret_placeholder_is_error() {
+        assert!(resolve_jwt_secret(Some("change-me-in-production".into())).is_err());
     }
 
     #[test]
@@ -713,7 +747,7 @@ mod tests {
     #[test]
     fn verify_token_expired_fails() {
         use chrono::Duration;
-        use jsonwebtoken::{encode, EncodingKey, Header};
+        use jsonwebtoken::{EncodingKey, Header, encode};
 
         let uid = Uuid::new_v4();
         let past = Utc::now() - Duration::hours(25 * 7);
@@ -737,7 +771,7 @@ mod tests {
     // verify_token_internal - wrong secret
     #[test]
     fn verify_token_wrong_secret_fails() {
-        use jsonwebtoken::{encode, EncodingKey, Header};
+        use jsonwebtoken::{EncodingKey, Header, encode};
 
         let uid = Uuid::new_v4();
         let future = Utc::now() + Duration::hours(24);

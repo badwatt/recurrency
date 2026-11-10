@@ -128,7 +128,6 @@ RUN mkdir -p /var/lib/postgresql/15/main && chown postgres:postgres /var/lib/pos
 RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql
 
 # SECURITY: Use ARG for secrets (only available at build time, not in final image)
-ARG JWT_SECRET=change-me-in-production
 ARG DATABASE_URL=
 ARG ENABLE_DEMO=false
 

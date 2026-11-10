@@ -194,10 +194,26 @@ pub fn patch_strings(content: &str) -> String {
 }
 
 pub fn patch_manifest(content: &str) -> String {
-    content.replace(
+    let mut out = content.replace(
         "android:label=\"RecurrencyFrontend\"",
         "android:label=\"Recurrency\"",
-    )
+    );
+    if !out.contains("android:allowBackup=") {
+        if out.contains("<application ") {
+            out = out.replacen(
+                "<application ",
+                "<application android:allowBackup=\"false\" ",
+                1,
+            );
+        } else {
+            out = out.replacen(
+                "<application>",
+                "<application android:allowBackup=\"false\">",
+                1,
+            );
+        }
+    }
+    out
 }
 
 pub fn patch_styles(content: &str) -> String {
@@ -872,6 +888,16 @@ mod tests {
             patch_strings(content),
             "<string name=\"app_name\">Recurrency</string>"
         );
+    }
+
+    #[test]
+    fn patch_manifest_disables_backup_and_fixes_label() {
+        let manifest =
+            "<manifest><application android:label=\"RecurrencyFrontend\"></application></manifest>";
+        let patched = patch_manifest(manifest);
+        assert!(patched.contains("android:label=\"Recurrency\""));
+        assert!(patched.contains("android:allowBackup=\"false\""));
+        assert_eq!(patch_manifest(&patched), patched);
     }
 
     #[test]

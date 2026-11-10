@@ -96,7 +96,7 @@ Single container with PostgreSQL + backend + frontend:
 
 ```bash
 # Pull and run
-docker run -d -p 80:80 -e JWT_SECRET=your-secret ghcr.io/badwatt/recurrency:latest
+docker run -d -p 80:80 -e JWT_SECRET="$(openssl rand -hex 32)" ghcr.io/badwatt/recurrency:latest
 
 # Or use the compose file
 curl -O https://raw.githubusercontent.com/badwatt/recurrency/main/docker/docker-compose.yml
@@ -109,7 +109,7 @@ docker compose up -d
 Custom env:
 
 ```bash
-JWT_SECRET=your-secret-key docker compose up -d
+JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 ```
 
 ---
@@ -119,8 +119,8 @@ JWT_SECRET=your-secret-key docker compose up -d
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | — | PostgreSQL connection |
-| `JWT_SECRET` | `change-me-in-production` | Secret for JWT tokens |
-| `ENABLE_DEMO` | `true` | Show demo login button |
+| `JWT_SECRET` | **required** | Strong random secret for JWT tokens; startup fails if missing/placeholder |
+| `ENABLE_DEMO` | `false` | Show demo login button (opt-in) |
 | `PGPASSWORD` | `recurrency` | PostgreSQL password |
 | `SMTP_HOST` | — | SMTP server |
 | `SMTP_PORT` | `587` | SMTP port |
@@ -167,7 +167,7 @@ JWT_SECRET=your-secret-key docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1129 |
+| **Backend** | — | — | — | 1131 |
 | **Frontend** | — | — | — | 1636 |
 
 Full coverage report (Nix dev shell):

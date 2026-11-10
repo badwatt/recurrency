@@ -119,11 +119,13 @@ impl TransactionService {
                 .await?
                 .id
         } else {
-            req.account_id
+            crate::accounts::service::AccountService::get_by_id(pool, user_id, req.account_id)
+                .await?
+                .id
         };
 
         let category_id = match req.category_id {
-            Some(id) => id,
+            Some(id) => CategoryService::get_by_id(pool, user_id, id).await?.id,
             None => CategoryService::get_default(pool, user_id).await?.id,
         };
 
@@ -184,6 +186,15 @@ impl TransactionService {
         req: UpdateTransactionRequest,
     ) -> AppResult<Transaction> {
         let existing = Self::get_by_id(pool, user_id, id).await?;
+
+        // Foreign keys do not enforce ownership; reject foreign account/category ids.
+        if let Some(account_id) = req.account_id {
+            crate::accounts::service::AccountService::get_by_id(pool, user_id, account_id).await?;
+        }
+        if let Some(category_id) = req.category_id {
+            CategoryService::get_by_id(pool, user_id, category_id).await?;
+        }
+
         let (name, amount, currency, date, account_id, category_id, notes, logo_url) =
             resolve_update_fields(&existing, &req);
 

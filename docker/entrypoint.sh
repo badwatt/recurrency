@@ -75,7 +75,11 @@ done
 export DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
 export APP_HOST="${APP_HOST:-0.0.0.0}"
 export APP_PORT="${APP_PORT:-8080}"
-export JWT_SECRET="${JWT_SECRET:-change-me-in-production}"
+if [ -z "${JWT_SECRET:-}" ]; then
+    echo "ERROR: JWT_SECRET must be set to a strong random value" >&2
+    exit 1
+fi
+export JWT_SECRET
 export ENABLE_DEMO="${ENABLE_DEMO:-false}"
 
 # ── Start backend on internal port ──────────────────────

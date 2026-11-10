@@ -12,11 +12,13 @@ use uuid::Uuid;
 use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
 use recurrency_backend::accounts::service::AccountService;
 use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest};
-use recurrency_backend::auth::service::AuthService;
+use recurrency_backend::auth::service::{AuthService, AuthServiceTrait, SqlxAuthService};
 use recurrency_backend::categories::models::CreateCategoryRequest;
 use recurrency_backend::categories::service::CategoryService;
 use recurrency_backend::shared::error::AppError;
-use recurrency_backend::subscriptions::models::{CreateSubscriptionRequest, UpdateSubscriptionRequest};
+use recurrency_backend::subscriptions::models::{
+    CreateSubscriptionRequest, UpdateSubscriptionRequest,
+};
 use recurrency_backend::subscriptions::service::SubscriptionService;
 
 // ── Test Fixtures ─────────────────────────────────────────────────────────────
@@ -186,6 +188,50 @@ async fn auth_verify_token_valid(pool: PgPool) {
     let (_, token) = create_test_user(&pool).await;
     let claims = AuthService::verify_token(&token).await.unwrap();
     assert!(!claims.email.is_empty());
+}
+
+#[sqlx::test]
+async fn cross_tenant_subscription_account_category_rejected(pool: PgPool) {
+    let (user_a, _) = create_test_user(&pool).await;
+    let (user_b, _) = create_test_user(&pool).await;
+    let account_b = AccountService::get_default(&pool, user_b).await.unwrap();
+    let category_b = CategoryService::get_default(&pool, user_b).await.unwrap();
+
+    let result = SubscriptionService::create(
+        &pool,
+        user_a,
+        CreateSubscriptionRequest {
+            name: "Cross tenant attempt".to_string(),
+            amount: Decimal::from(10),
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            account_id: account_b.id,
+            category_id: Some(category_b.id),
+            notes: None,
+            logo_url: None,
+        },
+    )
+    .await;
+
+    assert!(matches!(result, Err(AppError::NotFound(_))));
+}
+
+#[sqlx::test]
+async fn unverified_token_rejected_but_verification_token_accepted(pool: PgPool) {
+    let (user_id, token) = create_test_user(&pool).await;
+    sqlx::query("UPDATE users SET verified = false WHERE id = $1")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let service = SqlxAuthService::new(pool.clone());
+    assert!(matches!(
+        service.verify_token(&token).await,
+        Err(AppError::Unauthorized(_))
+    ));
+    assert!(service.verify_verification_token(&token).await.is_ok());
 }
 
 #[sqlx::test]
@@ -363,9 +409,11 @@ async fn subscription_delete_wrong_user(pool: PgPool) {
     assert!(matches!(result, Err(AppError::NotFound(_))));
 
     // Verify still exists for user1
-    assert!(SubscriptionService::get_by_id(&pool, user1_id, sub.id)
-        .await
-        .is_ok());
+    assert!(
+        SubscriptionService::get_by_id(&pool, user1_id, sub.id)
+            .await
+            .is_ok()
+    );
 }
 
 #[sqlx::test]
@@ -414,17 +462,33 @@ async fn subscription_get_calendar_returns_for_next_month(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     // Create subscription with start_date = 1st of next month
     let now = chrono::Utc::now().date_naive();
-    let next_month = if now.month() == 12 { chrono::NaiveDate::from_ymd_opt(now.year() + 1, 1, 1) }
-                     else { chrono::NaiveDate::from_ymd_opt(now.year(), now.month() + 1, 1) }.unwrap();
-    create_subscription_with_date(&pool, user_id, "Netflix", Decimal::from(1599), "monthly", next_month).await;
+    let next_month = if now.month() == 12 {
+        chrono::NaiveDate::from_ymd_opt(now.year() + 1, 1, 1)
+    } else {
+        chrono::NaiveDate::from_ymd_opt(now.year(), now.month() + 1, 1)
+    }
+    .unwrap();
+    create_subscription_with_date(
+        &pool,
+        user_id,
+        "Netflix",
+        Decimal::from(1599),
+        "monthly",
+        next_month,
+    )
+    .await;
 
-    let calendar = SubscriptionService::get_calendar(&pool, user_id, next_month.year(), next_month.month())
-        .await
-        .unwrap();
+    let calendar =
+        SubscriptionService::get_calendar(&pool, user_id, next_month.year(), next_month.month())
+            .await
+            .unwrap();
     // Calendar may be empty if next_billing_date advanced past this month (edge case: today is 1st)
     // But function should not error
     for item in &calendar {
-        assert!(item.billing_date.year() == next_month.year() && item.billing_date.month() == next_month.month());
+        assert!(
+            item.billing_date.year() == next_month.year()
+                && item.billing_date.month() == next_month.month()
+        );
     }
 }
 
@@ -461,7 +525,10 @@ async fn first_category_created_by_register_is_default(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     let cats = CategoryService::get_all(&pool, user_id).await.unwrap();
     let uncategorized = cats.iter().find(|c| c.is_system).unwrap();
-    assert!(uncategorized.is_default, "uncategorized category should be default");
+    assert!(
+        uncategorized.is_default,
+        "uncategorized category should be default"
+    );
 }
 
 #[sqlx::test]
@@ -510,7 +577,6 @@ async fn category_subscription_auto_default(pool: PgPool) {
     let sub = create_subscription(&pool, user_id, "Netflix", Decimal::from(1599), "monthly").await;
     assert_eq!(sub.category_id, default_cat.id);
 }
-
 
 // ── Account Tests ─────────────────────────────────────────────────────────────
 
@@ -597,7 +663,11 @@ async fn account_delete_reassigns_subscriptions_to_default(pool: PgPool) {
     .unwrap();
     assert_eq!(sub.account_id, extra.id);
 
-    AccountService::delete(&pool, user_id, extra.id).await.unwrap();
-    let sub_after = SubscriptionService::get_by_id(&pool, user_id, sub.id).await.unwrap();
+    AccountService::delete(&pool, user_id, extra.id)
+        .await
+        .unwrap();
+    let sub_after = SubscriptionService::get_by_id(&pool, user_id, sub.id)
+        .await
+        .unwrap();
     assert_eq!(sub_after.account_id, default.id);
 }

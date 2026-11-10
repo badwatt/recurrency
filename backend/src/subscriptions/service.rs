@@ -16,7 +16,11 @@ pub struct SubscriptionService;
 /// Subscription port, injected into `AppState` as `Arc<dyn SubscriptionServiceTrait>`.
 #[async_trait::async_trait]
 pub trait SubscriptionServiceTrait: Send + Sync {
-    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<Subscription>;
+    async fn create(
+        &self,
+        user_id: Uuid,
+        req: CreateSubscriptionRequest,
+    ) -> AppResult<Subscription>;
     async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<Subscription>>;
     async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<Subscription>;
     async fn update(
@@ -27,8 +31,12 @@ pub trait SubscriptionServiceTrait: Send + Sync {
     ) -> AppResult<Subscription>;
     async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
     async fn get_upcoming(&self, user_id: Uuid, days: i64) -> AppResult<Vec<Subscription>>;
-    async fn get_calendar(&self, user_id: Uuid, year: i32, month: u32)
-    -> AppResult<Vec<CalendarItem>>;
+    async fn get_calendar(
+        &self,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+    ) -> AppResult<Vec<CalendarItem>>;
 }
 
 /// SQLx adapter delegating to the existing, tested [`SubscriptionService`] functions.
@@ -44,7 +52,11 @@ impl SqlxSubscriptionService {
 
 #[async_trait::async_trait]
 impl SubscriptionServiceTrait for SqlxSubscriptionService {
-    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<Subscription> {
+    async fn create(
+        &self,
+        user_id: Uuid,
+        req: CreateSubscriptionRequest,
+    ) -> AppResult<Subscription> {
         SubscriptionService::create(&self.pool, user_id, req).await
     }
 
@@ -97,12 +109,15 @@ impl SubscriptionService {
                 .await?
                 .id
         } else {
-            req.account_id
+            crate::accounts::service::AccountService::get_by_id(pool, user_id, req.account_id)
+                .await?
+                .id
         };
 
-        // Auto-assign default category if none provided
+        // Auto-assign default category if none provided. A supplied id must
+        // belong to the authenticated user; foreign keys only prove existence.
         let category_id = match req.category_id {
-            Some(id) => id,
+            Some(id) => CategoryService::get_by_id(pool, user_id, id).await?.id,
             None => CategoryService::get_default(pool, user_id).await?.id,
         };
 
@@ -165,11 +180,19 @@ impl SubscriptionService {
         // First verify the subscription exists and belongs to user
         let existing = Self::get_by_id(pool, user_id, id).await?;
 
+        // Foreign keys do not enforce ownership; reject foreign account/category ids.
+        if let Some(account_id) = req.account_id {
+            crate::accounts::service::AccountService::get_by_id(pool, user_id, account_id).await?;
+        }
+        if let Some(category_id) = req.category_id {
+            CategoryService::get_by_id(pool, user_id, category_id).await?;
+        }
+
         let name = req.name.unwrap_or(existing.name);
         let amount = req.amount.unwrap_or(existing.amount);
         let currency = req.currency.unwrap_or(existing.currency);
-        let frequency_changed = req.frequency.is_some()
-            && req.frequency.as_ref() != Some(&existing.frequency);
+        let frequency_changed =
+            req.frequency.is_some() && req.frequency.as_ref() != Some(&existing.frequency);
         let frequency = req.frequency.unwrap_or(existing.frequency.clone());
         let start_date = req.start_date.unwrap_or(existing.start_date);
         let next_billing_date = if let Some(nbd) = req.next_billing_date {
@@ -181,9 +204,9 @@ impl SubscriptionService {
                 &frequency,
             )
         } else {
-            existing.next_billing_date.unwrap_or_else(|| {
-                calculate_next_billing_date(start_date, &frequency)
-            })
+            existing
+                .next_billing_date
+                .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency))
         };
         let account_id = req.account_id.unwrap_or(existing.account_id);
         let category_id = req.category_id.unwrap_or(existing.category_id);
@@ -371,7 +394,8 @@ pub(crate) fn calculate_next_billing_date(start_date: NaiveDate, frequency: &str
         if iterations > 1000 {
             tracing::warn!(
                 "calculate_next_billing_date: loop guard triggered for start_date={} frequency={}",
-                start_date, frequency
+                start_date,
+                frequency
             );
             break;
         }

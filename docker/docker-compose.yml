@@ -4,7 +4,7 @@
 #   docker compose up -d recurrency
 #
 # Or deploy standalone with:
-#   docker run -d -p 80:80 -e JWT_SECRET=your-secret ghcr.io/badwatt/recurrency:latest
+#   docker run -d -p 80:80 -e JWT_SECRET="$(openssl rand -hex 32)" ghcr.io/badwatt/recurrency:latest
 #
 services:
   recurrency:
@@ -14,8 +14,8 @@ services:
     ports:
       - "80:80"
     environment:
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      ENABLE_DEMO: ${ENABLE_DEMO:-true}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      ENABLE_DEMO: ${ENABLE_DEMO:-false}
       PGPASSWORD: ${PGPASSWORD:-recurrency}
       RUST_LOG: info
     volumes:
@@ -50,8 +50,8 @@ services:
 #      DATABASE_URL: postgres://recurrency:${PGPASSWORD:-recurrency}@db:5432/recurrency
 #      APP_HOST: "0.0.0.0"
 #      APP_PORT: "8080"
-#      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-#      ENABLE_DEMO: ${ENABLE_DEMO:-true}
+#      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+#      ENABLE_DEMO: ${ENABLE_DEMO:-false}
 #      RUST_LOG: info
 #    depends_on:
 #      db:

@@ -1,16 +1,13 @@
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{Json, extract::State};
 use validator::Validate;
 
 use crate::auth::models::{
     AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest,
     UserResponse,
 };
+use crate::shared::OptionalQuery;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
-use crate::shared::OptionalQuery;
 
 pub async fn register(
     State(state): State<crate::shared::app_state::AppState>,
@@ -98,11 +95,9 @@ pub async fn verify_email(
     headers: axum::http::HeaderMap,
     Json(body): Json<VerifyEmailBody>,
 ) -> AppResult<Json<UserResponse>> {
-    let token = extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?;
-    let claims = state.auth_service.verify_token(&token).await?;
+    let token =
+        extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
+    let claims = state.auth_service.verify_verification_token(&token).await?;
     let user = state
         .auth_service
         .verify_email(claims.sub, body.code)
@@ -115,11 +110,9 @@ pub async fn resend_verification(
     OptionalQuery(query): OptionalQuery<VerifyEmailQuery>,
     headers: axum::http::HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let token = extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?;
-    let claims = state.auth_service.verify_token(&token).await?;
+    let token =
+        extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
+    let claims = state.auth_service.verify_verification_token(&token).await?;
     let _ = state.auth_service.resend_verification(claims.sub).await?;
     Ok(Json(
         serde_json::json!({"message": "Verification code sent"}),
@@ -315,10 +308,10 @@ mod tests {
 #[cfg(test)]
 mod handler_integration_tests {
     use super::*;
+    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use axum::routing::{get, post, put};
-    use axum::Router;
     use tower::ServiceExt;
 
     // Valid mock token for MockAuthService (starts with mock_token_ + valid UUID)

@@ -295,17 +295,21 @@ impl CategoryService {
         let mut result: Vec<CategoryWithCounts> = Vec::new();
 
         for cat in categories {
-            let subscription_count: (i64,) =
-                sqlx::query_as("SELECT COUNT(*) FROM subscriptions WHERE category_id = $1")
-                    .bind(cat.id)
-                    .fetch_one(pool)
-                    .await?;
+            let subscription_count: (i64,) = sqlx::query_as(
+                "SELECT COUNT(*) FROM subscriptions WHERE category_id = $1 AND user_id = $2",
+            )
+            .bind(cat.id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
-            let transaction_count: (i64,) =
-                sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE category_id = $1")
-                    .bind(cat.id)
-                    .fetch_one(pool)
-                    .await?;
+            let transaction_count: (i64,) = sqlx::query_as(
+                "SELECT COUNT(*) FROM transactions WHERE category_id = $1 AND user_id = $2",
+            )
+            .bind(cat.id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
             result.push(CategoryWithCounts {
                 category: cat.into(),
@@ -952,16 +956,18 @@ mod tests {
 
     #[test]
     fn category_with_counts_query() {
-        let sql = "SELECT COUNT(*) FROM subscriptions WHERE category_id = $1";
+        let sql = "SELECT COUNT(*) FROM subscriptions WHERE category_id = $1 AND user_id = $2";
         assert!(sql.contains("subscriptions"));
         assert!(sql.contains("category_id"));
+        assert!(sql.contains("user_id"));
     }
 
     #[test]
     fn transaction_count_query() {
-        let sql = "SELECT COUNT(*) FROM transactions WHERE category_id = $1";
+        let sql = "SELECT COUNT(*) FROM transactions WHERE category_id = $1 AND user_id = $2";
         assert!(sql.contains("transactions"));
         assert!(sql.contains("category_id"));
+        assert!(sql.contains("user_id"));
     }
 
     // ── Ordering by is_default DESC ──
@@ -1162,7 +1168,10 @@ mod tests {
 
     #[test]
     fn json_field_float_keeps_existing() {
-        let result = resolve_optional_json_field(serde_json::json!(std::f64::consts::PI), Some("keep".to_string()));
+        let result = resolve_optional_json_field(
+            serde_json::json!(std::f64::consts::PI),
+            Some("keep".to_string()),
+        );
         assert_eq!(result, Some("keep".to_string()));
     }
 }

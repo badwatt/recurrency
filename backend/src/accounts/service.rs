@@ -297,17 +297,21 @@ impl AccountService {
         let mut result = Vec::with_capacity(accounts.len());
 
         for account in accounts {
-            let subscription_count: (i64,) =
-                sqlx::query_as("SELECT COUNT(*) FROM subscriptions WHERE account_id = $1")
-                    .bind(account.id)
-                    .fetch_one(pool)
-                    .await?;
+            let subscription_count: (i64,) = sqlx::query_as(
+                "SELECT COUNT(*) FROM subscriptions WHERE account_id = $1 AND user_id = $2",
+            )
+            .bind(account.id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
-            let transaction_count: (i64,) =
-                sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE account_id = $1")
-                    .bind(account.id)
-                    .fetch_one(pool)
-                    .await?;
+            let transaction_count: (i64,) = sqlx::query_as(
+                "SELECT COUNT(*) FROM transactions WHERE account_id = $1 AND user_id = $2",
+            )
+            .bind(account.id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
             result.push(AccountWithCounts {
                 account: account.into(),

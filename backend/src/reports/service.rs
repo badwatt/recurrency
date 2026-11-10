@@ -234,7 +234,7 @@ impl ReportService {
                        END
                    ), 0) as total
             FROM subscriptions s
-            LEFT JOIN categories c ON s.category_id = c.id
+            LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
             WHERE s.user_id = $1 AND s.is_active = true
             GROUP BY c.id, c.name
             "#,
@@ -248,7 +248,7 @@ impl ReportService {
             r#"
             SELECT c.id::text, COALESCE(c.name, 'Uncategorized'), COALESCE(SUM(t.amount), 0) as total
             FROM transactions t
-            LEFT JOIN categories c ON t.category_id = c.id
+            LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
             WHERE t.user_id = $1 AND t.date >= $2 AND t.date <= $3
             GROUP BY c.id, c.name
             "#,

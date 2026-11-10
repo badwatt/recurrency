@@ -7,7 +7,6 @@
 // let mock_auth = MockAuthService::success();
 // let result = mock_auth.register(req).await;
 
-
 use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -257,7 +256,11 @@ impl MockAuthService {
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))
     }
 
-    pub async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
+    pub async fn update_settings(
+        &self,
+        user_id: Uuid,
+        req: UpdateSettingsRequest,
+    ) -> AppResult<User> {
         if self.config.should_fail {
             return Err(AppError::NotFound(self.config.error_message.clone()));
         }
@@ -321,6 +324,10 @@ impl crate::auth::service::AuthServiceTrait for MockAuthService {
         MockAuthService::verify_token(self, token).await
     }
 
+    async fn verify_verification_token(&self, token: &str) -> AppResult<Claims> {
+        MockAuthService::verify_token(self, token).await
+    }
+
     async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User> {
         MockAuthService::get_user_by_id(self, user_id).await
     }
@@ -345,8 +352,6 @@ impl crate::auth::service::AuthServiceTrait for MockAuthService {
 // ============================================================================
 // Category Service Trait + Mock
 // ============================================================================
-
-
 
 pub struct MockCategoryService {
     pub config: MockConfig,
@@ -603,8 +608,6 @@ impl MockCategoryService {
 // Subscription Service Trait + Mock
 // ============================================================================
 
-
-
 pub struct MockSubscriptionService {
     pub config: MockConfig,
     pub subscriptions: Arc<std::sync::Mutex<Vec<Subscription>>>,
@@ -813,8 +816,6 @@ impl MockSubscriptionService {
 // Transaction Service Trait + Mock
 // ============================================================================
 
-
-
 pub struct MockTransactionService {
     pub config: MockConfig,
     pub transactions: Arc<std::sync::Mutex<Vec<Transaction>>>,
@@ -856,7 +857,11 @@ impl MockTransactionService {
 }
 
 impl MockTransactionService {
-    pub async fn create(&self, user_id: Uuid, req: CreateTransactionRequest) -> AppResult<Transaction> {
+    pub async fn create(
+        &self,
+        user_id: Uuid,
+        req: CreateTransactionRequest,
+    ) -> AppResult<Transaction> {
         self.create_calls
             .lock()
             .unwrap()
@@ -975,8 +980,6 @@ impl MockTransactionService {
 // ============================================================================
 // Notification Service Trait + Mock
 // ============================================================================
-
-
 
 pub struct MockNotificationService {
     pub config: MockConfig,
@@ -1135,8 +1138,6 @@ impl MockNotificationService {
 // Report Service Trait + Mock
 // ============================================================================
 
-
-
 pub struct MockReportService {
     pub config: MockConfig,
 }
@@ -1265,8 +1266,6 @@ impl MockReportService {
 // ============================================================================
 // Preferences Service Trait + Mock
 // ============================================================================
-
-
 
 pub struct MockPreferencesService {
     pub config: MockConfig,
@@ -3311,8 +3310,8 @@ mod tests {
                 UpdatePreferencesRequest {
                     theme: Some("dark".to_string()),
                     subscriptions_view: None,
-                first_day_of_week: None,
-                date_format: None,
+                    first_day_of_week: None,
+                    date_format: None,
                 },
             )
             .await
@@ -3322,8 +3321,8 @@ mod tests {
                 UpdatePreferencesRequest {
                     theme: Some("light".to_string()),
                     subscriptions_view: None,
-                first_day_of_week: None,
-                date_format: None,
+                    first_day_of_week: None,
+                    date_format: None,
                 },
             )
             .await

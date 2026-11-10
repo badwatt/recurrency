@@ -1,11 +1,11 @@
-use axum::{extract::State, http::HeaderMap, Json};
+use axum::{Json, extract::State, http::HeaderMap};
 use chrono::Datelike;
 
 use crate::reports::models::ReportResponse;
+use crate::shared::OptionalQuery;
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
-use crate::shared::OptionalQuery;
 
 #[derive(serde::Deserialize)]
 pub struct ReportQuery {
@@ -14,16 +14,32 @@ pub struct ReportQuery {
     pub month: Option<u32>,
 }
 
+fn validate_report_period(year: i32, month: u32) -> AppResult<()> {
+    if !(1..=12).contains(&month) {
+        return Err(crate::shared::error::AppError::BadRequest(
+            "month must be between 1 and 12".to_string(),
+        ));
+    }
+    if !(1970..=9998).contains(&year) {
+        return Err(crate::shared::error::AppError::BadRequest(
+            "year must be between 1970 and 9998".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 pub async fn get_report(
     State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<ReportQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<ReportResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let today = chrono::Utc::now().date_naive();
     let year = query.as_ref().and_then(|q| q.year).unwrap_or(today.year());
@@ -32,7 +48,11 @@ pub async fn get_report(
         .and_then(|q| q.month)
         .unwrap_or(today.month());
 
-    let report = state.report_service.get_full_report(claims.sub, year, month).await?;
+    validate_report_period(year, month)?;
+    let report = state
+        .report_service
+        .get_full_report(claims.sub, year, month)
+        .await?;
 
     Ok(Json(report))
 }
@@ -61,6 +81,16 @@ mod tests {
         assert!(result.year.is_none());
         assert!(result.month.is_none());
         assert!(result.token.is_none());
+    }
+
+    #[test]
+    fn report_period_rejects_out_of_range_values() {
+        assert!(validate_report_period(2024, 0).is_err());
+        assert!(validate_report_period(2024, 13).is_err());
+        assert!(validate_report_period(1969, 1).is_err());
+        assert!(validate_report_period(9999, 12).is_err());
+        assert!(validate_report_period(2024, 1).is_ok());
+        assert!(validate_report_period(2024, 12).is_ok());
     }
 
     #[test]
