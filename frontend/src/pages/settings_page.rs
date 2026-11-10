@@ -69,6 +69,7 @@ pub(crate) const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[component]
 pub fn SettingsPage() -> Element {
+    let offline = crate::api::client::is_offline_mode();
     rsx! {
         div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
             div { class: "",
@@ -79,9 +80,18 @@ pub fn SettingsPage() -> Element {
             PreferencesCard {}
             MoneyCard {}
             ConnectionCard {}
-            NotificationsCard {}
-            DeliveryCard {}
-            SummaryCard {}
+            if offline {
+                div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
+                    h2 { class: "text-lg font-semibold", "Server notifications" }
+                    p { class: "text-sm text-muted-foreground mt-1",
+                        "Delivery channels and summary schedules require server mode. Switch connection mode to configure them."
+                    }
+                }
+            } else {
+                NotificationsCard {}
+                DeliveryCard {}
+                SummaryCard {}
+            }
 
             p { class: "text-center text-xs text-muted-foreground/70 pt-1",
                 {format!("Recurrency v{APP_VERSION}")}

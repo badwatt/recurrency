@@ -37,6 +37,12 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
+    fn settings_page_handles_offline_notifications() {
+        assert!(SETTINGS_SOURCES.contains("is_offline_mode"));
+        assert!(SETTINGS_SOURCES.contains("Server notifications"));
+    }
+
+    #[test]
     fn settings_page_renders_version() {
         assert!(SETTINGS_SOURCES.contains("APP_VERSION"));
     }

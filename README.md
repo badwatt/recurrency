@@ -170,7 +170,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
 | **Backend** | — | — | — | 1156 |
-| **Frontend** | — | — | — | 1641 |
+| **Frontend** | — | — | — | 1642 |
 
 Full coverage report (Nix dev shell):
 

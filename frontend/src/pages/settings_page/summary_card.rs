@@ -25,6 +25,9 @@ pub fn SummaryCard() -> Element {
     let mut saving = use_signal(|| false);
 
     use_future(move || async move {
+        if crate::api::client::is_offline_mode() {
+            return;
+        }
         match notification_channels::get_summary().await {
             Ok(summary) => {
                 enabled.set(summary.enabled);
@@ -35,7 +38,10 @@ pub fn SummaryCard() -> Element {
                 timezone.set(summary.timezone);
                 next_run.set(summary.next_run_at.map(|value| value.to_rfc3339()));
             }
-            Err(error) => TOAST.write().error(format!("Could not load summary schedule: {error}")),
+            Err(error) => TOAST.write().error(format!(
+                "Could not load summary schedule: {error} (API: {})",
+                crate::api::client::get_base_url()
+            )),
         }
     });
 
@@ -60,7 +66,10 @@ pub fn SummaryCard() -> Element {
                     next_run.set(summary.next_run_at.map(|value| value.to_rfc3339()));
                     TOAST.write().success("Summary schedule saved");
                 }
-                Err(error) => TOAST.write().error(format!("Could not save summary schedule: {error}")),
+                Err(error) => TOAST.write().error(format!(
+                    "Could not save summary schedule: {error} (API: {})",
+                    crate::api::client::get_base_url()
+                )),
             }
             saving.set(false);
         });

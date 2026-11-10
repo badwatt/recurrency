@@ -63,6 +63,9 @@ pub fn DeliveryCard() -> Element {
     let mut testing = use_signal(|| false);
 
     use_future(move || async move {
+        if crate::api::client::is_offline_mode() {
+            return;
+        }
         match notification_channels::list().await {
             Ok(list) => {
                 let email = list.iter().find(|c| c.provider == "email").cloned();
@@ -81,7 +84,10 @@ pub fn DeliveryCard() -> Element {
                 gotify_server.set(field(&config, "server_url"));
                 gotify_token.set(field(&config, "token"));
             }
-            Err(error) => TOAST.write().error(format!("Could not load delivery channels: {error}")),
+            Err(error) => TOAST.write().error(format!(
+                "Could not load delivery channels: {error} (API: {})",
+                crate::api::client::get_base_url()
+            )),
         }
     });
 
@@ -118,7 +124,10 @@ pub fn DeliveryCard() -> Element {
                     channels.set(list);
                     TOAST.write().success("Delivery channel saved");
                 }
-                Err(error) => TOAST.write().error(format!("Could not save delivery channel: {error}")),
+                Err(error) => TOAST.write().error(format!(
+                    "Could not save delivery channel: {error} (API: {})",
+                    crate::api::client::get_base_url()
+                )),
             }
             saving.set(false);
         });
@@ -131,7 +140,10 @@ pub fn DeliveryCard() -> Element {
         spawn(async move {
             match notification_channels::test(&provider, config).await {
                 Ok(()) => TOAST.write().success("Test notification sent"),
-                Err(error) => TOAST.write().error(format!("Test notification failed: {error}")),
+                Err(error) => TOAST.write().error(format!(
+                    "Test notification failed: {error} (API: {})",
+                    crate::api::client::get_base_url()
+                )),
             }
             testing.set(false);
         });
