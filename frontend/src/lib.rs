@@ -54,6 +54,10 @@ pub enum Route {
         Reports {},
         #[route("/settings")]
         Settings {},
+        #[route("/settings/accounts")]
+        SettingsAccounts {},
+        #[route("/settings/categories")]
+        SettingsCategories {},
     #[end_layout]
 
     // Catch all → redirect to /
@@ -296,12 +300,12 @@ fn Calendar() -> Element {
 #[component]
 #[allow(non_snake_case)]
 fn Accounts() -> Element {
-    rsx! { crate::pages::AccountsPage {} }
+    rsx! { SettingsAccounts {} }
 }
 
 #[allow(non_snake_case)]
 fn Categories() -> Element {
-    rsx! { crate::pages::CategoriesPage {} }
+    rsx! { SettingsCategories {} }
 }
 
 #[component]
@@ -312,6 +316,47 @@ fn Reports() -> Element {
 #[component]
 fn Settings() -> Element {
     rsx! { crate::pages::SettingsPage {} }
+}
+
+#[component]
+fn SettingsSubnav(active: String) -> Element {
+    let accounts_active = active == "accounts";
+    rsx! {
+        div { class: "flex items-center gap-2 px-2 md:px-6 pt-3 text-sm",
+            Link {
+                to: Route::Settings {},
+                class: "text-muted-foreground hover:text-foreground transition-colors",
+                "← Settings"
+            }
+            span { class: "text-muted-foreground/40", "/" }
+            Link {
+                to: Route::SettingsAccounts {},
+                class: if accounts_active { "font-medium text-foreground" } else { "text-muted-foreground hover:text-foreground transition-colors" },
+                "Accounts"
+            }
+            Link {
+                to: Route::SettingsCategories {},
+                class: if accounts_active { "text-muted-foreground hover:text-foreground transition-colors" } else { "font-medium text-foreground" },
+                "Categories"
+            }
+        }
+    }
+}
+
+#[component]
+fn SettingsAccounts() -> Element {
+    rsx! {
+        SettingsSubnav { active: "accounts".to_string() }
+        crate::pages::AccountsPage {}
+    }
+}
+
+#[component]
+fn SettingsCategories() -> Element {
+    rsx! {
+        SettingsSubnav { active: "categories".to_string() }
+        crate::pages::CategoriesPage {}
+    }
 }
 
 #[component]

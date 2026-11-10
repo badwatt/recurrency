@@ -16,6 +16,27 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
+    fn settings_page_exposes_money_section() {
+        assert!(SETTINGS_SOURCES.contains("Money"));
+        assert!(SETTINGS_SOURCES.contains("Route::SettingsAccounts"));
+        assert!(SETTINGS_SOURCES.contains("Route::SettingsCategories"));
+    }
+
+    #[test]
+    fn layout_nav_does_not_expose_accounts_or_categories() {
+        let layout = include_str!("../../layout/app_layout.rs");
+        assert!(!layout.contains("Route::Accounts"));
+        assert!(!layout.contains("Route::Categories"));
+    }
+
+    #[test]
+    fn settings_subpages_are_routed() {
+        let lib = include_str!("../../lib.rs");
+        assert!(lib.contains("/settings/accounts"));
+        assert!(lib.contains("/settings/categories"));
+    }
+
+    #[test]
     fn settings_page_renders_version() {
         assert!(SETTINGS_SOURCES.contains("APP_VERSION"));
     }

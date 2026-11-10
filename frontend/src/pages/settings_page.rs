@@ -12,6 +12,32 @@ use notifications_card::NotificationsCard;
 use preferences_card::PreferencesCard;
 use profile_card::ProfileCard;
 
+#[component]
+fn MoneyCard() -> Element {
+    rsx! {
+        div { class: "rounded-xl bg-card/80 border border-border/40",
+            div { class: "p-6 border-b border-border",
+                h2 { class: "text-lg font-semibold", "Money" }
+                p { class: "text-sm text-muted-foreground", "Manage the accounts and categories that organize your money" }
+            }
+            div { class: "p-6 grid gap-3 sm:grid-cols-2",
+                Link {
+                    to: crate::Route::SettingsAccounts {},
+                    class: "rounded-lg border border-border/50 bg-background/40 p-4 hover:bg-accent transition-colors",
+                    p { class: "font-medium", "Accounts" }
+                    p { class: "text-sm text-muted-foreground mt-1", "Where you move money each month" }
+                }
+                Link {
+                    to: crate::Route::SettingsCategories {},
+                    class: "rounded-lg border border-border/50 bg-background/40 p-4 hover:bg-accent transition-colors",
+                    p { class: "font-medium", "Categories" }
+                    p { class: "text-sm text-muted-foreground mt-1", "Optional labels for your spending" }
+                }
+            }
+        }
+    }
+}
+
 const NOTIFICATION_CHANNELS: &[(&str, &str, &str)] = &[
     (
         "email",
@@ -47,6 +73,7 @@ pub fn SettingsPage() -> Element {
 
             ProfileCard {}
             PreferencesCard {}
+            MoneyCard {}
             ConnectionCard {}
             NotificationsCard {}
 
