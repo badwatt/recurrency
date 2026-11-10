@@ -54,6 +54,16 @@ pub enum Route {
         Reports {},
         #[route("/settings")]
         Settings {},
+        #[route("/settings/profile")]
+        SettingsProfile {},
+        #[route("/settings/preferences")]
+        SettingsPreferences {},
+        #[route("/settings/money")]
+        SettingsMoney {},
+        #[route("/settings/notifications")]
+        SettingsNotifications {},
+        #[route("/settings/connection")]
+        SettingsConnection {},
         #[route("/settings/accounts")]
         SettingsAccounts {},
         #[route("/settings/categories")]
@@ -315,29 +325,42 @@ fn Reports() -> Element {
 
 #[component]
 fn Settings() -> Element {
-    rsx! { crate::pages::SettingsPage {} }
+    rsx! { crate::pages::SettingsProfilePage {} }
 }
 
 #[component]
-fn SettingsSubnav(active: String) -> Element {
-    let accounts_active = active == "accounts";
+fn SettingsProfile() -> Element {
+    rsx! { crate::pages::SettingsProfilePage {} }
+}
+
+#[component]
+fn SettingsPreferences() -> Element {
+    rsx! { crate::pages::SettingsPreferencesPage {} }
+}
+
+#[component]
+fn SettingsMoney() -> Element {
+    rsx! { crate::pages::SettingsMoneyPage {} }
+}
+
+#[component]
+fn SettingsNotifications() -> Element {
+    rsx! { crate::pages::SettingsNotificationsPage {} }
+}
+
+#[component]
+fn SettingsConnection() -> Element {
+    rsx! { crate::pages::SettingsConnectionPage {} }
+}
+
+#[component]
+fn SettingsBackLink() -> Element {
     rsx! {
-        div { class: "flex items-center gap-2 px-2 md:px-6 pt-3 text-sm",
+        div { class: "px-2 md:px-6 pt-3 text-sm",
             Link {
-                to: Route::Settings {},
+                to: Route::SettingsMoney {},
                 class: "text-muted-foreground hover:text-foreground transition-colors",
-                "← Settings"
-            }
-            span { class: "text-muted-foreground/40", "/" }
-            Link {
-                to: Route::SettingsAccounts {},
-                class: if accounts_active { "font-medium text-foreground" } else { "text-muted-foreground hover:text-foreground transition-colors" },
-                "Accounts"
-            }
-            Link {
-                to: Route::SettingsCategories {},
-                class: if accounts_active { "text-muted-foreground hover:text-foreground transition-colors" } else { "font-medium text-foreground" },
-                "Categories"
+                "← Money"
             }
         }
     }
@@ -346,7 +369,7 @@ fn SettingsSubnav(active: String) -> Element {
 #[component]
 fn SettingsAccounts() -> Element {
     rsx! {
-        SettingsSubnav { active: "accounts".to_string() }
+        SettingsBackLink {}
         crate::pages::AccountsPage {}
     }
 }
@@ -354,7 +377,7 @@ fn SettingsAccounts() -> Element {
 #[component]
 fn SettingsCategories() -> Element {
     rsx! {
-        SettingsSubnav { active: "categories".to_string() }
+        SettingsBackLink {}
         crate::pages::CategoriesPage {}
     }
 }

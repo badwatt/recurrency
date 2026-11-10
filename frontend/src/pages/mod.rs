@@ -13,6 +13,9 @@ pub use accounts_page::AccountsPage;
 pub use categories_page::CategoriesPage;
 pub use dashboard::Dashboard;
 pub use reports_page::ReportsPage;
-pub use settings_page::SettingsPage;
+pub use settings_page::{
+    SettingsConnectionPage, SettingsMoneyPage, SettingsNotificationsPage, SettingsPreferencesPage,
+    SettingsProfilePage,
+};
 pub use setup::SetupPage;
 pub use transactions_page::TransactionsPage;

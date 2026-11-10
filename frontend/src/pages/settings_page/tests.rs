@@ -23,10 +23,12 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn layout_nav_does_not_expose_accounts_or_categories() {
+    fn layout_uses_contextual_settings_nav() {
         let layout = include_str!("../../layout/app_layout.rs");
-        assert!(!layout.contains("Route::Accounts"));
-        assert!(!layout.contains("Route::Categories"));
+        assert!(layout.contains("SettingsTopLink"));
+        assert!(layout.contains("in_settings"));
+        assert!(layout.contains("Route::SettingsNotifications"));
+        assert!(layout.contains("Done"));
     }
 
     #[test]
@@ -34,6 +36,8 @@ const SETTINGS_SOURCES: &str = concat!(
         let lib = include_str!("../../lib.rs");
         assert!(lib.contains("/settings/accounts"));
         assert!(lib.contains("/settings/categories"));
+        assert!(lib.contains("/settings/notifications"));
+        assert!(lib.contains("/settings/money"));
     }
 
     #[test]

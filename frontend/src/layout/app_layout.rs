@@ -68,6 +68,31 @@ pub fn AppLayout() -> Element {
     }
 
     let current_route: crate::Route = use_route();
+    let in_settings = matches!(
+        current_route,
+        crate::Route::Settings {}
+            | crate::Route::SettingsProfile {}
+            | crate::Route::SettingsPreferences {}
+            | crate::Route::SettingsMoney {}
+            | crate::Route::SettingsNotifications {}
+            | crate::Route::SettingsConnection {}
+            | crate::Route::SettingsAccounts {}
+            | crate::Route::SettingsCategories {}
+            | crate::Route::Accounts {}
+            | crate::Route::Categories {}
+    );
+    let settings_profile = matches!(
+        current_route,
+        crate::Route::Settings {} | crate::Route::SettingsProfile {}
+    );
+    let settings_money = matches!(
+        current_route,
+        crate::Route::SettingsMoney {}
+            | crate::Route::SettingsAccounts {}
+            | crate::Route::SettingsCategories {}
+            | crate::Route::Accounts {}
+            | crate::Route::Categories {}
+    );
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
         apply_theme_class(&theme);
@@ -133,35 +158,43 @@ pub fn AppLayout() -> Element {
                             span { class: "font-bold text-foreground hidden sm:inline", "Recurrency" }
                         }
                         nav { class: "hidden md:flex items-center gap-1",
-                            TopNavLink {
-                                to: crate::Route::Dashboard {},
-                                label: "Dashboard".to_string(),
-                                active: matches!(current_route, crate::Route::Dashboard {}),
-                                icon: Icon::Dashboard,
-                            }
-                            TopNavLink {
-                                to: crate::Route::Subscriptions {},
-                                label: "Subscriptions".to_string(),
-                                active: matches!(current_route, crate::Route::Subscriptions {}),
-                                icon: Icon::Subscriptions,
-                            }
-                            TopNavLink {
-                                to: crate::Route::Transactions {},
-                                label: "Transactions".to_string(),
-                                active: matches!(current_route, crate::Route::Transactions {}),
-                                icon: Icon::Transactions,
-                            }
-                            TopNavLink {
-                                to: crate::Route::Calendar {},
-                                label: "Calendar".to_string(),
-                                active: matches!(current_route, crate::Route::Calendar {}),
-                                icon: Icon::Calendar,
-                            }
-                            TopNavLink {
-                                to: crate::Route::Reports {},
-                                label: "Reports".to_string(),
-                                active: matches!(current_route, crate::Route::Reports {}),
-                                icon: Icon::Reports,
+                            if in_settings {
+                                SettingsTopLink { to: crate::Route::SettingsProfile {}, label: "Profile".to_string(), active: settings_profile }
+                                SettingsTopLink { to: crate::Route::SettingsPreferences {}, label: "Preferences".to_string(), active: matches!(current_route, crate::Route::SettingsPreferences {}) }
+                                SettingsTopLink { to: crate::Route::SettingsMoney {}, label: "Money".to_string(), active: settings_money }
+                                SettingsTopLink { to: crate::Route::SettingsNotifications {}, label: "Notifications".to_string(), active: matches!(current_route, crate::Route::SettingsNotifications {}) }
+                                SettingsTopLink { to: crate::Route::SettingsConnection {}, label: "Connection".to_string(), active: matches!(current_route, crate::Route::SettingsConnection {}) }
+                            } else {
+                                TopNavLink {
+                                    to: crate::Route::Dashboard {},
+                                    label: "Dashboard".to_string(),
+                                    active: matches!(current_route, crate::Route::Dashboard {}),
+                                    icon: Icon::Dashboard,
+                                }
+                                TopNavLink {
+                                    to: crate::Route::Subscriptions {},
+                                    label: "Subscriptions".to_string(),
+                                    active: matches!(current_route, crate::Route::Subscriptions {}),
+                                    icon: Icon::Subscriptions,
+                                }
+                                TopNavLink {
+                                    to: crate::Route::Transactions {},
+                                    label: "Transactions".to_string(),
+                                    active: matches!(current_route, crate::Route::Transactions {}),
+                                    icon: Icon::Transactions,
+                                }
+                                TopNavLink {
+                                    to: crate::Route::Calendar {},
+                                    label: "Calendar".to_string(),
+                                    active: matches!(current_route, crate::Route::Calendar {}),
+                                    icon: Icon::Calendar,
+                                }
+                                TopNavLink {
+                                    to: crate::Route::Reports {},
+                                    label: "Reports".to_string(),
+                                    active: matches!(current_route, crate::Route::Reports {}),
+                                    icon: Icon::Reports,
+                                }
                             }
                         }
                     }
@@ -169,14 +202,23 @@ pub fn AppLayout() -> Element {
                     div { class: "flex items-center gap-1",
                         ThemeToggleButton {}
                         NotificationBell { open: notif_open }
-                        a {
-                            href: "/settings",
-                            onclick: move |e| {
-                                e.prevent_default();
-                                nav.push(crate::Route::Settings {});
-                            },
-                            class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-                            {svg_icon(Icon::Settings, 20)}
+                        if in_settings {
+                            button {
+                                r#type: "button",
+                                onclick: move |_| { nav.push(crate::Route::Dashboard {}); },
+                                class: "inline-flex items-center justify-center rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors",
+                                "Done"
+                            }
+                        } else {
+                            a {
+                                href: "/settings",
+                                onclick: move |e| {
+                                    e.prevent_default();
+                                    nav.push(crate::Route::Settings {});
+                                },
+                                class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                                {svg_icon(Icon::Settings, 20)}
+                            }
                         }
                         button {
                             r#type: "button",
@@ -214,35 +256,43 @@ pub fn AppLayout() -> Element {
             nav { class: "lg:hidden sticky bottom-0 z-30 border-t border-border/50 bg-background/80 backdrop-blur-xl transition-transform duration-300",
                 "data-mobile-bar": "true",
                 div { class: "flex items-center justify-around h-14",
-                    MobileTab {
-                        to: crate::Route::Dashboard {},
-                        label: "Home".to_string(),
-                        active: matches!(current_route, crate::Route::Dashboard {}),
-                        icon: Icon::Dashboard,
-                    }
-                    MobileTab {
-                        to: crate::Route::Subscriptions {},
-                        label: "Subs".to_string(),
-                        active: matches!(current_route, crate::Route::Subscriptions {}),
-                        icon: Icon::Subscriptions,
-                    }
-                    MobileTab {
-                        to: crate::Route::Transactions {},
-                        label: "Trans".to_string(),
-                        active: matches!(current_route, crate::Route::Transactions {}),
-                        icon: Icon::Transactions,
-                    }
-                    MobileTab {
-                        to: crate::Route::Calendar {},
-                        label: "Cal".to_string(),
-                        active: matches!(current_route, crate::Route::Calendar {}),
-                        icon: Icon::Calendar,
-                    }
-                    MobileTab {
-                        to: crate::Route::Reports {},
-                        label: "Reports".to_string(),
-                        active: matches!(current_route, crate::Route::Reports {}),
-                        icon: Icon::Reports,
+                    if in_settings {
+                        MobileTab { to: crate::Route::SettingsProfile {}, label: "Profile".to_string(), active: settings_profile, icon: Icon::Settings }
+                        MobileTab { to: crate::Route::SettingsPreferences {}, label: "Prefs".to_string(), active: matches!(current_route, crate::Route::SettingsPreferences {}), icon: Icon::Sun }
+                        MobileTab { to: crate::Route::SettingsMoney {}, label: "Money".to_string(), active: settings_money, icon: Icon::Categories }
+                        MobileTab { to: crate::Route::SettingsNotifications {}, label: "Alerts".to_string(), active: matches!(current_route, crate::Route::SettingsNotifications {}), icon: Icon::Bell }
+                        MobileTab { to: crate::Route::SettingsConnection {}, label: "Server".to_string(), active: matches!(current_route, crate::Route::SettingsConnection {}), icon: Icon::Monitor }
+                    } else {
+                        MobileTab {
+                            to: crate::Route::Dashboard {},
+                            label: "Home".to_string(),
+                            active: matches!(current_route, crate::Route::Dashboard {}),
+                            icon: Icon::Dashboard,
+                        }
+                        MobileTab {
+                            to: crate::Route::Subscriptions {},
+                            label: "Subs".to_string(),
+                            active: matches!(current_route, crate::Route::Subscriptions {}),
+                            icon: Icon::Subscriptions,
+                        }
+                        MobileTab {
+                            to: crate::Route::Transactions {},
+                            label: "Trans".to_string(),
+                            active: matches!(current_route, crate::Route::Transactions {}),
+                            icon: Icon::Transactions,
+                        }
+                        MobileTab {
+                            to: crate::Route::Calendar {},
+                            label: "Cal".to_string(),
+                            active: matches!(current_route, crate::Route::Calendar {}),
+                            icon: Icon::Calendar,
+                        }
+                        MobileTab {
+                            to: crate::Route::Reports {},
+                            label: "Reports".to_string(),
+                            active: matches!(current_route, crate::Route::Reports {}),
+                            icon: Icon::Reports,
+                        }
                     }
                 }
             }
@@ -270,6 +320,23 @@ fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Elem
             class: navlink_class(active),
             {svg_icon(icon, 18)}
             span { class: "hidden lg:inline", {label.to_string()} }
+        }
+    }
+}
+
+// ── Settings top nav link (text-only, contextual) ──
+#[component]
+fn SettingsTopLink(to: crate::Route, label: String, active: bool) -> Element {
+    let nav = navigator();
+    rsx! {
+        a {
+            href: format!("{}", to),
+            onclick: move |e| {
+                e.prevent_default();
+                nav.push(to.clone());
+            },
+            class: navlink_class(active),
+            span { {label.to_string()} }
         }
     }
 }

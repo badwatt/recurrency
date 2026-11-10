@@ -67,19 +67,54 @@ pub fn is_email_disabled(channel: &str, smtp_configured: bool) -> bool {
 /// App version shown at the bottom of Settings.
 pub(crate) const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[allow(non_snake_case)]
+fn SettingsVersion() -> Element {
+    rsx! {
+        p { class: "text-center text-xs text-muted-foreground/70 pt-1",
+            {format!("Recurrency v{APP_VERSION}")}
+        }
+    }
+}
+
 #[component]
-pub fn SettingsPage() -> Element {
+pub fn SettingsProfilePage() -> Element {
+    rsx! {
+        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
+            PageHeader { title: "Profile", subtitle: "Update your personal information" }
+            ProfileCard {}
+            SettingsVersion {}
+        }
+    }
+}
+
+#[component]
+pub fn SettingsPreferencesPage() -> Element {
+    rsx! {
+        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
+            PageHeader { title: "Preferences", subtitle: "Customize your experience" }
+            PreferencesCard {}
+            SettingsVersion {}
+        }
+    }
+}
+
+#[component]
+pub fn SettingsMoneyPage() -> Element {
+    rsx! {
+        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
+            PageHeader { title: "Money", subtitle: "Accounts and categories that organize your money" }
+            MoneyCard {}
+            SettingsVersion {}
+        }
+    }
+}
+
+#[component]
+pub fn SettingsNotificationsPage() -> Element {
     let offline = crate::api::client::is_offline_mode();
     rsx! {
         div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
-            div { class: "",
-                PageHeader { title: "Settings", subtitle: "Manage your account and preferences" }
-            }
-
-            ProfileCard {}
-            PreferencesCard {}
-            MoneyCard {}
-            ConnectionCard {}
+            PageHeader { title: "Notifications", subtitle: "Choose where your summary lands and when it leaves" }
             if offline {
                 div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
                     h2 { class: "text-lg font-semibold", "Server notifications" }
@@ -92,10 +127,18 @@ pub fn SettingsPage() -> Element {
                 DeliveryCard {}
                 SummaryCard {}
             }
+            SettingsVersion {}
+        }
+    }
+}
 
-            p { class: "text-center text-xs text-muted-foreground/70 pt-1",
-                {format!("Recurrency v{APP_VERSION}")}
-            }
+#[component]
+pub fn SettingsConnectionPage() -> Element {
+    rsx! {
+        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
+            PageHeader { title: "Connection", subtitle: "Manage how Recurrency reaches your data" }
+            ConnectionCard {}
+            SettingsVersion {}
         }
     }
 }
