@@ -1,4 +1,5 @@
 use chrono::Utc;
+use std::str::FromStr;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -38,6 +39,7 @@ pub trait NotificationSettingsServiceTrait: Send + Sync {
         user_id: Uuid,
         req: UpdateSummaryNotificationSettingsRequest,
     ) -> AppResult<SummaryNotificationSettingsResponse>;
+    async fn send_summary_now(&self, user_id: Uuid) -> AppResult<()>;
 }
 
 pub struct SqlxNotificationSettingsService {
@@ -233,6 +235,57 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         .fetch_one(&self.pool)
         .await?;
         Ok(row.into())
+    }
+
+    async fn send_summary_now(&self, user_id: Uuid) -> AppResult<()> {
+        let secret = notification_secret()?;
+        let user: (String, String) = sqlx::query_as(
+            "SELECT email, currency FROM users WHERE id = $1",
+        )
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let timezone = self
+            .get_summary(user_id)
+            .await
+            .ok()
+            .and_then(|summary| chrono_tz::Tz::from_str(&summary.timezone).ok())
+            .unwrap_or(chrono_tz::UTC);
+        let today = Utc::now().with_timezone(&timezone).date_naive();
+        let message = crate::notifications::scheduler::build_summary(
+            &self.pool,
+            user_id,
+            &user.1,
+            today,
+        )
+        .await
+        .map_err(AppError::Internal)?;
+        let channels = sqlx::query_as::<_, (String, Vec<u8>)>(
+            "SELECT provider, config FROM notification_channels WHERE user_id = $1 AND enabled = true",
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
+        if channels.is_empty() {
+            return Err(AppError::BadRequest(
+                "No enabled notification channels".to_string(),
+            ));
+        }
+        let mut failures = Vec::new();
+        for (provider, config) in channels {
+            let Some(provider) = NotificationProvider::parse(&provider) else {
+                continue;
+            };
+            let config = decrypt_with_secret(&secret, &config).map_err(AppError::Internal)?;
+            if let Err(error) = send_message(provider, &config, &user.0, &message).await {
+                failures.push(error.to_string());
+            }
+        }
+        if failures.is_empty() {
+            Ok(())
+        } else {
+            Err(AppError::Internal(failures.join("; ")))
+        }
     }
 }
 

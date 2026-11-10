@@ -109,6 +109,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/settings/notification-channels/{provider}/test", post(notifications::channel_handlers::test_channel))
         .route("/api/settings/summary-notification", get(notifications::channel_handlers::get_summary))
         .route("/api/settings/summary-notification", put(notifications::channel_handlers::update_summary))
+        .route("/api/settings/summary-notification/test", post(notifications::channel_handlers::send_summary_now))
         .route("/api/preferences", get(preferences::handlers::get_preferences))
         .route("/api/preferences", put(preferences::handlers::update_preferences))
         .route("/api/demo/status", get(demo::handlers::status))

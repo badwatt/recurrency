@@ -302,6 +302,14 @@ async fn summary_notification_schedule_roundtrip(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn summary_now_requires_enabled_channels(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxNotificationSettingsService::new(pool.clone());
+    let result = service.send_summary_now(user_id).await;
+    assert!(result.is_err());
+}
+
+#[sqlx::test]
 async fn auth_verify_token_invalid_fails() {
     let result = AuthService::verify_token("invalid.token.here").await;
     assert!(matches!(result, Err(AppError::Jwt(_))));

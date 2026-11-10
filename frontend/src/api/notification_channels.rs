@@ -26,6 +26,15 @@ pub async fn test(provider: &str, config: Value) -> Result<(), ApiError> {
     .map(|_| ())
 }
 
+pub async fn send_summary_now() -> Result<(), ApiError> {
+    api_post::<_, serde_json::Value>(
+        "/api/settings/summary-notification/test",
+        &serde_json::json!({}),
+    )
+    .await
+    .map(|_| ())
+}
+
 pub async fn get_summary() -> Result<SummaryNotificationSettings, ApiError> {
     api_get("/api/settings/summary-notification").await
 }

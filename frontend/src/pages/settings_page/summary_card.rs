@@ -23,6 +23,7 @@ pub fn SummaryCard() -> Element {
     let mut timezone = use_signal(|| "UTC".to_string());
     let mut next_run = use_signal(|| None::<String>);
     let mut saving = use_signal(|| false);
+    let mut sending = use_signal(|| false);
 
     use_future(move || async move {
         if crate::api::client::is_offline_mode() {
@@ -44,6 +45,20 @@ pub fn SummaryCard() -> Element {
             )),
         }
     });
+
+    let send_now = move |_| {
+        sending.set(true);
+        spawn(async move {
+            match notification_channels::send_summary_now().await {
+                Ok(()) => TOAST.write().success("Summary sent"),
+                Err(error) => TOAST.write().error(format!(
+                    "Could not send summary: {error} (API: {})",
+                    crate::api::client::get_base_url()
+                )),
+            }
+            sending.set(false);
+        });
+    };
 
     let save = move |_| {
         saving.set(true);
@@ -150,12 +165,21 @@ pub fn SummaryCard() -> Element {
                 } else {
                     p { class: "text-xs text-muted-foreground", "No run scheduled" }
                 }
-                button {
-                    r#type: "button",
-                    class: "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
-                    disabled: saving(),
-                    onclick: save,
-                    if saving() { "Saving..." } else { "Save schedule" }
+                div { class: "flex flex-wrap items-center gap-2",
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                        disabled: sending(),
+                        onclick: send_now,
+                        if sending() { "Sending..." } else { "Send now" }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                        disabled: saving(),
+                        onclick: save,
+                        if saving() { "Saving..." } else { "Save schedule" }
+                    }
                 }
             }
         }

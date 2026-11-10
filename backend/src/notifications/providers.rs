@@ -15,6 +15,23 @@ pub struct NotificationMessage {
 }
 
 #[derive(Debug, Deserialize)]
+struct EmailConfig {
+    smtp_host: String,
+    smtp_port: u16,
+    #[serde(default = "default_encryption")]
+    encryption: String,
+    #[serde(default)]
+    smtp_username: String,
+    #[serde(default)]
+    smtp_password: String,
+    from_email: String,
+}
+
+fn default_encryption() -> String {
+    "tls".to_string()
+}
+
+#[derive(Debug, Deserialize)]
 struct NtfyConfig {
     server: String,
     topic: String,
@@ -42,6 +59,32 @@ struct GotifyConfig {
 #[derive(Debug, Deserialize)]
 struct WebhookConfig {
     url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct SlackConfig {
+    webhook_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct MattermostConfig {
+    webhook_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PushoverConfig {
+    token: String,
+    user_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PushPlusConfig {
+    token: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ServerChanConfig {
+    send_key: String,
 }
 
 fn as_object(value: &Value) -> Result<&serde_json::Map<String, Value>, String> {
@@ -110,7 +153,31 @@ fn is_private_host(host: &str) -> bool {
 pub fn validate_config(provider: NotificationProvider, config: &Value) -> Result<Value, String> {
     let object = as_object(config)?;
     match provider {
-        NotificationProvider::Email => Ok(json!({})),
+        NotificationProvider::Email => {
+            if object.is_empty() {
+                return Ok(json!({}));
+            }
+            let smtp_host = required_string(object, "smtp_host")?;
+            let smtp_port = object
+                .get("smtp_port")
+                .and_then(|value| value.as_u64())
+                .and_then(|value| u16::try_from(value).ok())
+                .filter(|value| *value > 0)
+                .ok_or_else(|| "Email SMTP port is required".to_string())?;
+            let from_email = required_string(object, "from_email")?;
+            let encryption = optional_string(object, "encryption").unwrap_or_else(|| "tls".to_string());
+            if !matches!(encryption.as_str(), "tls" | "ssl" | "none") {
+                return Err("Email encryption must be tls, ssl or none".to_string());
+            }
+            Ok(json!({
+                "smtp_host": smtp_host,
+                "smtp_port": smtp_port,
+                "encryption": encryption,
+                "smtp_username": optional_string(object, "smtp_username").unwrap_or_default(),
+                "smtp_password": optional_string(object, "smtp_password").unwrap_or_default(),
+                "from_email": from_email
+            }))
+        }
         NotificationProvider::Ntfy => {
             let server = required_string(object, "server")?;
             validate_url(&server, false)?;
@@ -148,6 +215,29 @@ pub fn validate_config(provider: NotificationProvider, config: &Value) -> Result
             validate_url(&url, false)?;
             Ok(json!({"url": url}))
         }
+        NotificationProvider::Slack => {
+            let webhook_url = required_string(object, "webhook_url")?;
+            let url = validate_url(&webhook_url, true)?;
+            if url.host_str() != Some("hooks.slack.com") {
+                return Err("Slack webhook URL must point to hooks.slack.com".to_string());
+            }
+            Ok(json!({"webhook_url": webhook_url}))
+        }
+        NotificationProvider::Mattermost => {
+            let webhook_url = required_string(object, "webhook_url")?;
+            validate_url(&webhook_url, false)?;
+            Ok(json!({"webhook_url": webhook_url}))
+        }
+        NotificationProvider::Pushover => Ok(json!({
+            "token": required_string(object, "token")?,
+            "user_key": required_string(object, "user_key")?
+        })),
+        NotificationProvider::PushPlus => Ok(json!({
+            "token": required_string(object, "token")?
+        })),
+        NotificationProvider::ServerChan => Ok(json!({
+            "send_key": required_string(object, "send_key")?
+        })),
     }
 }
 
@@ -157,12 +247,17 @@ pub fn mask_config(provider: NotificationProvider, config: &Value) -> Value {
     };
     let mut masked = object.clone();
     let secret_keys: &[&str] = match provider {
-        NotificationProvider::Email => &[],
+        NotificationProvider::Email => &["smtp_password"],
         NotificationProvider::Ntfy => &["token"],
         NotificationProvider::Telegram => &["bot_token"],
         NotificationProvider::Discord => &["webhook_url"],
         NotificationProvider::Gotify => &["token"],
         NotificationProvider::Webhook => &["url"],
+        NotificationProvider::Slack => &["webhook_url"],
+        NotificationProvider::Mattermost => &["webhook_url"],
+        NotificationProvider::Pushover => &["token"],
+        NotificationProvider::PushPlus => &["token"],
+        NotificationProvider::ServerChan => &["send_key"],
     };
     for key in secret_keys {
         if masked.get(*key).and_then(Value::as_str).is_some_and(|value| !value.is_empty()) {
@@ -181,12 +276,17 @@ pub fn merge_config(provider: NotificationProvider, existing: &Value, incoming: 
         .cloned()
         .unwrap_or_default();
     let secret_keys: &[&str] = match provider {
-        NotificationProvider::Email => &[],
+        NotificationProvider::Email => &["smtp_password"],
         NotificationProvider::Ntfy => &["token"],
         NotificationProvider::Telegram => &["bot_token"],
         NotificationProvider::Discord => &["webhook_url"],
         NotificationProvider::Gotify => &["token"],
         NotificationProvider::Webhook => &["url"],
+        NotificationProvider::Slack => &["webhook_url"],
+        NotificationProvider::Mattermost => &["webhook_url"],
+        NotificationProvider::Pushover => &["token"],
+        NotificationProvider::PushPlus => &["token"],
+        NotificationProvider::ServerChan => &["send_key"],
     };
     for (key, value) in incoming_object {
         if value.as_str() == Some(MASKED_VALUE) {
@@ -218,15 +318,41 @@ pub async fn send_message(
     message: &NotificationMessage,
 ) -> AppResult<()> {
     match provider {
-        NotificationProvider::Email => {
-            crate::email::send_text_email(recipient_email, &message.title, &message.body).await
-        }
+        NotificationProvider::Email => send_email(config, recipient_email, message).await,
         NotificationProvider::Ntfy => send_ntfy(config, message).await,
         NotificationProvider::Telegram => send_telegram(config, message).await,
         NotificationProvider::Discord => send_discord(config, message).await,
         NotificationProvider::Gotify => send_gotify(config, message).await,
         NotificationProvider::Webhook => send_webhook(config, message).await,
+        NotificationProvider::Slack => send_slack(config, message).await,
+        NotificationProvider::Mattermost => send_mattermost(config, message).await,
+        NotificationProvider::Pushover => send_pushover(config, message).await,
+        NotificationProvider::PushPlus => send_pushplus(config, message).await,
+        NotificationProvider::ServerChan => send_serverchan(config, message).await,
     }
+}
+
+async fn send_email(
+    config: &Value,
+    recipient_email: &str,
+    message: &NotificationMessage,
+) -> AppResult<()> {
+    if config.as_object().is_none_or(|object| object.is_empty()) {
+        return crate::email::send_text_email(recipient_email, &message.title, &message.body).await;
+    }
+    let config: EmailConfig = serde_json::from_value(config.clone())
+        .map_err(|_| AppError::BadRequest("Invalid email configuration".to_string()))?;
+    let smtp = crate::email::SmtpConfig {
+        host: config.smtp_host,
+        port: config.smtp_port,
+        user: config.smtp_username,
+        password: config.smtp_password,
+        from: config.from_email,
+        app_name: std::env::var("APP_NAME").unwrap_or_else(|_| "Recurrency".to_string()),
+        encryption: config.encryption,
+    };
+    crate::email::send_text_email_with_config(&smtp, recipient_email, &message.title, &message.body)
+        .await
 }
 
 async fn send_ntfy(config: &Value, message: &NotificationMessage) -> AppResult<()> {
@@ -313,6 +439,82 @@ async fn send_webhook(config: &Value, message: &NotificationMessage) -> AppResul
     ensure_success(response.status()).await
 }
 
+async fn send_slack(config: &Value, message: &NotificationMessage) -> AppResult<()> {
+    let config: SlackConfig = serde_json::from_value(config.clone())
+        .map_err(|_| AppError::BadRequest("Invalid Slack configuration".to_string()))?;
+    let response = client()
+        .await?
+        .post(config.webhook_url)
+        .json(&json!({"text": format!("*{}*\n{}", message.title, message.body)}))
+        .send()
+        .await
+        .map_err(|_| AppError::Internal("Slack request failed".to_string()))?;
+    ensure_success(response.status()).await
+}
+
+async fn send_mattermost(config: &Value, message: &NotificationMessage) -> AppResult<()> {
+    let config: MattermostConfig = serde_json::from_value(config.clone())
+        .map_err(|_| AppError::BadRequest("Invalid Mattermost configuration".to_string()))?;
+    let response = client()
+        .await?
+        .post(config.webhook_url)
+        .json(&json!({"text": format!("**{}**\n{}", message.title, message.body)}))
+        .send()
+        .await
+        .map_err(|_| AppError::Internal("Mattermost request failed".to_string()))?;
+    ensure_success(response.status()).await
+}
+
+async fn send_pushover(config: &Value, message: &NotificationMessage) -> AppResult<()> {
+    let config: PushoverConfig = serde_json::from_value(config.clone())
+        .map_err(|_| AppError::BadRequest("Invalid Pushover configuration".to_string()))?;
+    let response = client()
+        .await?
+        .post("https://api.pushover.net/1/messages.json")
+        .form(&[
+            ("token", config.token.as_str()),
+            ("user", config.user_key.as_str()),
+            ("title", message.title.as_str()),
+            ("message", message.body.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|_| AppError::Internal("Pushover request failed".to_string()))?;
+    ensure_success(response.status()).await
+}
+
+async fn send_pushplus(config: &Value, message: &NotificationMessage) -> AppResult<()> {
+    let config: PushPlusConfig = serde_json::from_value(config.clone())
+        .map_err(|_| AppError::BadRequest("Invalid PushPlus configuration".to_string()))?;
+    let response = client()
+        .await?
+        .post("https://www.pushplus.plus/send")
+        .json(&json!({
+            "token": config.token,
+            "title": message.title,
+            "content": message.body,
+            "template": "txt"
+        }))
+        .send()
+        .await
+        .map_err(|_| AppError::Internal("PushPlus request failed".to_string()))?;
+    ensure_success(response.status()).await
+}
+
+async fn send_serverchan(config: &Value, message: &NotificationMessage) -> AppResult<()> {
+    let config: ServerChanConfig = serde_json::from_value(config.clone())
+        .map_err(|_| AppError::BadRequest("Invalid ServerChan configuration".to_string()))?;
+    let url = format!("https://sctapi.ftqq.com/{}.send", config.send_key);
+    let response = client()
+        .await?
+        .post(url)
+        .form(&[("title", message.title.as_str()), ("desp", message.body.as_str())])
+        .send()
+        .await
+        .map_err(|_| AppError::Internal("ServerChan request failed".to_string()))?;
+    ensure_success(response.status()).await
+}
+
 async fn ensure_success(status: reqwest::StatusCode) -> AppResult<()> {
     if status.is_success() {
         Ok(())
@@ -327,6 +529,23 @@ async fn ensure_success(status: reqwest::StatusCode) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn validates_per_user_smtp_config() {
+        let config = json!({
+            "smtp_host": "smtp.example.com",
+            "smtp_port": 587,
+            "encryption": "tls",
+            "smtp_username": "user",
+            "smtp_password": "secret",
+            "from_email": "recurrency@example.com"
+        });
+        let validated = validate_config(NotificationProvider::Email, &config).unwrap();
+        assert_eq!(validated["smtp_host"], "smtp.example.com");
+        assert_eq!(validated["smtp_password"], "secret");
+        let masked = mask_config(NotificationProvider::Email, &validated);
+        assert_eq!(masked["smtp_password"], MASKED_VALUE);
+    }
 
     #[test]
     fn masks_telegram_token() {
@@ -365,6 +584,15 @@ mod tests {
     #[test]
     fn rejects_non_http_scheme() {
         assert!(validate_url("file:///tmp/notify", false).is_err());
+    }
+
+    #[test]
+    fn validates_pushover_config() {
+        let config = json!({"token": "app", "user_key": "user"});
+        assert!(validate_config(NotificationProvider::Pushover, &config).is_ok());
+        let masked = mask_config(NotificationProvider::Pushover, &config);
+        assert_eq!(masked["token"], MASKED_VALUE);
+        assert_eq!(masked["user_key"], "user");
     }
 
     #[test]

@@ -82,6 +82,19 @@ pub async fn test_channel(
     Ok(Json(serde_json::json!({"success": true})))
 }
 
+pub async fn send_summary_now(
+    State(state): State<AppState>,
+    OptionalQuery(query): OptionalQuery<AuthQuery>,
+    headers: HeaderMap,
+) -> AppResult<Json<serde_json::Value>> {
+    let user_id = authenticated_user(&state, query, &headers).await?;
+    state
+        .notification_settings_service
+        .send_summary_now(user_id)
+        .await?;
+    Ok(Json(serde_json::json!({"success": true})))
+}
+
 pub async fn get_summary(
     State(state): State<AppState>,
     OptionalQuery(query): OptionalQuery<AuthQuery>,

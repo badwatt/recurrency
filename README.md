@@ -127,6 +127,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | `SMTP_USER` | — | SMTP username |
 | `SMTP_PASSWORD` | — | SMTP password |
 | `SMTP_FROM` | — | Sender email |
+| `SMTP_ENCRYPTION` | auto (`ssl` for 465, otherwise `tls`) | SMTP transport security |
 | `NOTIFICATION_ALLOW_PRIVATE_HOSTS` | `false` | Allow ntfy/Gotify/webhook targets on private networks |
 
 ---
@@ -154,7 +155,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | 📅 **Calendar** | Monthly view of upcoming payments |
 | 📊 **Reports** | Trend charts, category breakdown, CSV/PDF export |
 | 🏷️ **Categories** | Optional classification with custom icons, colors, inline creation |
-| 🔔 **Notifications** | In-app, email, ntfy, Telegram, Discord, Gotify and webhooks |
+| 🔔 **Notifications** | In-app, email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks |
 | 🗓️ **Summary schedule** | Daily, weekly or monthly dashboard summary in your timezone |
 | 🌙 **Dark Mode** | Light / dark / system |
 | 📤 **Grid / List** | Adjustable view |
@@ -169,7 +170,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1161 |
+| **Backend** | — | — | — | 1163 |
 | **Frontend** | — | — | — | 1642 |
 
 Full coverage report (Nix dev shell):

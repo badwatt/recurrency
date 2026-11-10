@@ -13,16 +13,26 @@ pub enum NotificationProvider {
     Discord,
     Gotify,
     Webhook,
+    Slack,
+    Mattermost,
+    Pushover,
+    PushPlus,
+    ServerChan,
 }
 
 impl NotificationProvider {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 11] = [
         Self::Email,
         Self::Ntfy,
         Self::Telegram,
         Self::Discord,
         Self::Gotify,
         Self::Webhook,
+        Self::Slack,
+        Self::Mattermost,
+        Self::Pushover,
+        Self::PushPlus,
+        Self::ServerChan,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -33,6 +43,11 @@ impl NotificationProvider {
             Self::Discord => "discord",
             Self::Gotify => "gotify",
             Self::Webhook => "webhook",
+            Self::Slack => "slack",
+            Self::Mattermost => "mattermost",
+            Self::Pushover => "pushover",
+            Self::PushPlus => "pushplus",
+            Self::ServerChan => "serverchan",
         }
     }
 

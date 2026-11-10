@@ -13,6 +13,11 @@ const PROVIDERS: &[(&str, &str)] = &[
     ("discord", "Discord"),
     ("gotify", "Gotify"),
     ("webhook", "Webhook"),
+    ("slack", "Slack"),
+    ("mattermost", "Mattermost"),
+    ("pushover", "Pushover"),
+    ("pushplus", "PushPlus"),
+    ("serverchan", "ServerChan"),
 ];
 
 fn field(config: &Value, key: &str) -> String {
@@ -32,16 +37,42 @@ struct ChannelFields {
     webhook_url: String,
     gotify_server: String,
     gotify_token: String,
+    email_host: String,
+    email_port: String,
+    email_encryption: String,
+    email_username: String,
+    email_password: String,
+    email_from: String,
+    pushover_user: String,
+    serverchan_key: String,
 }
 
 fn build_config(provider: &str, fields: &ChannelFields) -> Value {
     match provider {
-        "email" => json!({}),
+        "email" => {
+            if fields.email_host.is_empty() {
+                json!({})
+            } else {
+                json!({
+                    "smtp_host": fields.email_host,
+                    "smtp_port": fields.email_port.parse::<u16>().unwrap_or(587),
+                    "encryption": fields.email_encryption,
+                    "smtp_username": fields.email_username,
+                    "smtp_password": fields.email_password,
+                    "from_email": fields.email_from
+                })
+            }
+        }
         "ntfy" => json!({"server": fields.server, "topic": fields.topic, "token": fields.token}),
         "telegram" => json!({"bot_token": fields.bot_token, "chat_id": fields.chat_id}),
         "discord" => json!({"webhook_url": fields.webhook_url}),
         "gotify" => json!({"server_url": fields.gotify_server, "token": fields.gotify_token}),
         "webhook" => json!({"url": fields.webhook_url}),
+        "slack" => json!({"webhook_url": fields.webhook_url}),
+        "mattermost" => json!({"webhook_url": fields.webhook_url}),
+        "pushover" => json!({"token": fields.token, "user_key": fields.pushover_user}),
+        "pushplus" => json!({"token": fields.token}),
+        "serverchan" => json!({"send_key": fields.serverchan_key}),
         _ => json!({}),
     }
 }
@@ -59,6 +90,14 @@ pub fn DeliveryCard() -> Element {
     let mut webhook_url = use_signal(String::new);
     let mut gotify_server = use_signal(String::new);
     let mut gotify_token = use_signal(String::new);
+    let mut email_host = use_signal(String::new);
+    let mut email_port = use_signal(|| "587".to_string());
+    let mut email_encryption = use_signal(|| "tls".to_string());
+    let mut email_username = use_signal(String::new);
+    let mut email_password = use_signal(String::new);
+    let mut email_from = use_signal(String::new);
+    let mut pushover_user = use_signal(String::new);
+    let mut serverchan_key = use_signal(String::new);
     let mut saving = use_signal(|| false);
     let mut testing = use_signal(|| false);
 
@@ -83,6 +122,14 @@ pub fn DeliveryCard() -> Element {
                 webhook_url.set(field(&config, "webhook_url"));
                 gotify_server.set(field(&config, "server_url"));
                 gotify_token.set(field(&config, "token"));
+                email_host.set(field(&config, "smtp_host"));
+                email_port.set(config.get("smtp_port").and_then(Value::as_u64).unwrap_or(587).to_string());
+                email_encryption.set({ let value = field(&config, "encryption"); if value.is_empty() { "tls".to_string() } else { value } });
+                email_username.set(field(&config, "smtp_username"));
+                email_password.set(field(&config, "smtp_password"));
+                email_from.set(field(&config, "from_email"));
+                pushover_user.set(field(&config, "user_key"));
+                serverchan_key.set(field(&config, "send_key"));
             }
             Err(error) => TOAST.write().error(format!(
                 "Could not load delivery channels: {error} (API: {})",
@@ -103,6 +150,14 @@ pub fn DeliveryCard() -> Element {
                 webhook_url: webhook_url(),
                 gotify_server: gotify_server(),
                 gotify_token: gotify_token(),
+                email_host: email_host(),
+                email_port: email_port(),
+                email_encryption: email_encryption(),
+                email_username: email_username(),
+                email_password: email_password(),
+                email_from: email_from(),
+                pushover_user: pushover_user(),
+                serverchan_key: serverchan_key(),
             },
         )
     };
@@ -184,6 +239,14 @@ pub fn DeliveryCard() -> Element {
                                 webhook_url.set(field(&config, "webhook_url"));
                                 gotify_server.set(field(&config, "server_url"));
                                 gotify_token.set(field(&config, "token"));
+                                email_host.set(field(&config, "smtp_host"));
+                                email_port.set(config.get("smtp_port").and_then(Value::as_u64).unwrap_or(587).to_string());
+                                email_encryption.set({ let value = field(&config, "encryption"); if value.is_empty() { "tls".to_string() } else { value } });
+                                email_username.set(field(&config, "smtp_username"));
+                                email_password.set(field(&config, "smtp_password"));
+                                email_from.set(field(&config, "from_email"));
+                                pushover_user.set(field(&config, "user_key"));
+                                serverchan_key.set(field(&config, "send_key"));
                                 selected.set(provider);
                             },
                             class: "h-9 rounded-md border border-input bg-background px-3 text-sm",
@@ -203,7 +266,31 @@ pub fn DeliveryCard() -> Element {
                 }
 
                 if selected() == "email" {
-                    p { class: "text-sm text-muted-foreground", "Email uses the SMTP configuration of the server and sends to your account email." }
+                    p { class: "text-sm text-muted-foreground", "Leave the SMTP fields empty to use the server-wide SMTP configuration." }
+                    div { class: "grid gap-3 sm:grid-cols-2",
+                        label { class: "space-y-1 text-sm", "SMTP host"
+                            input { value: email_host(), oninput: move |e| email_host.set(e.value()), placeholder: "smtp.example.com", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "SMTP port"
+                            input { r#type: "number", value: email_port(), oninput: move |e| email_port.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "Encryption"
+                            select { value: email_encryption(), onchange: move |e| email_encryption.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
+                                option { value: "tls", "TLS / STARTTLS" }
+                                option { value: "ssl", "SSL" }
+                                option { value: "none", "None" }
+                            }
+                        }
+                        label { class: "space-y-1 text-sm", "From email"
+                            input { value: email_from(), oninput: move |e| email_from.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "SMTP username"
+                            input { value: email_username(), oninput: move |e| email_username.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "SMTP password"
+                            input { r#type: "password", value: email_password(), oninput: move |e| email_password.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                    }
                 } else if selected() == "ntfy" {
                     div { class: "grid gap-3 sm:grid-cols-2",
                         label { class: "space-y-1 text-sm", "Server"
@@ -243,6 +330,27 @@ pub fn DeliveryCard() -> Element {
                         input { r#type: "password", value: webhook_url(), oninput: move |e| webhook_url.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
                     }
                     p { class: "text-xs text-muted-foreground", "The webhook receives a JSON body with title and message." }
+                } else if selected() == "slack" || selected() == "mattermost" {
+                    label { class: "space-y-1 text-sm block", "Incoming webhook URL"
+                        input { r#type: "password", value: webhook_url(), oninput: move |e| webhook_url.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                    }
+                } else if selected() == "pushover" {
+                    div { class: "grid gap-3 sm:grid-cols-2",
+                        label { class: "space-y-1 text-sm", "Application token"
+                            input { r#type: "password", value: token(), oninput: move |e| token.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "User key"
+                            input { value: pushover_user(), oninput: move |e| pushover_user.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                    }
+                } else if selected() == "pushplus" {
+                    label { class: "space-y-1 text-sm block", "PushPlus token"
+                        input { r#type: "password", value: token(), oninput: move |e| token.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                    }
+                } else if selected() == "serverchan" {
+                    label { class: "space-y-1 text-sm block", "SendKey"
+                        input { r#type: "password", value: serverchan_key(), oninput: move |e| serverchan_key.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                    }
                 }
 
                 div { class: "flex flex-wrap items-center gap-2",

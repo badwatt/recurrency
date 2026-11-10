@@ -227,7 +227,7 @@ async fn tick(pool: &PgPool) -> Result<(), String> {
     Ok(())
 }
 
-async fn build_summary(
+pub(crate) async fn build_summary(
     pool: &PgPool,
     user_id: uuid::Uuid,
     currency: &str,

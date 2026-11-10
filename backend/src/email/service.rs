@@ -11,6 +11,7 @@ pub struct SmtpConfig {
     pub password: String,
     pub from: String,
     pub app_name: String,
+    pub encryption: String,
 }
 
 pub fn is_configured() -> bool {
@@ -23,16 +24,20 @@ pub fn get_config() -> Option<SmtpConfig> {
     if !is_configured() {
         return None;
     }
+    let port = std::env::var("SMTP_PORT")
+        .unwrap_or_else(|_| "587".to_string())
+        .parse()
+        .unwrap_or(587);
+    let encryption = std::env::var("SMTP_ENCRYPTION")
+        .unwrap_or_else(|_| if port == 465 { "ssl" } else { "tls" }.to_string());
     Some(SmtpConfig {
         host: std::env::var("SMTP_HOST").unwrap(),
-        port: std::env::var("SMTP_PORT")
-            .unwrap_or_else(|_| "587".to_string())
-            .parse()
-            .unwrap_or(587),
+        port,
         user: std::env::var("SMTP_USER").unwrap(),
         password: std::env::var("SMTP_PASSWORD").unwrap(),
         from: std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
         app_name: std::env::var("APP_NAME").unwrap_or_else(|_| "Recurrency".to_string()),
+        encryption,
     })
 }
 
@@ -72,26 +77,36 @@ pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()
         get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
     let subject = format!("{} - Verify your email", config.app_name);
     let html = build_html(to_email, code);
-    send_message(to_email, &subject, &html, true).await?;
+    send_message_with_config(&config, to_email, &subject, &html, true).await?;
     tracing::info!("Verification email sent to {}", to_email);
     Ok(())
 }
 
 /// Send a plain-text email through the configured SMTP relay.
 pub async fn send_text_email(to_email: &str, subject: &str, body: &str) -> AppResult<()> {
-    send_message(to_email, subject, body, false).await
+    let config =
+        get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
+    send_message_with_config(&config, to_email, subject, body, false).await
 }
 
-async fn send_message(
+/// Send a plain-text email with an explicit per-user SMTP configuration.
+pub async fn send_text_email_with_config(
+    config: &SmtpConfig,
+    to_email: &str,
+    subject: &str,
+    body: &str,
+) -> AppResult<()> {
+    send_message_with_config(config, to_email, subject, body, false).await
+}
+
+async fn send_message_with_config(
+    config: &SmtpConfig,
     to_email: &str,
     subject: &str,
     body: &str,
     html: bool,
 ) -> AppResult<()> {
-    let config =
-        get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
     let from_addr = format!("{} <{}>", config.app_name, config.from);
-
     let from: lettre::message::Mailbox = from_addr
         .parse()
         .map_err(|e| AppError::Internal(format!("Invalid from address: {}", e)))?;
@@ -103,7 +118,6 @@ async fn send_message(
     } else {
         lettre::message::header::ContentType::TEXT_PLAIN
     };
-
     let email = lettre::Message::builder()
         .from(from)
         .to(to)
@@ -116,17 +130,20 @@ async fn send_message(
         config.user.clone(),
         config.password.clone(),
     );
-
     let tls_params = lettre::transport::smtp::client::TlsParameters::new(config.host.clone())
         .map_err(|e| AppError::Internal(format!("TLS parameters failed: {}", e)))?;
+    let tls = match config.encryption.as_str() {
+        "none" => lettre::transport::smtp::client::Tls::None,
+        "ssl" => lettre::transport::smtp::client::Tls::Wrapper(tls_params),
+        _ => lettre::transport::smtp::client::Tls::Required(tls_params),
+    };
 
     let mailer = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::relay(&config.host)
         .map_err(|e| AppError::Internal(format!("Failed to create relay: {}", e)))?
         .port(config.port)
         .credentials(creds)
-        .tls(lettre::transport::smtp::client::Tls::Wrapper(tls_params))
+        .tls(tls)
         .build();
-
     mailer
         .send(email)
         .await
@@ -278,6 +295,7 @@ mod tests {
             password: "secret".to_string(),
             from: "noreply@test.com".to_string(),
             app_name: "TestApp".to_string(),
+            encryption: "tls".to_string(),
         };
         let cloned = cfg.clone();
         assert_eq!(cfg.host, cloned.host);
