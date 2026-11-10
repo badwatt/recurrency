@@ -139,7 +139,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | **Frontend** | Dioxus (Rust WASM) + Tailwind |
 | **Backend** | Rust + Axum + SQLx + JWT + Argon2 |
 | **Database** | PostgreSQL |
-| **Email** | Resend API |
+| **Email** | Per-user SMTP |
 | **Push** | OneSignal |
 
 ---
@@ -170,8 +170,22 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1163 |
+| **Backend** | — | — | — | 1163 lib + 38 integration |
 | **Frontend** | — | — | — | 1642 |
+
+Integration tests use a disposable PostgreSQL instance:
+
+```bash
+docker compose -f docker/docker-compose.test.yml up -d
+cd backend
+DATABASE_URL='postgres://recurrency:recurrency_test_password@localhost:5433/recurrency_test' \
+  JWT_SECRET=test-jwt-secret-key \
+  cargo test --features integration-tests
+docker compose -f docker/docker-compose.test.yml down -v
+```
+
+CI runs the same suite on every push and pull request via
+`.github/workflows/test.yml`.
 
 Full coverage report (Nix dev shell):
 

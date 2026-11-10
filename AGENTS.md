@@ -616,9 +616,9 @@ notifications (
 - [x] Write unit tests (TDD)
 - [x] Demo mode
 - [ ] Add unusual spending alerts
-- [ ] Docker Compose setup for PostgreSQL tests
-- [ ] GitHub Actions CI/CD
-- [ ] Complete trait injection in all service modules
+- [x] Docker Compose setup for PostgreSQL tests
+- [x] GitHub Actions CI/CD
+- [x] Complete trait injection in all service modules
 
 ---
 

@@ -84,3 +84,6 @@ recurrency-release.jks
 
 # Skills
 .impeccable
+
+# Local agent hooks
+.codex/

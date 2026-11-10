@@ -1,0 +1,109 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: recurrency
+          POSTGRES_PASSWORD: recurrency_test_password
+          POSTGRES_DB: recurrency_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libssl-dev >/dev/null 2>&1
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+          cache-on-failure: true
+          cache-all-crates: true
+
+      - name: Clippy
+        run: cd backend && cargo clippy --lib --features integration-tests -- -D warnings
+
+      - name: Test (unit + integration)
+        env:
+          DATABASE_URL: postgres://recurrency:recurrency_test_password@localhost:5432/recurrency_test
+          JWT_SECRET: test-jwt-secret-key
+        run: cd backend && cargo test --features integration-tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libssl-dev >/dev/null 2>&1
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Tailwind CSS
+        run: cd frontend && npm ci --silent && npm run build:css
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend
+          cache-on-failure: true
+          cache-all-crates: true
+
+      - name: Clippy
+        run: cd frontend && cargo clippy --lib -- -D warnings
+
+      - name: Test
+        run: cd frontend && cargo test --lib
+
+      - name: WASM check
+        run: cd frontend && cargo check --target wasm32-unknown-unknown --features web
