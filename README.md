@@ -218,6 +218,14 @@ frontend/src/
 
 ---
 
+## Releasing
+
+1. Bump `version` in the root `Cargo.toml` (the single source of truth).
+2. Commit and push to `main`.
+3. The Release workflow only runs its release jobs when that version increases; then it runs the tests, publishes the Docker images, builds the APK and creates the GitHub release/tag.
+
+A manual `workflow_dispatch` always releases the current version.
+
 ## License
 
 MIT

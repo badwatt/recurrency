@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "Cargo.toml"
   workflow_dispatch:
@@ -23,6 +25,8 @@ permissions:
 jobs:
   # ── Cleanup: Delete old artifacts to free up storage ─────
   cleanup-artifacts:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: geekyeggo/delete-artifact@v6
@@ -32,21 +36,54 @@ jobs:
             build-*
           failOnError: false
 
-  # ── Prepare: extract version from workspace Cargo.toml ────
+  # ── Prepare: detect a version increase in the workspace manifest ──
   prepare:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      previous: ${{ steps.version.outputs.previous }}
+      changed: ${{ steps.version.outputs.changed }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Get version
+      - name: Detect version bump
         id: version
-        run: echo "version=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NEW=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
+          if [ -z "$NEW" ]; then
+            echo "::error file=Cargo.toml::No workspace version found"
+            exit 1
+          fi
+
+          OLD=""
+          BEFORE="${{ github.event.before }}"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            OLD=$(git show "$BEFORE:Cargo.toml" 2>/dev/null | sed -n 's/^version = "\(.*\)"/\1/p' | head -n1 || true)
+          fi
+
+          CHANGED=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CHANGED=true
+          elif [ -z "$OLD" ]; then
+            CHANGED=true
+          elif [ "$OLD" != "$NEW" ] && [ "$(printf '%s\n%s\n' "$OLD" "$NEW" | sort -V | tail -n1)" = "$NEW" ]; then
+            CHANGED=true
+          fi
+
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "previous=$OLD" >> "$GITHUB_OUTPUT"
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "Version: ${OLD:-<none>} -> $NEW (release=$CHANGED)" >> "$GITHUB_STEP_SUMMARY"
 
   # ── Backend: lint + test ──────────────────────────────────
   test-backend:
     needs: prepare
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -99,6 +136,7 @@ jobs:
   # ── Frontend: lint + test ──────────────────────────────────
   test-frontend:
     needs: prepare
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -144,7 +182,7 @@ jobs:
 
   # ─��� Build Docker images + create release ──────────────────
   docker:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_docker != true }}
+    if: ${{ needs.prepare.outputs.changed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.skip_docker != true) }}
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
     outputs:
@@ -214,6 +252,7 @@ jobs:
   # ── Build Android APK ──────────────────────────────────────
   android:
     needs: [prepare, test-backend, test-frontend]
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
