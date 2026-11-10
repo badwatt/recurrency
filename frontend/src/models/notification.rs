@@ -366,3 +366,42 @@ mod tests {
         assert!(req.enabled);
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NotificationChannel {
+    pub provider: String,
+    pub enabled: bool,
+    pub configured: bool,
+    pub config: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UpdateNotificationChannelRequest {
+    pub enabled: bool,
+    pub config: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SummaryNotificationSettings {
+    pub enabled: bool,
+    pub frequency: String,
+    pub weekday: Option<i16>,
+    pub day_of_month: Option<i16>,
+    pub hour: i16,
+    pub minute: i16,
+    pub timezone: String,
+    pub next_run_at: Option<DateTime<Utc>>,
+    pub last_sent_at: Option<DateTime<Utc>>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UpdateSummaryNotificationSettingsRequest {
+    pub enabled: bool,
+    pub frequency: String,
+    pub weekday: Option<i16>,
+    pub day_of_month: Option<i16>,
+    pub hour: i16,
+    pub minute: i16,
+    pub timezone: String,
+}

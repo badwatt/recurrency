@@ -10,6 +10,15 @@ use crate::notifications::models::{
 };
 use crate::shared::error::AppResult;
 
+/// Application secret used to encrypt per-user provider configuration.
+pub fn notification_secret() -> AppResult<String> {
+    std::env::var("JWT_SECRET").map_err(|_| {
+        crate::shared::error::AppError::Internal(
+            "JWT_SECRET is required for notification settings".to_string(),
+        )
+    })
+}
+
 pub const SELECT_NOTIFICATIONS_SQL: &str =
 "SELECT id, user_id, type as \"notification_type\", title, message, is_read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50";
 

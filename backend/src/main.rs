@@ -40,7 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     shared::db::run_migrations(&db_pool).await?;
     tracing::info!("Database connected and migrations complete");
 
-    let app = build_app(db_pool);
+    let app = build_app(db_pool.clone());
+    notifications::scheduler::spawn(db_pool);
     let port = parse_port();
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("Server listening on {}", addr);
@@ -103,6 +104,11 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/notifications/{id}", delete(notifications::handlers::delete))
         .route("/api/settings/notifications", get(notifications::handlers::get_notification_preferences))
         .route("/api/settings/notifications", put(notifications::handlers::update_notification_preferences))
+        .route("/api/settings/notification-channels", get(notifications::channel_handlers::list_channels))
+        .route("/api/settings/notification-channels/{provider}", put(notifications::channel_handlers::update_channel))
+        .route("/api/settings/notification-channels/{provider}/test", post(notifications::channel_handlers::test_channel))
+        .route("/api/settings/summary-notification", get(notifications::channel_handlers::get_summary))
+        .route("/api/settings/summary-notification", put(notifications::channel_handlers::update_summary))
         .route("/api/preferences", get(preferences::handlers::get_preferences))
         .route("/api/preferences", put(preferences::handlers::update_preferences))
         .route("/api/demo/status", get(demo::handlers::status))

@@ -13,6 +13,8 @@ use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRe
 use recurrency_backend::accounts::service::AccountService;
 use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest};
 use recurrency_backend::auth::service::{AuthService, AuthServiceTrait, SqlxAuthService};
+use recurrency_backend::notifications::channels::{NotificationProvider, UpdateNotificationChannelRequest, UpdateSummaryNotificationSettingsRequest, MASKED_VALUE};
+use recurrency_backend::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
 use recurrency_backend::categories::models::CreateCategoryRequest;
 use recurrency_backend::categories::service::CategoryService;
 use recurrency_backend::shared::error::AppError;
@@ -232,6 +234,71 @@ async fn unverified_token_rejected_but_verification_token_accepted(pool: PgPool)
         Err(AppError::Unauthorized(_))
     ));
     assert!(service.verify_verification_token(&token).await.is_ok());
+}
+
+#[sqlx::test]
+async fn notification_channel_config_roundtrip(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxNotificationSettingsService::new(pool.clone());
+
+    let defaults = service.list_channels(user_id).await.unwrap();
+    assert_eq!(defaults.len(), NotificationProvider::ALL.len());
+    assert!(defaults.iter().all(|channel| !channel.configured));
+
+    let saved = service
+        .update_channel(
+            user_id,
+            NotificationProvider::Ntfy,
+            UpdateNotificationChannelRequest {
+                enabled: true,
+                config: serde_json::json!({
+                    "server": "https://ntfy.sh",
+                    "topic": "recurrency-test",
+                    "token": "secret"
+                }),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(saved.enabled);
+    assert_eq!(saved.config["token"], MASKED_VALUE);
+
+    let listed = service.list_channels(user_id).await.unwrap();
+    let ntfy = listed.iter().find(|channel| channel.provider == "ntfy").unwrap();
+    assert!(ntfy.enabled);
+    assert_eq!(ntfy.config["token"], MASKED_VALUE);
+    assert_eq!(ntfy.config["topic"], "recurrency-test");
+}
+
+#[sqlx::test]
+async fn summary_notification_schedule_roundtrip(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxNotificationSettingsService::new(pool.clone());
+
+    let saved = service
+        .update_summary(
+            user_id,
+            UpdateSummaryNotificationSettingsRequest {
+                enabled: true,
+                frequency: "weekly".to_string(),
+                weekday: Some(1),
+                day_of_month: None,
+                hour: 9,
+                minute: 30,
+                timezone: "UTC".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(saved.enabled);
+    assert_eq!(saved.frequency, "weekly");
+    assert_eq!(saved.next_run_at.is_some(), true);
+
+    let loaded = service.get_summary(user_id).await.unwrap();
+    assert!(loaded.enabled);
+    assert_eq!(loaded.weekday, Some(1));
+    assert_eq!(loaded.hour, 9);
+    assert_eq!(loaded.minute, 30);
 }
 
 #[sqlx::test]

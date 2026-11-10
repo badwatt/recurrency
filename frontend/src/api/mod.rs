@@ -5,6 +5,7 @@ pub mod categories;
 pub mod client;
 pub mod demo;
 pub mod logos;
+pub mod notification_channels;
 pub mod notification_preferences;
 pub mod notifications;
 pub mod preferences;

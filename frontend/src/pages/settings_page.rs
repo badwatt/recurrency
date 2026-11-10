@@ -3,14 +3,18 @@ use crate::components::page_header::PageHeader;
 use dioxus::prelude::*;
 
 mod connection_card;
+mod delivery_card;
 mod notifications_card;
 mod preferences_card;
 mod profile_card;
+mod summary_card;
 
 use connection_card::ConnectionCard;
+use delivery_card::DeliveryCard;
 use notifications_card::NotificationsCard;
 use preferences_card::PreferencesCard;
 use profile_card::ProfileCard;
+use summary_card::SummaryCard;
 
 #[component]
 fn MoneyCard() -> Element {
@@ -76,6 +80,8 @@ pub fn SettingsPage() -> Element {
             MoneyCard {}
             ConnectionCard {}
             NotificationsCard {}
+            DeliveryCard {}
+            SummaryCard {}
 
             p { class: "text-center text-xs text-muted-foreground/70 pt-1",
                 {format!("Recurrency v{APP_VERSION}")}

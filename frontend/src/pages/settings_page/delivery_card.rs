@@ -1,0 +1,255 @@
+use crate::api::notification_channels;
+use crate::components::toast::TOAST;
+use crate::models::notification::{
+    NotificationChannel, UpdateNotificationChannelRequest,
+};
+use dioxus::prelude::*;
+use serde_json::{Value, json};
+
+const PROVIDERS: &[(&str, &str)] = &[
+    ("email", "Email"),
+    ("ntfy", "ntfy"),
+    ("telegram", "Telegram"),
+    ("discord", "Discord"),
+    ("gotify", "Gotify"),
+    ("webhook", "Webhook"),
+];
+
+fn field(config: &Value, key: &str) -> String {
+    config
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+struct ChannelFields {
+    server: String,
+    topic: String,
+    token: String,
+    bot_token: String,
+    chat_id: String,
+    webhook_url: String,
+    gotify_server: String,
+    gotify_token: String,
+}
+
+fn build_config(provider: &str, fields: &ChannelFields) -> Value {
+    match provider {
+        "email" => json!({}),
+        "ntfy" => json!({"server": fields.server, "topic": fields.topic, "token": fields.token}),
+        "telegram" => json!({"bot_token": fields.bot_token, "chat_id": fields.chat_id}),
+        "discord" => json!({"webhook_url": fields.webhook_url}),
+        "gotify" => json!({"server_url": fields.gotify_server, "token": fields.gotify_token}),
+        "webhook" => json!({"url": fields.webhook_url}),
+        _ => json!({}),
+    }
+}
+
+#[component]
+pub fn DeliveryCard() -> Element {
+    let mut channels = use_signal(Vec::<NotificationChannel>::new);
+    let mut selected = use_signal(|| "email".to_string());
+    let mut enabled = use_signal(|| false);
+    let mut server = use_signal(String::new);
+    let mut topic = use_signal(String::new);
+    let mut token = use_signal(String::new);
+    let mut bot_token = use_signal(String::new);
+    let mut chat_id = use_signal(String::new);
+    let mut webhook_url = use_signal(String::new);
+    let mut gotify_server = use_signal(String::new);
+    let mut gotify_token = use_signal(String::new);
+    let mut saving = use_signal(|| false);
+    let mut testing = use_signal(|| false);
+
+    use_future(move || async move {
+        match notification_channels::list().await {
+            Ok(list) => {
+                let email = list.iter().find(|c| c.provider == "email").cloned();
+                channels.set(list);
+                let config = email
+                    .as_ref()
+                    .map(|channel| channel.config.clone())
+                    .unwrap_or_else(|| json!({}));
+                enabled.set(email.as_ref().is_some_and(|channel| channel.enabled));
+                server.set(field(&config, "server"));
+                topic.set(field(&config, "topic"));
+                token.set(field(&config, "token"));
+                bot_token.set(field(&config, "bot_token"));
+                chat_id.set(field(&config, "chat_id"));
+                webhook_url.set(field(&config, "webhook_url"));
+                gotify_server.set(field(&config, "server_url"));
+                gotify_token.set(field(&config, "token"));
+            }
+            Err(error) => TOAST.write().error(format!("Could not load delivery channels: {error}")),
+        }
+    });
+
+    let current_config = move || {
+        build_config(
+            &selected(),
+            &ChannelFields {
+                server: server(),
+                topic: topic(),
+                token: token(),
+                bot_token: bot_token(),
+                chat_id: chat_id(),
+                webhook_url: webhook_url(),
+                gotify_server: gotify_server(),
+                gotify_token: gotify_token(),
+            },
+        )
+    };
+
+    let save = move |_| {
+        saving.set(true);
+        let provider = selected();
+        let req = UpdateNotificationChannelRequest {
+            enabled: enabled(),
+            config: current_config(),
+        };
+        spawn(async move {
+            match notification_channels::update(&provider, &req).await {
+                Ok(channel) => {
+                    let mut list = channels();
+                    if let Some(item) = list.iter_mut().find(|item| item.provider == channel.provider) {
+                        *item = channel;
+                    }
+                    channels.set(list);
+                    TOAST.write().success("Delivery channel saved");
+                }
+                Err(error) => TOAST.write().error(format!("Could not save delivery channel: {error}")),
+            }
+            saving.set(false);
+        });
+    };
+
+    let test = move |_| {
+        testing.set(true);
+        let provider = selected();
+        let config = current_config();
+        spawn(async move {
+            match notification_channels::test(&provider, config).await {
+                Ok(()) => TOAST.write().success("Test notification sent"),
+                Err(error) => TOAST.write().error(format!("Test notification failed: {error}")),
+            }
+            testing.set(false);
+        });
+    };
+
+    let label = PROVIDERS
+        .iter()
+        .find(|(key, _)| *key == selected())
+        .map(|(_, label)| *label)
+        .unwrap_or("Delivery");
+
+    rsx! {
+        div { class: "rounded-xl bg-card/80 border border-border/40",
+            div { class: "p-6 border-b border-border",
+                h2 { class: "text-lg font-semibold", "Delivery channels" }
+                p { class: "text-sm text-muted-foreground", "Send the dashboard summary to the services you use" }
+            }
+            div { class: "p-6 space-y-4",
+                div { class: "flex flex-wrap items-center justify-between gap-3",
+                    div { class: "flex items-center gap-2",
+                        label { r#for: "delivery-provider", class: "text-sm font-medium", "Channel" }
+                        select {
+                            id: "delivery-provider",
+                            value: selected(),
+                            onchange: move |event| {
+                                let provider = event.value();
+                                let channel = channels().into_iter().find(|c| c.provider == provider);
+                                let config = channel
+                                    .as_ref()
+                                    .map(|c| c.config.clone())
+                                    .unwrap_or_else(|| json!({}));
+                                enabled.set(channel.as_ref().is_some_and(|c| c.enabled));
+                                server.set(field(&config, "server"));
+                                topic.set(field(&config, "topic"));
+                                token.set(field(&config, "token"));
+                                bot_token.set(field(&config, "bot_token"));
+                                chat_id.set(field(&config, "chat_id"));
+                                webhook_url.set(field(&config, "webhook_url"));
+                                gotify_server.set(field(&config, "server_url"));
+                                gotify_token.set(field(&config, "token"));
+                                selected.set(provider);
+                            },
+                            class: "h-9 rounded-md border border-input bg-background px-3 text-sm",
+                            for (key, label) in PROVIDERS {
+                                option { value: key.to_string(), {label.to_string()} }
+                            }
+                        }
+                    }
+                    button {
+                        r#type: "button",
+                        class: if enabled() { "relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors" } else { "relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors" },
+                        onclick: move |_| enabled.toggle(),
+                        span {
+                            class: if enabled() { "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" } else { "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" }
+                        }
+                    }
+                }
+
+                if selected() == "email" {
+                    p { class: "text-sm text-muted-foreground", "Email uses the SMTP configuration of the server and sends to your account email." }
+                } else if selected() == "ntfy" {
+                    div { class: "grid gap-3 sm:grid-cols-2",
+                        label { class: "space-y-1 text-sm", "Server"
+                            input { value: server(), oninput: move |e| server.set(e.value()), placeholder: "https://ntfy.sh", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "Topic"
+                            input { value: topic(), oninput: move |e| topic.set(e.value()), placeholder: "recurrency", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                    }
+                    label { class: "space-y-1 text-sm block", "Access token (optional)"
+                        input { r#type: "password", value: token(), oninput: move |e| token.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                    }
+                } else if selected() == "telegram" {
+                    div { class: "grid gap-3 sm:grid-cols-2",
+                        label { class: "space-y-1 text-sm", "Bot token"
+                            input { r#type: "password", value: bot_token(), oninput: move |e| bot_token.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "Chat ID"
+                            input { value: chat_id(), oninput: move |e| chat_id.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                    }
+                } else if selected() == "discord" {
+                    label { class: "space-y-1 text-sm block", "Webhook URL"
+                        input { r#type: "password", value: webhook_url(), oninput: move |e| webhook_url.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                    }
+                } else if selected() == "gotify" {
+                    div { class: "grid gap-3 sm:grid-cols-2",
+                        label { class: "space-y-1 text-sm", "Server URL"
+                            input { value: gotify_server(), oninput: move |e| gotify_server.set(e.value()), placeholder: "https://gotify.example.com", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                        label { class: "space-y-1 text-sm", "App token"
+                            input { r#type: "password", value: gotify_token(), oninput: move |e| gotify_token.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                        }
+                    }
+                } else if selected() == "webhook" {
+                    label { class: "space-y-1 text-sm block", "Webhook URL"
+                        input { r#type: "password", value: webhook_url(), oninput: move |e| webhook_url.set(e.value()), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
+                    }
+                    p { class: "text-xs text-muted-foreground", "The webhook receives a JSON body with title and message." }
+                }
+
+                div { class: "flex flex-wrap items-center gap-2",
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                        disabled: saving(),
+                        onclick: save,
+                        if saving() { "Saving..." } else { "Save {label}" }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                        disabled: testing(),
+                        onclick: test,
+                        if testing() { "Testing..." } else { "Send test" }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -40,6 +40,13 @@ rust_decimal.workspace = true
 # Validation
 validator = { version = "0.20", features = ["derive"] }
 
+# Notification channel secret encryption
+aes-gcm = "0.10"
+sha2 = "0.10"
+
+# Notification scheduling in the user's timezone
+chrono-tz = "0.10"
+
 # Error handling
 thiserror.workspace = true
 

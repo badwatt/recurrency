@@ -70,10 +70,27 @@ fn build_html(email: &str, code: &str) -> String {
 pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()> {
     let config =
         get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
-
-    let from_addr = format!("{} <{}>", config.app_name, config.from);
     let subject = format!("{} - Verify your email", config.app_name);
     let html = build_html(to_email, code);
+    send_message(to_email, &subject, &html, true).await?;
+    tracing::info!("Verification email sent to {}", to_email);
+    Ok(())
+}
+
+/// Send a plain-text email through the configured SMTP relay.
+pub async fn send_text_email(to_email: &str, subject: &str, body: &str) -> AppResult<()> {
+    send_message(to_email, subject, body, false).await
+}
+
+async fn send_message(
+    to_email: &str,
+    subject: &str,
+    body: &str,
+    html: bool,
+) -> AppResult<()> {
+    let config =
+        get_config().ok_or_else(|| AppError::Internal("SMTP not configured".to_string()))?;
+    let from_addr = format!("{} <{}>", config.app_name, config.from);
 
     let from: lettre::message::Mailbox = from_addr
         .parse()
@@ -81,13 +98,18 @@ pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()
     let to: lettre::message::Mailbox = to_email
         .parse()
         .map_err(|e| AppError::Internal(format!("Invalid to address: {}", e)))?;
+    let content_type = if html {
+        lettre::message::header::ContentType::TEXT_HTML
+    } else {
+        lettre::message::header::ContentType::TEXT_PLAIN
+    };
 
     let email = lettre::Message::builder()
         .from(from)
         .to(to)
-        .subject(&subject)
-        .header(lettre::message::header::ContentType::TEXT_HTML)
-        .body(html)
+        .subject(subject)
+        .header(content_type)
+        .body(body.to_string())
         .map_err(|e| AppError::Internal(format!("Failed to build email: {}", e)))?;
 
     let creds = lettre::transport::smtp::authentication::Credentials::new(
@@ -109,8 +131,6 @@ pub async fn send_verification_email(to_email: &str, code: &str) -> AppResult<()
         .send(email)
         .await
         .map_err(|e| AppError::Internal(format!("Failed to send email: {}", e)))?;
-
-    tracing::info!("Verification email sent to {}", to_email);
     Ok(())
 }
 
