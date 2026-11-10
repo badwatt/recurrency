@@ -17,11 +17,11 @@ COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency-backend -j 4 2>/dev/null || true
+RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency_backend -j 4 2>/dev/null || true
 
 COPY backend/ ./backend/
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
-RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency-backend -j 4 && cp /build/target/release/recurrency-backend /build/recurrency-backend
+RUN --mount=type=cache,target=/build/target touch backend/src/main.rs && cargo build --release -p recurrency_backend -j 4 && cp /build/target/release/recurrency_backend /build/recurrency_backend
 
 # ── Frontend builder ─────────────────────────────────────
 FROM ubuntu:24.04 AS frontend-builder
@@ -47,7 +47,7 @@ COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
-RUN --mount=type=cache,target=/build/target cargo build -p recurrency-frontend --features web --release 2>/dev/null || true
+RUN --mount=type=cache,target=/build/target cargo build -p recurrency_frontend --features web --release 2>/dev/null || true
 
 COPY frontend/ ./frontend/
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
@@ -70,8 +70,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=backend-builder /build/recurrency-backend /usr/local/bin/recurrency-backend
-RUN chmod +x /usr/local/bin/recurrency-backend
+COPY --from=backend-builder /build/recurrency_backend /usr/local/bin/recurrency_backend
+RUN chmod +x /usr/local/bin/recurrency_backend
 
 ENV APP_HOST=0.0.0.0 \
     APP_PORT=8080 \
@@ -79,7 +79,7 @@ ENV APP_HOST=0.0.0.0 \
 
 EXPOSE 8080
 
-CMD ["recurrency-backend"]
+CMD ["recurrency_backend"]
 
 # ── Target: frontend only ────────────────────────────────
 FROM nginx:alpine AS frontend
@@ -109,8 +109,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -f /etc/nginx/sites-enabled/default
 
 # Backend binary
-COPY --from=backend-builder /build/recurrency-backend /usr/local/bin/recurrency-backend
-RUN chmod +x /usr/local/bin/recurrency-backend
+COPY --from=backend-builder /build/recurrency_backend /usr/local/bin/recurrency_backend
+RUN chmod +x /usr/local/bin/recurrency_backend
 
 # Frontend static files
 COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html

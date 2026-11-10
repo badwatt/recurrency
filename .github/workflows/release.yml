@@ -316,7 +316,7 @@ jobs:
         run: |
           set -e
           ICON="$PWD/frontend/assets/icons/clock-1024.png" \
-            cargo run -p recurrency-tools -- patch-android
+            cargo run -p recurrency_tools -- patch-android
 
       - name: Build APK
         env:
@@ -330,7 +330,7 @@ jobs:
 
           # gradlew sits at target/dx/.../release/android/app/ (single app)
           # dx 0.7.9 writes build outputs under app/app/build/ (double app)
-          APP_DIR="target/dx/recurrency-frontend/release/android/app"
+          APP_DIR="target/dx/recurrency_frontend/release/android/app"
           GRADLE_FILE=$(find "$APP_DIR" -maxdepth 2 -name build.gradle.kts -exec grep -l 'com.android.application' {} \; 2>/dev/null | head -1)
           if [ -z "$GRADLE_FILE" ]; then
             GRADLE_FILE="$APP_DIR/build.gradle.kts"

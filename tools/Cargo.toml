@@ -1,11 +1,11 @@
 [package]
-name = "recurrency-tools"
+name = "recurrency_tools"
 version.workspace = true
 edition.workspace = true
 publish = false
 
 [[bin]]
-name = "recurrency-tools"
+name = "recurrency_tools"
 path = "src/main.rs"
 
 [dependencies]

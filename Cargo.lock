@@ -5248,7 +5248,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "recurrency-backend"
+name = "recurrency_backend"
 version = "0.25.0"
 dependencies = [
  "argon2",
@@ -5276,7 +5276,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "recurrency-frontend"
+name = "recurrency_frontend"
 version = "0.25.0"
 dependencies = [
  "chrono",
@@ -5299,7 +5299,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "recurrency-tools"
+name = "recurrency_tools"
 version = "0.25.0"
 dependencies = [
  "tokio",

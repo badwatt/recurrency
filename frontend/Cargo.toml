@@ -1,5 +1,5 @@
 [package]
-name = "recurrency-frontend"
+name = "recurrency_frontend"
 version.workspace = true
 edition.workspace = true
 description = "Recurrency - Subscription tracker (Dioxus frontend)"

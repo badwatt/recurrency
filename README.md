@@ -35,15 +35,15 @@ All commands run inside `nix develop`.
 | Start PostgreSQL | `docker compose -f docker/docker-compose.dev.yml up -d` |
 | Stop PostgreSQL | `docker compose -f docker/docker-compose.dev.yml down` |
 | Reset database | `docker compose -f docker/docker-compose.dev.yml down -v && docker compose -f docker/docker-compose.dev.yml up -d` |
-| Backend (port 8080) | `cargo run -p recurrency-backend` |
+| Backend (port 8080) | `cargo run -p recurrency_backend` |
 | Frontend (port 1420) | `cd frontend && dx serve --platform web --port 1420` |
 | List project commands | `cargo dev-help` |
 | Tests | `cargo test-all` |
 | Format | `cargo fmt-all` |
 | Clippy | `cargo clippy-all` |
 | Tailwind CSS | `cd frontend && npm run build:css` |
-| Backend coverage | `cargo llvm-cov -p recurrency-backend test --lib` |
-| Frontend coverage | `cargo llvm-cov -p recurrency-frontend test --lib` |
+| Backend coverage | `cargo llvm-cov -p recurrency_backend test --lib` |
+| Frontend coverage | `cargo llvm-cov -p recurrency_frontend test --lib` |
 | Local debug Android APK | `cargo build-android` |
 | Install Android SDK/NDK | `cargo setup-android` |
 | Patch an existing Android build | `cargo patch-android` |

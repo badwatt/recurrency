@@ -10,8 +10,8 @@ use tokio::net::TcpStream;
 use tokio::process::Command as TokioCommand;
 
 const MANIFEST: &str = env!("CARGO_MANIFEST_DIR");
-const BACKEND_LOG: &str = "/tmp/recurrency-backend.log";
-const FRONTEND_LOG: &str = "/tmp/recurrency-frontend.log";
+const BACKEND_LOG: &str = "/tmp/recurrency_backend.log";
+const FRONTEND_LOG: &str = "/tmp/recurrency_frontend.log";
 const DEFAULT_DATABASE_URL: &str =
     "postgres://recurrency:recurrency_dev_password@localhost:5432/recurrency";
 
@@ -187,8 +187,8 @@ fn compose(action: &[&str]) -> i32 {
 
 fn kill_stale() {
     for pattern in [
-        "target/debug/recurrency-backend",
-        "target/release/recurrency-backend",
+        "target/debug/recurrency_backend",
+        "target/release/recurrency_backend",
         "dx serve --platform web --port 1420",
     ] {
         let _ = Command::new("pkill").args(["-f", pattern]).status();
@@ -261,7 +261,7 @@ async fn up_async() -> i32 {
     let mut backend = match service_command(
         &root(),
         "cargo",
-        &["run", "-p", "recurrency-backend"],
+        &["run", "-p", "recurrency_backend"],
         BACKEND_LOG,
     ) {
         Ok(child) => child,
@@ -346,7 +346,7 @@ fn do_db() -> i32 {
 }
 
 fn do_backend() -> i32 {
-    run(&root(), "cargo", &["run", "-p", "recurrency-backend"])
+    run(&root(), "cargo", &["run", "-p", "recurrency_backend"])
 }
 
 fn do_frontend() -> i32 {
@@ -441,7 +441,7 @@ fn do_build() -> i32 {
 fn copy_backend_binary() -> i32 {
     let bin = root().join("target/bin");
     let _ = fs::create_dir_all(&bin);
-    let source = root().join("backend/target/release/recurrency-backend");
+    let source = root().join("backend/target/release/recurrency_backend");
     let destination = bin.join("recurrency-aio");
     match fs::copy(&source, &destination) {
         Ok(_) => 0,
@@ -575,7 +575,7 @@ fn remove(path: PathBuf) {
 }
 
 fn do_clear() -> i32 {
-    remove(root().join("backend/target/release/recurrency-backend"));
+    remove(root().join("backend/target/release/recurrency_backend"));
     remove(root().join("frontend/dist"));
     remove(root().join("target/bin/android"));
     remove(root().join("target/bin/desktop"));
@@ -593,7 +593,7 @@ fn do_clear_app() -> i32 {
 
 fn do_clear_api() -> i32 {
     remove(root().join("target/bin/recurrency-aio"));
-    remove(root().join("backend/target/release/recurrency-backend"));
+    remove(root().join("backend/target/release/recurrency_backend"));
     println!("API artifacts cleared.");
     0
 }
@@ -606,7 +606,7 @@ fn do_clear_web() -> i32 {
 
 fn do_clear_android() -> i32 {
     remove(root().join("target/bin/android"));
-    remove(root().join("frontend/target/dx/recurrency-frontend/release/android"));
+    remove(root().join("frontend/target/dx/recurrency_frontend/release/android"));
     println!("Android build cleaned.");
     0
 }

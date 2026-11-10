@@ -4,8 +4,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-const ANDROID_PROJECT: &str = "frontend/target/dx/recurrency-frontend/release/android";
-const ANDROID_APP: &str = "frontend/target/dx/recurrency-frontend/release/android/app";
+const ANDROID_PROJECT: &str = "frontend/target/dx/recurrency_frontend/release/android";
+const ANDROID_APP: &str = "frontend/target/dx/recurrency_frontend/release/android/app";
 const ICON: &str = "frontend/assets/icons/clock-1024.png";
 const NDK_VERSION: &str = "r27d";
 const CMDLINE_TOOLS_VERSION: &str = "11076708";
@@ -734,7 +734,7 @@ pub fn build(root: &Path, out_dir: &Path) -> Result<(), String> {
     let code = version_code(&version)
         .ok_or_else(|| format!("cannot derive versionCode from {version}"))?;
     let frontend = root.join("frontend");
-    let android_root = frontend.join("target/dx/recurrency-frontend/release/android");
+    let android_root = frontend.join("target/dx/recurrency_frontend/release/android");
     let app_dir = android_root.join("app");
     let keystore = frontend.join("debug.keystore");
 
