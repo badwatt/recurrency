@@ -472,6 +472,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "user@test.com".into(),
+                avatar: None,
             name: Some("Test User".into()),
             currency: "EUR".into(),
             verified,
@@ -553,6 +554,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "demo@test.com".into(),
+                avatar: None,
             name: Some("Demo".into()),
             currency: "EUR".into(),
             verified: true,
@@ -680,6 +682,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
+                avatar: None,
             name: None,
             currency: "USD".into(),
             verified: true,

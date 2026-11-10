@@ -117,6 +117,7 @@ impl MockAuthService {
         User {
             id,
             email: email.to_string(),
+            avatar: None,
             password_hash: "mock_hash".to_string(),
             name: Some(name.to_string()),
             currency: "USD".to_string(),
@@ -159,6 +160,7 @@ impl MockAuthService {
         let user = User {
             id: Uuid::new_v4(),
             email: req.email,
+            avatar: None,
             password_hash: "mock_hash".to_string(),
             name: Some(req.name.clone()),
             currency: "USD".to_string(),
@@ -193,6 +195,22 @@ impl MockAuthService {
             .ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
         Ok(self.make_auth_response(user, false))
+    }
+
+    pub async fn delete_account(&self, user_id: Uuid, password: String) -> AppResult<()> {
+        if self.config.should_fail {
+            return Err(AppError::Internal(self.config.error_message.clone()));
+        }
+        if password != "password123" {
+            return Err(AppError::Unauthorized("Invalid credentials".to_string()));
+        }
+        let mut users = self.registered_users.lock().unwrap();
+        let before = users.len();
+        users.retain(|u| u.id != user_id);
+        if users.len() == before {
+            return Err(AppError::NotFound("User not found".to_string()));
+        }
+        Ok(())
     }
 
     pub async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
@@ -338,6 +356,10 @@ impl crate::auth::service::AuthServiceTrait for MockAuthService {
 
     async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
         MockAuthService::update_settings(self, user_id, req).await
+    }
+
+    async fn delete_account(&self, user_id: Uuid, password: String) -> AppResult<()> {
+        MockAuthService::delete_account(self, user_id, password).await
     }
 
     async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
@@ -1617,6 +1639,8 @@ mod tests {
             let user_id = mock.register(req).await.unwrap().user.id;
 
             let update_req = UpdateSettingsRequest {
+                email: None,
+                avatar: None,
                 name: Some("New Name".to_string()),
                 currency: Some("EUR".to_string()),
             };
@@ -1631,6 +1655,8 @@ mod tests {
         pub async fn update_settings_user_not_found() {
             let mock = MockAuthService::success();
             let update_req = UpdateSettingsRequest {
+                email: None,
+                avatar: None,
                 name: Some("X".to_string()),
                 currency: None,
             };
@@ -1642,6 +1668,8 @@ mod tests {
         pub async fn update_settings_failure_config() {
             let mock = MockAuthService::failure("No update");
             let update_req = UpdateSettingsRequest {
+                email: None,
+                avatar: None,
                 name: Some("X".to_string()),
                 currency: None,
             };
@@ -3354,6 +3382,7 @@ mod tests {
             let user = User {
                 id: Uuid::new_v4(),
                 email: "clone@test.com".to_string(),
+            avatar: None,
                 password_hash: "hash".to_string(),
                 name: Some("Clone".to_string()),
                 currency: "USD".to_string(),

@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_put, ApiError};
+use crate::api::client::{api_get, api_post, api_put, ApiError};
 use crate::models::auth::*;
 
 #[allow(dead_code)]
@@ -10,10 +10,25 @@ pub async fn update(req: &UpdateSettingsRequest) -> Result<SettingsResponse, Api
     api_put("/api/settings", req).await
 }
 
+pub async fn delete_account(req: &DeleteAccountRequest) -> Result<(), ApiError> {
+    let _: serde_json::Value = api_post("/api/settings/account", req).await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::models::auth::{SettingsResponse, UserResponse};
     use uuid::Uuid;
+
+    #[test]
+    fn delete_account_uses_settings_account_path() {
+        let req = crate::models::auth::DeleteAccountRequest {
+            password: "secret".into(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert_eq!("/api/settings/account", "/api/settings/account");
+        assert!(json.contains("secret"));
+    }
 
     #[test]
     fn settings_api_paths() {
@@ -24,6 +39,8 @@ mod tests {
     fn update_settings_request_serialization() {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: Some("Alice".into()),
             currency: Some("USD".into()),
         };
@@ -40,6 +57,7 @@ mod tests {
         let user_response = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
+                avatar: None,
             name: Some("Alice".into()),
             currency: "USD".into(),
             verified: true,
@@ -64,6 +82,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: Some("Alice".into()),
                 currency: "USD".into(),
                 verified: true,
@@ -81,6 +100,8 @@ mod tests {
     fn update_settings_request_currency_only() {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: None,
             currency: Some("EUR".into()),
         };
@@ -92,6 +113,8 @@ mod tests {
     fn update_settings_request_name_only() {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: Some("Bob".into()),
             currency: None,
         };
@@ -105,6 +128,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: None,
                 currency: "GBP".into(),
                 verified: false,

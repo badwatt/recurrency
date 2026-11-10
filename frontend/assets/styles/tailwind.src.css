@@ -6,6 +6,7 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
     --background: 240 21% 15%;
     --foreground: 226 64% 88%;
     --card: 240 21% 12%;
@@ -31,6 +32,7 @@
   }
 
   html.light {
+    color-scheme: light;
     --background: 53 44% 96%;
     --foreground: 0 0% 13%;
     --card: 0 0% 100%;
@@ -55,6 +57,7 @@
   }
 
   html.dark {
+    color-scheme: dark;
     --background: 255 15% 5%;
     --foreground: 0 0% 93%;
     --card: 255 15% 8%;
@@ -79,6 +82,7 @@
   }
 
   html.mocha {
+    color-scheme: dark;
     --background: 240 21% 15%;
     --foreground: 226 64% 88%;
     --card: 240 21% 12%;
@@ -169,5 +173,37 @@
   }
   50% {
     opacity: .5;
+  }
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.35);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.55);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

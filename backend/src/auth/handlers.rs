@@ -2,8 +2,8 @@ use axum::{Json, extract::State};
 use validator::Validate;
 
 use crate::auth::models::{
-    AuthResponse, CreateUserRequest, LoginRequest, SettingsResponse, UpdateSettingsRequest,
-    UserResponse,
+    AuthResponse, CreateUserRequest, DeleteAccountRequest, LoginRequest, SettingsResponse,
+    UpdateSettingsRequest, UserResponse, is_valid_email,
 };
 use crate::shared::OptionalQuery;
 use crate::shared::auth_extractor::extract_token_from_request;
@@ -75,8 +75,32 @@ pub async fn update_settings(
     let token =
         extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
     let claims = state.auth_service.verify_token(&token).await?;
+    if let Some(email) = req.email.as_deref()
+        && !is_valid_email(email)
+    {
+        return Err(crate::shared::error::AppError::BadRequest(
+            "Invalid email".to_string(),
+        ));
+    }
     let user = state.auth_service.update_settings(claims.sub, req).await?;
     Ok(Json(user.into()))
+}
+
+/// DELETE /api/settings/account - delete the authenticated account after password confirmation.
+pub async fn delete_account(
+    State(state): State<crate::shared::app_state::AppState>,
+    OptionalQuery(query): OptionalQuery<SettingsQuery>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<DeleteAccountRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let token =
+        extract_token_from_request(query.as_ref().and_then(|q| q.token.as_ref()), &headers)?;
+    let claims = state.auth_service.verify_token(&token).await?;
+    state
+        .auth_service
+        .delete_account(claims.sub, req.password)
+        .await?;
+    Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
 #[derive(serde::Deserialize)]
@@ -246,6 +270,7 @@ mod tests {
         let user = UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "user@test.com".to_string(),
+            avatar: None,
             name: None,
             currency: "EUR".to_string(),
             verified: false,
@@ -272,6 +297,7 @@ mod tests {
         let user = UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "auth@test.com".to_string(),
+            avatar: None,
             name: Some("Test User".to_string()),
             currency: "USD".to_string(),
             verified: true,
@@ -328,6 +354,7 @@ mod handler_integration_tests {
                 .route("/api/auth/resend-verification", post(resend_verification))
                 .route("/api/settings", get(get_settings))
                 .route("/api/settings", put(update_settings))
+                .route("/api/settings/account", post(delete_account))
                 .with_state(state),
         )
     }
@@ -539,6 +566,48 @@ mod handler_integration_tests {
         let (status, _body) =
             put_json::<_, serde_json::Value>(&app, "/api/settings?token=invalid", &body).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    // ── Delete Account ───────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn handler_delete_account_success() {
+        let Some(app) = make_app().await else {
+            return;
+        };
+        let reg = serde_json::json!({"email": "delete@test.com", "password": "password123", "name": "Delete"});
+        let (_, resp): (_, serde_json::Value) = post_json(&app, "/api/auth/register", &reg).await;
+        let token = resp["token"].as_str().unwrap();
+        let body = serde_json::json!({"password": "password123"});
+        let req = Request::builder()
+            .method("POST")
+            .uri("/api/settings/account")
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
+            .body(Body::from(serde_json::to_string(&body).unwrap()))
+            .unwrap();
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn handler_delete_account_wrong_password() {
+        let Some(app) = make_app().await else {
+            return;
+        };
+        let reg = serde_json::json!({"email": "delete-wrong@test.com", "password": "password123", "name": "Delete"});
+        let (_, resp): (_, serde_json::Value) = post_json(&app, "/api/auth/register", &reg).await;
+        let token = resp["token"].as_str().unwrap();
+        let body = serde_json::json!({"password": "wrong-password"});
+        let req = Request::builder()
+            .method("POST")
+            .uri("/api/settings/account")
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
+            .body(Body::from(serde_json::to_string(&body).unwrap()))
+            .unwrap();
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     // ── Verify Email ─────────────────────────────────────────────────────

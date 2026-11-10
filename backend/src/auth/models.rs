@@ -8,6 +8,7 @@ use validator::Validate;
 pub struct User {
     pub id: Uuid,
     pub email: String,
+    pub avatar: Option<String>,
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub name: Option<String>,
@@ -28,6 +29,25 @@ pub struct CreateUserRequest {
     pub name: String,
 }
 
+/// Conservative email check for settings changes. The registration path uses
+/// the validator derive; this keeps optional email updates deterministic and
+/// testable without pulling a second validation helper.
+pub fn is_valid_email(email: &str) -> bool {
+    let email = email.trim();
+    if email.is_empty() || email.contains(char::is_whitespace) || email.matches('@').count() != 1 {
+        return false;
+    }
+    let Some((local, domain)) = email.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !domain.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+        && !domain.contains("..")
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct LoginRequest {
     pub email: String,
@@ -36,8 +56,15 @@ pub struct LoginRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct UpdateSettingsRequest {
+    pub email: Option<String>,
+    pub avatar: Option<String>,
     pub name: Option<String>,
     pub currency: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DeleteAccountRequest {
+    pub password: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,6 +78,7 @@ pub struct AuthResponse {
 pub struct UserResponse {
     pub id: Uuid,
     pub email: String,
+    pub avatar: Option<String>,
     pub name: Option<String>,
     pub currency: String,
     pub verified: bool,
@@ -61,6 +89,7 @@ impl From<User> for UserResponse {
         Self {
             id: user.id,
             email: user.email,
+            avatar: user.avatar,
             name: user.name,
             currency: user.currency,
             verified: user.verified,
@@ -97,6 +126,7 @@ mod tests {
         let u = User {
             id: Uuid::new_v4(),
             email: "t@t.com".into(),
+            avatar: None,
             password_hash: "hash".into(),
             name: Some("Test".into()),
             currency: "EUR".into(),
@@ -115,6 +145,7 @@ mod tests {
         let u = User {
             id: Uuid::new_v4(),
             email: "t@t.com".into(),
+            avatar: None,
             password_hash: "hash".into(),
             name: None,
             currency: "USD".into(),
@@ -128,10 +159,25 @@ mod tests {
 
     // UserResponse from User
     #[test]
+    fn user_response_carries_avatar() {
+        let user = UserResponse {
+            id: Uuid::new_v4(),
+            email: "a@b.com".into(),
+            avatar: Some("data:image/png;base64,abc".into()),
+            name: None,
+            currency: "EUR".into(),
+            verified: true,
+        };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(json.contains("data:image/png"));
+    }
+
+    #[test]
     fn user_response_from_user() {
         let user = User {
             id: Uuid::new_v4(),
             email: "t@t.com".into(),
+            avatar: None,
             password_hash: "secret".into(),
             name: Some("Test".into()),
             currency: "GBP".into(),
@@ -152,6 +198,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             email: "a@b.com".into(),
+            avatar: None,
             password_hash: "hidden".into(),
             name: None,
             currency: "JPY".into(),
@@ -186,8 +233,36 @@ mod tests {
     #[test]
     fn update_settings_both_none() {
         let req: UpdateSettingsRequest = serde_json::from_str("{}").unwrap();
+        assert!(req.email.is_none());
         assert!(req.name.is_none());
         assert!(req.currency.is_none());
+    }
+
+    #[test]
+    fn update_settings_email_only() {
+        let req: UpdateSettingsRequest =
+            serde_json::from_str(r#"{"email":"new@example.com"}"#).unwrap();
+        assert_eq!(req.email.as_deref(), Some("new@example.com"));
+    }
+
+    #[test]
+    fn delete_account_request_deserializes() {
+        let req: DeleteAccountRequest =
+            serde_json::from_str(r#"{"password":"secret"}"#).unwrap();
+        assert_eq!(req.password, "secret");
+    }
+
+    #[test]
+    fn email_validation_accepts_normal_address() {
+        assert!(is_valid_email("user@example.com"));
+        assert!(is_valid_email("user+tag@sub.example.co.uk"));
+    }
+
+    #[test]
+    fn email_validation_rejects_invalid_addresses() {
+        for email in ["", "user", "user@", "@example.com", "a b@example.com", "a@b"] {
+            assert!(!is_valid_email(email), "should reject {email}");
+        }
     }
 
     #[test]
@@ -218,6 +293,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "t@t.com".into(),
+            avatar: None,
             name: None,
             currency: "EUR".into(),
             verified: false,
@@ -235,6 +311,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "t@t.com".into(),
+            avatar: None,
             name: None,
             currency: "EUR".into(),
             verified: true,
@@ -252,6 +329,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "t@t.com".into(),
+            avatar: None,
             name: None,
             currency: "EUR".into(),
             verified: true,
@@ -272,6 +350,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             email: "s@s.com".into(),
+            avatar: None,
             password_hash: "hidden".into(),
             name: Some("Set".into()),
             currency: "USD".into(),

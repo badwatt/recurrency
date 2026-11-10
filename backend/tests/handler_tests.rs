@@ -110,6 +110,7 @@ mod auth_model_tests {
         let user = UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "serialize@test.com".to_string(),
+            avatar: None,
             name: Some("Serialize Me".to_string()),
             currency: "GBP".to_string(),
             verified: true,

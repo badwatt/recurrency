@@ -12,9 +12,27 @@ pub struct AuthResponse {
 pub struct UserResponse {
     pub id: Uuid,
     pub email: String,
+    pub avatar: Option<String>,
     pub name: Option<String>,
     pub currency: String,
     pub verified: bool,
+}
+
+/// Conservative client-side email check used before saving profile changes.
+pub fn is_valid_email(email: &str) -> bool {
+    let email = email.trim();
+    if email.is_empty() || email.contains(char::is_whitespace) || email.matches('@').count() != 1 {
+        return false;
+    }
+    let Some((local, domain)) = email.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !domain.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+        && !domain.contains("..")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -32,8 +50,15 @@ pub struct RegisterRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UpdateSettingsRequest {
+    pub email: Option<String>,
+    pub avatar: Option<String>,
     pub name: Option<String>,
     pub currency: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeleteAccountRequest {
+    pub password: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -52,6 +77,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: Some("Test".into()),
                 currency: "EUR".into(),
                 verified: true,
@@ -68,6 +94,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "a@b.c".into(),
+                avatar: None,
             name: None,
             currency: "EUR".into(),
             verified: false,
@@ -106,6 +133,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "user@test.com".into(),
+                avatar: None,
                 name: Some("Test".into()),
                 currency: "USD".into(),
                 verified: true,
@@ -117,8 +145,34 @@ mod tests {
     }
 
     #[test]
+    fn email_validation_accepts_normal_address() {
+        assert!(is_valid_email("user@example.com"));
+        assert!(is_valid_email("user+tag@sub.example.co.uk"));
+    }
+
+    #[test]
+    fn email_validation_rejects_invalid_addresses() {
+        for email in ["", "user", "user@", "@example.com", "a b@example.com", "a@b"] {
+            assert!(!is_valid_email(email), "should reject {email}");
+        }
+    }
+
+    #[test]
+    fn delete_account_request_serializes_password() {
+        let req = DeleteAccountRequest {
+            password: "secret".into(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("secret"));
+        let back: DeleteAccountRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, req);
+    }
+
+    #[test]
     fn update_settings_request_partial() {
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: Some("New Name".into()),
             currency: None,
         };
@@ -135,6 +189,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "a@b.c".into(),
+                avatar: None,
                 name: None,
                 currency: "EUR".into(),
                 verified: false,
@@ -172,6 +227,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "u@t.com".into(),
+                avatar: None,
             name: None,
             currency: "GBP".into(),
             verified: true,
@@ -182,6 +238,8 @@ mod tests {
     #[test]
     fn update_settings_both_fields() {
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: Some("New".into()),
             currency: Some("JPY".into()),
         };
@@ -197,6 +255,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "x@y.z".into(),
+                avatar: None,
                 name: Some("Name".into()),
                 currency: "CAD".into(),
                 verified: true,

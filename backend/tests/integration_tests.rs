@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
 use recurrency_backend::accounts::service::AccountService;
-use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest};
+use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest, UpdateSettingsRequest};
 use recurrency_backend::auth::service::{AuthService, AuthServiceTrait, SqlxAuthService};
 use recurrency_backend::notifications::channels::{NotificationProvider, UpdateNotificationChannelRequest, UpdateSummaryNotificationSettingsRequest, MASKED_VALUE};
 use recurrency_backend::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
@@ -105,6 +105,107 @@ async fn create_subscription_with_date(
 }
 
 // ── Auth Tests ─────────────────────────────────────────────────────────────────
+
+#[sqlx::test]
+async fn settings_update_changes_email(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAuthService::new(pool.clone());
+    let next_email = format!("changed_{}@test.com", Uuid::new_v4());
+
+    let user = service
+        .update_settings(
+            user_id,
+            UpdateSettingsRequest {
+                email: Some(next_email.clone()),
+                avatar: None,
+                name: Some("Changed".to_string()),
+                currency: None,
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(user.email, next_email);
+    assert_eq!(user.name.as_deref(), Some("Changed"));
+}
+
+#[sqlx::test]
+async fn settings_update_rejects_duplicate_email(pool: PgPool) {
+    let (first_id, _) = create_test_user(&pool).await;
+    let (_, _) = create_test_user(&pool).await;
+    let second_email: String = sqlx::query_scalar("SELECT email FROM users WHERE id <> $1 LIMIT 1")
+        .bind(first_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let service = SqlxAuthService::new(pool.clone());
+
+    let result = service
+        .update_settings(
+            first_id,
+            UpdateSettingsRequest {
+                email: Some(second_email),
+                avatar: None,
+                name: None,
+                currency: None,
+            },
+        )
+        .await;
+
+    assert!(matches!(result, Err(AppError::Conflict(_))));
+}
+
+#[sqlx::test]
+async fn settings_update_stores_and_clears_avatar(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAuthService::new(pool.clone());
+    let avatar = "data:image/png;base64,iVBORw0KGgo=".to_string();
+
+    let user = service
+        .update_settings(
+            user_id,
+            UpdateSettingsRequest {
+                email: None,
+                avatar: Some(avatar.clone()),
+                name: None,
+                currency: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(user.avatar.as_deref(), Some(avatar.as_str()));
+
+    let user = service
+        .update_settings(
+            user_id,
+            UpdateSettingsRequest {
+                email: None,
+                avatar: Some(String::new()),
+                name: None,
+                currency: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(user.avatar.is_none());
+}
+
+#[sqlx::test]
+async fn delete_account_requires_password(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAuthService::new(pool.clone());
+
+    let wrong = service
+        .delete_account(user_id, "wrong-password".to_string())
+        .await;
+    assert!(matches!(wrong, Err(AppError::Unauthorized(_))));
+
+    service
+        .delete_account(user_id, "testpassword123".to_string())
+        .await
+        .unwrap();
+    assert!(AuthService::get_user_by_id(&pool, user_id).await.is_err());
+}
 
 #[sqlx::test]
 async fn auth_register_creates_user(pool: PgPool) {

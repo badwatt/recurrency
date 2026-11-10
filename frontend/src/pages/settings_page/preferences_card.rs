@@ -26,6 +26,8 @@ pub fn PreferencesCard() -> Element {
         saving_currency.set(true);
         spawn(async move {
             match settings::update(&UpdateSettingsRequest {
+                email: None,
+                avatar: None,
                 name: None,
                 currency: Some(new_currency),
             })

@@ -7,7 +7,8 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page/profile_card.rs"),
     include_str!("../settings_page/preferences_card.rs"),
     include_str!("../settings_page/connection_card.rs"),
-    include_str!("../settings_page/notifications_card.rs"),
+    include_str!("../settings_page/delete_account_card.rs"),
+    include_str!("../settings_page/delivery_card.rs"),
     include_str!("../../layout/settings_layout.rs"),
 );
 
@@ -65,9 +66,21 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(SETTINGS_SOURCES.contains("max-w-7xl"));
     }
 
+
     #[test]
-    fn notifications_use_two_column_layout() {
-        assert!(SETTINGS_SOURCES.contains("lg:grid-cols-2"));
+    fn delivery_channels_use_an_icon_rail() {
+        assert!(SETTINGS_SOURCES.contains("role: \"tablist\""));
+        assert!(SETTINGS_SOURCES.contains("provider_icon"));
+        assert!(SETTINGS_SOURCES.contains("PROVIDERS"));
+        assert!(!SETTINGS_SOURCES.contains("delivery-provider"));
+    }
+
+    #[test]
+    fn notifications_keep_only_delivery_and_summary() {
+        assert!(SETTINGS_SOURCES.contains("DeliveryCard"));
+        assert!(SETTINGS_SOURCES.contains("SummaryCard"));
+        assert!(!SETTINGS_SOURCES.contains("Reminders & alerts"));
+        assert!(!SETTINGS_SOURCES.contains("NOTIFICATION_CHANNELS"));
     }
 
     #[test]
@@ -76,24 +89,31 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn settings_profile_contains_session_logout() {
-        assert!(SETTINGS_SOURCES.contains("SessionCard"));
-        assert!(SETTINGS_SOURCES.contains("persist_to_storage"));
-    }
-
-
-    #[test]
-    fn notification_channels_count() {
-        assert_eq!(NOTIFICATION_CHANNELS.len(), 3);
+    fn settings_profile_contains_delete_account() {
+        assert!(SETTINGS_SOURCES.contains("DeleteAccountCard"));
+        assert!(SETTINGS_SOURCES.contains("DeleteAccountRequest"));
+        assert!(SETTINGS_SOURCES.contains("delete_account"));
+        assert!(SETTINGS_SOURCES.contains("Confirm with your password"));
     }
 
     #[test]
-    fn notification_channels_keys() {
-        let keys: Vec<_> = NOTIFICATION_CHANNELS.iter().map(|(k, _, _)| *k).collect();
-        assert!(keys.contains(&"email"));
-        assert!(keys.contains(&"push"));
-        assert!(keys.contains(&"system"));
+    fn settings_profile_can_change_avatar() {
+        assert!(SETTINGS_SOURCES.contains("Change photo"));
+        assert!(SETTINGS_SOURCES.contains("read_bytes"));
+        assert!(SETTINGS_SOURCES.contains("base64_encode"));
+        assert!(SETTINGS_SOURCES.contains("avatar: Some(avatar())"));
     }
+
+    #[test]
+    fn settings_profile_can_change_email() {
+        assert!(SETTINGS_SOURCES.contains("settings-email"));
+        assert!(SETTINGS_SOURCES.contains("is_valid_email"));
+        assert!(SETTINGS_SOURCES.contains("email: Some(next_email)"));
+        assert!(SETTINGS_SOURCES.contains("avatar: Some(avatar())"));
+    }
+
+
+
 
     #[test]
     fn currencies_contains_eur() {
@@ -113,21 +133,7 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     // ── Notification channel detailed tests ──
-    #[test]
-    fn notification_channels_have_labels() {
-        for (key, label, desc) in NOTIFICATION_CHANNELS {
-            assert!(!label.is_empty(), "Channel {} has empty label", key);
-            assert!(!desc.is_empty(), "Channel {} has empty description", key);
-        }
-    }
 
-    #[test]
-    fn notification_channels_unique_keys() {
-        let mut keys = std::collections::HashSet::new();
-        for (key, _, _) in NOTIFICATION_CHANNELS {
-            assert!(keys.insert(*key), "Duplicate key: {}", key);
-        }
-    }
 
     // ── Currency preference logic ──
     #[test]
@@ -164,6 +170,8 @@ const SETTINGS_SOURCES: &str = concat!(
     fn update_settings_name_only() {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: Some("Bob".into()),
             currency: None,
         };
@@ -175,6 +183,8 @@ const SETTINGS_SOURCES: &str = concat!(
     fn update_settings_currency_only() {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: None,
             currency: Some("USD".into()),
         };
@@ -186,6 +196,8 @@ const SETTINGS_SOURCES: &str = concat!(
     fn update_settings_both() {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: Some("Alice".into()),
             currency: Some("GBP".into()),
         };
@@ -256,16 +268,6 @@ const SETTINGS_SOURCES: &str = concat!(
         assert_eq!(*channels.get("push").unwrap(), false);
     }
 
-    #[test]
-    fn notification_prefs_default_all_disabled() {
-        let mut map = std::collections::HashMap::new();
-        for (key, _, _) in NOTIFICATION_CHANNELS {
-            map.insert(key.to_string(), false);
-        }
-        for (key, _, _) in NOTIFICATION_CHANNELS {
-            assert_eq!(*map.get(*key).unwrap(), false);
-        }
-    }
 
     // ── Settings update auth flow simulation ──
     #[test]
@@ -277,6 +279,7 @@ const SETTINGS_SOURCES: &str = concat!(
         let updated_user = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
+                avatar: None,
             name: Some("Alice".into()),
             currency: "USD".into(),
             verified: true,
@@ -297,6 +300,8 @@ const SETTINGS_SOURCES: &str = concat!(
 
         // Create request
         let req = UpdateSettingsRequest {
+            email: None,
+                avatar: None,
             name: None,
             currency: Some("JPY".into()),
         };
@@ -307,6 +312,7 @@ const SETTINGS_SOURCES: &str = concat!(
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: None,
                 currency: "JPY".into(),
                 verified: true,
@@ -414,14 +420,6 @@ const SETTINGS_SOURCES: &str = concat!(
         );
     }
 
-    #[test]
-    fn settings_page_has_notification_toggles() {
-        let src = SETTINGS_SOURCES;
-        assert!(
-            src.contains("notification") || src.contains("NOTIFICATION_CHANNELS"),
-            "Should have notification toggles"
-        );
-    }
 
     #[test]
     fn settings_page_uses_toast() {
@@ -445,14 +443,6 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(src.contains("AUTH()"), "Should load AUTH state");
     }
 
-    #[test]
-    fn settings_page_loads_notification_prefs() {
-        let src = SETTINGS_SOURCES;
-        assert!(
-            src.contains("notification_preferences") || src.contains("NOTIFICATION_CHANNELS"),
-            "Should load notification preferences"
-        );
-    }
 
     // ── API call checks ──
     #[test]
@@ -461,14 +451,6 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(src.contains("settings::"), "Should call settings API");
     }
 
-    #[test]
-    fn settings_page_calls_notification_prefs_api() {
-        let src = SETTINGS_SOURCES;
-        assert!(
-            src.contains("notification_preferences::"),
-            "Should call notification preferences API"
-        );
-    }
 
     // ── API request/response checks ──
 
@@ -488,14 +470,6 @@ const SETTINGS_SOURCES: &str = concat!(
         );
     }
 
-    #[test]
-    fn settings_page_uses_future() {
-        let src = SETTINGS_SOURCES;
-        assert!(
-            src.contains("use_future"),
-            "Should use future for async loading"
-        );
-    }
 
     #[test]
     fn settings_page_uses_spawn() {
@@ -518,14 +492,6 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(src.contains("AUTH().user"), "Should read user from AUTH");
     }
 
-    #[test]
-    fn settings_page_has_loading_states() {
-        let src = SETTINGS_SOURCES;
-        assert!(
-            src.contains("_loading") || src.contains("loading"),
-            "Should have loading state"
-        );
-    }
 
     #[test]
     fn notification_toggle_behavior() {
@@ -548,6 +514,7 @@ const SETTINGS_SOURCES: &str = concat!(
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: Some("Test".into()),
                 currency: "CHF".into(),
                 verified: true,
@@ -566,6 +533,7 @@ const SETTINGS_SOURCES: &str = concat!(
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: Some("John Doe".into()),
                 currency: "EUR".into(),
                 verified: true,
@@ -583,6 +551,7 @@ const SETTINGS_SOURCES: &str = concat!(
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "test@test.com".into(),
+                avatar: None,
                 name: None,
                 currency: "USD".into(),
                 verified: false,
@@ -591,22 +560,6 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(!response.user.verified);
     }
 
-    #[test]
-    fn email_disabled_when_smtp_not_configured() {
-        assert!(is_email_disabled("email", false));
-    }
 
-    #[test]
-    fn email_not_disabled_when_smtp_configured() {
-        assert!(!is_email_disabled("email", true));
-    }
 
-    #[test]
-    fn push_not_disabled_when_smtp_missing() {
-        assert!(!is_email_disabled("push", false));
-    }
 
-    #[test]
-    fn system_not_disabled_when_smtp_missing() {
-        assert!(!is_email_disabled("system", false));
-    }

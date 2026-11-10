@@ -148,6 +148,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "verify@test.com".into(),
+                avatar: None,
             name: Some("Verify User".into()),
             currency: "EUR".into(),
             verified,

@@ -38,6 +38,7 @@ fn test_set_authenticated_writes_auth_files() {
     let user = crate::models::auth::UserResponse {
         id: uuid::Uuid::new_v4(),
         email: "tdd@test.com".into(),
+                avatar: None,
         name: Some("TDD Test".into()),
         currency: "EUR".into(),
         verified: false,

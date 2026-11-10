@@ -29,6 +29,7 @@ impl LocalAccount {
         UserResponse {
             id: self.id,
             email: self.email.clone(),
+                avatar: None,
             name: Some(self.name.clone()),
             currency: self.currency.clone(),
             verified: true,

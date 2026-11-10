@@ -155,14 +155,13 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | 📅 **Calendar** | Monthly view of upcoming payments |
 | 📊 **Reports** | Trend charts, category breakdown, CSV/PDF export |
 | 🏷️ **Categories** | Optional classification with custom icons, colors, inline creation |
-| 🔔 **Notifications** | In-app, email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks |
+| 🔔 **Notifications** | Email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks |
 | 🗓️ **Summary schedule** | Daily, weekly or monthly dashboard summary in your timezone |
 | 🌙 **Dark Mode** | Light / dark / system |
 | 📤 **Grid / List** | Adjustable view |
 | 💱 **Currencies** | Multi-currency display |
 | 🔄 **Demo Reset** | Restore sample data |
 | 📈 **Statistics** | Spending trends, category distribution |
-| 🔔 **Reminders** | Configurable notification days |
 
 ---
 
@@ -170,8 +169,8 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1163 lib + 38 integration |
-| **Frontend** | — | — | — | 1646 |
+| **Backend** | — | — | — | 1174 lib + 42 integration |
+| **Frontend** | — | — | — | 1640 |
 
 Integration tests use a disposable PostgreSQL instance:
 

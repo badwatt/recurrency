@@ -221,6 +221,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
+                avatar: None,
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
@@ -549,6 +550,7 @@ mod tests {
         let user = crate::models::auth::UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "test@test.com".into(),
+                avatar: None,
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
@@ -564,6 +566,7 @@ mod tests {
         let user = crate::models::auth::UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "test@test.com".into(),
+                avatar: None,
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,

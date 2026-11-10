@@ -47,27 +47,10 @@ fn layout_uses_top_nav_not_sidebar_terms() {
 }
 
 #[test]
-fn notification_bell_uses_bell_icon() {
+fn topbar_has_no_notification_bell() {
     let layout = include_str!("../../layout/app_layout.rs");
-    assert!(
-        layout.contains("svg_icon(Icon::Bell, 20)"),
-        "notification button must render a bell icon"
-    );
-}
-
-#[test]
-fn mobile_notifications_panel_is_full_screen_with_actions() {
-    let layout = include_str!("../../layout/app_layout.rs");
-    assert!(
-        layout.contains("fixed inset-0 z-50 flex flex-col bg-background md:hidden"),
-        "mobile notifications must cover the full screen"
-    );
-    assert!(
-        layout.contains("MobileNotificationsPanel"),
-        "mobile notifications panel must be rendered"
-    );
-    assert!(layout.contains("Dismiss all"));
-    assert!(layout.contains("Icon::Close"));
+    assert!(!layout.contains("NotificationBell"));
+    assert!(!layout.contains("svg_icon(Icon::Bell, 20)"));
 }
 
 #[test]

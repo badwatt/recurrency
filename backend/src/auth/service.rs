@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use crate::auth::models::{
     AuthResponse, Claims, CreateUserRequest, LoginRequest, UpdateSettingsRequest, User,
-    UserResponse,
+    UserResponse, is_valid_email,
 };
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
@@ -67,6 +67,7 @@ pub trait AuthServiceTrait: Send + Sync {
     async fn get_user_by_id(&self, user_id: Uuid) -> AppResult<User>;
     async fn get_settings(&self, user_id: Uuid) -> AppResult<UserResponse>;
     async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User>;
+    async fn delete_account(&self, user_id: Uuid, password: String) -> AppResult<()>;
     async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse>;
     async fn resend_verification(&self, user_id: Uuid) -> AppResult<String>;
 }
@@ -84,7 +85,7 @@ impl SqlxAuthService {
 
     async fn register_impl(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
         let existing = sqlx::query_as::<_, User>(
-            "SELECT id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE email = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE email = $1"
         )
         .bind(&req.email)
         .fetch_optional(&self.pool)
@@ -104,9 +105,9 @@ impl SqlxAuthService {
 
         let user = sqlx::query_as::<_, User>(
             r#"
-            INSERT INTO users (id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, 'EUR', $5, $6, $7, $7)
-            RETURNING id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at
+            INSERT INTO users (id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at)
+            VALUES ($1, $2, NULL, $3, $4, 'EUR', $5, $6, $7, $7)
+            RETURNING id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -157,7 +158,7 @@ impl SqlxAuthService {
 
     async fn login_impl(&self, req: LoginRequest) -> AppResult<AuthResponse> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE email = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE email = $1"
         )
         .bind(&req.email)
         .fetch_optional(&self.pool)
@@ -183,7 +184,7 @@ impl SqlxAuthService {
 
     async fn verify_email_impl(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE id = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE id = $1"
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -202,7 +203,7 @@ impl SqlxAuthService {
 
         let user = sqlx::query_as::<_, User>(
             "UPDATE users SET verified = true, verification_code = NULL, updated_at = NOW() WHERE id = $1
-             RETURNING id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at"
+             RETURNING id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at"
         )
         .bind(user_id)
         .fetch_one(&self.pool)
@@ -240,7 +241,7 @@ impl SqlxAuthService {
 
     async fn get_user_by_id_impl(&self, user_id: Uuid) -> AppResult<User> {
         sqlx::query_as::<_, User>(
-            "SELECT id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE id = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE id = $1"
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -253,27 +254,74 @@ impl SqlxAuthService {
         user_id: Uuid,
         req: UpdateSettingsRequest,
     ) -> AppResult<User> {
+        let email = req.email.unwrap_or_default().trim().to_lowercase();
+        let avatar = req.avatar;
         let name = req.name.unwrap_or_default();
         let currency = req.currency.unwrap_or_default();
 
+        if let Some(value) = avatar.as_deref()
+            && !is_valid_avatar(value)
+        {
+            return Err(AppError::BadRequest("Invalid avatar".to_string()));
+        }
+
+        if !email.is_empty() {
+            if !is_valid_email(&email) {
+                return Err(AppError::BadRequest("Invalid email".to_string()));
+            }
+            let taken: Option<Uuid> = sqlx::query_scalar(
+                "SELECT id FROM users WHERE lower(email) = $1 AND id <> $2",
+            )
+            .bind(&email)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?;
+            if taken.is_some() {
+                return Err(AppError::Conflict("Email already registered".to_string()));
+            }
+        }
+
         let user = sqlx::query_as::<_, User>(
             r#"
-            UPDATE users 
-            SET name = COALESCE(NULLIF($2, ''), name),
-                currency = COALESCE(NULLIF($3, ''), currency),
+            UPDATE users
+            SET email = COALESCE(NULLIF($2, ''), email),
+                avatar = CASE WHEN $5 IS NULL THEN avatar WHEN $5 = '' THEN NULL ELSE $5 END,
+                name = COALESCE(NULLIF($3, ''), name),
+                currency = COALESCE(NULLIF($4, ''), currency),
                 updated_at = NOW()
             WHERE id = $1
-            RETURNING id, email, password_hash, name, currency, verified, verification_code, created_at, updated_at
+            RETURNING id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at
             "#,
         )
         .bind(user_id)
+        .bind(&email)
         .bind(&name)
         .bind(&currency)
+        .bind(avatar.as_deref())
         .fetch_optional(&self.pool)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
         Ok(user)
+    }
+
+    async fn delete_account_impl(&self, user_id: Uuid, password: String) -> AppResult<()> {
+        let hash: Option<String> =
+            sqlx::query_scalar("SELECT password_hash FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        let hash = hash.ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+        verify_password(&password, &hash)?;
+
+        let result = sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("User not found".to_string()));
+        }
+        Ok(())
     }
 }
 
@@ -315,6 +363,10 @@ impl AuthServiceTrait for SqlxAuthService {
 
     async fn update_settings(&self, user_id: Uuid, req: UpdateSettingsRequest) -> AppResult<User> {
         self.update_settings_impl(user_id, req).await
+    }
+
+    async fn delete_account(&self, user_id: Uuid, password: String) -> AppResult<()> {
+        self.delete_account_impl(user_id, password).await
     }
 
     async fn verify_email(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
@@ -381,6 +433,24 @@ pub fn verify_token_internal(token: &str) -> AppResult<Claims> {
         &jsonwebtoken::Validation::default(),
     )?;
     Ok(token_data.claims)
+}
+
+/// Accepts an empty value (remove photo) or a small raster data URL.
+fn is_valid_avatar(value: &str) -> bool {
+    if value.is_empty() {
+        return true;
+    }
+    const PREFIXES: [&str; 3] = [
+        "data:image/png;base64,",
+        "data:image/jpeg;base64,",
+        "data:image/webp;base64,",
+    ];
+    value.len() <= 400_000
+        && PREFIXES.iter().any(|prefix| {
+            value
+                .strip_prefix(prefix)
+                .is_some_and(|body| !body.is_empty())
+        })
 }
 
 fn verify_password(password: &str, hash: &str) -> AppResult<()> {
@@ -529,6 +599,7 @@ mod tests {
         let user = User {
             id: uid,
             email: "test@test.com".to_string(),
+            avatar: None,
             password_hash: "hash".to_string(),
             name: Some("Test".to_string()),
             currency: "USD".to_string(),
@@ -553,6 +624,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             email: "token@test.com".to_string(),
+            avatar: None,
             password_hash: "hash".to_string(),
             name: None,
             currency: "EUR".to_string(),
@@ -604,6 +676,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "a@b.com".to_string(),
+            avatar: None,
                 name: None,
                 currency: "EUR".to_string(),
                 verified: false,
@@ -620,6 +693,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "a@b.com".to_string(),
+            avatar: None,
                 name: None,
                 currency: "EUR".to_string(),
                 verified: true,
@@ -636,6 +710,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "resp@test.com".to_string(),
+            avatar: None,
                 name: None,
                 currency: "USD".to_string(),
                 verified: true,
@@ -813,6 +888,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             email: "user+tag@domain.co.uk".to_string(),
+            avatar: None,
             password_hash: "hash".to_string(),
             name: Some("Special Email User".to_string()),
             currency: "EUR".to_string(),
@@ -847,6 +923,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             email: "response@test.com".to_string(),
+            avatar: None,
             password_hash: "secret".to_string(),
             name: None,
             currency: "JPY".to_string(),
@@ -860,5 +937,34 @@ mod tests {
         assert!(response.name.is_none());
         assert_eq!(response.currency, "JPY");
         assert!(!response.verified);
+    }
+}
+
+
+#[cfg(test)]
+mod avatar_validation_tests {
+    use super::is_valid_avatar;
+
+    #[test]
+    fn empty_avatar_clears_photo() {
+        assert!(is_valid_avatar(""));
+    }
+
+    #[test]
+    fn png_data_url_is_accepted() {
+        assert!(is_valid_avatar("data:image/png;base64,iVBORw0KGgo="));
+    }
+
+    #[test]
+    fn svg_and_empty_bodies_are_rejected() {
+        assert!(!is_valid_avatar("data:image/svg+xml;base64,abc"));
+        assert!(!is_valid_avatar("data:image/png;base64,"));
+        assert!(!is_valid_avatar("https://example.com/avatar.png"));
+    }
+
+    #[test]
+    fn oversized_avatar_is_rejected() {
+        let value = format!("data:image/png;base64,{}", "a".repeat(400_001));
+        assert!(!is_valid_avatar(&value));
     }
 }

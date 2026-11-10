@@ -70,6 +70,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/auth/resend-verification", post(auth::handlers::resend_verification))
         .route("/api/settings", get(auth::handlers::get_settings))
         .route("/api/settings", put(auth::handlers::update_settings))
+        .route("/api/settings/account", post(auth::handlers::delete_account))
         .route("/api/subscriptions", post(subscriptions::handlers::create))
         .route("/api/subscriptions", get(subscriptions::handlers::list))
         .route("/api/subscriptions/{id}", get(subscriptions::handlers::get))
