@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
-use recurrency_dev::android;
+use recurrency_tools::android;
 use tokio::net::TcpStream;
 use tokio::process::Command as TokioCommand;
 
@@ -69,7 +69,7 @@ fn main() -> ExitCode {
 fn root() -> PathBuf {
     PathBuf::from(MANIFEST)
         .parent()
-        .expect("dev-tools must live inside the workspace")
+        .expect("tools must live inside the workspace")
         .to_path_buf()
 }
 

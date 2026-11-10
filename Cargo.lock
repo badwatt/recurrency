@@ -5276,13 +5276,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "recurrency-dev"
-version = "0.25.0"
-dependencies = [
- "tokio",
-]
-
-[[package]]
 name = "recurrency-frontend"
 version = "0.25.0"
 dependencies = [
@@ -5303,6 +5296,13 @@ dependencies = [
  "ureq",
  "uuid",
  "web-sys",
+]
+
+[[package]]
+name = "recurrency-tools"
+version = "0.25.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

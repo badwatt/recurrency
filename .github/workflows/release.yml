@@ -316,7 +316,7 @@ jobs:
         run: |
           set -e
           ICON="$PWD/frontend/assets/icons/clock-1024.png" \
-            cargo run -p recurrency-dev -- patch-android
+            cargo run -p recurrency-tools -- patch-android
 
       - name: Build APK
         env:

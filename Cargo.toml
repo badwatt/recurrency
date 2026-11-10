@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["backend", "frontend", "dev-tools"]
+members = ["backend", "frontend", "tools"]
 
 [workspace.package]
 version = "0.25.0"
