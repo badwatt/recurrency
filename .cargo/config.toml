@@ -17,6 +17,8 @@ build-app = "run -p recurrency-dev -- build-app"
 build-api = "run -p recurrency-dev -- build-api"
 build-web = "run -p recurrency-dev -- build-web"
 build-android = "run -p recurrency-dev -- build-android"
+setup-android = "run -p recurrency-dev -- setup-android"
+patch-android = "run -p recurrency-dev -- patch-android"
 build-desktop = "run -p recurrency-dev -- build-desktop"
 
 # Clear commands.

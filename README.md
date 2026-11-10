@@ -44,7 +44,9 @@ All commands run inside `nix develop`.
 | Tailwind CSS | `cd frontend && npm run build:css` |
 | Backend coverage | `cargo llvm-cov -p recurrency-backend test --lib` |
 | Frontend coverage | `cargo llvm-cov -p recurrency-frontend test --lib` |
-| Local debug Android APK | `bash scripts/build-android.sh --out-dir bin/android` |
+| Local debug Android APK | `cargo build-android` |
+| Install Android SDK/NDK | `cargo setup-android` |
+| Patch an existing Android build | `cargo patch-android` |
 
 The aliases are in `.cargo/config.toml`; the raw equivalents are `cargo test --workspace --lib`, `cargo fmt --all`, and `cargo clippy --workspace --lib -- -D warnings`.
 
@@ -164,7 +166,7 @@ JWT_SECRET=your-secret-key docker compose up -d
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
 | **Backend** | — | — | — | 1128 |
-| **Frontend** | — | — | — | 1641 |
+| **Frontend** | — | — | — | 1636 |
 
 Full coverage report (Nix dev shell):
 

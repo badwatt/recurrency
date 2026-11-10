@@ -271,17 +271,13 @@ jobs:
         run: cd frontend && dx bundle --platform android --target aarch64-linux-android --release
 
       - name: Setup icons and patch Android build
-        # Shared patch script: replaces launcher icons, fixes app name in
-        # strings.xml, patches Gradle (extractNativeLibs, jvmTarget), and
-        # patches RustWebView.kt for FOUC. Same script used by build-android.sh.
-        # Run from frontend/ since dx bundle writes to frontend/target/dx/.
-        # ICON env is the source PNG; script's defaults point at res/gradle/webview.
+        # Uses the same Rust patcher as `cargo build-android`: replaces
+        # launcher icons, fixes app name in strings.xml, patches Gradle
+        # (extractNativeLibs, jvmTarget) and RustWebView.kt for FOUC.
         run: |
           set -e
-          cd frontend
-          ICON="$PWD/assets/icons/clock-1024.png"
-          export ICON
-          bash ../scripts/patch-android-build.sh
+          ICON="$PWD/frontend/assets/icons/clock-1024.png" \
+            cargo run -p recurrency-dev -- patch-android
 
       - name: Build APK
         env:

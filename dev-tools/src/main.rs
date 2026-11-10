@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
+use recurrency_dev::android;
 use tokio::net::TcpStream;
 use tokio::process::Command as TokioCommand;
 
@@ -40,7 +41,9 @@ fn main() -> ExitCode {
         "build-app" => do_build_app(),
         "build-api" => do_build_api(),
         "build-web" => do_build_web(),
-        "build-android" => do_build_android(),
+        "build-android" => do_build_android(&args[1..]),
+        "setup-android" => do_setup_android(),
+        "patch-android" => do_patch_android(),
         "build-desktop" => do_build_desktop(),
         "clear" => do_clear(),
         "clear-app" => do_clear_app(),
@@ -493,25 +496,55 @@ fn do_build_web() -> i32 {
     code
 }
 
-fn do_build_android() -> i32 {
-    let sdk = env::var_os("ANDROID_HOME")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from))
-        .unwrap_or_else(|| {
-            env::var_os("HOME")
-                .map(|home| PathBuf::from(home).join(".android-sdk"))
-                .unwrap_or_default()
-        });
-    if !sdk.join("platforms").is_dir()
-        && run_direct(&root(), "bash", &["scripts/setup-android-env.sh"]) != 0
-    {
-        return 1;
+fn do_build_android(args: &[String]) -> i32 {
+    let mut out_dir = root().join("bin/android");
+    let mut index = 0;
+    while index < args.len() {
+        if let Some(value) = args[index].strip_prefix("--out-dir=") {
+            out_dir = PathBuf::from(value);
+            index += 1;
+        } else if args[index] == "--out-dir" {
+            if let Some(value) = args.get(index + 1) {
+                out_dir = PathBuf::from(value);
+                index += 2;
+            } else {
+                eprintln!("--out-dir needs a value");
+                return 1;
+            }
+        } else {
+            index += 1;
+        }
     }
-    run_direct(
-        &root(),
-        "bash",
-        &["scripts/build-android.sh", "--out-dir", "bin/android"],
-    )
+    if out_dir.is_relative() {
+        out_dir = root().join(out_dir);
+    }
+    match android::build(&root(), &out_dir) {
+        Ok(()) => 0,
+        Err(err) => {
+            eprintln!("{err}");
+            1
+        }
+    }
+}
+
+fn do_setup_android() -> i32 {
+    match android::setup(&root()) {
+        Ok(()) => 0,
+        Err(err) => {
+            eprintln!("{err}");
+            1
+        }
+    }
+}
+
+fn do_patch_android() -> i32 {
+    match android::patch(&root()) {
+        Ok(()) => 0,
+        Err(err) => {
+            eprintln!("{err}");
+            1
+        }
+    }
 }
 
 fn do_build_desktop() -> i32 {
@@ -608,6 +641,8 @@ fn print_help() {
   build-api     Build backend into bin/recurrency-aio
   build-web     Build the web frontend
   build-android Build the local Android APK
+  setup-android Install Android SDK/NDK
+  patch-android Patch an already-generated Android project
   build-desktop Build the desktop app
   clear         Clear build artifacts
   clear-app     Clear API + web artifacts
