@@ -171,7 +171,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
 | **Backend** | — | — | — | 1163 lib + 38 integration |
-| **Frontend** | — | — | — | 1642 |
+| **Frontend** | — | — | — | 1644 |
 
 Integration tests use a disposable PostgreSQL instance:
 

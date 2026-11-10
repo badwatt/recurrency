@@ -21,8 +21,8 @@ fn MoneyCard() -> Element {
     rsx! {
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Money" }
-                p { class: "text-sm text-muted-foreground", "Manage the accounts and categories that organize your money" }
+                h2 { class: "text-lg font-semibold", "Accounts & categories" }
+                p { class: "text-sm text-muted-foreground", "Open the lists that power your dashboard" }
             }
             div { class: "p-6 grid gap-3 sm:grid-cols-2",
                 Link {
@@ -45,17 +45,17 @@ fn MoneyCard() -> Element {
 const NOTIFICATION_CHANNELS: &[(&str, &str, &str)] = &[
     (
         "email",
-        "Email Notifications",
+        "Email reminders",
         "Receive email reminders before payments",
     ),
     (
         "push",
-        "Push Notifications",
+        "Push notifications",
         "Receive push notifications on your devices",
     ),
     (
         "system",
-        "System Notifications",
+        "System notifications",
         "Receive desktop notifications",
     ),
 ];
@@ -79,10 +79,12 @@ fn SettingsVersion() -> Element {
 #[component]
 pub fn SettingsProfilePage() -> Element {
     rsx! {
-        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Profile", subtitle: "Update your personal information" }
-            ProfileCard {}
-            SettingsVersion {}
+        div { class: "p-2 md:p-6 animate-in fade-in duration-300",
+            div { class: "w-full max-w-2xl mx-auto flex flex-col gap-6",
+                PageHeader { title: "Profile", subtitle: "Update your personal information" }
+                ProfileCard {}
+                SettingsVersion {}
+            }
         }
     }
 }
@@ -90,10 +92,12 @@ pub fn SettingsProfilePage() -> Element {
 #[component]
 pub fn SettingsPreferencesPage() -> Element {
     rsx! {
-        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Preferences", subtitle: "Customize your experience" }
-            PreferencesCard {}
-            SettingsVersion {}
+        div { class: "p-2 md:p-6 animate-in fade-in duration-300",
+            div { class: "w-full max-w-2xl mx-auto flex flex-col gap-6",
+                PageHeader { title: "Preferences", subtitle: "Customize your experience" }
+                PreferencesCard {}
+                SettingsVersion {}
+            }
         }
     }
 }
@@ -101,10 +105,12 @@ pub fn SettingsPreferencesPage() -> Element {
 #[component]
 pub fn SettingsMoneyPage() -> Element {
     rsx! {
-        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Money", subtitle: "Accounts and categories that organize your money" }
-            MoneyCard {}
-            SettingsVersion {}
+        div { class: "p-2 md:p-6 animate-in fade-in duration-300",
+            div { class: "w-full max-w-3xl mx-auto flex flex-col gap-6",
+                PageHeader { title: "Money", subtitle: "Accounts and categories that organize your money" }
+                MoneyCard {}
+                SettingsVersion {}
+            }
         }
     }
 }
@@ -113,21 +119,25 @@ pub fn SettingsMoneyPage() -> Element {
 pub fn SettingsNotificationsPage() -> Element {
     let offline = crate::api::client::is_offline_mode();
     rsx! {
-        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Notifications", subtitle: "Choose where your summary lands and when it leaves" }
-            if offline {
-                div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
-                    h2 { class: "text-lg font-semibold", "Server notifications" }
-                    p { class: "text-sm text-muted-foreground mt-1",
-                        "Delivery channels and summary schedules require server mode. Switch connection mode to configure them."
+        div { class: "p-2 md:p-6 animate-in fade-in duration-300",
+            div { class: "w-full max-w-5xl mx-auto flex flex-col gap-6",
+                PageHeader { title: "Notifications", subtitle: "Choose where your summary lands and when it leaves" }
+                if offline {
+                    div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
+                        h2 { class: "text-lg font-semibold", "Server notifications" }
+                        p { class: "text-sm text-muted-foreground mt-1",
+                            "Delivery channels and summary schedules require server mode. Switch connection mode to configure them."
+                        }
+                    }
+                } else {
+                    DeliveryCard {}
+                    div { class: "grid gap-6 lg:grid-cols-2 items-start",
+                        SummaryCard {}
+                        NotificationsCard {}
                     }
                 }
-            } else {
-                NotificationsCard {}
-                DeliveryCard {}
-                SummaryCard {}
+                SettingsVersion {}
             }
-            SettingsVersion {}
         }
     }
 }
@@ -135,10 +145,12 @@ pub fn SettingsNotificationsPage() -> Element {
 #[component]
 pub fn SettingsConnectionPage() -> Element {
     rsx! {
-        div { class: "p-2 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Connection", subtitle: "Manage how Recurrency reaches your data" }
-            ConnectionCard {}
-            SettingsVersion {}
+        div { class: "p-2 md:p-6 animate-in fade-in duration-300",
+            div { class: "w-full max-w-2xl mx-auto flex flex-col gap-6",
+                PageHeader { title: "Connection", subtitle: "Manage how Recurrency reaches your data" }
+                ConnectionCard {}
+                SettingsVersion {}
+            }
         }
     }
 }

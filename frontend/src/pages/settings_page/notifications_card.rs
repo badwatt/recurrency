@@ -73,8 +73,8 @@ pub fn NotificationsCard() -> Element {
     rsx! {
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Notifications" }
-                p { class: "text-sm text-muted-foreground", "Configure how you receive notifications" }
+                h2 { class: "text-lg font-semibold", "Reminders & alerts" }
+                p { class: "text-sm text-muted-foreground", "Payment reminders and device notifications" }
             }
             div { class: "p-6 space-y-4",
                 for (idx, (key, label, desc)) in NOTIFICATION_CHANNELS.iter().enumerate() {

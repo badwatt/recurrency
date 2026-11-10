@@ -96,7 +96,7 @@ pub fn SummaryCard() -> Element {
                 div { class: "flex items-center justify-between gap-4",
                     div {
                         h2 { class: "text-lg font-semibold", "Dashboard summary" }
-                        p { class: "text-sm text-muted-foreground", "Send your monthly summary on a schedule" }
+                        p { class: "text-sm text-muted-foreground", "Sent to every active delivery channel" }
                     }
                     button {
                         r#type: "button",

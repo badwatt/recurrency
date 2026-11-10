@@ -9,7 +9,7 @@ pub fn ConnectionCard() -> Element {
     rsx! {
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Connection" }
+                h2 { class: "text-lg font-semibold", "Server" }
                 p { class: "text-sm text-muted-foreground",
                     if APP_MODE().mode.is_offline() {
                         "Offline mode — data stored on this device"

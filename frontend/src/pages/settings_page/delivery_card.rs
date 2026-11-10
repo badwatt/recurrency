@@ -214,7 +214,7 @@ pub fn DeliveryCard() -> Element {
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
                 h2 { class: "text-lg font-semibold", "Delivery channels" }
-                p { class: "text-sm text-muted-foreground", "Send the dashboard summary to the services you use" }
+                p { class: "text-sm text-muted-foreground", "One summary, several destinations. Secrets stay encrypted." }
             }
             div { class: "p-6 space-y-4",
                 div { class: "flex flex-wrap items-center justify-between gap-3",

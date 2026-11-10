@@ -34,8 +34,8 @@ pub fn ProfileCard() -> Element {
     rsx! {
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Profile" }
-                p { class: "text-sm text-muted-foreground", "Update your personal information" }
+                h2 { class: "text-lg font-semibold", "Personal information" }
+                p { class: "text-sm text-muted-foreground", "Change the name we use to greet you" }
             }
             div { class: "p-6 space-y-4",
                 // Email (read-only)

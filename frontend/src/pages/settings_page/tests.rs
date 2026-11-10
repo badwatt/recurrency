@@ -47,6 +47,17 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
+    fn settings_pages_are_width_constrained() {
+        assert!(SETTINGS_SOURCES.contains("max-w-2xl"));
+        assert!(SETTINGS_SOURCES.contains("max-w-5xl"));
+    }
+
+    #[test]
+    fn notifications_use_two_column_layout() {
+        assert!(SETTINGS_SOURCES.contains("lg:grid-cols-2"));
+    }
+
+    #[test]
     fn settings_page_renders_version() {
         assert!(SETTINGS_SOURCES.contains("APP_VERSION"));
     }

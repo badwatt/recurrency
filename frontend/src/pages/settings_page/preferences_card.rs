@@ -51,8 +51,8 @@ pub fn PreferencesCard() -> Element {
     rsx! {
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Preferences" }
-                p { class: "text-sm text-muted-foreground", "Customize your experience" }
+                h2 { class: "text-lg font-semibold", "Defaults" }
+                p { class: "text-sm text-muted-foreground", "Applied to new entries and reports" }
             }
             div { class: "p-6 space-y-4",
                 div { class: "space-y-2",
