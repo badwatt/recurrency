@@ -431,7 +431,7 @@ fn do_build() -> i32 {
             "desktop",
             "--release",
             "--out-dir",
-            "../bin/desktop",
+            "../target/bin/desktop",
         ],
     );
     println!("Build complete: backend + web + desktop.");
@@ -439,7 +439,7 @@ fn do_build() -> i32 {
 }
 
 fn copy_backend_binary() -> i32 {
-    let bin = root().join("bin");
+    let bin = root().join("target/bin");
     let _ = fs::create_dir_all(&bin);
     let source = root().join("backend/target/release/recurrency-backend");
     let destination = bin.join("recurrency-aio");
@@ -468,7 +468,7 @@ fn do_build_app() -> i32 {
     if copy_backend_binary() != 0 {
         return 1;
     }
-    println!("Built bin/recurrency-aio.");
+    println!("Built target/bin/recurrency-aio.");
     0
 }
 
@@ -480,7 +480,7 @@ fn do_build_api() -> i32 {
     if copy_backend_binary() != 0 {
         return 1;
     }
-    println!("Built bin/recurrency-aio.");
+    println!("Built target/bin/recurrency-aio.");
     0
 }
 
@@ -497,7 +497,7 @@ fn do_build_web() -> i32 {
 }
 
 fn do_build_android(args: &[String]) -> i32 {
-    let mut out_dir = root().join("bin/android");
+    let mut out_dir = root().join("target/bin/android");
     let mut index = 0;
     while index < args.len() {
         if let Some(value) = args[index].strip_prefix("--out-dir=") {
@@ -557,11 +557,11 @@ fn do_build_desktop() -> i32 {
             "desktop",
             "--release",
             "--out-dir",
-            "../bin/desktop",
+            "../target/bin/desktop",
         ],
     );
     if code == 0 {
-        println!("Built bin/desktop/.");
+        println!("Built target/bin/desktop/.");
     }
     code
 }
@@ -577,22 +577,22 @@ fn remove(path: PathBuf) {
 fn do_clear() -> i32 {
     remove(root().join("backend/target/release/recurrency-backend"));
     remove(root().join("frontend/dist"));
-    remove(root().join("bin/android"));
-    remove(root().join("bin/desktop"));
+    remove(root().join("target/bin/android"));
+    remove(root().join("target/bin/desktop"));
     remove(root().join("frontend/target"));
     println!("Build artifacts cleared.");
     0
 }
 
 fn do_clear_app() -> i32 {
-    remove(root().join("bin/recurrency-aio"));
+    remove(root().join("target/bin/recurrency-aio"));
     remove(root().join("frontend/dist"));
     println!("API + web artifacts cleared.");
     0
 }
 
 fn do_clear_api() -> i32 {
-    remove(root().join("bin/recurrency-aio"));
+    remove(root().join("target/bin/recurrency-aio"));
     remove(root().join("backend/target/release/recurrency-backend"));
     println!("API artifacts cleared.");
     0
@@ -605,14 +605,14 @@ fn do_clear_web() -> i32 {
 }
 
 fn do_clear_android() -> i32 {
-    remove(root().join("bin/android"));
+    remove(root().join("target/bin/android"));
     remove(root().join("frontend/target/dx/recurrency-frontend/release/android"));
     println!("Android build cleaned.");
     0
 }
 
 fn do_clear_desktop() -> i32 {
-    remove(root().join("bin/desktop"));
+    remove(root().join("target/bin/desktop"));
     println!("Desktop artifacts cleared.");
     0
 }
@@ -637,8 +637,8 @@ fn print_help() {
   reset         Reset the local database (asks for confirmation)
   coverage      Run llvm-cov for backend and frontend
   build-all     Build backend + web + desktop
-  build-app     Build web + backend into bin/recurrency-aio
-  build-api     Build backend into bin/recurrency-aio
+  build-app     Build web + backend into target/bin/recurrency-aio
+  build-api     Build backend into target/bin/recurrency-aio
   build-web     Build the web frontend
   build-android Build the local Android APK
   setup-android Install Android SDK/NDK

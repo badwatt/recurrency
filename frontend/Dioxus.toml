@@ -16,11 +16,11 @@ icon = ["assets/icons/clock-1024.png"]
 [android]
 name = "Recurrency"
 build_targets = ["aarch64-linux-android"]
-out_dir = "../bin/android"
+out_dir = "../target/bin/android"
 min_sdk_version = 21
 
 [desktop]
-out_dir = "../bin/desktop"
+out_dir = "../target/bin/desktop"
 
 [web]
 out_dir = "dist"

@@ -48,6 +48,8 @@ All commands run inside `nix develop`.
 | Install Android SDK/NDK | `cargo setup-android` |
 | Patch an existing Android build | `cargo patch-android` |
 
+Build artifacts live in `target/bin/` (APK, desktop bundle, `recurrency-aio`).
+
 The aliases are in `.cargo/config.toml`; the raw equivalents are `cargo test --workspace --lib`, `cargo fmt --all`, and `cargo clippy --workspace --lib -- -D warnings`.
 
 
