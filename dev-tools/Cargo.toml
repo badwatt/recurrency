@@ -1,0 +1,12 @@
+[package]
+name = "recurrency-dev"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[[bin]]
+name = "recurrency-dev"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "signal", "time", "net"] }

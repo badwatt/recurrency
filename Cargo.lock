@@ -5276,6 +5276,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "recurrency-dev"
+version = "0.25.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "recurrency-frontend"
 version = "0.25.0"
 dependencies = [
@@ -6706,6 +6713,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

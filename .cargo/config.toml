@@ -1,0 +1,34 @@
+[alias]
+# Local development stack (see dev-tools/src/main.rs).
+up = "run -p recurrency-dev -- up"
+down = "run -p recurrency-dev -- down"
+stop = "run -p recurrency-dev -- stop"
+db = "run -p recurrency-dev -- db"
+backend = "run -p recurrency-dev -- backend"
+frontend = "run -p recurrency-dev -- frontend"
+css = "run -p recurrency-dev -- css"
+reset = "run -p recurrency-dev -- reset"
+coverage = "run -p recurrency-dev -- coverage"
+dev-help = "run -p recurrency-dev -- help"
+
+# Build commands (build:app becomes build-app, etc.).
+build-all = "run -p recurrency-dev -- build-all"
+build-app = "run -p recurrency-dev -- build-app"
+build-api = "run -p recurrency-dev -- build-api"
+build-web = "run -p recurrency-dev -- build-web"
+build-android = "run -p recurrency-dev -- build-android"
+build-desktop = "run -p recurrency-dev -- build-desktop"
+
+# Clear commands.
+clear = "run -p recurrency-dev -- clear"
+clear-app = "run -p recurrency-dev -- clear-app"
+clear-api = "run -p recurrency-dev -- clear-api"
+clear-web = "run -p recurrency-dev -- clear-web"
+clear-android = "run -p recurrency-dev -- clear-android"
+clear-desktop = "run -p recurrency-dev -- clear-desktop"
+clear-all = "run -p recurrency-dev -- clear-all"
+
+# Workspace-wide checks.
+test-all = "test --workspace --lib"
+fmt-all = "fmt --all"
+clippy-all = "clippy --workspace --lib -- -D warnings"

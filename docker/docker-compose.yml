@@ -4,11 +4,11 @@
 #   docker compose up -d recurrency
 #
 # Or deploy standalone with:
-#   docker run -d -p 80:80 -e JWT_SECRET=your-secret ghcr.io/alvaro17f/recurrency:latest
+#   docker run -d -p 80:80 -e JWT_SECRET=your-secret ghcr.io/badwatt/recurrency:latest
 #
 services:
   recurrency:
-    image: ghcr.io/alvaro17f/recurrency:latest
+    image: ghcr.io/badwatt/recurrency:latest
     container_name: recurrency
     restart: unless-stopped
     ports:
@@ -41,7 +41,7 @@ services:
 #      retries: 5
 #
 #  backend:
-#    image: ghcr.io/alvaro17f/recurrency-backend:latest
+#    image: ghcr.io/badwatt/recurrency-backend:latest
 #    container_name: recurrency-backend
 #    restart: unless-stopped
 #    ports:
@@ -58,7 +58,7 @@ services:
 #        condition: service_healthy
 #
 #  frontend:
-#    image: ghcr.io/alvaro17f/recurrency-frontend:latest
+#    image: ghcr.io/badwatt/recurrency-frontend:latest
 #    container_name: recurrency-frontend
 #    restart: unless-stopped
 #    ports:
