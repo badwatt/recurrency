@@ -6,6 +6,11 @@ pub async fn get() -> Result<SettingsResponse, ApiError> {
     api_get("/api/settings").await
 }
 
+/// GET /api/settings returns the user directly, not wrapped in SettingsResponse.
+pub async fn get_user() -> Result<UserResponse, ApiError> {
+    api_get("/api/settings").await
+}
+
 pub async fn update(req: &UpdateSettingsRequest) -> Result<SettingsResponse, ApiError> {
     api_put("/api/settings", req).await
 }

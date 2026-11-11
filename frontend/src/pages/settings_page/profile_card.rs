@@ -5,7 +5,7 @@ use crate::models::auth::{UpdateSettingsRequest, is_valid_email};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
-const MAX_AVATAR_BYTES: u64 = 200_000;
+const MAX_AVATAR_BYTES: u64 = 15_000_000;
 
 fn base64_encode(bytes: &[u8]) -> String {
     const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -31,6 +31,38 @@ fn base64_encode(bytes: &[u8]) -> String {
 }
 
 /// Profile card: editable email and display name.
+async fn resize_avatar(data_url: String) -> Option<String> {
+    let mut eval = document::eval(r#"
+        const source = await dioxus.recv();
+        try {
+            const image = new Image();
+            const loaded = new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+                image.src = source;
+            });
+            await loaded;
+            const max = 256;
+            const scale = Math.min(1, max / image.width, max / image.height);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            dioxus.send(canvas.toDataURL('image/jpeg', 0.86));
+        } catch (_) {
+            dioxus.send('');
+        }
+    "#);
+    eval.send(data_url).ok()?;
+    eval.recv::<String>()
+        .await
+        .ok()
+        .filter(|value| value.starts_with("data:image/"))
+}
+
 #[component]
 pub fn ProfileCard() -> Element {
     let mut email = use_signal(|| {
@@ -134,35 +166,45 @@ pub fn ProfileCard() -> Element {
                         input {
                             id: "avatar-file",
                             r#type: "file",
-                            accept: "image/png,image/jpeg,image/webp",
+                            accept: "image/*",
                             class: "sr-only",
                             onchange: move |e: Event<FormData>| {
                                 let Some(file) = e.files().first().cloned() else {
                                     return;
                                 };
                                 if file.size() > MAX_AVATAR_BYTES {
-                                    error.set("Photo must be 200 KB or smaller".to_string());
+                                    error.set("Photo must be 15 MB or smaller".to_string());
                                     return;
                                 }
-                                let Some(content_type) = file.content_type() else {
-                                    error.set("Could not read the selected photo".to_string());
-                                    return;
-                                };
-                                if !matches!(
-                                    content_type.as_str(),
-                                    "image/png" | "image/jpeg" | "image/webp"
-                                ) {
-                                    error.set("Use a PNG, JPEG or WebP photo".to_string());
+                                let content_type = file
+                                    .content_type()
+                                    .unwrap_or_else(|| "image/jpeg".to_string());
+                                if !content_type.starts_with("image/") {
+                                    error.set("Choose an image from your gallery".to_string());
                                     return;
                                 }
                                 error.set(String::new());
                                 spawn(async move {
                                     match file.read_bytes().await {
                                         Ok(bytes) => {
-                                            avatar.set(format!(
+                                            let original = format!(
                                                 "data:{content_type};base64,{}",
                                                 base64_encode(&bytes)
-                                            ));
+                                            );
+                                            match resize_avatar(original.clone()).await {
+                                                Some(resized) => avatar.set(resized),
+                                                None if matches!(
+                                                    content_type.as_str(),
+                                                    "image/png" | "image/jpeg" | "image/webp"
+                                                ) && bytes.len() <= 300_000 =>
+                                                {
+                                                    avatar.set(original);
+                                                }
+                                                None => error.set(
+                                                    "Could not process that image. Try another photo."
+                                                        .to_string(),
+                                                ),
+                                            }
                                         }
                                         Err(_) => error.set("Could not read the selected photo".to_string()),
                                     }

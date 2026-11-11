@@ -2,6 +2,7 @@ pub mod accounts;
 pub mod app_mode;
 pub mod auth;
 pub mod categories;
+pub mod create_intent;
 pub mod notifications;
 pub mod preferences;
 pub mod subscriptions;

@@ -1737,3 +1737,11 @@ use chrono::NaiveDate;
             "the save task must refresh the list before closing: unmounting the dialog cancels its spawned tasks"
         );
     }
+
+
+#[test]
+fn mobile_add_transaction_button_is_replaced_by_fab_intent() {
+    let src = include_str!("../transactions_page.rs");
+    assert!(src.contains("CREATE_INTENT"));
+    assert!(src.contains("hidden md:inline-flex"));
+}

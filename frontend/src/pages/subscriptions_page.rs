@@ -20,6 +20,7 @@ use crate::models::subscription::{
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
+use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, FREQUENCIES};
@@ -261,6 +262,13 @@ pub fn SubscriptionsPage() -> Element {
         dialog_open.set(true);
     });
 
+    use_effect(move || {
+        if *CREATE_INTENT.read() == Some(CreateIntent::Subscription) {
+            *CREATE_INTENT.write() = None;
+            handle_create.call(());
+        }
+    });
+
     let handle_notes_click: Callback<Subscription> = use_callback(move |sub: Subscription| {
         notes_dialog_sub_id.set(Some(sub.id));
         notes_dialog_value.set(sub.notes.unwrap_or_default());
@@ -343,7 +351,7 @@ pub fn SubscriptionsPage() -> Element {
                         if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
                     }
                     button {
-                        class: "bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
+                        class: "hidden md:inline-flex bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
                         onclick: move |_| handle_create.call(()),
                         "+ Add"
                     }
@@ -379,7 +387,7 @@ pub fn SubscriptionsPage() -> Element {
                         p { class: "text-lg font-medium", "No subscriptions yet" }
                         p { class: "text-sm text-muted-foreground", "Click the button above to add your first subscription" }
                         button {
-                            class: "bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
+                            class: "hidden md:inline-flex bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
                             onclick: move |_| handle_create.call(()),
                             "+ Add Subscription"
                         }

@@ -8,6 +8,7 @@ use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
 use crate::state::transactions::TRANSACTIONS;
+use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::storage::Storage;
 use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
@@ -197,6 +198,14 @@ pub fn TransactionsPage() -> Element {
         });
     };
 
+    use_effect(move || {
+        if *CREATE_INTENT.read() == Some(CreateIntent::Transaction) {
+            *CREATE_INTENT.write() = None;
+            editing_id.set(None);
+            dialog_open.set(true);
+        }
+    });
+
     if let Some(err) = &state.error {
         return rsx! {
             div { class: "p-4 md:p-6",
@@ -217,7 +226,7 @@ pub fn TransactionsPage() -> Element {
                         editing_id.set(None);
                         dialog_open.set(true);
                     },
-                    class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
+                    class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
                     Plus { size: 16 }
                     "Add Transaction"
                 }
@@ -252,7 +261,7 @@ pub fn TransactionsPage() -> Element {
                                 editing_id.set(None);
                                 dialog_open.set(true);
                             },
-                            class: "inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                            class: "hidden md:inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
                             Plus { size: 16 }
                             "Add Transaction"
                         }

@@ -97,6 +97,22 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
+    fn avatar_upload_resizes_android_gallery_photos() {
+        assert!(SETTINGS_SOURCES.contains("resize_avatar"));
+        assert!(SETTINGS_SOURCES.contains("canvas.toDataURL"));
+        assert!(SETTINGS_SOURCES.contains("15 MB"));
+        assert!(SETTINGS_SOURCES.contains("accept: \"image/*\""));
+    }
+
+    #[test]
+    fn mobile_settings_expose_logout_and_version() {
+        let layout = include_str!("../../layout/settings_layout.rs");
+        assert!(layout.contains("aria_label: \"Log out\""));
+        assert!(layout.contains("APP_VERSION"));
+        assert!(layout.contains("lg:hidden px-1 pb-2"));
+    }
+
+    #[test]
     fn settings_profile_can_change_avatar() {
         assert!(SETTINGS_SOURCES.contains("Change photo"));
         assert!(SETTINGS_SOURCES.contains("read_bytes"));

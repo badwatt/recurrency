@@ -1736,3 +1736,11 @@
             );
         }
     }
+
+
+#[test]
+fn mobile_add_button_is_replaced_by_fab_intent() {
+    let src = include_str!("../subscriptions_page.rs");
+    assert!(src.contains("CREATE_INTENT"));
+    assert!(src.contains("hidden md:inline-flex bg-primary"));
+}

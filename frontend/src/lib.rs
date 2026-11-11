@@ -189,6 +189,16 @@ fn App() -> Element {
                     }
             }
         }
+
+        // Refresh the cached profile so avatar/name changes made on another
+        // device appear without requiring a new login.
+        if !offline
+            && AUTH().is_authenticated
+            && let Ok(user) = crate::api::settings::get_user().await
+        {
+            AUTH.write().user = Some(user);
+            AUTH.write().persist_to_storage();
+        }
     });
 
     // Show body only after CSS + fonts are fully applied — prevents FOUC on Android.

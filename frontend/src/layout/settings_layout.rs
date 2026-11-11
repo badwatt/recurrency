@@ -112,14 +112,32 @@ pub fn SettingsLayout() -> Element {
                     nav {
                         class: "lg:hidden sticky top-14 z-20 -mx-4 mb-6 border-b border-border/50 bg-background/95 px-4 backdrop-blur-xl",
                         aria_label: "Settings sections",
-                        div { class: "flex gap-1 overflow-x-auto py-2",
-                            for section in SettingsSection::ALL {
-                                SettingsMobileLink {
-                                    section,
-                                    active: section.is_active(&current),
+                        div { class: "flex items-center gap-2 py-2",
+                            div { class: "flex min-w-0 flex-1 gap-1 overflow-x-auto",
+                                for section in SettingsSection::ALL {
+                                    SettingsMobileLink {
+                                        section,
+                                        active: section.is_active(&current),
+                                    }
                                 }
                             }
+                            button {
+                                r#type: "button",
+                                aria_label: "Log out",
+                                title: "Log out",
+                                class: "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors",
+                                onclick: move |_| {
+                                    AUTH.write().logout();
+                                    AUTH.write().persist_to_storage();
+                                    nav.push(crate::Route::Login {});
+                                },
+                                {svg_icon(Icon::Logout, 14)}
+                                "Log out"
+                            }
                         }
+                    }
+                    p { class: "lg:hidden px-1 pb-2 text-[11px] text-muted-foreground/60",
+                        {format!("Recurrency v{APP_VERSION}")}
                     }
                     Outlet::<crate::Route> {}
                 }

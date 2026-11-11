@@ -21,6 +21,7 @@ pub fn AppLoader() -> Element {
     }
 }
 use crate::state::auth::AUTH;
+use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use dioxus::prelude::*;
 
 /// Icon enum for nav and theme icons.
@@ -102,6 +103,20 @@ pub fn AppLayout() -> Element {
     });
 
     let nav = navigator();
+    let fab_open = use_signal(|| false);
+    let in_settings = matches!(
+        current_route,
+        crate::Route::Settings {}
+            | crate::Route::SettingsProfile {}
+            | crate::Route::SettingsPreferences {}
+            | crate::Route::SettingsMoney {}
+            | crate::Route::SettingsNotifications {}
+            | crate::Route::SettingsConnection {}
+            | crate::Route::SettingsAccounts {}
+            | crate::Route::SettingsCategories {}
+            | crate::Route::Accounts {}
+            | crate::Route::Categories {}
+    );
 
     rsx! {
         a {
@@ -221,7 +236,63 @@ pub fn AppLayout() -> Element {
 
         }
 
+        if !in_settings {
+            MobileCreateFab { open: fab_open }
+        }
+
         ToastContainer {}
+    }
+}
+
+#[component]
+fn MobileCreateFab(open: Signal<bool>) -> Element {
+    let nav = navigator();
+    let mut open = open;
+    let choose = Callback::new(move |intent: CreateIntent| {
+        *CREATE_INTENT.write() = Some(intent);
+        open.set(false);
+        nav.push(match intent {
+            CreateIntent::Subscription => crate::Route::Subscriptions {},
+            CreateIntent::Transaction => crate::Route::Transactions {},
+        });
+    });
+
+    rsx! {
+        div { class: "md:hidden fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2",
+            if open() {
+                button {
+                    r#type: "button",
+                    class: "inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium shadow-lg",
+                    onclick: move |_| choose.call(CreateIntent::Subscription),
+                    {svg_icon(Icon::Subscriptions, 18)}
+                    "Subscription"
+                }
+                button {
+                    r#type: "button",
+                    class: "inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium shadow-lg",
+                    onclick: move |_| choose.call(CreateIntent::Transaction),
+                    {svg_icon(Icon::Transactions, 18)}
+                    "Transaction"
+                }
+            }
+            button {
+                r#type: "button",
+                aria_label: if open() { "Close create menu" } else { "Create subscription or transaction" },
+                aria_expanded: if open() { "true" } else { "false" },
+                class: "flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl active:scale-95 transition-transform",
+                onclick: move |_| open.toggle(),
+                svg {
+                    view_box: "0 0 24 24",
+                    width: "26",
+                    height: "26",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "2",
+                    stroke_linecap: "round",
+                    {if open() { rsx! { line { x1: "6", y1: "6", x2: "18", y2: "18" } line { x1: "18", y1: "6", x2: "6", y2: "18" } } } else { rsx! { line { x1: "12", y1: "5", x2: "12", y2: "19" } line { x1: "5", y1: "12", x2: "19", y2: "12" } } }}
+                }
+            }
+        }
     }
 }
 
@@ -728,6 +799,15 @@ mod tests {
         assert!(src.contains("UserAvatar"));
         let gear = ["svg_icon(Icon::", "Settings, 20)"].concat();
         assert!(!src.contains(&gear));
+    }
+
+    #[test]
+    fn mobile_fab_creates_subscriptions_and_transactions() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("MobileCreateFab"));
+        assert!(src.contains("CreateIntent::Subscription"));
+        assert!(src.contains("CreateIntent::Transaction"));
+        assert!(src.contains("bottom-20 right-4"));
     }
 
     #[test]

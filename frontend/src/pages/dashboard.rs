@@ -517,7 +517,7 @@ pub fn Dashboard() -> Element {
                         "What to transfer into each account, and what is still left to pay."
                     }
                 }
-                div { class: "flex flex-wrap gap-2",
+                div { class: "hidden md:flex flex-wrap gap-2",
                     {
                         let nav1 = nav;
                         rsx! {
@@ -658,7 +658,7 @@ pub fn Dashboard() -> Element {
                             let nav3 = nav;
                             rsx! {
                                 button {
-                                    class: "mt-2 inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                                    class: "hidden md:inline-flex mt-2 items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
                                     onclick: move |_| { nav3.push(crate::Route::Subscriptions {}); },
                                     "Add subscription"
                                 }
@@ -1038,6 +1038,13 @@ mod tests {
             6,
         );
         assert_eq!(dates, vec![date(2025, 6, 10)]);
+    }
+
+    #[test]
+    fn dashboard_add_actions_are_desktop_only() {
+        let src = include_str!("dashboard.rs");
+        assert!(src.contains("hidden md:flex flex-wrap gap-2"));
+        assert!(src.contains("hidden md:inline-flex mt-2"));
     }
 
     #[test]
