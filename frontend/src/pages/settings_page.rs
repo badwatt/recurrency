@@ -3,14 +3,12 @@ use crate::components::page_header::PageHeader;
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
-mod connection_card;
 mod delete_account_card;
 mod delivery_card;
 mod preferences_card;
 mod profile_card;
 mod summary_card;
 
-use connection_card::ConnectionCard;
 use delete_account_card::DeleteAccountCard;
 use delivery_card::DeliveryCard;
 use preferences_card::PreferencesCard;
@@ -144,15 +142,6 @@ pub fn SettingsNotificationsPage() -> Element {
     }
 }
 
-#[component]
-pub fn SettingsConnectionPage() -> Element {
-    rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Connection", subtitle: "Manage how Recurrency reaches your data" }
-            ConnectionCard {}
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests;

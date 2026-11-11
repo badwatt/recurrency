@@ -1,12 +1,10 @@
 #[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
-use crate::api::{auth, client::get_base_url, demo, client::ApiError};
+use crate::api::{auth, demo, client::ApiError};
 use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
 use std::sync::Mutex;
-
-const SHOW_OFFLINE: bool = true;
 
 /// In-memory draft of the login form. The Login component unmounts when the
 /// user opens Setup (change server), so its signals are lost; this keeps what
@@ -50,26 +48,7 @@ pub fn LoginPage() -> Element {
     let mut demo_enabled = use_signal(|| false);
     let _nav = navigator();
 
-    // On WASM (web), base URL is always resolved (origin or fallback).
-    // Setup page is only needed on native (Android/desktop) where server URL must be configured manually.
-    // On WASM, skip setup entirely — the URL is determined automatically.
-    #[cfg(target_arch = "wasm32")]
-    let needs_setup = false;
-
-    #[cfg(not(target_arch = "wasm32"))]
-    let needs_setup = !APP_MODE().mode.is_offline() && get_base_url() == "http://localhost:8080";
-
     let offline = APP_MODE().mode.is_offline();
-
-    // Native server mode without a configured URL goes to Setup. Offline mode
-    // also has a login (the local account), so it never auto-enters the app.
-    let nav = navigator();
-    use_effect(move || {
-        if needs_setup {
-            eprintln!("[LoginPage] No server configured — redirecting to Setup");
-            nav.push(Route::Setup {});
-        }
-    });
 
     // Check demo status on mount
     // Skip demo status check on Android (reqwest hangs)
@@ -298,26 +277,6 @@ pub fn LoginPage() -> Element {
             div {
                 class: "w-full max-w-md rounded-lg border border-border bg-card p-0 shadow-sm",
 
-                // Setup warning
-                if needs_setup && !cfg!(feature = "web") {
-                    div {
-                        class: "flex items-start gap-3 rounded-t-lg bg-amber-50 p-4 text-amber-800",
-                        svg {
-                            class: "h-5 w-5 shrink-0",
-                            view_box: "0 0 24 24",
-                            fill: "none",
-                            stroke: "currentColor",
-                            stroke_width: "2",
-                            path { d: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" }
-                        }
-                        div {
-                            class: "flex-1",
-                            p { class: "text-sm font-medium", "Using default server URL" }
-                            p { class: "text-xs text-amber-600 mt-1", "Configure your server URL to connect to a remote server." }
-                        }
-                    }
-                }
-
                 // Header
                 div {
                     class: "space-y-1 p-6 pb-0",
@@ -423,27 +382,6 @@ pub fn LoginPage() -> Element {
                         }
                     }
 
-                    // Change server or go offline
-                    p { class: "text-center text-sm text-muted-foreground",
-                        Link {
-                            to: Route::Setup {},
-                            class: "text-primary hover:underline",
-                            {if offline { "Connect to a server".to_string() } else { format!("Change server ({})", crate::api::client::get_base_url()) }}
-                        }
-                    }
-                    // Switch to offline right here: clear any server URL/session
-                    // and re-render this page as the local-account login.
-                    if SHOW_OFFLINE && !offline {
-                        button {
-                            r#type: "button",
-                            class: "w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline",
-                            onclick: move |_| {
-                                APP_MODE.write().set_local();
-                                AUTH.write().logout();
-                            },
-                            "Use without server"
-                        }
-                    }
                 }
             }
         }
@@ -721,29 +659,4 @@ mod tests {
         assert!(email_valid && !password_valid); // Only password invalid
     }
 
-    #[test]
-    fn setup_warning_gated_by_web_feature() {
-        // Bug: "Using default server URL" warning shows on web builds,
-        // but "Configure server URL" link is hidden on web.
-        // Fix: warning must share the same condition as the configure link.
-        let src = include_str!("login.rs");
-        let warning_pos = src.find("Using default server URL").unwrap_or(usize::MAX);
-        assert!(warning_pos != usize::MAX, "Warning text must exist in login.rs");
-        // Search backwards from warning for the nearest `if` line
-        let before = &src[..warning_pos];
-        let lines: Vec<&str> = before.lines().collect();
-        let mut found_guard = false;
-        for line in lines.iter().rev() {
-            let trimmed = line.trim();
-            if trimmed.starts_with("if ") {
-                found_guard = trimmed.contains("!cfg!(feature = \"web\")")
-                    || trimmed.contains("cfg!(not(feature = \"web\"))");
-                break;
-            }
-        }
-        assert!(
-            found_guard,
-            "Setup warning must be gated by !cfg!(feature = \"web\") same as configure link"
-        );
-    }
 }

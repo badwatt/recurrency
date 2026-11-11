@@ -111,7 +111,6 @@ pub fn AppLayout() -> Element {
             | crate::Route::SettingsPreferences {}
             | crate::Route::SettingsMoney {}
             | crate::Route::SettingsNotifications {}
-            | crate::Route::SettingsConnection {}
             | crate::Route::SettingsAccounts {}
             | crate::Route::SettingsCategories {}
             | crate::Route::Accounts {}

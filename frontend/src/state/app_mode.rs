@@ -1,5 +1,13 @@
 use dioxus::prelude::*;
 
+/// Default server for native builds when no URL has been configured. Web
+/// builds always use the origin they are served from.
+pub const DEFAULT_NATIVE_SERVER: &str =
+    match option_env!("RECURRENCY_API_URL") {
+        Some(url) => url,
+        None => "https://recurrency.azama.es",
+    };
+
 /// Application mode: local SQLite or remote server.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
@@ -95,7 +103,7 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                 }
             }
         }
-        (AppMode::Offline, true)
+        (AppMode::Server(DEFAULT_NATIVE_SERVER.to_string()), true)
     }
 }
 
@@ -283,17 +291,4 @@ mod tests {
         assert!(state.mode.is_offline());
     }
 
-    #[test]
-    fn setup_offline_option_always_available() {
-        // Bug fix: "Use without server" must show on web (WASM) too, not just native.
-        let src = include_str!("../pages/setup.rs");
-        assert!(
-            src.contains("SHOW_OFFLINE: bool = true"),
-            "Setup page must show offline option on all platforms"
-        );
-        assert!(
-            src.contains("Use without server"),
-            "Setup page must contain offline button text"
-        );
-    }
 }

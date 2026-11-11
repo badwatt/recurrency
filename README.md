@@ -95,8 +95,16 @@ The aliases are in `.cargo/config.toml`; the raw equivalents are `cargo test --w
 Single container with PostgreSQL + backend + frontend:
 
 ```bash
-# Pull and run
-docker run -d -p 80:80 -e JWT_SECRET="$(openssl rand -hex 32)" ghcr.io/badwatt/recurrency:latest
+# Pull and run the single all-in-one image
+docker run -d -p 80:80 -p 8080:8080 \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  ghcr.io/badwatt/recurrency:latest
+
+# Backend-only mode (no nginx / web UI)
+docker run -d -p 8080:8080 \
+  -e ENABLE_WEB=false \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  ghcr.io/badwatt/recurrency:latest
 
 # Or use the compose file
 curl -O https://raw.githubusercontent.com/badwatt/recurrency/main/docker/docker-compose.yml
@@ -105,11 +113,15 @@ docker compose up -d
 
 - **App:** http://localhost:80 (nginx proxies `/api` → backend)
 - **API:** http://localhost:80/api
+- **Backend-only:** `ENABLE_WEB=false`, API at http://localhost:8080
 
 Custom env:
 
 ```bash
 JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
+
+# Backend only
+ENABLE_WEB=false JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 ```
 
 ---
@@ -121,6 +133,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | `DATABASE_URL` | — | PostgreSQL connection |
 | `JWT_SECRET` | **required** | Strong random secret for JWT tokens; startup fails if missing/placeholder |
 | `ENABLE_DEMO` | `false` | Show demo login button (opt-in) |
+| `ENABLE_WEB` | `true` | Serve the web UI; set `false` for backend-only |
 | `PGPASSWORD` | `recurrency` | PostgreSQL password |
 | `SMTP_HOST` | — | SMTP server |
 | `SMTP_PORT` | `587` | SMTP port |
@@ -170,7 +183,7 @@ JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
 | **Backend** | — | — | — | 1182 lib + 46 integration |
-| **Frontend** | — | — | — | 1654 |
+| **Frontend** | — | — | — | 1628 |
 
 Integration tests use a disposable PostgreSQL instance:
 

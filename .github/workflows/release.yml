@@ -200,34 +200,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Backend image ──────────────────────────────────────
-      - name: Build and push backend image
-        uses: docker/build-push-action@v7
-        with:
-          file: docker/Dockerfile
-          target: backend
-          context: .
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-backend:${{ needs.prepare.outputs.version }}
-            ${{ env.REGISTRY }}/${{ github.repository }}-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ── Frontend image ──────────────────────────────────────
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v7
-        with:
-          file: docker/Dockerfile
-          target: frontend
-          context: .
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:${{ needs.prepare.outputs.version }}
-            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
       # ── All-in-One image ────────────────────────────────────
       - name: Build and push all-in-one image
         uses: docker/build-push-action@v7

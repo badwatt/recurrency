@@ -67,6 +67,13 @@ pub fn is_offline_mode() -> bool {
 /// Returns the backend API base URL.
 /// Returns empty string in local mode (API calls should not be made).
 pub fn get_base_url() -> String {
+    // Web builds always talk to the origin serving the app. There is no
+    // server-URL setting anymore.
+    #[cfg(target_arch = "wasm32")]
+    {
+        return get_base_url_impl();
+    }
+
     // 1. Check override (set by tests or runtime) — always works without Dioxus runtime
     if let Ok(lock) = BASE_URL_OVERRIDE.read()
         && let Some(url) = lock.as_ref()
@@ -81,7 +88,9 @@ pub fn get_base_url() -> String {
         if mode_state.mode.is_offline() {
             return String::new(); // local mode: no server URL
         }
-        if let Some(url) = mode_state.mode.server_url() {
+        if let Some(url) = mode_state.mode.server_url()
+            && !url.is_empty()
+        {
             return normalize_base_url(url);
         }
     }
@@ -144,17 +153,8 @@ fn get_base_url_impl() -> String {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                if let Ok(Some(url)) = storage.get_item("RECURRENCY_API_URL") {
-                    if !url.is_empty() {
-                        eprintln!("[get_base_url] WASM localStorage: {}", url);
-                        return normalize_base_url(&url);
-                    }
-                }
-            }
-            // Dev mode fallback
             if let Ok(origin) = window.location().origin() {
-                if !origin.contains(":1420") {
+                if !origin.contains(":1420") && !origin.contains(":1421") {
                     return normalize_base_url(&origin);
                 }
             }
@@ -178,8 +178,8 @@ fn get_base_url_impl() -> String {
                 }
             }
         }
-        eprintln!("[get_base_url] Native fallback: localhost:8080");
-        "http://localhost:8080".to_string()
+        eprintln!("[get_base_url] Native fallback server");
+        crate::state::app_mode::DEFAULT_NATIVE_SERVER.to_string()
     }
 }
 
@@ -693,19 +693,19 @@ mod tests {
 
     #[test]
     fn set_base_url_empty_clears_override() {
-        // Empty string is rejected, falls back to default
+        // Empty string is rejected, falls back to the default server
         set_base_url("");
         let url = get_base_url();
-        assert!(url.contains("localhost:8080"));
+        assert!(url.starts_with("http"));
     }
 
     #[test]
     fn set_base_url_preserves_previous_on_empty() {
         set_base_url("http://first:9000");
         set_base_url("");
-        // Empty string clears override, falls back to default
+        // Empty string clears override, falls back to the default server
         let url = get_base_url();
-        assert!(url.contains("localhost:8080"));
+        assert!(url.starts_with("http"));
     }
 
     #[test]

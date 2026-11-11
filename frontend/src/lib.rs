@@ -33,8 +33,6 @@ pub enum Route {
     Login {},
     #[route("/register")]
     Register {},
-    #[route("/setup")]
-    Setup {},
 
     // Protected (layout with sidebar)
     #[layout(layout::AppLayout)]
@@ -60,8 +58,6 @@ pub enum Route {
             SettingsMoney {},
             #[route("/settings/notifications")]
             SettingsNotifications {},
-            #[route("/settings/connection")]
-            SettingsConnection {},
             #[route("/settings/accounts")]
             SettingsAccounts {},
             #[route("/settings/categories")]
@@ -298,11 +294,6 @@ fn Register() -> Element {
 }
 
 #[component]
-fn Setup() -> Element {
-    rsx! { crate::pages::SetupPage {} }
-}
-
-#[component]
 fn Dashboard() -> Element {
     rsx! { crate::pages::Dashboard {} }
 }
@@ -361,11 +352,6 @@ fn SettingsMoney() -> Element {
 #[component]
 fn SettingsNotifications() -> Element {
     rsx! { crate::pages::SettingsNotificationsPage {} }
-}
-
-#[component]
-fn SettingsConnection() -> Element {
-    rsx! { crate::pages::SettingsConnectionPage {} }
 }
 
 #[component]

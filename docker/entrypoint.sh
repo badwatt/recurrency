@@ -97,17 +97,24 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# ── Start nginx on port 80 ──────────────────────────────
-echo "Starting nginx on port 80..."
-nginx -g 'daemon off;' &
-NGINX_PID=$!
+# ── Web frontend (optional) ─────────────────────────────
+if [ "${ENABLE_WEB:-true}" = "false" ]; then
+    echo ""
+    echo "=== Recurrency backend-only mode ==="
+    echo "  API: http://localhost:${APP_PORT}"
+    echo ""
+    wait "$BACKEND_PID"
+else
+    echo "Starting nginx on port 80..."
+    nginx -g 'daemon off;' &
+    NGINX_PID=$!
 
-echo ""
-echo "=== Recurrency is running ==="
-echo "  Frontend:  http://localhost:80"
-echo "  API:       http://localhost:80/api"
-echo "  Backend:   http://localhost:${APP_PORT} (internal)"
-echo ""
+    echo ""
+    echo "=== Recurrency is running ==="
+    echo "  Frontend:  http://localhost:80"
+    echo "  API:       http://localhost:80/api"
+    echo "  Backend:   http://localhost:${APP_PORT} (internal)"
+    echo ""
 
-# Wait for any process to exit
-wait -n $BACKEND_PID $NGINX_PID 2>/dev/null || wait $BACKEND_PID $NGINX_PID
+    wait -n "$BACKEND_PID" "$NGINX_PID" 2>/dev/null || wait "$BACKEND_PID" "$NGINX_PID"
+fi

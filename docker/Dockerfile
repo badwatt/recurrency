@@ -67,35 +67,6 @@ RUN cd frontend && dx bundle --platform web --release && \
 # Runtime targets
 # ═══════════════════════════════════════════════════════════
 
-# ── Target: backend only ─────────────────────────────────
-FROM debian:bookworm-slim AS backend
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=backend-builder /build/recurrency_backend /usr/local/bin/recurrency_backend
-RUN chmod +x /usr/local/bin/recurrency_backend
-
-ENV APP_HOST=0.0.0.0 \
-    APP_PORT=8080 \
-    RUST_LOG=info
-
-EXPOSE 8080
-
-CMD ["recurrency_backend"]
-
-# ── Target: frontend only ────────────────────────────────
-FROM nginx:alpine AS frontend
-
-COPY --from=frontend-builder /build/frontend/dist/public /usr/share/nginx/html
-RUN rm -f /etc/nginx/conf.d/default.conf
-COPY docker/nginx-standalone.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-
 # ── Target: all-in-one ───────────────────────────────────
 FROM debian:bookworm-slim AS all-in-one
 
@@ -139,11 +110,12 @@ ARG ENABLE_DEMO=false
 ENV APP_HOST=0.0.0.0 \
     APP_PORT=8080 \
     RUST_LOG=info \
-    ENABLE_DEMO=${ENABLE_DEMO}
+    ENABLE_DEMO=${ENABLE_DEMO} \
+    ENABLE_WEB=true
 
 # Pass secrets as runtime configuration (via entrypoint or volume)
 # Do NOT set JWT_SECRET as ENV - it should come from secrets at runtime
 
-EXPOSE 80
+EXPOSE 80 8080
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
