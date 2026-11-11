@@ -192,12 +192,13 @@ fn App() -> Element {
 
         // Refresh the cached profile so avatar/name changes made on another
         // device appear without requiring a new login.
-        if !offline
-            && AUTH().is_authenticated
-            && let Ok(user) = crate::api::settings::get_user().await
-        {
-            AUTH.write().user = Some(user);
-            AUTH.write().persist_to_storage();
+        if !offline && AUTH().is_authenticated {
+            spawn(async move {
+                if let Ok(user) = crate::api::settings::get_user().await {
+                    AUTH.write().user = Some(user);
+                    AUTH.write().persist_to_storage();
+                }
+            });
         }
     });
 
@@ -208,14 +209,15 @@ fn App() -> Element {
         dioxus::document::eval(r#"
             (function() {
                 function reveal() {
-                    document.fonts.ready.then(function() {
+                    // Never let a slow font load keep the native loader forever.
+                    var fontsReady = Promise.race([
+                        document.fonts.ready,
+                        new Promise(function(resolve) { setTimeout(resolve, 900); })
+                    ]);
+                    fontsReady.then(function() {
                         requestAnimationFrame(function() {
                             requestAnimationFrame(function() {
                                 document.body.style.setProperty('visibility', 'visible', 'important');
-                                // The app has mounted: drop the pre-WASM loaders on
-                                // every route (they are only removed by AppLayout
-                                // otherwise, so public routes like /login stayed
-                                // covered forever).
                                 ['pre-wasm-loader', 'dxloader'].forEach(function (id) {
                                     var el = document.getElementById(id);
                                     if (el) el.remove();
@@ -235,7 +237,7 @@ fn App() -> Element {
                             waitForStylesheets(l);
                         }
                     }, 50);
-                    setTimeout(function() { clearInterval(poll); reveal(); }, 3000);
+                    setTimeout(function() { clearInterval(poll); reveal(); }, 1200);
                     return;
                 }
                 waitForStylesheets(links);
@@ -260,7 +262,7 @@ fn App() -> Element {
                         }
                     }
                     // Safety: reveal after 3s no matter what
-                    setTimeout(reveal, 3000);
+                    setTimeout(reveal, 1200);
                 }
             })();
         "#);
