@@ -149,7 +149,7 @@ fn is_offline_mode_from_storage() -> bool {
 
 /// Implementation: fallback base URL resolution from localStorage/env/origin.
 fn get_base_url_impl() -> String {
-    // WASM: check localStorage for server URL
+    // Web: same origin, except the Vite dev server which proxies to the API.
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {

@@ -97,7 +97,7 @@ pub fn ProfileCard() -> Element {
             error.set("Enter a valid email address".to_string());
             return;
         }
-        if next_name.len() < 2 {
+        if !next_name.is_empty() && next_name.len() < 2 {
             error.set("Name must be at least 2 characters".to_string());
             return;
         }

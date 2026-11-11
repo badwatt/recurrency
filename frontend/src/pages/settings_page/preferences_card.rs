@@ -1,4 +1,5 @@
 use crate::api::settings;
+use crate::components::server_url::ServerUrlEditor;
 use crate::components::toast::TOAST;
 use crate::models::auth::UpdateSettingsRequest;
 use crate::state::auth::AUTH;
@@ -51,6 +52,7 @@ pub fn PreferencesCard() -> Element {
     let cur = currency();
 
     rsx! {
+        div { class: "flex flex-col gap-6",
         div { class: "rounded-xl bg-card/80 border border-border/40",
             div { class: "p-6 border-b border-border",
                 h2 { class: "text-lg font-semibold", "Defaults" }
@@ -101,6 +103,20 @@ pub fn PreferencesCard() -> Element {
                     }
                 }
             }
+        }
+        if cfg!(not(target_arch = "wasm32")) {
+            div { class: "rounded-xl bg-card/80 border border-border/40",
+                div { class: "p-6 border-b border-border",
+                    h2 { class: "text-lg font-semibold", "Server" }
+                    p { class: "text-sm text-muted-foreground",
+                        "The Recurrency server this device connects to. Changing it signs you out."
+                    }
+                }
+                div { class: "p-6",
+                    ServerUrlEditor { logout_on_change: true }
+                }
+            }
+        }
         }
     }
 }

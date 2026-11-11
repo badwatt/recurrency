@@ -9,6 +9,7 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page/delete_account_card.rs"),
     include_str!("../settings_page/delivery_card.rs"),
     include_str!("../../layout/settings_layout.rs"),
+    include_str!("../../components/server_url.rs"),
 );
 
     #[test]
@@ -65,6 +66,26 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(SETTINGS_SOURCES.contains("max-w-7xl"));
     }
 
+
+
+    #[test]
+    fn native_server_url_is_editable_before_login_and_in_settings() {
+        let login = include_str!("../../auth/login.rs");
+        assert!(login.contains("ServerUrlEditor"));
+        assert!(login.contains(r#"cfg!(not(target_arch = "wasm32"))"#));
+        assert!(SETTINGS_SOURCES.contains("ServerUrlEditor"));
+        assert!(SETTINGS_SOURCES.contains("Save server"));
+        assert!(SETTINGS_SOURCES.contains("normalize_server_url"));
+    }
+
+    #[test]
+    fn web_never_exposes_server_url_editor() {
+        let login = include_str!("../../auth/login.rs");
+        let editor = include_str!("../../components/server_url.rs");
+        assert!(login.contains(r#"if cfg!(not(target_arch = "wasm32"))"#));
+        assert!(editor.contains("logout_on_change"));
+        assert!(editor.contains("set_server"));
+    }
 
     #[test]
     fn delivery_channels_use_an_icon_rail() {

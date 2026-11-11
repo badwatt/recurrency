@@ -8,6 +8,7 @@ pub mod input;
 pub mod logo_image;
 pub mod logo_search;
 pub mod select;
+pub mod server_url;
 pub mod toast;
 pub mod tooltip;
 

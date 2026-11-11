@@ -131,7 +131,7 @@ pub fn SettingsNotificationsPage() -> Element {
                 div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
                     h2 { class: "text-lg font-semibold", "Server notifications" }
                     p { class: "text-sm text-muted-foreground mt-1",
-                        "Delivery channels and summary schedules require server mode. Switch connection mode to configure them."
+                        "Delivery channels and summary schedules require server mode. Set a server URL in Preferences."
                     }
                 }
             } else {

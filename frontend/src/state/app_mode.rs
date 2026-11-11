@@ -52,28 +52,11 @@ impl Default for AppModeState {
 }
 
 fn hydrate_mode_from_storage() -> (AppMode, bool) {
-    // WASM: read user choice (server or offline) from localStorage.
-    // Offline mode is allowed on web — user explicitly picks it in Setup.
+    // Web builds always use the origin serving the app. There is no server
+    // chooser and no offline mode on the web.
     #[cfg(target_arch = "wasm32")]
     {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                let mode_str = storage.get_item("RECURRENCY_APP_MODE").ok().flatten();
-                let server_url = storage.get_item("RECURRENCY_API_URL").ok().flatten();
-                return match mode_str.as_deref() {
-                    Some("offline") => (AppMode::Offline, true),
-                    Some("server") => {
-                        if let Some(url) = server_url.filter(|u| !u.is_empty()) {
-                            (AppMode::Server(url), true)
-                        } else {
-                            (AppMode::Server(String::new()), false) // server mode but no URL → need setup
-                        }
-                    }
-                    _ => (AppMode::Server(String::new()), false), // WASM default: server (need setup)
-                };
-            }
-        }
-        (AppMode::Server(String::new()), false)
+        (AppMode::Server(String::new()), true)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -105,6 +88,41 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
         }
         (AppMode::Server(DEFAULT_NATIVE_SERVER.to_string()), true)
     }
+}
+
+/// Normalize a user-entered server address. Accepts hostnames without a
+/// scheme (defaults to HTTPS) and strips a trailing slash or `/api` suffix.
+pub fn normalize_server_url(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("Enter your server URL".to_string());
+    }
+
+    let with_scheme = if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        trimmed.to_string()
+    } else if trimmed.contains("://") {
+        return Err("Server URL must start with http:// or https://".to_string());
+    } else {
+        format!("https://{trimmed}")
+    };
+
+    let parsed = reqwest::Url::parse(&with_scheme)
+        .map_err(|_| "Enter a valid server URL".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("Server URL must start with http:// or https://".to_string());
+    }
+    if parsed.host_str().is_none() {
+        return Err("Enter a valid server URL".to_string());
+    }
+    if parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err("Server URL cannot contain a query or fragment".to_string());
+    }
+
+    if parsed.path() == "/api" || parsed.path().starts_with("/api/") {
+        return Ok(parsed.origin().ascii_serialization());
+    }
+
+    Ok(with_scheme.trim_end_matches('/').to_string())
 }
 
 impl AppModeState {
@@ -270,6 +288,45 @@ mod tests {
         let mut state = AppModeState::default();
         state.set_server("http://localhost:9090".into());
         assert_eq!(state.mode.server_url(), Some("http://localhost:9090"));
+    }
+
+    #[test]
+    fn normalize_server_url_adds_https() {
+        assert_eq!(
+            normalize_server_url("recurrency.example.com").unwrap(),
+            "https://recurrency.example.com"
+        );
+    }
+
+    #[test]
+    fn normalize_server_url_keeps_http_for_local_servers() {
+        assert_eq!(
+            normalize_server_url(" http://192.168.1.10:8080/ ").unwrap(),
+            "http://192.168.1.10:8080"
+        );
+    }
+
+    #[test]
+    fn normalize_server_url_removes_api_suffix() {
+        assert_eq!(
+            normalize_server_url("https://recurrency.example.com/api/").unwrap(),
+            "https://recurrency.example.com"
+        );
+    }
+
+    #[test]
+    fn normalize_server_url_rejects_empty_input() {
+        assert!(normalize_server_url("   ").is_err());
+    }
+
+    #[test]
+    fn normalize_server_url_rejects_invalid_scheme() {
+        assert!(normalize_server_url("ftp://example.com").is_err());
+    }
+
+    #[test]
+    fn normalize_server_url_rejects_query() {
+        assert!(normalize_server_url("https://example.com?x=1").is_err());
     }
 
     #[test]

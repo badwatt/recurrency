@@ -1,14 +1,14 @@
 #[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
 use crate::api::{auth, demo, client::ApiError};
+use crate::components::server_url::ServerUrlEditor;
 use crate::state::app_mode::APP_MODE;
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
 use std::sync::Mutex;
 
-/// In-memory draft of the login form. The Login component unmounts when the
-/// user opens Setup (change server), so its signals are lost; this keeps what
-/// was typed until a login succeeds. Never persisted to disk.
+/// In-memory draft of the login form. Keeps what was typed until a login
+/// succeeds. Never persisted to disk.
 static LOGIN_DRAFT: Mutex<(String, String)> = Mutex::new((String::new(), String::new()));
 
 fn draft_email() -> String {
@@ -283,6 +283,14 @@ pub fn LoginPage() -> Element {
                     h1 { class: "text-2xl font-bold text-foreground", "Sign in" }
                     p { class: "text-sm text-muted-foreground",
                         "Enter your email and password to access your account"
+                    }
+                }
+
+                // Native builds need an explicit server address before signing in.
+                if cfg!(not(target_arch = "wasm32")) {
+                    div {
+                        class: "border-b border-border px-6 py-4",
+                        ServerUrlEditor {}
                     }
                 }
 
