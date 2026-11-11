@@ -1,5 +1,6 @@
 #![allow(clippy::suspicious_else_formatting)]
 use crate::components::page_header::PageHeader;
+use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
 mod connection_card;
@@ -26,11 +27,44 @@ enum MoneyTab {
 pub(crate) const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[component]
+fn MobileSessionCard() -> Element {
+    let nav = navigator();
+    let email = AUTH()
+        .user
+        .as_ref()
+        .map(|user| user.email.clone())
+        .unwrap_or_default();
+
+    rsx! {
+        div { class: "lg:hidden rounded-xl bg-card/80 border border-border/40",
+            div { class: "p-6 border-b border-border",
+                h2 { class: "text-lg font-semibold", "Session" }
+                p { class: "text-sm text-muted-foreground", "Sign out of this device" }
+            }
+            div { class: "p-6 flex items-center justify-between gap-4",
+                p { class: "text-sm truncate", {email} }
+                button {
+                    r#type: "button",
+                    class: "inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                    onclick: move |_| {
+                        AUTH.write().logout();
+                        AUTH.write().persist_to_storage();
+                        nav.push(crate::Route::Login {});
+                    },
+                    "Log out"
+                }
+            }
+        }
+    }
+}
+
+#[component]
 pub fn SettingsProfilePage() -> Element {
     rsx! {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
             PageHeader { title: "Profile", subtitle: "Your identity and session" }
             ProfileCard {}
+            MobileSessionCard {}
             DeleteAccountCard {}
         }
     }

@@ -105,11 +105,13 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn mobile_settings_expose_logout_and_version() {
+    fn mobile_settings_expose_session_logout_and_version() {
         let layout = include_str!("../../layout/settings_layout.rs");
-        assert!(layout.contains("aria_label: \"Log out\""));
+        assert!(SETTINGS_SOURCES.contains("MobileSessionCard"));
+        assert!(SETTINGS_SOURCES.contains("Sign out of this device"));
         assert!(layout.contains("APP_VERSION"));
         assert!(layout.contains("lg:hidden px-1 pb-2"));
+        assert!(!layout.contains("aria_label: \"Log out\""));
     }
 
     #[test]
