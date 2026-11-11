@@ -15,8 +15,10 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock* ./
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
+COPY tools/Cargo.toml tools/Cargo.toml
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo '' > frontend/src/lib.rs
+RUN mkdir -p tools/src && echo 'fn main() {}' > tools/src/main.rs
 RUN --mount=type=cache,target=/build/target cargo build --release -p recurrency_backend -j 4 2>/dev/null || true
 
 COPY backend/ ./backend/
@@ -45,8 +47,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 COPY Cargo.toml Cargo.lock* ./
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
+COPY tools/Cargo.toml tools/Cargo.toml
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
+RUN mkdir -p tools/src && echo 'fn main() {}' > tools/src/main.rs
 RUN --mount=type=cache,target=/build/target cargo build -p recurrency_frontend --features web --release 2>/dev/null || true
 
 COPY frontend/ ./frontend/
