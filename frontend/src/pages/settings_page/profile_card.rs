@@ -158,57 +158,92 @@ pub fn ProfileCard() -> Element {
                         }
                     }
                     div { class: "flex flex-col gap-2",
-                        label {
-                            class: "relative inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent focus-within:ring-2 focus-within:ring-ring",
-                            "Change photo"
-                            input {
-                                id: "avatar-file",
-                                r#type: "file",
-                                accept: "image/*",
-                                aria_label: "Change profile photo",
-                                class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
-                            onchange: move |e: Event<FormData>| {
-                                let Some(file) = e.files().first().cloned() else {
-                                    return;
-                                };
-                                if file.size() > MAX_AVATAR_BYTES {
-                                    error.set("Photo must be 15 MB or smaller".to_string());
-                                    return;
-                                }
-                                let content_type = file
-                                    .content_type()
-                                    .unwrap_or_else(|| "image/jpeg".to_string());
-                                if !content_type.starts_with("image/") {
-                                    error.set("Choose an image from your gallery".to_string());
-                                    return;
-                                }
-                                error.set(String::new());
-                                spawn(async move {
-                                    match file.read_bytes().await {
-                                        Ok(bytes) => {
-                                            let original = format!(
-                                                "data:{content_type};base64,{}",
-                                                base64_encode(&bytes)
-                                            );
-                                            match resize_avatar(original.clone()).await {
-                                                Some(resized) => avatar.set(resized),
-                                                None if matches!(
-                                                    content_type.as_str(),
-                                                    "image/png" | "image/jpeg" | "image/webp"
-                                                ) && bytes.len() <= 300_000 =>
-                                                {
-                                                    avatar.set(original);
-                                                }
-                                                None => error.set(
-                                                    "Could not process that image. Try another photo."
-                                                        .to_string(),
-                                                ),
+                        if cfg!(target_os = "android") {
+                            button {
+                                r#type: "button",
+                                class: "inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                                onclick: move |_| {
+                                    spawn(async move {
+                                        let mut eval = document::eval(r#"
+                                            if (window.RecurrencyImagePicker) {
+                                                await new Promise((resolve) => {
+                                                    window.__recurrencyAvatarPicked = (data) => {
+                                                        dioxus.send(data);
+                                                        resolve();
+                                                    };
+                                                    window.RecurrencyImagePicker.pickImage();
+                                                });
+                                            } else {
+                                                dioxus.send('');
                                             }
+                                        "#);
+                                        match eval.recv::<String>().await {
+                                            Ok(data) if data.starts_with("data:image/") => {
+                                                avatar.set(data);
+                                                error.set(String::new());
+                                            }
+                                            Ok(_) => {}
+                                            Err(_) => error.set(
+                                                "Could not open the gallery. Try again.".to_string(),
+                                            ),
                                         }
-                                        Err(_) => error.set("Could not read the selected photo".to_string()),
-                                    }
-                                });
-                            },
+                                    });
+                                },
+                                "Change photo"
+                            }
+                        } else {
+                            label {
+                                class: "relative inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent focus-within:ring-2 focus-within:ring-ring",
+                                "Change photo"
+                                input {
+                                    id: "avatar-file",
+                                    r#type: "file",
+                                    accept: "image/*",
+                                    aria_label: "Change profile photo",
+                                    class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
+                                    onchange: move |e: Event<FormData>| {
+                                        let Some(file) = e.files().first().cloned() else {
+                                            return;
+                                        };
+                                        if file.size() > MAX_AVATAR_BYTES {
+                                            error.set("Photo must be 15 MB or smaller".to_string());
+                                            return;
+                                        }
+                                        let content_type = file
+                                            .content_type()
+                                            .unwrap_or_else(|| "image/jpeg".to_string());
+                                        if !content_type.starts_with("image/") {
+                                            error.set("Choose an image from your gallery".to_string());
+                                            return;
+                                        }
+                                        error.set(String::new());
+                                        spawn(async move {
+                                            match file.read_bytes().await {
+                                                Ok(bytes) => {
+                                                    let original = format!(
+                                                        "data:{content_type};base64,{}",
+                                                        base64_encode(&bytes)
+                                                    );
+                                                    match resize_avatar(original.clone()).await {
+                                                        Some(resized) => avatar.set(resized),
+                                                        None if matches!(
+                                                            content_type.as_str(),
+                                                            "image/png" | "image/jpeg" | "image/webp"
+                                                        ) && bytes.len() <= 300_000 =>
+                                                        {
+                                                            avatar.set(original);
+                                                        }
+                                                        None => error.set(
+                                                            "Could not process that image. Try another photo."
+                                                                .to_string(),
+                                                        ),
+                                                    }
+                                                }
+                                                Err(_) => error.set("Could not read the selected photo".to_string()),
+                                            }
+                                        });
+                                    },
+                                }
                             }
                         }
                         if !avatar().is_empty() {

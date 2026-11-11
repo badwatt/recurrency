@@ -300,6 +300,7 @@ fn inject_block() -> String {
         concat!(
             "        // Expose the system-bars bridge so the theme can paint status/nav bars.\n",
             "        addJavascriptInterface(SystemBarsBridge(this), \"RecurrencyAndroid\")\n",
+            "        addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")\n",
             "        // Prevent FOUC: mocha background + themed native loader.\n",
             "        // setBackgroundColor paints mocha behind WebView — eliminates white flash.\n",
             "        // addDocumentStartJavaScript injects CSS + loader HTML before WASM loads.\n",
@@ -342,7 +343,106 @@ private class SystemBarsBridge(private val view: android.webkit.WebView) {
         }
     }
 }
+
+private class ImagePickerBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun pickImage() {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.pickImageForWebView(view) }
+    }
+}
 "##;
+
+pub fn patch_wry_activity(content: &str) -> String {
+    let mut out = content.to_string();
+    if out.contains("// --- Recurrency image picker ---") {
+        return out;
+    }
+    if !out.contains("import android.content.Intent") {
+        out = out.replace(
+            "import android.os.Build",
+            "import android.content.Intent\nimport android.os.Build",
+        );
+    }
+    let field = "    private lateinit var mWebView: RustWebView";
+    if out.contains(field) {
+        out = out.replace(
+            field,
+            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null"),
+        );
+    }
+    let methods = r##"    // --- Recurrency image picker ---
+    fun pickImageForWebView(view: android.webkit.WebView) {
+        recurrencyImageWebView = view
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "image/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        try {
+            startActivityForResult(intent, RECURRENCY_IMAGE_PICK)
+        } catch (_: Exception) {
+            recurrencyImageWebView = null
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != RECURRENCY_IMAGE_PICK) return
+        val view = recurrencyImageWebView ?: return
+        recurrencyImageWebView = null
+        if (resultCode != RESULT_OK) {
+            view.post { view.evaluateJavascript("window.__recurrencyAvatarPicked && window.__recurrencyAvatarPicked('')", null) }
+            return
+        }
+        val uri = data?.data
+        if (uri == null) {
+            view.post { view.evaluateJavascript("window.__recurrencyAvatarPicked && window.__recurrencyAvatarPicked('')", null) }
+            return
+        }
+        Thread {
+            try {
+                val resolver = contentResolver
+                val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                resolver.openInputStream(uri)?.use {
+                    android.graphics.BitmapFactory.decodeStream(it, null, bounds)
+                }
+                var sample = 1
+                if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                    while (bounds.outWidth / sample > 512 || bounds.outHeight / sample > 512) sample *= 2
+                }
+                val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+                val bitmap = resolver.openInputStream(uri)?.use {
+                    android.graphics.BitmapFactory.decodeStream(it, null, options)
+                } ?: run {
+                    view.post { view.evaluateJavascript("window.__recurrencyAvatarPicked && window.__recurrencyAvatarPicked('')", null) }
+                    return@Thread
+                }
+                val max = 256
+                val scale = minOf(1f, max.toFloat() / bitmap.width, max.toFloat() / bitmap.height)
+                val width = (bitmap.width * scale).toInt().coerceAtLeast(1)
+                val height = (bitmap.height * scale).toInt().coerceAtLeast(1)
+                val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, width, height, true)
+                val output = java.io.ByteArrayOutputStream()
+                scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 86, output)
+                val encoded = android.util.Base64.encodeToString(output.toByteArray(), android.util.Base64.NO_WRAP)
+                val js = "window.__recurrencyAvatarPicked && window.__recurrencyAvatarPicked('data:image/jpeg;base64," + encoded + "')"
+                view.post { view.evaluateJavascript(js, null) }
+            } catch (_: Exception) {
+                view.post { view.evaluateJavascript("window.__recurrencyAvatarPicked && window.__recurrencyAvatarPicked('')", null) }
+            }
+        }.start()
+    }
+
+"##;
+    if let Some(pos) = out.rfind("    companion object {") {
+        out.insert_str(pos, methods);
+    }
+    out = out.replace(
+        "    companion object {\n",
+        "    companion object {\n        private const val RECURRENCY_IMAGE_PICK = 4711\n",
+    );
+    out
+}
 
 pub fn patch_webview(content: &str) -> String {
     let mut out = content.to_string();
@@ -368,6 +468,9 @@ pub fn patch_webview(content: &str) -> String {
         if line
             .trim_start()
             .starts_with("addJavascriptInterface(SystemBarsBridge(this), \"RecurrencyAndroid\")")
+            || line
+                .trim_start()
+                .starts_with("addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")")
         {
             continue;
         }
@@ -578,6 +681,14 @@ fn patch_project(root: &Path, icon: &Path, version_code: u32) -> Result<(), Stri
         let content = fs::read_to_string(&webview).map_err(|err| err.to_string())?;
         fs::write(&webview, patch_webview(&content)).map_err(|err| err.to_string())?;
         println!("--- Patched {} ---", webview.display());
+    }
+
+    let mut activities = Vec::new();
+    collect_files(&android_root, "WryActivity.kt", &mut activities);
+    for activity in activities {
+        let content = fs::read_to_string(&activity).map_err(|err| err.to_string())?;
+        fs::write(&activity, patch_wry_activity(&content)).map_err(|err| err.to_string())?;
+        println!("--- Patched {} ---", activity.display());
     }
 
     println!("--- Android patches complete ---");
@@ -906,5 +1017,34 @@ mod tests {
         let patched = patch_styles(content);
         assert!(patched.contains("android:statusBarColor"));
         assert_eq!(patch_styles(&patched), patched);
+    }
+}
+
+
+#[cfg(test)]
+mod image_picker_tests {
+    use super::*;
+
+    #[test]
+    fn patch_wry_activity_installs_native_picker_once() {
+        let source = "package dev.dioxus.main\nimport android.os.Build\nabstract class WryActivity {\n    private lateinit var mWebView: RustWebView\n    companion object {\n        init { }\n    }\n}\n";
+        let once = patch_wry_activity(source);
+        assert!(once.contains("Recurrency image picker"));
+        assert!(once.contains("recurrencyImageWebView"));
+        assert!(once.contains("RECURRENCY_IMAGE_PICK = 4711"));
+        assert!(once.contains("import android.content.Intent"));
+        let twice = patch_wry_activity(&once);
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn patch_webview_installs_image_picker_bridge_once() {
+        let source = "class RustWebView {\n    init {\n        settings.javaScriptCanOpenWindowsAutomatically = true\n    }\n}\n";
+        let once = patch_webview(source);
+        assert!(once.contains("ImagePickerBridge"));
+        assert!(once.contains("RecurrencyImagePicker"));
+        let twice = patch_webview(&once);
+        assert_eq!(once.matches("addJavascriptInterface(ImagePickerBridge").count(), 1);
+        assert_eq!(twice.matches("addJavascriptInterface(ImagePickerBridge").count(), 1);
     }
 }

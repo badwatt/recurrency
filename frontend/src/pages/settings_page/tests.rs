@@ -118,6 +118,8 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(SETTINGS_SOURCES.contains("read_bytes"));
         assert!(SETTINGS_SOURCES.contains("base64_encode"));
         assert!(SETTINGS_SOURCES.contains("absolute inset-0 h-full w-full cursor-pointer opacity-0"));
+        assert!(SETTINGS_SOURCES.contains("RecurrencyImagePicker"));
+        assert!(SETTINGS_SOURCES.contains("await new Promise"));
         assert!(SETTINGS_SOURCES.contains("avatar: Some(avatar())"));
     }
 
