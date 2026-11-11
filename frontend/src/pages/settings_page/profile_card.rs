@@ -159,15 +159,14 @@ pub fn ProfileCard() -> Element {
                     }
                     div { class: "flex flex-col gap-2",
                         label {
-                            r#for: "avatar-file",
-                            class: "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                            class: "relative inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent focus-within:ring-2 focus-within:ring-ring",
                             "Change photo"
-                        }
-                        input {
-                            id: "avatar-file",
-                            r#type: "file",
-                            accept: "image/*",
-                            class: "sr-only",
+                            input {
+                                id: "avatar-file",
+                                r#type: "file",
+                                accept: "image/*",
+                                aria_label: "Change profile photo",
+                                class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
                             onchange: move |e: Event<FormData>| {
                                 let Some(file) = e.files().first().cloned() else {
                                     return;
@@ -210,6 +209,7 @@ pub fn ProfileCard() -> Element {
                                     }
                                 });
                             },
+                            }
                         }
                         if !avatar().is_empty() {
                             button {
