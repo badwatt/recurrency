@@ -106,7 +106,33 @@ pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
     if cache.is_none() {
         *cache = load_collection("subscriptions");
     }
-    Ok(cache.clone().unwrap_or_default())
+    let mut list = cache.clone().unwrap_or_default();
+    let today = chrono::Utc::now().date_naive();
+    let mut changed = false;
+    for subscription in &mut list {
+        if subscription.is_active
+            && subscription
+                .next_billing_date
+                .is_none_or(|date| date < today)
+        {
+            let next = next_billing_local(
+                subscription.start_date,
+                &subscription.frequency,
+                subscription.schedule_day,
+                subscription.schedule_month,
+                subscription.end_date,
+            );
+            if next != subscription.next_billing_date {
+                subscription.next_billing_date = next;
+                changed = true;
+            }
+        }
+    }
+    if changed {
+        save_collection("subscriptions", &list)?;
+        *cache = Some(list.clone());
+    }
+    Ok(list)
 }
 
 fn days_in_month_local(year: i32, month: u32) -> u32 {

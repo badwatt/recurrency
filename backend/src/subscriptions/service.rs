@@ -163,19 +163,56 @@ impl SubscriptionService {
         Ok(subscription)
     }
 
+    async fn refresh_next_billing_date(
+        pool: &PgPool,
+        subscription: &mut Subscription,
+    ) -> AppResult<()> {
+        if !subscription.is_active {
+            return Ok(());
+        }
+        let today = Utc::now().date_naive();
+        let stale = subscription
+            .next_billing_date
+            .is_none_or(|date| date < today);
+        if !stale {
+            return Ok(());
+        }
+        let next = calculate_next_billing_date_scheduled(
+            subscription.start_date,
+            &subscription.frequency,
+            subscription.schedule_day,
+            subscription.schedule_month,
+            subscription.end_date,
+        );
+        if next != subscription.next_billing_date {
+            sqlx::query(
+                "UPDATE subscriptions SET next_billing_date = $1, updated_at = NOW() WHERE id = $2",
+            )
+            .bind(next)
+            .bind(subscription.id)
+            .execute(pool)
+            .await?;
+            subscription.next_billing_date = next;
+        }
+        Ok(())
+    }
+
     pub async fn get_all(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<Subscription>> {
-        let subscriptions = sqlx::query_as::<_, Subscription>(
+        let mut subscriptions = sqlx::query_as::<_, Subscription>(
             "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
         )
         .bind(user_id)
         .fetch_all(pool)
         .await?;
+        for subscription in &mut subscriptions {
+            Self::refresh_next_billing_date(pool, subscription).await?;
+        }
 
         Ok(subscriptions)
     }
 
     pub async fn get_by_id(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
-        let subscription = sqlx::query_as::<_, Subscription>(
+        let mut subscription = sqlx::query_as::<_, Subscription>(
             "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
         )
         .bind(id)
@@ -183,6 +220,7 @@ impl SubscriptionService {
         .fetch_optional(pool)
         .await?
         .ok_or_else(|| AppError::NotFound("Subscription not found".to_string()))?;
+        Self::refresh_next_billing_date(pool, &mut subscription).await?;
 
         Ok(subscription)
     }
@@ -304,22 +342,16 @@ impl SubscriptionService {
     ) -> AppResult<Vec<Subscription>> {
         let from_date = Utc::now().date_naive();
         let to_date = from_date + chrono::Duration::days(days);
-
-        let subscriptions = sqlx::query_as::<_, Subscription>(
-            r#"
-            SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at 
-            FROM subscriptions 
-            WHERE user_id = $1 AND is_active = true AND next_billing_date >= $2 AND next_billing_date <= $3
-              AND (end_date IS NULL OR next_billing_date < end_date)
-            ORDER BY next_billing_date ASC
-            "#,
-        )
-        .bind(user_id)
-        .bind(from_date)
-        .bind(to_date)
-        .fetch_all(pool)
-        .await?;
-
+        let mut subscriptions = Self::get_all(pool, user_id).await?;
+        subscriptions.retain(|subscription| {
+            subscription.is_active
+                && subscription
+                    .next_billing_date
+                    .is_some_and(|date| date >= from_date && date <= to_date)
+                && subscription
+                    .end_date
+                    .is_none_or(|end| subscription.next_billing_date.is_some_and(|date| date < end))
+        });
         Ok(subscriptions)
     }
 

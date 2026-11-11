@@ -721,6 +721,30 @@ async fn subscription_schedule_and_end_date(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn subscription_list_rolls_stale_billing_dates_forward(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let sub = create_subscription_with_date(
+        &pool,
+        user_id,
+        "Stale",
+        Decimal::from(10),
+        "monthly",
+        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+    )
+    .await;
+    sqlx::query("UPDATE subscriptions SET next_billing_date = $1 WHERE id = $2")
+        .bind(NaiveDate::from_ymd_opt(2020, 1, 3).unwrap())
+        .bind(sub.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let listed = SubscriptionService::get_all(&pool, user_id).await.unwrap();
+    let refreshed = listed.iter().find(|item| item.id == sub.id).unwrap();
+    assert!(refreshed.next_billing_date.unwrap() >= chrono::Utc::now().date_naive());
+}
+
+#[sqlx::test]
 async fn subscription_update_start_recalculates_next_billing(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     let req = CreateSubscriptionRequest {

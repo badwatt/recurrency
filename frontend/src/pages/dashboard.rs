@@ -396,7 +396,7 @@ pub fn next_billing_days_text(date: Option<NaiveDate>) -> Option<String> {
         } else if diff == 1 {
             "Tomorrow".into()
         } else if diff < 0 {
-            "Overdue".into()
+            "Due".into()
         } else {
             format!("{} days", diff)
         }
@@ -405,10 +405,6 @@ pub fn next_billing_days_text(date: Option<NaiveDate>) -> Option<String> {
 
 pub fn format_date_short_fn(d: NaiveDate) -> String {
     d.format("%a, %b %-d").to_string()
-}
-
-pub fn is_overdue_fn(d: NaiveDate) -> bool {
-    d < Local::now().date_naive()
 }
 
 pub fn is_today_fn(d: NaiveDate) -> bool {
@@ -789,7 +785,6 @@ pub fn Dashboard() -> Element {
                             for sub in upcoming_top5 {
                                 {
                                     let next_date = sub.next_billing_date.unwrap();
-                                    let overdue = is_overdue_fn(next_date);
                                     let today_flag = is_today_fn(next_date);
                                     let date_str = format_date_short_fn(next_date);
                                     let days_label = next_billing_days_text(Some(next_date));
@@ -816,7 +811,7 @@ pub fn Dashboard() -> Element {
                                                 p { class: "text-sm font-semibold font-mono tabular-nums text-foreground", "{format_currency(sub.amount, &currency)}" }
                                                 if let Some(label) = days_label {
                                                     p {
-                                                        class: if overdue { "text-xs font-medium text-destructive" } else if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
+                                                        class: if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
                                                         {label.to_string()}
                                                     }
                                                 }
@@ -1038,6 +1033,12 @@ mod tests {
             6,
         );
         assert_eq!(dates, vec![date(2025, 6, 10)]);
+    }
+
+    #[test]
+    fn past_billing_dates_are_never_overdue() {
+        let past = Local::now().date_naive() - chrono::Duration::days(2);
+        assert_eq!(next_billing_days_text(Some(past)).as_deref(), Some("Due"));
     }
 
     #[test]
