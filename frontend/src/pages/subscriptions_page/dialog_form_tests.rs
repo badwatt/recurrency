@@ -35,7 +35,10 @@
             amount: "15.99".into(),
             currency: "EUR".into(),
             frequency: "monthly".into(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: "2024-01-01".into(),
+            end_date: String::new(),
             category_id: "cat-123".into(),
             notes: "Family plan".into(),
             logo_url: "netflix.png".into(),
@@ -53,7 +56,10 @@
             amount: String::new(),
             currency: String::new(),
             frequency: String::new(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: String::new(),
+            end_date: String::new(),
             category_id: String::new(),
             notes: String::new(),
             logo_url: String::new(),
@@ -134,7 +140,10 @@
             amount: "15.99".into(),
             currency: "EUR".into(),
             frequency: "monthly".into(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: "2024-01-01".into(),
+            end_date: String::new(),
             category_id: "cat-123".into(),
             notes: "Family plan".into(),
             logo_url: "netflix.png".into(),
@@ -392,3 +401,24 @@
         assert!(prod.contains("w-[130px] sm:w-[150px]"),
             "sort select must have fixed width on mobile");
     }
+
+#[test]
+fn billing_schedule_ui_exposes_recurrence_controls() {
+    let src = include_str!("dialog.rs");
+    assert!(src.contains("Billing schedule"));
+    assert!(src.contains("Day of the week"));
+    assert!(src.contains("Day of the month"));
+    assert!(src.contains("Start date"));
+    assert!(src.contains("End date"));
+    assert!(src.contains("Leave empty to start from today."));
+    assert!(src.contains("Billing stops before this date."));
+}
+
+#[test]
+fn dialog_submits_schedule_and_end_date() {
+    let src = include_str!("dialog.rs");
+    assert!(src.contains("schedule_day: f.schedule_day"));
+    assert!(src.contains("schedule_month: f.schedule_month"));
+    assert!(src.contains("clear_end_date: f.end_date.is_empty()"));
+    assert!(!src.contains("schedule_day: None"));
+}

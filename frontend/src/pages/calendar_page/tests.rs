@@ -526,17 +526,14 @@ use chrono::NaiveDate;
     // ── TDD: Calendar subscription dialog click-outside ──
     #[test]
     fn calendar_sub_dialog_card_has_stop_propagation() {
-        // Add/Edit subscription dialog now lives in edit_dialog.rs and must stop
-        // propagation on the card and close the backdrop on click.
-        let src = include_str!("../calendar_page/edit_dialog.rs");
-        assert!(
-            src.contains("e.stop_propagation()"),
-            "Calendar subscription dialog card must have stop_propagation"
-        );
-        assert!(
-            src.contains("open.set(false)"),
-            "Calendar subscription dialog backdrop must close on click"
-        );
+        // The calendar reuses the shared subscription dialog, which owns the
+        // backdrop/card interaction.
+        let calendar = include_str!("../calendar_page/edit_dialog.rs");
+        let shared = include_str!("../subscriptions_page/dialog.rs");
+        let dialog = include_str!("../../components/dialog.rs");
+        assert!(calendar.contains("render_dialog"));
+        assert!(dialog.contains("e.stop_propagation()"));
+        assert!(shared.contains("dialog_open.set(false)"));
     }
 
     // ── calendar_days additional edge cases ──
@@ -1064,13 +1061,12 @@ use chrono::NaiveDate;
 
     #[test]
     fn handle_edit_submit_has_create_branch() {
-        // The submit handler lives in edit_dialog.rs and must have an else
-        // branch calling Storage::create_subscription when editing_id is None.
-        let src = include_str!("../calendar_page/edit_dialog.rs");
-        assert!(
-            src.contains("Storage::create_subscription"),
-            "handle_edit_submit must call Storage::create_subscription for new subscriptions"
-        );
+        // Both pages use the shared submit path.
+        let calendar = include_str!("../calendar_page/edit_dialog.rs");
+        let shared = include_str!("../subscriptions_page/dialog.rs");
+        assert!(calendar.contains("render_dialog"));
+        assert!(shared.contains("Storage::create_subscription"));
+        assert!(shared.contains("Storage::update_subscription"));
     }
 
     #[test]
@@ -1111,17 +1107,22 @@ use chrono::NaiveDate;
     }
 
     #[test]
-    fn edit_dialog_refreshes_calendar_before_closing() {
-        let src = include_str!("edit_dialog.rs");
-        for call in ["Storage::update_subscription", "Storage::create_subscription"] {
-            let branch = src.split(call).nth(1).unwrap_or("");
-            let refresh = branch.find("calendar_month").unwrap_or(usize::MAX);
-            let close = branch.find("open.set(false)").unwrap_or(usize::MAX);
-            assert!(
-                refresh < close,
-                "{call} must refresh the calendar before closing the dialog"
-            );
-        }
+    fn completed_items_are_marked_for_transparency() {
+        let date = NaiveDate::from_ymd_opt(2020, 1, 3).unwrap();
+        let item = make_calendar_item("Old", dec!(5), date);
+        let display = item_display(&item, "EUR");
+        assert!(display.is_past);
+        let future = make_calendar_item("New", dec!(5), NaiveDate::from_ymd_opt(2099, 1, 3).unwrap());
+        assert!(!item_display(&future, "EUR").is_past);
+    }
+
+    #[test]
+    fn edit_dialog_refreshes_calendar_after_shared_save() {
+        let calendar = include_str!("edit_dialog.rs");
+        let shared = include_str!("../subscriptions_page/dialog.rs");
+        assert!(calendar.contains("Storage::calendar_month"));
+        assert!(calendar.contains("on_saved"));
+        assert!(shared.contains("callback.call"));
     }
 
     #[test]

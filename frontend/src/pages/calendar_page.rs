@@ -126,7 +126,8 @@ pub fn CalendarPage() -> Element {
     // Sort upcoming items by billing date for mobile view
     let mut upcoming: Vec<_> = items.iter().collect();
     upcoming.sort_by_key(|a| a.billing_date);
-    let upcoming_display: Vec<(String, String, String, String, Option<String>)> = upcoming
+    let today = now;
+    let upcoming_display: Vec<(String, String, String, String, Option<String>, bool)> = upcoming
         .iter()
         .map(|item| {
             (
@@ -135,6 +136,7 @@ pub fn CalendarPage() -> Element {
                 item.billing_date.format("%a, %b %e").to_string(),
                 format_currency(item.amount, &item.currency),
                 item.logo_url.clone(),
+                item.billing_date < today,
             )
         })
         .collect();
@@ -240,9 +242,15 @@ pub fn CalendarPage() -> Element {
                 } else {
                     rsx! {
                         div { class: "space-y-2",
-                            for (id, name, date_str, amount_str, logo_url) in &upcoming_display {
+                            for (id, name, date_str, amount_str, logo_url, is_past) in &upcoming_display {
                                 {rsx! {
-                                    div { key: "{id}", class: "rounded-lg border border-border bg-card p-3",
+                                    div {
+                                        key: "{id}",
+                                        class: if *is_past {
+                                            "rounded-lg border border-border bg-card p-3 opacity-50"
+                                        } else {
+                                            "rounded-lg border border-border bg-card p-3"
+                                        },
                                         div { class: "flex items-center justify-between",
                                             div { class: "flex items-center gap-3",
                                                 div { class: "flex h-10 w-10 items-center justify-center rounded-full bg-primary/10",
@@ -364,7 +372,11 @@ pub fn CalendarPage() -> Element {
                                                             {rsx! {
                                                                 div {
                                                                     key: "{item.subscription_id}",
-                                                                    class: "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs",
+                                                                    class: if item.is_past {
+                                                                        "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs opacity-50"
+                                                                    } else {
+                                                                        "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs"
+                                                                    },
                                                                     title: item.title_str.to_string(),
                                                                     if let Some(url) = &item.logo_url {
                                                                         {logo_image_with_fallback(&format!("cal-{}", item.subscription_id), Some(url.as_str()), &item.name, "h-4 w-4 rounded object-contain")
@@ -402,6 +414,10 @@ pub fn CalendarPage() -> Element {
                             div { class: "h-4 w-4 rounded bg-primary/10" }
                             span { "Payment due" }
                         }
+                        div { class: "flex items-center gap-2",
+                            div { class: "h-4 w-4 rounded bg-primary/10 opacity-50" }
+                            span { "Completed" }
+                        }
                     }
                 }
             }
@@ -420,7 +436,11 @@ pub fn CalendarPage() -> Element {
                                 {rsx! {
                                     div {
                                         key: "{item.subscription_id}",
-                                        class: "rounded-lg border border-border p-4 space-y-2",
+                                        class: if item.billing_date < now {
+                                            "rounded-lg border border-border p-4 space-y-2 opacity-50"
+                                        } else {
+                                            "rounded-lg border border-border p-4 space-y-2"
+                                        },
                                         // Top row: name + amount
                                         div { class: "flex items-start justify-between gap-2",
                                             div { class: "flex-1 min-w-0",

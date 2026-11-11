@@ -23,6 +23,7 @@ use crate::utils::icons::icon_display;
 /// Weekly uses 52/12 weeks, matching the reports backend.
 pub fn monthly_equivalent(amount: Decimal, frequency: &str) -> Decimal {
     match frequency {
+        "daily" => amount * Decimal::from(30),
         "weekly" => amount * Decimal::from_str_exact("4.33").unwrap_or(Decimal::ZERO),
         "monthly" => amount,
         "quarterly" => amount / Decimal::from(3),
@@ -92,6 +93,134 @@ pub fn billing_dates_in_month(
     dates
 }
 
+fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
+    let total = date.year() * 12 + date.month() as i32 - 1 + months;
+    let year = total.div_euclid(12);
+    let month = (total.rem_euclid(12) + 1) as u32;
+    let day = (day.max(1) as u32).min(days_in_month(year, month));
+    NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
+}
+
+fn advance_scheduled(
+    date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> NaiveDate {
+    match frequency {
+        "daily" => date + chrono::Duration::days(1),
+        "weekly" => date + chrono::Duration::weeks(1),
+        "monthly" => add_months_with_day(date, 1, schedule_day.unwrap_or(date.day() as i16)),
+        "quarterly" => add_months_with_day(date, 3, schedule_day.unwrap_or(date.day() as i16)),
+        "yearly" => {
+            let year = date.year() + 1;
+            let month = schedule_month.unwrap_or(date.month() as i16) as u32;
+            let day = (schedule_day.unwrap_or(date.day() as i16).max(1) as u32)
+                .min(days_in_month(year, month));
+            NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
+        }
+        _ => date + chrono::Duration::days(30),
+    }
+}
+
+fn first_scheduled_on_or_after(
+    start_date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> NaiveDate {
+    match frequency {
+        "weekly" => {
+            let target = schedule_day.unwrap_or(start_date.weekday().number_from_monday() as i16);
+            let current = start_date.weekday().number_from_monday() as i16;
+            start_date + chrono::Duration::days((target - current).rem_euclid(7) as i64)
+        }
+        "monthly" | "quarterly" => {
+            let day = schedule_day.unwrap_or(start_date.day() as i16);
+            let candidate = NaiveDate::from_ymd_opt(
+                start_date.year(),
+                start_date.month(),
+                (day.max(1) as u32).min(days_in_month(start_date.year(), start_date.month())),
+            )
+            .unwrap_or(start_date);
+            if candidate < start_date {
+                add_months_with_day(candidate, 1, day)
+            } else {
+                candidate
+            }
+        }
+        "yearly" => {
+            let day = schedule_day.unwrap_or(start_date.day() as i16);
+            let month = schedule_month.unwrap_or(start_date.month() as i16) as u32;
+            let candidate = NaiveDate::from_ymd_opt(
+                start_date.year(),
+                month,
+                (day.max(1) as u32).min(days_in_month(start_date.year(), month)),
+            )
+            .unwrap_or(start_date);
+            if candidate < start_date {
+                let next_year = start_date.year() + 1;
+                NaiveDate::from_ymd_opt(
+                    next_year,
+                    month,
+                    (day.max(1) as u32).min(days_in_month(next_year, month)),
+                )
+                .unwrap_or(start_date)
+            } else {
+                candidate
+            }
+        }
+        _ => start_date,
+    }
+}
+
+pub fn first_billing_starts_in_month(
+    start_date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+    year: i32,
+    month: u32,
+) -> bool {
+    let first = first_scheduled_on_or_after(start_date, frequency, schedule_day, schedule_month);
+    first.year() == year && first.month() == month
+}
+
+/// Charge dates including the configured recurrence schedule and end date.
+pub fn billing_dates_in_month_scheduled(
+    next_billing_date: Option<NaiveDate>,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+    end_date: Option<NaiveDate>,
+    year: i32,
+    month: u32,
+) -> Vec<NaiveDate> {
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
+    let month_end =
+        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).expect("valid month end");
+
+    let Some(mut date) = next_billing_date else {
+        return Vec::new();
+    };
+    let mut guard = 0;
+    while date < month_start && guard < 1000 {
+        date = advance_scheduled(date, frequency, schedule_day, schedule_month);
+        guard += 1;
+    }
+
+    let mut dates = Vec::new();
+    while date <= month_end && guard < 2000 {
+        if end_date.is_some_and(|end| date >= end) {
+            break;
+        }
+        dates.push(date);
+        date = advance_scheduled(date, frequency, schedule_day, schedule_month);
+        guard += 1;
+    }
+    dates
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AccountBudget {
     pub account_id: Uuid,
@@ -149,7 +278,20 @@ pub fn build_account_budgets(
         })
         .collect();
 
+    let month_start = today.with_day(1).unwrap_or(today);
+    let month_end = today
+        .with_day(days_in_month(today.year(), today.month()))
+        .unwrap_or(today);
     for sub in subscriptions.iter().filter(|s| s.is_active) {
+        let first_billing = first_scheduled_on_or_after(
+            sub.start_date,
+            &sub.frequency,
+            sub.schedule_day,
+            sub.schedule_month,
+        );
+        if first_billing > month_end || sub.end_date.is_some_and(|end| end <= month_start) {
+            continue;
+        }
         let entry = plan.entry(sub.account_id).or_insert_with(|| AccountBudget {
             account_id: sub.account_id,
             name: "No account".to_string(),
@@ -169,10 +311,12 @@ pub fn build_account_budgets(
         entry.budget += monthly;
         entry.subscription_count += 1;
 
-        for date in billing_dates_in_month(
+        for date in billing_dates_in_month_scheduled(
             sub.next_billing_date,
-            sub.start_date,
             &sub.frequency,
+            sub.schedule_day,
+            sub.schedule_month,
+            sub.end_date,
             today.year(),
             today.month(),
         ) {
@@ -780,7 +924,10 @@ mod tests {
             amount,
             currency: "EUR".into(),
             frequency: frequency.into(),
+            schedule_day: None,
+            schedule_month: None,
             start_date,
+            end_date: None,
             next_billing_date,
             is_active,
             notes: None,
@@ -852,6 +999,75 @@ mod tests {
         let some =
             billing_dates_in_month(Some(date(2024, 6, 10)), date(2024, 1, 1), "yearly", 2024, 6);
         assert_eq!(some, vec![date(2024, 6, 10)]);
+    }
+
+    #[test]
+    fn scheduled_billing_respects_end_date() {
+        let end = Some(date(2024, 3, 1));
+        let feb = billing_dates_in_month_scheduled(
+            Some(date(2024, 1, 15)),
+            "monthly",
+            Some(15),
+            None,
+            end,
+            2024,
+            2,
+        );
+        assert_eq!(feb, vec![date(2024, 2, 15)]);
+        let march = billing_dates_in_month_scheduled(
+            Some(date(2024, 1, 15)),
+            "monthly",
+            Some(15),
+            None,
+            end,
+            2024,
+            3,
+        );
+        assert!(march.is_empty());
+    }
+
+    #[test]
+    fn scheduled_yearly_keeps_configured_month() {
+        let dates = billing_dates_in_month_scheduled(
+            Some(date(2024, 6, 10)),
+            "yearly",
+            Some(10),
+            Some(6),
+            None,
+            2025,
+            6,
+        );
+        assert_eq!(dates, vec![date(2025, 6, 10)]);
+    }
+
+    #[test]
+    fn first_billing_month_follows_start_activation() {
+        let start_past = date(2024, 11, 3);
+        let start_future = date(2024, 11, 12);
+        assert!(first_billing_starts_in_month(
+            start_past,
+            "monthly",
+            Some(3),
+            None,
+            2024,
+            11
+        ));
+        assert!(!first_billing_starts_in_month(
+            start_future,
+            "monthly",
+            Some(3),
+            None,
+            2024,
+            11
+        ));
+        assert!(first_billing_starts_in_month(
+            start_future,
+            "monthly",
+            Some(3),
+            None,
+            2024,
+            12
+        ));
     }
 
     #[test]

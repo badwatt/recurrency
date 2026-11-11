@@ -283,3 +283,16 @@ fn index_html_critical_theming_prevents_android_fouc() {
     assert!(style_section.contains("#0d0d11"), "Dark theme bg must be #0d0d11");
     assert!(style_section.contains("#1e1e2e"), "Mocha theme bg must be #1e1e2e");
 }
+
+#[test]
+fn loading_favicon_is_the_same_png_as_the_loaded_clock() {
+    let html = include_str!("../../../index.html");
+    assert!(
+        html.contains("data:image/png;base64,"),
+        "the pre-WASM favicon must use the clock PNG, not a different SVG mark"
+    );
+    assert!(
+        !html.contains("image/svg+xml"),
+        "there must not be a second, different loading favicon"
+    );
+}

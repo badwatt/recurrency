@@ -37,8 +37,8 @@
     @keyframes loader-dot { 0%, 60%, 100% { opacity: 0; } 30% { opacity: 1; } }
   </style>
   <noscript><style>body{visibility:visible!important}</style></noscript>
-  <!-- Instant favicon (the app's clock mark) before the WASM bundle loads. -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E">
+  <!-- Same clock favicon during loading and after the WASM bundle mounts. -->
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAADMUExURWNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WJl8WFk8WBj8XJ08o6Q9aao97O1+HJ18nh78+Xl/fr6/////2Rn8ZeZ9ubm/fv8/+3t/eDh/KSm9/b3/vf3/sfI+pOV9Xh684WH9IWI9MbI+uXm/ZKU9WVo8V9i8Xl884KE9IqM9fv7/4qM9Hd684iL9OLi/G5w8v7+/7u8+Xp98+fo/d/g/Jia9mhr8crL+sTF+m5x8vj4/oKF9HN18qqr96an92ls8o2Q9XtwkJgAAAAKdFJOUwAeftD2Rcv+5MoJ1gbKAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAW5JREFUOMuFk4lygjAQhgMoahIuhUVFOWwLeFLsofY+3v+dGhkJh1b+YSYZ8mWT7P6LEEKCKLXwmVqSKKBMbbmDL6ojt7P1Lv5XXUYIMr4iWUBiKT6hCmUfKZ0iIqlYJqqmG4au9UmBSIjfnw4M0wImyzQGlL8F5TN7OAIYO5OJMwYYDe38fw7YUxc8P5jd3M6COw/cqV0F6NCFMIrnizBczOMoBHdIywAZjCBcUkxX6/WKDcsQRgNSBgzwIraFbixrcxwjD4wSQPom+DEuABz7YKqEA1SzxoFSBpRgbGmUA4oOTkJOwP2RJIkDulJEMCDdZsDKenhU2U6yTcGg5wB5egbY7Q+kBvAjMF6+WLB+faO1I/JLsulhv4P3j3n1kkQ9PTNDPr++f2rP5Ik6uYIqtUTxVOdBzlKdF0shTMqFYvFyJ9ttEvgXys0Nk6Z1wzRarmLa38y0asW0jbYXetcapyc0tx4jetebt6H9/wDLaj2GGyXoywAAAABJRU5ErkJggg==">
   <script>
     // Safety net: if WASM fails or takes >15s, show body + drop the loader anyway
     setTimeout(function(){

@@ -101,10 +101,11 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
 
 pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
     let freq_order: std::collections::HashMap<&str, i32> = std::collections::HashMap::from([
-        ("weekly", 0),
-        ("monthly", 1),
-        ("quarterly", 2),
-        ("yearly", 3),
+        ("daily", 0),
+        ("weekly", 1),
+        ("monthly", 2),
+        ("quarterly", 3),
+        ("yearly", 4),
     ]);
 
     subs.sort_by(|a, b| {

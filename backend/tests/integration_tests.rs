@@ -17,6 +17,7 @@ use recurrency_backend::notifications::channels::{NotificationProvider, UpdateNo
 use recurrency_backend::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
 use recurrency_backend::categories::models::CreateCategoryRequest;
 use recurrency_backend::categories::service::CategoryService;
+use recurrency_backend::reports::service::ReportService;
 use recurrency_backend::shared::error::AppError;
 use recurrency_backend::subscriptions::models::{
     CreateSubscriptionRequest, UpdateSubscriptionRequest,
@@ -69,7 +70,10 @@ async fn create_subscription(
         amount,
         currency: "USD".to_string(),
         frequency: frequency.to_string(),
+        schedule_day: None,
+        schedule_month: None,
         start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+        end_date: None,
         account_id: Uuid::nil(),
         category_id: None,
         notes: None,
@@ -93,7 +97,10 @@ async fn create_subscription_with_date(
         amount,
         currency: "USD".to_string(),
         frequency: frequency.to_string(),
+        schedule_day: None,
+        schedule_month: None,
         start_date,
+        end_date: None,
         account_id: Uuid::nil(),
         category_id: None,
         notes: None,
@@ -308,7 +315,10 @@ async fn cross_tenant_subscription_account_category_rejected(pool: PgPool) {
             amount: Decimal::from(10),
             currency: "EUR".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             account_id: account_b.id,
             category_id: Some(category_b.id),
             notes: None,
@@ -524,7 +534,11 @@ async fn subscription_update_name(pool: PgPool) {
         amount: None,
         currency: None,
         frequency: None,
+        schedule_day: None,
+        schedule_month: None,
         start_date: None,
+        end_date: None,
+        clear_end_date: false,
         next_billing_date: None,
         account_id: None,
         category_id: None,
@@ -548,7 +562,11 @@ async fn subscription_update_deactivate(pool: PgPool) {
         amount: None,
         currency: None,
         frequency: None,
+        schedule_day: None,
+        schedule_month: None,
         start_date: None,
+        end_date: None,
+        clear_end_date: false,
         next_billing_date: None,
         account_id: None,
         category_id: None,
@@ -615,7 +633,11 @@ async fn subscription_get_upcoming_excludes_inactive(pool: PgPool) {
         amount: None,
         currency: None,
         frequency: None,
+        schedule_day: None,
+        schedule_month: None,
         start_date: None,
+        end_date: None,
+        clear_end_date: false,
         next_billing_date: None,
         account_id: None,
         category_id: None,
@@ -631,6 +653,144 @@ async fn subscription_get_upcoming_excludes_inactive(pool: PgPool) {
         .await
         .unwrap();
     assert!(upcoming.iter().all(|s| s.is_active));
+}
+
+#[sqlx::test]
+async fn subscription_schedule_and_end_date(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let start = NaiveDate::from_ymd_opt(2099, 1, 1).unwrap();
+    let end = NaiveDate::from_ymd_opt(2099, 4, 1).unwrap();
+    let req = CreateSubscriptionRequest {
+        name: "Scheduled".to_string(),
+        amount: Decimal::from(10),
+        currency: "EUR".to_string(),
+        frequency: "monthly".to_string(),
+        schedule_day: Some(15),
+        schedule_month: None,
+        start_date: start,
+        end_date: Some(end),
+        account_id: Uuid::nil(),
+        category_id: None,
+        notes: None,
+        logo_url: None,
+    };
+    let sub = SubscriptionService::create(&pool, user_id, req)
+        .await
+        .unwrap();
+    assert_eq!(sub.schedule_day, Some(15));
+    assert_eq!(sub.end_date, Some(end));
+    assert_eq!(sub.next_billing_date, Some(NaiveDate::from_ymd_opt(2099, 1, 15).unwrap()));
+
+    let calendar = SubscriptionService::get_calendar(&pool, user_id, 2099, 1)
+        .await
+        .unwrap();
+    assert_eq!(calendar.len(), 1);
+    assert_eq!(calendar[0].billing_date, NaiveDate::from_ymd_opt(2099, 1, 15).unwrap());
+
+    let after_end = SubscriptionService::get_calendar(&pool, user_id, 2099, 4)
+        .await
+        .unwrap();
+    assert!(after_end.is_empty());
+
+    let report = ReportService::get_monthly_summary(&pool, user_id, 2099, 5)
+        .await
+        .unwrap();
+    assert_eq!(report.subscriptions_total, Decimal::ZERO);
+    let categories = ReportService::get_category_breakdown(&pool, user_id, 2099, 5)
+        .await
+        .unwrap();
+    assert!(categories.is_empty());
+
+    let cleared = SubscriptionService::update(
+        &pool,
+        user_id,
+        sub.id,
+        UpdateSubscriptionRequest {
+            clear_end_date: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert!(cleared.end_date.is_none());
+
+    let report = ReportService::get_monthly_summary(&pool, user_id, 2099, 5)
+        .await
+        .unwrap();
+    assert_eq!(report.subscriptions_total, Decimal::from(10));
+}
+
+#[sqlx::test]
+async fn subscription_update_start_recalculates_next_billing(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let req = CreateSubscriptionRequest {
+        name: "Recalculate".to_string(),
+        amount: Decimal::from(10),
+        currency: "EUR".to_string(),
+        frequency: "monthly".to_string(),
+        schedule_day: Some(15),
+        schedule_month: None,
+        start_date: NaiveDate::from_ymd_opt(2099, 1, 1).unwrap(),
+        end_date: None,
+        account_id: Uuid::nil(),
+        category_id: None,
+        notes: None,
+        logo_url: None,
+    };
+    let sub = SubscriptionService::create(&pool, user_id, req)
+        .await
+        .unwrap();
+    let updated = SubscriptionService::update(
+        &pool,
+        user_id,
+        sub.id,
+        UpdateSubscriptionRequest {
+            start_date: Some(NaiveDate::from_ymd_opt(2099, 2, 1).unwrap()),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        updated.next_billing_date,
+        Some(NaiveDate::from_ymd_opt(2099, 2, 15).unwrap())
+    );
+}
+
+#[sqlx::test]
+async fn subscription_calendar_keeps_completed_dates(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let sub = create_subscription_with_date(
+        &pool,
+        user_id,
+        "Completed",
+        Decimal::from(10),
+        "monthly",
+        NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
+    )
+    .await;
+    // Set the recurring day to the 3rd so the month has a completed date.
+    let updated = SubscriptionService::update(
+        &pool,
+        user_id,
+        sub.id,
+        UpdateSubscriptionRequest {
+            schedule_day: Some(3),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert!(updated.end_date.is_none());
+
+    let january = SubscriptionService::get_calendar(&pool, user_id, 2024, 1)
+        .await
+        .unwrap();
+    assert!(january.iter().any(|item| item.billing_date == NaiveDate::from_ymd_opt(2024, 1, 3).unwrap()));
+    let february = SubscriptionService::get_calendar(&pool, user_id, 2024, 2)
+        .await
+        .unwrap();
+    assert!(february.iter().any(|item| item.billing_date == NaiveDate::from_ymd_opt(2024, 2, 3).unwrap()));
 }
 
 #[sqlx::test]
@@ -828,7 +988,10 @@ async fn account_delete_reassigns_subscriptions_to_default(pool: PgPool) {
             amount: Decimal::from(999),
             currency: "EUR".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             account_id: extra.id,
             category_id: None,
             notes: None,

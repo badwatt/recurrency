@@ -11,6 +11,7 @@ pub const CURRENCIES: &[(&str, &str)] = &[
 
 /// Supported billing frequencies.
 pub const FREQUENCIES: &[(&str, &str)] = &[
+    ("daily", "Daily"),
     ("weekly", "Weekly"),
     ("monthly", "Monthly"),
     ("quarterly", "Quarterly"),
@@ -58,12 +59,13 @@ mod tests {
 
     #[test]
     fn frequencies_count() {
-        assert_eq!(FREQUENCIES.len(), 4);
+        assert_eq!(FREQUENCIES.len(), 5);
     }
 
     #[test]
     fn frequencies_contains_all_expected() {
         let freqs: Vec<&str> = FREQUENCIES.iter().map(|(k, _)| *k).collect();
+        assert!(freqs.contains(&"daily"));
         assert!(freqs.contains(&"weekly"));
         assert!(freqs.contains(&"monthly"));
         assert!(freqs.contains(&"quarterly"));

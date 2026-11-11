@@ -246,21 +246,24 @@ pub(crate) async fn build_summary(
 
     let subscriptions = sqlx::query_as::<
         _,
-        (uuid::Uuid, rust_decimal::Decimal, String, chrono::NaiveDate, Option<chrono::NaiveDate>, bool),
+        (uuid::Uuid, rust_decimal::Decimal, String, Option<i16>, Option<i16>, chrono::NaiveDate, Option<chrono::NaiveDate>, Option<chrono::NaiveDate>, bool),
     >(
-        "SELECT account_id, amount, frequency, start_date, next_billing_date, is_active FROM subscriptions WHERE user_id = $1",
+        "SELECT account_id, amount, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active FROM subscriptions WHERE user_id = $1",
     )
     .bind(user_id)
     .fetch_all(pool)
     .await
     .map_err(|error| error.to_string())?
     .into_iter()
-    .map(|(account_id, amount, frequency, start_date, next_billing_date, is_active)| {
+    .map(|(account_id, amount, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active)| {
         SummarySubscription {
             account_id,
             amount,
             frequency,
+            schedule_day,
+            schedule_month,
             start_date,
+            end_date,
             next_billing_date,
             is_active,
         }

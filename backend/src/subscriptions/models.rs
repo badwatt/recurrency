@@ -15,7 +15,10 @@ pub struct Subscription {
     pub amount: Decimal,
     pub currency: String,
     pub frequency: String,
+    pub schedule_day: Option<i16>,
+    pub schedule_month: Option<i16>,
     pub start_date: NaiveDate,
+    pub end_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
     pub notes: Option<String>,
@@ -31,8 +34,15 @@ pub struct CreateSubscriptionRequest {
     pub amount: Decimal,
     pub currency: String,
     #[validate(length(min = 1, message = "Frequency is required"))]
-    pub frequency: String, // weekly, monthly, quarterly, yearly
+    pub frequency: String, // daily, weekly, monthly, quarterly, yearly
+    #[serde(default)]
+    pub schedule_day: Option<i16>,
+    #[serde(default)]
+    pub schedule_month: Option<i16>,
+    #[serde(default = "today_date")]
     pub start_date: NaiveDate,
+    #[serde(default)]
+    pub end_date: Option<NaiveDate>,
     #[serde(default)]
     pub account_id: Uuid,
     pub category_id: Option<Uuid>,
@@ -40,13 +50,18 @@ pub struct CreateSubscriptionRequest {
     pub logo_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct UpdateSubscriptionRequest {
     pub name: Option<String>,
     pub amount: Option<Decimal>,
     pub currency: Option<String>,
     pub frequency: Option<String>,
+    pub schedule_day: Option<i16>,
+    pub schedule_month: Option<i16>,
     pub start_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>,
+    #[serde(default)]
+    pub clear_end_date: bool,
     pub next_billing_date: Option<NaiveDate>,
     pub account_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
@@ -65,7 +80,10 @@ pub struct SubscriptionResponse {
     pub amount: Decimal,
     pub currency: String,
     pub frequency: String,
+    pub schedule_day: Option<i16>,
+    pub schedule_month: Option<i16>,
     pub start_date: NaiveDate,
+    pub end_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
     pub notes: Option<String>,
@@ -85,7 +103,10 @@ impl From<Subscription> for SubscriptionResponse {
             amount: s.amount,
             currency: s.currency,
             frequency: s.frequency,
+            schedule_day: s.schedule_day,
+            schedule_month: s.schedule_month,
             start_date: s.start_date,
+            end_date: s.end_date,
             next_billing_date: s.next_billing_date,
             is_active: s.is_active,
             notes: s.notes,
@@ -96,10 +117,24 @@ impl From<Subscription> for SubscriptionResponse {
     }
 }
 
+/// When a client omits the start date, the recurrence anchors on today.
+fn today_date() -> NaiveDate {
+    Utc::now().date_naive()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use validator::Validate;
+
+    #[test]
+    fn create_request_without_start_date_defaults_to_today() {
+        let req: CreateSubscriptionRequest = serde_json::from_str(
+            r#"{"name":"Started today","amount":"10.00","currency":"EUR","frequency":"monthly"}"#,
+        )
+        .unwrap();
+        assert_eq!(req.start_date, Utc::now().date_naive());
+    }
 
     #[test]
     fn create_subscription_request_valid() {
@@ -109,7 +144,10 @@ mod tests {
             amount: Decimal::from(1599),
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             category_id: None,
             notes: None,
             logo_url: None,
@@ -124,7 +162,10 @@ mod tests {
             amount: Decimal::TEN,
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             account_id: Uuid::new_v4(),
             category_id: None,
             notes: None,
@@ -141,7 +182,10 @@ mod tests {
             amount: Decimal::TEN,
             currency: "USD".to_string(),
             frequency: "".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             category_id: None,
             notes: None,
             logo_url: None,
@@ -157,7 +201,11 @@ mod tests {
             amount: None,
             currency: None,
             frequency: None,
+            schedule_day: None,
+            schedule_month: None,
             start_date: None,
+            end_date: None,
+            clear_end_date: false,
             next_billing_date: None,
             category_id: None,
             is_active: None,
@@ -176,7 +224,11 @@ mod tests {
             amount: Some(Decimal::TEN),
             currency: None,
             frequency: Some("yearly".to_string()),
+            schedule_day: None,
+            schedule_month: None,
             start_date: None,
+            end_date: None,
+            clear_end_date: false,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2025, 6, 1).unwrap()),
             account_id: None,
             category_id: None,
@@ -203,7 +255,10 @@ mod tests {
             amount: Decimal::TEN,
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            end_date: None,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()),
             is_active: true,
             notes: Some("notes".to_string()),
@@ -229,7 +284,10 @@ mod tests {
             amount: Decimal::from(1599),
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            end_date: None,
             next_billing_date: None,
             is_active: true,
             notes: None,
@@ -253,7 +311,10 @@ mod tests {
                 amount: Decimal::TEN,
                 currency: "USD".to_string(),
                 frequency: freq.to_string(),
+                schedule_day: None,
+                schedule_month: None,
                 start_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+                end_date: None,
                 category_id: None,
                 notes: None,
                 logo_url: None,
@@ -273,7 +334,10 @@ mod tests {
             amount: Decimal::from(1599),
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            end_date: None,
             next_billing_date: None,
             is_active: true,
             notes: None,
@@ -297,7 +361,10 @@ mod tests {
             amount: Decimal::from(999),
             currency: "EUR".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            end_date: None,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             is_active: false,
             notes: Some("Cancelled in December".to_string()),
@@ -317,7 +384,10 @@ mod tests {
             amount: Decimal::from(999),
             currency: "USD".to_string(),
             frequency: "monthly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             account_id: Uuid::new_v4(),
             category_id: Some(cat_id),
             notes: None,
@@ -335,7 +405,11 @@ mod tests {
             amount: None,
             currency: None,
             frequency: None,
+            schedule_day: None,
+            schedule_month: None,
             start_date: None,
+            end_date: None,
+            clear_end_date: false,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()),
             category_id: None,
             is_active: Some(true),
@@ -357,7 +431,10 @@ mod tests {
             amount: Decimal::TEN,
             currency: "GBP".to_string(),
             frequency: "weekly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            end_date: None,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 20).unwrap()),
             is_active: true,
             notes: None,
@@ -379,7 +456,10 @@ mod tests {
             amount: Decimal::ONE,
             currency: "JPY".to_string(),
             frequency: "yearly".to_string(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+            end_date: None,
             next_billing_date: None,
             is_active: true,
             notes: None,

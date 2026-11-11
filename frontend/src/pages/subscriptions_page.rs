@@ -33,7 +33,7 @@ pub use logic::*;
 use delete_dialog::DeleteSubscriptionDialog;
 use notes_dialog::NotesSubscriptionDialog;
 mod cards;
-mod dialog;
+pub(crate) mod dialog;
 use cards::{render_grid_card, render_list_card};
 use dialog::render_dialog;
 
@@ -64,6 +64,7 @@ pub fn SubscriptionsPage() -> Element {
     let mut currency_error: Signal<String> = use_signal(String::new);
     let mut frequency_error: Signal<String> = use_signal(String::new);
     let mut start_date_error: Signal<String> = use_signal(String::new);
+    let mut end_date_error: Signal<String> = use_signal(String::new);
     let mut account_error: Signal<String> = use_signal(String::new);
     let mut category_error: Signal<String> = use_signal(String::new);
     let mut form_account_id: Signal<String> = use_signal(String::new);
@@ -185,7 +186,10 @@ pub fn SubscriptionsPage() -> Element {
             amount: sub.amount.to_string(),
             currency: sub.currency,
             frequency: sub.frequency,
+            schedule_day: sub.schedule_day,
+            schedule_month: sub.schedule_month,
             start_date: sub.start_date.to_string(),
+            end_date: sub.end_date.map(|d| d.to_string()).unwrap_or_default(),
             category_id: sub.category_id.to_string(),
             notes: sub.notes.unwrap_or_default(),
             logo_url: sub.logo_url.unwrap_or_default(),
@@ -195,6 +199,7 @@ pub fn SubscriptionsPage() -> Element {
         currency_error.set(String::new());
         frequency_error.set(String::new());
         start_date_error.set(String::new());
+        end_date_error.set(String::new());
         account_error.set(String::new());
         category_error.set(String::new());
         dialog_open.set(true);
@@ -237,7 +242,10 @@ pub fn SubscriptionsPage() -> Element {
             amount: String::new(),
             currency: default_currency.clone(),
             frequency: "monthly".into(),
-            start_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
+            schedule_day: None,
+            schedule_month: None,
+            start_date: String::new(),
+            end_date: String::new(),
             category_id: default_cat,
             notes: String::new(),
             logo_url: String::new(),
@@ -247,6 +255,7 @@ pub fn SubscriptionsPage() -> Element {
         currency_error.set(String::new());
         frequency_error.set(String::new());
         start_date_error.set(String::new());
+        end_date_error.set(String::new());
         account_error.set(String::new());
         category_error.set(String::new());
         dialog_open.set(true);
@@ -568,7 +577,7 @@ pub fn SubscriptionsPage() -> Element {
 
             // ── Create/Edit Dialog ──
             if dialog_open() {
-                {render_dialog(form, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, account_error, category_error, form_account_id)}
+                {render_dialog(form, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, end_date_error, account_error, category_error, form_account_id, None)}
             }
 
             // ── Delete confirmation ──

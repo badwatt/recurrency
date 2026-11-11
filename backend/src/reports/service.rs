@@ -155,6 +155,58 @@ pub(crate) fn combine_category_totals(
     breakdown
 }
 
+pub(crate) fn first_billing_date(
+    start: chrono::NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> chrono::NaiveDate {
+    use chrono::Datelike;
+    match frequency {
+        "weekly" => {
+            let target = schedule_day.unwrap_or(start.weekday().number_from_monday() as i16);
+            let current = start.weekday().number_from_monday() as i16;
+            start + chrono::Duration::days((target - current).rem_euclid(7) as i64)
+        }
+        "monthly" | "quarterly" => {
+            let day = schedule_day.unwrap_or(start.day() as i16);
+            let day = (day.max(1) as u32).min(crate::shared::date_utils::days_in_month(start.year(), start.month()));
+            let candidate = chrono::NaiveDate::from_ymd_opt(start.year(), start.month(), day)
+                .unwrap_or(start);
+            if candidate < start {
+                crate::subscriptions::service::add_months(candidate, 1)
+            } else {
+                candidate
+            }
+        }
+        "yearly" => {
+            let day = schedule_day.unwrap_or(start.day() as i16);
+            let month = schedule_month.unwrap_or(start.month() as i16) as u32;
+            let day = (day.max(1) as u32).min(crate::shared::date_utils::days_in_month(start.year(), month));
+            let candidate = chrono::NaiveDate::from_ymd_opt(start.year(), month, day).unwrap_or(start);
+            if candidate < start {
+                let year = start.year() + 1;
+                chrono::NaiveDate::from_ymd_opt(year, month, day.min(crate::shared::date_utils::days_in_month(year, month)))
+                    .unwrap_or(start)
+            } else {
+                candidate
+            }
+        }
+        _ => start,
+    }
+}
+
+type SubscriptionRow = (
+    Option<String>,
+    String,
+    Decimal,
+    String,
+    chrono::NaiveDate,
+    Option<i16>,
+    Option<i16>,
+    Option<chrono::NaiveDate>,
+);
+
 impl ReportService {
     pub async fn get_monthly_summary(
         pool: &PgPool,
@@ -164,35 +216,30 @@ impl ReportService {
     ) -> AppResult<MonthlySummary> {
         let (from_date, to_date) = month_date_range(year, month);
 
-        // One round-trip: two scalar aggregates for subscriptions (constant)
-        // and two for the month's transactions (was three separate queries).
-        let (subscriptions_total, subscriptions_count, transactions_total, transactions_count): (
-            Decimal,
-            i64,
-            Decimal,
-            i64,
-        ) = sqlx::query_as(
+        let subscriptions = sqlx::query_as::<_, (Decimal, String, chrono::NaiveDate, Option<i16>, Option<i16>, Option<chrono::NaiveDate>)>(
+            "SELECT amount, frequency, start_date, schedule_day, schedule_month, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+        let subscriptions: Vec<_> = subscriptions
+            .into_iter()
+            .filter(|(_, frequency, start, day, month, end)| {
+                let first = first_billing_date(*start, frequency, *day, *month);
+                first <= to_date && end.is_none_or(|end| end > from_date)
+            })
+            .collect();
+        let subscriptions_count = i64::try_from(subscriptions.len()).unwrap_or(0);
+        let subscriptions_total: Decimal = subscriptions
+            .iter()
+            .map(|(amount, frequency, _, _, _, _)| normalize_to_monthly(*amount, frequency))
+            .sum();
+
+        let (transactions_total, transactions_count): (Decimal, i64) = sqlx::query_as(
             r#"
-            SELECT
-                COALESCE((
-                    SELECT SUM(CASE frequency
-                        WHEN 'weekly' THEN amount * 4.33
-                        WHEN 'monthly' THEN amount
-                        WHEN 'quarterly' THEN amount / 3
-                        WHEN 'yearly' THEN amount / 12
-                        ELSE amount
-                    END)
-                    FROM subscriptions
-                    WHERE user_id = $1 AND is_active = true
-                ), 0) AS subscriptions_total,
-                (SELECT COUNT(*) FROM subscriptions
-                 WHERE user_id = $1 AND is_active = true) AS subscriptions_count,
-                COALESCE((
-                    SELECT SUM(amount) FROM transactions
-                    WHERE user_id = $1 AND date >= $2 AND date <= $3
-                ), 0) AS transactions_total,
-                (SELECT COUNT(*) FROM transactions
-                 WHERE user_id = $1 AND date >= $2 AND date <= $3) AS transactions_count
+            SELECT COALESCE(SUM(amount), 0), COUNT(*)
+            FROM transactions
+            WHERE user_id = $1 AND date >= $2 AND date <= $3
             "#,
         )
         .bind(user_id)
@@ -220,28 +267,34 @@ impl ReportService {
     ) -> AppResult<Vec<CategoryBreakdown>> {
         let (from_date, to_date) = month_date_range(year, month);
 
-        // Get subscriptions by category
-        let subs_by_cat: Vec<(Option<String>, String, Decimal)> = sqlx::query_as(
+        // Get subscriptions and filter by the first scheduled charge that
+        // falls in this month. A future activation does not count early.
+        let subscription_rows: Vec<SubscriptionRow> = sqlx::query_as(
             r#"
-            SELECT c.id::text, COALESCE(c.name, 'Uncategorized'),
-                   COALESCE(SUM(
-                       CASE s.frequency
-                           WHEN 'weekly' THEN s.amount * 4.33
-                           WHEN 'monthly' THEN s.amount
-                           WHEN 'quarterly' THEN s.amount / 3
-                           WHEN 'yearly' THEN s.amount / 12
-                           ELSE s.amount
-                       END
-                   ), 0) as total
+            SELECT c.id::text, COALESCE(c.name, 'Uncategorized'), s.amount, s.frequency,
+                   s.start_date, s.schedule_day, s.schedule_month, s.end_date
             FROM subscriptions s
             LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
             WHERE s.user_id = $1 AND s.is_active = true
-            GROUP BY c.id, c.name
             "#,
         )
         .bind(user_id)
         .fetch_all(pool)
         .await?;
+
+        let mut subs_by_cat_map: HashMap<String, (Option<String>, Decimal)> = HashMap::new();
+        for (cat_id, name, amount, frequency, start, day, month, end) in subscription_rows {
+            let first = first_billing_date(start, &frequency, day, month);
+            if first > to_date || end.is_some_and(|end| end <= from_date) {
+                continue;
+            }
+            let entry = subs_by_cat_map.entry(name).or_insert((cat_id, Decimal::ZERO));
+            entry.1 += normalize_to_monthly(amount, &frequency);
+        }
+        let subs_by_cat: Vec<(Option<String>, String, Decimal)> = subs_by_cat_map
+            .into_iter()
+            .map(|(name, (id, total))| (id, name, total))
+            .collect();
 
         // Get transactions by category
         let txns_by_cat: Vec<(Option<String>, String, Decimal)> = sqlx::query_as(
@@ -273,26 +326,14 @@ impl ReportService {
             return Ok(Vec::new());
         }
 
-        // Subscriptions are normalized to a monthly amount and do not depend on
-        // the month, so fetch them once. Transactions are grouped by month in a
-        // single query over the whole window (was one summary query per month).
-        let subscriptions_total: (Decimal,) = sqlx::query_as(
-            r#"
-            SELECT COALESCE(SUM(
-                CASE frequency
-                    WHEN 'weekly' THEN amount * 4.33
-                    WHEN 'monthly' THEN amount
-                    WHEN 'quarterly' THEN amount / 3
-                    WHEN 'yearly' THEN amount / 12
-                    ELSE amount
-                END
-            ), 0) as total
-            FROM subscriptions
-            WHERE user_id = $1 AND is_active = true
-            "#,
+        let subscriptions = sqlx::query_as::<
+            _,
+            (Decimal, String, chrono::NaiveDate, Option<i16>, Option<i16>, Option<chrono::NaiveDate>),
+        >(
+            "SELECT amount, frequency, start_date, schedule_day, schedule_month, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
         )
         .bind(user_id)
-        .fetch_one(pool)
+        .fetch_all(pool)
         .await?;
 
         let earliest = months
@@ -331,13 +372,23 @@ impl ReportService {
 
         Ok(months
             .into_iter()
-            .map(|(year, month, _, _)| SpendingTrend {
-                period: format!("{}/{:02}", month, year % 100),
-                total: subscriptions_total.0
-                    + transaction_totals
-                        .get(&(year, month))
-                        .copied()
-                        .unwrap_or(Decimal::ZERO),
+            .map(|(year, month, month_start, month_end)| {
+                let subscription_total = subscriptions
+                    .iter()
+                    .filter(|(_, frequency, start, day, schedule_month, end_date)| {
+                        let first = first_billing_date(*start, frequency, *day, *schedule_month);
+                        first <= month_end && end_date.is_none_or(|end| end > month_start)
+                    })
+                    .map(|(amount, frequency, _, _, _, _)| normalize_to_monthly(*amount, frequency))
+                    .sum::<Decimal>();
+                SpendingTrend {
+                    period: format!("{}/{:02}", month, year % 100),
+                    total: subscription_total
+                        + transaction_totals
+                            .get(&(year, month))
+                            .copied()
+                            .unwrap_or(Decimal::ZERO),
+                }
             })
             .collect())
     }
@@ -363,6 +414,7 @@ impl ReportService {
 #[allow(dead_code)]
 pub(crate) fn normalize_to_monthly(amount: Decimal, frequency: &str) -> Decimal {
     match frequency {
+        "daily" => amount * Decimal::from(30),
         "weekly" => amount * Decimal::from_str_exact("4.33").unwrap_or(Decimal::ZERO),
         "monthly" => amount,
         "quarterly" => amount / Decimal::from(3),

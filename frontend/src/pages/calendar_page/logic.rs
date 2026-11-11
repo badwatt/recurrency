@@ -101,6 +101,7 @@ pub struct CalendarItemDisplay {
     pub amount_str: String,
     pub title_str: String,
     pub logo_url: Option<String>,
+    pub is_past: bool,
 }
 
 pub fn item_display(item: &CalendarItem, currency: &str) -> CalendarItemDisplay {
@@ -114,6 +115,7 @@ pub fn item_display(item: &CalendarItem, currency: &str) -> CalendarItemDisplay 
             format_currency(item.amount, &item.currency)
         ),
         logo_url: item.logo_url.clone(),
+        is_past: item.billing_date < Local::now().date_naive(),
     }
 }
 

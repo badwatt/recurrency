@@ -17,7 +17,10 @@ pub struct SummarySubscription {
     pub account_id: Uuid,
     pub amount: Decimal,
     pub frequency: String,
+    pub schedule_day: Option<i16>,
+    pub schedule_month: Option<i16>,
     pub start_date: NaiveDate,
+    pub end_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
 }
@@ -38,6 +41,7 @@ pub struct AccountSummary {
 
 pub fn monthly_equivalent(amount: Decimal, frequency: &str) -> Decimal {
     match frequency {
+        "daily" => amount * Decimal::from(30),
         "weekly" => amount * Decimal::from_str_exact("4.33").unwrap_or(Decimal::ZERO),
         "monthly" => amount,
         "quarterly" => amount / Decimal::from(3),
@@ -46,44 +50,63 @@ pub fn monthly_equivalent(amount: Decimal, frequency: &str) -> Decimal {
     }
 }
 
-fn add_months(date: NaiveDate, months: i32) -> NaiveDate {
+fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
     let total = date.year() * 12 + date.month() as i32 - 1 + months;
     let year = total.div_euclid(12);
     let month = (total.rem_euclid(12) + 1) as u32;
-    let day = date.day().min(days_in_month(year, month));
+    let day = (day.max(1) as u32).min(days_in_month(year, month));
     NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
 }
 
-fn advance_date(date: NaiveDate, frequency: &str) -> NaiveDate {
+fn advance_scheduled(
+    date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> NaiveDate {
     match frequency {
+        "daily" => date + chrono::Duration::days(1),
         "weekly" => date + chrono::Duration::weeks(1),
-        "monthly" => add_months(date, 1),
-        "quarterly" => add_months(date, 3),
-        "yearly" => add_months(date, 12),
+        "monthly" => add_months_with_day(date, 1, schedule_day.unwrap_or(date.day() as i16)),
+        "quarterly" => add_months_with_day(date, 3, schedule_day.unwrap_or(date.day() as i16)),
+        "yearly" => {
+            let year = date.year() + 1;
+            let month = schedule_month.unwrap_or(date.month() as i16) as u32;
+            let day = schedule_day.unwrap_or(date.day() as i16);
+            let day = (day.max(1) as u32).min(days_in_month(year, month));
+            NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
+        }
         _ => date + chrono::Duration::days(30),
     }
 }
 
 fn billing_dates_in_month(
     next_billing_date: Option<NaiveDate>,
-    start_date: NaiveDate,
     frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+    end_date: Option<NaiveDate>,
     year: i32,
     month: u32,
 ) -> Vec<NaiveDate> {
     let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
     let month_end = NaiveDate::from_ymd_opt(year, month, days_in_month(year, month))
         .expect("valid month end");
-    let mut date = next_billing_date.unwrap_or(start_date);
+    let Some(mut date) = next_billing_date else {
+        return Vec::new();
+    };
     let mut guard = 0;
     while date < month_start && guard < 1000 {
-        date = advance_date(date, frequency);
+        date = advance_scheduled(date, frequency, schedule_day, schedule_month);
         guard += 1;
     }
     let mut dates = Vec::new();
     while date <= month_end && guard < 2000 {
+        if end_date.is_some_and(|end| date >= end) {
+            break;
+        }
         dates.push(date);
-        date = advance_date(date, frequency);
+        date = advance_scheduled(date, frequency, schedule_day, schedule_month);
         guard += 1;
     }
     dates
@@ -109,7 +132,20 @@ pub fn build_account_summaries(
         })
         .collect();
 
+    let month_start = today.with_day(1).unwrap_or(today);
+    let month_end = today
+        .with_day(days_in_month(today.year(), today.month()))
+        .unwrap_or(today);
     for subscription in subscriptions.iter().filter(|item| item.is_active) {
+        let first_billing = crate::reports::service::first_billing_date(
+            subscription.start_date,
+            &subscription.frequency,
+            subscription.schedule_day,
+            subscription.schedule_month,
+        );
+        if first_billing > month_end || subscription.end_date.is_some_and(|end| end <= month_start) {
+            continue;
+        }
         let entry = plan.entry(subscription.account_id).or_insert_with(|| AccountSummary {
             name: "No account".to_string(),
             budget: Decimal::ZERO,
@@ -119,8 +155,10 @@ pub fn build_account_summaries(
         entry.budget += monthly;
         for date in billing_dates_in_month(
             subscription.next_billing_date,
-            subscription.start_date,
             &subscription.frequency,
+            subscription.schedule_day,
+            subscription.schedule_month,
+            subscription.end_date,
             today.year(),
             today.month(),
         ) {
@@ -224,7 +262,10 @@ mod tests {
                 account_id,
                 amount: Decimal::from(15),
                 frequency: "monthly".to_string(),
+                schedule_day: None,
+                schedule_month: None,
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()),
                 is_active: true,
             },
@@ -232,7 +273,10 @@ mod tests {
                 account_id,
                 amount: Decimal::from(10),
                 frequency: "monthly".to_string(),
+                schedule_day: None,
+                schedule_month: None,
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
+                end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 5).unwrap()),
                 is_active: true,
             },
@@ -266,7 +310,10 @@ mod tests {
                 account_id,
                 amount: Decimal::from(15),
                 frequency: "monthly".to_string(),
+                schedule_day: None,
+                schedule_month: None,
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()),
                 is_active: true,
             }],
@@ -290,7 +337,10 @@ mod tests {
                 account_id,
                 amount: Decimal::from(15),
                 frequency: "monthly".to_string(),
+                schedule_day: None,
+                schedule_month: None,
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()),
                 is_active: false,
             }],

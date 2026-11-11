@@ -109,6 +109,109 @@ pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
     Ok(cache.clone().unwrap_or_default())
 }
 
+fn days_in_month_local(year: i32, month: u32) -> u32 {
+    let (next_year, next_month) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
+    chrono::NaiveDate::from_ymd_opt(next_year, next_month, 1)
+        .and_then(|d| d.pred_opt())
+        .map(|d| d.day())
+        .unwrap_or(28)
+}
+
+fn add_months_local(date: chrono::NaiveDate, months: i32, day: i16) -> chrono::NaiveDate {
+    let total = date.year() * 12 + date.month() as i32 - 1 + months;
+    let year = total.div_euclid(12);
+    let month = (total.rem_euclid(12) + 1) as u32;
+    let day = (day.max(1) as u32).min(days_in_month_local(year, month));
+    chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
+}
+
+fn advance_scheduled_local(
+    date: chrono::NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> chrono::NaiveDate {
+    match frequency {
+        "daily" => date + chrono::Duration::days(1),
+        "weekly" => date + chrono::Duration::weeks(1),
+        "monthly" => add_months_local(date, 1, schedule_day.unwrap_or(date.day() as i16)),
+        "quarterly" => add_months_local(date, 3, schedule_day.unwrap_or(date.day() as i16)),
+        "yearly" => {
+            let year = date.year() + 1;
+            let month = schedule_month.unwrap_or(date.month() as i16) as u32;
+            let day = (schedule_day.unwrap_or(date.day() as i16).max(1) as u32)
+                .min(days_in_month_local(year, month));
+            chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
+        }
+        _ => date + chrono::Duration::days(30),
+    }
+}
+
+fn first_scheduled_local(
+    start: chrono::NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> chrono::NaiveDate {
+    match frequency {
+        "weekly" => {
+            let target = schedule_day.unwrap_or(start.weekday().number_from_monday() as i16);
+            let current = start.weekday().number_from_monday() as i16;
+            start + chrono::Duration::days((target - current).rem_euclid(7) as i64)
+        }
+        "monthly" | "quarterly" => {
+            let day = schedule_day.unwrap_or(start.day() as i16);
+            let day = (day.max(1) as u32).min(days_in_month_local(start.year(), start.month()));
+            let candidate = chrono::NaiveDate::from_ymd_opt(start.year(), start.month(), day)
+                .unwrap_or(start);
+            if candidate < start {
+                add_months_local(candidate, 1, day as i16)
+            } else {
+                candidate
+            }
+        }
+        "yearly" => {
+            let day = schedule_day.unwrap_or(start.day() as i16);
+            let month = schedule_month.unwrap_or(start.month() as i16) as u32;
+            let day = (day.max(1) as u32).min(days_in_month_local(start.year(), month));
+            let candidate =
+                chrono::NaiveDate::from_ymd_opt(start.year(), month, day).unwrap_or(start);
+            if candidate < start {
+                chrono::NaiveDate::from_ymd_opt(
+                    start.year() + 1,
+                    month,
+                    (day).min(days_in_month_local(start.year() + 1, month)),
+                )
+                .unwrap_or(start)
+            } else {
+                candidate
+            }
+        }
+        _ => start,
+    }
+}
+
+fn next_billing_local(
+    start: chrono::NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+    end_date: Option<chrono::NaiveDate>,
+) -> Option<chrono::NaiveDate> {
+    let today = chrono::Utc::now().date_naive();
+    let mut date = first_scheduled_local(start, frequency, schedule_day, schedule_month);
+    let mut guard = 0;
+    while date < today && guard < 10_000 {
+        date = advance_scheduled_local(date, frequency, schedule_day, schedule_month);
+        guard += 1;
+    }
+    if end_date.is_some_and(|end| date >= end) {
+        None
+    } else {
+        Some(date)
+    }
+}
+
 pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subscription, ApiError> {
     ensure_accounts().await?;
     let account_id = if req.account_id.is_nil() {
@@ -125,8 +228,17 @@ pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subs
         amount: req.amount,
         currency: req.currency.clone(),
         frequency: req.frequency.clone(),
+        schedule_day: req.schedule_day,
+        schedule_month: req.schedule_month,
         start_date: req.start_date,
-        next_billing_date: None,
+        end_date: req.end_date,
+        next_billing_date: next_billing_local(
+            req.start_date,
+            &req.frequency,
+            req.schedule_day,
+            req.schedule_month,
+            req.end_date,
+        ),
         is_active: true,
         notes: req.notes.clone(),
         logo_url: req.logo_url.clone(),
@@ -154,8 +266,21 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
     if let Some(amount) = req.amount { sub.amount = amount; }
     if let Some(currency) = &req.currency { sub.currency = currency.clone(); }
     if let Some(frequency) = &req.frequency { sub.frequency = frequency.clone(); }
+    if let Some(day) = req.schedule_day { sub.schedule_day = Some(day); }
+    if let Some(month) = req.schedule_month { sub.schedule_month = Some(month); }
     if let Some(start_date) = req.start_date { sub.start_date = start_date; }
-    if let Some(next_billing_date) = req.next_billing_date { sub.next_billing_date = Some(next_billing_date); }
+    if req.clear_end_date { sub.end_date = None; } else if let Some(end_date) = req.end_date { sub.end_date = Some(end_date); }
+    if let Some(next_billing_date) = req.next_billing_date {
+        sub.next_billing_date = Some(next_billing_date);
+    } else {
+        sub.next_billing_date = next_billing_local(
+            sub.start_date,
+            &sub.frequency,
+            sub.schedule_day,
+            sub.schedule_month,
+            sub.end_date,
+        );
+    }
     if let Some(account_id) = req.account_id { sub.account_id = account_id; }
     if let Some(category_id) = req.category_id { sub.category_id = category_id; }
     if let Some(is_active) = req.is_active { sub.is_active = is_active; }
@@ -179,7 +304,12 @@ pub async fn delete_subscription(id: &Uuid) -> Result<(), ApiError> {
 
 pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, ApiError> {
     let subs = list_subscriptions().await?;
-    Ok(subs.into_iter().filter(|s| s.is_active).map(|s| {
+    let month_start = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+        .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(year, 1, 1).expect("valid date"));
+    Ok(subs
+        .into_iter()
+        .filter(|s| s.is_active && s.end_date.is_none_or(|end| end > month_start))
+        .map(|s| {
         let billing_date = compute_billing_date(&s, year, month);
         CalendarItem {
             subscription_id: s.id,
@@ -199,7 +329,11 @@ fn compute_billing_date(sub: &Subscription, year: i32, month: u32) -> chrono::Na
     if let Some(nbd) = sub.next_billing_date && nbd.year() == year && nbd.month() == month {
         return nbd;
     }
-    let day = sub.start_date.day().min(28u32);
+    let day = sub
+        .schedule_day
+        .map(|d| d as u32)
+        .unwrap_or_else(|| sub.start_date.day())
+        .min(days_in_month_local(year, month));
     chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(sub.start_date)
 }
 
@@ -680,7 +814,10 @@ mod tests {
             amount: Decimal::new(10, 2),
             currency: "EUR".into(),
             frequency: "monthly".into(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            end_date: None,
             next_billing_date: None,
             is_active: true,
             notes: None,
@@ -703,7 +840,10 @@ mod tests {
             amount: Decimal::new(10, 2),
             currency: "EUR".into(),
             frequency: "monthly".into(),
+            schedule_day: None,
+            schedule_month: None,
             start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
+            end_date: None,
             next_billing_date: None,
             is_active: true,
             notes: None,
@@ -712,7 +852,7 @@ mod tests {
             updated_at: Utc::now(),
         };
         let result = compute_billing_date(&sub, 2024, 2);
-        assert_eq!(result.day(), 28); // Feb clamped to 28
+        assert_eq!(result.day(), 29); // Feb 2024 clamps to 29
     }
 
     #[test]

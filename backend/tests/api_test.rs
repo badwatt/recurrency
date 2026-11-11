@@ -11,6 +11,7 @@ mod tests {
         frequency: String,
         #[serde(rename = "startDate")]
         start_date: String,
+        end_date: Option<String>,
         #[serde(rename = "nextBillingDate")]
         next_billing_date: Option<String>,
         #[serde(rename = "isActive")]
@@ -46,6 +47,7 @@ mod tests {
                     currency: "USD".to_string(),
                     frequency: freq.to_string(),
                     start_date: "2026-01-15".to_string(),
+                    end_date: None,
                     next_billing_date: None,
                     is_active: true,
                     category_id: None,
@@ -141,6 +143,7 @@ mod tests {
                 currency: "USD".to_string(),
                 frequency: "monthly".to_string(),
                 start_date: "2026-01-15".to_string(),
+                end_date: None,
                 next_billing_date: None,
                 is_active: true,
                 category_id: None,
@@ -162,6 +165,7 @@ mod tests {
                 currency: "USD".to_string(),
                 frequency: "monthly".to_string(),
                 start_date: "2026-01-15".to_string(),
+                end_date: None,
                 next_billing_date: Some("2026-02-15".to_string()),
                 is_active: true,
                 category_id: None,

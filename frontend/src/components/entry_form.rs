@@ -22,8 +22,11 @@ pub struct EntryForm {
     /// Subscription-only: "weekly", "monthly", "quarterly", "yearly".
     /// Empty for transactions.
     pub frequency: String,
+    pub schedule_day: Option<i16>,
+    pub schedule_month: Option<i16>,
     /// Date field: maps to `start_date` (subscription) or `date` (transaction).
     pub start_date: String,
+    pub end_date: String,
     pub category_id: String,
     pub notes: String,
     pub logo_url: String,
@@ -45,7 +48,10 @@ impl EntryForm {
                 EntityType::Subscription => "monthly".to_string(),
                 EntityType::Transaction => String::new(),
             },
+            schedule_day: None,
+            schedule_month: None,
             start_date: date.to_string(),
+            end_date: String::new(),
             category_id: category_id.to_string(),
             notes: String::new(),
             logo_url: String::new(),
@@ -59,7 +65,10 @@ impl EntryForm {
         amount: &str,
         currency: &str,
         frequency: &str,
+        schedule_day: Option<i16>,
+        schedule_month: Option<i16>,
         start_date: &str,
+        end_date: &str,
         category_id: &str,
         notes: &str,
         logo_url: &str,
@@ -69,7 +78,10 @@ impl EntryForm {
             amount: amount.to_string(),
             currency: currency.to_string(),
             frequency: frequency.to_string(),
+            schedule_day,
+            schedule_month,
             start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
             category_id: category_id.to_string(),
             notes: notes.to_string(),
             logo_url: logo_url.to_string(),
@@ -77,6 +89,14 @@ impl EntryForm {
     }
 
     /// Parse the amount field as Decimal, returning None if invalid.
+    pub fn parse_end_date(&self) -> Option<chrono::NaiveDate> {
+        if self.end_date.is_empty() {
+            None
+        } else {
+            self.end_date.parse().ok()
+        }
+    }
+
     pub fn parse_amount(&self) -> Option<Decimal> {
         self.amount.parse::<Decimal>().ok()
     }
@@ -104,9 +124,13 @@ impl EntryForm {
             amount: Some(amount),
             currency: Some(self.currency.clone()),
             frequency: Some(self.frequency.clone()),
+            schedule_day: self.schedule_day,
+            schedule_month: self.schedule_month,
             start_date: Some(self.parse_start_date().unwrap_or(
                 chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
             )),
+            end_date: self.parse_end_date(),
+            clear_end_date: self.end_date.is_empty(),
             category_id: category,
             notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
             logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
@@ -127,9 +151,12 @@ impl EntryForm {
             amount,
             currency: self.currency.clone(),
             frequency: self.frequency.clone(),
+            schedule_day: self.schedule_day,
+            schedule_month: self.schedule_month,
             start_date: self.parse_start_date().unwrap_or(
                 chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
             ),
+            end_date: self.parse_end_date(),
             category_id: category,
             notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
             logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
@@ -364,7 +391,7 @@ mod tests {
     #[test]
     fn form_from_entry_populates_all_fields() {
         let form = EntryForm::from_entry(
-            "Netflix", "9.99", "EUR", "monthly", "2024-01-01", "cat-456", "notes", "logo.png",
+            "Netflix", "9.99", "EUR", "monthly", None, None, "2024-01-01", "", "cat-456", "notes", "logo.png",
         );
         assert_eq!(form.name, "Netflix");
         assert_eq!(form.frequency, "monthly");
@@ -374,7 +401,7 @@ mod tests {
     #[test]
     fn form_reset_clears_all_fields() {
         let mut form = EntryForm::from_entry(
-            "Netflix", "9.99", "EUR", "monthly", "2024-01-01", "cat-456", "notes", "logo.png",
+            "Netflix", "9.99", "EUR", "monthly", None, None, "2024-01-01", "", "cat-456", "notes", "logo.png",
         );
         form.reset();
         assert!(form.name.is_empty());

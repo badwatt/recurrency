@@ -101,7 +101,20 @@ impl SubscriptionService {
         user_id: Uuid,
         req: CreateSubscriptionRequest,
     ) -> AppResult<Subscription> {
-        let next_billing_date = calculate_next_billing_date(req.start_date, &req.frequency);
+        let (schedule_day, schedule_month) = normalize_schedule(
+            req.start_date,
+            &req.frequency,
+            req.schedule_day,
+            req.schedule_month,
+        )?;
+        validate_end_date(req.start_date, req.end_date)?;
+        let next_billing_date = calculate_next_billing_date_scheduled(
+            req.start_date,
+            &req.frequency,
+            schedule_day,
+            schedule_month,
+            req.end_date,
+        );
 
         // Accounts are mandatory; fall back to the user's default for old clients.
         let account_id = if req.account_id.is_nil() {
@@ -123,9 +136,9 @@ impl SubscriptionService {
 
         let subscription = sqlx::query_as::<_, Subscription>(
             r#"
-            INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11, $12, $13, $13)
-            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
+            INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14, $15, $16, $16)
+            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -136,7 +149,10 @@ impl SubscriptionService {
         .bind(req.amount)
         .bind(&req.currency)
         .bind(&req.frequency)
+        .bind(schedule_day)
+        .bind(schedule_month)
         .bind(req.start_date)
+        .bind(req.end_date)
         .bind(next_billing_date)
         .bind(&req.notes)
         .bind(&req.logo_url)
@@ -149,7 +165,7 @@ impl SubscriptionService {
 
     pub async fn get_all(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<Subscription>> {
         let subscriptions = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -160,7 +176,7 @@ impl SubscriptionService {
 
     pub async fn get_by_id(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
         let subscription = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
         )
         .bind(id)
         .bind(user_id)
@@ -177,10 +193,8 @@ impl SubscriptionService {
         id: Uuid,
         req: UpdateSubscriptionRequest,
     ) -> AppResult<Subscription> {
-        // First verify the subscription exists and belongs to user
         let existing = Self::get_by_id(pool, user_id, id).await?;
 
-        // Foreign keys do not enforce ownership; reject foreign account/category ids.
         if let Some(account_id) = req.account_id {
             crate::accounts::service::AccountService::get_by_id(pool, user_id, account_id).await?;
         }
@@ -191,23 +205,44 @@ impl SubscriptionService {
         let name = req.name.unwrap_or(existing.name);
         let amount = req.amount.unwrap_or(existing.amount);
         let currency = req.currency.unwrap_or(existing.currency);
-        let frequency_changed =
-            req.frequency.is_some() && req.frequency.as_ref() != Some(&existing.frequency);
         let frequency = req.frequency.unwrap_or(existing.frequency.clone());
         let start_date = req.start_date.unwrap_or(existing.start_date);
-        let next_billing_date = if let Some(nbd) = req.next_billing_date {
-            nbd
-        } else if frequency_changed {
-            // Frequency changed: recalculate from existing next_billing_date (or start_date)
-            calculate_next_billing_date(
-                existing.next_billing_date.unwrap_or(start_date),
+        let end_date = if req.clear_end_date {
+            None
+        } else {
+            req.end_date.or(existing.end_date)
+        };
+        validate_end_date(start_date, end_date)?;
+        let (schedule_day, schedule_month) = normalize_schedule(
+            start_date,
+            &frequency,
+            req.schedule_day.or(existing.schedule_day),
+            req.schedule_month.or(existing.schedule_month),
+        )?;
+        let schedule_changed = frequency != existing.frequency
+            || schedule_day != existing.schedule_day
+            || schedule_month != existing.schedule_month
+            || start_date != existing.start_date
+            || end_date != existing.end_date;
+
+        let next_billing_date = if let Some(next) = req.next_billing_date {
+            if end_date.is_some_and(|end| next >= end) {
+                None
+            } else {
+                Some(next)
+            }
+        } else if schedule_changed {
+            calculate_next_billing_date_scheduled(
+                start_date,
                 &frequency,
+                schedule_day,
+                schedule_month,
+                end_date,
             )
         } else {
-            existing
-                .next_billing_date
-                .unwrap_or_else(|| calculate_next_billing_date(start_date, &frequency))
+            existing.next_billing_date
         };
+
         let account_id = req.account_id.unwrap_or(existing.account_id);
         let category_id = req.category_id.unwrap_or(existing.category_id);
         let is_active = req.is_active.unwrap_or(existing.is_active);
@@ -216,18 +251,23 @@ impl SubscriptionService {
 
         let subscription = sqlx::query_as::<_, Subscription>(
             r#"
-            UPDATE subscriptions 
-            SET name = $1, amount = $2, currency = $3, frequency = $4, start_date = $5, 
-                next_billing_date = $6, account_id = $7, category_id = $8, is_active = $9, notes = $10, logo_url = $11, updated_at = $12
-            WHERE id = $13 AND user_id = $14
-            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
+            UPDATE subscriptions
+            SET name = $1, amount = $2, currency = $3, frequency = $4,
+                schedule_day = $5, schedule_month = $6, start_date = $7, end_date = $8,
+                next_billing_date = $9, account_id = $10, category_id = $11, is_active = $12,
+                notes = $13, logo_url = $14, updated_at = $15
+            WHERE id = $16 AND user_id = $17
+            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
             "#,
         )
         .bind(&name)
         .bind(amount)
         .bind(&currency)
         .bind(&frequency)
+        .bind(schedule_day)
+        .bind(schedule_month)
         .bind(start_date)
+        .bind(end_date)
         .bind(next_billing_date)
         .bind(account_id)
         .bind(category_id)
@@ -267,9 +307,10 @@ impl SubscriptionService {
 
         let subscriptions = sqlx::query_as::<_, Subscription>(
             r#"
-            SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at 
+            SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at 
             FROM subscriptions 
             WHERE user_id = $1 AND is_active = true AND next_billing_date >= $2 AND next_billing_date <= $3
+              AND (end_date IS NULL OR next_billing_date < end_date)
             ORDER BY next_billing_date ASC
             "#,
         )
@@ -290,7 +331,7 @@ impl SubscriptionService {
     ) -> AppResult<Vec<CalendarItem>> {
         // Get all active subscriptions
         let subscriptions = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, start_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 AND is_active = true"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 AND is_active = true"
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -307,13 +348,29 @@ impl SubscriptionService {
         let mut calendar_items: Vec<CalendarItem> = Vec::new();
 
         for sub in subscriptions {
-            let mut billing_date = sub.next_billing_date.unwrap_or(sub.start_date);
-
-            while billing_date < month_start {
-                billing_date = advance_date(billing_date, &sub.frequency);
+            // Generate from the first scheduled charge, not from the next one:
+            // completed charges in the selected month must remain visible.
+            let mut billing_date = first_scheduled_on_or_after(
+                sub.start_date,
+                &sub.frequency,
+                sub.schedule_day,
+                sub.schedule_month,
+            );
+            let mut guard = 0;
+            while billing_date < month_start && guard < 10_000 {
+                billing_date = advance_scheduled(
+                    billing_date,
+                    &sub.frequency,
+                    sub.schedule_day,
+                    sub.schedule_month,
+                );
+                guard += 1;
             }
 
-            while billing_date <= month_end {
+            while billing_date <= month_end && guard < 20_000 {
+                if sub.end_date.is_some_and(|end| billing_date >= end) {
+                    break;
+                }
                 calendar_items.push(CalendarItem {
                     subscription_id: sub.id,
                     name: sub.name.clone(),
@@ -324,7 +381,13 @@ impl SubscriptionService {
                     is_active: sub.is_active,
                     logo_url: sub.logo_url.clone(),
                 });
-                billing_date = advance_date(billing_date, &sub.frequency);
+                billing_date = advance_scheduled(
+                    billing_date,
+                    &sub.frequency,
+                    sub.schedule_day,
+                    sub.schedule_month,
+                );
+                guard += 1;
             }
         }
 
@@ -373,6 +436,154 @@ pub(crate) fn generate_billing_dates(
     dates
 }
 
+fn normalize_schedule(
+    start_date: NaiveDate,
+    frequency: &str,
+    day: Option<i16>,
+    month: Option<i16>,
+) -> AppResult<(Option<i16>, Option<i16>)> {
+    match frequency {
+        "daily" => Ok((None, None)),
+        "weekly" => {
+            let day = day.unwrap_or(start_date.weekday().number_from_monday() as i16);
+            if !(1..=7).contains(&day) {
+                return Err(AppError::BadRequest("Weekday must be 1-7".to_string()));
+            }
+            Ok((Some(day), None))
+        }
+        "monthly" | "quarterly" => {
+            let day = day.unwrap_or(start_date.day() as i16);
+            if !(1..=31).contains(&day) {
+                return Err(AppError::BadRequest("Day must be 1-31".to_string()));
+            }
+            Ok((Some(day), None))
+        }
+        "yearly" => {
+            let day = day.unwrap_or(start_date.day() as i16);
+            let month = month.unwrap_or(start_date.month() as i16);
+            if !(1..=31).contains(&day) || !(1..=12).contains(&month) {
+                return Err(AppError::BadRequest(
+                    "Yearly schedule needs a valid month and day".to_string(),
+                ));
+            }
+            Ok((Some(day), Some(month)))
+        }
+        _ => Err(AppError::BadRequest("Invalid frequency".to_string())),
+    }
+}
+
+fn validate_end_date(start_date: NaiveDate, end_date: Option<NaiveDate>) -> AppResult<()> {
+    if end_date.is_some_and(|end| end < start_date) {
+        return Err(AppError::BadRequest(
+            "End date must be on or after the start date".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn date_for_day(year: i32, month: u32, day: i16) -> NaiveDate {
+    let day = (day.max(1) as u32).min(days_in_month(year, month));
+    NaiveDate::from_ymd_opt(year, month, day).expect("clamped date is valid")
+}
+
+fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
+    let total = date.year() * 12 + date.month() as i32 - 1 + months;
+    let year = total.div_euclid(12);
+    let month = (total.rem_euclid(12) + 1) as u32;
+    date_for_day(year, month, day)
+}
+
+fn first_scheduled_on_or_after(
+    start_date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> NaiveDate {
+    match frequency {
+        "daily" => start_date,
+        "weekly" => {
+            let target = schedule_day.unwrap_or(start_date.weekday().number_from_monday() as i16);
+            let current = start_date.weekday().number_from_monday() as i16;
+            start_date + chrono::Duration::days((target - current).rem_euclid(7) as i64)
+        }
+        "monthly" | "quarterly" => {
+            let day = schedule_day.unwrap_or(start_date.day() as i16);
+            let candidate = date_for_day(start_date.year(), start_date.month(), day);
+            if candidate < start_date {
+                add_months_with_day(candidate, 1, day)
+            } else {
+                candidate
+            }
+        }
+        "yearly" => {
+            let day = schedule_day.unwrap_or(start_date.day() as i16);
+            let month = schedule_month.unwrap_or(start_date.month() as i16);
+            let candidate = date_for_day(start_date.year(), month as u32, day);
+            if candidate < start_date {
+                date_for_day(start_date.year() + 1, month as u32, day)
+            } else {
+                candidate
+            }
+        }
+        _ => start_date,
+    }
+}
+
+pub(crate) fn advance_scheduled(
+    date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+) -> NaiveDate {
+    match frequency {
+        "daily" => date + chrono::Duration::days(1),
+        "weekly" => date + chrono::Duration::weeks(1),
+        "monthly" => add_months_with_day(date, 1, schedule_day.unwrap_or(date.day() as i16)),
+        "quarterly" => add_months_with_day(date, 3, schedule_day.unwrap_or(date.day() as i16)),
+        "yearly" => {
+            let month = schedule_month.unwrap_or(date.month() as i16);
+            date_for_day(
+                date.year() + 1,
+                month as u32,
+                schedule_day.unwrap_or(date.day() as i16),
+            )
+        }
+        _ => date + chrono::Duration::days(30),
+    }
+}
+
+fn calculate_next_billing_date_scheduled(
+    start_date: NaiveDate,
+    frequency: &str,
+    schedule_day: Option<i16>,
+    schedule_month: Option<i16>,
+    end_date: Option<NaiveDate>,
+) -> Option<NaiveDate> {
+    let today = Utc::now().date_naive();
+    // Start date activates the subscription; the first charge is the first
+    // recurrence match on or after it. A past match is skipped for "next".
+    let mut next_date =
+        first_scheduled_on_or_after(start_date, frequency, schedule_day, schedule_month);
+    let mut iterations = 0;
+
+    while next_date < today {
+        next_date = advance_scheduled(next_date, frequency, schedule_day, schedule_month);
+        iterations += 1;
+        if iterations > 10_000 {
+            tracing::warn!(
+                "calculate_next_billing_date_scheduled: loop guard start={start_date} frequency={frequency}"
+            );
+            break;
+        }
+    }
+
+    if end_date.is_some_and(|end| next_date >= end) {
+        None
+    } else {
+        Some(next_date)
+    }
+}
+
 pub(crate) fn advance_date(date: NaiveDate, frequency: &str) -> NaiveDate {
     match frequency {
         "weekly" => date + chrono::Duration::weeks(1),
@@ -383,6 +594,7 @@ pub(crate) fn advance_date(date: NaiveDate, frequency: &str) -> NaiveDate {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn calculate_next_billing_date(start_date: NaiveDate, frequency: &str) -> NaiveDate {
     let today = Utc::now().date_naive();
     let mut next_date = start_date;
@@ -1271,5 +1483,91 @@ mod tests {
     #[test]
     fn sub_svc() {
         let _ = SubscriptionService;
+    }
+}
+
+#[cfg(test)]
+mod schedule_tests {
+    use super::*;
+
+    #[test]
+    fn normalize_weekly_uses_start_weekday() {
+        let start = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(); // Wednesday
+        let (day, month) = normalize_schedule(start, "weekly", None, None).unwrap();
+        assert_eq!(day, Some(3));
+        assert!(month.is_none());
+    }
+
+    #[test]
+    fn normalize_yearly_requires_month_and_day() {
+        let start = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let (day, month) = normalize_schedule(start, "yearly", Some(15), Some(6)).unwrap();
+        assert_eq!((day, month), (Some(15), Some(6)));
+        assert!(normalize_schedule(start, "yearly", Some(0), Some(6)).is_err());
+    }
+
+    #[test]
+    fn normalize_daily_has_no_extra_fields() {
+        let start = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        assert_eq!(normalize_schedule(start, "daily", Some(3), Some(6)).unwrap(), (None, None));
+    }
+
+    #[test]
+    fn advance_scheduled_keeps_monthly_day_after_clamp() {
+        let jan = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let feb = advance_scheduled(jan, "monthly", Some(31), None);
+        assert_eq!(feb, NaiveDate::from_ymd_opt(2024, 2, 29).unwrap());
+        let mar = advance_scheduled(feb, "monthly", Some(31), None);
+        assert_eq!(mar, NaiveDate::from_ymd_opt(2024, 3, 31).unwrap());
+    }
+
+    #[test]
+    fn future_start_waits_for_first_recurrence_match() {
+        let start = Utc::now().date_naive() + chrono::Duration::days(2);
+        let expected = first_scheduled_on_or_after(start, "monthly", Some(6), None);
+        assert_eq!(
+            calculate_next_billing_date_scheduled(start, "monthly", Some(6), None, None),
+            Some(expected)
+        );
+    }
+
+    #[test]
+    fn next_billing_keeps_charge_due_today() {
+        let today = Utc::now().date_naive();
+        assert_eq!(
+            calculate_next_billing_date_scheduled(
+                today,
+                "monthly",
+                Some(today.day() as i16),
+                None,
+                None,
+            ),
+            Some(today)
+        );
+    }
+
+    #[test]
+    fn next_billing_respects_end_date() {
+        let start = NaiveDate::from_ymd_opt(2099, 1, 15).unwrap();
+        assert_eq!(
+            calculate_next_billing_date_scheduled(
+                start,
+                "monthly",
+                Some(15),
+                None,
+                Some(NaiveDate::from_ymd_opt(2100, 1, 1).unwrap()),
+            ),
+            Some(start)
+        );
+        assert_eq!(
+            calculate_next_billing_date_scheduled(
+                start,
+                "monthly",
+                Some(15),
+                None,
+                Some(NaiveDate::from_ymd_opt(2099, 1, 1).unwrap()),
+            ),
+            None
+        );
     }
 }
