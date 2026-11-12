@@ -3,6 +3,11 @@ set -e
 
 echo "=== Recurrency - All-in-One ==="
 
+cleanup() {
+    kill "${BACKEND_PID:-}" "${NGINX_PID:-}" 2>/dev/null || true
+}
+trap cleanup TERM INT
+
 # ── Configure PostgreSQL ─────────────────────────────────
 echo "Configuring PostgreSQL..."
 
@@ -63,7 +68,7 @@ fi
 
 # ── Verify connectivity ─────────────────────────────────
 echo "Verifying database connectivity..."
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
     if psql "postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}" -c "SELECT 1" >/dev/null 2>&1; then
         echo "Database reachable."
         break
@@ -89,13 +94,27 @@ BACKEND_PID=$!
 
 # ── Wait for backend to be ready ───────────────────────
 echo "Waiting for backend..."
-for i in $(seq 1 30); do
-    if curl -sf http://localhost:${APP_PORT}/api/health >/dev/null 2>&1 || curl -sf http://localhost:${APP_PORT}/ >/dev/null 2>&1; then
-        echo "Backend is ready."
+BACKEND_READY=0
+for i in $(seq 1 60); do
+    if curl -sf http://localhost:${APP_PORT}/api/health >/dev/null 2>&1; then
+        BACKEND_READY=1
         break
+    fi
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+        echo "ERROR: backend exited before becoming ready." >&2
+        wait "$BACKEND_PID" || true
+        exit 1
     fi
     sleep 1
 done
+
+if [ "$BACKEND_READY" -ne 1 ]; then
+    echo "ERROR: backend did not become ready; refusing to serve a broken frontend." >&2
+    kill "$BACKEND_PID" 2>/dev/null || true
+    wait "$BACKEND_PID" 2>/dev/null || true
+    exit 1
+fi
+echo "Backend is ready."
 
 # ── Web frontend (optional) ─────────────────────────────
 if [ "${ENABLE_WEB:-true}" = "false" ]; then
@@ -104,17 +123,25 @@ if [ "${ENABLE_WEB:-true}" = "false" ]; then
     echo "  API: http://localhost:${APP_PORT}"
     echo ""
     wait "$BACKEND_PID"
-else
-    echo "Starting nginx on port 80..."
-    nginx -g 'daemon off;' &
-    NGINX_PID=$!
-
-    echo ""
-    echo "=== Recurrency is running ==="
-    echo "  Frontend:  http://localhost:80"
-    echo "  API:       http://localhost:80/api"
-    echo "  Backend:   http://localhost:${APP_PORT} (internal)"
-    echo ""
-
-    wait -n "$BACKEND_PID" "$NGINX_PID" 2>/dev/null || wait "$BACKEND_PID" "$NGINX_PID"
+    exit $?
 fi
+
+echo "Starting nginx on port 80..."
+nginx -g 'daemon off;' &
+NGINX_PID=$!
+
+echo ""
+echo "=== Recurrency is running ==="
+echo "  Frontend:  http://localhost:80"
+echo "  API:       http://localhost:80/api"
+echo "  Backend:   http://localhost:${APP_PORT} (internal)"
+echo ""
+
+set +e
+wait -n "$BACKEND_PID" "$NGINX_PID"
+STATUS=$?
+set -e
+echo "ERROR: backend or nginx exited (status ${STATUS}); stopping the container." >&2
+kill "$BACKEND_PID" "$NGINX_PID" 2>/dev/null || true
+wait "$BACKEND_PID" "$NGINX_PID" 2>/dev/null || true
+exit 1

@@ -50,7 +50,57 @@ pub async fn create_pool_with_retry() -> Result<PgPool, sqlx::Error> {
     }
 }
 
+/// Versions edited before this project treated migrations as immutable. The
+/// changes were comments and demo-seed data only; their schema effects are
+/// idempotent. Repair these legacy checksums so existing installations can
+/// upgrade, then let SQLx validate every migration normally.
+const LEGACY_DEMO_SEED_MIGRATIONS: &[i64] = &[1, 4, 5];
+
+async fn repair_legacy_demo_seed_checksums(pool: &PgPool) -> Result<(), sqlx::Error> {
+    let table_exists: Option<String> =
+        sqlx::query_scalar("SELECT to_regclass('_sqlx_migrations')::text")
+            .fetch_one(pool)
+            .await?;
+    if table_exists.is_none() {
+        return Ok(());
+    }
+
+    let migrator = sqlx::migrate!("./migrations");
+    for version in LEGACY_DEMO_SEED_MIGRATIONS {
+        let applied: Option<Vec<u8>> = sqlx::query_scalar(
+            "SELECT checksum FROM _sqlx_migrations WHERE version = $1 AND success = true",
+        )
+        .bind(version)
+        .fetch_optional(pool)
+        .await?;
+        let Some(applied) = applied else {
+            continue;
+        };
+        let Some(current) = migrator
+            .iter()
+            .find(|migration| migration.version == *version)
+        else {
+            continue;
+        };
+        if applied.as_slice() == current.checksum.as_ref() {
+            continue;
+        }
+
+        tracing::warn!(
+            "Repairing checksum for legacy migration {}; schema was already applied safely",
+            version
+        );
+        sqlx::query("UPDATE _sqlx_migrations SET checksum = $1 WHERE version = $2")
+            .bind(current.checksum.as_ref())
+            .bind(version)
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
+    repair_legacy_demo_seed_checksums(pool).await?;
     sqlx::migrate!("./migrations").run(pool).await?;
     Ok(())
 }

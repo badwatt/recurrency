@@ -56,6 +56,12 @@ Open **http://localhost**. The API is available through nginx at
 The named volume persists PostgreSQL across container recreation. Keep the same
 `JWT_SECRET`; changing it invalidates existing sessions.
 
+> [!IMPORTANT]
+> The container fails fast if the backend cannot start (missing/placeholder
+> `JWT_SECRET`, failed migration, or database error). It exits instead of serving
+> a frontend that would return 502 errors, so Docker can restart it or surface
+> the failure.
+
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
 > `ghcr.io/badwatt/recurrency:0.35.0`.
