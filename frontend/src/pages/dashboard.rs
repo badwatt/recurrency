@@ -8,6 +8,7 @@ use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
 use crate::models::account::Account;
 use crate::models::subscription::Subscription;
+use crate::state::rates::RatesState;
 use crate::models::transaction::Transaction;
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -252,6 +253,7 @@ pub fn build_account_budgets(
     subscriptions: &[Subscription],
     transactions: &[Transaction],
     today: NaiveDate,
+    rates: &RatesState,
 ) -> Vec<AccountBudget> {
     let mut plan: HashMap<Uuid, AccountBudget> = accounts
         .iter()
@@ -306,6 +308,7 @@ pub fn build_account_budgets(
 
         entry.subscription_count += 1;
         for (date, amount) in occurrences {
+            let amount = rates.convert(amount, &sub.currency);
             entry.subscriptions += amount;
             entry.budget += amount;
             if date >= today {
@@ -332,13 +335,14 @@ pub fn build_account_budgets(
             manual_count: 0,
             pending_count: 0,
         });
-        entry.manual += txn.amount;
-        entry.budget += txn.amount;
+        let amount = rates.convert(txn.amount, &txn.currency);
+        entry.manual += amount;
+        entry.budget += amount;
         entry.manual_count += 1;
         // A manual payment recorded today is already paid; only future-dated
         // manual payments remain pending.
         if txn.date > today {
-            entry.pending += txn.amount;
+            entry.pending += amount;
             entry.pending_count += 1;
         }
     }
@@ -441,6 +445,7 @@ pub fn Dashboard() -> Element {
         &sub_state.subscriptions,
         &txns_state.transactions,
         today,
+        &crate::state::rates::RATES(),
     );
     let visible: Vec<AccountBudget> = plan.iter().filter(|b| b.has_movements()).cloned().collect();
     let hidden_count = plan.len().saturating_sub(visible.len());
@@ -557,7 +562,7 @@ pub fn Dashboard() -> Element {
                             "{format_currency(budget_total, &currency)}"
                         }
                         p { class: "text-xs text-muted-foreground mt-2",
-                            "Fixed monthly budget: normalized subscriptions + manual payments."
+                            "Actual charges this month + manual payments."
                         }
                         div { class: "flex flex-wrap items-center gap-x-5 gap-y-2 mt-6 text-xs text-muted-foreground",
                             span { class: "inline-flex items-center gap-1.5",
@@ -615,7 +620,7 @@ pub fn Dashboard() -> Element {
                             "Transfer by account"
                         }
                         p { class: "text-sm text-muted-foreground mt-1",
-                            "Fixed budget and actual pending from today."
+                            "Actual charges this month and pending from today."
                         }
                     }
                     p { class: "text-xs text-muted-foreground",
@@ -1108,7 +1113,7 @@ mod tests {
             transaction(main_id, dec!(8), date(2024, 5, 20)),
         ];
 
-        let plan = build_account_budgets(&[main, savings], &subs, &txns, today);
+        let plan = build_account_budgets(&[main, savings], &subs, &txns, today, &RatesState::default());
         let main_plan = plan.iter().find(|b| b.account_id == main_id).unwrap();
         let savings_plan = plan.iter().find(|b| b.account_id == savings_id).unwrap();
 
@@ -1119,7 +1124,7 @@ mod tests {
         assert_eq!(main_plan.pending_count, 2);
 
         let today_txn = transaction(main_id, dec!(4), today);
-        let plan_with_today = build_account_budgets(&[account("Main")], &[], &[today_txn], today);
+        let plan_with_today = build_account_budgets(&[account("Main")], &[], &[today_txn], today, &RatesState::default());
         assert_eq!(plan_with_today[0].budget, dec!(4));
         assert_eq!(plan_with_today[0].pending, dec!(0));
 
@@ -1139,10 +1144,32 @@ mod tests {
             Some(date(2024, 6, 20)),
             true,
         );
-        let plan = build_account_budgets(&[], &[orphan], &[], today);
+        let plan = build_account_budgets(&[], &[orphan], &[], today, &RatesState::default());
         assert_eq!(plan.len(), 1);
         assert_eq!(plan[0].name, "No account");
         assert_eq!(plan[0].pending, dec!(10));
+    }
+
+
+    #[test]
+    fn dashboard_converts_foreign_currency_totals() {
+        let account = account("Main");
+        let account_id = account.id;
+        let today = date(2026, 5, 10);
+        let mut usd = subscription(
+            account_id,
+            dec!(11),
+            "monthly",
+            date(2026, 5, 1),
+            Some(date(2026, 5, 1)),
+            true,
+        );
+        usd.currency = "USD".into();
+        let mut rates = RatesState::default();
+        rates.base = "EUR".into();
+        rates.rates.insert("USD".into(), dec!(1.1));
+        let plan = build_account_budgets(&[account], &[usd], &[], today, &rates);
+        assert_eq!(plan[0].budget, dec!(10));
     }
 
     #[test]

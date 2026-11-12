@@ -388,7 +388,7 @@ pub fn SubscriptionsPage() -> Element {
                 PageHeader { title: "Subscriptions", subtitle: "Track and manage recurring payments" }
                 div { class: "flex items-center gap-2 shrink-0",
                     button {
-                        class: "hidden sm:flex items-center gap-1.5 border border-border/60 rounded-lg px-3 py-2 hover:bg-muted text-sm transition-colors duration-200",
+                        class: "inline-flex items-center gap-1.5 border border-border/60 rounded-lg px-3 py-2 hover:bg-muted text-sm transition-colors duration-200",
                         onclick: {
                             let vm = view_mode.clone();
                             move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })

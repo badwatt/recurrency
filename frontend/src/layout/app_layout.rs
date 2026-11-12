@@ -31,6 +31,7 @@ pub enum Icon {
     Dashboard,
     Subscriptions,
     Transactions,
+    Debts,
     Calendar,
     Categories,
     Reports,
@@ -162,6 +163,12 @@ pub fn AppLayout() -> Element {
                                 icon: Icon::Transactions,
                             }
                             TopNavLink {
+                                to: crate::Route::Debts {},
+                                label: "Debts".to_string(),
+                                active: matches!(current_route, crate::Route::Debts {}),
+                                icon: Icon::Debts,
+                            }
+                            TopNavLink {
                                 to: crate::Route::Calendar {},
                                 label: "Calendar".to_string(),
                                 active: matches!(current_route, crate::Route::Calendar {}),
@@ -219,6 +226,12 @@ pub fn AppLayout() -> Element {
                         label: "Trans".to_string(),
                         active: matches!(current_route, crate::Route::Transactions {}),
                         icon: Icon::Transactions,
+                    }
+                    MobileTab {
+                        to: crate::Route::Debts {},
+                        label: "Debts".to_string(),
+                        active: matches!(current_route, crate::Route::Debts {}),
+                        icon: Icon::Debts,
                     }
                     MobileTab {
                         to: crate::Route::Calendar {},
@@ -504,6 +517,21 @@ pub(crate) fn svg_icon(icon: Icon, size: i32) -> Element {
                 path { d: "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 1 1 0 7H6" }
             }
         },
+        Icon::Debts => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                path { d: "M20 12V8H6a2 2 0 0 1 0-4h12v4" }
+                path { d: "M4 6v12a2 2 0 0 0 2 2h14v-4" }
+                path { d: "M18 12a2 2 0 0 0 0 4h4v-4z" }
+            }
+        },
         Icon::Calendar => rsx! {
             svg {
                 view_box: "0 0 24 24",
@@ -726,6 +754,7 @@ mod tests {
         let _ = Icon::Dashboard;
         let _ = Icon::Subscriptions;
         let _ = Icon::Transactions;
+        let _ = Icon::Debts;
         let _ = Icon::Calendar;
         let _ = Icon::Categories;
         let _ = Icon::Reports;

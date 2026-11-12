@@ -17,6 +17,8 @@ use recurrency_backend::notifications::channels::{NotificationProvider, UpdateNo
 use recurrency_backend::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
 use recurrency_backend::categories::models::CreateCategoryRequest;
 use recurrency_backend::categories::service::CategoryService;
+use recurrency_backend::debts::models::{CreateDebtRequest, RecordDebtPaymentRequest};
+use recurrency_backend::debts::service::DebtService;
 use recurrency_backend::reports::service::ReportService;
 use recurrency_backend::shared::error::AppError;
 use recurrency_backend::subscriptions::models::{
@@ -1048,4 +1050,70 @@ async fn account_delete_reassigns_subscriptions_to_default(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(sub_after.account_id, default.id);
+}
+
+
+#[sqlx::test]
+async fn debt_manual_payment_and_automatic_payoff(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let manual = DebtService::create(
+        &pool,
+        user_id,
+        CreateDebtRequest {
+            name: "Manual".into(),
+            total_amount: Decimal::from(100),
+            currency: "EUR".into(),
+            account_id: Uuid::nil(),
+            category_id: None,
+            debt_type: "manual".into(),
+            monthly_payment: None,
+            start_date: None,
+            notes: None,
+            logo_url: None,
+        },
+    )
+    .await
+    .unwrap();
+    let paid = DebtService::record_payment(
+        &pool,
+        user_id,
+        manual.id,
+        RecordDebtPaymentRequest {
+            amount: Decimal::from(40),
+            paid_on: NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(),
+            note: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(paid.remaining_amount, Decimal::from(60));
+    assert_eq!(paid.paid_amount, Decimal::from(40));
+
+    let automatic = DebtService::create(
+        &pool,
+        user_id,
+        CreateDebtRequest {
+            name: "Automatic".into(),
+            total_amount: Decimal::from(300),
+            currency: "EUR".into(),
+            account_id: Uuid::nil(),
+            category_id: None,
+            debt_type: "automatic".into(),
+            monthly_payment: Some(Decimal::from(100)),
+            start_date: Some(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+            notes: None,
+            logo_url: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(automatic.subscription_id.is_some());
+    let all = DebtService::get_all(&pool, user_id).await.unwrap();
+    let automatic = all.iter().find(|debt| debt.id == automatic.id).unwrap();
+    assert_eq!(automatic.remaining_amount, Decimal::ZERO);
+    assert!(!automatic.is_active);
+    let payments = DebtService::payments(&pool, user_id, automatic.id)
+        .await
+        .unwrap();
+    assert_eq!(payments.len(), 3);
 }

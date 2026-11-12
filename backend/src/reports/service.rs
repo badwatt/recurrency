@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
 use crate::shared::date_utils::days_in_month;
 use crate::shared::error::AppResult;
+use crate::currency::service::{convert, get_rates};
 use crate::subscriptions::models::Recurrence;
 
 pub struct ReportService;
@@ -161,6 +162,7 @@ type SubscriptionRow = (
     Option<String>,
     String,
     Decimal,
+    String,
     Json<Recurrence>,
     chrono::NaiveDate,
     Option<chrono::NaiveDate>,
@@ -175,15 +177,20 @@ impl ReportService {
     ) -> AppResult<MonthlySummary> {
         let (from_date, to_date) = month_date_range(year, month);
 
-        let subscriptions = sqlx::query_as::<_, (Decimal, Json<Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>)>(
-            "SELECT amount, recurrence, start_date, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
+        let base: String = sqlx::query_scalar("SELECT currency FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
+        let rates = get_rates(&base).await?;
+        let subscriptions = sqlx::query_as::<_, (Decimal, String, Json<Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>)>(
+            "SELECT amount, currency, recurrence, start_date, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
         )
         .bind(user_id)
         .fetch_all(pool)
         .await?;
         let mut subscriptions_count = 0i64;
         let mut subscriptions_total = Decimal::ZERO;
-        for (amount, recurrence, start, end) in subscriptions {
+        for (amount, currency, recurrence, start, end) in subscriptions {
             let occurrences = crate::subscriptions::recurrence::occurrences_in_month(
                 start,
                 &recurrence.0,
@@ -196,15 +203,15 @@ impl ReportService {
                 subscriptions_count += 1;
                 subscriptions_total += occurrences
                     .into_iter()
-                    .map(|(_, amount)| amount)
+                    .map(|(_, amount)| convert(amount, &currency, &base, &rates))
                     .sum::<Decimal>();
             }
         }
         let _ = (from_date, to_date);
 
-        let (transactions_total, transactions_count): (Decimal, i64) = sqlx::query_as(
+        let transaction_rows: Vec<(Decimal, String)> = sqlx::query_as(
             r#"
-            SELECT COALESCE(SUM(amount), 0), COUNT(*)
+            SELECT amount, currency
             FROM transactions
             WHERE user_id = $1 AND date >= $2 AND date <= $3
             "#,
@@ -212,8 +219,13 @@ impl ReportService {
         .bind(user_id)
         .bind(from_date)
         .bind(to_date)
-        .fetch_one(pool)
+        .fetch_all(pool)
         .await?;
+        let transactions_count = i64::try_from(transaction_rows.len()).unwrap_or(0);
+        let transactions_total: Decimal = transaction_rows
+            .into_iter()
+            .map(|(amount, currency)| convert(amount, &currency, &base, &rates))
+            .sum();
 
         Ok(MonthlySummary {
             year,
@@ -233,12 +245,17 @@ impl ReportService {
         month: u32,
     ) -> AppResult<Vec<CategoryBreakdown>> {
         let (from_date, to_date) = month_date_range(year, month);
+        let base: String = sqlx::query_scalar("SELECT currency FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
+        let rates = get_rates(&base).await?;
 
         // Get subscriptions and filter by the first scheduled charge that
         // falls in this month. A future activation does not count early.
         let subscription_rows: Vec<SubscriptionRow> = sqlx::query_as(
             r#"
-            SELECT c.id::text, COALESCE(c.name, 'Uncategorized'), s.amount,
+            SELECT c.id::text, COALESCE(c.name, 'Uncategorized'), s.amount, s.currency,
                    s.recurrence, s.start_date, s.end_date
             FROM subscriptions s
             LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
@@ -250,7 +267,7 @@ impl ReportService {
         .await?;
 
         let mut subs_by_cat_map: HashMap<String, (Option<String>, Decimal)> = HashMap::new();
-        for (cat_id, name, amount, recurrence, start, end) in subscription_rows {
+        for (cat_id, name, amount, currency, recurrence, start, end) in subscription_rows {
             let total: Decimal = crate::subscriptions::recurrence::occurrences_in_month(
                 start,
                 &recurrence.0,
@@ -260,7 +277,7 @@ impl ReportService {
                 amount,
             )
             .into_iter()
-            .map(|(_, amount)| amount)
+            .map(|(_, amount)| convert(amount, &currency, &base, &rates))
             .sum();
             if total.is_zero() {
                 continue;
@@ -274,14 +291,13 @@ impl ReportService {
             .map(|(name, (id, total))| (id, name, total))
             .collect();
 
-        // Get transactions by category
-        let txns_by_cat: Vec<(Option<String>, String, Decimal)> = sqlx::query_as(
+        // Get transactions by category and convert each row before aggregating.
+        let txn_rows: Vec<(Option<String>, String, Decimal, String)> = sqlx::query_as(
             r#"
-            SELECT c.id::text, COALESCE(c.name, 'Uncategorized'), COALESCE(SUM(t.amount), 0) as total
+            SELECT c.id::text, COALESCE(c.name, 'Uncategorized'), t.amount, t.currency
             FROM transactions t
             LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
             WHERE t.user_id = $1 AND t.date >= $2 AND t.date <= $3
-            GROUP BY c.id, c.name
             "#,
         )
         .bind(user_id)
@@ -289,6 +305,15 @@ impl ReportService {
         .bind(to_date)
         .fetch_all(pool)
         .await?;
+        let mut txn_map: HashMap<String, (Option<String>, Decimal)> = HashMap::new();
+        for (cat_id, name, amount, currency) in txn_rows {
+            let entry = txn_map.entry(name).or_insert((cat_id, Decimal::ZERO));
+            entry.1 += convert(amount, &currency, &base, &rates);
+        }
+        let txns_by_cat: Vec<(Option<String>, String, Decimal)> = txn_map
+            .into_iter()
+            .map(|(name, (id, total))| (id, name, total))
+            .collect();
 
         // Combine and aggregate using extracted function
         Ok(combine_category_totals(subs_by_cat, txns_by_cat))
@@ -304,11 +329,16 @@ impl ReportService {
             return Ok(Vec::new());
         }
 
+        let base: String = sqlx::query_scalar("SELECT currency FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
+        let rates = get_rates(&base).await?;
         let subscriptions = sqlx::query_as::<
             _,
-            (Decimal, Json<Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>),
+            (Decimal, String, Json<Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>),
         >(
-            "SELECT amount, recurrence, start_date, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
+            "SELECT amount, currency, recurrence, start_date, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -325,14 +355,13 @@ impl ReportService {
             .max()
             .expect("months is non-empty");
 
-        let by_month: Vec<(i32, i32, Decimal)> = sqlx::query_as(
+        let by_month: Vec<(i32, i32, Decimal, String)> = sqlx::query_as(
             r#"
             SELECT EXTRACT(YEAR FROM date)::int AS year,
                    EXTRACT(MONTH FROM date)::int AS month,
-                   COALESCE(SUM(amount), 0) AS total
+                   amount, currency
             FROM transactions
             WHERE user_id = $1 AND date >= $2 AND date <= $3
-            GROUP BY year, month
             "#,
         )
         .bind(user_id)
@@ -342,9 +371,10 @@ impl ReportService {
         .await?;
 
         let mut transaction_totals: HashMap<(i32, u32), Decimal> = HashMap::new();
-        for (year, month, total) in by_month {
+        for (year, month, amount, currency) in by_month {
             if let Ok(month) = u32::try_from(month) {
-                transaction_totals.insert((year, month), total);
+                *transaction_totals.entry((year, month)).or_default() +=
+                    convert(amount, &currency, &base, &rates);
             }
         }
 
@@ -353,7 +383,7 @@ impl ReportService {
             .map(|(year, month, month_start, month_end)| {
                 let subscription_total = subscriptions
                     .iter()
-                    .map(|(amount, recurrence, start, end)| {
+                    .map(|(amount, currency, recurrence, start, end)| {
                         crate::subscriptions::recurrence::occurrences_in_month(
                             *start,
                             &recurrence.0,
@@ -363,7 +393,7 @@ impl ReportService {
                             *amount,
                         )
                         .into_iter()
-                        .map(|(_, amount)| amount)
+                        .map(|(_, amount)| convert(amount, currency, &base, &rates))
                         .sum::<Decimal>()
                     })
                     .sum::<Decimal>();

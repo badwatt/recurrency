@@ -74,7 +74,7 @@ docker run -d \
   -p 80:80 -p 8080:8080 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/badwatt/recurrency:0.30.0
+  ghcr.io/badwatt/recurrency:0.31.0
 ```
 
 - **Web:** http://localhost
@@ -92,7 +92,7 @@ docker run -d \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:0.30.0
+  ghcr.io/badwatt/recurrency:0.31.0
 ```
 
 - nginx is not started; only PostgreSQL and the backend run.
@@ -136,6 +136,7 @@ you do not want to expose it.
 | `ENABLE_WEB` | `true` | Docker only: serve the web UI; `false` for headless |
 | `PGPASSWORD` | `recurrency` | PostgreSQL password inside the Docker image |
 | `RECURRENCY_API_URL` | compiled default | Default server URL for native builds; overridden in the app |
+| `FIXER_API_KEY` | — | Optional Fixer API key; otherwise the free Frankfurter provider is used |
 | `SMTP_HOST` | — | SMTP server |
 | `SMTP_PORT` | `587` | SMTP port |
 | `SMTP_USER` | — | SMTP username |
@@ -154,6 +155,7 @@ you do not want to expose it.
 | **Backend** | Rust + Axum + SQLx + JWT + Argon2 |
 | **Database** | PostgreSQL |
 | **Notifications** | Per-user SMTP + 11 native channels + summary scheduler |
+| **Currency** | Automatic conversion via Fixer (optional key) or Frankfurter (no key) |
 | **Deployment** | Single all-in-one Docker image; web or headless API-only |
 
 ---
@@ -178,6 +180,9 @@ you do not want to expose it.
 | 🏷️ **Category badges** | Categories appear next to accounts; the system Uncategorized fallback is never shown |
 | ⬆️ **Update notice** | Dismissible banner when a newer GitHub release is available |
 | 📱 **Native app** | Android and desktop clients with configurable server URL at login and in Settings |
+| 💳 **Debts** | Manual debts with payments that reduce the balance, plus automatic debts paid month by month and backed by a subscription |
+| 💱 **Currency conversion** | Totals and reports convert into the main currency; Fixer is optional and Frankfurter works without a key |
+| 📱 **Mobile views** | Grid/list toggle available on phones and tablets |
 | 🐳 **Deployment** | One all-in-one image; web UI or headless API-only |
 | 🌙 **Dark Mode** | Light / dark / system |
 | 📤 **Grid / List** | Adjustable view |
@@ -190,8 +195,8 @@ you do not want to expose it.
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1192 lib + 46 integration |
-| **Frontend** | — | — | — | 1648 |
+| **Backend** | — | — | — | 1197 lib + 47 integration |
+| **Frontend** | — | — | — | 1656 |
 | **Tools** | — | — | — | 8 |
 
 Integration tests use a disposable PostgreSQL instance:
@@ -237,6 +242,8 @@ backend/src/
 ├── subscriptions/  # Recurrence schedules and subscription CRUD
 ├── transactions/   # Transaction CRUD
 ├── categories/     # Optional category CRUD
+├── currency/       # Exchange-rate providers and conversion
+├── debts/          # Manual and automatic debt tracking
 ├── notifications/  # Delivery channels, encryption, summary scheduler
 ├── email/          # SMTP delivery
 ├── reports/        # Statistics, trends and exports

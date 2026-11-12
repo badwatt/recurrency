@@ -42,6 +42,8 @@ pub enum Route {
         Subscriptions {},
         #[route("/transactions")]
         Transactions {},
+        #[route("/debts")]
+        Debts {},
         #[route("/calendar")]
         Calendar {},
         #[route("/reports")]
@@ -198,6 +200,21 @@ fn App() -> Element {
         }
     });
 
+    // Load exchange rates when the session or the main currency changes.
+    use_effect(move || {
+        let auth = AUTH();
+        if auth.is_authenticated && !crate::api::client::is_offline_mode() {
+            let base = auth.currency().to_string();
+            if crate::state::rates::RATES().base != base {
+                spawn(async move {
+                    if let Ok(rates) = crate::api::currency::get_rates(&base).await {
+                        crate::state::rates::RATES.write().set_data(rates);
+                    }
+                });
+            }
+        }
+    });
+
     // Show body only after CSS + fonts are fully applied — prevents FOUC on Android.
     // Uses link.onload events instead of sheet.cssRules (which throws SecurityError
     // on Android WebView's custom protocol, causing premature body reveal).
@@ -322,6 +339,11 @@ fn Accounts() -> Element {
 #[allow(non_snake_case)]
 fn Categories() -> Element {
     rsx! { SettingsCategories {} }
+}
+
+#[component]
+fn Debts() -> Element {
+    rsx! { crate::pages::DebtsPage {} }
 }
 
 #[component]

@@ -1,6 +1,6 @@
 use recurrency_backend::{
-    accounts, auth, categories, demo, logos, notifications, preferences, reports, shared,
-    subscriptions, transactions,
+    accounts, auth, categories, currency, debts, demo, logos, notifications, preferences,
+    reports, shared, subscriptions, transactions,
 };
 
 use axum::http::HeaderValue;
@@ -62,6 +62,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/api/health", get(health_check))
+        .route("/api/currency/rates", get(currency::handlers::rates))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
         .route("/api/auth/verify", get(auth::handlers::verify))
@@ -98,6 +99,13 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/categories/{id}", put(categories::handlers::update))
         .route("/api/categories/{id}", delete(categories::handlers::delete))
         .route("/api/categories/default", put(categories::handlers::set_default))
+        .route("/api/debts", post(debts::handlers::create))
+        .route("/api/debts", get(debts::handlers::list))
+        .route("/api/debts/{id}", get(debts::handlers::get))
+        .route("/api/debts/{id}", put(debts::handlers::update))
+        .route("/api/debts/{id}", delete(debts::handlers::delete))
+        .route("/api/debts/{id}/payments", post(debts::handlers::record_payment))
+        .route("/api/debts/{id}/payments", get(debts::handlers::payments))
         .route("/api/reports/summary", get(reports::handlers::get_report))
         .route("/api/notifications", get(notifications::handlers::list))
         .route("/api/notifications/read-all", post(notifications::handlers::mark_all_read))

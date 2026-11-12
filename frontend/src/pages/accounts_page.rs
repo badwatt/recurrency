@@ -258,30 +258,33 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
                                                 span { class: "text-xs text-muted-foreground", "Default" }
                                             }
                                         }
-                                        // Actions
-                                        div { class: "flex gap-0.5 sm:gap-1 shrink-0",
-                                            if !is_default {
-                                                button {
-                                                    class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                    title: "Set as default",
-                                                    onclick: move |_| handle_set_default(cat_id),
-                                                    {icon_star()}
-                                                }
-                                            }
+                                    }
+                                    // Actions on their own row so the name keeps the full width.
+                                    div { class: "mt-3 flex justify-end gap-0.5 border-t border-border/40 pt-2 sm:gap-1",
+                                        if !is_default {
                                             button {
                                                 class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                onclick: {
-                                                    let cat = cat.clone();
-                                                    move |_| open_edit(&cat)
-                                                },
-                                                {icon_pencil()}
+                                                title: "Set as default",
+                                                aria_label: "Set account as default",
+                                                onclick: move |_| handle_set_default(cat_id),
+                                                {icon_star()}
                                             }
-                                            if !is_default {
-                                                button {
-                                                    class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
-                                                    onclick: move |_| handle_delete(cat_id),
-                                                    {icon_trash_2()}
-                                                }
+                                        }
+                                        button {
+                                            class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
+                                            aria_label: "Edit account",
+                                            onclick: {
+                                                let cat = cat.clone();
+                                                move |_| open_edit(&cat)
+                                            },
+                                            {icon_pencil()}
+                                        }
+                                        if !is_default {
+                                            button {
+                                                class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
+                                                aria_label: "Delete account",
+                                                onclick: move |_| handle_delete(cat_id),
+                                                {icon_trash_2()}
                                             }
                                         }
                                     }

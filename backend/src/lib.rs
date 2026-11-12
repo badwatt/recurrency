@@ -6,6 +6,8 @@ pub mod accounts;
 pub mod auth;
 
 pub mod categories;
+pub mod currency;
+pub mod debts;
 pub mod demo;
 pub mod email;
 pub mod logos;

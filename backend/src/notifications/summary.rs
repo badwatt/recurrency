@@ -4,6 +4,7 @@ use chrono::{Datelike, NaiveDate};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
+use crate::currency::service::{RatesResponse, convert};
 #[cfg(test)]
 use crate::shared::date_utils::days_in_month;
 use crate::subscriptions::models::Recurrence;
@@ -18,6 +19,7 @@ pub struct SummaryAccount {
 pub struct SummarySubscription {
     pub account_id: Uuid,
     pub amount: Decimal,
+    pub currency: String,
     pub frequency: String,
     pub schedule_day: Option<i16>,
     pub schedule_month: Option<i16>,
@@ -32,6 +34,7 @@ pub struct SummarySubscription {
 pub struct SummaryTransaction {
     pub account_id: Uuid,
     pub amount: Decimal,
+    pub currency: String,
     pub date: NaiveDate,
 }
 
@@ -123,6 +126,7 @@ pub fn build_account_summaries(
     subscriptions: &[SummarySubscription],
     transactions: &[SummaryTransaction],
     today: NaiveDate,
+    rates: &RatesResponse,
 ) -> Vec<AccountSummary> {
     let mut plan: HashMap<Uuid, AccountSummary> = accounts
         .iter()
@@ -156,6 +160,7 @@ pub fn build_account_summaries(
             pending: Decimal::ZERO,
         });
         for (date, amount) in occurrences {
+            let amount = convert(amount, &subscription.currency, &rates.base, rates);
             entry.budget += amount;
             if date >= today {
                 entry.pending += amount;
@@ -171,9 +176,10 @@ pub fn build_account_summaries(
             budget: Decimal::ZERO,
             pending: Decimal::ZERO,
         });
-        entry.budget += transaction.amount;
+        let amount = convert(transaction.amount, &transaction.currency, &rates.base, rates);
+        entry.budget += amount;
         if transaction.date > today {
-            entry.pending += transaction.amount;
+            entry.pending += amount;
         }
     }
 
@@ -196,8 +202,9 @@ pub fn build_message(
     transactions: &[SummaryTransaction],
     today: NaiveDate,
     currency: &str,
+    rates: &RatesResponse,
 ) -> String {
-    let plan = build_account_summaries(accounts, subscriptions, transactions, today);
+    let plan = build_account_summaries(accounts, subscriptions, transactions, today, rates);
     let budget = total_budget(&plan);
     let pending = total_pending(&plan);
     let month = today.format("%B %Y");
@@ -223,6 +230,15 @@ pub fn build_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_rates() -> RatesResponse {
+        RatesResponse {
+            base: "EUR".to_string(),
+            provider: "test".to_string(),
+            fetched_at: chrono::Utc::now(),
+            rates: HashMap::from([("EUR".to_string(), Decimal::ONE)]),
+        }
+    }
 
     fn account(id: Uuid, name: &str) -> SummaryAccount {
         SummaryAccount {
@@ -256,6 +272,7 @@ mod tests {
             SummarySubscription {
                 account_id,
                 amount: Decimal::from(15),
+                currency: "EUR".to_string(),
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
@@ -273,6 +290,7 @@ mod tests {
             SummarySubscription {
                 account_id,
                 amount: Decimal::from(10),
+                currency: "EUR".to_string(),
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
@@ -292,15 +310,17 @@ mod tests {
             SummaryTransaction {
                 account_id,
                 amount: Decimal::from(7),
+                currency: "EUR".to_string(),
                 date: NaiveDate::from_ymd_opt(2026, 11, 10).unwrap(),
             },
             SummaryTransaction {
                 account_id,
                 amount: Decimal::from(3),
+                currency: "EUR".to_string(),
                 date: NaiveDate::from_ymd_opt(2026, 11, 20).unwrap(),
             },
         ];
-        let summaries = build_account_summaries(&accounts, &subscriptions, &transactions, today);
+        let summaries = build_account_summaries(&accounts, &subscriptions, &transactions, today, &test_rates());
         assert_eq!(summaries[0].budget, Decimal::from(35));
         assert_eq!(summaries[0].pending, Decimal::from(18));
         assert_eq!(total_budget(&summaries), Decimal::from(35));
@@ -316,6 +336,7 @@ mod tests {
             &[SummarySubscription {
                 account_id,
                 amount: Decimal::from(15),
+                currency: "EUR".to_string(),
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
@@ -333,6 +354,7 @@ mod tests {
             &[],
             today,
             "EUR",
+            &test_rates(),
         );
         assert!(message.contains("November 2026"));
         assert!(message.contains("Transfer this month: EUR 15.00"));
@@ -349,6 +371,7 @@ mod tests {
             &[SummarySubscription {
                 account_id,
                 amount: Decimal::from(15),
+                currency: "EUR".to_string(),
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
@@ -365,6 +388,7 @@ mod tests {
             }],
             &[],
             today,
+            &test_rates(),
         );
         assert_eq!(summaries[0].budget, Decimal::ZERO);
         assert_eq!(summaries[0].pending, Decimal::ZERO);

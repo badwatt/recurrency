@@ -244,21 +244,25 @@ pub(crate) async fn build_summary(
     .map(|(id, name)| SummaryAccount { id, name })
     .collect::<Vec<_>>();
 
+    let rates = crate::currency::service::get_rates(currency)
+        .await
+        .map_err(|error| error.to_string())?;
     let subscriptions = sqlx::query_as::<
         _,
-        (uuid::Uuid, rust_decimal::Decimal, String, Option<i16>, Option<i16>, sqlx::types::Json<crate::subscriptions::models::Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>, Option<chrono::NaiveDate>, bool),
+        (uuid::Uuid, rust_decimal::Decimal, String, String, Option<i16>, Option<i16>, sqlx::types::Json<crate::subscriptions::models::Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>, Option<chrono::NaiveDate>, bool),
     >(
-        "SELECT account_id, amount, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active FROM subscriptions WHERE user_id = $1",
+        "SELECT account_id, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active FROM subscriptions WHERE user_id = $1",
     )
     .bind(user_id)
     .fetch_all(pool)
     .await
     .map_err(|error| error.to_string())?
     .into_iter()
-    .map(|(account_id, amount, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active)| {
+    .map(|(account_id, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active)| {
         SummarySubscription {
             account_id,
             amount,
+            currency,
             frequency,
             schedule_day,
             schedule_month,
@@ -271,8 +275,8 @@ pub(crate) async fn build_summary(
     })
     .collect::<Vec<_>>();
 
-    let transactions = sqlx::query_as::<_, (uuid::Uuid, rust_decimal::Decimal, chrono::NaiveDate)>(
-        "SELECT account_id, amount, date FROM transactions WHERE user_id = $1 AND date >= $2 AND date <= $3",
+    let transactions = sqlx::query_as::<_, (uuid::Uuid, rust_decimal::Decimal, String, chrono::NaiveDate)>(
+        "SELECT account_id, amount, currency, date FROM transactions WHERE user_id = $1 AND date >= $2 AND date <= $3",
     )
     .bind(user_id)
     .bind(today.with_day(1).ok_or_else(|| "Invalid summary date".to_string())?)
@@ -285,14 +289,15 @@ pub(crate) async fn build_summary(
     .await
     .map_err(|error| error.to_string())?
     .into_iter()
-    .map(|(account_id, amount, date)| SummaryTransaction {
+    .map(|(account_id, amount, currency, date)| SummaryTransaction {
         account_id,
         amount,
+        currency,
         date,
     })
     .collect::<Vec<_>>();
 
-    let body = build_message(&accounts, &subscriptions, &transactions, today, currency);
+    let body = build_message(&accounts, &subscriptions, &transactions, today, currency, &rates);
     Ok(NotificationMessage {
         title: format!("Recurrency summary {}/{:02}", today.year(), today.month()),
         body,

@@ -1,8 +1,10 @@
 pub mod accounts;
+pub mod currency;
 pub mod app;
 pub mod auth;
 pub mod categories;
 pub mod client;
+pub mod debts;
 pub mod demo;
 pub mod logos;
 pub mod notification_channels;

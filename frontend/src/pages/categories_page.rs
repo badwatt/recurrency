@@ -232,22 +232,24 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                                                 span { class: "ml-1 text-[10px] uppercase tracking-wide text-muted-foreground/60", "System" }
                                             }
                                         }
-                                        // Actions
-                                        div { class: "flex gap-0.5 sm:gap-1 shrink-0",
-                                            if !is_system {
-                                                button {
-                                                    class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                    onclick: {
-                                                        let cat = cat.clone();
-                                                        move |_| open_edit(&cat)
-                                                    },
-                                                    {icon_pencil()}
-                                                }
-                                                button {
-                                                    class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
-                                                    onclick: move |_| handle_delete(cat_id),
-                                                    {icon_trash_2()}
-                                                }
+                                    }
+                                    if !is_system {
+                                        // Actions on their own row so the name keeps the full width.
+                                        div { class: "mt-3 flex justify-end gap-0.5 border-t border-border/40 pt-2 sm:gap-1",
+                                            button {
+                                                class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
+                                                aria_label: "Edit category",
+                                                onclick: {
+                                                    let cat = cat.clone();
+                                                    move |_| open_edit(&cat)
+                                                },
+                                                {icon_pencil()}
+                                            }
+                                            button {
+                                                class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
+                                                aria_label: "Delete category",
+                                                onclick: move |_| handle_delete(cat_id),
+                                                {icon_trash_2()}
                                             }
                                         }
                                     }

@@ -26,12 +26,11 @@ pub fn logo_image_with_fallback(
         Some(url_str) => {
             let fb_id_clone = fb_id.clone();
             let img_id_clone_for_error = img_id.clone();
-            let img_id_clone_for_load = img_id.clone();
             let _wrapper_id_clone = wrapper_id.clone();
             rsx! {
                 div {
                     id: wrapper_id.to_string(),
-                    class: "flex items-center justify-center rounded-md overflow-hidden bg-primary/10",
+                    class: "flex items-center justify-center rounded-md overflow-hidden",
                     img {
                         id: img_id.to_string(),
                         src: url_str.to_string(),
@@ -42,31 +41,6 @@ pub fn logo_image_with_fallback(
                                 "document.getElementById('{}').style.display='none'; \
                                  document.getElementById('{}').style.display='flex';",
                                 img_id_clone_for_error, fb_id_clone
-                            ));
-                        },
-                        onload: move |_| {
-                            let _ = dioxus::document::eval(&format!(
-                                r#"
-                                (function() {{
-                                    var img = document.getElementById('{}');
-                                    var wrapper = img ? img.parentElement : null;
-                                    if (!img || !wrapper) return;
-                                    var canvas = document.createElement('canvas');
-                                    var ctx = canvas.getContext('2d');
-                                    canvas.width = img.naturalWidth || 1;
-                                    canvas.height = img.naturalHeight || 1;
-                                    ctx.drawImage(img, 0, 0);
-                                    var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                                    var hasTransparency = false;
-                                    for (var i = 3; i < data.length; i += 4) {{
-                                        if (data[i] < 255) {{ hasTransparency = true; break; }}
-                                    }}
-                                    if (hasTransparency) {{
-                                        wrapper.style.background = 'var(--primary)';
-                                    }}
-                                }})()
-                                "#,
-                                img_id_clone_for_load
                             ));
                         },
                     }
@@ -256,11 +230,12 @@ mod tests {
     }
 
     #[test]
-    fn logo_wrapper_has_theme_background() {
+    fn logo_wrapper_is_transparent() {
         let src = include_str!("logo_image.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         assert!(prod.contains("div {"), "logo must be wrapped in a div");
-        assert!(prod.contains("bg-primary"), "wrapper must have theme background");
+        assert!(!prod.contains("bg-primary"), "logo wrapper must stay transparent");
+        assert!(prod.contains("overflow-hidden"));
     }
 
     #[test]

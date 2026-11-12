@@ -78,23 +78,12 @@ pub fn render_grid_card(
                 style: "background: {color};",
             }
 
-            // Logo watermark background
-            if let Some(ref url) = logo_url {
-                div { class: "absolute inset-0 opacity-[0.06] flex items-center justify-center pointer-events-none select-none",
-                    img {
-                        src: url.to_string(),
-                        alt: "",
-                        class: "w-full h-full object-contain scale-[2.5]",
-                    }
-                }
-            }
-
             // Content
             div { class: "relative z-10 flex flex-col p-5 pb-4 gap-3",
 
                 // Top row: logo + status badge
                 div { class: "flex items-start justify-between gap-2",
-                    div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted overflow-hidden",
+                    div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden",
                         {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-12 w-12 object-contain")}
                         if logo_url.is_none() {
                             span { class: "text-muted-foreground", CreditCard { size: 22 } }
@@ -214,12 +203,6 @@ pub fn render_list_card(
     let is_active = sub.is_active;
     let logo_url = sub.logo_url.clone();
     let name = sub.name.clone();
-    let sub_for_toggle = sub.clone();
-    let sub_for_edit = sub.clone();
-    let id_for_delete = sub.id;
-    let sub_for_notes = sub.clone();
-    let sub_for_duplicate = sub.clone();
-    let has_notes = subscription_has_notes(&sub.notes);
     let status_label = if !is_active {
         "Inactive"
     } else if finalized {
@@ -244,7 +227,7 @@ pub fn render_list_card(
         div { class: "rounded-lg border {card_border} bg-card {opacity} min-w-0",
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
-                    div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
+                    div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full overflow-hidden",
                         {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-9 w-9 sm:h-10 sm:w-10 object-contain")}
                         if logo_url.is_none() {
                             span { class: "text-muted-foreground", CreditCard { size: 20 } }
@@ -282,42 +265,69 @@ pub fn render_list_card(
                         }
                     }
 
-                    div { class: "flex items-center gap-2 sm:gap-4 shrink-0",
-                        p { class: "font-medium text-sm sm:text-base", {formatted.to_string()} }
-
-                        div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
-                            button {
-                                class: "h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md hover:bg-muted",
-                                title: "Duplicate",
-                                aria_label: "Duplicate subscription",
-                                onclick: move |_| on_duplicate.call(sub_for_duplicate.clone()),
-                                Copy { size: 14 }
-                            }
-                            Tooltip { content: sub.notes.clone().unwrap_or_default(),
-                                button {
-                                    class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
-                                    onclick: move |_| on_notes.call(sub_for_notes.clone()),
-                                    FileText { size: 16 }
-                                }
-                            }
-                            button {
-                                class: "h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md hover:bg-muted",
-                                onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
-                                if is_active { Pause { size: 14 } } else { Play { size: 14 } }
-                            }
-                            button {
-                                class: "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted",
-                                onclick: move |_| on_edit.call(sub_for_edit.clone()),
-                                Pencil { size: 14 }
-                            }
-                            button {
-                                class: "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
-                                onclick: move |_| on_delete.call(id_for_delete),
-                                Trash2 { size: 14 }
-                            }
-                        }
+                    div { class: "hidden sm:flex items-center gap-4 shrink-0",
+                        p { class: "font-medium text-base", {formatted.to_string()} }
+                        {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                     }
                 }
+
+                // Mobile: actions get their own row so the name has the full width.
+                div { class: "mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-2 sm:hidden",
+                    p { class: "font-semibold text-base", {formatted.to_string()} }
+                    {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                }
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_list_actions(
+    sub: &Subscription,
+    on_edit: Callback<Subscription>,
+    on_delete: Callback<Uuid>,
+    on_toggle: Callback<Subscription>,
+    on_notes: Callback<Subscription>,
+    on_duplicate: Callback<Subscription>,
+) -> Element {
+    let is_active = sub.is_active;
+    let has_notes = subscription_has_notes(&sub.notes);
+    let sub_for_toggle = sub.clone();
+    let sub_for_edit = sub.clone();
+    let id_for_delete = sub.id;
+    let sub_for_notes = sub.clone();
+    let sub_for_duplicate = sub.clone();
+
+    rsx! {
+        div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
+            button {
+                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                title: "Duplicate",
+                aria_label: "Duplicate subscription",
+                onclick: move |_| on_duplicate.call(sub_for_duplicate.clone()),
+                Copy { size: 14 }
+            }
+            Tooltip { content: sub.notes.clone().unwrap_or_default(),
+                button {
+                    class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
+                    onclick: move |_| on_notes.call(sub_for_notes.clone()),
+                    FileText { size: 16 }
+                }
+            }
+            button {
+                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
+                if is_active { Pause { size: 14 } } else { Play { size: 14 } }
+            }
+            button {
+                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                onclick: move |_| on_edit.call(sub_for_edit.clone()),
+                Pencil { size: 14 }
+            }
+            button {
+                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
+                onclick: move |_| on_delete.call(id_for_delete),
+                Trash2 { size: 14 }
             }
         }
     }
