@@ -14,8 +14,15 @@ Thumbs.db
 # Node
 frontend/node_modules
 
-# Rust
+# Rust build outputs
+target
 backend/target
+frontend/target
+tools/target
+
+# Frontend build output (must be rebuilt inside the image)
+frontend/dist
+backend/dist
 
 # Tauri
 frontend/src-tauri

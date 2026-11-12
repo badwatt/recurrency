@@ -59,9 +59,9 @@ RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN cd frontend && npm install tailwindcss tailwindcss-animate && \
     npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
 
-RUN cd frontend && dx bundle --platform web --release && \
-    ls -laR dist/ 2>/dev/null; \
-    find dist/ -name 'index.html' -type f 2>/dev/null
+RUN cd frontend && dx bundle --platform web --release
+RUN test -f /build/frontend/dist/public/index.html && \
+    test -n "$(find /build/frontend/dist/public/assets -name 'recurrency-frontend*.js' -print -quit)"
 
 # ═══════════════════════════════════════════════════════════
 # Runtime targets
