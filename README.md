@@ -74,7 +74,7 @@ docker run -d \
   -p 80:80 -p 8080:8080 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/badwatt/recurrency:0.33.0
+  ghcr.io/badwatt/recurrency:0.34.0
 ```
 
 - **Web:** http://localhost
@@ -92,7 +92,7 @@ docker run -d \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:0.33.0
+  ghcr.io/badwatt/recurrency:0.34.0
 ```
 
 - nginx is not started; only PostgreSQL and the backend run.
@@ -196,7 +196,7 @@ you do not want to expose it.
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
 | **Backend** | — | — | — | 1197 lib + 47 integration |
-| **Frontend** | — | — | — | 1658 |
+| **Frontend** | — | — | — | 1661 |
 | **Tools** | — | — | — | 8 |
 
 Integration tests use a disposable PostgreSQL instance:
