@@ -74,7 +74,7 @@ docker run -d \
   -p 80:80 -p 8080:8080 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/badwatt/recurrency:0.31.0
+  ghcr.io/badwatt/recurrency:0.32.0
 ```
 
 - **Web:** http://localhost
@@ -92,7 +92,7 @@ docker run -d \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:0.31.0
+  ghcr.io/badwatt/recurrency:0.32.0
 ```
 
 - nginx is not started; only PostgreSQL and the backend run.
@@ -172,7 +172,7 @@ you do not want to expose it.
 | 📈 **Reports** | Trend charts, category breakdown, CSV/PDF export |
 | 🏷️ **Categories** | Optional classification with custom icons, colors and inline creation |
 | 🔔 **Delivery channels** | Email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks |
-| 🗓️ **Summary schedule** | Daily, weekly or monthly dashboard summary in your timezone |
+| 🗓️ **Summary schedule** | Daily, weekly or monthly dashboard summary in your timezone, for the current or next month |
 | 👤 **Profile** | Change email, display name and avatar; delete the account with password confirmation |
 | ⚙️ **Settings** | Profile, Preferences, Money (accounts/categories) and Notifications |
 | 📋 **Duplicate** | Duplicate a subscription with all fields copied; the form opens with a `(copia)` suffix |
