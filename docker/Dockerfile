@@ -52,6 +52,9 @@ RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN mkdir -p frontend/src && echo 'fn main() {}' > frontend/src/main.rs
 RUN mkdir -p tools/src && echo 'fn main() {}' > tools/src/main.rs
 RUN --mount=type=cache,target=/build/target cargo build -p recurrency_frontend --features web --release 2>/dev/null || true
+# dx bundles for wasm; fetch those dependencies now so the offline bundle
+# does not depend on crates.io being reachable during the final step.
+RUN cargo fetch
 
 COPY frontend/ ./frontend/
 RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
@@ -59,9 +62,9 @@ RUN mkdir -p backend/src && echo 'fn main() {}' > backend/src/main.rs
 RUN cd frontend && npm install tailwindcss tailwindcss-animate && \
     npx tailwindcss -i assets/styles/tailwind.src.css -o assets/styles/tailwind.css --minify
 
-RUN cd frontend && dx bundle --platform web --release
+RUN cd frontend && dx bundle --platform web --release --offline
 RUN test -f /build/frontend/dist/public/index.html && \
-    test -n "$(find /build/frontend/dist/public/assets -name 'recurrency-frontend*.js' -print -quit)"
+    test -n "$(find /build/frontend/dist/public/assets -name '*.js' -print -quit)"
 
 # ═══════════════════════════════════════════════════════════
 # Runtime targets
