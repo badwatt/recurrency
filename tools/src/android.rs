@@ -374,13 +374,9 @@ private class DownloadBridge(private val view: android.webkit.WebView) {
                         activity.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
                     }
                 } else {
-                    val dir = try {
-                        android.os.Environment.getExternalStoragePublicDirectory(
-                            android.os.Environment.DIRECTORY_DOWNLOADS,
-                        ).also { it.mkdirs() }
-                    } catch (_: Exception) {
-                        activity.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
-                    }
+                    val dir = activity.getExternalFilesDir(
+                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                    )
                     if (dir != null) {
                         java.io.File(dir, filename).writeBytes(bytes)
                         android.media.MediaScannerConnection.scanFile(
