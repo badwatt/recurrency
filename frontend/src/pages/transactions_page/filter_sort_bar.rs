@@ -160,6 +160,7 @@ pub fn FilterSortBar(
             oninput: move |value| query.set(value),
             view: view(),
             onview: move |value| view.set(value),
+            show_view: true,
             actions: actions,
         }
     }

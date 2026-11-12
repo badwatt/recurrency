@@ -11,9 +11,44 @@ pub struct RatesResponse {
     pub rates: HashMap<String, Decimal>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct CurrencySettingsResponse {
+    pub provider: String,
+    pub fixer_configured: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UpdateCurrencySettingsRequest {
+    pub provider: String,
+    #[serde(default)]
+    pub fixer_api_key: Option<String>,
+    #[serde(default)]
+    pub clear_fixer_api_key: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn settings_deserialize() {
+        let json = r#"{"provider":"fixer","fixer_configured":true}"#;
+        let settings: CurrencySettingsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.provider, "fixer");
+        assert!(settings.fixer_configured);
+    }
+
+    #[test]
+    fn update_settings_serialize() {
+        let req = UpdateCurrencySettingsRequest {
+            provider: "fixer".into(),
+            fixer_api_key: Some("secret".into()),
+            clear_fixer_api_key: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("fixer_api_key"));
+        assert!(json.contains("secret"));
+    }
 
     #[test]
     fn rates_deserialize() {

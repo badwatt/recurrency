@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{ArrowUpDown, Pencil, Plus, Trash2, Wallet};
+use lucide_dioxus::{ArrowUpDown, Plus, Trash2, Wallet};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -55,7 +55,6 @@ pub fn DebtsPage() -> Element {
     let mut delete_open = use_signal(|| false);
     let mut delete_debt = use_signal(|| None::<Debt>);
     let mut query = use_signal(String::new);
-    let mut view_mode = use_signal(|| "grid".to_string());
     let mut type_filter = use_signal(|| None::<String>);
     let mut sort_field = use_signal(|| "name".to_string());
     let mut sort_direction = use_signal(|| "asc".to_string());
@@ -137,7 +136,16 @@ pub fn DebtsPage() -> Element {
         name.set(debt.name.clone());
         total.set(debt.total_amount.to_string());
         currency.set(debt.currency.clone());
-        debt_type.set(debt.debt_type.clone());
+        let kind = if debt.debt_type.trim().is_empty() {
+            if debt.monthly_payment.is_some() {
+                crate::utils::constants::DEBT_TYPE_AUTOMATIC
+            } else {
+                crate::utils::constants::DEBT_TYPE_MANUAL
+            }
+        } else {
+            debt.debt_type.as_str()
+        };
+        debt_type.set(kind.to_string());
         monthly_payment.set(
             debt.monthly_payment
                 .map(|value| value.to_string())
@@ -423,8 +431,9 @@ pub fn DebtsPage() -> Element {
                 ListToolbar {
                     value: query(),
                     oninput: move |value| query.set(value),
-                    view: view_mode(),
-                    onview: move |value| view_mode.set(value),
+                    view: "grid".to_string(),
+                    onview: move |_| {},
+                    show_view: false,
                     actions: toolbar_actions,
                 }
             }
@@ -455,25 +464,10 @@ pub fn DebtsPage() -> Element {
                         "Clear search and filters"
                     }
                 }
-            } else if view_mode() == "grid" {
+            } else {
                 div { class: "grid gap-4 grid-cols-1 lg:grid-cols-2",
                     for debt in visible_debts.iter().cloned() {
                         DebtCard {
-                            debt: debt.clone(),
-                            on_pay: open_pay,
-                            on_history: open_history,
-                            on_edit: open_edit,
-                            on_delete: move |debt| {
-                                delete_debt.set(Some(debt));
-                                delete_open.set(true);
-                            },
-                        }
-                    }
-                }
-            } else {
-                div { class: "space-y-2",
-                    for debt in visible_debts.iter().cloned() {
-                        DebtListRow {
                             debt: debt.clone(),
                             on_pay: open_pay,
                             on_history: open_history,
@@ -541,8 +535,16 @@ pub fn DebtsPage() -> Element {
                                 }
                                 debt_type.set(value);
                             },
-                            option { value: crate::utils::constants::DEBT_TYPE_MANUAL, "Manual — I record each payment" }
-                            option { value: crate::utils::constants::DEBT_TYPE_AUTOMATIC, "Automatic — paid month by month" }
+                            option {
+                                value: crate::utils::constants::DEBT_TYPE_MANUAL,
+                                selected: debt_type() == crate::utils::constants::DEBT_TYPE_MANUAL,
+                                "Manual — I record each payment"
+                            }
+                            option {
+                                value: crate::utils::constants::DEBT_TYPE_AUTOMATIC,
+                                selected: debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC,
+                                "Automatic — paid month by month"
+                            }
                         }
                     }
                     if debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC {
@@ -910,87 +912,15 @@ fn DebtCard(
     }
 }
 
-#[component]
-fn DebtListRow(
-    debt: Debt,
-    on_pay: EventHandler<Debt>,
-    on_history: EventHandler<Debt>,
-    on_edit: EventHandler<Debt>,
-    on_delete: EventHandler<Debt>,
-) -> Element {
-    let debt_for_pay = debt.clone();
-    let debt_for_history = debt.clone();
-    let debt_for_edit = debt.clone();
-    let debt_for_delete = debt.clone();
-    rsx! {
-        div { class: "flex items-center gap-3 rounded-lg border border-border/50 bg-card p-3",
-            if let Some(logo) = debt.logo_url.clone() {
-                img { src: logo, alt: debt.name.clone(), class: "h-9 w-9 shrink-0 object-contain" }
-            } else {
-                div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted",
-                    Wallet { size: 18 }
-                }
-            }
-            div { class: "min-w-0 flex-1",
-                div { class: "flex items-center gap-2",
-                    p { class: "truncate text-sm font-semibold", {debt.name.clone()} }
-                    span { class: if debt.is_automatic() { "rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary" } else { "rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground" },
-                        if debt.is_automatic() { "Automatic" } else { "Manual" }
-                    }
-                }
-                div { class: "mt-1 h-1.5 overflow-hidden rounded-full bg-muted",
-                    div { class: "h-full rounded-full bg-primary", style: "width: {debt.progress()}%" }
-                }
-            }
-            div { class: "shrink-0 text-right",
-                p { class: "text-sm font-semibold",
-                    ConvertedAmount { amount: debt.remaining_amount, currency: debt.currency.clone() }
-                }
-                if let Some((current, total)) = debt.installment() {
-                    p { class: "text-[11px] font-medium text-primary", "Payment {current}/{total}" }
-                }
-            }
-            div { class: "flex shrink-0 items-center gap-1",
-                button {
-                    r#type: "button",
-                    class: "rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10",
-                    onclick: move |_| on_pay.call(debt_for_pay.clone()),
-                    "Pay"
-                }
-                button {
-                    r#type: "button",
-                    class: "rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted",
-                    onclick: move |_| on_history.call(debt_for_history.clone()),
-                    "History"
-                }
-                button {
-                    r#type: "button",
-                    aria_label: "Edit debt",
-                    class: "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted",
-                    onclick: move |_| on_edit.call(debt_for_edit.clone()),
-                    Pencil { size: 14 }
-                }
-                button {
-                    r#type: "button",
-                    aria_label: "Delete debt",
-                    class: "inline-flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10",
-                    onclick: move |_| on_delete.call(debt_for_delete.clone()),
-                    Trash2 { size: 14 }
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     #[test]
-    fn debts_toolbar_has_search_filters_sort_and_views() {
+    fn debts_toolbar_has_search_filters_and_sort_but_no_view_toggle() {
         let src = include_str!("debts_page.rs");
         assert!(src.contains("ListToolbar"));
         assert!(src.contains("aria_label: \"Filters\""));
         assert!(src.contains("aria_label: \"Sort\""));
-        assert!(src.contains("DebtListRow"));
+        assert!(src.contains("show_view: false"));
         assert!(src.contains("visible_debts"));
     }
 }

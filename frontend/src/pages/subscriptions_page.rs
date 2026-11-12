@@ -62,6 +62,7 @@ pub fn SubscriptionsPage() -> Element {
     let mut sort_popover: Signal<bool> = use_signal(|| false);
     let mut search: Signal<String> = use_signal(String::new);
     let mut selected: Signal<HashSet<Uuid>> = use_signal(HashSet::new);
+    let mut selection_mode: Signal<bool> = use_signal(|| false);
     let mut bulk_delete_ids: Signal<Vec<Uuid>> = use_signal(Vec::new);
     let mut bulk_busy: Signal<bool> = use_signal(|| false);
     let mut delete_confirm_id: Signal<Option<Uuid>> = use_signal(|| None);
@@ -601,11 +602,18 @@ pub fn SubscriptionsPage() -> Element {
         }
         button {
             r#type: "button",
-            aria_label: if all_filtered_selected { "Clear selection" } else { "Select all" },
-            title: if all_filtered_selected { "Clear selection" } else { "Select all" },
-            aria_pressed: if all_filtered_selected { "true" } else { "false" },
-            class: if selected_count > 0 { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
-            onclick: toggle_all_selected,
+            aria_label: if selection_mode() { "Exit selection mode" } else { "Enter selection mode" },
+            title: if selection_mode() { "Exit selection mode" } else { "Select subscriptions" },
+            aria_pressed: if selection_mode() { "true" } else { "false" },
+            class: if selection_mode() { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+            onclick: move |_| {
+                if selection_mode() {
+                    selection_mode.set(false);
+                    selected.write().clear();
+                } else {
+                    selection_mode.set(true);
+                }
+            },
             svg {
                 view_box: "0 0 24 24",
                 width: "16",
@@ -614,7 +622,7 @@ pub fn SubscriptionsPage() -> Element {
                 stroke: "currentColor",
                 stroke_width: "2",
                 rect { x: "3", y: "3", width: "18", height: "18", rx: "3" }
-                if all_filtered_selected {
+                if selection_mode() {
                     path { d: "m7 12 3 3 7-7" }
                 }
             }
@@ -653,20 +661,29 @@ pub fn SubscriptionsPage() -> Element {
                     oninput: move |value| search.set(value),
                     view: view_mode.clone(),
                     onview: move |mode| set_view_mode.call(mode),
+                    show_view: true,
                     actions: toolbar_actions,
                 }
             }
 
-            if selected_count > 0 {
+            if selection_mode() {
                 div {
                     role: "status",
                     aria_live: "polite",
                     class: "flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2",
-                    span { class: "text-sm font-medium", "{selected_count} selected" }
+                    span { class: "text-sm font-medium",
+                        if selected_count == 0 { "Select subscriptions" } else { "{selected_count} selected" }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
+                        onclick: toggle_all_selected,
+                        if all_filtered_selected { "Clear selection" } else { "Select all" }
+                    }
                     button {
                         r#type: "button",
                         class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
-                        disabled: bulk_busy(),
+                        disabled: bulk_busy() || selected_count == 0,
                         onclick: move |_| bulk_set_active.call(true),
                         Play { size: 13 }
                         "Activate"
@@ -674,7 +691,7 @@ pub fn SubscriptionsPage() -> Element {
                     button {
                         r#type: "button",
                         class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
-                        disabled: bulk_busy(),
+                        disabled: bulk_busy() || selected_count == 0,
                         onclick: move |_| bulk_set_active.call(false),
                         Pause { size: 13 }
                         "Pause"
@@ -682,7 +699,7 @@ pub fn SubscriptionsPage() -> Element {
                     button {
                         r#type: "button",
                         class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
-                        disabled: bulk_busy(),
+                        disabled: bulk_busy() || selected_count == 0,
                         onclick: move |_| {
                             let ids = selected_ids_vec.clone();
                             if !ids.is_empty() {
@@ -695,7 +712,10 @@ pub fn SubscriptionsPage() -> Element {
                     button {
                         r#type: "button",
                         class: "ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
-                        onclick: move |_| selected.write().clear(),
+                        onclick: move |_| {
+                            selected.write().clear();
+                            selection_mode.set(false);
+                        },
                         X { size: 13 }
                         "Clear"
                     }
@@ -767,6 +787,7 @@ pub fn SubscriptionsPage() -> Element {
                                 &active_subs,
                                 view_mode.clone(),
                                 &selected_ids,
+                                selection_mode(),
                                 toggle_selected,
                                 handle_edit,
                                 handle_delete,
@@ -781,6 +802,7 @@ pub fn SubscriptionsPage() -> Element {
                                 &inactive_subs,
                                 view_mode.clone(),
                                 &selected_ids,
+                                selection_mode(),
                                 toggle_selected,
                                 handle_edit,
                                 handle_delete,
@@ -795,6 +817,7 @@ pub fn SubscriptionsPage() -> Element {
                                 &finalized_subs,
                                 view_mode.clone(),
                                 &selected_ids,
+                                selection_mode(),
                                 toggle_selected,
                                 handle_edit,
                                 handle_delete,
@@ -843,6 +866,7 @@ fn render_subscription_section(
     subs: &[Subscription],
     view_mode: String,
     selected: &HashSet<Uuid>,
+    selection_mode: bool,
     on_select: Callback<Uuid>,
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
@@ -859,13 +883,13 @@ fn render_subscription_section(
             if view_mode == "grid" {
                 div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
                     for (i, sub) in subs.iter().enumerate() {
-                        {render_grid_card(sub, i, selected.contains(&sub.id), on_select, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                        {render_grid_card(sub, i, selection_mode, selected.contains(&sub.id), on_select, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                     }
                 }
             } else {
                 div { class: "space-y-3",
                     for (_i, sub) in subs.iter().enumerate() {
-                        {render_list_card(sub, selected.contains(&sub.id), on_select, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                        {render_list_card(sub, selection_mode, selected.contains(&sub.id), on_select, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                     }
                 }
             }

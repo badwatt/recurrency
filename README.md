@@ -114,6 +114,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Accounts as budgeting buckets** — every subscription and transaction belongs to one.
 - **Real charges, not averages** — summaries use the charges that actually fall in the month.
 - **Current or next month** — switch the dashboard summary period from Settings.
+- **Calendar plan** — the same transfer/pending totals sit above the calendar on desktop and mobile.
 - **Upcoming and manual payments** — see what is coming and what is still one-off.
 
 ### Track everything that repeats
@@ -140,7 +141,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 
 - **One main currency** — set it once in Settings.
 - **Original currency preserved** — converted values show the source amount in parentheses.
-- **Automatic rates** — Frankfurter works without a key; Fixer is supported through `FIXER_API_KEY`.
+- **Automatic rates** — Frankfurter works without a key; choose Fixer and save an encrypted per-user API key from Settings.
 - **Graceful fallback** — unknown rates keep the original amount instead of breaking reports.
 - **Totals and reports convert** — no mixed-currency arithmetic in summaries.
 
@@ -157,7 +158,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Web** — responsive layouts, grid/list toggle and mobile floating actions.
 - **Android and desktop** — native clients with a configurable server URL.
 - **Dark, light or system** — follows your preference.
-- **Update notice** — dismissible banner when a newer GitHub release exists.
+- **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
 
 ---
@@ -213,7 +214,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 | `ENABLE_WEB` | `true` | Docker only: serve the web UI; `false` for headless |
 | `PGPASSWORD` | `recurrency` | PostgreSQL password inside the image |
 | `RECURRENCY_API_URL` | compiled default | Default server URL for native builds |
-| `FIXER_API_KEY` | — | Optional Fixer key; otherwise Frankfurter is used |
+| `FIXER_API_KEY` | — | Optional server-wide Fixer key; users can also save their own key in Settings |
 | `SMTP_HOST` | — | SMTP server |
 | `SMTP_PORT` | `587` | SMTP port |
 | `SMTP_USER` | — | SMTP username |
@@ -339,8 +340,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1197 backend unit tests**, **47 backend integration tests**,
-**1661 frontend tests** and **8 tooling tests**.
+Current suite: **1200 backend unit tests**, **47 backend integration tests**,
+**1683 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 

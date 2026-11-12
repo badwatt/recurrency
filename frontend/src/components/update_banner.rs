@@ -106,6 +106,9 @@ pub fn UpdateBanner() -> Element {
     let mut dismissed = use_signal(|| false);
 
     use_future(move || async move {
+        if !crate::state::preferences::PREFERENCES().show_updates() {
+            return;
+        }
         let dismissed_version = read_dismissed();
         if let Some(info) = fetch_latest().await
             && is_newer_version(current_version(), &info.tag_name)
@@ -118,7 +121,7 @@ pub fn UpdateBanner() -> Element {
         }
     });
 
-    if dismissed() {
+    if !crate::state::preferences::PREFERENCES().show_updates() || dismissed() {
         return rsx! {};
     }
     let Some(info) = release() else {

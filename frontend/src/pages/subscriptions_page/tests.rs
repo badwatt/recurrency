@@ -1846,3 +1846,12 @@ fn subscription_cards_expose_selection_checkbox() {
     assert!(src.contains("aria_label: \"Select subscription\""));
     assert!(src.contains("on_select.call"));
 }
+
+#[test]
+fn selection_checkboxes_only_appear_in_selection_mode() {
+    let cards = include_str!("cards.rs");
+    let page = include_str!("../subscriptions_page.rs");
+    assert!(cards.contains("if selection_mode"));
+    assert!(page.contains("selection_mode.set(true)"));
+    assert!(page.contains("selection_mode.set(false)"));
+}

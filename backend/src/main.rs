@@ -63,6 +63,7 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/health", get(health_check))
         .route("/api/health", get(health_check))
         .route("/api/currency/rates", get(currency::handlers::rates))
+        .route("/api/currency/settings", get(currency::handlers::get_settings).put(currency::handlers::update_settings))
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
         .route("/api/auth/verify", get(auth::handlers::verify))

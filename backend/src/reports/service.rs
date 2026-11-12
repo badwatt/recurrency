@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
 use crate::shared::date_utils::days_in_month;
 use crate::shared::error::AppResult;
-use crate::currency::service::{convert, get_rates};
+use crate::currency::service::convert;
 use crate::subscriptions::models::Recurrence;
 
 pub struct ReportService;
@@ -181,7 +181,7 @@ impl ReportService {
             .bind(user_id)
             .fetch_one(pool)
             .await?;
-        let rates = get_rates(&base).await?;
+        let rates = crate::currency::service::get_rates_for_user(pool, user_id, &base).await?;
         let subscriptions = sqlx::query_as::<_, (Decimal, String, Json<Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>)>(
             "SELECT amount, currency, recurrence, start_date, end_date FROM subscriptions WHERE user_id = $1 AND is_active = true",
         )
@@ -249,7 +249,7 @@ impl ReportService {
             .bind(user_id)
             .fetch_one(pool)
             .await?;
-        let rates = get_rates(&base).await?;
+        let rates = crate::currency::service::get_rates_for_user(pool, user_id, &base).await?;
 
         // Get subscriptions and filter by the first scheduled charge that
         // falls in this month. A future activation does not count early.
@@ -333,7 +333,7 @@ impl ReportService {
             .bind(user_id)
             .fetch_one(pool)
             .await?;
-        let rates = get_rates(&base).await?;
+        let rates = crate::currency::service::get_rates_for_user(pool, user_id, &base).await?;
         let subscriptions = sqlx::query_as::<
             _,
             (Decimal, String, Json<Recurrence>, chrono::NaiveDate, Option<chrono::NaiveDate>),

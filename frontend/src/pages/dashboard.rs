@@ -256,6 +256,28 @@ pub fn build_account_budgets(
     today: NaiveDate,
     rates: &RatesState,
 ) -> Vec<AccountBudget> {
+    build_month_budgets(
+        accounts,
+        subscriptions,
+        transactions,
+        today.year(),
+        today.month(),
+        Some(today),
+        rates,
+    )
+}
+
+/// Build the transfer plan for an arbitrary month. `pending_from` is the
+/// inclusive cutoff used for charges that still need paying.
+pub fn build_month_budgets(
+    accounts: &[Account],
+    subscriptions: &[Subscription],
+    transactions: &[Transaction],
+    year: i32,
+    month: u32,
+    pending_from: Option<NaiveDate>,
+    rates: &RatesState,
+) -> Vec<AccountBudget> {
     let mut plan: HashMap<Uuid, AccountBudget> = accounts
         .iter()
         .map(|account| {
@@ -286,8 +308,8 @@ pub fn build_account_budgets(
             sub.start_date,
             &sub.recurrence,
             sub.end_date,
-            today.year(),
-            today.month(),
+            year,
+            month,
             sub.amount,
         );
         if occurrences.is_empty() {
@@ -312,7 +334,7 @@ pub fn build_account_budgets(
             let amount = rates.convert(amount, &sub.currency);
             entry.subscriptions += amount;
             entry.budget += amount;
-            if date >= today {
+            if pending_from.is_some_and(|cutoff| date >= cutoff) {
                 entry.pending += amount;
                 entry.pending_count += 1;
             }
@@ -321,7 +343,7 @@ pub fn build_account_budgets(
 
     for txn in transactions
         .iter()
-        .filter(|t| t.date.year() == today.year() && t.date.month() == today.month())
+        .filter(|t| t.date.year() == year && t.date.month() == month)
     {
         let entry = plan.entry(txn.account_id).or_insert_with(|| AccountBudget {
             account_id: txn.account_id,
@@ -340,9 +362,9 @@ pub fn build_account_budgets(
         entry.manual += amount;
         entry.budget += amount;
         entry.manual_count += 1;
-        // A manual payment recorded today is already paid; only future-dated
-        // manual payments remain pending.
-        if txn.date > today {
+        // A manual payment recorded on the cutoff day is already paid; only
+        // later manual payments remain pending.
+        if pending_from.is_some_and(|cutoff| txn.date > cutoff) {
             entry.pending += amount;
             entry.pending_count += 1;
         }
@@ -1263,4 +1285,29 @@ mod tests {
         };
         assert!(!empty.has_movements());
     }
+    #[test]
+    fn month_budgets_support_arbitrary_months() {
+        let account = account("Main");
+        let account_id = account.id;
+        let sub = subscription(
+            account_id,
+            dec!(10),
+            "monthly",
+            date(2026, 1, 1),
+            Some(date(2026, 1, 1)),
+            true,
+        );
+        let plan = build_month_budgets(
+            &[account],
+            &[sub],
+            &[],
+            2026,
+            6,
+            None,
+            &RatesState::default(),
+        );
+        assert_eq!(total_budget(&plan), dec!(10));
+        assert_eq!(total_pending(&plan), dec!(0));
+    }
+
 }

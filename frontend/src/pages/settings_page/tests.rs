@@ -614,3 +614,17 @@ const SETTINGS_SOURCES: &str = concat!(
 
 
 
+
+#[test]
+fn settings_expose_exchange_provider_and_fixer_key() {
+    assert!(SETTINGS_SOURCES.contains("Exchange rates"));
+    assert!(SETTINGS_SOURCES.contains("settings-provider"));
+    assert!(SETTINGS_SOURCES.contains("settings-fixer-key"));
+    assert!(SETTINGS_SOURCES.contains("update_settings"));
+}
+
+#[test]
+fn settings_can_disable_update_notices() {
+    assert!(SETTINGS_SOURCES.contains("settings-show-updates"));
+    assert!(SETTINGS_SOURCES.contains("set_show_updates"));
+}

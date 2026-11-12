@@ -172,7 +172,7 @@ pub fn TransactionsPage() -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut editing_id = use_signal(|| None::<Uuid>);
     let mut query = use_signal(String::new);
-    let view_mode = use_signal(|| "list".to_string());
+    let view_mode = use_signal(|| PREFERENCES().transactions_view().to_string());
 
     // Notes dialog state
     let mut notes_dialog_open = use_signal(|| false);
@@ -238,6 +238,11 @@ pub fn TransactionsPage() -> Element {
     let handle_notes: Callback<Uuid> = use_callback(move |id: Uuid| {
         notes_dialog_txn_id.set(Some(id));
         notes_dialog_open.set(true);
+    });
+
+    use_effect(move || {
+        let view = view_mode();
+        PREFERENCES.write().set_transactions_view(view);
     });
 
     use_effect(move || {

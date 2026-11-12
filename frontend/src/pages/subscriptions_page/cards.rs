@@ -6,6 +6,7 @@ use super::*;
 pub fn render_grid_card(
     sub: &Subscription,
     index: usize,
+    selection_mode: bool,
     selected: bool,
     on_select: Callback<Uuid>,
     on_edit: Callback<Subscription>,
@@ -105,12 +106,14 @@ pub fn render_grid_card(
                 // Top row: logo + status badge
                 div { class: "flex items-start justify-between gap-2",
                     div { class: "flex items-center gap-2",
-                        input {
-                            r#type: "checkbox",
-                            checked: selected,
-                            aria_label: "Select subscription",
-                            class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
-                            onchange: move |_| on_select.call(id_for_select),
+                        if selection_mode {
+                            input {
+                                r#type: "checkbox",
+                                checked: selected,
+                                aria_label: "Select subscription",
+                                class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                                onchange: move |_| on_select.call(id_for_select),
+                            }
                         }
                         div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden",
                             {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-12 w-12 object-contain")}
@@ -211,6 +214,7 @@ pub fn render_grid_card(
 #[allow(clippy::too_many_arguments)]
 pub fn render_list_card(
     sub: &Subscription,
+    selection_mode: bool,
     selected: bool,
     on_select: Callback<Uuid>,
     on_edit: Callback<Subscription>,
@@ -289,12 +293,14 @@ pub fn render_list_card(
         div { class: "rounded-lg border {card_border} bg-card {opacity} min-w-0",
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
-                    input {
-                        r#type: "checkbox",
-                        checked: selected,
-                        aria_label: "Select subscription",
-                        class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
-                        onchange: move |_| on_select.call(id_for_select),
+                    if selection_mode {
+                        input {
+                            r#type: "checkbox",
+                            checked: selected,
+                            aria_label: "Select subscription",
+                            class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                            onchange: move |_| on_select.call(id_for_select),
+                        }
                     }
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full overflow-hidden",
                         {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-9 w-9 sm:h-10 sm:w-10 object-contain")}

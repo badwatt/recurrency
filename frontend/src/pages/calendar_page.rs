@@ -13,9 +13,12 @@ use crate::state::accounts::ACCOUNTS;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::state::transactions::TRANSACTIONS;
+use crate::state::rates::RATES;
+use crate::pages::dashboard::{build_month_budgets, total_budget, total_pending};
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Local, NaiveDate};
 
 mod delete_dialog;
 mod edit_dialog;
@@ -99,11 +102,45 @@ pub fn CalendarPage() -> Element {
         });
     });
 
+    use_future(move || async move {
+        let state = TRANSACTIONS();
+        if !state.is_loading && state.transactions.is_empty() && state.error.is_none() {
+            TRANSACTIONS.write().set_loading();
+            match Storage::list_transactions().await {
+                Ok(data) => TRANSACTIONS.write().set_data(data),
+                Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
+            }
+        }
+    });
+
     let currency = AUTH().currency().to_string();
     let first_day = PREFERENCES().first_day_of_week().to_string();
     let items = calendar_items();
     let total = month_total(&items);
     let total_display = format_currency(total, &currency);
+    let today_date = Local::now().date_naive();
+    let is_current_month = year == today_date.year() && month == today_date.month();
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1);
+    let (pending_from, pending_label) = if is_current_month {
+        (Some(today_date), "Pending from today")
+    } else if (year, month) > (today_date.year(), today_date.month()) {
+        (month_start.and_then(|date| date.pred_opt()), "Pending this month")
+    } else {
+        (None, "Pending")
+    };
+    let plan = build_month_budgets(
+        &ACCOUNTS().accounts,
+        &SUBSCRIPTIONS().subscriptions,
+        &TRANSACTIONS().transactions,
+        year,
+        month,
+        pending_from,
+        &RATES(),
+    );
+    let month_budget = total_budget(&plan);
+    let month_pending = total_pending(&plan);
+    let month_budget_display = format_currency(month_budget, &currency);
+    let month_pending_display = format_currency(month_pending, &currency);
     let days = calendar_days(year, month, &first_day);
     let now = Local::now().date_naive();
     let month_label = format!(
@@ -210,9 +247,16 @@ pub fn CalendarPage() -> Element {
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Calendar", subtitle: "Upcoming subscription payments" }
-                div { class: "text-right hidden md:block",
-                    p { class: "text-2xl font-bold tracking-tight", {total_display.to_string()} }
-                    p { class: "text-xs text-muted-foreground", "Total this month" }
+            }
+
+            div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2",
+                div { class: "rounded-xl border border-border/60 bg-card p-4",
+                    p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Transfer this month" }
+                    p { class: "mt-2 font-mono text-2xl font-bold tabular-nums", "{month_budget_display}" }
+                }
+                div { class: "rounded-xl border border-border/60 bg-card p-4",
+                    p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "{pending_label}" }
+                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "mt-2 font-mono text-2xl font-bold tabular-nums" } else { "mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, "{month_pending_display}" }
                 }
             }
 

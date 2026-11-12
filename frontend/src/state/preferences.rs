@@ -4,9 +4,13 @@ use dioxus::prelude::*;
 #[allow(dead_code)]
 const THEME_KEY: &str = "recurrency-theme";
 const VIEW_KEY: &str = "recurrency-subscriptions-view";
+const TRANSACTIONS_VIEW_KEY: &str = "recurrency-transactions-view";
+const UPDATES_KEY: &str = "recurrency-show-updates";
 
 const THEME_FILE: &str = "theme.txt";
 const VIEW_FILE: &str = "subscriptions_view.txt";
+const TRANSACTIONS_VIEW_FILE: &str = "transactions_view.txt";
+const UPDATES_FILE: &str = "show_updates.txt";
 
 /// Themes the user can pick in settings ("system" is resolved in JS).
 const SETTABLE_THEMES: [&str; 3] = ["light", "dark", "mocha"];
@@ -65,14 +69,31 @@ fn read_local(key: &str, file_name: &str) -> Option<String> {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PreferencesState {
     pub preferences: PreferencesResponse,
     pub is_loading: bool,
     pub initialized: bool,
+    /// Local-only view preference for the transactions page.
+    pub transactions_view: String,
+    /// Whether the in-app update banner is allowed to appear.
+    pub show_updates: bool,
     /// True when the view mode was set locally (hydrated or toggled), meaning
     /// it must take precedence over the server value fetched later.
     view_from_local: bool,
+}
+
+impl Default for PreferencesState {
+    fn default() -> Self {
+        Self {
+            preferences: PreferencesResponse::default(),
+            is_loading: false,
+            initialized: false,
+            transactions_view: "list".into(),
+            show_updates: true,
+            view_from_local: false,
+        }
+    }
 }
 
 impl PreferencesState {
@@ -84,6 +105,20 @@ impl PreferencesState {
     /// Get current subscriptions view mode.
     pub fn subscriptions_view(&self) -> &str {
         &self.preferences.subscriptions_view
+    }
+
+    /// Get current transactions view mode.
+    pub fn transactions_view(&self) -> &str {
+        &self.transactions_view
+    }
+
+    pub fn show_updates(&self) -> bool {
+        self.show_updates
+    }
+
+    pub fn set_show_updates(&mut self, show: bool) {
+        self.show_updates = show;
+        persist_local(UPDATES_KEY, UPDATES_FILE, if show { "true" } else { "false" });
     }
 
     /// Get first day of week: "monday" or "sunday" (default: "monday").
@@ -123,6 +158,13 @@ impl PreferencesState {
         self.preferences.subscriptions_view = view;
     }
 
+    pub fn set_transactions_view(&mut self, view: String) {
+        if VALID_VIEWS.contains(&view.as_str()) {
+            persist_local(TRANSACTIONS_VIEW_KEY, TRANSACTIONS_VIEW_FILE, &view);
+            self.transactions_view = view;
+        }
+    }
+
     /// Whether the current view mode was set locally and must win over the
     /// server preferences fetched after startup.
     pub fn has_local_view(&self) -> bool {
@@ -156,7 +198,17 @@ impl PreferencesState {
     pub fn hydrate_from_storage(&mut self) {
         let theme = read_local(THEME_KEY, THEME_FILE);
         let view = read_local(VIEW_KEY, VIEW_FILE);
+        let transactions_view = read_local(TRANSACTIONS_VIEW_KEY, TRANSACTIONS_VIEW_FILE);
+        let show_updates = read_local(UPDATES_KEY, UPDATES_FILE);
         self.apply_local_preferences(theme.as_deref(), view.as_deref());
+        if let Some(view) = transactions_view.as_deref().map(str::trim)
+            && VALID_VIEWS.contains(&view)
+        {
+            self.transactions_view = view.to_string();
+        }
+        if let Some(show) = show_updates.as_deref().map(str::trim) {
+            self.show_updates = show != "false";
+        }
     }
 
     /// Build the state already hydrated from persistent storage so the first
@@ -187,6 +239,30 @@ mod tests {
         let mut state = PreferencesState::default();
         state.set_theme("dark".into());
         assert_eq!(state.theme(), "dark");
+    }
+
+    #[test]
+    fn updates_are_visible_by_default() {
+        assert!(PreferencesState::default().show_updates());
+    }
+
+    #[test]
+    fn updates_can_be_disabled() {
+        let mut state = PreferencesState::default();
+        state.set_show_updates(false);
+        assert!(!state.show_updates());
+    }
+
+    #[test]
+    fn transactions_view_defaults_to_list() {
+        assert_eq!(PreferencesState::default().transactions_view(), "list");
+    }
+
+    #[test]
+    fn set_transactions_view() {
+        let mut state = PreferencesState::default();
+        state.set_transactions_view("grid".into());
+        assert_eq!(state.transactions_view(), "grid");
     }
 
     #[test]

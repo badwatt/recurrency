@@ -259,7 +259,7 @@ pub(crate) async fn build_summary(
     .map(|(id, name)| SummaryAccount { id, name })
     .collect::<Vec<_>>();
 
-    let rates = crate::currency::service::get_rates(currency)
+    let rates = crate::currency::service::get_rates_for_user(pool, user_id, currency)
         .await
         .map_err(|error| error.to_string())?;
     let subscriptions = sqlx::query_as::<

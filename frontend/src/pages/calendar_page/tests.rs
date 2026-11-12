@@ -1153,3 +1153,11 @@ use chrono::NaiveDate;
         let info = day_cell_info(&items, 2024, 1, 15, "EUR");
         assert!(!day_cell_is_empty(&info));
     }
+
+#[test]
+fn calendar_shows_transfer_and_pending_summary() {
+    let src = include_str!("../calendar_page.rs");
+    assert!(src.contains("build_month_budgets"));
+    assert!(src.contains("Transfer this month"));
+    assert!(src.contains("Pending from today"));
+}
