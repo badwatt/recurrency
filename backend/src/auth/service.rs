@@ -7,7 +7,8 @@ use crate::auth::models::{
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
 use argon2::Argon2;
-use argon2::password_hash::{PasswordHash, PasswordVerifier};
+use argon2::password_hash::PasswordVerifier;
+use argon2::password_hash::phc::PasswordHash;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, decode, encode};
 use uuid::Uuid;

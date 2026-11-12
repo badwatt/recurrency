@@ -85,13 +85,21 @@ async fn fetch_latest() -> Option<Release> {
 async fn fetch_latest() -> Option<Release> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
-        let result = ureq::get(LATEST_RELEASE_URL)
-            .set("User-Agent", "recurrency")
-            .set("Accept", "application/vnd.github+json")
-            .timeout(std::time::Duration::from_secs(10))
-            .call()
-            .ok()
-            .and_then(|response| response.into_json::<Release>().ok());
+        let result = {
+            let req = ureq::get(LATEST_RELEASE_URL)
+                .header("User-Agent", "recurrency")
+                .header("Accept", "application/vnd.github+json")
+                .config()
+                .timeout_global(Some(std::time::Duration::from_secs(10)))
+                .http_status_as_error(false)
+                .build();
+            req.call().ok().and_then(|mut response| {
+                if !response.status().is_success() {
+                    return None;
+                }
+                response.body_mut().read_json::<Release>().ok()
+            })
+        };
         let _ = tx.send(result);
     });
     tokio::time::timeout(std::time::Duration::from_secs(12), rx)

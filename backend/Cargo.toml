@@ -14,7 +14,7 @@ integration-tests = []
 # Web framework
 axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
-tower-http = { version = "0.6", default-features = false, features = ["cors", "trace"] }
+tower-http = { version = "0.7", default-features = false, features = ["cors", "trace"] }
 
 # Serialization
 serde.workspace = true
@@ -22,11 +22,11 @@ serde_json.workspace = true
 serde_urlencoded = "0.7"
 
 # Database
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal", "macros", "migrate", "json"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal", "macros", "migrate", "json"] }
 
 # Authentication
-jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
-argon2 = "0.5"
+jsonwebtoken = { version = "11.1.0", features = ["rust_crypto"] }
+argon2 = "0.6"
 
 # UUID
 uuid.workspace = true
@@ -38,11 +38,11 @@ chrono.workspace = true
 rust_decimal.workspace = true
 
 # Validation
-validator = { version = "0.20", features = ["derive"] }
+validator = { version = "0.21", features = ["derive"] }
 
 # Notification channel secret encryption
-aes-gcm = "0.10"
-sha2 = "0.10"
+aes-gcm = "0.11"
+sha2 = "0.11"
 
 # Notification scheduling in the user's timezone
 chrono-tz = "0.10"
@@ -58,11 +58,11 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Email
-lettre = { version = "0.11.21", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
+lettre = { version = "0.11.23", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
 
 # HTTP client for logo search
 reqwest.workspace = true
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"
 tower = { version = "0.5", features = ["util"] }

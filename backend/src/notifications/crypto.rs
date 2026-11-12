@@ -1,9 +1,11 @@
-use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
-use aes_gcm::Aes256Gcm;
+use aes_gcm::aead::{Aead, AeadCore, Generate, KeyInit};
+use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 const NONCE_LEN: usize = 12;
+
+type NotificationNonce = Nonce<<Aes256Gcm as AeadCore>::NonceSize>;
 
 /// Derive the notification-config encryption key from the application secret.
 /// Keeping this separate from the JWT key material would be preferable, but
@@ -18,7 +20,7 @@ pub fn derive_key(secret: &str) -> [u8; 32] {
 pub fn encrypt_with_key(key: &[u8; 32], value: &Value) -> Result<Vec<u8>, String> {
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|_| "Invalid notification encryption key".to_string())?;
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let nonce = NotificationNonce::generate();
     let plaintext = serde_json::to_vec(value).map_err(|_| "Invalid notification config".to_string())?;
     let ciphertext = cipher
         .encrypt(&nonce, plaintext.as_ref())
@@ -37,10 +39,11 @@ pub fn decrypt_with_key(key: &[u8; 32], data: &[u8]) -> Result<Value, String> {
     let nonce: [u8; NONCE_LEN] = nonce
         .try_into()
         .map_err(|_| "Invalid notification config".to_string())?;
+    let nonce = NotificationNonce::from(nonce);
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|_| "Invalid notification encryption key".to_string())?;
     let plaintext = cipher
-        .decrypt(&aes_gcm::Nonce::from(nonce), ciphertext)
+        .decrypt(&nonce, ciphertext)
         .map_err(|_| "Could not decrypt notification config".to_string())?;
     serde_json::from_slice(&plaintext).map_err(|_| "Invalid notification config".to_string())
 }

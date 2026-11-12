@@ -63,7 +63,7 @@ pub fn TransactionCard(
                         class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
                         aria_label: "Delete transaction",
                         onclick: move |_| on_delete.call(id),
-                        Trash2 { size: 16 }
+                        Trash { size: 16 }
                     }
                 }
             }
@@ -133,7 +133,7 @@ pub fn TransactionGridCard(
                     class: "inline-flex h-8 w-8 items-center justify-center rounded-md text-destructive hover:bg-accent",
                     aria_label: "Delete transaction",
                     onclick: move |_| on_delete.call(id),
-                    Trash2 { size: 15 }
+                    Trash { size: 15 }
                 }
             }
         }

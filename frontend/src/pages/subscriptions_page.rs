@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{ArrowUpDown, Copy, CreditCard, FileText, Pause, Pencil, Play, Plus, Trash2, X};
+use lucide_dioxus::{ArrowUpDown, Copy, CreditCard, FileText, Pause, Pencil, Play, Plus, Trash, X};
 use rust_decimal::Decimal;
 use std::collections::HashSet;
 use uuid::Uuid;
@@ -706,7 +706,7 @@ pub fn SubscriptionsPage() -> Element {
                                 bulk_delete_ids.set(ids);
                             }
                         },
-                        Trash2 { size: 13 }
+                        Trash { size: 13 }
                         "Delete"
                     }
                     button {

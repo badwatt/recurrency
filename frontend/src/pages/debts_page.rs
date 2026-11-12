@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{ArrowUpDown, Plus, Trash2, Wallet};
+use lucide_dioxus::{ArrowUpDown, Plus, Trash, Wallet};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -905,7 +905,7 @@ fn DebtCard(
                     class: "h-8 w-8 rounded-md text-destructive hover:bg-destructive/10 flex items-center justify-center",
                     aria_label: "Delete debt",
                     onclick: move |_| on_delete.call(debt_for_delete.clone()),
-                    Trash2 { size: 14 }
+                    Trash { size: 14 }
                 }
             }
         }

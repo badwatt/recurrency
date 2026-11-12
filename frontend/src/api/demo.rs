@@ -23,16 +23,21 @@ pub struct DemoResetResponse {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn blocking_init(base_url: &str) -> Result<DemoInitResponse, ApiError> {
     let url = format!("{}/api/demo/init", base_url);
-    let resp = ureq::get(&url)
-        .timeout(std::time::Duration::from_secs(15))
+    let mut resp = ureq::get(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(15)))
+        .http_status_as_error(false)
+        .build()
         .call()
         .map_err(|e| ApiError::Network(e.to_string()))?;
-    let status = resp.status();
+    let status = resp.status().as_u16();
     if !(200..300).contains(&status) {
-        let body = resp.into_string().unwrap_or_default();
+        let body = resp.body_mut().read_to_string().unwrap_or_default();
         return Err(ApiError::Http(status, body));
     }
-    resp.into_json::<DemoInitResponse>().map_err(|e| ApiError::Parse(e.to_string()))
+    resp.body_mut()
+        .read_json::<DemoInitResponse>()
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 pub async fn get_status() -> Result<DemoStatus, ApiError> {

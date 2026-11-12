@@ -5,17 +5,22 @@ use crate::models::auth::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, ApiError> {
     let url = format!("{}/api/auth/login", base_url);
-    let resp = ureq::post(&url)
-        .timeout(std::time::Duration::from_secs(15))
-        .set("Content-Type", "application/json")
+    let mut resp = ureq::post(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(15)))
+        .http_status_as_error(false)
+        .build()
+        .header("Content-Type", "application/json")
         .send_json(serde_json::json!({ "email": email, "password": password }))
         .map_err(|e| ApiError::Network(e.to_string()))?;
-    let status = resp.status();
+    let status = resp.status().as_u16();
     if !(200..300).contains(&status) {
-        let body = resp.into_string().unwrap_or_default();
+        let body = resp.body_mut().read_to_string().unwrap_or_default();
         return Err(ApiError::Http(status, body));
     }
-    resp.into_json::<AuthResponse>().map_err(|e| ApiError::Parse(e.to_string()))
+    resp.body_mut()
+        .read_json::<AuthResponse>()
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 pub async fn login(email: String, password: String) -> Result<AuthResponse, ApiError> {

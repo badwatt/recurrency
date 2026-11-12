@@ -239,32 +239,64 @@ pub fn auth_headers(headers: &mut Vec<(String, String)>) {
 // ── ureq synchronous helpers (no tokio, supports TLS, works on Android) ──
 
 #[cfg(not(target_arch = "wasm32"))]
-fn ureq_request(method: &str, url: &str, headers: &[(String, String)]) -> ureq::Request {
-    let mut req = match method {
-        "GET" => ureq::get(url),
-        "POST" => ureq::post(url),
-        "PUT" => ureq::put(url),
-        "DELETE" => ureq::delete(url),
-        _ => ureq::get(url),
-    };
-    req = req.timeout(std::time::Duration::from_secs(30));
-    for (k, v) in headers {
-        req = req.set(k, v);
-    }
-    req
+const UREQ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ureq_configure<S>(
+    req: ureq::RequestBuilder<S>,
+    headers: &[(String, String)],
+) -> ureq::RequestBuilder<S> {
+    let req = req
+        .config()
+        .timeout_global(Some(UREQ_TIMEOUT))
+        .http_status_as_error(false)
+        .build();
+    headers
+        .iter()
+        .fold(req, |req, (key, value)| req.header(key, value))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn ureq_handle_resp<T: serde::de::DeserializeOwned>(resp: ureq::Response) -> Result<T, ApiError> {
-    let status = resp.status();
+fn ureq_request(
+    method: &str,
+    url: &str,
+    headers: &[(String, String)],
+) -> ureq::RequestBuilder<ureq::typestate::WithoutBody> {
+    let req = match method {
+        "DELETE" => ureq::delete(url),
+        _ => ureq::get(url),
+    };
+    ureq_configure(req, headers)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ureq_request_with_body(
+    method: &str,
+    url: &str,
+    headers: &[(String, String)],
+) -> ureq::RequestBuilder<ureq::typestate::WithBody> {
+    let req = match method {
+        "PUT" => ureq::put(url),
+        _ => ureq::post(url),
+    };
+    ureq_configure(req, headers)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ureq_handle_resp<T: serde::de::DeserializeOwned>(
+    mut resp: ureq::http::Response<ureq::Body>,
+) -> Result<T, ApiError> {
+    let status = resp.status().as_u16();
     if status == 401 {
         return Err(ApiError::Unauthorized);
     }
     if !(200..300).contains(&status) {
-        let body = resp.into_string().unwrap_or_default();
+        let body = resp.body_mut().read_to_string().unwrap_or_default();
         return Err(ApiError::Http(status, body));
     }
-    resp.into_json::<T>().map_err(|e| ApiError::Parse(e.to_string()))
+    resp.body_mut()
+        .read_json::<T>()
+        .map_err(|e| ApiError::Parse(e.to_string()))
 }
 
 /// GET request with auth.
@@ -322,8 +354,8 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
         let (tx, rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let req = ureq_request("POST", &url, &headers);
-                req.send_string(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+                let req = ureq_request_with_body("POST", &url, &headers);
+                req.send(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
@@ -366,8 +398,8 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
         let (tx, rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let req = ureq_request("PUT", &url, &headers);
-                req.send_string(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+                let req = ureq_request_with_body("PUT", &url, &headers);
+                req.send(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
@@ -406,11 +438,11 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let req = ureq_request("DELETE", &url, &headers);
-                let resp = req.call().map_err(|e| ApiError::Network(e.to_string()))?;
-                let status = resp.status();
+                let mut resp = req.call().map_err(|e| ApiError::Network(e.to_string()))?;
+                let status = resp.status().as_u16();
                 if status == 401 { return Err(ApiError::Unauthorized); }
                 if !(200..300).contains(&status) {
-                    let body = resp.into_string().unwrap_or_default();
+                    let body = resp.body_mut().read_to_string().unwrap_or_default();
                     return Err(ApiError::Http(status, body));
                 }
                 Ok(())

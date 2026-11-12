@@ -16,7 +16,7 @@ use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{FileText, Pencil, Plus, Receipt, Trash2};
+use lucide_dioxus::{FileText, Pencil, Plus, Receipt, Trash};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 

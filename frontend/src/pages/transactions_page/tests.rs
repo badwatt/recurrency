@@ -1702,7 +1702,7 @@ use chrono::NaiveDate;
 
     #[test]
     fn trash2_icon_renders() {
-        let el: Element = rsx! { Trash2 { size: 16 } };
+        let el: Element = rsx! { Trash { size: 16 } };
         assert!(el.is_ok());
     }
 

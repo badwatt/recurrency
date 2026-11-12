@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Trash2};
+use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Trash};
 use uuid::Uuid;
 
 use crate::storage::Storage;
@@ -521,7 +521,7 @@ pub fn CalendarPage() -> Element {
                                                     let sub_id = item.subscription_id;
                                                     move |_| handle_delete_request(sub_id)
                                                 },
-                                                Trash2 { size: 14 }
+                                                Trash { size: 14 }
                                                 "Delete"
                                             }
                                         }

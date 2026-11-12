@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 use lucide_dioxus::{
-    Activity, Baby, Banknote, Bell, Bike, Book, Box, Building2, Bus, Cake, Camera, Compass, Cookie, Crown, DollarSign, Droplet, Flame, Globe, Hand, Headphones, Key, Landmark, Leaf, Lightbulb, MapPin, Mic, Mountain, Package, Palette, Percent, Phone, PiggyBank, Pizza, Printer, Rocket, Scissors, Shirt, ShoppingCart, Sparkles, Ticket, Trophy, Tv, Umbrella, Video, Waves, Wrench, Beer, Briefcase, Car, Cloud, CloudRain, Coffee, CreditCard, Database,
+    Activity, Baby, Banknote, Bell, Bike, Book, Box, Building, Bus, Cake, Camera, Compass, Cookie, Crown, DollarSign, Droplet, Flame, Globe, Hand, Headphones, Key, Landmark, Leaf, Lightbulb, MapPin, Mic, Mountain, Package, Palette, Percent, Phone, PiggyBank, Pizza, Printer, Rocket, Scissors, Shirt, ShoppingCart, Sparkles, Ticket, Trophy, Tv, Umbrella, Video, WavesHorizontal, Wrench, Beer, Briefcase, Car, Cloud, CloudRain, Coffee, CreditCard, Database,
     Film, Flower, Gamepad2, Gift, GraduationCap, Heart, House, Laptop, Lock, Monitor, Moon,
-    Music, Pill, Plane, Server, Shield, ShoppingBag, Smartphone, Star, Stethoscope, Sun,
+    EighthNotes, Pill, Plane, Server, Shield, ShoppingBag, Smartphone, Star, Stethoscope, Sun,
     Tag, Thermometer, TreePine, Utensils, Wallet, Wifi, Wine, Zap,
 };
 
@@ -105,7 +105,7 @@ pub fn icon_display(name: &str) -> Element {
         "Car" => rsx! { Car { size: 16 } },
         "Heart" => rsx! { Heart { size: 16 } },
         "Film" => rsx! { Film { size: 16 } },
-        "Music" => rsx! { Music { size: 16 } },
+        "Music" => rsx! { EighthNotes { size: 16 } },
         "Gamepad2" => rsx! { Gamepad2 { size: 16 } },
         "Briefcase" => rsx! { Briefcase { size: 16 } },
         "GraduationCap" => rsx! { GraduationCap { size: 16 } },
@@ -142,7 +142,7 @@ pub fn icon_display(name: &str) -> Element {
         "Bike" => rsx! { Bike { size: 16 } },
         "Book" => rsx! { Book { size: 16 } },
         "Box" => rsx! { Box { size: 16 } },
-        "Building2" => rsx! { Building2 { size: 16 } },
+        "Building2" => rsx! { Building { size: 16 } },
         "Bus" => rsx! { Bus { size: 16 } },
         "Cake" => rsx! { Cake { size: 16 } },
         "Camera" => rsx! { Camera { size: 16 } },
@@ -179,7 +179,7 @@ pub fn icon_display(name: &str) -> Element {
         "Tv" => rsx! { Tv { size: 16 } },
         "Umbrella" => rsx! { Umbrella { size: 16 } },
         "Video" => rsx! { Video { size: 16 } },
-        "Waves" => rsx! { Waves { size: 16 } },
+        "Waves" => rsx! { WavesHorizontal { size: 16 } },
         "Wrench" => rsx! { Wrench { size: 16 } },
         "Tag" => rsx! { Tag { size: 16 } },
         _ => rsx! { Tag { size: 16 } },

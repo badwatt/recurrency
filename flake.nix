@@ -15,12 +15,12 @@
               (final: prev: {
                 wasm-bindgen-cli = final.rustPlatform.buildRustPackage rec {
                   pname = "wasm-bindgen-cli";
-                  version = "0.2.122";
+                  version = "0.2.130";
                   src = final.fetchCrate {
                     inherit pname version;
-                    hash = "sha256-vO4RSxi/sMWxmsEs3GuljdMfIRSu75A+Q+c5wgYToRU=";
+                    hash = "sha256-9Og1O/6/VC3sc5hBjoIWBErmLW2UHGMsTQO+6+m/dng=";
                   };
-                  cargoHash = "sha256-Inup6vvJSG5ghNyeDPyZbfZo4d0LsMG2OJfStoaeDBs=";
+                  cargoHash = "sha256-j81sUf1m5yXU4FJfGj7GV+hdqVCV8mRmNb0QIsMCjqw=";
                 };
               })
             ];

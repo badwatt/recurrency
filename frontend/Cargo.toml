@@ -11,8 +11,8 @@ path = "src/lib.rs"
 
 [dependencies]
 dioxus = { version = "0.7.10", features = ["router"] }
-web-sys = { version = "0.3.95", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
-lucide-dioxus = { version = "2.577.0", default-features = false, features = [
+web-sys = { version = "0.3.107", optional = true, features = ["Window", "Document", "Element", "HtmlDialogElement", "HtmlElement", "MediaQueryList", "MediaQueryListEvent", "Storage", "Navigator"] }
+lucide-dioxus = { version = "3.63.0", default-features = false, features = [
     "accessibility",
     "account",
     "arrows",
@@ -46,20 +46,20 @@ lucide-dioxus = { version = "2.577.0", default-features = false, features = [
 ] }
 serde.workspace = true
 serde_json.workspace = true
-sha2 = "0.10"
+sha2 = "0.11"
 chrono.workspace = true
 rust_decimal.workspace = true
 uuid = { workspace = true, features = ["v4", "serde", "js"] }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls"] }
-log = "0.4.27"
+log = "0.4.35"
 gloo-timers = { version = "0.4.0", features = ["futures"], optional = true }
 
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ureq = { version = "2", default-features = false, features = ["json", "tls", "gzip"] }
-dirs = "6.0.0"
+ureq = { version = "3", default-features = false, features = ["json", "rustls", "gzip"] }
+dirs = "7.0.0"
 tokio = { version = "1", features = ["time", "sync", "rt"] }
 
 [features]

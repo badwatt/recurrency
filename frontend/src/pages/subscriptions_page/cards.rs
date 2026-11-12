@@ -201,7 +201,7 @@ pub fn render_grid_card(
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors duration-200",
                         onclick: move |_| on_delete.call(id_for_delete),
-                        Trash2 { size: 14 }
+                        Trash { size: 14 }
                     }
                 }
             }
@@ -410,7 +410,7 @@ fn render_list_actions(
             button {
                 class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
                 onclick: move |_| on_delete.call(id_for_delete),
-                Trash2 { size: 14 }
+                Trash { size: 14 }
             }
         }
     }
