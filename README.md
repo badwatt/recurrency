@@ -361,4 +361,3 @@ A manual `workflow_dispatch` releases the current version.
 - Fail-closed configuration: missing or placeholder secrets stop startup.
 
 Found a security issue? Please open a private report instead of a public issue.
-
