@@ -74,7 +74,7 @@ docker run -d \
   -p 80:80 -p 8080:8080 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/badwatt/recurrency:0.32.0
+  ghcr.io/badwatt/recurrency:0.33.0
 ```
 
 - **Web:** http://localhost
@@ -92,7 +92,7 @@ docker run -d \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:0.32.0
+  ghcr.io/badwatt/recurrency:0.33.0
 ```
 
 - nginx is not started; only PostgreSQL and the backend run.
