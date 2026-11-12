@@ -390,17 +390,11 @@
     }
 
     #[test]
-    fn filter_sort_bar_uses_flex_row_on_mobile() {
+    fn subscriptions_use_compact_icon_toolbar() {
         let prod = include_str!("../subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("flex flex-row items-center gap-2 sm:flex-row"),
-            "filter/sort bar must be horizontal on mobile");
-    }
-
-    #[test]
-    fn sort_select_fixed_width_on_mobile() {
-        let prod = include_str!("../subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("w-[130px] sm:w-[150px]"),
-            "sort select must have fixed width on mobile");
+        assert!(prod.contains("ListToolbar"), "subscriptions must use the shared list toolbar");
+        assert!(prod.contains("aria_label: \"Sort\""), "sort must be an icon button");
+        assert!(prod.contains("aria_label: \"Filters\""), "filters must be an icon button");
     }
 
 #[test]

@@ -20,10 +20,12 @@ use lucide_dioxus::{FileText, Pencil, Plus, Receipt, Trash2};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
+mod cards;
 mod dialog;
 mod filter_sort_bar;
 mod notes_dialog;
 
+use cards::{TransactionCard, TransactionGridCard};
 use dialog::TransactionDialog;
 use filter_sort_bar::FilterSortBar;
 use notes_dialog::NotesDialog;
@@ -135,6 +137,31 @@ fn format_month(year: i32, month: u32) -> String {
     format!("{} {}", names.get(month as usize).unwrap_or(&""), year)
 }
 
+fn filter_groups_by_query(groups: Vec<MonthGroup>, query: &str) -> Vec<MonthGroup> {
+    let query = query.trim().to_lowercase();
+    if query.is_empty() {
+        return groups;
+    }
+    groups
+        .into_iter()
+        .filter_map(|mut group| {
+            group.transactions.retain(|txn| {
+                txn.name.to_lowercase().contains(&query)
+                    || txn
+                        .notes
+                        .as_deref()
+                        .is_some_and(|notes| notes.to_lowercase().contains(&query))
+            });
+            if group.transactions.is_empty() {
+                None
+            } else {
+                group.total = group.transactions.iter().map(|txn| txn.amount).sum();
+                Some(group)
+            }
+        })
+        .collect()
+}
+
 #[component]
 pub fn TransactionsPage() -> Element {
     let mut filters = use_signal(FilterConfig::default);
@@ -144,6 +171,8 @@ pub fn TransactionsPage() -> Element {
     });
     let mut dialog_open = use_signal(|| false);
     let mut editing_id = use_signal(|| None::<Uuid>);
+    let mut query = use_signal(String::new);
+    let view_mode = use_signal(|| "list".to_string());
 
     // Notes dialog state
     let mut notes_dialog_open = use_signal(|| false);
@@ -185,11 +214,13 @@ pub fn TransactionsPage() -> Element {
 
     let currency = AUTH().currency().to_string();
     let state = TRANSACTIONS();
-    let accounts = ACCOUNTS();
 
-    let groups = filter_sort_group(&state.transactions, &filters(), &sort_cfg());
+    let groups = filter_groups_by_query(
+        filter_sort_group(&state.transactions, &filters(), &sort_cfg()),
+        &query(),
+    );
 
-    let handle_delete = move |id: Uuid| {
+    let handle_delete: Callback<Uuid> = use_callback(move |id: Uuid| {
         spawn(async move {
             let _ = Storage::delete_transaction(&id).await;
             match Storage::list_transactions().await {
@@ -197,7 +228,17 @@ pub fn TransactionsPage() -> Element {
                 Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
             }
         });
-    };
+    });
+
+    let handle_edit: Callback<Uuid> = use_callback(move |id: Uuid| {
+        editing_id.set(Some(id));
+        dialog_open.set(true);
+    });
+
+    let handle_notes: Callback<Uuid> = use_callback(move |id: Uuid| {
+        notes_dialog_txn_id.set(Some(id));
+        notes_dialog_open.set(true);
+    });
 
     use_effect(move || {
         if *CREATE_INTENT.read() == Some(CreateIntent::Transaction) {
@@ -235,7 +276,7 @@ pub fn TransactionsPage() -> Element {
 
             // Filter / Sort bar
             if !state.transactions.is_empty() {
-                FilterSortBar { filters: filters, sort_cfg: sort_cfg }
+                FilterSortBar { filters: filters, sort_cfg: sort_cfg, query: query, view: view_mode }
             }
 
             // Content
@@ -271,11 +312,14 @@ pub fn TransactionsPage() -> Element {
             } else if groups.is_empty() {
                 rsx! {
                     div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-2",
-                        p { class: "text-sm text-muted-foreground", "No transactions match your filters" }
+                        p { class: "text-sm text-muted-foreground", "No transactions match your search or filters" }
                         button {
-                            onclick: move |_| filters.set(FilterConfig::default()),
+                            onclick: move |_| {
+                                query.set(String::new());
+                                filters.set(FilterConfig::default());
+                            },
                             class: "text-sm text-primary hover:underline",
-                            "Clear filters"
+                            "Clear search and filters"
                         }
                     }
                 }
@@ -294,84 +338,28 @@ pub fn TransactionsPage() -> Element {
                                             {format_currency(group.total, &currency)}
                                         }
                                     }
-                                    // Transaction list
-                                    for txn in &group.transactions {
-                                        {rsx! {
-                                            div { key: "{txn.id}", class: "rounded-lg border border-border bg-card p-3 sm:p-4 hover:bg-muted/50 transition-colors",
-                                                div { class: "flex items-center gap-2 sm:gap-4",
-                                                    // Icon
-                                                    div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
-                                                        {logo_image_with_fallback(&format!("txn-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-9 w-9 sm:h-10 sm:w-10 object-contain p-1")}
-                                                        if txn.logo_url.is_none() {
-                                                            span { class: "text-muted-foreground",
-                                                                Receipt { size: 16 }
-                                                            }
-                                                        }
-                                                    }
-                                                    // Name + date
-                                                    div { class: "flex-1 min-w-0",
-                                                        p { class: "font-medium truncate text-sm sm:text-base", {txn.name.to_string()} }
-                                                        p { class: "text-xs text-muted-foreground",
-                                                            {format_date(&txn.date, &PREFERENCES().date_format())}
-                                                        }
-                                                    }
-                                                    // Account badge
-                                                    {
-                                                        let account = accounts.get_by_id(&txn.account_id);
-                                                        let account_name = account.map(|a| a.name.as_str()).unwrap_or("No account");
-                                                        let account_icon = account.and_then(|a| a.icon.clone()).unwrap_or_else(|| "Tag".into());
-                                                        let account_color = account.and_then(|a| a.color.clone()).unwrap_or_else(|| "#6b7280".into());
-                                                        let bg = format!("{}20", account_color);
-                                                        rsx! {
-                                                            span { class: "font-normal text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded",
-                                                                style: "color: {account_color}; background-color: {bg}",
-                                                                {icon_display(&account_icon)}
-                                                                {account_name.to_string()}
-                                                            }
-                                                        }
-                                                    }
-                                                    // Amount
-                                                    p { class: "font-medium text-sm sm:text-base shrink-0",
-                                                        ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
-                                                    }
-                                                    // Actions
-                                                    div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
-                                                        Tooltip { content: txn.notes.clone().unwrap_or_default(),
-                                                            button {
-                                                                class: if txn.notes.as_ref().is_some_and(|n| !n.is_empty()) { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground opacity-40" },
-                                                                onclick: {
-                                                                    let txn = txn.clone();
-                                                                    move |_| {
-                                                                        notes_dialog_txn_id.set(Some(txn.id));
-                                                                        notes_dialog_open.set(true);
-                                                                    }
-                                                                },
-                                                                FileText { size: 16 }
-                                                            }
-                                                        }
-                                                        button {
-                                                            class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                            onclick: {
-                                                                let txn = txn.clone();
-                                                                move |_| {
-                                                                    editing_id.set(Some(txn.id));
-                                                                    dialog_open.set(true);
-                                                                }
-                                                            },
-                                                            Pencil { size: 16 }
-                                                        }
-                                                        button {
-                                                            class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
-                                                            onclick: {
-                                                                let id = txn.id;
-                                                                move |_| handle_delete(id)
-                                                            },
-                                                            Trash2 { size: 16 }
-                                                        }
-                                                    }
+                                    if view_mode() == "grid" {
+                                        div { class: "mt-3 grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3",
+                                            for txn in &group.transactions {
+                                                TransactionGridCard {
+                                                    txn: txn.clone(),
+                                                    on_edit: handle_edit,
+                                                    on_delete: handle_delete,
+                                                    on_notes: handle_notes,
                                                 }
                                             }
-                                        }}
+                                        }
+                                    } else {
+                                        div { class: "mt-2 space-y-2",
+                                            for txn in &group.transactions {
+                                                TransactionCard {
+                                                    txn: txn.clone(),
+                                                    on_edit: handle_edit,
+                                                    on_delete: handle_delete,
+                                                    on_notes: handle_notes,
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }}

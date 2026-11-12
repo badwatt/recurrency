@@ -71,6 +71,26 @@ pub fn count_active_filters(f: &FilterConfig) -> usize {
     n
 }
 
+/// Case-insensitive search over the fields a user can recognize at a glance.
+pub fn matches_search(name: &str, notes: Option<&str>, query: &str) -> bool {
+    let query = query.trim().to_lowercase();
+    if query.is_empty() {
+        return true;
+    }
+    name.to_lowercase().contains(&query)
+        || notes
+            .is_some_and(|notes| notes.to_lowercase().contains(&query))
+}
+
+pub fn filter_subscriptions_by_search(
+    subs: Vec<Subscription>,
+    query: &str,
+) -> Vec<Subscription> {
+    subs.into_iter()
+        .filter(|sub| matches_search(&sub.name, sub.notes.as_deref(), query))
+        .collect()
+}
+
 pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Vec<Subscription> {
     let mut result: Vec<Subscription> = subs.to_vec();
 

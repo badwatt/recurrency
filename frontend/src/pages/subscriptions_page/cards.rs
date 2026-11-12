@@ -2,9 +2,12 @@ use super::*;
 
 // ── Grid card ────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_grid_card(
     sub: &Subscription,
     index: usize,
+    selected: bool,
+    on_select: Callback<Uuid>,
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
@@ -56,6 +59,7 @@ pub fn render_grid_card(
     let is_active = sub.is_active;
     let logo_url = sub.logo_url.clone();
     let name = sub.name.clone();
+    let id_for_select = sub.id;
     let sub_for_toggle = sub.clone();
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
@@ -100,10 +104,19 @@ pub fn render_grid_card(
 
                 // Top row: logo + status badge
                 div { class: "flex items-start justify-between gap-2",
-                    div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden",
-                        {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-12 w-12 object-contain")}
-                        if logo_url.is_none() {
-                            span { class: "text-muted-foreground", CreditCard { size: 22 } }
+                    div { class: "flex items-center gap-2",
+                        input {
+                            r#type: "checkbox",
+                            checked: selected,
+                            aria_label: "Select subscription",
+                            class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                            onchange: move |_| on_select.call(id_for_select),
+                        }
+                        div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden",
+                            {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-12 w-12 object-contain")}
+                            if logo_url.is_none() {
+                                span { class: "text-muted-foreground", CreditCard { size: 22 } }
+                            }
                         }
                     }
 
@@ -195,8 +208,11 @@ pub fn render_grid_card(
 
 // ── List card ─────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_list_card(
     sub: &Subscription,
+    selected: bool,
+    on_select: Callback<Uuid>,
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
@@ -248,6 +264,7 @@ pub fn render_list_card(
     let is_active = sub.is_active;
     let logo_url = sub.logo_url.clone();
     let name = sub.name.clone();
+    let id_for_select = sub.id;
     let status_label = if !is_active {
         "Inactive"
     } else if finalized {
@@ -272,6 +289,13 @@ pub fn render_list_card(
         div { class: "rounded-lg border {card_border} bg-card {opacity} min-w-0",
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
+                    input {
+                        r#type: "checkbox",
+                        checked: selected,
+                        aria_label: "Select subscription",
+                        class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                        onchange: move |_| on_select.call(id_for_select),
+                    }
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full overflow-hidden",
                         {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-9 w-9 sm:h-10 sm:w-10 object-contain")}
                         if logo_url.is_none() {

@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{Plus, Trash2, Wallet};
+use lucide_dioxus::{ArrowUpDown, Pencil, Plus, Trash2, Wallet};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -10,6 +10,7 @@ use crate::components::dialog::Dialog;
 use crate::components::ConvertedAmount;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::ListToolbar;
 use crate::components::{AccountCombobox, CategoryCombobox};
 use crate::models::debt::{
     CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest,
@@ -53,6 +54,13 @@ pub fn DebtsPage() -> Element {
 
     let mut delete_open = use_signal(|| false);
     let mut delete_debt = use_signal(|| None::<Debt>);
+    let mut query = use_signal(String::new);
+    let mut view_mode = use_signal(|| "grid".to_string());
+    let mut type_filter = use_signal(|| None::<String>);
+    let mut sort_field = use_signal(|| "name".to_string());
+    let mut sort_direction = use_signal(|| "asc".to_string());
+    let mut filters_popover = use_signal(|| false);
+    let mut sort_popover = use_signal(|| false);
 
     let load = use_callback(move |_: ()| {
         spawn(async move {
@@ -274,6 +282,123 @@ pub fn DebtsPage() -> Element {
         });
     };
 
+    let query_value = query().trim().to_lowercase();
+    let filter_value = type_filter();
+    let sort_value = sort_field();
+    let sort_desc = sort_direction() == "desc";
+    let mut visible_debts: Vec<Debt> = DEBTS()
+        .debts
+        .iter()
+        .filter(|debt| {
+            let matches_query = query_value.is_empty()
+                || debt.name.to_lowercase().contains(&query_value)
+                || debt
+                    .notes
+                    .as_deref()
+                    .is_some_and(|notes| notes.to_lowercase().contains(&query_value));
+            let matches_type = filter_value
+                .as_deref()
+                .is_none_or(|kind| debt.debt_type == kind);
+            matches_query && matches_type
+        })
+        .cloned()
+        .collect();
+    visible_debts.sort_by(|a, b| {
+        let order = match sort_value.as_str() {
+            "remaining" => a.remaining_amount.cmp(&b.remaining_amount),
+            "next" => a.next_payment_date.cmp(&b.next_payment_date),
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        };
+        if sort_desc { order.reverse() } else { order }
+    });
+
+    let filter_count = usize::from(filter_value.is_some());
+    let toolbar_actions = rsx! {
+        div { class: "relative",
+            button {
+                r#type: "button",
+                aria_label: "Filters",
+                title: "Filters",
+                aria_expanded: if filters_popover() { "true" } else { "false" },
+                class: if filter_count > 0 { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+                onclick: move |_| filters_popover.set(!filters_popover()),
+                svg {
+                    view_box: "0 0 24 24",
+                    width: "16",
+                    height: "16",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "2",
+                    path { d: "M4 5h16l-6 7v5l-4 2v-7L4 5z" }
+                }
+                if filter_count > 0 {
+                    span { class: "absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground", "{filter_count}" }
+                }
+            }
+            if filters_popover() {
+                div {
+                    class: "absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border bg-popover p-3 shadow-md space-y-2",
+                    onclick: move |e| e.stop_propagation(),
+                    label { class: "text-xs font-medium text-muted-foreground", "Type" }
+                    select {
+                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                        value: filter_value.clone().unwrap_or_default(),
+                        onchange: move |e| {
+                            let value = e.value();
+                            type_filter.set(if value.is_empty() { None } else { Some(value) });
+                        },
+                        option { value: "", "All debts" }
+                        option { value: crate::utils::constants::DEBT_TYPE_MANUAL, "Manual" }
+                        option { value: crate::utils::constants::DEBT_TYPE_AUTOMATIC, "Automatic" }
+                    }
+                    if filter_count > 0 {
+                        button {
+                            r#type: "button",
+                            class: "text-xs text-muted-foreground hover:text-foreground",
+                            onclick: move |_| type_filter.set(None),
+                            "Clear filter"
+                        }
+                    }
+                }
+                div { class: "fixed inset-0 z-40", onclick: move |_| filters_popover.set(false) }
+            }
+        }
+        div { class: "relative",
+            button {
+                r#type: "button",
+                aria_label: "Sort",
+                title: "Sort",
+                aria_expanded: if sort_popover() { "true" } else { "false" },
+                class: "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                onclick: move |_| sort_popover.set(!sort_popover()),
+                ArrowUpDown { size: 16 }
+            }
+            if sort_popover() {
+                div {
+                    class: "absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border bg-popover p-3 shadow-md space-y-2",
+                    onclick: move |e| e.stop_propagation(),
+                    label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
+                    select {
+                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                        value: sort_field(),
+                        onchange: move |e| sort_field.set(e.value()),
+                        option { value: "name", "Name" }
+                        option { value: "remaining", "Remaining" }
+                        option { value: "next", "Next payment" }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 w-full items-center justify-between rounded-md border bg-background px-2 text-sm",
+                        onclick: move |_| sort_direction.set(if sort_direction() == "asc" { "desc".into() } else { "asc".into() }),
+                        span { if sort_direction() == "asc" { "Ascending" } else { "Descending" } }
+                        span { if sort_direction() == "asc" { "↑" } else { "↓" } }
+                    }
+                }
+                div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }
+            }
+        }
+    };
+
     if let Some(err) = &DEBTS().error {
         return rsx! {
             div { class: "p-4 md:p-6",
@@ -294,6 +419,16 @@ pub fn DebtsPage() -> Element {
                 }
             }
 
+            if !DEBTS().debts.is_empty() {
+                ListToolbar {
+                    value: query(),
+                    oninput: move |value| query.set(value),
+                    view: view_mode(),
+                    onview: move |value| view_mode.set(value),
+                    actions: toolbar_actions,
+                }
+            }
+
             if DEBTS().is_loading && DEBTS().debts.is_empty() {
                 div { class: "flex h-52 items-center justify-center rounded-xl border border-border/40 bg-card/80",
                     p { class: "text-sm text-muted-foreground", "Loading debts…" }
@@ -306,10 +441,39 @@ pub fn DebtsPage() -> Element {
                         "Add a manual debt or let an automatic debt pay itself month by month."
                     }
                 }
-            } else {
+            } else if visible_debts.is_empty() {
+                div { class: "rounded-xl border border-border/40 bg-card/80 p-8 flex flex-col items-center gap-3",
+                    Wallet { size: 36 }
+                    p { class: "text-lg font-medium", "No debts match your search" }
+                    button {
+                        r#type: "button",
+                        class: "text-sm text-primary hover:underline",
+                        onclick: move |_| {
+                            query.set(String::new());
+                            type_filter.set(None);
+                        },
+                        "Clear search and filters"
+                    }
+                }
+            } else if view_mode() == "grid" {
                 div { class: "grid gap-4 grid-cols-1 lg:grid-cols-2",
-                    for debt in DEBTS().debts.iter().cloned() {
+                    for debt in visible_debts.iter().cloned() {
                         DebtCard {
+                            debt: debt.clone(),
+                            on_pay: open_pay,
+                            on_history: open_history,
+                            on_edit: open_edit,
+                            on_delete: move |debt| {
+                                delete_debt.set(Some(debt));
+                                delete_open.set(true);
+                            },
+                        }
+                    }
+                }
+            } else {
+                div { class: "space-y-2",
+                    for debt in visible_debts.iter().cloned() {
+                        DebtListRow {
                             debt: debt.clone(),
                             on_pay: open_pay,
                             on_history: open_history,
@@ -743,5 +907,90 @@ fn DebtCard(
                 }
             }
         }
+    }
+}
+
+#[component]
+fn DebtListRow(
+    debt: Debt,
+    on_pay: EventHandler<Debt>,
+    on_history: EventHandler<Debt>,
+    on_edit: EventHandler<Debt>,
+    on_delete: EventHandler<Debt>,
+) -> Element {
+    let debt_for_pay = debt.clone();
+    let debt_for_history = debt.clone();
+    let debt_for_edit = debt.clone();
+    let debt_for_delete = debt.clone();
+    rsx! {
+        div { class: "flex items-center gap-3 rounded-lg border border-border/50 bg-card p-3",
+            if let Some(logo) = debt.logo_url.clone() {
+                img { src: logo, alt: debt.name.clone(), class: "h-9 w-9 shrink-0 object-contain" }
+            } else {
+                div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted",
+                    Wallet { size: 18 }
+                }
+            }
+            div { class: "min-w-0 flex-1",
+                div { class: "flex items-center gap-2",
+                    p { class: "truncate text-sm font-semibold", {debt.name.clone()} }
+                    span { class: if debt.is_automatic() { "rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary" } else { "rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground" },
+                        if debt.is_automatic() { "Automatic" } else { "Manual" }
+                    }
+                }
+                div { class: "mt-1 h-1.5 overflow-hidden rounded-full bg-muted",
+                    div { class: "h-full rounded-full bg-primary", style: "width: {debt.progress()}%" }
+                }
+            }
+            div { class: "shrink-0 text-right",
+                p { class: "text-sm font-semibold",
+                    ConvertedAmount { amount: debt.remaining_amount, currency: debt.currency.clone() }
+                }
+                if let Some((current, total)) = debt.installment() {
+                    p { class: "text-[11px] font-medium text-primary", "Payment {current}/{total}" }
+                }
+            }
+            div { class: "flex shrink-0 items-center gap-1",
+                button {
+                    r#type: "button",
+                    class: "rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10",
+                    onclick: move |_| on_pay.call(debt_for_pay.clone()),
+                    "Pay"
+                }
+                button {
+                    r#type: "button",
+                    class: "rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted",
+                    onclick: move |_| on_history.call(debt_for_history.clone()),
+                    "History"
+                }
+                button {
+                    r#type: "button",
+                    aria_label: "Edit debt",
+                    class: "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted",
+                    onclick: move |_| on_edit.call(debt_for_edit.clone()),
+                    Pencil { size: 14 }
+                }
+                button {
+                    r#type: "button",
+                    aria_label: "Delete debt",
+                    class: "inline-flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10",
+                    onclick: move |_| on_delete.call(debt_for_delete.clone()),
+                    Trash2 { size: 14 }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn debts_toolbar_has_search_filters_sort_and_views() {
+        let src = include_str!("debts_page.rs");
+        assert!(src.contains("ListToolbar"));
+        assert!(src.contains("aria_label: \"Filters\""));
+        assert!(src.contains("aria_label: \"Sort\""));
+        assert!(src.contains("DebtListRow"));
+        assert!(src.contains("visible_debts"));
     }
 }

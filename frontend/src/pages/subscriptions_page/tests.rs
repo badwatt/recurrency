@@ -1803,3 +1803,46 @@ fn mobile_add_button_is_replaced_by_fab_intent() {
     assert!(src.contains("CREATE_INTENT"));
     assert!(src.contains("hidden md:inline-flex bg-primary"));
 }
+
+#[test]
+fn search_matches_name_case_insensitive() {
+    assert!(matches_search("Netflix", None, "net"));
+}
+
+#[test]
+fn search_matches_notes() {
+    assert!(matches_search("Hosting", Some("Annual VPS renewal"), "vps"));
+}
+
+#[test]
+fn empty_search_matches_everything() {
+    assert!(matches_search("Anything", None, "  "));
+}
+
+#[test]
+fn search_filters_subscription_list() {
+    let subs = vec![
+        make_sub("Netflix", dec!(10), "monthly", true, None, Uuid::nil()),
+        make_sub("Spotify", dec!(5), "monthly", true, None, Uuid::nil()),
+    ];
+    let filtered = filter_subscriptions_by_search(subs, "spot");
+    assert_eq!(filtered.len(), 1);
+    assert_eq!(filtered[0].name, "Spotify");
+}
+
+#[test]
+fn subscriptions_toolbar_has_search_and_bulk_selection() {
+    let src = include_str!("../subscriptions_page.rs");
+    assert!(src.contains("ListToolbar"));
+    assert!(src.contains("Select all"));
+    assert!(src.contains("BulkDeleteSubscriptionsDialog"));
+    assert!(src.contains("Activate"));
+    assert!(src.contains("Pause"));
+}
+
+#[test]
+fn subscription_cards_expose_selection_checkbox() {
+    let src = include_str!("cards.rs");
+    assert!(src.contains("aria_label: \"Select subscription\""));
+    assert!(src.contains("on_select.call"));
+}

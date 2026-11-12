@@ -2,6 +2,7 @@ use chrono::Datelike;
 use dioxus::prelude::*;
 use lucide_dioxus::{ArrowUpDown, Copy, CreditCard, FileText, Pause, Pencil, Play, Plus, Trash2, X};
 use rust_decimal::Decimal;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::api;
@@ -10,6 +11,7 @@ use crate::components::dialog::Dialog;
 use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
+use crate::components::ListToolbar;
 use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};
 use crate::components::tooltip::Tooltip;
 use crate::components::logo_search::LogoSearch;
@@ -33,7 +35,7 @@ mod delete_dialog;
 mod logic;
 mod notes_dialog;
 pub use logic::*;
-use delete_dialog::DeleteSubscriptionDialog;
+use delete_dialog::{BulkDeleteSubscriptionsDialog, DeleteSubscriptionDialog};
 use notes_dialog::NotesSubscriptionDialog;
 mod cards;
 pub(crate) mod dialog;
@@ -57,6 +59,11 @@ pub fn SubscriptionsPage() -> Element {
     let mut recurrence: Signal<Recurrence> = use_signal(Recurrence::default);
     let mut form_active: Signal<bool> = use_signal(|| true);
     let mut filters_popover: Signal<bool> = use_signal(|| false);
+    let mut sort_popover: Signal<bool> = use_signal(|| false);
+    let mut search: Signal<String> = use_signal(String::new);
+    let mut selected: Signal<HashSet<Uuid>> = use_signal(HashSet::new);
+    let mut bulk_delete_ids: Signal<Vec<Uuid>> = use_signal(Vec::new);
+    let mut bulk_busy: Signal<bool> = use_signal(|| false);
     let mut delete_confirm_id: Signal<Option<Uuid>> = use_signal(|| None);
     let mut notes_dialog_open: Signal<bool> = use_signal(|| false);
     let mut notes_dialog_sub_id: Signal<Option<Uuid>> = use_signal(|| None);
@@ -345,9 +352,16 @@ pub fn SubscriptionsPage() -> Element {
         };
     });
 
-    let set_view_mode = move |mode: &str| {
-        PREFERENCES.write().set_subscriptions_view(mode.to_string());
-        let mode = mode.to_string();
+    let toggle_selected: Callback<Uuid> = use_callback(move |id: Uuid| {
+        if selected.read().contains(&id) {
+            selected.write().remove(&id);
+        } else {
+            selected.write().insert(id);
+        }
+    });
+
+    let set_view_mode: Callback<String> = use_callback(move |mode: String| {
+        PREFERENCES.write().set_subscriptions_view(mode.clone());
         spawn(async move {
             let state = PREFERENCES();
             drop(state);
@@ -358,13 +372,16 @@ pub fn SubscriptionsPage() -> Element {
             };
             let _ = api::preferences::update(&req).await;
         });
-    };
+    });
 
     // Filtered + sorted
     let filters_val = filters();
     let sort_val = sort();
     let state = SUBSCRIPTIONS();
-    let filtered = apply_filters_and_sort(&state.subscriptions, &filters_val, &sort_val);
+    let filtered = filter_subscriptions_by_search(
+        apply_filters_and_sort(&state.subscriptions, &filters_val, &sort_val),
+        &search(),
+    );
     let today = chrono::Utc::now().date_naive();
     let (active_subs, inactive_subs, finalized_subs) = subscription_sections(&filtered, today);
     let has_active = !active_subs.is_empty();
@@ -379,6 +396,11 @@ pub fn SubscriptionsPage() -> Element {
     };
     let filtered_count = filtered.len();
     let plural = if filtered_count != 1 { "s" } else { "" };
+    let selected_ids = selected();
+    let selected_count = selected_ids.len();
+    let all_filtered_selected =
+        !filtered.is_empty() && filtered.iter().all(|sub| selected_ids.contains(&sub.id));
+    let selected_ids_vec = selected_ids.iter().copied().collect::<Vec<_>>();
 
     // Category options for selects (owned)
     let category_options: Vec<(String, String)> = CATEGORIES()
@@ -386,6 +408,218 @@ pub fn SubscriptionsPage() -> Element {
         .iter()
         .map(|c| (c.id.to_string(), c.name.clone()))
         .collect();
+
+    let bulk_set_active: Callback<bool> = use_callback(move |active: bool| {
+        if *bulk_busy.peek() || selected().is_empty() {
+            return;
+        }
+        let ids: Vec<Uuid> = selected().iter().copied().collect();
+        bulk_busy.set(true);
+        spawn(async move {
+            for id in ids {
+                let req = UpdateSubscriptionRequest {
+                    account_id: None,
+                    is_active: Some(active),
+                    ..Default::default()
+                };
+                let _ = Storage::update_subscription(&id, &req).await;
+            }
+            match Storage::list_subscriptions().await {
+                Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                Err(e) => SUBSCRIPTIONS.write().set_error(e.to_string()),
+            }
+            selected.write().clear();
+            bulk_busy.set(false);
+        });
+    });
+
+    let filtered_ids: Vec<Uuid> = filtered.iter().map(|sub| sub.id).collect();
+    let toggle_all_selected = move |_| {
+        if all_filtered_selected {
+            selected.write().clear();
+        } else {
+            for id in &filtered_ids {
+                selected.write().insert(*id);
+            }
+        }
+    };
+
+    let toolbar_actions = rsx! {
+        div { class: "relative",
+            button {
+                r#type: "button",
+                aria_label: "Filters",
+                title: "Filters",
+                aria_expanded: if filters_popover() { "true" } else { "false" },
+                class: if active_filter_count > 0 { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+                onclick: move |_| filters_popover.set(!filters_popover()),
+                svg {
+                    view_box: "0 0 24 24",
+                    width: "16",
+                    height: "16",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "2",
+                    path { d: "M4 5h16l-6 7v5l-4 2v-7L4 5z" }
+                }
+                if active_filter_count > 0 {
+                    span { class: "absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground", "{active_filter_count}" }
+                }
+            }
+            if filters_popover() {
+                div {
+                    class: "absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border bg-popover p-3 shadow-md space-y-3",
+                    onclick: move |e| e.stop_propagation(),
+                    div { class: "flex items-center justify-between",
+                        h4 { class: "text-sm font-medium", "Filters" }
+                        if active_filter_count > 0 {
+                            button {
+                                r#type: "button",
+                                class: "px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground",
+                                onclick: move |_| clear_filters.call(()),
+                                "Clear all"
+                            }
+                        }
+                    }
+                    div { class: "space-y-1.5",
+                        label { class: "text-xs font-medium text-muted-foreground", "Status" }
+                        select {
+                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                            value: filters_val.status.as_deref().unwrap_or("all"),
+                            onchange: move |e: Event<FormData>| {
+                                let value = e.value();
+                                filters.write().status = if value == "all" { None } else { Some(value) };
+                            },
+                            for (val, label) in STATUS_OPTIONS {
+                                option { value: val.to_string(), {label.to_string()} }
+                            }
+                        }
+                    }
+                    div { class: "space-y-1.5",
+                        label { class: "text-xs font-medium text-muted-foreground", "Repeats every" }
+                        select {
+                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                            value: filters_val.frequency.as_deref().unwrap_or("all"),
+                            onchange: move |e: Event<FormData>| {
+                                let value = e.value();
+                                filters.write().frequency = if value == "all" { None } else { Some(value) };
+                            },
+                            option { value: "all", "All units" }
+                            for (val, label) in RECURRENCE_UNITS {
+                                option { value: val.to_string(), {label.to_string()} }
+                            }
+                        }
+                    }
+                    div { class: "space-y-1.5",
+                        label { class: "text-xs font-medium text-muted-foreground", "Category" }
+                        select {
+                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                            value: filters_val.category_id.as_deref().unwrap_or("all"),
+                            onchange: move |e: Event<FormData>| {
+                                let value = e.value();
+                                filters.write().category_id = if value == "all" { None } else { Some(value) };
+                            },
+                            option { value: "all", "All categories" }
+                            for (id, name) in category_options.iter() {
+                                option { value: id.to_string(), {name.to_string()} }
+                            }
+                        }
+                    }
+                    div { class: "flex items-center gap-2",
+                        input {
+                            r#type: "checkbox",
+                            id: "filter-debts-only",
+                            checked: filters_val.debts_only,
+                            onchange: move |e: Event<FormData>| filters.write().debts_only = e.checked(),
+                            class: "h-4 w-4 accent-primary",
+                        }
+                        label { r#for: "filter-debts-only", class: "text-xs font-medium text-muted-foreground", "Debt subscriptions only" }
+                    }
+                    div { class: "space-y-1.5",
+                        label { class: "text-xs font-medium text-muted-foreground", "Price range" }
+                        div { class: "flex items-center gap-2",
+                            input {
+                                r#type: "number",
+                                class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                                placeholder: "Min",
+                                value: filters_val.price_min.as_deref().unwrap_or(""),
+                                oninput: move |e: Event<FormData>| {
+                                    let value = e.value();
+                                    filters.write().price_min = if value.is_empty() { None } else { Some(value) };
+                                }
+                            }
+                            span { class: "text-xs text-muted-foreground", "–" }
+                            input {
+                                r#type: "number",
+                                class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                                placeholder: "Max",
+                                value: filters_val.price_max.as_deref().unwrap_or(""),
+                                oninput: move |e: Event<FormData>| {
+                                    let value = e.value();
+                                    filters.write().price_max = if value.is_empty() { None } else { Some(value) };
+                                }
+                            }
+                        }
+                    }
+                }
+                div { class: "fixed inset-0 z-40", onclick: move |_| filters_popover.set(false) }
+            }
+        }
+        div { class: "relative",
+            button {
+                r#type: "button",
+                aria_label: "Sort",
+                title: "Sort",
+                aria_expanded: if sort_popover() { "true" } else { "false" },
+                class: "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                onclick: move |_| sort_popover.set(!sort_popover()),
+                ArrowUpDown { size: 16 }
+            }
+            if sort_popover() {
+                div {
+                    class: "absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border bg-popover p-3 shadow-md space-y-2",
+                    onclick: move |e| e.stop_propagation(),
+                    label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
+                    select {
+                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                        value: sort_val.field.to_string(),
+                        onchange: move |e: Event<FormData>| sort.write().field = e.value(),
+                        for (val, label) in SORT_OPTIONS {
+                            option { value: val.to_string(), {label.to_string()} }
+                        }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 w-full items-center justify-between rounded-md border bg-background px-2 text-sm",
+                        onclick: move |_| toggle_sort_direction.call(()),
+                        span { if sort_val.direction == "asc" { "Ascending" } else { "Descending" } }
+                        span { "{sort_arrow}" }
+                    }
+                }
+                div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }
+            }
+        }
+        button {
+            r#type: "button",
+            aria_label: if all_filtered_selected { "Clear selection" } else { "Select all" },
+            title: if all_filtered_selected { "Clear selection" } else { "Select all" },
+            aria_pressed: if all_filtered_selected { "true" } else { "false" },
+            class: if selected_count > 0 { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+            onclick: toggle_all_selected,
+            svg {
+                view_box: "0 0 24 24",
+                width: "16",
+                height: "16",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                rect { x: "3", y: "3", width: "18", height: "18", rx: "3" }
+                if all_filtered_selected {
+                    path { d: "m7 12 3 3 7-7" }
+                }
+            }
+        }
+    };
 
     // ── Error ──
     if let Some(ref err) = state.error {
@@ -405,18 +639,65 @@ pub fn SubscriptionsPage() -> Element {
                 PageHeader { title: "Subscriptions", subtitle: "Track and manage recurring payments" }
                 div { class: "flex items-center gap-2 shrink-0",
                     button {
-                        class: "inline-flex items-center gap-1.5 border border-border/60 rounded-lg px-3 py-2 hover:bg-muted text-sm transition-colors duration-200",
-                        onclick: {
-                            let vm = view_mode.clone();
-                            move |_| set_view_mode(if vm.as_str() == "grid" { "list" } else { "grid" })
-                        },
-                        if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
-                    }
-                    button {
                         class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
                         onclick: move |_| handle_create.call(()),
                         Plus { size: 16 }
                         "Add Subscription"
+                    }
+                }
+            }
+
+            if !state.subscriptions.is_empty() {
+                ListToolbar {
+                    value: search(),
+                    oninput: move |value| search.set(value),
+                    view: view_mode.clone(),
+                    onview: move |mode| set_view_mode.call(mode),
+                    actions: toolbar_actions,
+                }
+            }
+
+            if selected_count > 0 {
+                div {
+                    role: "status",
+                    aria_live: "polite",
+                    class: "flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2",
+                    span { class: "text-sm font-medium", "{selected_count} selected" }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                        disabled: bulk_busy(),
+                        onclick: move |_| bulk_set_active.call(true),
+                        Play { size: 13 }
+                        "Activate"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                        disabled: bulk_busy(),
+                        onclick: move |_| bulk_set_active.call(false),
+                        Pause { size: 13 }
+                        "Pause"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
+                        disabled: bulk_busy(),
+                        onclick: move |_| {
+                            let ids = selected_ids_vec.clone();
+                            if !ids.is_empty() {
+                                bulk_delete_ids.set(ids);
+                            }
+                        },
+                        Trash2 { size: 13 }
+                        "Delete"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                        onclick: move |_| selected.write().clear(),
+                        X { size: 13 }
+                        "Clear"
                     }
                 }
             }
@@ -459,178 +740,20 @@ pub fn SubscriptionsPage() -> Element {
             } else if filtered.is_empty() {
                 rsx! {
                     div { class: "rounded-xl border border-border/40 bg-card/80 p-6 flex h-40 flex-col items-center justify-center gap-2",
-                        p { class: "text-sm text-muted-foreground", "No subscriptions match your filters" }
+                        p { class: "text-sm text-muted-foreground", "No subscriptions match your search or filters" }
                         button {
                             class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
-                            onclick: move |_| clear_filters.call(()),
-                            "Clear filters"
+                            onclick: move |_| {
+                                search.set(String::new());
+                                clear_filters.call(());
+                            },
+                            "Clear search and filters"
                         }
                     }
                 }
             } else {
                 rsx! {
                     div { class: "space-y-4",
-
-                        // ── Filter / Sort bar ──
-                        div { class: "flex flex-row items-center gap-2 sm:flex-row sm:items-center",
-                            div { class: "shrink-0 relative",
-                                button {
-                                    class: "border border-border/60 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 hover:bg-muted h-8 transition-colors duration-200",
-                                    onclick: move |_| filters_popover.set(!filters_popover()),
-                                    "▾ Filters"
-                                    if active_filter_count > 0 {
-                                        span { class: "ml-1 bg-secondary text-secondary-foreground rounded-full px-1.5 text-[10px]",
-                                            {active_filter_count.to_string()}                                        }
-                                    }
-                                }
-                                if filters_popover() {
-                                    // Panel positioned relative to button container (parent has .relative)
-                                    div {
-                                        class: "absolute left-0 top-full mt-2 z-50 w-80 rounded-md border bg-popover p-3 shadow-md space-y-3",
-                                        onclick: move |e| e.stop_propagation(),
-                                    div { class: "flex items-center justify-between",
-                                            h4 { class: "font-medium text-sm", "Filters" }
-                                            if active_filter_count > 0 {
-                                                button {
-                                                    class: "text-xs text-muted-foreground hover:text-foreground px-2 py-0.5",
-                                                    onclick: move |_| clear_filters.call(()),
-                                                    "Clear all"
-                                                }
-                                            }
-                                        }
-
-                                        // Status
-                                        div { class: "space-y-1.5",
-                                            label { class: "text-xs font-medium text-muted-foreground", "Status" }
-                                            select {
-                                                class: "w-full h-8 rounded-md border bg-background px-2 text-sm",
-                                                value: filters_val.status.as_deref().unwrap_or("all"),
-                                                onchange: move |e: Event<FormData>| {
-                                                    let v = e.value();
-                                                    filters.write().status = if v == "all" { None } else { Some(v) };
-                                                },
-                                                for (val, label) in STATUS_OPTIONS {
-                                                    option { value: val.to_string(), {label.to_string()} }
-                                                }
-                                            }
-                                        }
-
-                                        // Frequency
-                                        div { class: "space-y-1.5",
-                                            label { class: "text-xs font-medium text-muted-foreground", "Repeats every" }
-                                            select {
-                                                class: "w-full h-8 rounded-md border bg-background px-2 text-sm",
-                                                value: filters_val.frequency.as_deref().unwrap_or("all"),
-                                                onchange: move |e: Event<FormData>| {
-                                                    let v = e.value();
-                                                    filters.write().frequency = if v == "all" { None } else { Some(v) };
-                                                },
-                                                option { value: "all", "All units" }
-                                                for (val, label) in RECURRENCE_UNITS {
-                                                    option { value: val.to_string(), {label.to_string()} }
-                                                }
-                                            }
-                                        }
-
-                                        // Category
-                                        div { class: "space-y-1.5",
-                                            label { class: "text-xs font-medium text-muted-foreground", "Category" }
-                                            select {
-                                                class: "w-full h-8 rounded-md border bg-background px-2 text-sm",
-                                                value: filters_val.category_id.as_deref().unwrap_or("all"),
-                                                onchange: move |e: Event<FormData>| {
-                                                    let v = e.value();
-                                                    filters.write().category_id = if v == "all" { None } else { Some(v) };
-                                                },
-                                                option { value: "all", "All categories" }
-                                                for (id, name) in category_options.iter() {
-                                                    option { value: id.to_string(), {name.to_string()} }
-                                                }
-                                            }
-                                        }
-
-                                        // Debt subscriptions
-                                        div { class: "flex items-center gap-2",
-                                            input {
-                                                r#type: "checkbox",
-                                                id: "filter-debts-only",
-                                                checked: filters_val.debts_only,
-                                                onchange: move |e: Event<FormData>| {
-                                                    filters.write().debts_only = e.checked();
-                                                },
-                                            }
-                                            label { r#for: "filter-debts-only", class: "text-xs font-medium text-muted-foreground", "Debt subscriptions only" }
-                                        }
-
-                                        // Price range
-                                        div { class: "space-y-1.5",
-                                            label { class: "text-xs font-medium text-muted-foreground", "Price range" }
-                                            div { class: "flex items-center gap-2",
-                                                input {
-                                                    r#type: "number",
-                                                    class: "h-8 text-sm rounded-md border bg-background px-2 w-full",
-                                                    placeholder: "Min",
-                                                    value: filters_val.price_min.as_deref().unwrap_or(""),
-                                                    oninput: move |e: Event<FormData>| {
-                                                        let v = e.value();
-                                                        filters.write().price_min = if v.is_empty() { None } else { Some(v) };
-                                                    }
-                                                }
-                                                span { class: "text-muted-foreground text-xs", "–" }
-                                                input {
-                                                    r#type: "number",
-                                                    class: "h-8 text-sm rounded-md border bg-background px-2 w-full",
-                                                    placeholder: "Max",
-                                                    value: filters_val.price_max.as_deref().unwrap_or(""),
-                                                    oninput: move |e: Event<FormData>| {
-                                                        let v = e.value();
-                                                        filters.write().price_max = if v.is_empty() { None } else { Some(v) };
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    // Click-outside overlay (after panel so panel gets events first)
-                                    div {
-                                        class: "fixed inset-0 z-40",
-                                        onclick: move |_| filters_popover.set(false),
-                                    }
-                                }
-                            }
-
-                            // Clear button
-                            {if active_filter_count > 0 {
-                                rsx! {
-                                    button {
-                                        class: "text-sm px-2 py-1.5 hover:bg-muted rounded-lg flex items-center gap-1 h-8 transition-colors duration-200",
-                                        onclick: move |_| clear_filters.call(()),
-                                        X { size: 14 }
-                                        "Clear"
-                                    }
-                                }
-                            } else {
-                                rsx! { div {} }
-                            }}
-
-                            // Sort
-                            div { class: "flex items-center gap-1.5 ml-auto",
-                                span { class: "text-sm text-muted-foreground", ArrowUpDown { size: 16 } }
-                                select {
-                                    class: "h-8 w-[130px] sm:w-[150px] rounded-md border bg-background px-2 text-sm",
-                                    value: sort_val.field.to_string(),
-                                    onchange: move |e: Event<FormData>| {
-                                        sort.write().field = e.value();
-                                    },
-                                    for (val, label) in SORT_OPTIONS {
-                                        option { value: val.to_string(), {label.to_string()} }
-                                    }
-                                }
-                                button {
-                                    class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors duration-200",
-                                    onclick: move |_| toggle_sort_direction.call(()),
-                                    {sort_arrow.to_string()}                                }
-                            }
-                        }
 
                         // Count
                         p { class: "text-sm text-muted-foreground",
@@ -643,6 +766,8 @@ pub fn SubscriptionsPage() -> Element {
                                 "Active".to_string(),
                                 &active_subs,
                                 view_mode.clone(),
+                                &selected_ids,
+                                toggle_selected,
                                 handle_edit,
                                 handle_delete,
                                 handle_toggle_active,
@@ -655,6 +780,8 @@ pub fn SubscriptionsPage() -> Element {
                                 "Inactive".to_string(),
                                 &inactive_subs,
                                 view_mode.clone(),
+                                &selected_ids,
+                                toggle_selected,
                                 handle_edit,
                                 handle_delete,
                                 handle_toggle_active,
@@ -667,6 +794,8 @@ pub fn SubscriptionsPage() -> Element {
                                 "Finalized".to_string(),
                                 &finalized_subs,
                                 view_mode.clone(),
+                                &selected_ids,
+                                toggle_selected,
                                 handle_edit,
                                 handle_delete,
                                 handle_toggle_active,
@@ -681,6 +810,14 @@ pub fn SubscriptionsPage() -> Element {
             // ── Create/Edit Dialog ──
             if dialog_open() {
                 {render_dialog(form, recurrence, form_active, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, end_date_error, account_error, category_error, form_account_id, None)}
+            }
+
+            // ── Bulk delete confirmation ──
+            if !bulk_delete_ids().is_empty() {
+                BulkDeleteSubscriptionsDialog {
+                    ids: bulk_delete_ids,
+                    on_done: move |_| selected.write().clear(),
+                }
             }
 
             // ── Delete confirmation ──
@@ -705,6 +842,8 @@ fn render_subscription_section(
     title: String,
     subs: &[Subscription],
     view_mode: String,
+    selected: &HashSet<Uuid>,
+    on_select: Callback<Uuid>,
     on_edit: Callback<Subscription>,
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
@@ -720,13 +859,13 @@ fn render_subscription_section(
             if view_mode == "grid" {
                 div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
                     for (i, sub) in subs.iter().enumerate() {
-                        {render_grid_card(sub, i, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                        {render_grid_card(sub, i, selected.contains(&sub.id), on_select, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                     }
                 }
             } else {
                 div { class: "space-y-3",
                     for (_i, sub) in subs.iter().enumerate() {
-                        {render_list_card(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                        {render_list_card(sub, selected.contains(&sub.id), on_select, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                     }
                 }
             }

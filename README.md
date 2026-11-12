@@ -127,6 +127,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Finalized / inactive** — finished schedules stay out of upcoming charges without losing history.
 - **Duplicate** — copy a subscription and edit only what changed.
 - **Notes** — attach context, clear it when it is no longer needed.
+- **Search and bulk actions** — search every list, switch grid/list views and pause, activate or delete several subscriptions at once.
 
 ### Expenses, not only subscriptions
 

@@ -1720,10 +1720,10 @@ use chrono::NaiveDate;
     }
 
     #[test]
-    fn transaction_sort_uses_sm_ml_auto() {
+    fn transaction_sort_uses_icon_toolbar() {
         let prod = include_str!("../transactions_page/filter_sort_bar.rs");
-        assert!(prod.contains("sm:ml-auto"),
-            "Transaction sort section must push to right on desktop");
+        assert!(prod.contains("aria_label: \"Sort\""), "sort must be an icon button");
+        assert!(prod.contains("ListToolbar"), "transactions must use the shared list toolbar");
     }
 
     #[test]
@@ -1744,4 +1744,47 @@ fn mobile_add_transaction_button_is_replaced_by_fab_intent() {
     let src = include_str!("../transactions_page.rs");
     assert!(src.contains("CREATE_INTENT"));
     assert!(src.contains("hidden md:inline-flex"));
+}
+
+#[test]
+fn search_filters_transactions_by_name() {
+    let txns = vec![
+        make_txn("Coffee", dec!(3), NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(), Uuid::nil()),
+        make_txn("Train", dec!(20), NaiveDate::from_ymd_opt(2026, 5, 2).unwrap(), Uuid::nil()),
+    ];
+    let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+    let groups = filter_groups_by_query(groups, "traf");
+    assert!(groups.is_empty());
+
+    let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+    let groups = filter_groups_by_query(groups, "coff");
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].transactions[0].name, "Coffee");
+}
+
+#[test]
+fn search_keeps_month_total_in_sync() {
+    let txns = vec![
+        make_txn("Coffee", dec!(3), NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(), Uuid::nil()),
+        make_txn("Train", dec!(20), NaiveDate::from_ymd_opt(2026, 5, 2).unwrap(), Uuid::nil()),
+    ];
+    let groups = filter_sort_group(&txns, &FilterConfig::default(), &SortConfig::default());
+    let groups = filter_groups_by_query(groups, "coff");
+    assert_eq!(groups[0].total, dec!(3));
+}
+
+#[test]
+fn transactions_toolbar_has_search_grid_and_list() {
+    let src = include_str!("../transactions_page.rs");
+    assert!(src.contains("FilterSortBar"));
+    assert!(src.contains("TransactionGridCard"));
+    assert!(src.contains("filter_groups_by_query"));
+}
+
+#[test]
+fn transaction_toolbar_uses_icon_controls() {
+    let src = include_str!("filter_sort_bar.rs");
+    assert!(src.contains("ListToolbar"));
+    assert!(src.contains("aria_label: \"Sort\""));
+    assert!(src.contains("aria_label: \"Filters\""));
 }
