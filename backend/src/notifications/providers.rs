@@ -413,7 +413,7 @@ async fn send_gotify(config: &Value, message: &NotificationMessage) -> AppResult
         .map_err(|_| AppError::BadRequest("Invalid Gotify configuration".to_string()))?;
     let url = reqwest::Url::parse_with_params(
         &format!("{}/message", config.server_url.trim_end_matches('/')),
-        &[("token", config.token.as_str())],
+        [("token", config.token.as_str())],
     )
     .map_err(|_| AppError::BadRequest("Invalid Gotify URL".to_string()))?;
     let response = client()
