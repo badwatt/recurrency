@@ -22,6 +22,12 @@ pub fn render_grid_card(
     }
     let end_text = subscription_end_text(sub.end_date, today, &date_format);
     let category = CATEGORIES().get_by_id(&sub.category_id).cloned();
+    let linked_debt = DEBTS()
+        .debts
+        .iter()
+        .find(|debt| debt.subscription_id == Some(sub.id))
+        .cloned();
+    let is_debt = linked_debt.is_some();
 
     let (color, account_icon, account_name) = {
         let accounts = ACCOUNTS();
@@ -90,8 +96,12 @@ pub fn render_grid_card(
                         }
                     }
 
-                    // Status badge — square rounded-md
-                    span { class: status_class, {status_label} }
+                    div { class: "flex items-center gap-1",
+                        if is_debt {
+                            span { class: "inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary", "Debt" }
+                        }
+                        span { class: status_class, {status_label} }
+                    }
                 }
 
                 // Name + next billing + optional end date
@@ -100,6 +110,9 @@ pub fn render_grid_card(
                     p { class: "text-xs text-muted-foreground mt-1", {next_text.to_string()} }
                     if let Some(end) = end_text {
                         p { class: "text-[11px] text-muted-foreground/80 mt-0.5", {end} }
+                    }
+                    if let Some((current, total)) = linked_debt.as_ref().and_then(|debt| debt.installment()) {
+                        p { class: "text-[11px] font-medium text-primary mt-0.5", "Payment {current}/{total}" }
                     }
                 }
 
@@ -186,6 +199,12 @@ pub fn render_list_card(
     }
     let end_text = subscription_end_text(sub.end_date, today, &date_format);
     let category = CATEGORIES().get_by_id(&sub.category_id).cloned();
+    let linked_debt = DEBTS()
+        .debts
+        .iter()
+        .find(|debt| debt.subscription_id == Some(sub.id))
+        .cloned();
+    let is_debt = linked_debt.is_some();
 
     let (color, account_icon, account_name) = {
         let accounts = ACCOUNTS();
@@ -237,11 +256,17 @@ pub fn render_list_card(
                     div { class: "flex-1 min-w-0",
                         div { class: "flex items-center gap-2 min-w-0",
                             p { class: "font-medium truncate text-sm sm:text-base", {name.to_string()} }
+                            if is_debt {
+                                span { class: "shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary", "Debt" }
+                            }
                             span { class: status_class, {status_label} }
                         }
                         p { class: "text-xs text-muted-foreground truncate", {next_text.to_string()} }
                         if let Some(end) = end_text {
                             p { class: "text-[11px] text-muted-foreground/80 truncate", {end} }
+                        }
+                        if let Some((current, total)) = linked_debt.as_ref().and_then(|debt| debt.installment()) {
+                            p { class: "text-[11px] font-medium text-primary truncate", "Payment {current}/{total}" }
                         }
                         div { class: "mt-1 flex flex-wrap items-center gap-1.5",
                             span {

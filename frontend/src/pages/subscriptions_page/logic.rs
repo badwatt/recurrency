@@ -14,6 +14,8 @@ pub struct FilterConfig {
     pub category_id: Option<String>,
     pub price_min: Option<String>,
     pub price_max: Option<String>,
+    pub debts_only: bool,
+    pub debt_subscription_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +65,9 @@ pub fn count_active_filters(f: &FilterConfig) -> usize {
     if f.price_max.is_some() {
         n += 1;
     }
+    if f.debts_only {
+        n += 1;
+    }
     n
 }
 
@@ -96,6 +101,10 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
         && let Ok(max) = max_s.parse::<Decimal>()
     {
         result.retain(|s| s.amount <= max);
+    }
+
+    if filters.debts_only {
+        result.retain(|s| filters.debt_subscription_ids.contains(&s.id));
     }
 
     result

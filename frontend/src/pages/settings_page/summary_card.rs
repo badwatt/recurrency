@@ -21,6 +21,7 @@ pub fn SummaryCard() -> Element {
     let mut day = use_signal(|| 1i16);
     let mut time = use_signal(|| "09:00".to_string());
     let mut timezone = use_signal(|| "UTC".to_string());
+    let mut period = use_signal(|| crate::utils::constants::SUMMARY_PERIOD_CURRENT.to_string());
     let mut next_run = use_signal(|| None::<String>);
     let mut saving = use_signal(|| false);
     let mut sending = use_signal(|| false);
@@ -37,6 +38,7 @@ pub fn SummaryCard() -> Element {
                 day.set(summary.day_of_month.unwrap_or(1));
                 time.set(format!("{:02}:{:02}", summary.hour, summary.minute));
                 timezone.set(summary.timezone);
+                period.set(summary.period);
                 next_run.set(summary.next_run_at.map(|value| value.to_rfc3339()));
             }
             Err(error) => TOAST.write().error(format!(
@@ -74,6 +76,7 @@ pub fn SummaryCard() -> Element {
             hour,
             minute,
             timezone: timezone(),
+            period: period(),
         };
         spawn(async move {
             match notification_channels::update_summary(&req).await {

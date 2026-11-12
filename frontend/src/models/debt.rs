@@ -17,6 +17,9 @@ pub struct Debt {
     pub paid_amount: Decimal,
     pub debt_type: String,
     pub monthly_payment: Option<Decimal>,
+    #[serde(default)]
+    pub payment_days: Vec<u8>,
+    pub start_date: NaiveDate,
     pub next_payment_date: Option<NaiveDate>,
     pub subscription_id: Option<Uuid>,
     pub is_active: bool,
@@ -39,7 +42,20 @@ impl Debt {
     }
 
     pub fn is_automatic(&self) -> bool {
-        self.debt_type == "automatic"
+        self.debt_type == crate::utils::constants::DEBT_TYPE_AUTOMATIC
+    }
+
+    /// Number of payments already made / expected for an automatic debt.
+    pub fn installment(&self) -> Option<(u32, u32)> {
+        let monthly: f64 = self.monthly_payment?.try_into().ok()?;
+        let total: f64 = self.total_amount.try_into().ok()?;
+        if monthly <= 0.0 || total <= 0.0 {
+            return None;
+        }
+        let count = (total / monthly).ceil() as u32;
+        let paid: f64 = self.paid_amount.try_into().ok()?;
+        let current = ((paid / monthly).floor() as u32 + 1).min(count);
+        Some((current, count))
     }
 }
 
@@ -53,6 +69,8 @@ pub struct CreateDebtRequest {
     pub category_id: Option<Uuid>,
     pub debt_type: String,
     pub monthly_payment: Option<Decimal>,
+    #[serde(default)]
+    pub payment_days: Vec<u8>,
     pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -61,6 +79,15 @@ pub struct CreateDebtRequest {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct UpdateDebtRequest {
     pub name: Option<String>,
+    pub total_amount: Option<Decimal>,
+    pub currency: Option<String>,
+    pub account_id: Option<Uuid>,
+    pub category_id: Option<Uuid>,
+    pub debt_type: Option<String>,
+    pub monthly_payment: Option<Decimal>,
+    #[serde(default)]
+    pub payment_days: Option<Vec<u8>>,
+    pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
     #[serde(default)]
     pub clear_notes: bool,
@@ -102,6 +129,8 @@ mod tests {
             paid_amount: total - remaining,
             debt_type: "automatic".into(),
             monthly_payment: Some(Decimal::from(100)),
+            payment_days: vec![1],
+            start_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             next_payment_date: None,
             subscription_id: Some(Uuid::new_v4()),
             is_active: remaining > Decimal::ZERO,

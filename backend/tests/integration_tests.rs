@@ -405,6 +405,7 @@ async fn summary_notification_schedule_roundtrip(pool: PgPool) {
                 hour: 9,
                 minute: 30,
                 timezone: "UTC".to_string(),
+                period: "current".to_string(),
             },
         )
         .await
@@ -1067,6 +1068,7 @@ async fn debt_manual_payment_and_automatic_payoff(pool: PgPool) {
             category_id: None,
             debt_type: "manual".into(),
             monthly_payment: None,
+            payment_days: Vec::new(),
             start_date: None,
             notes: None,
             logo_url: None,
@@ -1100,6 +1102,7 @@ async fn debt_manual_payment_and_automatic_payoff(pool: PgPool) {
             category_id: None,
             debt_type: "automatic".into(),
             monthly_payment: Some(Decimal::from(100)),
+            payment_days: vec![1],
             start_date: Some(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
             notes: None,
             logo_url: None,

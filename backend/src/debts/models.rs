@@ -2,7 +2,12 @@ use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use sqlx::types::Json;
 use uuid::Uuid;
+
+pub const DEBT_TYPE_MANUAL: &str = "manual";
+pub const DEBT_TYPE_AUTOMATIC: &str = "automatic";
+pub const LAST_PAYMENT_DAY: u8 = 0;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Debt {
@@ -16,6 +21,9 @@ pub struct Debt {
     pub remaining_amount: Decimal,
     pub debt_type: String,
     pub monthly_payment: Option<Decimal>,
+    #[serde(default)]
+    pub payment_days: Json<Vec<u8>>,
+    pub start_date: NaiveDate,
     pub next_payment_date: Option<NaiveDate>,
     pub subscription_id: Option<Uuid>,
     pub is_active: bool,
@@ -50,6 +58,8 @@ pub struct CreateDebtRequest {
     #[serde(default)]
     pub monthly_payment: Option<Decimal>,
     #[serde(default)]
+    pub payment_days: Vec<u8>,
+    #[serde(default)]
     pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -58,6 +68,15 @@ pub struct CreateDebtRequest {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UpdateDebtRequest {
     pub name: Option<String>,
+    pub total_amount: Option<Decimal>,
+    pub currency: Option<String>,
+    pub account_id: Option<Uuid>,
+    pub category_id: Option<Uuid>,
+    pub debt_type: Option<String>,
+    pub monthly_payment: Option<Decimal>,
+    #[serde(default)]
+    pub payment_days: Option<Vec<u8>>,
+    pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
     #[serde(default)]
     pub clear_notes: bool,
@@ -84,6 +103,8 @@ pub struct DebtResponse {
     pub paid_amount: Decimal,
     pub debt_type: String,
     pub monthly_payment: Option<Decimal>,
+    pub payment_days: Vec<u8>,
+    pub start_date: NaiveDate,
     pub next_payment_date: Option<NaiveDate>,
     pub subscription_id: Option<Uuid>,
     pub is_active: bool,
@@ -107,6 +128,8 @@ impl From<Debt> for DebtResponse {
             remaining_amount: debt.remaining_amount,
             debt_type: debt.debt_type,
             monthly_payment: debt.monthly_payment,
+            payment_days: debt.payment_days.0,
+            start_date: debt.start_date,
             next_payment_date: debt.next_payment_date,
             subscription_id: debt.subscription_id,
             is_active: debt.is_active,
@@ -119,11 +142,11 @@ impl From<Debt> for DebtResponse {
 }
 
 fn manual_type() -> String {
-    "manual".to_string()
+    DEBT_TYPE_MANUAL.to_string()
 }
 
 pub fn validate_debt_type(value: &str) -> bool {
-    matches!(value, "manual" | "automatic")
+    matches!(value, DEBT_TYPE_MANUAL | DEBT_TYPE_AUTOMATIC)
 }
 
 #[cfg(test)]

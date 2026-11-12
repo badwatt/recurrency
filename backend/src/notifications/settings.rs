@@ -169,7 +169,7 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         let row = sqlx::query_as::<_, SummaryNotificationSettings>(
             r#"
             SELECT user_id, enabled, frequency, weekday, day_of_month, hour, minute,
-                   timezone, next_run_at, last_sent_at, last_error, created_at, updated_at
+                   timezone, period, next_run_at, last_sent_at, last_error, created_at, updated_at
             FROM summary_notification_settings WHERE user_id = $1
             "#,
         )
@@ -207,8 +207,8 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         let row = sqlx::query_as::<_, SummaryNotificationSettings>(
             r#"
             INSERT INTO summary_notification_settings
-                (user_id, enabled, frequency, weekday, day_of_month, hour, minute, timezone, next_run_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                (user_id, enabled, frequency, weekday, day_of_month, hour, minute, timezone, period, next_run_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (user_id) DO UPDATE SET
                 enabled = EXCLUDED.enabled,
                 frequency = EXCLUDED.frequency,
@@ -217,10 +217,11 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
                 hour = EXCLUDED.hour,
                 minute = EXCLUDED.minute,
                 timezone = EXCLUDED.timezone,
+                period = EXCLUDED.period,
                 next_run_at = EXCLUDED.next_run_at,
                 updated_at = NOW()
             RETURNING user_id, enabled, frequency, weekday, day_of_month, hour, minute,
-                      timezone, next_run_at, last_sent_at, last_error, created_at, updated_at
+                      timezone, period, next_run_at, last_sent_at, last_error, created_at, updated_at
             "#,
         )
         .bind(user_id)
@@ -231,6 +232,7 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         .bind(req.hour)
         .bind(req.minute)
         .bind(&req.timezone)
+        .bind(&req.period)
         .bind(next)
         .fetch_one(&self.pool)
         .await?;
@@ -245,13 +247,19 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         .bind(user_id)
         .fetch_one(&self.pool)
         .await?;
-        let timezone = self
-            .get_summary(user_id)
-            .await
-            .ok()
+        let summary = self.get_summary(user_id).await.ok();
+        let timezone = summary
+            .as_ref()
             .and_then(|summary| chrono_tz::Tz::from_str(&summary.timezone).ok())
             .unwrap_or(chrono_tz::UTC);
-        let today = Utc::now().with_timezone(&timezone).date_naive();
+        let period = summary
+            .as_ref()
+            .map(|summary| summary.period.as_str())
+            .unwrap_or(crate::notifications::channels::SUMMARY_PERIOD_CURRENT);
+        let today = crate::notifications::scheduler::summary_date(
+            Utc::now().with_timezone(&timezone).date_naive(),
+            period,
+        );
         let message = crate::notifications::scheduler::build_summary(
             &self.pool,
             user_id,
@@ -321,6 +329,7 @@ fn default_summary() -> SummaryNotificationSettingsResponse {
         hour: 9,
         minute: 0,
         timezone: DEFAULT_TIMEZONE.to_string(),
+        period: crate::notifications::channels::SUMMARY_PERIOD_CURRENT.to_string(),
         next_run_at: None,
         last_sent_at: None,
         last_error: None,

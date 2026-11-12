@@ -21,6 +21,7 @@ use crate::models::subscription::{
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
+use crate::state::debts::DEBTS;
 use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
@@ -115,6 +116,18 @@ pub fn SubscriptionsPage() -> Element {
                 }
             }
         });
+    });
+
+    use_effect(move || {
+        if DEBTS().debts.is_empty() {
+            spawn(async move {
+                if let Ok(debts) = api::debts::list().await {
+                    let ids = debts.iter().filter_map(|debt| debt.subscription_id).collect();
+                    DEBTS.write().set_data(debts);
+                    filters.write().debt_subscription_ids = ids;
+                }
+            });
+        }
     });
 
     use_effect(move || {
@@ -316,7 +329,11 @@ pub fn SubscriptionsPage() -> Element {
     });
 
     let clear_filters: Callback<()> = use_callback(move |_| {
-        filters.set(FilterConfig::default());
+        let debt_ids = filters().debt_subscription_ids.clone();
+        filters.set(FilterConfig {
+            debt_subscription_ids: debt_ids,
+            ..FilterConfig::default()
+        });
     });
 
     let toggle_sort_direction: Callback<()> = use_callback(move |_| {
@@ -529,6 +546,19 @@ pub fn SubscriptionsPage() -> Element {
                                                     option { value: id.to_string(), {name.to_string()} }
                                                 }
                                             }
+                                        }
+
+                                        // Debt subscriptions
+                                        div { class: "flex items-center gap-2",
+                                            input {
+                                                r#type: "checkbox",
+                                                id: "filter-debts-only",
+                                                checked: filters_val.debts_only,
+                                                onchange: move |e: Event<FormData>| {
+                                                    filters.write().debts_only = e.checked();
+                                                },
+                                            }
+                                            label { r#for: "filter-debts-only", class: "text-xs font-medium text-muted-foreground", "Debt subscriptions only" }
                                         }
 
                                         // Price range

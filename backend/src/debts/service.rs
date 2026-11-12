@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, Utc};
+use chrono::{Datelike, Utc};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -6,11 +6,12 @@ use uuid::Uuid;
 use crate::accounts::service::AccountService;
 use crate::categories::service::CategoryService;
 use crate::debts::models::{
-    CreateDebtRequest, Debt, DebtPayment, DebtResponse, RecordDebtPaymentRequest,
-    UpdateDebtRequest, validate_debt_type,
+    CreateDebtRequest, DEBT_TYPE_AUTOMATIC, DEBT_TYPE_MANUAL, Debt, DebtPayment, DebtResponse,
+    RecordDebtPaymentRequest, UpdateDebtRequest, validate_debt_type,
 };
 use crate::shared::error::{AppError, AppResult};
-use crate::subscriptions::models::{CreateSubscriptionRequest, Recurrence};
+use crate::subscriptions::models::{CreateSubscriptionRequest, Recurrence, UpdateSubscriptionRequest};
+use crate::subscriptions::recurrence::{next_occurrence_on_or_after, validate_recurrence};
 use crate::subscriptions::service::SubscriptionService;
 use crate::transactions::models::CreateTransactionRequest;
 use crate::transactions::service::TransactionService;
@@ -114,7 +115,20 @@ impl DebtService {
         };
 
         let start_date = req.start_date.unwrap_or_else(|| Utc::now().date_naive());
-        let (monthly_payment, next_payment_date, subscription_id) = if debt_type == "automatic" {
+        let mut payment_days = req.payment_days.clone();
+        if debt_type == DEBT_TYPE_AUTOMATIC {
+            if payment_days.is_empty() {
+                payment_days.push(start_date.day() as u8);
+            }
+            payment_days.sort_unstable();
+            payment_days.dedup();
+            if payment_days.iter().any(|day| *day > 31) {
+                return Err(AppError::BadRequest(
+                    "Payment days must be 0-31 (0 = last day)".to_string(),
+                ));
+            }
+        }
+        let (monthly_payment, next_payment_date, subscription_id) = if debt_type == DEBT_TYPE_AUTOMATIC {
             let monthly = req.monthly_payment.ok_or_else(|| {
                 AppError::BadRequest("Automatic debts need a monthly payment".to_string())
             })?;
@@ -126,9 +140,10 @@ impl DebtService {
             let recurrence = Recurrence {
                 interval: 1,
                 unit: "month".into(),
-                days: vec![start_date.day() as u8],
+                days: payment_days.clone(),
                 ..Default::default()
             };
+            validate_recurrence(&recurrence)?;
             let subscription = SubscriptionService::create(
                 pool,
                 user_id,
@@ -137,9 +152,18 @@ impl DebtService {
                     amount: monthly,
                     currency: req.currency.clone(),
                     frequency: "monthly".into(),
-                    schedule_day: Some(start_date.day() as i16),
+                    schedule_day: Some(if payment_days.first() == Some(&0) {
+                        31
+                    } else {
+                        i16::from(
+                            payment_days
+                                .first()
+                                .copied()
+                                .unwrap_or(start_date.day() as u8),
+                        )
+                    }),
                     schedule_month: None,
-                    recurrence: Some(recurrence),
+                    recurrence: Some(recurrence.clone()),
                     is_active: Some(true),
                     start_date,
                     end_date: None,
@@ -150,7 +174,9 @@ impl DebtService {
                 },
             )
             .await?;
-            (Some(monthly), Some(start_date), Some(subscription.id))
+            let next = next_occurrence_on_or_after(start_date, &recurrence, start_date, None)
+                .unwrap_or(start_date);
+            (Some(monthly), Some(next), Some(subscription.id))
         } else {
             (None, None, None)
         };
@@ -159,8 +185,8 @@ impl DebtService {
             r#"
             INSERT INTO debts (id, user_id, account_id, category_id, name, currency,
                 total_amount, remaining_amount, debt_type, monthly_payment,
-                next_payment_date, subscription_id, is_active, notes, logo_url, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,true,$12,$13,$14,$14)
+                payment_days, start_date, next_payment_date, subscription_id, is_active, notes, logo_url, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,$12,$13,true,$14,$15,$16,$16)
             RETURNING *
             "#,
         )
@@ -173,6 +199,8 @@ impl DebtService {
         .bind(req.total_amount)
         .bind(&debt_type)
         .bind(monthly_payment)
+        .bind(sqlx::types::Json(&payment_days))
+        .bind(start_date)
         .bind(next_payment_date)
         .bind(subscription_id)
         .bind(req.notes)
@@ -212,6 +240,175 @@ impl DebtService {
         req: UpdateDebtRequest,
     ) -> AppResult<DebtResponse> {
         let existing = Self::get_by_id(pool, user_id, id).await?;
+        let debt_type = req
+            .debt_type
+            .unwrap_or_else(|| existing.debt_type.clone())
+            .trim()
+            .to_lowercase();
+        if !validate_debt_type(&debt_type) {
+            return Err(AppError::BadRequest(
+                "Debt type must be manual or automatic".to_string(),
+            ));
+        }
+        let total_amount = req.total_amount.unwrap_or(existing.total_amount);
+        if total_amount <= Decimal::ZERO {
+            return Err(AppError::BadRequest(
+                "Debt amount must be greater than zero".to_string(),
+            ));
+        }
+        let paid = existing.total_amount - existing.remaining_amount;
+        let remaining_amount = if total_amount == existing.total_amount {
+            existing.remaining_amount
+        } else {
+            (total_amount - paid).max(Decimal::ZERO)
+        };
+        let currency = req
+            .currency
+            .unwrap_or_else(|| existing.currency.clone())
+            .to_uppercase();
+        let account_id = match req.account_id {
+            Some(account_id) if !account_id.is_nil() => {
+                AccountService::get_by_id(pool, user_id, account_id).await?.id
+            }
+            _ => existing.account_id,
+        };
+        let category_id = match req.category_id {
+            Some(category_id) => {
+                CategoryService::get_by_id(pool, user_id, category_id).await?.id
+            }
+            None => existing.category_id,
+        };
+        let start_date = req.start_date.unwrap_or(existing.start_date);
+        let mut payment_days = req
+            .payment_days
+            .unwrap_or_else(|| existing.payment_days.clone());
+        if debt_type == DEBT_TYPE_AUTOMATIC {
+            if payment_days.is_empty() {
+                payment_days.push(start_date.day() as u8);
+            }
+            payment_days.sort_unstable();
+            payment_days.dedup();
+            if payment_days.iter().any(|day| *day > 31) {
+                return Err(AppError::BadRequest(
+                    "Payment days must be 0-31 (0 = last day)".to_string(),
+                ));
+            }
+        } else {
+            payment_days.clear();
+        }
+        let recurrence = Recurrence {
+            interval: 1,
+            unit: "month".into(),
+            days: payment_days.clone(),
+            ..Default::default()
+        };
+        if debt_type == DEBT_TYPE_AUTOMATIC {
+            validate_recurrence(&recurrence)?;
+        }
+
+        let mut monthly_payment = None;
+        let mut next_payment_date = None;
+        let mut subscription_id = existing.subscription_id;
+        if debt_type == DEBT_TYPE_AUTOMATIC {
+            let monthly = req
+                .monthly_payment
+                .or(existing.monthly_payment)
+                .ok_or_else(|| {
+                    AppError::BadRequest("Automatic debts need a monthly payment".to_string())
+                })?;
+            if monthly <= Decimal::ZERO {
+                return Err(AppError::BadRequest(
+                    "Monthly payment must be greater than zero".to_string(),
+                ));
+            }
+            monthly_payment = Some(monthly);
+            let schedule_changed = payment_days != existing.payment_days
+                || start_date != existing.start_date;
+            let schedule_day = if payment_days.first() == Some(&0) {
+                31
+            } else {
+                i16::from(
+                    payment_days
+                        .first()
+                        .copied()
+                        .unwrap_or(start_date.day() as u8),
+                )
+            };
+            if let Some(existing_subscription) = existing.subscription_id {
+                SubscriptionService::update(
+                    pool,
+                    user_id,
+                    existing_subscription,
+                    UpdateSubscriptionRequest {
+                        name: req.name.clone(),
+                        amount: Some(monthly),
+                        currency: Some(currency.clone()),
+                        frequency: Some("monthly".to_string()),
+                        schedule_day: Some(schedule_day),
+                        recurrence: Some(recurrence.clone()),
+                        start_date: Some(start_date),
+                        account_id: Some(account_id),
+                        category_id: Some(category_id),
+                        ..Default::default()
+                    },
+                )
+                .await?;
+                if schedule_changed {
+                    next_payment_date = next_occurrence_on_or_after(
+                        start_date,
+                        &recurrence,
+                        Utc::now().date_naive(),
+                        None,
+                    );
+                } else {
+                    next_payment_date = existing.next_payment_date;
+                }
+            } else {
+                let subscription = SubscriptionService::create(
+                    pool,
+                    user_id,
+                    CreateSubscriptionRequest {
+                        name: req.name.clone().unwrap_or_else(|| existing.name.clone()),
+                        amount: monthly,
+                        currency: currency.clone(),
+                        frequency: "monthly".into(),
+                        schedule_day: Some(schedule_day),
+                        schedule_month: None,
+                        recurrence: Some(recurrence.clone()),
+                        is_active: Some(true),
+                        start_date,
+                        end_date: None,
+                        account_id,
+                        category_id: Some(category_id),
+                        notes: Some("Automatic debt payment".to_string()),
+                        logo_url: req.logo_url.clone().or_else(|| existing.logo_url.clone()),
+                    },
+                )
+                .await?;
+                subscription_id = Some(subscription.id);
+                next_payment_date =
+                    next_occurrence_on_or_after(start_date, &recurrence, start_date, None);
+            }
+            if remaining_amount <= Decimal::ZERO
+                && let Some(subscription_id) = subscription_id
+            {
+                let _ = SubscriptionService::update(
+                    pool,
+                    user_id,
+                    subscription_id,
+                    UpdateSubscriptionRequest {
+                        is_active: Some(false),
+                        end_date: Some(existing.start_date),
+                        ..Default::default()
+                    },
+                )
+                .await;
+            }
+        } else if let Some(linked_subscription) = subscription_id {
+            let _ = SubscriptionService::delete(pool, user_id, linked_subscription).await;
+            subscription_id = None;
+        }
+
         let name = req.name.unwrap_or(existing.name);
         let notes = if req.clear_notes {
             None
@@ -223,10 +420,30 @@ impl DebtService {
             }
         };
         let logo_url = req.logo_url.or(existing.logo_url);
+        let is_active = remaining_amount > Decimal::ZERO;
         let debt = sqlx::query_as::<_, Debt>(
-            "UPDATE debts SET name=$1, notes=$2, logo_url=$3, updated_at=NOW() WHERE id=$4 AND user_id=$5 RETURNING *",
+            r#"
+            UPDATE debts SET name=$1, total_amount=$2, remaining_amount=$3, currency=$4,
+                account_id=$5, category_id=$6, debt_type=$7, monthly_payment=$8,
+                payment_days=$9, start_date=$10, next_payment_date=$11,
+                subscription_id=$12, is_active=$13, notes=$14, logo_url=$15, updated_at=NOW()
+            WHERE id=$16 AND user_id=$17
+            RETURNING *
+            "#,
         )
         .bind(name)
+        .bind(total_amount)
+        .bind(remaining_amount)
+        .bind(currency)
+        .bind(account_id)
+        .bind(category_id)
+        .bind(&debt_type)
+        .bind(monthly_payment)
+        .bind(sqlx::types::Json(&payment_days))
+        .bind(start_date)
+        .bind(next_payment_date)
+        .bind(subscription_id)
+        .bind(is_active)
         .bind(notes)
         .bind(logo_url)
         .bind(id)
@@ -305,7 +522,7 @@ impl DebtService {
 
         // Manual payments become normal transactions so reports see the expense.
         // Automatic debts are already represented by their linked subscription.
-        if debt.debt_type == "manual" {
+        if debt.debt_type == DEBT_TYPE_MANUAL {
             let _ = TransactionService::create(
                 pool,
                 user_id,
@@ -371,6 +588,16 @@ impl DebtService {
                 .next_payment_date
                 .ok_or_else(|| AppError::Internal("Missing next payment date".into()))?;
             let mut last_paid = next;
+            let mut days = debt.payment_days.0.clone();
+            if days.is_empty() {
+                days.push(debt.start_date.day() as u8);
+            }
+            let recurrence = Recurrence {
+                interval: 1,
+                unit: "month".into(),
+                days,
+                ..Default::default()
+            };
             let mut tx = pool.begin().await?;
             while next <= today && remaining > Decimal::ZERO {
                 let amount = monthly.min(remaining);
@@ -387,7 +614,15 @@ impl DebtService {
                 .await?;
                 remaining -= amount;
                 last_paid = next;
-                next = add_month(next);
+                let Some(following) = next_occurrence_on_or_after(
+                    debt.start_date,
+                    &recurrence,
+                    next + chrono::Duration::days(1),
+                    None,
+                ) else {
+                    break;
+                };
+                next = following;
             }
             sqlx::query(
                 "UPDATE debts SET remaining_amount=$1, is_active=$2, next_payment_date=$3, updated_at=NOW() WHERE id=$4 AND user_id=$5",
@@ -417,21 +652,4 @@ impl DebtService {
     }
 }
 
-fn add_month(date: NaiveDate) -> NaiveDate {
-    let total = date.year() * 12 + date.month() as i32;
-    let year = total.div_euclid(12);
-    let month = (total.rem_euclid(12) + 1) as u32;
-    let day = date.day().min(crate::shared::date_utils::days_in_month(year, month));
-    NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn month_addition_clamps_short_months() {
-        let jan = NaiveDate::from_ymd_opt(2026, 1, 31).unwrap();
-        assert_eq!(add_month(jan), NaiveDate::from_ymd_opt(2026, 2, 28).unwrap());
-    }
-}

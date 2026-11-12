@@ -447,8 +447,7 @@ pub fn Dashboard() -> Element {
         today,
         &crate::state::rates::RATES(),
     );
-    let visible: Vec<AccountBudget> = plan.iter().filter(|b| b.has_movements()).cloned().collect();
-    let hidden_count = plan.len().saturating_sub(visible.len());
+    let visible: Vec<AccountBudget> = plan.clone();
 
     let budget_total = total_budget(&visible);
     let pending_total = total_pending(&visible);
@@ -731,11 +730,7 @@ pub fn Dashboard() -> Element {
                         div {
                             p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Month total" }
                             p { class: "text-xs text-muted-foreground",
-                                {if hidden_count > 0 {
-                                    format!("{} accounts with movements · {} without movements", visible.len(), hidden_count)
-                                } else {
-                                    format!("{} accounts", visible.len())
-                                }}
+                                {format!("{} accounts", visible.len())}
                             }
                         }
                         div { class: "flex items-center gap-8 sm:gap-12",

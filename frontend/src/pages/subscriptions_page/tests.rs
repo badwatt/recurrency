@@ -422,6 +422,8 @@
             category_id: Some("cat-id".into()),
             price_min: Some("10".into()),
             price_max: Some("100".into()),
+            debts_only: false,
+            debt_subscription_ids: Vec::new(),
         };
         assert_eq!(count_active_filters(&filters), 5);
     }
@@ -930,6 +932,8 @@
             category_id: None,
             price_min: None,
             price_max: None,
+            debts_only: false,
+            debt_subscription_ids: Vec::new(),
         };
         assert_eq!(count_active_filters(&f), 0);
     }
@@ -942,6 +946,8 @@
             category_id: None,
             price_min: None,
             price_max: None,
+            debts_only: false,
+            debt_subscription_ids: Vec::new(),
         };
         assert_eq!(count_active_filters(&f), 1);
     }
@@ -954,6 +960,8 @@
             category_id: Some(Uuid::new_v4().to_string()),
             price_min: None,
             price_max: None,
+            debts_only: false,
+            debt_subscription_ids: Vec::new(),
         };
         assert_eq!(count_active_filters(&f), 3);
     }
@@ -966,6 +974,8 @@
             category_id: Some(Uuid::new_v4().to_string()),
             price_min: Some("10".into()),
             price_max: Some("100".into()),
+            debts_only: false,
+            debt_subscription_ids: Vec::new(),
         };
         assert_eq!(count_active_filters(&f), 5);
     }

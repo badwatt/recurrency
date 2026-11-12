@@ -390,6 +390,8 @@ pub struct SummaryNotificationSettings {
     pub hour: i16,
     pub minute: i16,
     pub timezone: String,
+    #[serde(default = "default_summary_period")]
+    pub period: String,
     pub next_run_at: Option<DateTime<Utc>>,
     pub last_sent_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
@@ -404,4 +406,10 @@ pub struct UpdateSummaryNotificationSettingsRequest {
     pub hour: i16,
     pub minute: i16,
     pub timezone: String,
+    #[serde(default = "default_summary_period")]
+    pub period: String,
+}
+
+fn default_summary_period() -> String {
+    "current".to_string()
 }

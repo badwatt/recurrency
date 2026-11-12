@@ -27,6 +27,15 @@ pub const RECURRENCE_UNITS: &[(&str, &str)] = &[
     ("year", "Years"),
 ];
 
+
+/// Debt types stored by the backend.
+pub const DEBT_TYPE_MANUAL: &str = "manual";
+pub const DEBT_TYPE_AUTOMATIC: &str = "automatic";
+
+/// Summary notification periods.
+pub const SUMMARY_PERIOD_CURRENT: &str = "current";
+pub const SUMMARY_PERIOD_NEXT: &str = "next";
+
 /// Default currency.
 pub const DEFAULT_CURRENCY: &str = "EUR";
 

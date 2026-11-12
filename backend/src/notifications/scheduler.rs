@@ -174,7 +174,10 @@ async fn tick(pool: &PgPool) -> Result<(), String> {
         };
 
         let timezone = Tz::from_str(&settings.timezone).unwrap_or(chrono_tz::UTC);
-        let today = Utc::now().with_timezone(&timezone).date_naive();
+        let today = summary_date(
+            Utc::now().with_timezone(&timezone).date_naive(),
+            &settings.period,
+        );
         let message = build_summary(pool, settings.user_id, &currency, today).await?;
         let channels = sqlx::query_as::<_, (String, Vec<u8>)>(
             "SELECT provider, config FROM notification_channels WHERE user_id = $1 AND enabled = true",
@@ -225,6 +228,18 @@ async fn tick(pool: &PgPool) -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+pub(crate) fn summary_date(today: chrono::NaiveDate, period: &str) -> chrono::NaiveDate {
+    if period != crate::notifications::channels::SUMMARY_PERIOD_NEXT {
+        return today;
+    }
+    let (year, month) = if today.month() == 12 {
+        (today.year() + 1, 1)
+    } else {
+        (today.year(), today.month() + 1)
+    };
+    chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap_or(today)
 }
 
 pub(crate) async fn build_summary(
@@ -318,6 +333,20 @@ mod tests {
             minute: 0,
             timezone: "UTC".to_string(),
         }
+    }
+
+
+    #[test]
+    fn summary_date_selects_next_month() {
+        let today = chrono::NaiveDate::from_ymd_opt(2026, 12, 15).unwrap();
+        assert_eq!(
+            summary_date(today, "current"),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 15).unwrap()
+        );
+        assert_eq!(
+            summary_date(today, "next"),
+            chrono::NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
+        );
     }
 
     #[test]

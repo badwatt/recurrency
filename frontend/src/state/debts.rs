@@ -29,6 +29,19 @@ impl DebtsState {
         self.debts.iter().filter(|debt| debt.is_active).collect()
     }
 
+    pub fn subscription_ids(&self) -> Vec<uuid::Uuid> {
+        self.debts
+            .iter()
+            .filter_map(|debt| debt.subscription_id)
+            .collect()
+    }
+
+    pub fn is_debt_subscription(&self, subscription_id: uuid::Uuid) -> bool {
+        self.debts
+            .iter()
+            .any(|debt| debt.subscription_id == Some(subscription_id))
+    }
+
     pub fn remaining_total(&self) -> rust_decimal::Decimal {
         self.active()
             .iter()
@@ -59,6 +72,8 @@ mod tests {
             paid_amount: dec!(60),
             debt_type: "manual".into(),
             monthly_payment: None,
+            payment_days: Vec::new(),
+            start_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             next_payment_date: None,
             subscription_id: None,
             is_active: true,

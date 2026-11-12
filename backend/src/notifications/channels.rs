@@ -92,6 +92,7 @@ pub struct SummaryNotificationSettings {
     pub hour: i16,
     pub minute: i16,
     pub timezone: String,
+    pub period: String,
     pub next_run_at: Option<DateTime<Utc>>,
     pub last_sent_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
@@ -108,6 +109,7 @@ pub struct SummaryNotificationSettingsResponse {
     pub hour: i16,
     pub minute: i16,
     pub timezone: String,
+    pub period: String,
     pub next_run_at: Option<DateTime<Utc>>,
     pub last_sent_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
@@ -123,6 +125,7 @@ impl From<SummaryNotificationSettings> for SummaryNotificationSettingsResponse {
             hour: value.hour,
             minute: value.minute,
             timezone: value.timezone,
+            period: value.period,
             next_run_at: value.next_run_at,
             last_sent_at: value.last_sent_at,
             last_error: value.last_error,
@@ -139,9 +142,17 @@ pub struct UpdateSummaryNotificationSettingsRequest {
     pub hour: i16,
     pub minute: i16,
     pub timezone: String,
+    #[serde(default = "current_period")]
+    pub period: String,
+}
+
+fn current_period() -> String {
+    SUMMARY_PERIOD_CURRENT.to_string()
 }
 
 pub const DEFAULT_TIMEZONE: &str = "UTC";
+pub const SUMMARY_PERIOD_CURRENT: &str = "current";
+pub const SUMMARY_PERIOD_NEXT: &str = "next";
 pub const MASKED_VALUE: &str = "********";
 
 pub fn default_channel(provider: NotificationProvider) -> NotificationChannelResponse {

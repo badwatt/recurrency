@@ -1,3 +1,4 @@
+use chrono::Datelike;
 use dioxus::prelude::*;
 use lucide_dioxus::{Plus, Trash2, Wallet};
 use rust_decimal::Decimal;
@@ -24,11 +25,13 @@ use crate::utils::icons::icon_display;
 #[component]
 pub fn DebtsPage() -> Element {
     let mut dialog_open = use_signal(|| false);
+    let mut editing_id = use_signal(|| None::<Uuid>);
     let mut name = use_signal(String::new);
     let mut total = use_signal(String::new);
     let mut currency = use_signal(|| AUTH().currency().to_string());
-    let mut debt_type = use_signal(|| "manual".to_string());
+    let mut debt_type = use_signal(|| crate::utils::constants::DEBT_TYPE_MANUAL.to_string());
     let mut monthly_payment = use_signal(String::new);
+    let mut payment_days = use_signal(Vec::<u8>::new);
     let mut start_date = use_signal(|| chrono::Utc::now().date_naive().to_string());
     let mut notes = use_signal(String::new);
     let mut logo_url = use_signal(String::new);
@@ -88,11 +91,13 @@ pub fn DebtsPage() -> Element {
     });
 
     let open_create = move |_| {
+        editing_id.set(None);
         name.set(String::new());
         total.set(String::new());
         currency.set(AUTH().currency().to_string());
-        debt_type.set("manual".into());
+        debt_type.set(crate::utils::constants::DEBT_TYPE_MANUAL.into());
         monthly_payment.set(String::new());
+        payment_days.set(vec![chrono::Utc::now().date_naive().day() as u8]);
         start_date.set(chrono::Utc::now().date_naive().to_string());
         notes.set(String::new());
         logo_url.set(String::new());
@@ -110,6 +115,27 @@ pub fn DebtsPage() -> Element {
         dialog_open.set(true);
     };
 
+    let open_edit = move |debt: Debt| {
+        editing_id.set(Some(debt.id));
+        name.set(debt.name.clone());
+        total.set(debt.total_amount.to_string());
+        currency.set(debt.currency.clone());
+        debt_type.set(debt.debt_type.clone());
+        monthly_payment.set(
+            debt.monthly_payment
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+        );
+        payment_days.set(debt.payment_days.clone());
+        start_date.set(debt.start_date.to_string());
+        account_id.set(debt.account_id.to_string());
+        category_id.set(debt.category_id.to_string());
+        notes.set(debt.notes.clone().unwrap_or_default());
+        logo_url.set(debt.logo_url.clone().unwrap_or_default());
+        error.set(String::new());
+        dialog_open.set(true);
+    };
+
     let save = move |_| {
         let total_amount = Decimal::from_str(&total()).unwrap_or(Decimal::ZERO);
         if name().trim().is_empty() {
@@ -120,7 +146,7 @@ pub fn DebtsPage() -> Element {
             error.set("Total amount must be greater than zero".into());
             return;
         }
-        let monthly = if debt_type() == "automatic" {
+        let monthly = if debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC {
             let value = Decimal::from_str(&monthly_payment()).unwrap_or(Decimal::ZERO);
             if value <= Decimal::ZERO {
                 error.set("Monthly payment is required for automatic debts".into());
@@ -133,25 +159,51 @@ pub fn DebtsPage() -> Element {
         let start = start_date()
             .parse::<chrono::NaiveDate>()
             .ok();
-        let req = CreateDebtRequest {
-            name: name().trim().to_string(),
-            total_amount,
-            currency: currency(),
-            account_id: Uuid::parse_str(&account_id()).unwrap_or(Uuid::nil()),
-            category_id: Uuid::parse_str(&category_id()).ok(),
-            debt_type: debt_type(),
-            monthly_payment: monthly,
-            start_date: start,
-            notes: if notes().trim().is_empty() { None } else { Some(notes()) },
-            logo_url: if logo_url().trim().is_empty() {
-                None
-            } else {
-                Some(logo_url())
-            },
+        let note_value = if notes().trim().is_empty() { None } else { Some(notes()) };
+        let logo_value = if logo_url().trim().is_empty() {
+            None
+        } else {
+            Some(logo_url())
         };
+        let edit = editing_id();
         saving.set(true);
         spawn(async move {
-            match api::debts::create(&req).await {
+            let result = if let Some(id) = edit {
+                api::debts::update(
+                    &id,
+                    &crate::models::debt::UpdateDebtRequest {
+                        name: Some(name().trim().to_string()),
+                        total_amount: Some(total_amount),
+                        currency: Some(currency()),
+                        account_id: Some(Uuid::parse_str(&account_id()).unwrap_or(Uuid::nil())),
+                        category_id: Uuid::parse_str(&category_id()).ok(),
+                        debt_type: Some(debt_type()),
+                        monthly_payment: monthly,
+                        payment_days: Some(payment_days()),
+                        start_date: start,
+                        notes: note_value,
+                        clear_notes: false,
+                        logo_url: logo_value,
+                    },
+                )
+                .await
+            } else {
+                api::debts::create(&CreateDebtRequest {
+                    name: name().trim().to_string(),
+                    total_amount,
+                    currency: currency(),
+                    account_id: Uuid::parse_str(&account_id()).unwrap_or(Uuid::nil()),
+                    category_id: Uuid::parse_str(&category_id()).ok(),
+                    debt_type: debt_type(),
+                    monthly_payment: monthly,
+                    payment_days: payment_days(),
+                    start_date: start,
+                    notes: note_value,
+                    logo_url: logo_value,
+                })
+                .await
+            };
+            match result {
                 Ok(_) => {
                     dialog_open.set(false);
                     load.call(());
@@ -252,6 +304,7 @@ pub fn DebtsPage() -> Element {
                             debt: debt.clone(),
                             on_pay: open_pay,
                             on_history: open_history,
+                            on_edit: open_edit,
                             on_delete: move |debt| {
                                 delete_debt.set(Some(debt));
                                 delete_open.set(true);
@@ -264,7 +317,7 @@ pub fn DebtsPage() -> Element {
             Dialog {
                 open: dialog_open(),
                 on_close: move |_| dialog_open.set(false),
-                title: "Add Debt",
+                title: if editing_id().is_some() { "Edit Debt".to_string() } else { "Add Debt".to_string() },
                 div { class: "space-y-4",
                     div { class: "space-y-1.5",
                         label { class: "text-sm font-medium", "Name " span { class: "text-destructive", "*" } }
@@ -303,12 +356,23 @@ pub fn DebtsPage() -> Element {
                         select {
                             class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
                             value: debt_type(),
-                            onchange: move |e| debt_type.set(e.value()),
-                            option { value: "manual", "Manual — I record each payment" }
-                            option { value: "automatic", "Automatic — paid month by month" }
+                            onchange: move |e| {
+                                let value = e.value();
+                                if value == crate::utils::constants::DEBT_TYPE_AUTOMATIC
+                                    && payment_days().is_empty()
+                                {
+                                    payment_days.set(vec![start_date()
+                                        .parse::<chrono::NaiveDate>()
+                                        .map(|date| chrono::Datelike::day(&date) as u8)
+                                        .unwrap_or(1)]);
+                                }
+                                debt_type.set(value);
+                            },
+                            option { value: crate::utils::constants::DEBT_TYPE_MANUAL, "Manual — I record each payment" }
+                            option { value: crate::utils::constants::DEBT_TYPE_AUTOMATIC, "Automatic — paid month by month" }
                         }
                     }
-                    if debt_type() == "automatic" {
+                    if debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC {
                         div { class: "grid grid-cols-2 gap-3",
                             div { class: "space-y-1.5",
                                 label { class: "text-sm font-medium", "Monthly payment " span { class: "text-destructive", "*" } }
@@ -328,6 +392,64 @@ pub fn DebtsPage() -> Element {
                                     value: start_date(),
                                     oninput: move |e| start_date.set(e.value()),
                                 }
+                            }
+                        }
+                        div { class: "space-y-1.5",
+                            label { class: "text-sm font-medium", "Charge days" }
+                            div { class: "flex flex-wrap gap-1",
+                                for day in 1..=31u8 {
+                                    {
+                                        let selected = payment_days().contains(&day);
+                                        rsx! {
+                                            button {
+                                                r#type: "button",
+                                                class: if selected {
+                                                    "h-8 w-8 rounded-md bg-primary text-xs font-semibold text-primary-foreground"
+                                                } else {
+                                                    "h-8 w-8 rounded-md border border-border/60 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                                },
+                                                onclick: move |_| {
+                                                    let mut days = payment_days();
+                                                    if days.contains(&day) {
+                                                        days.retain(|value| *value != day);
+                                                    } else {
+                                                        days.push(day);
+                                                    }
+                                                    days.sort_unstable();
+                                                    payment_days.set(days);
+                                                },
+                                                {day.to_string()}
+                                            }
+                                        }
+                                    }
+                                }
+                                if payment_days().iter().any(|day| *day >= 29)
+                                    || payment_days().contains(&0)
+                                {
+                                    button {
+                                        r#type: "button",
+                                        class: if payment_days().contains(&0) {
+                                            "h-8 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground"
+                                        } else {
+                                            "h-8 rounded-md border border-border/60 px-2 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                        },
+                                        onclick: move |_| {
+                                            let mut days = payment_days();
+                                            if days.contains(&0) {
+                                                days.retain(|value| *value != 0);
+                                            } else {
+                                                days.retain(|value| *value < 29);
+                                                days.push(0);
+                                            }
+                                            days.sort_unstable();
+                                            payment_days.set(days);
+                                        },
+                                        "Last day"
+                                    }
+                                }
+                            }
+                            p { class: "text-xs text-muted-foreground",
+                                "Each selected day is a separate payment. Days 29-31 can use “Last day”."
                             }
                         }
                         p { class: "text-xs text-muted-foreground",
@@ -379,7 +501,7 @@ pub fn DebtsPage() -> Element {
                             class: "h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm disabled:opacity-50",
                             disabled: saving(),
                             onclick: save,
-                            if saving() { "Saving…" } else { "Add Debt" }
+                            if saving() { "Saving…" } else if editing_id().is_some() { "Save changes" } else { "Add Debt" }
                         }
                     }
                 }
@@ -448,11 +570,14 @@ pub fn DebtsPage() -> Element {
                     if history_payments().is_empty() {
                         p { class: "text-sm text-muted-foreground", "No payments yet." }
                     } else {
-                        for payment in history_payments() {
+                        for (index, payment) in history_payments().iter().enumerate() {
+                            {let count = history_payments().len();
+                             let number = count.saturating_sub(index);
+                             rsx! {
                             div { class: "flex items-center justify-between rounded-md border border-border/50 p-2 text-sm",
                                 div {
-                                    p { {payment.paid_on.to_string()} }
-                                    if let Some(note) = payment.note {
+                                    p { "Payment {number}/{count} · {payment.paid_on}" }
+                                    if let Some(note) = payment.note.clone() {
                                         p { class: "text-xs text-muted-foreground", {note} }
                                     }
                                 }
@@ -460,6 +585,7 @@ pub fn DebtsPage() -> Element {
                                     {format_currency(payment.amount, history_debt().map(|d| d.currency).as_deref().unwrap_or("EUR"))}
                                 }
                             }
+                             }}
                         }
                     }
                 }
@@ -505,6 +631,7 @@ fn DebtCard(
     debt: Debt,
     on_pay: EventHandler<Debt>,
     on_history: EventHandler<Debt>,
+    on_edit: EventHandler<Debt>,
     on_delete: EventHandler<Debt>,
 ) -> Element {
     let currency = debt.currency.clone();
@@ -516,6 +643,7 @@ fn DebtCard(
     let debt_for_pay = debt.clone();
     let debt_for_history = debt.clone();
     let debt_for_delete = debt.clone();
+    let debt_for_edit = debt.clone();
 
     rsx! {
         div { class: "rounded-xl border border-border/50 bg-card p-4 flex flex-col gap-3",
@@ -554,6 +682,11 @@ fn DebtCard(
                     if let Some(next) = debt.next_payment_date {
                         span { "Next {crate::utils::dates::format_date(&next, &date_format)}" }
                     }
+                    if let Some((current, total)) = debt.installment() {
+                        span { class: "rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary",
+                            "Payment {current}/{total}"
+                        }
+                    }
                 }
             }
             div { class: "flex flex-wrap items-center gap-1.5",
@@ -579,6 +712,11 @@ fn DebtCard(
                         onclick: move |_| on_pay.call(debt_for_pay.clone()),
                         "Pay"
                     }
+                }
+                button {
+                    class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",
+                    onclick: move |_| on_edit.call(debt_for_edit.clone()),
+                    "Edit"
                 }
                 button {
                     class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",

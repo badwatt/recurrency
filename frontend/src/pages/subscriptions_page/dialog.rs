@@ -3,6 +3,8 @@ use chrono::Datelike;
 use crate::components::AccountCombobox;
 
 const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MAX_INTERVAL: u16 = 100;
+const MAX_MONTH_DAY: u8 = 31;
 const MONTHS: [&str; 12] = [
     "January", "February", "March", "April", "May", "June", "July", "August", "September",
     "October", "November", "December",
@@ -68,11 +70,17 @@ pub(crate) fn render_dialog(
     let currency_err = currency_error();
     let frequency_err = frequency_error();
     let schedule_hint = recurrence_hint(&rec);
-    let unit_label = match rec_unit.as_str() {
-        "day" => "days",
-        "week" => "weeks",
-        "month" => "months",
-        _ => "years",
+    let preview_start = form_start_date
+        .parse::<chrono::NaiveDate>()
+        .unwrap_or(today);
+    let first_charge = crate::utils::recurrence::first_occurrence_on_or_after(preview_start, &rec)
+        .map(|date| {
+            crate::utils::dates::format_date(&date, &PREFERENCES().date_format())
+        });
+    let unit_options: [(&str, &str); 4] = if rec_interval == 1 {
+        [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]
+    } else {
+        [("day", "days"), ("week", "weeks"), ("month", "months"), ("year", "years")]
     };
     let start_date_err = start_date_error();
     let end_date_err = end_date_error();
@@ -123,8 +131,8 @@ pub(crate) fn render_dialog(
                             }
 
                             // Validate recurrence
-                            if !(1..=100).contains(&rec.interval) {
-                                frequency_error.set("Repeat every must be between 1 and 100".into());
+                            if !(1..=MAX_INTERVAL).contains(&rec.interval) {
+                                frequency_error.set(format!("Repeat every must be between 1 and {MAX_INTERVAL}"));
                                 valid = false;
                             } else {
                                 match rec.unit.as_str() {
@@ -322,6 +330,9 @@ pub(crate) fn render_dialog(
                         div {
                             p { class: "text-sm font-semibold", "Billing schedule " span { class: "text-destructive", "*" } }
                             p { class: "text-xs text-muted-foreground", {schedule_hint} }
+                            if let Some(first) = first_charge {
+                                p { class: "text-[11px] font-medium text-primary", "First charge: {first}" }
+                            }
                         }
                     }
 
@@ -330,7 +341,7 @@ pub(crate) fn render_dialog(
                         input {
                             r#type: "number",
                             min: "1",
-                            max: "100",
+                            max: MAX_INTERVAL.to_string(),
                             value: rec_interval.to_string(),
                             oninput: move |e: Event<FormData>| {
                                 if let Ok(value) = e.value().parse::<u16>() {
@@ -367,12 +378,10 @@ pub(crate) fn render_dialog(
                                 recurrence.set(next);
                                 frequency_error.set(String::new());
                             },
-                            option { value: "day", selected: rec_unit == "day", "days" }
-                            option { value: "week", selected: rec_unit == "week", "weeks" }
-                            option { value: "month", selected: rec_unit == "month", "months" }
-                            option { value: "year", selected: rec_unit == "year", "years" }
+                            for (value, label) in unit_options {
+                                option { value: value.to_string(), selected: rec_unit == value, {label} }
+                            }
                         }
-                        span { class: "text-sm text-muted-foreground", {unit_label} }
                     }
 
                     if rec_unit == "week" {
@@ -410,9 +419,21 @@ pub(crate) fn render_dialog(
                         }
                     } else if rec_unit == "month" {
                         div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Charge on these days" }
+                            div { class: "flex items-center justify-between gap-2",
+                                label { class: "text-sm font-medium", "Charge on these days" }
+                                div { class: "flex gap-2 text-xs",
+                                    button { r#type: "button", class: "text-primary hover:underline",
+                                        onclick: move |_| { let mut next = recurrence(); next.days = (1..=MAX_MONTH_DAY).collect(); recurrence.set(next); frequency_error.set(String::new()); },
+                                        "Select all"
+                                    }
+                                    button { r#type: "button", class: "text-muted-foreground hover:underline",
+                                        onclick: move |_| { let mut next = recurrence(); next.days.clear(); recurrence.set(next); },
+                                        "Clear"
+                                    }
+                                }
+                            }
                             div { class: "flex flex-wrap gap-1",
-                                for day in 1..=31u8 {
+                                for day in 1..=MAX_MONTH_DAY {
                                     {
                                         let active = rec_days.contains(&day);
                                         rsx! {
@@ -500,7 +521,7 @@ pub(crate) fn render_dialog(
                                                         recurrence.set(next);
                                                     }
                                                 },
-                                                for day in 1..=31u8 {
+                                                for day in 1..=MAX_MONTH_DAY {
                                                     option { value: day.to_string(), selected: entry.day == day, "Day {day}" }
                                                 }
                                                 option { value: "0", selected: entry.day == 0, "Last day" }
@@ -544,6 +565,7 @@ pub(crate) fn render_dialog(
                                         day: start.day() as u8,
                                         amount: None,
                                     });
+                                    next.dates.sort_by_key(|date| (date.month, date.day));
                                     recurrence.set(next);
                                     frequency_error.set(String::new());
                                 },
