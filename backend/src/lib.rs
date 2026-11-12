@@ -5,6 +5,9 @@
 pub mod accounts;
 pub mod backup;
 pub mod auth;
+pub mod cli;
+#[cfg(feature = "embedded-web")]
+pub mod embedded_web;
 
 pub mod categories;
 pub mod currency;

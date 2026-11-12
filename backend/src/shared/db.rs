@@ -15,7 +15,14 @@ fn parse_max_connections(value: Option<&str>) -> u32 {
 }
 
 pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    create_pool_with_url(None).await
+}
+
+pub async fn create_pool_with_url(database_url: Option<&str>) -> Result<PgPool, sqlx::Error> {
+    let database_url = database_url
+        .map(str::to_string)
+        .or_else(|| std::env::var("DATABASE_URL").ok())
+        .expect("DATABASE_URL must be set");
     let max_connections =
         parse_max_connections(std::env::var("DATABASE_MAX_CONNECTIONS").ok().as_deref());
 
@@ -29,10 +36,14 @@ pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
 
 /// Create a DB pool with retry logic. Waits up to 60s for PostgreSQL to be ready.
 pub async fn create_pool_with_retry() -> Result<PgPool, sqlx::Error> {
+    create_pool_with_retry_url(None).await
+}
+
+pub async fn create_pool_with_retry_url(database_url: Option<&str>) -> Result<PgPool, sqlx::Error> {
     let mut attempts = 0u32;
     let max_attempts = 12; // 12 * 5s = 60s total
     loop {
-        match create_pool().await {
+        match create_pool_with_url(database_url).await {
             Ok(pool) => {
                 tracing::info!("Database connection established");
                 return Ok(pool);

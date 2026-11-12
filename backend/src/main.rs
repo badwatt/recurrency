@@ -10,6 +10,7 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use recurrency_backend::cli::{self, Command};
 use recurrency_backend::shared::app_utils::parse_port;
 use std::net::SocketAddr;
 
@@ -33,17 +34,53 @@ fn init_logging() {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = match cli::parse(std::env::args().skip(1)) {
+        Ok(cli) => cli,
+        Err(error) => {
+            eprintln!("{error}\n\n{}", cli::usage());
+            std::process::exit(2);
+        }
+    };
+    if cli.command == Command::Help {
+        println!("{}", cli::usage());
+        return Ok(());
+    }
+    if cli.command == Command::Version {
+        println!("recurrency-aio {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     init_logging();
+
+    match cli.command {
+        Command::Migrate => {
+            let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
+            shared::db::run_migrations(&db_pool).await?;
+            println!("Migrations complete.");
+            return Ok(());
+        }
+        Command::Doctor => {
+            auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
+            let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
+            let one: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&db_pool).await?;
+            println!("recurrency-aio {}: configuration OK (database={one})", env!("CARGO_PKG_VERSION"));
+            return Ok(());
+        }
+        Command::Serve => {}
+        Command::Help | Command::Version => unreachable!(),
+    }
 
     tracing::info!("Starting Recurrency API server...");
     auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
-    let db_pool = shared::db::create_pool_with_retry().await?;
+    let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
     shared::db::run_migrations(&db_pool).await?;
     tracing::info!("Database connected and migrations complete");
 
-    let app = build_app(db_pool.clone());
+    let enable_web = cli
+        .enable_web
+        .unwrap_or_else(|| !matches!(std::env::var("ENABLE_WEB").as_deref(), Ok("false" | "FALSE" | "0")));
+    let app = build_app(db_pool.clone(), enable_web);
     notifications::scheduler::spawn(db_pool);
-    let port = parse_port();
+    let port = cli.port.unwrap_or_else(parse_port);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("Server listening on {}", addr);
 
@@ -53,14 +90,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn build_app(db_pool: sqlx::PgPool) -> Router {
+#[allow(unused_variables)]
+fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
     use shared::app_state::AppState;
 
     let cors = cors_layer();
 
     let app_state = AppState::new(db_pool.clone());
 
-    Router::new()
+    let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/health", get(health_check))
         .route("/api/currency/rates", get(currency::handlers::rates))
@@ -131,8 +169,14 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/demo/status", get(demo::handlers::status))
         .route("/api/demo/init", get(demo::handlers::init))
         .route("/api/demo/reset", post(demo::handlers::reset))
-        .route("/api/logos/search", get(logos::handlers::search))
-        .with_state(app_state)
+        .route("/api/logos/search", get(logos::handlers::search));
+    #[cfg(feature = "embedded-web")]
+    let app = if enable_web {
+        app.fallback(recurrency_backend::embedded_web::serve)
+    } else {
+        app
+    };
+    app.with_state(app_state)
         .layer(TraceLayer::new_for_http())
         .layer(cors)
 }

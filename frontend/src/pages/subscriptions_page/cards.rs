@@ -94,6 +94,17 @@ pub fn render_grid_card(
             class: "group relative overflow-hidden rounded-xl border {card_border} bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
             style: "animation: fadeSlideIn 0.5s ease-out both; animation-delay: {stagger_delay}ms;",
 
+            // Logo-derived ambient background
+            if let Some(url) = logo_url.as_deref() {
+                img {
+                    src: "{url}",
+                    alt: "",
+                    aria_hidden: "true",
+                    class: "pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-[0.10] blur-2xl saturate-150",
+                }
+                div { class: "pointer-events-none absolute inset-0 bg-gradient-to-br from-card/20 via-card/70 to-card" }
+            }
+
             // Account color top accent strip
             div {
                 class: "absolute top-0 left-0 right-0 h-[3px]",

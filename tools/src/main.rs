@@ -461,7 +461,11 @@ fn do_build_app() -> i32 {
     if web != 0 {
         return web;
     }
-    let backend = run(&root().join("backend"), "cargo", &["build", "--release"]);
+    let backend = run(
+        &root().join("backend"),
+        "cargo",
+        &["build", "--release", "--features", "embedded-web"],
+    );
     if backend != 0 {
         return backend;
     }

@@ -64,7 +64,7 @@ The named volume persists PostgreSQL across container recreation. Keep the same
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.38.1`.
+> `ghcr.io/badwatt/recurrency:0.39.0`.
 
 ### From source
 
@@ -237,6 +237,34 @@ timeline; reports turn the same data into trends and category breakdowns.
 | `SMTP_ENCRYPTION` | auto (`ssl` on 465, otherwise `tls`) | SMTP transport security |
 | `NOTIFICATION_ALLOW_PRIVATE_HOSTS` | `false` | Allow ntfy/Gotify/webhook targets on private networks |
 
+### Standalone all-in-one binary
+
+The application can also be built as one native binary with the web frontend
+embedded and served by Axum:
+
+```bash
+cd recurrency
+nix develop
+cargo build-app
+./target/bin/recurrency-aio --help
+
+# API + embedded web UI
+DATABASE_URL="postgres://recurrency:recurrency@localhost:5432/recurrency" \
+  JWT_SECRET="$(openssl rand -hex 32)" \
+  ./target/bin/recurrency-aio serve
+
+# API only, same binary
+ENABLE_WEB=false ./target/bin/recurrency-aio serve
+
+# Migrations and configuration check
+./target/bin/recurrency-aio migrate --database-url "$DATABASE_URL"
+./target/bin/recurrency-aio doctor
+```
+
+The binary embeds the built frontend, but PostgreSQL remains an external
+service. `--no-web` is equivalent to `ENABLE_WEB=false`. `cargo build-api`
+builds the API-only binary without embedded assets.
+
 ### Headless API
 
 The same image can run without nginx:
@@ -354,8 +382,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1203 backend unit tests**, **47 backend integration tests**,
-**1696 frontend tests** and **8 tooling tests**.
+Current suite: **1207 backend unit tests**, **47 backend integration tests**,
+**1697 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 
