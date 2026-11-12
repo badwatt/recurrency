@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{ArrowUpDown, Copy, CreditCard, FileText, Pause, Pencil, Play, Trash2, X};
+use lucide_dioxus::{ArrowUpDown, Copy, CreditCard, FileText, Pause, Pencil, Play, Plus, Trash2, X};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -26,7 +26,6 @@ use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::constants::{CURRENCIES, RECURRENCE_UNITS};
-use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 
 mod delete_dialog;
@@ -413,9 +412,10 @@ pub fn SubscriptionsPage() -> Element {
                         if view_mode.as_str() == "grid" { "≡ List" } else { "⊞ Grid" }
                     }
                     button {
-                        class: "hidden md:inline-flex bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
+                        class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
                         onclick: move |_| handle_create.call(()),
-                        "+ Add"
+                        Plus { size: 16 }
+                        "Add Subscription"
                     }
                 }
             }
@@ -451,7 +451,7 @@ pub fn SubscriptionsPage() -> Element {
                         button {
                             class: "hidden md:inline-flex bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
                             onclick: move |_| handle_create.call(()),
-                            "+ Add Subscription"
+                            "Add Subscription"
                         }
                     }
                 }

@@ -19,7 +19,6 @@ use crate::state::categories::CATEGORIES;
 use crate::state::debts::DEBTS;
 use crate::state::preferences::PREFERENCES;
 use crate::utils::constants::CURRENCIES;
-use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 
 #[component]
@@ -90,7 +89,7 @@ pub fn DebtsPage() -> Element {
         }
     });
 
-    let open_create = move |_| {
+    let open_create = use_callback(move |_: ()| {
         editing_id.set(None);
         name.set(String::new());
         total.set(String::new());
@@ -113,7 +112,16 @@ pub fn DebtsPage() -> Element {
             category_id.set(default.id.to_string());
         }
         dialog_open.set(true);
-    };
+    });
+
+    use_effect(move || {
+        if *crate::state::create_intent::CREATE_INTENT.read()
+            == Some(crate::state::create_intent::CreateIntent::Debt)
+        {
+            *crate::state::create_intent::CREATE_INTENT.write() = None;
+            open_create.call(());
+        }
+    });
 
     let open_edit = move |debt: Debt| {
         editing_id.set(Some(debt.id));
@@ -278,8 +286,8 @@ pub fn DebtsPage() -> Element {
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Debts", subtitle: "Money you owe, manual or paid automatically" }
                 button {
-                    class: "inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                    onclick: open_create,
+                    class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                    onclick: move |_| open_create.call(()),
                     Plus { size: 16 }
                     "Add Debt"
                 }
@@ -514,7 +522,7 @@ pub fn DebtsPage() -> Element {
                 div { class: "space-y-4",
                     if let Some(debt) = pay_debt() {
                         p { class: "text-sm text-muted-foreground",
-                            "Remaining: {format_currency(debt.remaining_amount, &debt.currency)}"
+                            "Remaining: {crate::state::rates::RATES().display_amount(debt.remaining_amount, &debt.currency)}"
                         }
                     }
                     div { class: "space-y-1.5",
@@ -582,7 +590,7 @@ pub fn DebtsPage() -> Element {
                                     }
                                 }
                                 p { class: "font-medium",
-                                    {format_currency(payment.amount, history_debt().map(|d| d.currency).as_deref().unwrap_or("EUR"))}
+                                    {crate::state::rates::RATES().display_amount(payment.amount, history_debt().map(|d| d.currency).as_deref().unwrap_or("EUR"))}
                                 }
                             }
                              }}
@@ -635,8 +643,8 @@ fn DebtCard(
     on_delete: EventHandler<Debt>,
 ) -> Element {
     let currency = debt.currency.clone();
-    let remaining = format_currency(debt.remaining_amount, &currency);
-    let total = format_currency(debt.total_amount, &currency);
+    let remaining = crate::state::rates::RATES().display_amount(debt.remaining_amount, &currency);
+    let total = crate::state::rates::RATES().display_amount(debt.total_amount, &currency);
     let account = ACCOUNTS().get_by_id(&debt.account_id).cloned();
     let category = CATEGORIES().get_by_id(&debt.category_id).cloned();
     let date_format = PREFERENCES().date_format();
@@ -677,7 +685,7 @@ fn DebtCard(
                 span { "of {total}" }
                 if debt.is_automatic() {
                     if let Some(payment) = debt.monthly_payment {
-                        span { "Monthly {format_currency(payment, &currency)}" }
+                        span { "Monthly {crate::state::rates::RATES().display_amount(payment, &currency)}" }
                     }
                     if let Some(next) = debt.next_payment_date {
                         span { "Next {crate::utils::dates::format_date(&next, &date_format)}" }

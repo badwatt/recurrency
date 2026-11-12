@@ -17,6 +17,7 @@ pub fn AccountFields(
     name_error: Signal<String>,
 ) -> Element {
     let mut show_icon_picker = use_signal(|| false);
+    let mut icon_search = use_signal(String::new);
 
     rsx! {
         div { class: "space-y-4",
@@ -54,8 +55,15 @@ pub fn AccountFields(
                     span { style: "color: {color()}", {icon_display(&icon())} }
                 }
                 if show_icon_picker() {
+                    input {
+                        r#type: "search",
+                        placeholder: "Search icons…",
+                        value: icon_search(),
+                        oninput: move |e| icon_search.set(e.value()),
+                        class: "mb-2 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
+                    }
                     div { class: "grid grid-cols-8 gap-1 p-2 border border-border rounded-md max-h-48 overflow-y-auto",
-                        for icon_name in ICON_NAMES {
+                        for icon_name in ICON_NAMES.iter().filter(|name| name.to_lowercase().contains(&icon_search().to_lowercase())) {
                             {let is_selected = *icon_name == icon();
                              rsx! {
                                 button {

@@ -43,6 +43,14 @@ pub fn validate_recurrence(recurrence: &Recurrence) -> AppResult<()> {
                     "Choose at least one valid annual date".to_string(),
                 ));
             }
+            let mut unique = recurrence.dates.clone();
+            unique.sort_by_key(|date| (date.month, date.day));
+            unique.dedup_by_key(|date| (date.month, date.day));
+            if unique.len() != recurrence.dates.len() {
+                return Err(AppError::BadRequest(
+                    "Annual dates must be unique".to_string(),
+                ));
+            }
             Ok(())
         }
         _ => Err(AppError::BadRequest("Invalid recurrence unit".to_string())),

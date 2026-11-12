@@ -196,7 +196,7 @@ you do not want to expose it.
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
 | **Backend** | — | — | — | 1197 lib + 47 integration |
-| **Frontend** | — | — | — | 1656 |
+| **Frontend** | — | — | — | 1658 |
 | **Tools** | — | — | — | 8 |
 
 Integration tests use a disposable PostgreSQL instance:

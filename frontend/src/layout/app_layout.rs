@@ -268,6 +268,7 @@ fn MobileCreateFab(open: Signal<bool>) -> Element {
         nav.push(match intent {
             CreateIntent::Subscription => crate::Route::Subscriptions {},
             CreateIntent::Transaction => crate::Route::Transactions {},
+            CreateIntent::Debt => crate::Route::Debts {},
         });
     });
 
@@ -288,10 +289,17 @@ fn MobileCreateFab(open: Signal<bool>) -> Element {
                     {svg_icon(Icon::Transactions, 18)}
                     "Transaction"
                 }
+                button {
+                    r#type: "button",
+                    class: "inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium shadow-lg",
+                    onclick: move |_| choose.call(CreateIntent::Debt),
+                    {svg_icon(Icon::Debts, 18)}
+                    "Debt"
+                }
             }
             button {
                 r#type: "button",
-                aria_label: if open() { "Close create menu" } else { "Create subscription or transaction" },
+                aria_label: if open() { "Close create menu" } else { "Create subscription, transaction or debt" },
                 aria_expanded: if open() { "true" } else { "false" },
                 class: "flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl active:scale-95 transition-transform",
                 onclick: move |_| open.toggle(),

@@ -152,6 +152,16 @@ pub(crate) fn render_dialog(
                                         frequency_error.set("Check the annual dates".into());
                                         valid = false;
                                     }
+                                    "year" if {
+                                        let mut dates = rec.dates.clone();
+                                        dates.sort_by_key(|date| (date.month, date.day));
+                                        let before = dates.len();
+                                        dates.dedup_by_key(|date| (date.month, date.day));
+                                        dates.len() != before
+                                    } => {
+                                        frequency_error.set("Annual dates must be unique".into());
+                                        valid = false;
+                                    }
                                     _ => {}
                                 }
                             }

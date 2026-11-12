@@ -14,7 +14,7 @@ pub fn render_grid_card(
     let today = chrono::Utc::now().date_naive();
     let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
     let opacity = subscription_card_opacity(sub.is_active, finalized);
-    let formatted = format_currency(sub.amount, &sub.currency);
+    let formatted = crate::state::rates::RATES().display_amount(sub.amount, &sub.currency);
     let date_format = PREFERENCES().date_format();
     let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
     if finalized {
@@ -28,6 +28,18 @@ pub fn render_grid_card(
         .find(|debt| debt.subscription_id == Some(sub.id))
         .cloned();
     let is_debt = linked_debt.is_some();
+    let schedule_progress = if is_debt {
+        None
+    } else {
+        sub.next_billing_date.and_then(|next| {
+            crate::utils::recurrence::payment_progress_for_year(
+                sub.start_date,
+                &sub.recurrence,
+                sub.end_date,
+                next,
+            )
+        })
+    };
 
     let (color, account_icon, account_name) = {
         let accounts = ACCOUNTS();
@@ -113,6 +125,8 @@ pub fn render_grid_card(
                     }
                     if let Some((current, total)) = linked_debt.as_ref().and_then(|debt| debt.installment()) {
                         p { class: "text-[11px] font-medium text-primary mt-0.5", "Payment {current}/{total}" }
+                    } else if let Some((current, total)) = schedule_progress {
+                        p { class: "text-[11px] font-medium text-muted-foreground mt-0.5", "Payment {current}/{total}" }
                     }
                 }
 
@@ -191,7 +205,7 @@ pub fn render_list_card(
     let today = chrono::Utc::now().date_naive();
     let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
     let opacity = subscription_card_opacity(sub.is_active, finalized);
-    let formatted = format_currency(sub.amount, &sub.currency);
+    let formatted = crate::state::rates::RATES().display_amount(sub.amount, &sub.currency);
     let date_format = PREFERENCES().date_format();
     let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
     if finalized {
@@ -205,6 +219,18 @@ pub fn render_list_card(
         .find(|debt| debt.subscription_id == Some(sub.id))
         .cloned();
     let is_debt = linked_debt.is_some();
+    let schedule_progress = if is_debt {
+        None
+    } else {
+        sub.next_billing_date.and_then(|next| {
+            crate::utils::recurrence::payment_progress_for_year(
+                sub.start_date,
+                &sub.recurrence,
+                sub.end_date,
+                next,
+            )
+        })
+    };
 
     let (color, account_icon, account_name) = {
         let accounts = ACCOUNTS();
@@ -267,6 +293,8 @@ pub fn render_list_card(
                         }
                         if let Some((current, total)) = linked_debt.as_ref().and_then(|debt| debt.installment()) {
                             p { class: "text-[11px] font-medium text-primary truncate", "Payment {current}/{total}" }
+                        } else if let Some((current, total)) = schedule_progress {
+                            p { class: "text-[11px] font-medium text-muted-foreground truncate", "Payment {current}/{total}" }
                         }
                         div { class: "mt-1 flex flex-wrap items-center gap-1.5",
                             span {

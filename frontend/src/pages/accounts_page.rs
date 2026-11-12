@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn icon_names_count_matches_display() {
-        assert_eq!(ICON_NAMES.len(), 39); // 39 known icons
+        assert_eq!(ICON_NAMES.len(), 83);
     }
 
     // ── Request construction tests ──

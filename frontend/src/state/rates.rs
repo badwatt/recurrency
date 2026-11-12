@@ -22,6 +22,18 @@ impl RatesState {
     /// Convert `amount` from its currency into the user's main currency.
     /// Unknown rates deliberately fall back to the original amount rather than
     /// hiding the value.
+    pub fn display_amount(&self, amount: Decimal, currency: &str) -> String {
+        let original = crate::utils::format::format_currency(amount, currency);
+        if self.base.is_empty() || currency.eq_ignore_ascii_case(&self.base) {
+            return original;
+        }
+        let converted = crate::utils::format::format_currency(
+            self.convert(amount, currency),
+            &self.base,
+        );
+        format!("{converted} ({original})")
+    }
+
     pub fn convert(&self, amount: Decimal, from: &str) -> Decimal {
         if self.base.is_empty() || from.eq_ignore_ascii_case(&self.base) {
             return amount;

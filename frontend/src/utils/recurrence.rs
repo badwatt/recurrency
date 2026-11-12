@@ -168,6 +168,47 @@ pub fn first_occurrence_on_or_after(start: NaiveDate, recurrence: &Recurrence) -
     next_occurrence_on_or_after(start, recurrence, start, None)
 }
 
+
+/// Progress of the next payment inside its calendar year. Only shown for
+/// schedules with multiple payments per year, capped to avoid noisy daily rows.
+pub fn payment_progress_for_year(
+    start: NaiveDate,
+    recurrence: &Recurrence,
+    end_date: Option<NaiveDate>,
+    next_payment: NaiveDate,
+) -> Option<(usize, usize)> {
+    const MAX_DISPLAY: usize = 24;
+    let multiple_per_cycle = match recurrence.unit.as_str() {
+        "month" => recurrence.days.len() > 1,
+        "year" => recurrence.dates.len() > 1,
+        _ => false,
+    };
+    if !multiple_per_cycle {
+        return None;
+    }
+    let year = next_payment.year();
+    let year_start = NaiveDate::from_ymd_opt(year, 1, 1)?;
+    let year_end = NaiveDate::from_ymd_opt(year, 12, 31)?;
+    let occurrences = occurrences_between(
+        start,
+        recurrence,
+        year_start,
+        year_end,
+        end_date,
+        Decimal::ZERO,
+    );
+    let total = occurrences.len();
+    if !(2..=MAX_DISPLAY).contains(&total) {
+        return None;
+    }
+    let index = occurrences
+        .iter()
+        .position(|(date, _)| *date == next_payment)
+        .or_else(|| occurrences.iter().position(|(date, _)| *date >= next_payment))?
+        + 1;
+    Some((index, total))
+}
+
 pub fn occurrences_in_month(
     start: NaiveDate,
     recurrence: &Recurrence,
@@ -280,6 +321,41 @@ mod tests {
         assert_eq!(
             first_occurrence_on_or_after(date(2026, 5, 3), &monthly(vec![1, 15], 1)),
             Some(date(2026, 5, 15))
+        );
+    }
+
+    #[test]
+    fn annual_dates_show_payment_progress() {
+        let recurrence = Recurrence {
+            interval: 1,
+            unit: "year".into(),
+            dates: vec![
+                AnnualDate { month: 5, day: 27, amount: None },
+                AnnualDate { month: 11, day: 11, amount: None },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            payment_progress_for_year(
+                date(2026, 1, 1),
+                &recurrence,
+                None,
+                date(2026, 11, 11),
+            ),
+            Some((2, 2))
+        );
+    }
+
+    #[test]
+    fn monthly_schedule_has_no_annual_progress_noise() {
+        assert_eq!(
+            payment_progress_for_year(
+                date(2026, 1, 1),
+                &monthly(vec![1], 1),
+                None,
+                date(2026, 11, 1),
+            ),
+            None
         );
     }
 

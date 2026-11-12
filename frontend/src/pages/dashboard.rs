@@ -546,6 +546,31 @@ pub fn Dashboard() -> Element {
                             }
                         }
                     }
+                    {
+                        let nav3 = nav;
+                        rsx! {
+                            a {
+                                href: "/debts",
+                                class: "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent active:scale-[0.97] transition-all duration-200",
+                                onclick: move |e| {
+                                    e.prevent_default();
+                                    *crate::state::create_intent::CREATE_INTENT.write() =
+                                        Some(crate::state::create_intent::CreateIntent::Debt);
+                                    nav3.push(crate::Route::Debts {});
+                                },
+                                svg {
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    class: "h-4 w-4",
+                                    line { x1: "12", y1: "5", x2: "12", y2: "19" }
+                                    line { x1: "5", y1: "12", x2: "19", y2: "12" }
+                                }
+                                "Add debt"
+                            }
+                        }
+                    }
                 }
             }
 
@@ -796,7 +821,7 @@ pub fn Dashboard() -> Element {
                                                 }
                                             }
                                             div { class: "text-right shrink-0 ml-4",
-                                                p { class: "text-sm font-semibold font-mono tabular-nums text-foreground", "{format_currency(sub.amount, &currency)}" }
+                                                p { class: "text-sm font-semibold font-mono tabular-nums text-foreground", "{crate::state::rates::RATES().display_amount(sub.amount, &sub.currency)}" }
                                                 if let Some(label) = days_label {
                                                     p {
                                                         class: if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
@@ -851,7 +876,7 @@ pub fn Dashboard() -> Element {
                                                 }
                                             }
                                             p { class: "text-sm font-semibold font-mono tabular-nums shrink-0",
-                                                "{format_currency(txn.amount, &currency)}"
+                                                "{crate::state::rates::RATES().display_amount(txn.amount, &txn.currency)}"
                                             }
                                         }
                                             }

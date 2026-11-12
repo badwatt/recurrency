@@ -4,6 +4,7 @@ use dioxus::prelude::*;
 pub enum CreateIntent {
     Subscription,
     Transaction,
+    Debt,
 }
 
 pub static CREATE_INTENT: GlobalSignal<Option<CreateIntent>> = Signal::global(|| None);

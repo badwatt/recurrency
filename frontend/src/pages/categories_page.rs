@@ -53,6 +53,7 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
     let mut form_color = use_signal(|| "#6b7280".to_string());
     let mut form_saving = use_signal(|| false);
     let mut show_icon_picker = use_signal(|| false);
+    let mut icon_search = use_signal(String::new);
 
     // Validation error signals
     let mut name_error = use_signal(String::new);
@@ -298,8 +299,15 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                             span { style: "color: {form_color()}", {icon_display(&form_icon())} }
                         }
                         if show_icon_picker() {
+                            input {
+                                r#type: "search",
+                                placeholder: "Search icons…",
+                                value: icon_search(),
+                                oninput: move |e| icon_search.set(e.value()),
+                                class: "mb-2 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
+                            }
                             div { class: "grid grid-cols-8 gap-1 p-2 border border-border rounded-md max-h-48 overflow-y-auto",
-                                for icon_name in ICON_NAMES {
+                                for icon_name in ICON_NAMES.iter().filter(|name| name.to_lowercase().contains(&icon_search().to_lowercase())) {
                                     {let is_selected = *icon_name == form_icon();
                                      rsx! {
                                         button {
@@ -533,7 +541,7 @@ mod tests {
 
     #[test]
     fn icon_names_count_matches_display() {
-        assert_eq!(ICON_NAMES.len(), 39); // 39 known icons
+        assert_eq!(ICON_NAMES.len(), 83);
     }
 
     // ── Request construction tests ──

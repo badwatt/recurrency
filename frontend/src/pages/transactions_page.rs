@@ -331,7 +331,7 @@ pub fn TransactionsPage() -> Element {
                                                     }
                                                     // Amount
                                                     p { class: "font-medium text-sm sm:text-base shrink-0",
-                                                        {format_currency(txn.amount, &txn.currency)}
+                                                        {crate::state::rates::RATES().display_amount(txn.amount, &txn.currency)}
                                                     }
                                                     // Actions
                                                     div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
