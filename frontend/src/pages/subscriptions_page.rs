@@ -594,7 +594,7 @@ pub fn SubscriptionsPage() -> Element {
                         class: "inline-flex h-8 w-full items-center justify-between rounded-md border bg-background px-2 text-sm",
                         onclick: move |_| toggle_sort_direction.call(()),
                         span { if sort_val.direction == "asc" { "Ascending" } else { "Descending" } }
-                        span { "{sort_arrow}" }
+                        span { {sort_arrow.to_string()} }
                     }
                 }
                 div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }

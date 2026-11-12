@@ -138,7 +138,7 @@ pub fn LabelCombobox(
                 r#type: "button",
                 onclick: move |_| open.toggle(),
                 if sel_id.is_empty() {
-                    span { class: "text-muted-foreground truncate", "{placeholder}" }
+                    span { class: "text-muted-foreground truncate", {placeholder.to_string()} }
                 } else {
                     div { class: "flex items-center gap-2 truncate",
                         span {
@@ -191,11 +191,11 @@ pub fn LabelCombobox(
 
                     if creating() {
                         div { class: "p-3 space-y-3",
-                            div { class: "text-sm font-medium", "{create_title}" },
+                            div { class: "text-sm font-medium", {create_title.to_string()} },
                             input {
                                 class: "w-full h-9 rounded-md border bg-background px-3 text-sm",
                                 r#type: "text",
-                                placeholder: "{input_placeholder}",
+                                placeholder: input_placeholder.to_string(),
                                 value: create_name.to_string(),
                                 autofocus: true,
                                 oninput: move |e: Event<FormData>| {
@@ -237,7 +237,7 @@ pub fn LabelCombobox(
                             input {
                                 class: "w-full h-9 border-0 bg-transparent text-sm focus:outline-none focus:ring-0",
                                 r#type: "text",
-                                placeholder: "{search_placeholder}",
+                                placeholder: search_placeholder.to_string(),
                                 value: search_val.to_string(),
                                 oninput: move |e: Event<FormData>| {
                                     search.set(e.value());
@@ -254,7 +254,7 @@ pub fn LabelCombobox(
                         div { class: "max-h-[200px] overflow-y-auto py-1",
                             if filtered.is_empty() && !show_create {
                                 div { class: "py-6 text-center text-sm text-muted-foreground",
-                                    "{empty_text}"
+                                    {empty_text.to_string()}
                                 }
                             }
                             for item in filtered.iter() {

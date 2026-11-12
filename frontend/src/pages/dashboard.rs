@@ -772,8 +772,8 @@ pub fn Dashboard() -> Element {
                                         }
                                         div { class: "text-right",
                                             p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
-                                            p { class: "{pending_class}",
-                                                "{format_currency(account.pending, &currency)}"
+                                            p { class: pending_class.to_string(),
+                                                {format_currency(account.pending, &currency).to_string()}
                                             }
                                             p { class: "text-[11px] text-muted-foreground",
                                                 {if account.pending_count == 0 {
@@ -845,7 +845,7 @@ pub fn Dashboard() -> Element {
                                             let linked = hovered_account() == Some(sub.account_id);
                                             let row_class = if linked { "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors" } else { "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg transition-colors" };
                                             rsx! {
-                                        div { key: "{sub.id}", class: "{row_class}",
+                                        div { key: "{sub.id}", class: row_class.to_string(),
                                             div { class: "flex items-center gap-3 min-w-0",
                                                 div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-secondary",
                                                     {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-9 w-9 object-contain")}
@@ -907,7 +907,7 @@ pub fn Dashboard() -> Element {
                                             let linked = hovered_account() == Some(txn.account_id);
                                             let row_class = if linked { "flex items-center justify-between gap-3 py-1.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors" } else { "flex items-center justify-between gap-3 py-1.5 -mx-2 px-2 rounded-lg transition-colors" };
                                             rsx! {
-                                        div { key: "{txn.id}", class: "{row_class}",
+                                        div { key: "{txn.id}", class: row_class.to_string(),
                                             div { class: "min-w-0",
                                                 p { class: "text-sm text-foreground truncate", {txn.name.to_string()} }
                                                 p { class: "text-xs text-muted-foreground truncate",

@@ -43,4 +43,7 @@ flake.lock
 *.log
 
 # Scripts
-re
+# Signing material (never ship keys inside the image)
+recurrency-release.jks
+*.jks
+*.keystore

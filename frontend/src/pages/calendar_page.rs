@@ -252,11 +252,11 @@ pub fn CalendarPage() -> Element {
             div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2",
                 div { class: "rounded-xl border border-border/60 bg-card p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Transfer this month" }
-                    p { class: "mt-2 font-mono text-2xl font-bold tabular-nums", "{month_budget_display}" }
+                    p { class: "mt-2 font-mono text-2xl font-bold tabular-nums", {month_budget_display.to_string()} }
                 }
                 div { class: "rounded-xl border border-border/60 bg-card p-4",
-                    p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "{pending_label}" }
-                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "mt-2 font-mono text-2xl font-bold tabular-nums" } else { "mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, "{month_pending_display}" }
+                    p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", {pending_label.to_string()} }
+                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "mt-2 font-mono text-2xl font-bold tabular-nums" } else { "mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, {month_pending_display.to_string()} }
                 }
             }
 
@@ -290,11 +290,7 @@ pub fn CalendarPage() -> Element {
                                 {rsx! {
                                     div {
                                         key: "{id}",
-                                        class: if *is_past {
-                                            "rounded-lg border border-border bg-card p-3 opacity-50"
-                                        } else {
-                                            "rounded-lg border border-border bg-card p-3"
-                                        },
+                                        class: if *is_past { "rounded-lg border border-border bg-card p-3 opacity-50" } else { "rounded-lg border border-border bg-card p-3" },
                                         div { class: "flex items-center justify-between",
                                             div { class: "flex items-center gap-3",
                                                 div { class: "flex h-10 w-10 items-center justify-center rounded-full bg-primary/10",
@@ -480,11 +476,7 @@ pub fn CalendarPage() -> Element {
                                 {rsx! {
                                     div {
                                         key: "{item.subscription_id}",
-                                        class: if item.billing_date < now {
-                                            "rounded-lg border border-border p-4 space-y-2 opacity-50"
-                                        } else {
-                                            "rounded-lg border border-border p-4 space-y-2"
-                                        },
+                                        class: if item.billing_date < now { "rounded-lg border border-border p-4 space-y-2 opacity-50" } else { "rounded-lg border border-border p-4 space-y-2" },
                                         // Top row: name + amount
                                         div { class: "flex items-start justify-between gap-2",
                                             div { class: "flex-1 min-w-0",

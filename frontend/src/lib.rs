@@ -27,6 +27,9 @@ mod utils;
 
 #[derive(Routable, Clone, Debug, PartialEq)]
 #[rustfmt::skip]
+// Nested layouts end with consecutive `#[end_layout]` markers, which the
+// `duplicated_attributes` lint cannot tell apart from a real duplicate.
+#[allow(clippy::duplicated_attributes)]
 pub enum Route {
     // Public
     #[route("/login")]
