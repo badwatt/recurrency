@@ -1,15 +1,68 @@
-# Recurrency
+<h1 align="center">Recurrency</h1>
 
-> Every expense is a subscription.
+<p align="center">
+  <strong>Every expense is a subscription.</strong><br>
+  A self-hosted subscription, expense and debt tracker for people who want to see
+  the real cost of what they keep paying for.
+</p>
 
-A self-hosted subscription and expense tracker. Because every purchase is really a question:
-*Would I subscribe to this today?*
+<p align="center">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-1.98+-orange?logo=rust&logoColor=white">
+  <img alt="Dioxus" src="https://img.shields.io/badge/UI-Dioxus-6f42c1">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/Database-PostgreSQL-336791?logo=postgresql&logoColor=white">
+  <img alt="Docker" src="https://img.shields.io/badge/Deploy-Docker-2496ed?logo=docker&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-blue">
+</p>
 
-![Recurrency Dashboard](assets/dashboard.png)
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#development">Development</a>
+</p>
+
+![Recurrency dashboard](assets/dashboard.png)
+
+Recurrency treats recurring payments the way your brain actually experiences
+them: as ongoing commitments. It answers three questions without spreadsheets:
+
+- **What do I need to transfer this month?**
+- **What is still pending from today?**
+- **Would I subscribe to this again today?**
+
+The stack is deliberately boring to operate: a Rust/Axum backend, PostgreSQL and
+a Dioxus web frontend, shipped as one all-in-one Docker image with an optional
+headless API mode.
 
 ---
 
-## Quick Start
+## Quick start
+
+### Docker
+
+```bash
+docker run -d \
+  --name recurrency \
+  -p 80:80 -p 8080:8080 \
+  -v recurrency_db:/var/lib/postgresql/15/main \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  ghcr.io/badwatt/recurrency:latest
+```
+
+Open **http://localhost**. The API is available through nginx at
+`http://localhost/api` and directly at `http://localhost:8080/api`.
+
+The named volume persists PostgreSQL across container recreation. Keep the same
+`JWT_SECRET`; changing it invalidates existing sessions.
+
+> [!TIP]
+> Pin a release tag instead of `latest` in production, for example
+> `ghcr.io/badwatt/recurrency:0.34.0`.
+
+### From source
+
+Nix is the only prerequisite for development.
 
 ```bash
 git clone https://github.com/badwatt/recurrency.git
@@ -18,10 +71,192 @@ nix develop
 cargo up
 ```
 
-Open http://localhost:1420. `cargo up` starts PostgreSQL, the backend, and the
-frontend; `Ctrl+C` stops all three.
+`cargo up` starts PostgreSQL, the Axum backend and the Dioxus dev server.
 
-**Demo:** Local `cargo up` enables it by default; in Docker set `ENABLE_DEMO=true`. Click "Demo account" on the login page.
+| Service | URL |
+|---|---|
+| Web UI | http://localhost:1420 |
+| API | http://localhost:8080/api |
+| PostgreSQL | localhost:5432 |
+
+Press `Ctrl+C` to stop all three.
+
+> [!NOTE]
+> **Demo mode is optional.** The production image ships with it disabled
+> (`ENABLE_DEMO=false`). `cargo up` enables it for local development; set
+> `ENABLE_DEMO=false` to hide the demo login button. There is no demo data unless
+> you explicitly enable it.
+
+---
+
+## Screenshots
+
+| Dashboard | Subscriptions |
+|---|---|
+| ![Dashboard](assets/dashboard.png) | ![Subscriptions](assets/subscriptions.png) |
+
+| Calendar | Reports |
+|---|---|
+| ![Calendar](assets/calendar.png) | ![Reports](assets/reports.png) |
+
+The dashboard is a monthly transfer ledger: what each account needs, what is
+already covered and what is still pending. Subscriptions keep their account,
+category, logo and next charge visible; the calendar puts every charge on a
+timeline; reports turn the same data into trends and category breakdowns.
+
+---
+
+## Features
+
+### Know what this month costs
+
+- **Monthly plan** — fixed budget and pending-from-today, per account and in total.
+- **Accounts as budgeting buckets** — every subscription and transaction belongs to one.
+- **Real charges, not averages** — summaries use the charges that actually fall in the month.
+- **Current or next month** — switch the dashboard summary period from Settings.
+- **Upcoming and manual payments** — see what is coming and what is still one-off.
+
+### Track everything that repeats
+
+- **Flexible recurrence** — every N days, weeks, months or years.
+- **Multiple weekdays** — one subscription can charge on several days of the week.
+- **Multiple monthly days** — including `Last day` for short months.
+- **Custom annual dates** — unlimited dates per year, each with an optional amount.
+- **Payment progress** — multi-charge schedules show `Payment 1/3`, `2/3`, `3/3`.
+- **Inclusive end dates** — decide exactly when a subscription stops.
+- **Finalized / inactive** — finished schedules stay out of upcoming charges without losing history.
+- **Duplicate** — copy a subscription and edit only what changed.
+- **Notes** — attach context, clear it when it is no longer needed.
+
+### Expenses, not only subscriptions
+
+- **Transactions** — one-time expenses with the same account and optional category model.
+- **Calendar** — charges by day, including completed and overdue payments.
+- **Debts** — manual debts with payment history, or automatic debts paid month by month.
+- **Installments** — automatic debts show progress such as `Payment 2/6`.
+
+### Currency without surprises
+
+- **One main currency** — set it once in Settings.
+- **Original currency preserved** — converted values show the source amount in parentheses.
+- **Automatic rates** — Frankfurter works without a key; Fixer is supported through `FIXER_API_KEY`.
+- **Graceful fallback** — unknown rates keep the original amount instead of breaking reports.
+- **Totals and reports convert** — no mixed-currency arithmetic in summaries.
+
+### Notifications that reach you
+
+- **11 delivery channels** — Email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks.
+- **Per-user SMTP** — your own mail server, not a shared vendor.
+- **Encrypted channel secrets** — credentials are stored encrypted at rest.
+- **Summary scheduler** — daily, weekly or monthly, in your timezone, for the current or next month.
+- **SSRF guard** — private network targets require an explicit opt-in.
+
+### Built for real devices
+
+- **Web** — responsive layouts, grid/list toggle and mobile floating actions.
+- **Android and desktop** — native clients with a configurable server URL.
+- **Dark, light or system** — follows your preference.
+- **Update notice** — dismissible banner when a newer GitHub release exists.
+- **Custom icons and colors** — searchable icon picker for accounts and categories.
+
+---
+
+## How it fits together
+
+```text
+                    ┌─────────────────────────────┐
+                    │  Dioxus web / Android /     │
+                    │  desktop clients            │
+                    └──────────────┬──────────────┘
+                                   │ REST + JWT
+                    ┌──────────────▼──────────────┐
+                    │  Axum backend               │
+                    │  auth · subscriptions ·      │
+                    │  transactions · debts ·      │
+                    │  reports · notifications    │
+                    └───────┬──────────────┬──────┘
+                            │              │
+                 ┌──────────▼────┐   ┌────▼─────────────┐
+                 │ PostgreSQL    │   │ Email, push,     │
+                 │ users, money, │   │ ntfy, webhooks…  │
+                 │ schedules     │   └──────────────────┘
+                 └───────────────┘
+```
+
+**Core stack**
+
+| Layer | Technology |
+|---|---|
+| Frontend | Dioxus (Rust WASM) + Tailwind |
+| Backend | Rust + Axum + SQLx |
+| Database | PostgreSQL |
+| Auth | JWT + Argon2 |
+| Currency | Frankfurter (default) or Fixer |
+| Notifications | SMTP + 11 delivery providers |
+| Packaging | Nix · Cargo · Docker |
+
+---
+
+## Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | set by the Docker entrypoint | PostgreSQL connection string |
+| `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
+| `JWT_SECRET` | **required** | JWT signing secret; startup fails if missing or placeholder |
+| `APP_PORT` | `8080` | Backend listen port |
+| `APP_ENV` | `development` | Set `production` to lower the default log level |
+| `RUST_LOG` | `APP_ENV` default | Tracing filter, for example `info` or `debug` |
+| `CORS_ALLOWED_ORIGIN` | `*` | Restrict browser requests to one origin |
+| `ENABLE_DEMO` | `false` | Enable the optional demo login |
+| `ENABLE_WEB` | `true` | Docker only: serve the web UI; `false` for headless |
+| `PGPASSWORD` | `recurrency` | PostgreSQL password inside the image |
+| `RECURRENCY_API_URL` | compiled default | Default server URL for native builds |
+| `FIXER_API_KEY` | — | Optional Fixer key; otherwise Frankfurter is used |
+| `SMTP_HOST` | — | SMTP server |
+| `SMTP_PORT` | `587` | SMTP port |
+| `SMTP_USER` | — | SMTP username |
+| `SMTP_PASSWORD` | — | SMTP password |
+| `SMTP_FROM` | — | Sender address |
+| `SMTP_ENCRYPTION` | auto (`ssl` on 465, otherwise `tls`) | SMTP transport security |
+| `NOTIFICATION_ALLOW_PRIVATE_HOSTS` | `false` | Allow ntfy/Gotify/webhook targets on private networks |
+
+### Headless API
+
+The same image can run without nginx:
+
+```bash
+docker run -d \
+  --name recurrency \
+  -p 8080:8080 \
+  -v recurrency_db:/var/lib/postgresql/15/main \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  -e ENABLE_WEB=false \
+  ghcr.io/badwatt/recurrency:latest
+```
+
+- nginx is not started; PostgreSQL and the backend still run.
+- API: `http://localhost:8080/api`.
+- `ENABLE_WEB=false` is a runtime toggle; no rebuild is needed.
+- Put Caddy, Traefik, nginx or another reverse proxy in front for TLS.
+- Native clients enter the server URL **without** `/api`; the app adds API paths.
+
+### Docker Compose
+
+```bash
+curl -O https://raw.githubusercontent.com/badwatt/recurrency/main/docker/docker-compose.yml
+JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d recurrency
+```
+
+Headless:
+
+```bash
+ENABLE_WEB=false JWT_SECRET="$(openssl rand -hex 32)" \
+  docker compose up -d recurrency
+```
+
+The compose file publishes `80` and `8080`. In headless mode nothing listens on
+port 80; remove `80:80` if you do not want to expose it.
 
 ---
 
@@ -33,246 +268,97 @@ All commands run inside `nix develop`.
 |---|---|
 | Start all services | `cargo up` |
 | Stop all services | `cargo down` |
-| Start PostgreSQL only | `cargo db` |
+| PostgreSQL only | `cargo db` |
 | Reset database | `cargo reset` |
-| Backend (port 8080) | `cargo backend` |
-| Frontend (port 1420) | `cargo frontend` |
+| Backend only | `cargo backend` |
+| Frontend only | `cargo frontend` |
 | List project commands | `cargo dev-help` |
 | Tests | `cargo test-all` |
 | Format | `cargo fmt-all` |
 | Clippy | `cargo clippy-all` |
 | Coverage | `cargo coverage` |
 | Tailwind CSS | `cargo css` |
-| Local debug Android APK | `cargo build-android` |
+| Local debug APK | `cargo build-android` |
 | Install Android SDK/NDK | `cargo setup-android` |
 | Patch an existing Android build | `cargo patch-android` |
 
-Build artifacts live in `target/bin/` (APK, desktop bundle, `recurrency-aio`).
+Artifacts land in `target/bin/` (APK, desktop bundle and `recurrency-aio`).
 
-The aliases are in `.cargo/config.toml`; the raw equivalents are `cargo test --workspace --lib`, `cargo fmt --all`, `cargo clippy --workspace --lib -- -D warnings`, and `cargo run -p recurrency_tools -- <command>`.
+The aliases live in `.cargo/config.toml`. Their raw equivalents are
+`cargo test --workspace --lib`, `cargo fmt --all`,
+`cargo clippy --workspace --lib -- -D warnings` and
+`cargo run -p recurrency_tools -- <command>`.
 
-`cargo build` remains Cargo's normal debug build; `cargo build-all` builds the release artifacts.
+### Project layout
 
-**Services:**
-- **Frontend:** http://localhost:1420 (Dioxus WASM)
-- **Backend:** http://localhost:8080 (Axum)
-- **PostgreSQL:** localhost:5432
-
----
-
-## Production (Docker)
-
-One all-in-one image contains PostgreSQL, the backend and the web frontend
-(nginx). The same image can run **headless / API-only**. Pin a version in
-production instead of `latest`.
-
-### Web UI + API
-
-```bash
-docker run -d \
-  --name recurrency \
-  -p 80:80 -p 8080:8080 \
-  -v recurrency_db:/var/lib/postgresql/15/main \
-  -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/badwatt/recurrency:0.34.0
-```
-
-- **Web:** http://localhost
-- **API through nginx:** http://localhost/api
-- **API directly:** http://localhost:8080/api
-- The named volume keeps PostgreSQL data across container recreation.
-- Reuse the same `JWT_SECRET` across restarts; changing it invalidates sessions.
-
-### Headless / API-only
-
-```bash
-docker run -d \
-  --name recurrency \
-  -p 8080:8080 \
-  -v recurrency_db:/var/lib/postgresql/15/main \
-  -e JWT_SECRET="$(openssl rand -hex 32)" \
-  -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:0.34.0
-```
-
-- nginx is not started; only PostgreSQL and the backend run.
-- **API:** http://localhost:8080/api
-- `ENABLE_WEB=false` is a runtime toggle; no rebuild is needed.
-- The image still contains the web assets and nginx; there is no separate
-  smaller headless image.
-- For native clients, enter the server URL without `/api`
-  (`http://host:8080`); the app adds the API paths.
-- Terminate TLS with Caddy, Traefik, nginx or another reverse proxy in front of
-  port 8080.
-
-### Docker Compose
-
-```bash
-curl -O https://raw.githubusercontent.com/badwatt/recurrency/main/docker/docker-compose.yml
-JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d recurrency
-
-# Headless
-ENABLE_WEB=false JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d recurrency
-```
-
-The compose file publishes both `80` and `8080`. In headless mode port 80 is
-published but nothing listens on it; remove `80:80` from the compose file if
-you do not want to expose it.
-
----
-
-## Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | set by entrypoint in Docker | PostgreSQL connection |
-| `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
-| `JWT_SECRET` | **required** | Strong random secret for JWT tokens; startup fails if missing/placeholder |
-| `APP_PORT` | `8080` | Backend listen port |
-| `APP_ENV` | `development` | Set `production` to lower the default log level |
-| `RUST_LOG` | `APP_ENV` default | Tracing filter (for example `info` or `debug`) |
-| `CORS_ALLOWED_ORIGIN` | `*` | Restrict browser requests to one allowed origin |
-| `ENABLE_DEMO` | `false` | Show the demo login button (opt-in) |
-| `ENABLE_WEB` | `true` | Docker only: serve the web UI; `false` for headless |
-| `PGPASSWORD` | `recurrency` | PostgreSQL password inside the Docker image |
-| `RECURRENCY_API_URL` | compiled default | Default server URL for native builds; overridden in the app |
-| `FIXER_API_KEY` | — | Optional Fixer API key; otherwise the free Frankfurter provider is used |
-| `SMTP_HOST` | — | SMTP server |
-| `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | — | SMTP username |
-| `SMTP_PASSWORD` | — | SMTP password |
-| `SMTP_FROM` | — | Sender email |
-| `SMTP_ENCRYPTION` | auto (`ssl` for 465, otherwise `tls`) | SMTP transport security |
-| `NOTIFICATION_ALLOW_PRIVATE_HOSTS` | `false` | Allow ntfy/Gotify/webhook targets on private networks |
-
----
-
-## Stack
-
-| Layer | Tech |
-|---|---|
-| **Frontend** | Dioxus (Rust WASM) + Tailwind |
-| **Backend** | Rust + Axum + SQLx + JWT + Argon2 |
-| **Database** | PostgreSQL |
-| **Notifications** | Per-user SMTP + 11 native channels + summary scheduler |
-| **Currency** | Automatic conversion via Fixer (optional key) or Frankfurter (no key) |
-| **Deployment** | Single all-in-one Docker image; web or headless API-only |
-
----
-
-## Features
-
-| | |
-|---|---|
-| 💳 **Accounts** | Budgeting buckets required on every entry, with inline search/create |
-| 📊 **Monthly plan** | Fixed monthly budget and pending-from-today per account |
-| 🔁 **Subscriptions** | CRUD with a unified "every N days/weeks/months/years" recurrence: multiple weekdays, multiple monthly days, unlimited annual dates and optional per-date amounts |
-| 🧾 **Transactions** | One-time expenses with account and optional category |
-| 📅 **Calendar** | Upcoming and completed charges, with an inclusive end date and finalized state |
-| 📈 **Reports** | Trend charts, category breakdown, CSV/PDF export |
-| 🏷️ **Categories** | Optional classification with custom icons, colors and inline creation |
-| 🔔 **Delivery channels** | Email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks |
-| 🗓️ **Summary schedule** | Daily, weekly or monthly dashboard summary in your timezone, for the current or next month |
-| 👤 **Profile** | Change email, display name and avatar; delete the account with password confirmation |
-| ⚙️ **Settings** | Profile, Preferences, Money (accounts/categories) and Notifications |
-| 📋 **Duplicate** | Duplicate a subscription with all fields copied; the form opens with a `(copia)` suffix |
-| 🏁 **Finalized** | Active, inactive and finalized sections; finalized cards show the end date and no future charges |
-| 🏷️ **Category badges** | Categories appear next to accounts; the system Uncategorized fallback is never shown |
-| ⬆️ **Update notice** | Dismissible banner when a newer GitHub release is available |
-| 📱 **Native app** | Android and desktop clients with configurable server URL at login and in Settings |
-| 💳 **Debts** | Manual debts with payments that reduce the balance, plus automatic debts paid month by month and backed by a subscription |
-| 💱 **Currency conversion** | Totals and reports convert into the main currency; Fixer is optional and Frankfurter works without a key |
-| 📱 **Mobile views** | Grid/list toggle available on phones and tablets |
-| 🐳 **Deployment** | One all-in-one image; web UI or headless API-only |
-| 🌙 **Dark Mode** | Light / dark / system |
-| 📤 **Grid / List** | Adjustable view |
-| 💱 **Currencies** | Multi-currency display |
-| 🔄 **Demo Reset** | Restore sample data |
-
----
-
-## Test Coverage
-
-| Project | Lines | Functions | Regions | Tests |
-|---|---|---|---|---|
-| **Backend** | — | — | — | 1197 lib + 47 integration |
-| **Frontend** | — | — | — | 1661 |
-| **Tools** | — | — | — | 8 |
-
-Integration tests use a disposable PostgreSQL instance:
-
-```bash
-docker compose -f docker/docker-compose.test.yml up -d
-cd backend
-DATABASE_URL='postgres://recurrency:recurrency_test_password@localhost:5433/recurrency_test' \
-  JWT_SECRET=test-jwt-secret-key \
-  cargo test --features integration-tests
-docker compose -f docker/docker-compose.test.yml down -v
-```
-
-CI runs the same suite on every push and pull request via
-`.github/workflows/test.yml`.
-
-Full coverage report (Nix dev shell):
-
-```bash
-# Backend tests + coverage
-cd backend && nix develop .. -c cargo llvm-cov test --lib
-
-# Frontend tests + coverage
-cd frontend && nix develop .. -c cargo llvm-cov test
-```
-
-### Coverage Notes
-
-Remaining backend gaps are mostly async database handlers covered by
-PostgreSQL integration tests (services use trait injection for testability).
-
-Remaining frontend gaps are mostly RSX-generated VDOM that needs a Dioxus WASM
-test runtime. Both projects include model, utility and mock-service tests.
-
----
-
-## Architecture
-
-```
+```text
 backend/src/
-├── auth/           # JWT, registration, login, settings
+├── auth/           # JWT, registration, login, account settings
 ├── accounts/       # Mandatory budgeting accounts
-├── subscriptions/  # Recurrence schedules and subscription CRUD
-├── transactions/   # Transaction CRUD
-├── categories/     # Optional category CRUD
+├── subscriptions/  # Recurrence engine and subscription CRUD
+├── transactions/   # One-time expenses
+├── categories/     # Optional categories and icons
 ├── currency/       # Exchange-rate providers and conversion
 ├── debts/          # Manual and automatic debt tracking
-├── notifications/  # Delivery channels, encryption, summary scheduler
+├── notifications/  # Delivery channels, encryption, scheduler
 ├── email/          # SMTP delivery
-├── reports/        # Statistics, trends and exports
+├── reports/        # Trends, breakdowns and exports
 ├── preferences/    # User preferences
-├── demo/           # Demo mode
+├── demo/           # Optional demo mode
 ├── logos/          # Logo search
-└── shared/         # DB, auth extractor, app state, utils
+└── shared/         # DB, auth extractor, app state, test helpers
 
 frontend/src/
 ├── pages/          # Route pages
 ├── components/     # Reusable UI
 ├── api/            # HTTP client
-├── state/          # Signals/state
+├── state/          # Signals and shared state
 ├── layout/         # App and settings shells
 ├── storage/        # Local/offline storage
 ├── theme/          # Theme handling
 └── auth/           # Auth pages
 ```
 
----
+### Tests
 
-## Releasing
+```bash
+# Unit tests
+cargo test-all
+
+# Integration tests (disposable PostgreSQL)
+docker compose -f docker/docker-compose.test.yml up -d
+cd backend
+DATABASE_URL='postgres://recurrency:recurrency_test_password@localhost:5433/recurrency_test' \
+  JWT_SECRET=test-jwt-secret-key \
+  cargo test --features integration-tests
+docker compose -f docker/docker-compose.test.yml down -v
+
+# Coverage
+cd backend && nix develop .. -c cargo llvm-cov test --lib
+cd frontend && nix develop .. -c cargo llvm-cov test
+```
+
+Current suite: **1197 backend unit tests**, **47 backend integration tests**,
+**1661 frontend tests** and **8 tooling tests**.
+
+### Releasing
 
 1. Bump `version` in the root `Cargo.toml` (the single source of truth).
 2. Commit and push to `main`.
-3. The Release workflow only runs its release jobs when that version increases; then it runs the tests, publishes the all-in-one Docker image, builds the APK and creates the GitHub release/tag.
+3. The Release workflow runs only when that version increases; it publishes the
+   all-in-one image, builds and signs the APK, and creates the GitHub release.
 
-A manual `workflow_dispatch` always releases the current version.
+A manual `workflow_dispatch` releases the current version.
 
-## License
+---
 
-[MIT](LICENSE)
+## Security
+
+- Argon2 password hashing and JWT authentication.
+- Notification credentials encrypted at rest with AES-256-GCM.
+- Private-network notification targets blocked unless explicitly allowed.
+- No `unsafe` Rust.
+- Fail-closed configuration: missing or placeholder secrets stop startup.
+
+Found a security issue? Please open a private report instead of a public issue.
+
