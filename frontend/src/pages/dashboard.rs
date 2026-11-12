@@ -4,6 +4,7 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
 use crate::models::account::Account;
@@ -512,7 +513,12 @@ pub fn Dashboard() -> Element {
                             a {
                                 href: "/subscriptions",
                                 class: "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
-                                onclick: move |e| { e.prevent_default(); nav1.push(crate::Route::Subscriptions {}); },
+                                onclick: move |e| {
+                                    e.prevent_default();
+                                    *crate::state::create_intent::CREATE_INTENT.write() =
+                                        Some(crate::state::create_intent::CreateIntent::Subscription);
+                                    nav1.push(crate::Route::Subscriptions {});
+                                },
                                 svg {
                                     view_box: "0 0 24 24",
                                     fill: "none",
@@ -532,7 +538,12 @@ pub fn Dashboard() -> Element {
                             a {
                                 href: "/transactions",
                                 class: "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent active:scale-[0.97] transition-all duration-200",
-                                onclick: move |e| { e.prevent_default(); nav2.push(crate::Route::Transactions {}); },
+                                onclick: move |e| {
+                                    e.prevent_default();
+                                    *crate::state::create_intent::CREATE_INTENT.write() =
+                                        Some(crate::state::create_intent::CreateIntent::Transaction);
+                                    nav2.push(crate::Route::Transactions {});
+                                },
                                 svg {
                                     view_box: "0 0 24 24",
                                     fill: "none",
@@ -672,7 +683,11 @@ pub fn Dashboard() -> Element {
                             rsx! {
                                 button {
                                     class: "hidden md:inline-flex mt-2 items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                                    onclick: move |_| { nav3.push(crate::Route::Subscriptions {}); },
+                                    onclick: move |_| {
+                                        *crate::state::create_intent::CREATE_INTENT.write() =
+                                            Some(crate::state::create_intent::CreateIntent::Subscription);
+                                        nav3.push(crate::Route::Subscriptions {});
+                                    },
                                     "Add subscription"
                                 }
                             }
@@ -821,7 +836,9 @@ pub fn Dashboard() -> Element {
                                                 }
                                             }
                                             div { class: "text-right shrink-0 ml-4",
-                                                p { class: "text-sm font-semibold font-mono tabular-nums text-foreground", "{crate::state::rates::RATES().display_amount(sub.amount, &sub.currency)}" }
+                                                p { class: "text-sm font-semibold font-mono tabular-nums text-foreground",
+                                                    ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() }
+                                                }
                                                 if let Some(label) = days_label {
                                                     p {
                                                         class: if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
@@ -876,7 +893,7 @@ pub fn Dashboard() -> Element {
                                                 }
                                             }
                                             p { class: "text-sm font-semibold font-mono tabular-nums shrink-0",
-                                                "{crate::state::rates::RATES().display_amount(txn.amount, &txn.currency)}"
+                                                ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
                                             }
                                         }
                                             }

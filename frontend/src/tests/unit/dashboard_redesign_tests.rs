@@ -60,3 +60,11 @@ fn dashboard_has_quick_add_section() {
         "Dashboard must have quick-add subscription/transaction buttons"
     );
 }
+
+#[test]
+fn dashboard_quick_add_opens_each_form_directly() {
+    let dashboard = include_str!("../../pages/dashboard.rs");
+    assert!(dashboard.contains("CreateIntent::Subscription"));
+    assert!(dashboard.contains("CreateIntent::Transaction"));
+    assert!(dashboard.contains("CreateIntent::Debt"));
+}

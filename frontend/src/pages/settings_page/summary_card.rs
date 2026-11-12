@@ -135,14 +135,23 @@ pub fn SummaryCard() -> Element {
                     }
                 } else if frequency() == "monthly" {
                     label { class: "space-y-1 text-sm", "Day of month"
-                        input {
-                            r#type: "number",
-                            min: "1",
-                            max: "31",
+                        select {
                             value: day().to_string(),
-                            oninput: move |e| day.set(e.value().parse().unwrap_or(1)),
+                            onchange: move |e| day.set(e.value().parse().unwrap_or(1)),
                             class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
+                            for value in 1..=crate::utils::constants::MAX_MONTH_DAY {
+                                option { value: value.to_string(), "{value}" }
+                            }
                         }
+                    }
+                }
+                label { class: "space-y-1 text-sm", "Report period"
+                    select {
+                        value: period(),
+                        onchange: move |e| period.set(e.value()),
+                        class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
+                        option { value: crate::utils::constants::SUMMARY_PERIOD_CURRENT, "Current month" }
+                        option { value: crate::utils::constants::SUMMARY_PERIOD_NEXT, "Next month" }
                     }
                 }
                 label { class: "space-y-1 text-sm", "Time"

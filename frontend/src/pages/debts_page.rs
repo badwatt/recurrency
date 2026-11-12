@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::api;
 use crate::components::dialog::Dialog;
+use crate::components::ConvertedAmount;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
 use crate::components::{AccountCombobox, CategoryCombobox};
@@ -522,7 +523,8 @@ pub fn DebtsPage() -> Element {
                 div { class: "space-y-4",
                     if let Some(debt) = pay_debt() {
                         p { class: "text-sm text-muted-foreground",
-                            "Remaining: {crate::state::rates::RATES().display_amount(debt.remaining_amount, &debt.currency)}"
+                            "Remaining: "
+                            ConvertedAmount { amount: debt.remaining_amount, currency: debt.currency.clone() }
                         }
                     }
                     div { class: "space-y-1.5",
@@ -590,7 +592,10 @@ pub fn DebtsPage() -> Element {
                                     }
                                 }
                                 p { class: "font-medium",
-                                    {crate::state::rates::RATES().display_amount(payment.amount, history_debt().map(|d| d.currency).as_deref().unwrap_or("EUR"))}
+                                    ConvertedAmount {
+                                        amount: payment.amount,
+                                        currency: history_debt().map(|d| d.currency).unwrap_or_else(|| "EUR".to_string()),
+                                    }
                                 }
                             }
                              }}
@@ -642,9 +647,6 @@ fn DebtCard(
     on_edit: EventHandler<Debt>,
     on_delete: EventHandler<Debt>,
 ) -> Element {
-    let currency = debt.currency.clone();
-    let remaining = crate::state::rates::RATES().display_amount(debt.remaining_amount, &currency);
-    let total = crate::state::rates::RATES().display_amount(debt.total_amount, &currency);
     let account = ACCOUNTS().get_by_id(&debt.account_id).cloned();
     let category = CATEGORIES().get_by_id(&debt.category_id).cloned();
     let date_format = PREFERENCES().date_format();
@@ -676,16 +678,18 @@ fn DebtCard(
                         if debt.is_active { "Remaining" } else { "Paid" }
                     }
                 }
-                p { class: "font-bold text-lg shrink-0", {remaining} }
+                p { class: "font-bold text-lg shrink-0",
+                    ConvertedAmount { amount: debt.remaining_amount, currency: debt.currency.clone() }
+                }
             }
             div { class: "h-2 overflow-hidden rounded-full bg-muted",
                 div { class: "h-full rounded-full bg-primary transition-all", style: "width: {debt.progress()}%" }
             }
             div { class: "flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground",
-                span { "of {total}" }
+                span { "of " ConvertedAmount { amount: debt.total_amount, currency: debt.currency.clone() } }
                 if debt.is_automatic() {
                     if let Some(payment) = debt.monthly_payment {
-                        span { "Monthly {crate::state::rates::RATES().display_amount(payment, &currency)}" }
+                        span { "Monthly " ConvertedAmount { amount: payment, currency: debt.currency.clone() } }
                     }
                     if let Some(next) = debt.next_payment_date {
                         span { "Next {crate::utils::dates::format_date(&next, &date_format)}" }

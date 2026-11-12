@@ -14,7 +14,6 @@ pub fn render_grid_card(
     let today = chrono::Utc::now().date_naive();
     let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
     let opacity = subscription_card_opacity(sub.is_active, finalized);
-    let formatted = crate::state::rates::RATES().display_amount(sub.amount, &sub.currency);
     let date_format = PREFERENCES().date_format();
     let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
     if finalized {
@@ -126,12 +125,14 @@ pub fn render_grid_card(
                     if let Some((current, total)) = linked_debt.as_ref().and_then(|debt| debt.installment()) {
                         p { class: "text-[11px] font-medium text-primary mt-0.5", "Payment {current}/{total}" }
                     } else if let Some((current, total)) = schedule_progress {
-                        p { class: "text-[11px] font-medium text-muted-foreground mt-0.5", "Payment {current}/{total}" }
+                        p { class: "text-[11px] font-medium text-primary mt-0.5", "Payment {current}/{total}" }
                     }
                 }
 
                 // Amount
-                p { class: "font-extrabold text-2xl tracking-tight", {formatted.to_string()} }
+                p { class: "font-extrabold text-2xl tracking-tight",
+                    ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() }
+                }
 
                 // Account and category badges
                 div { class: "flex flex-wrap items-center gap-1.5",
@@ -205,7 +206,6 @@ pub fn render_list_card(
     let today = chrono::Utc::now().date_naive();
     let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
     let opacity = subscription_card_opacity(sub.is_active, finalized);
-    let formatted = crate::state::rates::RATES().display_amount(sub.amount, &sub.currency);
     let date_format = PREFERENCES().date_format();
     let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
     if finalized {
@@ -294,7 +294,7 @@ pub fn render_list_card(
                         if let Some((current, total)) = linked_debt.as_ref().and_then(|debt| debt.installment()) {
                             p { class: "text-[11px] font-medium text-primary truncate", "Payment {current}/{total}" }
                         } else if let Some((current, total)) = schedule_progress {
-                            p { class: "text-[11px] font-medium text-muted-foreground truncate", "Payment {current}/{total}" }
+                            p { class: "text-[11px] font-medium text-primary truncate", "Payment {current}/{total}" }
                         }
                         div { class: "mt-1 flex flex-wrap items-center gap-1.5",
                             span {
@@ -319,14 +319,14 @@ pub fn render_list_card(
                     }
 
                     div { class: "hidden sm:flex items-center gap-4 shrink-0",
-                        p { class: "font-medium text-base", {formatted.to_string()} }
+                        p { class: "font-medium text-base", ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() } }
                         {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                     }
                 }
 
                 // Mobile: actions get their own row so the name has the full width.
                 div { class: "mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-2 sm:hidden",
-                    p { class: "font-semibold text-base", {formatted.to_string()} }
+                    p { class: "font-semibold text-base", ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() } }
                     {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
                 }
             }

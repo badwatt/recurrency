@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::api;
 use crate::storage::Storage;
 use crate::components::dialog::Dialog;
+use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};

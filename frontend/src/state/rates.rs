@@ -22,16 +22,27 @@ impl RatesState {
     /// Convert `amount` from its currency into the user's main currency.
     /// Unknown rates deliberately fall back to the original amount rather than
     /// hiding the value.
-    pub fn display_amount(&self, amount: Decimal, currency: &str) -> String {
+    pub fn display_amount_parts(
+        &self,
+        amount: Decimal,
+        currency: &str,
+    ) -> (String, Option<String>) {
         let original = crate::utils::format::format_currency(amount, currency);
         if self.base.is_empty() || currency.eq_ignore_ascii_case(&self.base) {
-            return original;
+            return (original, None);
         }
         let converted = crate::utils::format::format_currency(
             self.convert(amount, currency),
             &self.base,
         );
-        format!("{converted} ({original})")
+        (converted, Some(original))
+    }
+
+    pub fn display_amount(&self, amount: Decimal, currency: &str) -> String {
+        match self.display_amount_parts(amount, currency) {
+            (main, Some(original)) => format!("{main} ({original})"),
+            (main, None) => main,
+        }
     }
 
     pub fn convert(&self, amount: Decimal, from: &str) -> Decimal {
@@ -67,6 +78,17 @@ mod tests {
         let mut state = RatesState::default();
         state.base = "EUR".into();
         assert_eq!(state.convert(Decimal::from(10), "EUR"), Decimal::from(10));
+    }
+
+    #[test]
+    fn display_parts_keep_original_currency_separate() {
+        let mut state = RatesState::default();
+        state.base = "EUR".into();
+        state.rates.insert("USD".into(), Decimal::new(11, 1));
+        assert_eq!(
+            state.display_amount_parts(Decimal::from(11), "USD"),
+            ("€10.00".to_string(), Some("$11.00".to_string()))
+        );
     }
 
     #[test]

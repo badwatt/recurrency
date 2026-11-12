@@ -1,4 +1,5 @@
 use crate::components::logo_image_with_fallback;
+use crate::components::ConvertedAmount;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::TransactionRowSkeleton;
 use crate::components::tooltip::Tooltip;
@@ -331,7 +332,7 @@ pub fn TransactionsPage() -> Element {
                                                     }
                                                     // Amount
                                                     p { class: "font-medium text-sm sm:text-base shrink-0",
-                                                        {crate::state::rates::RATES().display_amount(txn.amount, &txn.currency)}
+                                                        ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
                                                     }
                                                     // Actions
                                                     div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",

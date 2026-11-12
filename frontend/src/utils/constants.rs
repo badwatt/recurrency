@@ -36,6 +36,9 @@ pub const DEBT_TYPE_AUTOMATIC: &str = "automatic";
 pub const SUMMARY_PERIOD_CURRENT: &str = "current";
 pub const SUMMARY_PERIOD_NEXT: &str = "next";
 
+/// Highest valid day of a month for recurring schedules.
+pub const MAX_MONTH_DAY: u8 = 31;
+
 /// Default currency.
 pub const DEFAULT_CURRENCY: &str = "EUR";
 

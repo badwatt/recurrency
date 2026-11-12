@@ -8,6 +8,7 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page/preferences_card.rs"),
     include_str!("../settings_page/delete_account_card.rs"),
     include_str!("../settings_page/delivery_card.rs"),
+    include_str!("../settings_page/summary_card.rs"),
     include_str!("../../layout/settings_layout.rs"),
     include_str!("../../components/server_url.rs"),
     include_str!("../subscriptions_page/cards.rs"),

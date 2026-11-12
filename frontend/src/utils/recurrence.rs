@@ -186,6 +186,25 @@ pub fn payment_progress_for_year(
     if !multiple_per_cycle {
         return None;
     }
+    if recurrence.unit == "year" {
+        let mut dates = recurrence.dates.clone();
+        dates.sort_by_key(|date| (date.month, date.day));
+        let total = dates.len();
+        if !(2..=MAX_DISPLAY).contains(&total) {
+            return None;
+        }
+        let next_day = if next_payment.day() == days_in_month(next_payment.year(), next_payment.month()) {
+            0
+        } else {
+            next_payment.day() as u8
+        };
+        let index = dates
+            .iter()
+            .position(|date| (date.month, date.day) >= (next_payment.month() as u8, next_day))
+            .unwrap_or(0)
+            + 1;
+        return Some((index, total));
+    }
     let year = next_payment.year();
     let year_start = NaiveDate::from_ymd_opt(year, 1, 1)?;
     let year_end = NaiveDate::from_ymd_opt(year, 12, 31)?;
@@ -321,6 +340,29 @@ mod tests {
         assert_eq!(
             first_occurrence_on_or_after(date(2026, 5, 3), &monthly(vec![1, 15], 1)),
             Some(date(2026, 5, 15))
+        );
+    }
+
+    #[test]
+    fn three_annual_dates_show_payment_progress() {
+        let recurrence = Recurrence {
+            interval: 1,
+            unit: "year".into(),
+            dates: vec![
+                AnnualDate { month: 6, day: 24, amount: None },
+                AnnualDate { month: 8, day: 8, amount: None },
+                AnnualDate { month: 9, day: 22, amount: None },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            payment_progress_for_year(
+                date(2026, 6, 24),
+                &recurrence,
+                None,
+                date(2027, 6, 24),
+            ),
+            Some((1, 3))
         );
     }
 
