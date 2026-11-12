@@ -50,12 +50,11 @@ pub fn NotesDialog(open: Signal<bool>, txn_id: Signal<Option<Uuid>>) -> Element 
                         onclick: move |_| {
                             let id = txn_id().unwrap();
                             let notes = notes_dialog_value();
-                            let is_empty = notes.is_empty();
                             notes_saving.set(true);
                             spawn(async move {
                                 let req = UpdateTransactionRequest {
                                     account_id: None,
-                                    notes: if is_empty { None } else { Some(notes) },
+                                    notes: Some(notes),
                                     ..Default::default()
                                 };
                                 let _ = Storage::update_transaction(&id, &req).await;

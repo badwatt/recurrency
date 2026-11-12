@@ -47,12 +47,11 @@ pub fn NotesSubscriptionDialog(
                         onclick: move |_| {
                             let id = sub_id().unwrap();
                             let notes = value();
-                            let is_empty = notes.is_empty();
                             saving.set(true);
                             spawn(async move {
                                 let req = UpdateSubscriptionRequest {
                                     account_id: None,
-                                    notes: if is_empty { None } else { Some(notes) },
+                                    notes: Some(notes),
                                     ..Default::default()
                                 };
                                 let _ = Storage::update_subscription(&id, &req).await;

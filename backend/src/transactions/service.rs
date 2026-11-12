@@ -103,7 +103,11 @@ pub fn resolve_update_fields(
         req.date.unwrap_or(existing.date),
         req.account_id.unwrap_or(existing.account_id),
         req.category_id.unwrap_or(existing.category_id),
-        req.notes.clone().or_else(|| existing.notes.clone()),
+        match req.notes.as_deref() {
+            Some(value) if value.trim().is_empty() => None,
+            Some(_) => req.notes.clone(),
+            None => existing.notes.clone(),
+        },
         req.logo_url.clone().or_else(|| existing.logo_url.clone()),
     )
 }
@@ -766,7 +770,7 @@ mod tests {
         );
         let r = make_update(None, None, None, None, Some(""), None);
         let (_, _, _, _, _, _, n, _) = resolve_update_fields(&e, &r);
-        assert_eq!(n, Some("".to_string()));
+        assert_eq!(n, None);
     }
 
     #[test]

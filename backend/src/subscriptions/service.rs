@@ -284,7 +284,11 @@ impl SubscriptionService {
         let account_id = req.account_id.unwrap_or(existing.account_id);
         let category_id = req.category_id.unwrap_or(existing.category_id);
         let is_active = req.is_active.unwrap_or(existing.is_active);
-        let notes = req.notes.or(existing.notes);
+        let notes = match req.notes {
+            Some(value) if value.trim().is_empty() => None,
+            Some(value) => Some(value),
+            None => existing.notes,
+        };
         let logo_url = req.logo_url.or(existing.logo_url);
 
         let subscription = sqlx::query_as::<_, Subscription>(

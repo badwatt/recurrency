@@ -132,7 +132,7 @@ impl EntryForm {
             end_date: self.parse_end_date(),
             clear_end_date: self.end_date.is_empty(),
             category_id: category,
-            notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
+            notes: Some(self.notes.clone()),
             logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
             ..Default::default()
         })
@@ -179,7 +179,7 @@ impl EntryForm {
                 chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
             )),
             category_id: category,
-            notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
+            notes: Some(self.notes.clone()),
             logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
         })
     }

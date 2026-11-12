@@ -173,11 +173,7 @@ pub fn TransactionDialog(
                         currency: Some(form_currency()),
                         date: Some(date),
                         category_id: cat_id,
-                        notes: if form_notes().is_empty() {
-                            None
-                        } else {
-                            Some(form_notes())
-                        },
+                        notes: Some(form_notes()),
                         logo_url: if form_logo_url().is_empty() {
                             None
                         } else {

@@ -219,7 +219,7 @@ pub(crate) fn render_dialog(
                                     end_date,
                                     clear_end_date: f.end_date.is_empty(),
                                     category_id: category,
-                                    notes: if f.notes.is_empty() { None } else { Some(f.notes.clone()) },
+                                    notes: Some(f.notes.clone()),
                                     logo_url: if f.logo_url.is_empty() { None } else { Some(f.logo_url.clone()) },
                                     ..Default::default()
                                 };
