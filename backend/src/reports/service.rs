@@ -11,6 +11,10 @@ use crate::shared::error::AppResult;
 use crate::currency::service::convert;
 use crate::subscriptions::models::Recurrence;
 
+/// Trend chart shows six previous months, the current month and three future months.
+pub const TREND_PAST_MONTHS: i32 = 6;
+pub const TREND_FUTURE_MONTHS: i32 = 3;
+
 pub struct ReportService;
 
 /// Report port, injected into `AppState` as `Arc<dyn ReportServiceTrait>`.
@@ -324,7 +328,11 @@ impl ReportService {
         user_id: Uuid,
         months_count: i32,
     ) -> AppResult<Vec<SpendingTrend>> {
-        let months = recent_months(chrono::Utc::now().date_naive(), months_count);
+        let months = trend_months(
+            chrono::Utc::now().date_naive(),
+            months_count,
+            TREND_FUTURE_MONTHS,
+        );
         if months.is_empty() {
             return Ok(Vec::new());
         }
@@ -418,7 +426,7 @@ impl ReportService {
     ) -> AppResult<ReportResponse> {
         let monthly_summary = Self::get_monthly_summary(pool, user_id, year, month).await?;
         let category_breakdown = Self::get_category_breakdown(pool, user_id, year, month).await?;
-        let recent_trends = Self::get_recent_trends(pool, user_id, 6).await?;
+        let recent_trends = Self::get_recent_trends(pool, user_id, TREND_PAST_MONTHS).await?;
 
         Ok(ReportResponse {
             monthly_summary,
@@ -454,6 +462,7 @@ pub(crate) fn subtract_months_from_date(date: chrono::NaiveDate, months: i32) ->
 
 /// Calendar months covered by a recent-trends window, newest first.
 /// `today` is injected so the window is deterministic in tests.
+#[allow(dead_code)]
 pub(crate) fn recent_months(
     today: chrono::NaiveDate,
     months_count: i32,
@@ -468,6 +477,29 @@ pub(crate) fn recent_months(
             (date.year(), date.month(), from, to)
         })
         .collect()
+}
+
+/// Months for the spending-trend chart: future months, current month, then past
+/// months. The result stays newest-first for the API; the UI reverses it.
+pub(crate) fn trend_months(
+    today: chrono::NaiveDate,
+    past_months: i32,
+    future_months: i32,
+) -> Vec<(i32, u32, chrono::NaiveDate, chrono::NaiveDate)> {
+    let mut months = Vec::new();
+    for offset in (1..=future_months.max(0)).rev() {
+        let date = subtract_months_from_date(today, -offset);
+        let (from, to) = month_date_range(date.year(), date.month());
+        months.push((date.year(), date.month(), from, to));
+    }
+    let (from, to) = month_date_range(today.year(), today.month());
+    months.push((today.year(), today.month(), from, to));
+    for offset in 1..=past_months.max(0) {
+        let date = subtract_months_from_date(today, offset);
+        let (from, to) = month_date_range(date.year(), date.month());
+        months.push((date.year(), date.month(), from, to));
+    }
+    months
 }
 
 #[cfg(test)]
@@ -1086,4 +1118,14 @@ fn recent_months_non_positive_is_empty() {
     let today = chrono::NaiveDate::from_ymd_opt(2024, 2, 15).unwrap();
     assert!(recent_months(today, 0).is_empty());
     assert!(recent_months(today, -3).is_empty());
+}
+
+#[test]
+fn trend_months_centers_current_month() {
+    let today = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+    let months = trend_months(today, 2, 2);
+    assert_eq!(months.len(), 5);
+    assert_eq!((months[0].0, months[0].1), (2027, 1));
+    assert_eq!((months[2].0, months[2].1), (2026, 11));
+    assert_eq!((months[4].0, months[4].1), (2026, 9));
 }

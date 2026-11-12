@@ -4,6 +4,9 @@ use super::*;
 #[component]
 pub fn TransactionCard(
     txn: Transaction,
+    selection_mode: bool,
+    selected: bool,
+    on_select: Callback<Uuid>,
     on_edit: Callback<Uuid>,
     on_delete: Callback<Uuid>,
     on_notes: Callback<Uuid>,
@@ -19,11 +22,21 @@ pub fn TransactionCard(
         .unwrap_or_else(|| "#6b7280".into());
     let bg = format!("{}20", account_color);
     let has_notes = txn.notes.as_ref().is_some_and(|notes| !notes.is_empty());
+    let category = CATEGORIES().get_by_id(&txn.category_id).cloned();
     let id = txn.id;
 
     rsx! {
         div { key: "{txn.id}", class: "rounded-lg border border-border bg-card p-3 sm:p-4 hover:bg-muted/50 transition-colors",
             div { class: "flex items-center gap-2 sm:gap-4",
+                if selection_mode {
+                    input {
+                        r#type: "checkbox",
+                        checked: selected,
+                        aria_label: "Select transaction",
+                        class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                        onchange: move |_| on_select.call(id),
+                    }
+                }
                 div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
                     {logo_image_with_fallback(&format!("txn-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-9 w-9 sm:h-10 sm:w-10 object-contain p-1")}
                     if txn.logo_url.is_none() {
@@ -40,6 +53,17 @@ pub fn TransactionCard(
                     style: "color: {account_color}; background-color: {bg}",
                     {icon_display(&account_icon)}
                     {account_name}
+                }
+                if let Some(category) = category.clone().filter(|category| !category.is_system) {
+                    {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
+                     let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
+                     rsx! {
+                        span { class: "font-normal text-xs inline-flex items-center gap-1 rounded-full px-2 py-0.5",
+                            style: "color: {color}; background-color: {color}15;",
+                            {icon_display(&icon)}
+                            {category.name.clone()}
+                        }
+                     }}
                 }
                 p { class: "font-medium text-sm sm:text-base shrink-0",
                     ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
@@ -75,6 +99,9 @@ pub fn TransactionCard(
 #[component]
 pub fn TransactionGridCard(
     txn: Transaction,
+    selection_mode: bool,
+    selected: bool,
+    on_select: Callback<Uuid>,
     on_edit: Callback<Uuid>,
     on_delete: Callback<Uuid>,
     on_notes: Callback<Uuid>,
@@ -90,11 +117,21 @@ pub fn TransactionGridCard(
         .unwrap_or_else(|| "#6b7280".into());
     let bg = format!("{}20", account_color);
     let has_notes = txn.notes.as_ref().is_some_and(|notes| !notes.is_empty());
+    let category = CATEGORIES().get_by_id(&txn.category_id).cloned();
     let id = txn.id;
 
     rsx! {
         div { key: "{txn.id}", class: "flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50",
             div { class: "flex min-w-0 items-start gap-3",
+                if selection_mode {
+                    input {
+                        r#type: "checkbox",
+                        checked: selected,
+                        aria_label: "Select transaction",
+                        class: "mt-2 h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                        onchange: move |_| on_select.call(id),
+                    }
+                }
                 div { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
                     {logo_image_with_fallback(&format!("txn-grid-{}", txn.id), txn.logo_url.as_deref(), &txn.name, "h-10 w-10 object-contain p-1")}
                     if txn.logo_url.is_none() {
@@ -111,8 +148,21 @@ pub fn TransactionGridCard(
                     span { class: "truncate", {account_name} }
                 }
             }
-            p { class: "font-semibold",
-                ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
+            div { class: "flex flex-wrap items-center justify-between gap-2",
+                p { class: "font-semibold",
+                    ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
+                }
+                if let Some(category) = category.filter(|category| !category.is_system) {
+                    {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
+                     let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
+                     rsx! {
+                        span { class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
+                            style: "color: {color}; background-color: {color}15;",
+                            {icon_display(&icon)}
+                            {category.name.clone()}
+                        }
+                     }}
+                }
             }
             div { class: "flex items-center justify-end gap-1 border-t border-border/40 pt-2",
                 Tooltip { content: txn.notes.clone().unwrap_or_default(),

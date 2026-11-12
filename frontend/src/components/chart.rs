@@ -97,7 +97,12 @@ pub struct LineData {
 }
 
 #[component]
-pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element {
+pub fn LineChart(
+    data: Vec<LineData>,
+    height: String,
+    color: String,
+    highlight_index: Option<usize>,
+) -> Element {
     if data.is_empty() {
         return rsx! {
             div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
@@ -228,24 +233,29 @@ pub fn LineChart(data: Vec<LineData>, height: String, color: String) -> Element 
                 stroke_linejoin: "round",
             }
 
-            // Data points + labels
+            // Data points + labels. The current month is slightly emphasized.
             for (i, (x, y)) in points.iter().enumerate() {
-                circle {
-                    key: "dot-{i}",
-                    cx: x.to_string(),
-                    cy: y.to_string(),
-                    r: "3.5",
-                    fill: color.to_string(),
-                    stroke: "var(--card, #fff)",
-                    stroke_width: "2",
-                }
-                text {
-                    x: x.to_string(),
-                    y: "{padding_top + chart_h + 18.0}",
-                    fill: "currentColor",
-                    class: "text-xs fill-muted-foreground",
-                    text_anchor: "middle",
-                    {data[i].label.clone()}
+                {
+                    let is_current = highlight_index == Some(i);
+                    rsx! {
+                        circle {
+                            key: "dot-{i}",
+                            cx: x.to_string(),
+                            cy: y.to_string(),
+                            r: if is_current { "5.5" } else { "3.5" },
+                            fill: color.to_string(),
+                            stroke: "var(--card, #fff)",
+                            stroke_width: if is_current { "2.5" } else { "2" },
+                        }
+                        text {
+                            x: x.to_string(),
+                            y: "{padding_top + chart_h + 18.0}",
+                            fill: "currentColor",
+                            class: if is_current { "text-xs font-semibold fill-foreground" } else { "text-xs fill-muted-foreground" },
+                            text_anchor: "middle",
+                            {data[i].label.clone()}
+                        }
+                    }
                 }
             }
         }

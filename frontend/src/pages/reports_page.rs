@@ -4,12 +4,15 @@ use crate::components::page_header::PageHeader;
 use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
 use crate::models::report::*;
 use crate::state::auth::AUTH;
+use crate::state::accounts::ACCOUNTS;
 use crate::state::categories::CATEGORIES;
+use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::state::transactions::TRANSACTIONS;
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 use chrono::{Datelike, Utc};
 use dioxus::prelude::*;
-use lucide_dioxus::{CreditCard, Receipt, TrendingUp, Wallet, Download};
+use lucide_dioxus::{ChevronDown, CreditCard, Download, Receipt, TrendingUp, Wallet};
 
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"),
@@ -42,6 +45,139 @@ pub fn build_csv(report: &ReportResponse) -> String {
     csv
 }
 
+fn csv_escape(value: &str) -> String {
+    if value.contains(',') || value.contains('"') || value.contains('\n') {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
+fn html_escape(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+pub fn build_export_csv(
+    report: &ReportResponse,
+    subscriptions: &[crate::models::subscription::Subscription],
+    transactions: &[crate::models::transaction::Transaction],
+    accounts: &[crate::models::account::Account],
+    categories: &[crate::models::category::Category],
+) -> String {
+    let mut csv = String::new();
+    csv.push_str("Recurrency export\n");
+    csv.push_str(&format!(
+        "Period,{}-{:02}\n",
+        report.monthly_summary.year, report.monthly_summary.month
+    ));
+    csv.push_str("\nSummary\nMetric,Value\n");
+    csv.push_str(&format!("Total spending,{}\n", report.monthly_summary.overall_total));
+    csv.push_str(&format!("Subscriptions,{}\n", report.monthly_summary.subscriptions_total));
+    csv.push_str(&format!("One-time,{}\n", report.monthly_summary.transactions_total));
+    csv.push_str(&format!("Active subscriptions,{}\n", report.monthly_summary.subscriptions_count));
+    csv.push_str(&format!("Transactions,{}\n", report.monthly_summary.transactions_count));
+
+    csv.push_str("\nSpending trends\nPeriod,Total\n");
+    for trend in &report.recent_trends {
+        csv.push_str(&format!("{},{}\n", csv_escape(&trend.period), trend.total));
+    }
+
+    csv.push_str("\nCategory breakdown\nCategory,Amount,Count,Percentage\n");
+    for category in &report.category_breakdown {
+        csv.push_str(&format!(
+            "{},{},{},{:.1}%\n",
+            csv_escape(&category.category_name),
+            category.total,
+            category.count,
+            category.percentage
+        ));
+    }
+
+    csv.push_str("\nSubscriptions\nName,Amount,Currency,Account,Category,Next billing,Active,Notes\n");
+    for sub in subscriptions {
+        let account = accounts
+            .iter()
+            .find(|account| account.id == sub.account_id)
+            .map(|account| account.name.as_str())
+            .unwrap_or("No account");
+        let category = categories
+            .iter()
+            .find(|category| category.id == sub.category_id)
+            .map(|category| category.name.as_str())
+            .unwrap_or("Uncategorized");
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{},{}\n",
+            csv_escape(&sub.name),
+            sub.amount,
+            sub.currency,
+            csv_escape(account),
+            csv_escape(category),
+            sub.next_billing_date.map(|date| date.to_string()).unwrap_or_default(),
+            sub.is_active,
+            csv_escape(sub.notes.as_deref().unwrap_or(""))
+        ));
+    }
+
+    csv.push_str("\nTransactions\nName,Amount,Currency,Account,Category,Date,Notes\n");
+    for txn in transactions {
+        let account = accounts
+            .iter()
+            .find(|account| account.id == txn.account_id)
+            .map(|account| account.name.as_str())
+            .unwrap_or("No account");
+        let category = categories
+            .iter()
+            .find(|category| category.id == txn.category_id)
+            .map(|category| category.name.as_str())
+            .unwrap_or("Uncategorized");
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{}\n",
+            csv_escape(&txn.name),
+            txn.amount,
+            txn.currency,
+            csv_escape(account),
+            csv_escape(category),
+            txn.date,
+            csv_escape(txn.notes.as_deref().unwrap_or(""))
+        ));
+    }
+    csv
+}
+
+pub fn build_export_html(report: &ReportResponse, currency: &str) -> String {
+    let mut rows = String::new();
+    for category in &report.category_breakdown {
+        rows.push_str(&format!(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.1}%</td></tr>",
+            html_escape(&category.category_name),
+            format_currency(category.total, currency),
+            category.count,
+            category.percentage
+        ));
+    }
+    let mut trends = String::new();
+    for trend in &report.recent_trends {
+        trends.push_str(&format!(
+            "<tr><td>{}</td><td>{}</td></tr>",
+            html_escape(&trend.period),
+            format_currency(trend.total, currency)
+        ));
+    }
+    format!(
+        "<!doctype html><html><head><meta charset='utf-8'><title>Recurrency report</title>         <style>body{{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;color:#1f2937}}         h1{{font-size:26px;margin-bottom:4px}}p{{color:#6b7280}}table{{width:100%;border-collapse:collapse;margin:20px 0}}         th,td{{text-align:left;padding:8px;border-bottom:1px solid #e5e7eb}}th{{background:#f3f4f6}}         .summary{{display:flex;gap:16px;flex-wrap:wrap}}.card{{border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;min-width:150px}}</style>         </head><body><h1>Recurrency</h1><p>Report for {}-{:02}</p>         <div class='summary'><div class='card'><small>Total</small><h2>{}</h2></div>         <div class='card'><small>Subscriptions</small><h2>{}</h2></div>         <div class='card'><small>One-time</small><h2>{}</h2></div></div>         <h2>By category</h2><table><thead><tr><th>Category</th><th>Amount</th><th>Count</th><th>Share</th></tr></thead><tbody>{rows}</tbody></table>         <h2>Spending trends</h2><table><thead><tr><th>Period</th><th>Total</th></tr></thead><tbody>{trends}</tbody></table>         <p>Generated by Recurrency v{}</p></body></html>",
+        report.monthly_summary.year,
+        report.monthly_summary.month,
+        format_currency(report.monthly_summary.overall_total, currency),
+        format_currency(report.monthly_summary.subscriptions_total, currency),
+        format_currency(report.monthly_summary.transactions_total, currency),
+        env!("CARGO_PKG_VERSION"),
+    )
+}
+
 pub fn category_style_by_name<'a>(
     categories: &'a [crate::models::category::Category],
     name: &str,
@@ -66,6 +202,7 @@ pub fn ReportsPage() -> Element {
     let mut report = use_signal(|| None::<ReportResponse>);
     let mut is_loading = use_signal(|| true);
     let mut hovered_category = use_signal(|| None::<usize>);
+    let mut export_open = use_signal(|| false);
 
     // Load categories
     use_future(move || async move {
@@ -77,6 +214,19 @@ pub fn ReportsPage() -> Element {
         match Storage::list_categories().await {
             Ok(data) => CATEGORIES.write().set_data(data),
             Err(e) => CATEGORIES.write().set_error(e.to_string()),
+        }
+    });
+
+    use_future(move || async move {
+        if SUBSCRIPTIONS().subscriptions.is_empty()
+            && let Ok(data) = Storage::list_subscriptions().await
+        {
+            SUBSCRIPTIONS.write().set_data(data);
+        }
+        if TRANSACTIONS().transactions.is_empty()
+            && let Ok(data) = Storage::list_transactions().await
+        {
+            TRANSACTIONS.write().set_data(data);
         }
     });
 
@@ -102,16 +252,38 @@ pub fn ReportsPage() -> Element {
     let cats = CATEGORIES();
     let years = report_years();
 
-    let handle_export = move |_| {
-        if let Some(r) = report() {
-            let csv = build_csv(&r);
+    let export_csv = move |_| {
+        if let Some(report) = report() {
+            let csv = build_export_csv(
+                &report,
+                &SUBSCRIPTIONS().subscriptions,
+                &TRANSACTIONS().transactions,
+                &ACCOUNTS().accounts,
+                &CATEGORIES().categories,
+            );
+            let escaped = csv
+                .replace('\\', "\\\\")
+                .replace('`', "\\`")
+                .replace("${", "\\${");
             let _ = dioxus::document::eval(&format!(
-                "const blob = new Blob([`{}`], {{type: 'text/csv'}}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'recurrency-report-{}-{}.csv'; a.click(); URL.revokeObjectURL(url);",
-                csv.replace('`', "\\`").replace('\n', "\\n"),
+                "const blob = new Blob([`{escaped}`], {{type: 'text/csv'}}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'recurrency-report-{}-{}.csv'; a.click(); URL.revokeObjectURL(url);",
                 selected_year(),
                 selected_month(),
             ));
         }
+        export_open.set(false);
+    };
+
+    let pdf_currency = currency.clone();
+    let export_pdf = move |_| {
+        if let Some(report) = report() {
+            let html = build_export_html(&report, &pdf_currency);
+            let json = serde_json::to_string(&html).unwrap_or_else(|_| "''".into());
+            let _ = dioxus::document::eval(&format!(
+                "const w = window.open('', '_blank'); if (w) {{ w.document.write({json}); w.document.close(); setTimeout(() => w.print(), 400); }}"
+            ));
+        }
+        export_open.set(false);
     };
 
     rsx! {
@@ -138,11 +310,32 @@ pub fn ReportsPage() -> Element {
                             }
                         }
                     }
-                    button {
-                        onclick: handle_export,
-                        class: "flex items-center justify-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-accent",
-                        Download { size: 16 }
-                        "Export CSV"
+                    div { class: "relative",
+                        button {
+                            r#type: "button",
+                            aria_expanded: if export_open() { "true" } else { "false" },
+                            onclick: move |_| export_open.toggle(),
+                            class: "flex items-center justify-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-accent",
+                            Download { size: 16 }
+                            "Export"
+                            ChevronDown { size: 14 }
+                        }
+                        if export_open() {
+                            div { class: "absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-md border border-border bg-popover shadow-md",
+                                button {
+                                    r#type: "button",
+                                    class: "flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent",
+                                    onclick: export_csv,
+                                    "CSV"
+                                }
+                                button {
+                                    r#type: "button",
+                                    class: "flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent",
+                                    onclick: export_pdf,
+                                    "PDF"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -245,6 +438,10 @@ pub fn ReportsPage() -> Element {
                                         // Trends come newest-first from API, reverse for chronological
                                         let mut trends = r.recent_trends.clone();
                                         trends.reverse();
+                                        let current_label = format!("{}/{:02}", now.month(), now.year() % 100);
+                                        let highlight_index = trends
+                                            .iter()
+                                            .position(|t| t.period == current_label);
                                         let line_data: Vec<LineData> = trends.iter().map(|t| {
                                             LineData {
                                                 label: t.period.clone(),
@@ -256,6 +453,7 @@ pub fn ReportsPage() -> Element {
                                                 data: line_data,
                                                 height: "220".to_string(),
                                                 color: "#6366f1".to_string(),
+                                                highlight_index,
                                             }
                                         }
                                     }
@@ -1134,5 +1332,57 @@ mod tests {
     fn trending_up_icon_renders() {
         let el: Element = rsx! { TrendingUp { size: 16 } };
         assert!(el.is_ok());
+    }
+}
+
+#[cfg(test)]
+mod export_tests {
+    use super::*;
+    use crate::models::report::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
+    use rust_decimal_macros::dec;
+
+    fn report() -> ReportResponse {
+        ReportResponse {
+            monthly_summary: MonthlySummary {
+                year: 2026,
+                month: 11,
+                subscriptions_total: dec!(20),
+                transactions_total: dec!(5),
+                overall_total: dec!(25),
+                subscriptions_count: 2,
+                transactions_count: 1,
+            },
+            category_breakdown: vec![CategoryBreakdown {
+                category_id: None,
+                category_name: "Streaming".into(),
+                total: dec!(20),
+                count: 1,
+                percentage: 80.0,
+            }],
+            recent_trends: vec![SpendingTrend {
+                period: "11/26".into(),
+                total: dec!(25),
+            }],
+        }
+    }
+
+    #[test]
+    fn csv_export_includes_summary_details() {
+        let csv = build_export_csv(&report(), &[], &[], &[], &[]);
+        assert!(csv.contains("Summary"));
+        assert!(csv.contains("Spending trends"));
+        assert!(csv.contains("Category breakdown"));
+        assert!(csv.contains("Subscriptions"));
+        assert!(csv.contains("Transactions"));
+        assert!(csv.contains("Streaming"));
+    }
+
+    #[test]
+    fn print_export_is_styled_and_contains_report() {
+        let html = build_export_html(&report(), "EUR");
+        assert!(html.contains("By category"));
+        assert!(html.contains("Streaming"));
+        assert!(html.contains("Recurrency"));
+        assert!(html.contains("25.00"));
     }
 }

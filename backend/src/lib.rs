@@ -3,6 +3,7 @@
 //! This module exposes internal components for testing.
 
 pub mod accounts;
+pub mod backup;
 pub mod auth;
 
 pub mod categories;

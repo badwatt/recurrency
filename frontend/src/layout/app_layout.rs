@@ -42,6 +42,7 @@ pub enum Icon {
     Coffee,
     Monitor,
     Bell,
+    Info,
     Close,
 }
 
@@ -680,6 +681,21 @@ pub(crate) fn svg_icon(icon: Icon, size: i32) -> Element {
                 rect { x: "2", y: "3", width: "20", height: "14", rx: "2" }
                 line { x1: "8", y1: "21", x2: "16", y2: "21" }
                 line { x1: "12", y1: "17", x2: "12", y2: "21" }
+            }
+        },
+        Icon::Info => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                circle { cx: "12", cy: "12", r: "10" }
+                line { x1: "12", y1: "11", x2: "12", y2: "16" }
+                line { x1: "12", y1: "8", x2: "12.01", y2: "8" }
             }
         },
         Icon::Bell => rsx! {

@@ -24,6 +24,8 @@ pub struct UpdatePreferencesRequest {
     pub theme: Option<String>,
     pub subscriptions_view: Option<String>,
     pub first_day_of_week: Option<String>,
+    #[serde(default)]
+    pub date_format: Option<String>,
 }
 
 #[cfg(test)]
@@ -58,6 +60,7 @@ mod tests {
             theme: None,
             subscriptions_view: None,
             first_day_of_week: None,
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
@@ -72,6 +75,7 @@ mod tests {
             theme: Some("dark".into()),
             subscriptions_view: None,
             first_day_of_week: None,
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
@@ -86,6 +90,7 @@ mod tests {
             theme: None,
             subscriptions_view: Some("list".into()),
             first_day_of_week: None,
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
@@ -100,6 +105,7 @@ mod tests {
             theme: Some("light".into()),
             subscriptions_view: Some("grid".into()),
             first_day_of_week: None,
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let back: UpdatePreferencesRequest = serde_json::from_str(&json).unwrap();
@@ -129,6 +135,7 @@ mod tests {
             theme: Some("light".into()),
             subscriptions_view: Some("list".into()),
             first_day_of_week: Some("sunday".into()),
+            date_format: None,
         };
         assert!(req.theme.is_some());
         assert!(req.subscriptions_view.is_some());
@@ -141,6 +148,7 @@ mod tests {
             theme: None,
             subscriptions_view: None,
             first_day_of_week: Some("sunday".into()),
+            date_format: None,
         };
         assert!(req.first_day_of_week.is_some());
         assert_eq!(req.first_day_of_week.unwrap(), "sunday");

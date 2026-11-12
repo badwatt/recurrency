@@ -60,6 +60,10 @@ pub fn DebtsPage() -> Element {
     let mut sort_direction = use_signal(|| "asc".to_string());
     let mut filters_popover = use_signal(|| false);
     let mut sort_popover = use_signal(|| false);
+    let mut selection_mode = use_signal(|| false);
+    let mut selected = use_signal(std::collections::HashSet::<Uuid>::new);
+    let mut bulk_busy = use_signal(|| false);
+    let mut bulk_category = use_signal(String::new);
 
     let load = use_callback(move |_: ()| {
         spawn(async move {
@@ -320,6 +324,7 @@ pub fn DebtsPage() -> Element {
         if sort_desc { order.reverse() } else { order }
     });
 
+    let visible_ids: Vec<Uuid> = visible_debts.iter().map(|debt| debt.id).collect();
     let filter_count = usize::from(filter_value.is_some());
     let toolbar_actions = rsx! {
         div { class: "relative",
@@ -405,7 +410,44 @@ pub fn DebtsPage() -> Element {
                 div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }
             }
         }
+        button {
+            r#type: "button",
+            aria_label: if selection_mode() { "Exit selection mode" } else { "Enter selection mode" },
+            aria_pressed: if selection_mode() { "true" } else { "false" },
+            class: if selection_mode() { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+            onclick: move |_| selection_mode.toggle(),
+            svg {
+                view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2",
+                rect { x: "3", y: "3", width: "18", height: "18", rx: "3" }
+                if selection_mode() { path { d: "m7 12 3 3 7-7" } }
+            }
+        }
     };
+
+    let bulk_delete: Callback<()> = use_callback(move |_: ()| {
+        if selected().is_empty() || bulk_busy() {
+            return;
+        }
+        let ids: Vec<Uuid> = selected().iter().copied().collect();
+        bulk_busy.set(true);
+        spawn(async move {
+            for id in ids {
+                let _ = api::debts::delete(&id).await;
+            }
+            load.call(());
+            selected.write().clear();
+            selection_mode.set(false);
+            bulk_busy.set(false);
+        });
+    });
+
+    let toggle_selected: Callback<Uuid> = use_callback(move |id: Uuid| {
+        if selected.read().contains(&id) {
+            selected.write().remove(&id);
+        } else {
+            selected.write().insert(id);
+        }
+    });
 
     if let Some(err) = &DEBTS().error {
         return rsx! {
@@ -435,6 +477,69 @@ pub fn DebtsPage() -> Element {
                     onview: move |_| {},
                     show_view: false,
                     actions: toolbar_actions,
+                }
+            }
+
+            if selection_mode() {
+                div { class: "flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2", role: "status", aria_live: "polite",
+                    span { class: "text-sm font-medium",
+                        if selected().is_empty() { "Select debts" } else { "{selected().len()} selected" }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
+                        onclick: move |_| {
+                            if selected().len() == visible_ids.len() { selected.write().clear(); }
+                            else { for id in &visible_ids { selected.write().insert(*id); } }
+                        },
+                        "Select all"
+                    }
+                    select {
+                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                        value: bulk_category(),
+                        onchange: move |event| bulk_category.set(event.value()),
+                        option { value: "", "Set category…" }
+                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
+                            option { value: category.id.to_string(), {category.name.clone()} }
+                        }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                        disabled: bulk_busy() || selected().is_empty() || bulk_category().is_empty(),
+                        onclick: move |_| {
+                            if bulk_busy() || bulk_category().is_empty() { return; }
+                            let ids: Vec<Uuid> = selected().iter().copied().collect();
+                            let category_id = Uuid::parse_str(&bulk_category()).ok();
+                            let Some(category_id) = category_id else { return; };
+                            bulk_busy.set(true);
+                            spawn(async move {
+                                for id in ids {
+                                    let req = crate::models::debt::UpdateDebtRequest { category_id: Some(category_id), ..Default::default() };
+                                    let _ = api::debts::update(&id, &req).await;
+                                }
+                                load.call(());
+                                selected.write().clear();
+                                bulk_category.set(String::new());
+                                bulk_busy.set(false);
+                            });
+                        },
+                        "Apply category"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
+                        disabled: bulk_busy() || selected().is_empty(),
+                        onclick: move |_| bulk_delete.call(()),
+                        Trash { size: 13 }
+                        "Delete"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "ml-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                        onclick: move |_| { selected.write().clear(); selection_mode.set(false); },
+                        "Clear"
+                    }
                 }
             }
 
@@ -469,6 +574,9 @@ pub fn DebtsPage() -> Element {
                     for debt in visible_debts.iter().cloned() {
                         DebtCard {
                             debt: debt.clone(),
+                            selection_mode: selection_mode(),
+                            selected: selected().contains(&debt.id),
+                            on_select: toggle_selected,
                             on_pay: open_pay,
                             on_history: open_history,
                             on_edit: open_edit,
@@ -808,6 +916,9 @@ pub fn DebtsPage() -> Element {
 #[component]
 fn DebtCard(
     debt: Debt,
+    selection_mode: bool,
+    selected: bool,
+    on_select: Callback<Uuid>,
     on_pay: EventHandler<Debt>,
     on_history: EventHandler<Debt>,
     on_edit: EventHandler<Debt>,
@@ -820,10 +931,20 @@ fn DebtCard(
     let debt_for_history = debt.clone();
     let debt_for_delete = debt.clone();
     let debt_for_edit = debt.clone();
+    let debt_for_checkbox_id = debt.id;
 
     rsx! {
         div { class: "rounded-xl border border-border/50 bg-card p-4 flex flex-col gap-3",
             div { class: "flex items-start gap-3",
+                if selection_mode {
+                    input {
+                        r#type: "checkbox",
+                        checked: selected,
+                        aria_label: "Select debt",
+                        class: "mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary",
+                        onchange: move |_| on_select.call(debt_for_checkbox_id),
+                    }
+                }
                 div { class: "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl overflow-hidden",
                     if let Some(logo) = debt.logo_url.clone() {
                         img { src: logo, alt: debt.name.clone(), class: "h-11 w-11 object-contain" }
@@ -877,10 +998,14 @@ fn DebtCard(
                     }
                 }
                 if let Some(category) = category.filter(|c| !c.is_system) {
-                    span { class: "inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]",
-                        {icon_display(category.icon.as_deref().unwrap_or("Tag"))}
-                        {category.name}
-                    }
+                    {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
+                     rsx! {
+                        span { class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
+                            style: "color: {color}; background-color: {color}15;",
+                            {icon_display(category.icon.as_deref().unwrap_or("Tag"))}
+                            {category.name}
+                        }
+                     }}
                 }
             }
             div { class: "flex items-center justify-end gap-1 border-t border-border/40 pt-2",

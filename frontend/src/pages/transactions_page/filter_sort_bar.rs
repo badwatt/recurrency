@@ -14,6 +14,7 @@ pub fn FilterSortBar(
     sort_cfg: Signal<SortConfig>,
     query: Signal<String>,
     view: Signal<String>,
+    selection_mode: Signal<bool>,
 ) -> Element {
     let mut filters_popover = use_signal(|| false);
     let mut sort_popover = use_signal(|| false);
@@ -150,6 +151,25 @@ pub fn FilterSortBar(
                     }
                 }
                 div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }
+            }
+        }
+        button {
+            r#type: "button",
+            aria_label: if selection_mode() { "Exit selection mode" } else { "Enter selection mode" },
+            aria_pressed: if selection_mode() { "true" } else { "false" },
+            class: if selection_mode() { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+            onclick: move |_| selection_mode.toggle(),
+            svg {
+                view_box: "0 0 24 24",
+                width: "16",
+                height: "16",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                rect { x: "3", y: "3", width: "18", height: "18", rx: "3" }
+                if selection_mode() {
+                    path { d: "m7 12 3 3 7-7" }
+                }
             }
         }
     };

@@ -370,6 +370,7 @@ pub fn SubscriptionsPage() -> Element {
                 theme: None,
                 subscriptions_view: Some(mode),
                 first_day_of_week: None,
+                date_format: None,
             };
             let _ = api::preferences::update(&req).await;
         });

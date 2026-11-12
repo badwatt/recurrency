@@ -1,8 +1,9 @@
 use recurrency_backend::{
-    accounts, auth, categories, currency, debts, demo, logos, notifications, preferences,
+    accounts, auth, backup, categories, currency, debts, demo, logos, notifications, preferences,
     reports, shared, subscriptions, transactions,
 };
 
+use axum::extract::DefaultBodyLimit;
 use axum::http::HeaderValue;
 use axum::{
     extract::Json,
@@ -64,6 +65,11 @@ fn build_app(db_pool: sqlx::PgPool) -> Router {
         .route("/api/health", get(health_check))
         .route("/api/currency/rates", get(currency::handlers::rates))
         .route("/api/currency/settings", get(currency::handlers::get_settings).put(currency::handlers::update_settings))
+        .route("/api/backup", get(backup::handlers::export))
+        .route(
+            "/api/backup/import",
+            post(backup::handlers::import).layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
+        )
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
         .route("/api/auth/verify", get(auth::handlers::verify))

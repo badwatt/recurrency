@@ -173,6 +173,10 @@ pub fn TransactionsPage() -> Element {
     let mut editing_id = use_signal(|| None::<Uuid>);
     let mut query = use_signal(String::new);
     let view_mode = use_signal(|| PREFERENCES().transactions_view().to_string());
+    let mut selection_mode = use_signal(|| false);
+    let mut selected = use_signal(std::collections::HashSet::<Uuid>::new);
+    let mut bulk_busy = use_signal(|| false);
+    let mut bulk_category = use_signal(String::new);
 
     // Notes dialog state
     let mut notes_dialog_open = use_signal(|| false);
@@ -220,6 +224,11 @@ pub fn TransactionsPage() -> Element {
         &query(),
     );
 
+    let visible_txn_ids: Vec<Uuid> = groups
+        .iter()
+        .flat_map(|group| group.transactions.iter().map(|txn| txn.id))
+        .collect();
+
     let handle_delete: Callback<Uuid> = use_callback(move |id: Uuid| {
         spawn(async move {
             let _ = Storage::delete_transaction(&id).await;
@@ -253,6 +262,34 @@ pub fn TransactionsPage() -> Element {
         }
     });
 
+    let bulk_delete: Callback<()> = use_callback(move |_: ()| {
+        if selected().is_empty() || bulk_busy() {
+            return;
+        }
+        let ids: Vec<Uuid> = selected().iter().copied().collect();
+        bulk_busy.set(true);
+        spawn(async move {
+            for id in ids {
+                let _ = Storage::delete_transaction(&id).await;
+            }
+            match Storage::list_transactions().await {
+                Ok(data) => TRANSACTIONS.write().set_data(data),
+                Err(error) => TRANSACTIONS.write().set_error(error.to_string()),
+            }
+            selected.write().clear();
+            selection_mode.set(false);
+            bulk_busy.set(false);
+        });
+    });
+
+    let toggle_selected: Callback<Uuid> = use_callback(move |id: Uuid| {
+        if selected.read().contains(&id) {
+            selected.write().remove(&id);
+        } else {
+            selected.write().insert(id);
+        }
+    });
+
     if let Some(err) = &state.error {
         return rsx! {
             div { class: "p-4 md:p-6",
@@ -281,7 +318,74 @@ pub fn TransactionsPage() -> Element {
 
             // Filter / Sort bar
             if !state.transactions.is_empty() {
-                FilterSortBar { filters: filters, sort_cfg: sort_cfg, query: query, view: view_mode }
+                FilterSortBar { filters: filters, sort_cfg: sort_cfg, query: query, view: view_mode, selection_mode: selection_mode }
+            }
+
+            if selection_mode() {
+                div { class: "flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2", role: "status", aria_live: "polite",
+                    span { class: "text-sm font-medium",
+                        if selected().is_empty() { "Select transactions" } else { "{selected().len()} selected" }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
+                        onclick: move |_| {
+                            let ids: Vec<Uuid> = visible_txn_ids.clone();
+                            if selected().len() == ids.len() { selected.write().clear(); }
+                            else { for id in ids { selected.write().insert(id); } }
+                        },
+                        "Select all"
+                    }
+                    select {
+                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                        value: bulk_category(),
+                        onchange: move |event| bulk_category.set(event.value()),
+                        option { value: "", "Set category…" }
+                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
+                            option { value: category.id.to_string(), {category.name.clone()} }
+                        }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                        disabled: bulk_busy() || selected().is_empty() || bulk_category().is_empty(),
+                        onclick: move |_| {
+                            if bulk_busy() || bulk_category().is_empty() { return; }
+                            let ids: Vec<Uuid> = selected().iter().copied().collect();
+                            let category_id = Uuid::parse_str(&bulk_category()).ok();
+                            let Some(category_id) = category_id else { return; };
+                            bulk_busy.set(true);
+                            spawn(async move {
+                                for id in ids {
+                                    let req = crate::models::transaction::UpdateTransactionRequest { category_id: Some(category_id), ..Default::default() };
+                                    let _ = Storage::update_transaction(&id, &req).await;
+                                }
+                                match Storage::list_transactions().await {
+                                    Ok(data) => TRANSACTIONS.write().set_data(data),
+                                    Err(error) => TRANSACTIONS.write().set_error(error.to_string()),
+                                }
+                                selected.write().clear();
+                                bulk_category.set(String::new());
+                                bulk_busy.set(false);
+                            });
+                        },
+                        "Apply category"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
+                        disabled: bulk_busy() || selected().is_empty(),
+                        onclick: move |_| bulk_delete.call(()),
+                        Trash { size: 13 }
+                        "Delete"
+                    }
+                    button {
+                        r#type: "button",
+                        class: "ml-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                        onclick: move |_| { selected.write().clear(); selection_mode.set(false); },
+                        "Clear"
+                    }
+                }
             }
 
             // Content
@@ -348,6 +452,9 @@ pub fn TransactionsPage() -> Element {
                                             for txn in &group.transactions {
                                                 TransactionGridCard {
                                                     txn: txn.clone(),
+                                                    selection_mode: selection_mode(),
+                                                    selected: selected().contains(&txn.id),
+                                                    on_select: toggle_selected,
                                                     on_edit: handle_edit,
                                                     on_delete: handle_delete,
                                                     on_notes: handle_notes,
@@ -359,6 +466,9 @@ pub fn TransactionsPage() -> Element {
                                             for txn in &group.transactions {
                                                 TransactionCard {
                                                     txn: txn.clone(),
+                                                    selection_mode: selection_mode(),
+                                                    selected: selected().contains(&txn.id),
+                                                    on_select: toggle_selected,
                                                     on_edit: handle_edit,
                                                     on_delete: handle_delete,
                                                     on_notes: handle_notes,

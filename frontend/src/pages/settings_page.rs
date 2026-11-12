@@ -3,12 +3,16 @@ use crate::components::page_header::PageHeader;
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
+mod about_page;
+mod backup_card;
 mod delete_account_card;
 mod delivery_card;
 mod preferences_card;
 mod profile_card;
 mod summary_card;
 
+use about_page::AboutPage;
+use backup_card::BackupCard;
 use delete_account_card::DeleteAccountCard;
 use delivery_card::DeliveryCard;
 use preferences_card::PreferencesCard;
@@ -62,6 +66,7 @@ pub fn SettingsProfilePage() -> Element {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
             PageHeader { title: "Profile", subtitle: "Your identity and session" }
             ProfileCard {}
+            BackupCard {}
             MobileSessionCard {}
             DeleteAccountCard {}
         }
@@ -142,6 +147,11 @@ pub fn SettingsNotificationsPage() -> Element {
     }
 }
 
+
+#[component]
+pub fn SettingsAboutPage() -> Element {
+    rsx! { AboutPage {} }
+}
 
 #[cfg(test)]
 mod tests;

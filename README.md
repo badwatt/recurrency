@@ -117,6 +117,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 ### Know what this month costs
 
 - **Monthly plan** — fixed budget and pending-from-today, per account and in total.
+- **Personal date format** — choose DD/MM/YYYY, MM/DD/YYYY or YYYY/MM/DD in Settings.
 - **Accounts as budgeting buckets** — every subscription and transaction belongs to one.
 - **Real charges, not averages** — summaries use the charges that actually fall in the month.
 - **Current or next month** — switch the dashboard summary period from Settings.
@@ -142,6 +143,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Calendar** — charges by day, including completed and overdue payments.
 - **Debts** — manual debts with payment history, or automatic debts paid month by month.
 - **Installments** — automatic debts show progress such as `Payment 2/6`.
+- **Bulk actions** — select transactions or debts to recategorize or delete them together; subscriptions can be paused, activated or deleted in bulk.
 
 ### Currency without surprises
 
@@ -166,6 +168,12 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
+
+### Your data and the project
+
+- **Backup & restore** — download your accounts, categories, subscriptions, transactions, debts and payments as JSON, or restore a backup by click or drag-and-drop.
+- **About** — installed version, current and latest changelog, and a quiet reminder to star the project on GitHub.
+- **Console welcome** — a small developer thank-you and the running version in the browser console.
 
 ---
 
@@ -346,8 +354,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1200 backend unit tests**, **47 backend integration tests**,
-**1683 frontend tests** and **8 tooling tests**.
+Current suite: **1203 backend unit tests**, **47 backend integration tests**,
+**1690 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 

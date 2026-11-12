@@ -137,6 +137,7 @@ pub fn PreferencesCard() -> Element {
                                     theme: None,
                                     subscriptions_view: None,
                                     first_day_of_week: Some(day),
+                                    date_format: None,
                                 }).await {
                                     Ok(_) => TOAST.write().success("First day of week updated"),
                                     Err(e) => {
@@ -150,6 +151,37 @@ pub fn PreferencesCard() -> Element {
                         class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
                         option { value: "monday", "Monday" }
                         option { value: "sunday", "Sunday" }
+                    }
+                }
+                div { class: "space-y-2",
+                    label { r#for: "settings-date-format", class: "text-sm font-medium", "Date format" }
+                    select {
+                        id: "settings-date-format",
+                        value: PREFERENCES().date_format(),
+                        onchange: move |e| {
+                            let format = e.value();
+                            let previous = PREFERENCES().date_format();
+                            PREFERENCES.write().set_date_format(format.clone());
+                            spawn(async move {
+                                match crate::api::preferences::update(&crate::models::preferences::UpdatePreferencesRequest {
+                                    theme: None,
+                                    subscriptions_view: None,
+                                    first_day_of_week: None,
+                                    date_format: Some(format),
+                                }).await {
+                                    Ok(_) => TOAST.write().success("Date format updated"),
+                                    Err(error) => {
+                                        log::error!("Failed to update date format: {error}");
+                                        PREFERENCES.write().set_date_format(previous);
+                                        TOAST.write().error("Failed to update date format");
+                                    }
+                                }
+                            });
+                        },
+                        class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm",
+                        option { value: "DD/MM/YYYY", "DD/MM/YYYY" }
+                        option { value: "MM/DD/YYYY", "MM/DD/YYYY" }
+                        option { value: "YYYY/MM/DD", "YYYY/MM/DD" }
                     }
                 }
                 div { class: "flex items-start gap-3 rounded-lg border border-border/40 p-3",

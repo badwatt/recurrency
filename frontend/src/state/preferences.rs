@@ -126,10 +126,22 @@ impl PreferencesState {
         &self.preferences.first_day_of_week
     }
 
-    /// Get date format derived from system locale.
+    /// User-selected date format, normalized to slash notation. Falls back to
+    /// the browser/system locale for old or invalid stored values.
     pub fn date_format(&self) -> String {
-        let locale = crate::utils::dates::get_locale();
-        crate::utils::dates::get_date_format_from_locale(&locale).to_string()
+        let stored = self.preferences.date_format.replace('-', "/");
+        if matches!(stored.as_str(), "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY/MM/DD") {
+            stored
+        } else {
+            let locale = crate::utils::dates::get_locale();
+            crate::utils::dates::get_date_format_from_locale(&locale).to_string()
+        }
+    }
+
+    pub fn set_date_format(&mut self, format: String) {
+        if matches!(format.as_str(), "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY/MM/DD") {
+            self.preferences.date_format = format;
+        }
     }
 
     pub fn set_loading(&mut self) {
@@ -239,6 +251,15 @@ mod tests {
         let mut state = PreferencesState::default();
         state.set_theme("dark".into());
         assert_eq!(state.theme(), "dark");
+    }
+
+    #[test]
+    fn date_format_uses_user_preference_and_normalizes_hyphens() {
+        let mut state = PreferencesState::default();
+        state.preferences.date_format = "MM-DD-YYYY".into();
+        assert_eq!(state.date_format(), "MM/DD/YYYY");
+        state.set_date_format("YYYY/MM/DD".into());
+        assert_eq!(state.date_format(), "YYYY/MM/DD");
     }
 
     #[test]

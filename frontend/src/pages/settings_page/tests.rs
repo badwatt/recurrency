@@ -628,3 +628,27 @@ fn settings_can_disable_update_notices() {
     assert!(SETTINGS_SOURCES.contains("settings-show-updates"));
     assert!(SETTINGS_SOURCES.contains("set_show_updates"));
 }
+
+#[test]
+fn about_page_has_version_changelog_and_star_prompt() {
+    let about = include_str!("../settings_page/about_page.rs");
+    assert!(about.contains("Installed version"));
+    assert!(about.contains("Show changelog"));
+    assert!(about.contains("Star on GitHub"));
+    assert!(about.contains("fetch_current"));
+}
+
+#[test]
+fn settings_expose_backup_import_and_download() {
+    let backup = include_str!("../settings_page/backup_card.rs");
+    assert!(backup.contains("Download backup"));
+    assert!(backup.contains("ondrop"));
+    assert!(backup.contains("Restore backup"));
+}
+
+#[test]
+fn settings_expose_date_format_choice() {
+    assert!(SETTINGS_SOURCES.contains("settings-date-format"));
+    assert!(SETTINGS_SOURCES.contains("DD/MM/YYYY"));
+    assert!(SETTINGS_SOURCES.contains("MM/DD/YYYY"));
+}

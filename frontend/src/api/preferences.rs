@@ -26,6 +26,7 @@ mod tests {
             theme: Some("dark".into()),
             subscriptions_view: None,
             first_day_of_week: None,
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("dark"));
@@ -59,6 +60,7 @@ mod tests {
             theme: None,
             subscriptions_view: Some("table".into()),
             first_day_of_week: None,
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("table"));
@@ -70,6 +72,7 @@ mod tests {
             theme: None,
             subscriptions_view: None,
             first_day_of_week: Some("sunday".into()),
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("sunday"));
@@ -81,6 +84,7 @@ mod tests {
             theme: Some("dark".into()),
             subscriptions_view: Some("grid".into()),
             first_day_of_week: Some("monday".into()),
+            date_format: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("dark"));

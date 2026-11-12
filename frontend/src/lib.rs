@@ -63,6 +63,8 @@ pub enum Route {
             SettingsMoney {},
             #[route("/settings/notifications")]
             SettingsNotifications {},
+            #[route("/settings/about")]
+            SettingsAboutPage {},
             #[route("/settings/accounts")]
             SettingsAccounts {},
             #[route("/settings/categories")]
@@ -215,6 +217,26 @@ fn App() -> Element {
                     }
                 });
             }
+        }
+    });
+
+    // A small console Easter egg, visible only in web builds.
+    use_future(move || async move {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let version = env!("CARGO_PKG_VERSION");
+            dioxus::document::eval(&format!(r#"
+                console.log(`%c
+   ____
+  |  _ \ ___  ___ _   _ _ __ ___ _ __ _   _
+  | |_) / _ \/ __| | | | '__/ _ \ '_ \| | | |
+  |  _ <  __/ (__| |_| | | |  __/ | | | |_| |
+  |_| \_\___|\___|\__,_|_|  \___|_| |_|\__, |
+                                       |___/
+Recurrency v{version}
+Thanks for using Recurrency. If it saves you money, consider starring the project on GitHub.
+`, "color:#8b9cff;font-family:monospace;font-size:12px;");
+            "#));
         }
     });
 
@@ -377,6 +399,11 @@ fn SettingsMoney() -> Element {
 #[component]
 fn SettingsNotifications() -> Element {
     rsx! { crate::pages::SettingsNotificationsPage {} }
+}
+
+#[component]
+fn SettingsAboutPage() -> Element {
+    rsx! { crate::pages::SettingsAboutPage {} }
 }
 
 #[component]

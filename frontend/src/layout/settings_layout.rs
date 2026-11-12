@@ -9,14 +9,16 @@ enum SettingsSection {
     Preferences,
     Money,
     Notifications,
+    About,
 }
 
 impl SettingsSection {
-    const ALL: [Self; 4] = [
+    const ALL: [Self; 5] = [
         Self::Profile,
         Self::Preferences,
         Self::Money,
         Self::Notifications,
+        Self::About,
     ];
 
     fn label(self) -> &'static str {
@@ -25,6 +27,7 @@ impl SettingsSection {
             Self::Preferences => "Preferences",
             Self::Money => "Money",
             Self::Notifications => "Notifications",
+            Self::About => "About",
         }
     }
 
@@ -34,6 +37,7 @@ impl SettingsSection {
             Self::Preferences => Icon::Sun,
             Self::Money => Icon::Categories,
             Self::Notifications => Icon::Bell,
+            Self::About => Icon::Info,
         }
     }
 
@@ -43,6 +47,7 @@ impl SettingsSection {
             Self::Preferences => crate::Route::SettingsPreferences {},
             Self::Money => crate::Route::SettingsMoney {},
             Self::Notifications => crate::Route::SettingsNotifications {},
+            Self::About => crate::Route::SettingsAboutPage {},
         }
     }
 
@@ -62,6 +67,7 @@ impl SettingsSection {
                     | crate::Route::Categories {}
             ),
             Self::Notifications => matches!(route, crate::Route::SettingsNotifications {}),
+            Self::About => matches!(route, crate::Route::SettingsAboutPage {}),
         }
     }
 }
