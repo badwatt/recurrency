@@ -301,6 +301,7 @@ fn inject_block() -> String {
             "        // Expose the system-bars bridge so the theme can paint status/nav bars.\n",
             "        addJavascriptInterface(SystemBarsBridge(this), \"RecurrencyAndroid\")\n",
             "        addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")\n",
+            "        addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")\n",
             "        // Prevent FOUC: mocha background + themed native loader.\n",
             "        // setBackgroundColor paints mocha behind WebView — eliminates white flash.\n",
             "        // addDocumentStartJavaScript injects CSS + loader HTML before WASM loads.\n",
@@ -349,6 +350,76 @@ private class ImagePickerBridge(private val view: android.webkit.WebView) {
     fun pickImage() {
         val activity = view.context as? WryActivity ?: return
         activity.runOnUiThread { activity.pickImageForWebView(view) }
+    }
+}
+
+private class DownloadBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun saveFile(filename: String, mime: String, text: String) {
+        val activity = view.context as? android.app.Activity ?: return
+        Thread {
+            try {
+                val bytes = text.toByteArray(Charsets.UTF_8)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = activity.contentResolver.insert(
+                        android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        values,
+                    )
+                    if (uri != null) {
+                        activity.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    }
+                } else {
+                    val dir = try {
+                        android.os.Environment.getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_DOWNLOADS,
+                        ).also { it.mkdirs() }
+                    } catch (_: Exception) {
+                        activity.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    if (dir != null) {
+                        java.io.File(dir, filename).writeBytes(bytes)
+                        android.media.MediaScannerConnection.scanFile(
+                            activity,
+                            arrayOf(java.io.File(dir, filename).absolutePath),
+                            arrayOf(mime),
+                            null,
+                        )
+                    }
+                }
+                activity.runOnUiThread {
+                    android.widget.Toast.makeText(activity, "Saved to Downloads", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                activity.runOnUiThread {
+                    android.widget.Toast.makeText(activity, "Could not save file", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
+    }
+
+    @android.webkit.JavascriptInterface
+    fun printHtml(html: String) {
+        val activity = view.context as? android.app.Activity ?: return
+        activity.runOnUiThread {
+            val printView = android.webkit.WebView(activity)
+            printView.webViewClient = object : android.webkit.WebViewClient() {
+                override fun onPageFinished(view: android.webkit.WebView, url: String?) {
+                    val manager = activity.getSystemService(android.content.Context.PRINT_SERVICE)
+                        as android.print.PrintManager
+                    manager.print(
+                        "Recurrency",
+                        view.createPrintDocumentAdapter("Recurrency"),
+                        android.print.PrintAttributes.Builder().build(),
+                    )
+                }
+            }
+            printView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+        }
     }
 }
 "##;
@@ -471,6 +542,9 @@ pub fn patch_webview(content: &str) -> String {
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")")
+            || line
+                .trim_start()
+                .starts_with("addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")")
         {
             continue;
         }
@@ -1043,6 +1117,8 @@ mod image_picker_tests {
         let once = patch_webview(source);
         assert!(once.contains("ImagePickerBridge"));
         assert!(once.contains("RecurrencyImagePicker"));
+        assert!(once.contains("DownloadBridge"));
+        assert!(once.contains("RecurrencyDownload"));
         let twice = patch_webview(&once);
         assert_eq!(once.matches("addJavascriptInterface(ImagePickerBridge").count(), 1);
         assert_eq!(twice.matches("addJavascriptInterface(ImagePickerBridge").count(), 1);

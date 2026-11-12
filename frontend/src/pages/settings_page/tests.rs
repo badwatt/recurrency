@@ -652,3 +652,9 @@ fn settings_expose_date_format_choice() {
     assert!(SETTINGS_SOURCES.contains("DD/MM/YYYY"));
     assert!(SETTINGS_SOURCES.contains("MM/DD/YYYY"));
 }
+
+#[test]
+fn backup_download_uses_native_download_bridge() {
+    let src = include_str!("backup_card.rs");
+    assert!(src.contains("save_text"));
+}

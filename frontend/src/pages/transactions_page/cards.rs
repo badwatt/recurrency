@@ -48,22 +48,24 @@ pub fn TransactionCard(
                     p { class: "text-xs text-muted-foreground",
                         {format_date(&txn.date, &PREFERENCES().date_format())}
                     }
-                }
-                span { class: "font-normal text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded",
-                    style: "color: {account_color}; background-color: {bg}",
-                    {icon_display(&account_icon)}
-                    {account_name}
-                }
-                if let Some(category) = category.clone().filter(|category| !category.is_system) {
-                    {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
-                     let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
-                     rsx! {
-                        span { class: "font-normal text-xs inline-flex items-center gap-1 rounded-full px-2 py-0.5",
-                            style: "color: {color}; background-color: {color}15;",
-                            {icon_display(&icon)}
-                            {category.name.clone()}
+                    div { class: "mt-1 flex flex-wrap items-center gap-1.5",
+                        span { class: "font-normal text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded",
+                            style: "color: {account_color}; background-color: {bg}",
+                            {icon_display(&account_icon)}
+                            {account_name}
                         }
-                     }}
+                        if let Some(category) = category.clone().filter(|category| !category.is_system) {
+                            {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
+                             let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
+                             rsx! {
+                                span { class: "font-normal text-xs inline-flex items-center gap-1 rounded-full px-2 py-0.5",
+                                    style: "color: {color}; background-color: {color}15;",
+                                    {icon_display(&icon)}
+                                    {category.name.clone()}
+                                }
+                             }}
+                        }
+                    }
                 }
                 p { class: "font-medium text-sm sm:text-base shrink-0",
                     ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
@@ -141,28 +143,28 @@ pub fn TransactionGridCard(
                 div { class: "min-w-0 flex-1",
                     p { class: "truncate font-medium", {txn.name.clone()} }
                     p { class: "text-xs text-muted-foreground", {format_date(&txn.date, &PREFERENCES().date_format())} }
-                }
-                span { class: "inline-flex max-w-[45%] items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px]",
-                    style: "color: {account_color}; background-color: {bg}",
-                    {icon_display(&account_icon)}
-                    span { class: "truncate", {account_name} }
+                    div { class: "mt-1 flex flex-wrap items-center gap-1.5",
+                        span { class: "inline-flex items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px]",
+                            style: "color: {account_color}; background-color: {bg}",
+                            {icon_display(&account_icon)}
+                            span { class: "truncate", {account_name} }
+                        }
+                        if let Some(category) = category.clone().filter(|category| !category.is_system) {
+                            {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
+                             let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
+                             rsx! {
+                                span { class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
+                                    style: "color: {color}; background-color: {color}15;",
+                                    {icon_display(&icon)}
+                                    {category.name.clone()}
+                                }
+                             }}
+                        }
+                    }
                 }
             }
-            div { class: "flex flex-wrap items-center justify-between gap-2",
-                p { class: "font-semibold",
-                    ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
-                }
-                if let Some(category) = category.filter(|category| !category.is_system) {
-                    {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
-                     let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
-                     rsx! {
-                        span { class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
-                            style: "color: {color}; background-color: {color}15;",
-                            {icon_display(&icon)}
-                            {category.name.clone()}
-                        }
-                     }}
-                }
+            p { class: "font-semibold",
+                ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
             }
             div { class: "flex items-center justify-end gap-1 border-t border-border/40 pt-2",
                 Tooltip { content: txn.notes.clone().unwrap_or_default(),

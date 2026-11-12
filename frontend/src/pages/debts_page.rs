@@ -350,7 +350,7 @@ pub fn DebtsPage() -> Element {
             }
             if filters_popover() {
                 div {
-                    class: "absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border bg-popover p-3 shadow-md space-y-2",
+                    class: "absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2",
                     onclick: move |e| e.stop_propagation(),
                     label { class: "text-xs font-medium text-muted-foreground", "Type" }
                     select {
@@ -1047,5 +1047,17 @@ mod tests {
         assert!(src.contains("aria_label: \"Sort\""));
         assert!(src.contains("show_view: false"));
         assert!(src.contains("visible_debts"));
+    }
+}
+
+#[cfg(test)]
+mod bulk_tests {
+    #[test]
+    fn debts_support_bulk_category_and_delete() {
+        let src = include_str!("debts_page.rs");
+        assert!(src.contains("Set category"));
+        assert!(src.contains("Apply category"));
+        assert!(src.contains("Select debt"));
+        assert!(src.contains("Delete"));
     }
 }

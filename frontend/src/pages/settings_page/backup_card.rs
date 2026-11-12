@@ -5,17 +5,7 @@ use dioxus::prelude::*;
 use serde_json::Value;
 
 fn download_json(json: &str) {
-    let escaped = json
-        .replace('\\', "\\\\")
-        .replace('`', "\\`")
-        .replace("${", "\\${");
-    let _ = dioxus::document::eval(&format!(
-        "const blob = new Blob([`{escaped}`], {{type: 'application/json'}});\
-         const url = URL.createObjectURL(blob);\
-         const a = document.createElement('a');\
-         a.href = url; a.download = 'recurrency-backup.json'; a.click();\
-         setTimeout(() => URL.revokeObjectURL(url), 1000);"
-    ));
+    crate::utils::download::save_text("recurrency-backup.json", "application/json", json);
 }
 
 #[component]
@@ -82,7 +72,7 @@ pub fn BackupCard() -> Element {
                 p { class: "text-sm text-muted-foreground", "Download your accounts, subscriptions, transactions, debts and payment history as JSON." }
             }
             div { class: "p-6 space-y-4",
-                div { class: "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/50 p-4",
+                div { class: "flex flex-col items-center gap-3 rounded-lg border border-border/50 p-4 text-center",
                     div {
                         p { class: "text-sm font-medium", "Download a backup" }
                         p { class: "text-xs text-muted-foreground", "Keep it somewhere safe; it contains your financial data." }

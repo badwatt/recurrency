@@ -261,15 +261,11 @@ pub fn ReportsPage() -> Element {
                 &ACCOUNTS().accounts,
                 &CATEGORIES().categories,
             );
-            let escaped = csv
-                .replace('\\', "\\\\")
-                .replace('`', "\\`")
-                .replace("${", "\\${");
-            let _ = dioxus::document::eval(&format!(
-                "const blob = new Blob([`{escaped}`], {{type: 'text/csv'}}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'recurrency-report-{}-{}.csv'; a.click(); URL.revokeObjectURL(url);",
-                selected_year(),
-                selected_month(),
-            ));
+            crate::utils::download::save_text(
+                &format!("recurrency-report-{}-{}.csv", selected_year(), selected_month()),
+                "text/csv",
+                &csv,
+            );
         }
         export_open.set(false);
     };
@@ -278,10 +274,7 @@ pub fn ReportsPage() -> Element {
     let export_pdf = move |_| {
         if let Some(report) = report() {
             let html = build_export_html(&report, &pdf_currency);
-            let json = serde_json::to_string(&html).unwrap_or_else(|_| "''".into());
-            let _ = dioxus::document::eval(&format!(
-                "const w = window.open('', '_blank'); if (w) {{ w.document.write({json}); w.document.close(); setTimeout(() => w.print(), 400); }}"
-            ));
+            crate::utils::download::print_html(&html);
         }
         export_open.set(false);
     };
@@ -310,7 +303,7 @@ pub fn ReportsPage() -> Element {
                             }
                         }
                     }
-                    div { class: "relative",
+                    div { class: "relative shrink-0 self-start sm:self-auto",
                         button {
                             r#type: "button",
                             aria_expanded: if export_open() { "true" } else { "false" },
@@ -321,7 +314,7 @@ pub fn ReportsPage() -> Element {
                             ChevronDown { size: 14 }
                         }
                         if export_open() {
-                            div { class: "absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-md border border-border bg-popover shadow-md",
+                            div { class: "absolute left-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-md border border-border bg-popover shadow-md sm:left-auto sm:right-0",
                                 button {
                                     r#type: "button",
                                     class: "flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent",
@@ -1384,5 +1377,17 @@ mod export_tests {
         assert!(html.contains("Streaming"));
         assert!(html.contains("Recurrency"));
         assert!(html.contains("25.00"));
+    }
+}
+
+#[cfg(test)]
+mod export_menu_tests {
+    #[test]
+    fn export_menu_offers_csv_and_pdf_with_mobile_download_bridge() {
+        let src = include_str!("reports_page.rs");
+        assert!(src.contains("CSV"));
+        assert!(src.contains("PDF"));
+        assert!(src.contains("save_text"));
+        assert!(src.contains("print_html"));
     }
 }

@@ -47,7 +47,7 @@ pub fn FilterSortBar(
             }
             if filters_popover() {
                 div {
-                    class: "absolute right-0 top-full z-50 mt-2 w-72 rounded-lg border bg-popover p-3 shadow-md space-y-3",
+                    class: "absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-3",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "flex items-center justify-between",
                         label { class: "text-sm font-medium", "Filters" }

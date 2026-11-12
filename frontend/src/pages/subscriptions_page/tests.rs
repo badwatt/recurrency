@@ -1855,3 +1855,10 @@ fn selection_checkboxes_only_appear_in_selection_mode() {
     assert!(page.contains("selection_mode.set(true)"));
     assert!(page.contains("selection_mode.set(false)"));
 }
+
+#[test]
+fn subscriptions_support_bulk_category() {
+    let src = include_str!("../subscriptions_page.rs");
+    assert!(src.contains("Set category"));
+    assert!(src.contains("Apply category"));
+}

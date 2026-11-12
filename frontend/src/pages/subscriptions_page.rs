@@ -65,6 +65,7 @@ pub fn SubscriptionsPage() -> Element {
     let mut selection_mode: Signal<bool> = use_signal(|| false);
     let mut bulk_delete_ids: Signal<Vec<Uuid>> = use_signal(Vec::new);
     let mut bulk_busy: Signal<bool> = use_signal(|| false);
+    let mut bulk_category: Signal<String> = use_signal(String::new);
     let mut delete_confirm_id: Signal<Option<Uuid>> = use_signal(|| None);
     let mut notes_dialog_open: Signal<bool> = use_signal(|| false);
     let mut notes_dialog_sub_id: Signal<Option<Uuid>> = use_signal(|| None);
@@ -470,7 +471,7 @@ pub fn SubscriptionsPage() -> Element {
             }
             if filters_popover() {
                 div {
-                    class: "absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border bg-popover p-3 shadow-md space-y-3",
+                    class: "absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-3",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "flex items-center justify-between",
                         h4 { class: "text-sm font-medium", "Filters" }
@@ -579,7 +580,7 @@ pub fn SubscriptionsPage() -> Element {
             }
             if sort_popover() {
                 div {
-                    class: "absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border bg-popover p-3 shadow-md space-y-2",
+                    class: "absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border bg-popover p-3 shadow-md space-y-2",
                     onclick: move |e| e.stop_propagation(),
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
                     select {
@@ -680,6 +681,40 @@ pub fn SubscriptionsPage() -> Element {
                         class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
                         onclick: toggle_all_selected,
                         if all_filtered_selected { "Clear selection" } else { "Select all" }
+                    }
+                    select {
+                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                        value: bulk_category(),
+                        onchange: move |event| bulk_category.set(event.value()),
+                        option { value: "", "Set category…" }
+                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
+                            option { value: category.id.to_string(), {category.name.clone()} }
+                        }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                        disabled: bulk_busy() || selected_count == 0 || bulk_category().is_empty(),
+                        onclick: move |_| {
+                            if bulk_busy() || bulk_category().is_empty() { return; }
+                            let ids: Vec<Uuid> = selected().iter().copied().collect();
+                            let Some(category_id) = Uuid::parse_str(&bulk_category()).ok() else { return; };
+                            bulk_busy.set(true);
+                            spawn(async move {
+                                for id in ids {
+                                    let req = UpdateSubscriptionRequest { category_id: Some(category_id), ..Default::default() };
+                                    let _ = Storage::update_subscription(&id, &req).await;
+                                }
+                                match Storage::list_subscriptions().await {
+                                    Ok(data) => SUBSCRIPTIONS.write().set_data(data),
+                                    Err(error) => SUBSCRIPTIONS.write().set_error(error.to_string()),
+                                }
+                                selected.write().clear();
+                                bulk_category.set(String::new());
+                                bulk_busy.set(false);
+                            });
+                        },
+                        "Apply category"
                     }
                     button {
                         r#type: "button",

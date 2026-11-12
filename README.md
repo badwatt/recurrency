@@ -64,7 +64,7 @@ The named volume persists PostgreSQL across container recreation. Keep the same
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.37.0`.
+> `ghcr.io/badwatt/recurrency:0.38.0`.
 
 ### From source
 
@@ -355,7 +355,7 @@ cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
 Current suite: **1203 backend unit tests**, **47 backend integration tests**,
-**1690 frontend tests** and **8 tooling tests**.
+**1696 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 
