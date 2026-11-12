@@ -1,5 +1,6 @@
+use chrono::Datelike;
 use dioxus::prelude::*;
-use lucide_dioxus::{CreditCard, FileText, Pause, Pencil, Play, Trash2, X, ArrowUpDown};
+use lucide_dioxus::{ArrowUpDown, Copy, CreditCard, FileText, Pause, Pencil, Play, Trash2, X};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -15,7 +16,7 @@ use crate::components::subscription_form::SubscriptionForm;
 #[allow(unused_imports)]
 use crate::components::entry_form::{ValidationResult, validate_subscription_form};
 use crate::models::subscription::{
-    CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
+    CreateSubscriptionRequest, Recurrence, Subscription, UpdateSubscriptionRequest,
 };
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -23,7 +24,7 @@ use crate::state::categories::CATEGORIES;
 use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
-use crate::utils::constants::{CURRENCIES, FREQUENCIES};
+use crate::utils::constants::{CURRENCIES, RECURRENCE_UNITS};
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 
@@ -52,6 +53,8 @@ pub fn SubscriptionsPage() -> Element {
     let mut dialog_open: Signal<bool> = use_signal(|| false);
     let mut editing_id: Signal<Option<Uuid>> = use_signal(|| None);
     let mut form: Signal<DialogForm> = use_signal(DialogForm::default);
+    let mut recurrence: Signal<Recurrence> = use_signal(Recurrence::default);
+    let mut form_active: Signal<bool> = use_signal(|| true);
     let mut filters_popover: Signal<bool> = use_signal(|| false);
     let mut delete_confirm_id: Signal<Option<Uuid>> = use_signal(|| None);
     let mut notes_dialog_open: Signal<bool> = use_signal(|| false);
@@ -195,6 +198,8 @@ pub fn SubscriptionsPage() -> Element {
             notes: sub.notes.unwrap_or_default(),
             logo_url: sub.logo_url.unwrap_or_default(),
         });
+        recurrence.set(sub.recurrence.clone());
+        form_active.set(sub.is_active);
         name_error.set(String::new());
         amount_error.set(String::new());
         currency_error.set(String::new());
@@ -251,6 +256,11 @@ pub fn SubscriptionsPage() -> Element {
             notes: String::new(),
             logo_url: String::new(),
         });
+        recurrence.set(Recurrence {
+            days: vec![chrono::Utc::now().date_naive().day() as u8],
+            ..Default::default()
+        });
+        form_active.set(true);
         name_error.set(String::new());
         amount_error.set(String::new());
         currency_error.set(String::new());
@@ -267,6 +277,36 @@ pub fn SubscriptionsPage() -> Element {
             *CREATE_INTENT.write() = None;
             handle_create.call(());
         }
+    });
+
+
+    let handle_duplicate: Callback<Subscription> = use_callback(move |sub: Subscription| {
+        editing_id.set(None);
+        form_account_id.set(sub.account_id.to_string());
+        form.set(DialogForm {
+            name: format!("{} (copia)", sub.name),
+            amount: sub.amount.to_string(),
+            currency: sub.currency,
+            frequency: sub.frequency,
+            schedule_day: sub.schedule_day,
+            schedule_month: sub.schedule_month,
+            start_date: sub.start_date.to_string(),
+            end_date: sub.end_date.map(|d| d.to_string()).unwrap_or_default(),
+            category_id: sub.category_id.to_string(),
+            notes: sub.notes.unwrap_or_default(),
+            logo_url: sub.logo_url.unwrap_or_default(),
+        });
+        recurrence.set(sub.recurrence.clone());
+        form_active.set(sub.is_active);
+        name_error.set(String::new());
+        amount_error.set(String::new());
+        currency_error.set(String::new());
+        frequency_error.set(String::new());
+        start_date_error.set(String::new());
+        end_date_error.set(String::new());
+        account_error.set(String::new());
+        category_error.set(String::new());
+        dialog_open.set(true);
     });
 
     let handle_notes_click: Callback<Subscription> = use_callback(move |sub: Subscription| {
@@ -308,6 +348,11 @@ pub fn SubscriptionsPage() -> Element {
     let sort_val = sort();
     let state = SUBSCRIPTIONS();
     let filtered = apply_filters_and_sort(&state.subscriptions, &filters_val, &sort_val);
+    let today = chrono::Utc::now().date_naive();
+    let (active_subs, inactive_subs, finalized_subs) = subscription_sections(&filtered, today);
+    let has_active = !active_subs.is_empty();
+    let has_inactive = !inactive_subs.is_empty();
+    let has_finalized = !finalized_subs.is_empty();
 
     let active_filter_count = count_active_filters(&filters_val);
     let sort_arrow = if sort_val.direction == "asc" {
@@ -454,7 +499,7 @@ pub fn SubscriptionsPage() -> Element {
 
                                         // Frequency
                                         div { class: "space-y-1.5",
-                                            label { class: "text-xs font-medium text-muted-foreground", "Frequency" }
+                                            label { class: "text-xs font-medium text-muted-foreground", "Repeats every" }
                                             select {
                                                 class: "w-full h-8 rounded-md border bg-background px-2 text-sm",
                                                 value: filters_val.frequency.as_deref().unwrap_or("all"),
@@ -462,8 +507,8 @@ pub fn SubscriptionsPage() -> Element {
                                                     let v = e.value();
                                                     filters.write().frequency = if v == "all" { None } else { Some(v) };
                                                 },
-                                                option { value: "all", "All frequencies" }
-                                                for (val, label) in FREQUENCIES {
+                                                option { value: "all", "All units" }
+                                                for (val, label) in RECURRENCE_UNITS {
                                                     option { value: val.to_string(), {label.to_string()} }
                                                 }
                                             }
@@ -561,31 +606,50 @@ pub fn SubscriptionsPage() -> Element {
                             "{filtered_count} subscription{plural}"
                         }
 
-                        // ── Grid view ──
-                        {if view_mode == "grid" {
-                            rsx! {
-                                div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-                                    for (i, sub) in filtered.iter().enumerate() {
-                                        {render_grid_card(sub, i, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
-                                    }
-                                }
-                            }
-                        } else {
-                            rsx! {
-                                div { class: "space-y-3",
-                                    for (_i, sub) in filtered.iter().enumerate() {
-                                        {render_list_card(sub, handle_edit, handle_delete, handle_toggle_active, handle_notes_click)}
-                                    }
-                                }
-                            }
-                        }}
+                        // ── Active / Inactive / Finalized sections ──
+                        if has_active {
+                            {render_subscription_section(
+                                "Active".to_string(),
+                                &active_subs,
+                                view_mode.clone(),
+                                handle_edit,
+                                handle_delete,
+                                handle_toggle_active,
+                                handle_notes_click,
+                                handle_duplicate,
+                            )}
+                        }
+                        if has_inactive {
+                            {render_subscription_section(
+                                "Inactive".to_string(),
+                                &inactive_subs,
+                                view_mode.clone(),
+                                handle_edit,
+                                handle_delete,
+                                handle_toggle_active,
+                                handle_notes_click,
+                                handle_duplicate,
+                            )}
+                        }
+                        if has_finalized {
+                            {render_subscription_section(
+                                "Finalized".to_string(),
+                                &finalized_subs,
+                                view_mode.clone(),
+                                handle_edit,
+                                handle_delete,
+                                handle_toggle_active,
+                                handle_notes_click,
+                                handle_duplicate,
+                            )}
+                        }
                     }
                 }
             }}
 
             // ── Create/Edit Dialog ──
             if dialog_open() {
-                {render_dialog(form, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, end_date_error, account_error, category_error, form_account_id, None)}
+                {render_dialog(form, recurrence, form_active, editing_id, dialog_open, name_error, amount_error, currency_error, frequency_error, start_date_error, end_date_error, account_error, category_error, form_account_id, None)}
             }
 
             // ── Delete confirmation ──
@@ -605,6 +669,40 @@ pub fn SubscriptionsPage() -> Element {
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
+fn render_subscription_section(
+    title: String,
+    subs: &[Subscription],
+    view_mode: String,
+    on_edit: Callback<Subscription>,
+    on_delete: Callback<Uuid>,
+    on_toggle: Callback<Subscription>,
+    on_notes: Callback<Subscription>,
+    on_duplicate: Callback<Subscription>,
+) -> Element {
+    rsx! {
+        section { class: "space-y-3",
+            div { class: "flex items-center gap-2 pt-2",
+                h2 { class: "text-sm font-semibold uppercase tracking-wider text-muted-foreground", {title} }
+                span { class: "rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground", {subs.len().to_string()} }
+            }
+            if view_mode == "grid" {
+                div { class: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                    for (i, sub) in subs.iter().enumerate() {
+                        {render_grid_card(sub, i, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                    }
+                }
+            } else {
+                div { class: "space-y-3",
+                    for (_i, sub) in subs.iter().enumerate() {
+                        {render_list_card(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ── Unit tests ────────────────────────────────────────────────────────
 
 #[cfg(test)]

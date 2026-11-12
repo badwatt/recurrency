@@ -4,7 +4,9 @@ use chrono::{Datelike, NaiveDate};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
+#[cfg(test)]
 use crate::shared::date_utils::days_in_month;
+use crate::subscriptions::models::Recurrence;
 
 #[derive(Debug, Clone)]
 pub struct SummaryAccount {
@@ -19,6 +21,7 @@ pub struct SummarySubscription {
     pub frequency: String,
     pub schedule_day: Option<i16>,
     pub schedule_month: Option<i16>,
+    pub recurrence: Recurrence,
     pub start_date: NaiveDate,
     pub end_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
@@ -50,6 +53,7 @@ pub fn monthly_equivalent(amount: Decimal, frequency: &str) -> Decimal {
     }
 }
 
+#[cfg(test)]
 fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
     let total = date.year() * 12 + date.month() as i32 - 1 + months;
     let year = total.div_euclid(12);
@@ -58,6 +62,7 @@ fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
     NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
 }
 
+#[cfg(test)]
 fn advance_scheduled(
     date: NaiveDate,
     frequency: &str,
@@ -80,6 +85,7 @@ fn advance_scheduled(
     }
 }
 
+#[cfg(test)]
 fn billing_dates_in_month(
     next_billing_date: Option<NaiveDate>,
     frequency: &str,
@@ -132,18 +138,16 @@ pub fn build_account_summaries(
         })
         .collect();
 
-    let month_start = today.with_day(1).unwrap_or(today);
-    let month_end = today
-        .with_day(days_in_month(today.year(), today.month()))
-        .unwrap_or(today);
     for subscription in subscriptions.iter().filter(|item| item.is_active) {
-        let first_billing = crate::reports::service::first_billing_date(
+        let occurrences = crate::subscriptions::recurrence::occurrences_in_month(
             subscription.start_date,
-            &subscription.frequency,
-            subscription.schedule_day,
-            subscription.schedule_month,
+            &subscription.recurrence,
+            subscription.end_date,
+            today.year(),
+            today.month(),
+            subscription.amount,
         );
-        if first_billing > month_end || subscription.end_date.is_some_and(|end| end <= month_start) {
+        if occurrences.is_empty() {
             continue;
         }
         let entry = plan.entry(subscription.account_id).or_insert_with(|| AccountSummary {
@@ -151,19 +155,10 @@ pub fn build_account_summaries(
             budget: Decimal::ZERO,
             pending: Decimal::ZERO,
         });
-        let monthly = monthly_equivalent(subscription.amount, &subscription.frequency);
-        entry.budget += monthly;
-        for date in billing_dates_in_month(
-            subscription.next_billing_date,
-            &subscription.frequency,
-            subscription.schedule_day,
-            subscription.schedule_month,
-            subscription.end_date,
-            today.year(),
-            today.month(),
-        ) {
+        for (date, amount) in occurrences {
+            entry.budget += amount;
             if date >= today {
-                entry.pending += subscription.amount;
+                entry.pending += amount;
             }
         }
     }
@@ -264,6 +259,12 @@ mod tests {
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: crate::subscriptions::recurrence::recurrence_from_legacy(
+                    "monthly",
+                    NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    Some(15),
+                    None,
+                ),
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()),
@@ -275,6 +276,12 @@ mod tests {
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: crate::subscriptions::recurrence::recurrence_from_legacy(
+                    "monthly",
+                    NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
+                    Some(5),
+                    None,
+                ),
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
                 end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 5).unwrap()),
@@ -312,6 +319,12 @@ mod tests {
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: crate::subscriptions::recurrence::recurrence_from_legacy(
+                    "monthly",
+                    NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    Some(15),
+                    None,
+                ),
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()),
@@ -339,6 +352,12 @@ mod tests {
                 frequency: "monthly".to_string(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: crate::subscriptions::recurrence::recurrence_from_legacy(
+                    "monthly",
+                    NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    Some(15),
+                    None,
+                ),
                 start_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 end_date: None,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()),

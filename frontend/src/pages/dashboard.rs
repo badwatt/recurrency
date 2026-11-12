@@ -278,18 +278,16 @@ pub fn build_account_budgets(
         })
         .collect();
 
-    let month_start = today.with_day(1).unwrap_or(today);
-    let month_end = today
-        .with_day(days_in_month(today.year(), today.month()))
-        .unwrap_or(today);
     for sub in subscriptions.iter().filter(|s| s.is_active) {
-        let first_billing = first_scheduled_on_or_after(
+        let occurrences = crate::utils::recurrence::occurrences_in_month(
             sub.start_date,
-            &sub.frequency,
-            sub.schedule_day,
-            sub.schedule_month,
+            &sub.recurrence,
+            sub.end_date,
+            today.year(),
+            today.month(),
+            sub.amount,
         );
-        if first_billing > month_end || sub.end_date.is_some_and(|end| end <= month_start) {
+        if occurrences.is_empty() {
             continue;
         }
         let entry = plan.entry(sub.account_id).or_insert_with(|| AccountBudget {
@@ -306,22 +304,12 @@ pub fn build_account_budgets(
             pending_count: 0,
         });
 
-        let monthly = monthly_equivalent(sub.amount, &sub.frequency);
-        entry.subscriptions += monthly;
-        entry.budget += monthly;
         entry.subscription_count += 1;
-
-        for date in billing_dates_in_month_scheduled(
-            sub.next_billing_date,
-            &sub.frequency,
-            sub.schedule_day,
-            sub.schedule_month,
-            sub.end_date,
-            today.year(),
-            today.month(),
-        ) {
+        for (date, amount) in occurrences {
+            entry.subscriptions += amount;
+            entry.budget += amount;
             if date >= today {
-                entry.pending += sub.amount;
+                entry.pending += amount;
                 entry.pending_count += 1;
             }
         }
@@ -882,6 +870,7 @@ pub fn Dashboard() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::subscription::Recurrence;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
@@ -921,6 +910,7 @@ mod tests {
             frequency: frequency.into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::from_legacy(frequency, start_date, None, None),
             start_date,
             end_date: None,
             next_billing_date,
@@ -1091,7 +1081,7 @@ mod tests {
                 main_id,
                 dec!(10),
                 "monthly",
-                date(2024, 1, 1),
+                date(2024, 6, 20),
                 Some(date(2024, 6, 20)),
                 true,
             ),
@@ -1099,7 +1089,7 @@ mod tests {
                 savings_id,
                 dec!(120),
                 "yearly",
-                date(2024, 1, 1),
+                date(2024, 6, 10),
                 Some(date(2024, 6, 10)),
                 true,
             ),
@@ -1107,7 +1097,7 @@ mod tests {
                 main_id,
                 dec!(99),
                 "monthly",
-                date(2024, 1, 1),
+                date(2024, 6, 20),
                 Some(date(2024, 6, 20)),
                 false,
             ),
@@ -1133,9 +1123,9 @@ mod tests {
         assert_eq!(plan_with_today[0].budget, dec!(4));
         assert_eq!(plan_with_today[0].pending, dec!(0));
 
-        assert_eq!(savings_plan.subscriptions, dec!(10));
+        assert_eq!(savings_plan.subscriptions, dec!(120));
         assert_eq!(savings_plan.pending, dec!(0));
-        assert_eq!(savings_plan.budget, dec!(10));
+        assert_eq!(savings_plan.budget, dec!(120));
     }
 
     #[test]
@@ -1145,7 +1135,7 @@ mod tests {
             Uuid::nil(),
             dec!(10),
             "monthly",
-            date(2024, 1, 1),
+            date(2024, 6, 20),
             Some(date(2024, 6, 20)),
             true,
         );

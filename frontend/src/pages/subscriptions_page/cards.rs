@@ -9,10 +9,19 @@ pub fn render_grid_card(
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
     on_notes: Callback<Subscription>,
+    on_duplicate: Callback<Subscription>,
 ) -> Element {
-    let opacity = subscription_card_opacity(sub.is_active);
+    let today = chrono::Utc::now().date_naive();
+    let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
+    let opacity = subscription_card_opacity(sub.is_active, finalized);
     let formatted = format_currency(sub.amount, &sub.currency);
-    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &PREFERENCES().date_format());
+    let date_format = PREFERENCES().date_format();
+    let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
+    if finalized {
+        next_text = "No upcoming charges".to_string();
+    }
+    let end_text = subscription_end_text(sub.end_date, today, &date_format);
+    let category = CATEGORIES().get_by_id(&sub.category_id).cloned();
 
     let (color, account_icon, account_name) = {
         let accounts = ACCOUNTS();
@@ -34,13 +43,33 @@ pub fn render_grid_card(
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
     let sub_for_notes = sub.clone();
+    let sub_for_duplicate = sub.clone();
     let has_notes = subscription_has_notes(&sub.notes);
+    let status_label = if !is_active {
+        "Inactive"
+    } else if finalized {
+        "Finalized"
+    } else {
+        "Active"
+    };
+    let status_class = if is_active && !finalized {
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+    } else if finalized {
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20"
+    } else {
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground border border-border/40"
+    };
 
     let stagger_delay = index.saturating_mul(60);
+    let card_border = if finalized {
+        "border-amber-500/25"
+    } else {
+        "border-border/40"
+    };
 
     rsx! {
         div {
-            class: "group relative overflow-hidden rounded-xl border border-border/40 bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
+            class: "group relative overflow-hidden rounded-xl border {card_border} bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
             style: "animation: fadeSlideIn 0.5s ease-out both; animation-delay: {stagger_delay}ms;",
 
             // Account color top accent strip
@@ -73,30 +102,52 @@ pub fn render_grid_card(
                     }
 
                     // Status badge — square rounded-md
-                    span {
-                        class: if is_active { "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" } else { "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground border border-border/40" },
-                        if is_active { "Active" } else { "Inactive" }
-                    }
+                    span { class: status_class, {status_label} }
                 }
 
-                // Name + next billing
+                // Name + next billing + optional end date
                 div { class: "min-w-0",
                     p { class: "font-semibold truncate text-sm leading-tight", {name.to_string()} }
                     p { class: "text-xs text-muted-foreground mt-1", {next_text.to_string()} }
+                    if let Some(end) = end_text {
+                        p { class: "text-[11px] text-muted-foreground/80 mt-0.5", {end} }
+                    }
                 }
 
                 // Amount
                 p { class: "font-extrabold text-2xl tracking-tight", {formatted.to_string()} }
 
-                // Account badge
-                span {
-                    class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
-                    style: "color: {color}; background-color: {color}15; border: 1px solid {color}25;",
-                    {icon_display(&account_icon)}
-                    {account_name.to_string()}                }
+                // Account and category badges
+                div { class: "flex flex-wrap items-center gap-1.5",
+                    span {
+                        class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
+                        style: "color: {color}; background-color: {color}15; border: 1px solid {color}25;",
+                        {icon_display(&account_icon)}
+                        {account_name.to_string()}
+                    }
+                    if let Some(cat) = category.filter(|c| !c.is_system) {
+                        {let cat_color = cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
+                         let cat_icon = cat.icon.clone().unwrap_or_else(|| "Tag".to_string());
+                         rsx! {
+                            span {
+                                class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
+                                style: "color: {cat_color}; background-color: {cat_color}15; border: 1px solid {cat_color}25;",
+                                {icon_display(&cat_icon)}
+                                {cat.name.to_string()}
+                            }
+                         }}
+                    }
+                }
 
                 // Action buttons
                 div { class: "flex items-center gap-0.5 mt-auto pt-1",
+                    button {
+                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
+                        title: "Duplicate",
+                        aria_label: "Duplicate subscription",
+                        onclick: move |_| on_duplicate.call(sub_for_duplicate.clone()),
+                        Copy { size: 14 }
+                    }
                     Tooltip { content: sub.notes.clone().unwrap_or_default(),
                         button {
                             class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200" } else { "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground opacity-40 transition-colors duration-200" },
@@ -133,10 +184,19 @@ pub fn render_list_card(
     on_delete: Callback<Uuid>,
     on_toggle: Callback<Subscription>,
     on_notes: Callback<Subscription>,
+    on_duplicate: Callback<Subscription>,
 ) -> Element {
-    let opacity = subscription_card_opacity(sub.is_active);
+    let today = chrono::Utc::now().date_naive();
+    let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
+    let opacity = subscription_card_opacity(sub.is_active, finalized);
     let formatted = format_currency(sub.amount, &sub.currency);
-    let next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &PREFERENCES().date_format());
+    let date_format = PREFERENCES().date_format();
+    let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
+    if finalized {
+        next_text = "No upcoming charges".to_string();
+    }
+    let end_text = subscription_end_text(sub.end_date, today, &date_format);
+    let category = CATEGORIES().get_by_id(&sub.category_id).cloned();
 
     let (color, account_icon, account_name) = {
         let accounts = ACCOUNTS();
@@ -158,10 +218,30 @@ pub fn render_list_card(
     let sub_for_edit = sub.clone();
     let id_for_delete = sub.id;
     let sub_for_notes = sub.clone();
+    let sub_for_duplicate = sub.clone();
     let has_notes = subscription_has_notes(&sub.notes);
+    let status_label = if !is_active {
+        "Inactive"
+    } else if finalized {
+        "Finalized"
+    } else {
+        "Active"
+    };
+    let card_border = if finalized {
+        "border-amber-500/25"
+    } else {
+        ""
+    };
+    let status_class = if is_active && !finalized {
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-500"
+    } else if finalized {
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-500"
+    } else {
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground"
+    };
 
     rsx! {
-        div { class: "rounded-lg border bg-card {opacity} min-w-0",
+        div { class: "rounded-lg border {card_border} bg-card {opacity} min-w-0",
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden",
@@ -172,19 +252,47 @@ pub fn render_list_card(
                     }
 
                     div { class: "flex-1 min-w-0",
-                        p { class: "font-medium truncate text-sm sm:text-base", {name.to_string()} }
+                        div { class: "flex items-center gap-2 min-w-0",
+                            p { class: "font-medium truncate text-sm sm:text-base", {name.to_string()} }
+                            span { class: status_class, {status_label} }
+                        }
                         p { class: "text-xs text-muted-foreground truncate", {next_text.to_string()} }
+                        if let Some(end) = end_text {
+                            p { class: "text-[11px] text-muted-foreground/80 truncate", {end} }
+                        }
+                        div { class: "mt-1 flex flex-wrap items-center gap-1.5",
+                            span {
+                                class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-normal",
+                                style: "color: {color}; background-color: {color}15;",
+                                {icon_display(&account_icon)}
+                                {account_name.to_string()}
+                            }
+                            if let Some(cat) = category.filter(|c| !c.is_system) {
+                                {let cat_color = cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
+                                 let cat_icon = cat.icon.clone().unwrap_or_else(|| "Tag".to_string());
+                                 rsx! {
+                                    span {
+                                        class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-normal",
+                                        style: "color: {cat_color}; background-color: {cat_color}15;",
+                                        {icon_display(&cat_icon)}
+                                        {cat.name.to_string()}
+                                    }
+                                 }}
+                            }
+                        }
                     }
 
                     div { class: "flex items-center gap-2 sm:gap-4 shrink-0",
-                        span {
-                            class: "hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-normal",
-                            style: "color: {color}; background-color: {color}15;",
-                            {icon_display(&account_icon)}
-                            {account_name.to_string()}                        }
                         p { class: "font-medium text-sm sm:text-base", {formatted.to_string()} }
 
                         div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
+                            button {
+                                class: "h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md hover:bg-muted",
+                                title: "Duplicate",
+                                aria_label: "Duplicate subscription",
+                                onclick: move |_| on_duplicate.call(sub_for_duplicate.clone()),
+                                Copy { size: 14 }
+                            }
                             Tooltip { content: sub.notes.clone().unwrap_or_default(),
                                 button {
                                     class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },

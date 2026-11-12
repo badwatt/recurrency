@@ -1,5 +1,5 @@
 use crate::components::entry_form::{EntryForm as EditForm, EntityType};
-use crate::models::subscription::CalendarItem;
+use crate::models::subscription::{CalendarItem, Recurrence};
 use crate::pages::subscriptions_page::dialog::render_dialog;
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -58,6 +58,27 @@ pub fn EditSubscriptionDialog(
     };
 
     let form = use_signal(move || initial);
+    let active = use_signal(|| true);
+    let recurrence = use_signal(|| {
+        editing_id()
+            .and_then(|id| {
+                SUBSCRIPTIONS()
+                    .subscriptions
+                    .iter()
+                    .find(|subscription| subscription.id == id)
+                    .map(|subscription| subscription.recurrence.clone())
+            })
+            .unwrap_or_else(|| {
+                let days = prefill_date()
+                    .and_then(|value| value.parse::<chrono::NaiveDate>().ok())
+                    .map(|date| vec![chrono::Datelike::day(&date) as u8])
+                    .unwrap_or_else(|| vec![1]);
+                Recurrence {
+                    days,
+                    ..Default::default()
+                }
+            })
+    });
     let form_account_id = use_signal(|| {
         editing_id()
             .and_then(|id| {
@@ -90,6 +111,8 @@ pub fn EditSubscriptionDialog(
 
     render_dialog(
         form,
+        recurrence,
+        active,
         editing_id,
         open,
         name_error,

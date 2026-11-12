@@ -97,6 +97,7 @@ pub static SUBSCRIPTIONS: GlobalSignal<SubscriptionsState> =
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::subscription::Recurrence;
     use chrono::NaiveDate;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
@@ -120,6 +121,7 @@ mod tests {
             frequency: frequency.into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: next_billing,

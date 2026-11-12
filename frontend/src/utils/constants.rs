@@ -18,6 +18,15 @@ pub const FREQUENCIES: &[(&str, &str)] = &[
     ("yearly", "Yearly"),
 ];
 
+
+/// Recurrence units for filters and summaries.
+pub const RECURRENCE_UNITS: &[(&str, &str)] = &[
+    ("day", "Days"),
+    ("week", "Weeks"),
+    ("month", "Months"),
+    ("year", "Years"),
+];
+
 /// Default currency.
 pub const DEFAULT_CURRENCY: &str = "EUR";
 

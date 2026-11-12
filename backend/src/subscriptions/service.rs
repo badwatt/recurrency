@@ -2,6 +2,7 @@ use chrono::{Datelike, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 use sqlx::PgPool;
+use sqlx::types::Json;
 use uuid::Uuid;
 
 use crate::categories::service::CategoryService;
@@ -9,6 +10,10 @@ use crate::shared::date_utils::days_in_month;
 use crate::shared::error::{AppError, AppResult};
 use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
+};
+use crate::subscriptions::recurrence::{
+    legacy_from_recurrence, next_occurrence_on_or_after, occurrences_in_month,
+    recurrence_from_legacy, validate_recurrence,
 };
 
 pub struct SubscriptionService;
@@ -101,20 +106,24 @@ impl SubscriptionService {
         user_id: Uuid,
         req: CreateSubscriptionRequest,
     ) -> AppResult<Subscription> {
-        let (schedule_day, schedule_month) = normalize_schedule(
-            req.start_date,
-            &req.frequency,
-            req.schedule_day,
-            req.schedule_month,
-        )?;
+        let recurrence = req.recurrence.clone().unwrap_or_else(|| {
+            recurrence_from_legacy(
+                &req.frequency,
+                req.start_date,
+                req.schedule_day,
+                req.schedule_month,
+            )
+        });
+        validate_recurrence(&recurrence)?;
         validate_end_date(req.start_date, req.end_date)?;
-        let next_billing_date = calculate_next_billing_date_scheduled(
+        let (frequency, schedule_day, schedule_month) = legacy_from_recurrence(&recurrence);
+        let next_billing_date = next_occurrence_on_or_after(
             req.start_date,
-            &req.frequency,
-            schedule_day,
-            schedule_month,
+            &recurrence,
+            Utc::now().date_naive(),
             req.end_date,
         );
+        let is_active = req.is_active.unwrap_or(true);
 
         // Accounts are mandatory; fall back to the user's default for old clients.
         let account_id = if req.account_id.is_nil() {
@@ -136,9 +145,9 @@ impl SubscriptionService {
 
         let subscription = sqlx::query_as::<_, Subscription>(
             r#"
-            INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14, $15, $16, $16)
-            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
+            INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $18)
+            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -148,12 +157,14 @@ impl SubscriptionService {
         .bind(&req.name)
         .bind(req.amount)
         .bind(&req.currency)
-        .bind(&req.frequency)
+        .bind(&frequency)
         .bind(schedule_day)
         .bind(schedule_month)
+        .bind(Json(recurrence.clone()))
         .bind(req.start_date)
         .bind(req.end_date)
         .bind(next_billing_date)
+        .bind(is_active)
         .bind(&req.notes)
         .bind(&req.logo_url)
         .bind(Utc::now())
@@ -177,11 +188,10 @@ impl SubscriptionService {
         if !stale {
             return Ok(());
         }
-        let next = calculate_next_billing_date_scheduled(
+        let next = next_occurrence_on_or_after(
             subscription.start_date,
-            &subscription.frequency,
-            subscription.schedule_day,
-            subscription.schedule_month,
+            &subscription.recurrence.0,
+            today,
             subscription.end_date,
         );
         if next != subscription.next_billing_date {
@@ -199,7 +209,7 @@ impl SubscriptionService {
 
     pub async fn get_all(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<Subscription>> {
         let mut subscriptions = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -213,7 +223,7 @@ impl SubscriptionService {
 
     pub async fn get_by_id(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
         let mut subscription = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
         )
         .bind(id)
         .bind(user_id)
@@ -243,7 +253,6 @@ impl SubscriptionService {
         let name = req.name.unwrap_or(existing.name);
         let amount = req.amount.unwrap_or(existing.amount);
         let currency = req.currency.unwrap_or(existing.currency);
-        let frequency = req.frequency.unwrap_or(existing.frequency.clone());
         let start_date = req.start_date.unwrap_or(existing.start_date);
         let end_date = if req.clear_end_date {
             None
@@ -251,30 +260,27 @@ impl SubscriptionService {
             req.end_date.or(existing.end_date)
         };
         validate_end_date(start_date, end_date)?;
-        let (schedule_day, schedule_month) = normalize_schedule(
-            start_date,
-            &frequency,
-            req.schedule_day.or(existing.schedule_day),
-            req.schedule_month.or(existing.schedule_month),
-        )?;
-        let schedule_changed = frequency != existing.frequency
-            || schedule_day != existing.schedule_day
-            || schedule_month != existing.schedule_month
+        let recurrence = req
+            .recurrence
+            .clone()
+            .unwrap_or_else(|| existing.recurrence.0.clone());
+        validate_recurrence(&recurrence)?;
+        let (frequency, schedule_day, schedule_month) = legacy_from_recurrence(&recurrence);
+        let schedule_changed = recurrence != existing.recurrence.0
             || start_date != existing.start_date
             || end_date != existing.end_date;
 
         let next_billing_date = if let Some(next) = req.next_billing_date {
-            if end_date.is_some_and(|end| next >= end) {
+            if end_date.is_some_and(|end| next > end) {
                 None
             } else {
                 Some(next)
             }
         } else if schedule_changed {
-            calculate_next_billing_date_scheduled(
+            next_occurrence_on_or_after(
                 start_date,
-                &frequency,
-                schedule_day,
-                schedule_month,
+                &recurrence,
+                Utc::now().date_naive(),
                 end_date,
             )
         } else {
@@ -295,11 +301,12 @@ impl SubscriptionService {
             r#"
             UPDATE subscriptions
             SET name = $1, amount = $2, currency = $3, frequency = $4,
-                schedule_day = $5, schedule_month = $6, start_date = $7, end_date = $8,
-                next_billing_date = $9, account_id = $10, category_id = $11, is_active = $12,
-                notes = $13, logo_url = $14, updated_at = $15
-            WHERE id = $16 AND user_id = $17
-            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
+                schedule_day = $5, schedule_month = $6, recurrence = $7,
+                start_date = $8, end_date = $9, next_billing_date = $10,
+                account_id = $11, category_id = $12, is_active = $13,
+                notes = $14, logo_url = $15, updated_at = $16
+            WHERE id = $17 AND user_id = $18
+            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
             "#,
         )
         .bind(&name)
@@ -308,6 +315,7 @@ impl SubscriptionService {
         .bind(&frequency)
         .bind(schedule_day)
         .bind(schedule_month)
+        .bind(Json(recurrence))
         .bind(start_date)
         .bind(end_date)
         .bind(next_billing_date)
@@ -354,7 +362,7 @@ impl SubscriptionService {
                     .is_some_and(|date| date >= from_date && date <= to_date)
                 && subscription
                     .end_date
-                    .is_none_or(|end| subscription.next_billing_date.is_some_and(|date| date < end))
+                    .is_none_or(|end| subscription.next_billing_date.is_some_and(|date| date <= end))
         });
         Ok(subscriptions)
     }
@@ -367,7 +375,7 @@ impl SubscriptionService {
     ) -> AppResult<Vec<CalendarItem>> {
         // Get all active subscriptions
         let subscriptions = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 AND is_active = true"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 AND is_active = true"
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -384,46 +392,27 @@ impl SubscriptionService {
         let mut calendar_items: Vec<CalendarItem> = Vec::new();
 
         for sub in subscriptions {
-            // Generate from the first scheduled charge, not from the next one:
-            // completed charges in the selected month must remain visible.
-            let mut billing_date = first_scheduled_on_or_after(
+            // Generate every charge in the selected month, including completed
+            // charges, and use the optional per-date annual amount.
+            let _ = (month_start, month_end);
+            for (billing_date, amount) in occurrences_in_month(
                 sub.start_date,
-                &sub.frequency,
-                sub.schedule_day,
-                sub.schedule_month,
-            );
-            let mut guard = 0;
-            while billing_date < month_start && guard < 10_000 {
-                billing_date = advance_scheduled(
-                    billing_date,
-                    &sub.frequency,
-                    sub.schedule_day,
-                    sub.schedule_month,
-                );
-                guard += 1;
-            }
-
-            while billing_date <= month_end && guard < 20_000 {
-                if sub.end_date.is_some_and(|end| billing_date >= end) {
-                    break;
-                }
+                &sub.recurrence.0,
+                sub.end_date,
+                year,
+                month,
+                sub.amount,
+            ) {
                 calendar_items.push(CalendarItem {
                     subscription_id: sub.id,
                     name: sub.name.clone(),
-                    amount: sub.amount,
+                    amount,
                     currency: sub.currency.clone(),
                     frequency: sub.frequency.clone(),
                     billing_date,
                     is_active: sub.is_active,
                     logo_url: sub.logo_url.clone(),
                 });
-                billing_date = advance_scheduled(
-                    billing_date,
-                    &sub.frequency,
-                    sub.schedule_day,
-                    sub.schedule_month,
-                );
-                guard += 1;
             }
         }
 
@@ -472,6 +461,7 @@ pub(crate) fn generate_billing_dates(
     dates
 }
 
+#[cfg(test)]
 fn normalize_schedule(
     start_date: NaiveDate,
     frequency: &str,
@@ -517,11 +507,13 @@ fn validate_end_date(start_date: NaiveDate, end_date: Option<NaiveDate>) -> AppR
     Ok(())
 }
 
+#[cfg(test)]
 fn date_for_day(year: i32, month: u32, day: i16) -> NaiveDate {
     let day = (day.max(1) as u32).min(days_in_month(year, month));
     NaiveDate::from_ymd_opt(year, month, day).expect("clamped date is valid")
 }
 
+#[cfg(test)]
 fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
     let total = date.year() * 12 + date.month() as i32 - 1 + months;
     let year = total.div_euclid(12);
@@ -529,6 +521,7 @@ fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
     date_for_day(year, month, day)
 }
 
+#[cfg(test)]
 fn first_scheduled_on_or_after(
     start_date: NaiveDate,
     frequency: &str,
@@ -565,6 +558,7 @@ fn first_scheduled_on_or_after(
     }
 }
 
+#[cfg(test)]
 pub(crate) fn advance_scheduled(
     date: NaiveDate,
     frequency: &str,
@@ -588,6 +582,7 @@ pub(crate) fn advance_scheduled(
     }
 }
 
+#[cfg(test)]
 fn calculate_next_billing_date_scheduled(
     start_date: NaiveDate,
     frequency: &str,

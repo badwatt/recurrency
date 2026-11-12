@@ -74,7 +74,7 @@ docker run -d \
   -p 80:80 -p 8080:8080 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/badwatt/recurrency:0.29.0
+  ghcr.io/badwatt/recurrency:0.30.0
 ```
 
 - **Web:** http://localhost
@@ -92,7 +92,7 @@ docker run -d \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:0.29.0
+  ghcr.io/badwatt/recurrency:0.30.0
 ```
 
 - nginx is not started; only PostgreSQL and the backend run.
@@ -164,15 +164,19 @@ you do not want to expose it.
 |---|---|
 | 💳 **Accounts** | Budgeting buckets required on every entry, with inline search/create |
 | 📊 **Monthly plan** | Fixed monthly budget and pending-from-today per account |
-| 🔁 **Subscriptions** | CRUD with daily, weekly, monthly, quarterly or yearly recurrence, start/end dates, account, optional category and notes |
+| 🔁 **Subscriptions** | CRUD with a unified "every N days/weeks/months/years" recurrence: multiple weekdays, multiple monthly days, unlimited annual dates and optional per-date amounts |
 | 🧾 **Transactions** | One-time expenses with account and optional category |
-| 📅 **Calendar** | Upcoming payments plus completed charges, reusing the subscription dialog |
+| 📅 **Calendar** | Upcoming and completed charges, with an inclusive end date and finalized state |
 | 📈 **Reports** | Trend charts, category breakdown, CSV/PDF export |
 | 🏷️ **Categories** | Optional classification with custom icons, colors and inline creation |
 | 🔔 **Delivery channels** | Email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks |
 | 🗓️ **Summary schedule** | Daily, weekly or monthly dashboard summary in your timezone |
 | 👤 **Profile** | Change email, display name and avatar; delete the account with password confirmation |
 | ⚙️ **Settings** | Profile, Preferences, Money (accounts/categories) and Notifications |
+| 📋 **Duplicate** | Duplicate a subscription with all fields copied; the form opens with a `(copia)` suffix |
+| 🏁 **Finalized** | Active, inactive and finalized sections; finalized cards show the end date and no future charges |
+| 🏷️ **Category badges** | Categories appear next to accounts; the system Uncategorized fallback is never shown |
+| ⬆️ **Update notice** | Dismissible banner when a newer GitHub release is available |
 | 📱 **Native app** | Android and desktop clients with configurable server URL at login and in Settings |
 | 🐳 **Deployment** | One all-in-one image; web UI or headless API-only |
 | 🌙 **Dark Mode** | Light / dark / system |
@@ -186,8 +190,8 @@ you do not want to expose it.
 
 | Project | Lines | Functions | Regions | Tests |
 |---|---|---|---|---|
-| **Backend** | — | — | — | 1182 lib + 46 integration |
-| **Frontend** | — | — | — | 1636 |
+| **Backend** | — | — | — | 1192 lib + 46 integration |
+| **Frontend** | — | — | — | 1648 |
 | **Tools** | — | — | — | 8 |
 
 Integration tests use a disposable PostgreSQL instance:

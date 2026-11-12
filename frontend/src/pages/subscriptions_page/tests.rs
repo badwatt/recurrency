@@ -2,6 +2,7 @@
     use super::*;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
+    use crate::models::subscription::Recurrence;
 
     fn make_sub(
         name: &str,
@@ -22,6 +23,7 @@
             frequency: frequency.into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: next_billing,
@@ -79,6 +81,50 @@
         let result = filter_subscriptions(&subs, &filters);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "A");
+    }
+
+
+    #[test]
+    fn subscription_sections_keep_inactive_before_finalized() {
+        let today = NaiveDate::from_ymd_opt(2026, 5, 10).unwrap();
+        let active = make_sub("Active", Decimal::ONE, "monthly", true, None, Uuid::nil());
+        let inactive = make_sub("Inactive", Decimal::ONE, "monthly", false, None, Uuid::nil());
+        let mut finished = make_sub("Finished", Decimal::ONE, "monthly", true, None, Uuid::nil());
+        finished.end_date = NaiveDate::from_ymd_opt(2026, 5, 1);
+        let (a, i, f) = subscription_sections(&[active, inactive, finished], today);
+        assert_eq!(a.len(), 1);
+        assert_eq!(i.len(), 1);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].name, "Finished");
+    }
+
+    #[test]
+    fn end_text_uses_future_or_past_wording() {
+        let today = NaiveDate::from_ymd_opt(2026, 5, 10).unwrap();
+        assert_eq!(
+            subscription_end_text(Some(today), today, "%Y-%m-%d"),
+            Some("Finaliza el 10/05/2026".to_string())
+        );
+        assert_eq!(
+            subscription_end_text(
+                Some(NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()),
+                today,
+                "%Y-%m-%d"
+            ),
+            Some("Finalizó el 01/05/2026".to_string())
+        );
+    }
+
+    #[test]
+    fn finalized_requires_inactive_status_to_stay_inactive_group() {
+        let today = NaiveDate::from_ymd_opt(2026, 5, 10).unwrap();
+        let mut sub = make_sub("Ended", Decimal::ONE, "monthly", true, None, Uuid::nil());
+        sub.end_date = NaiveDate::from_ymd_opt(2026, 5, 1);
+        assert!(subscription_is_finalized(sub.is_active, sub.end_date, today));
+        sub.is_active = false;
+        let (_, inactive, finalized) = subscription_sections(&[sub], today);
+        assert_eq!(inactive.len(), 1);
+        assert!(finalized.is_empty());
     }
 
     #[test]
@@ -288,6 +334,7 @@
                 frequency: "monthly".into(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: Recurrence::default(),
                 start_date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
                 end_date: None,
                 next_billing_date: None,
@@ -308,6 +355,7 @@
                 frequency: "monthly".into(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: Recurrence::default(),
                 start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 end_date: None,
                 next_billing_date: None,
@@ -766,7 +814,7 @@
     // ── STATUS_OPTIONS / SORT_OPTIONS ──
     #[test]
     fn status_options_count() {
-        assert_eq!(STATUS_OPTIONS.len(), 3);
+        assert_eq!(STATUS_OPTIONS.len(), 4);
     }
 
     #[test]
@@ -1347,6 +1395,7 @@
             ("all", "All"),
             ("active", "Active"),
             ("inactive", "Inactive"),
+            ("finalized", "Finalized"),
         ];
         assert_eq!(STATUS_OPTIONS, expected);
     }

@@ -1,6 +1,6 @@
 use crate::models::account::{Account, CreateAccountRequest, UpdateAccountRequest};
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
-use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest};
+use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Recurrence, Subscription, UpdateSubscriptionRequest};
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
 use crate::api::client::ApiError;
 use chrono::{Datelike, Utc};
@@ -110,16 +110,30 @@ pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
     let today = chrono::Utc::now().date_naive();
     let mut changed = false;
     for subscription in &mut list {
+        // Upgrade records written before recurring schedules were introduced.
+        let legacy_recurrence = subscription.recurrence == Recurrence::default()
+            && (subscription.frequency != "monthly"
+                || subscription.start_date.day() != 1
+                || subscription.schedule_day.is_some_and(|day| day != 1)
+                || subscription.schedule_month.is_some());
+        if legacy_recurrence {
+            subscription.recurrence = Recurrence::from_legacy(
+                &subscription.frequency,
+                subscription.start_date,
+                subscription.schedule_day,
+                subscription.schedule_month,
+            );
+            changed = true;
+        }
         if subscription.is_active
             && subscription
                 .next_billing_date
                 .is_none_or(|date| date < today)
         {
-            let next = next_billing_local(
+            let next = crate::utils::recurrence::next_occurrence_on_or_after(
                 subscription.start_date,
-                &subscription.frequency,
-                subscription.schedule_day,
-                subscription.schedule_month,
+                &subscription.recurrence,
+                today,
                 subscription.end_date,
             );
             if next != subscription.next_billing_date {
@@ -245,6 +259,21 @@ pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subs
     } else {
         req.account_id
     };
+    let recurrence = req
+        .recurrence
+        .clone()
+        .unwrap_or_else(|| Recurrence::from_legacy(
+            &req.frequency,
+            req.start_date,
+            req.schedule_day,
+            req.schedule_month,
+        ));
+    let next_billing_date = crate::utils::recurrence::next_occurrence_on_or_after(
+        req.start_date,
+        &recurrence,
+        chrono::Utc::now().date_naive(),
+        req.end_date,
+    );
     let sub = Subscription {
         account_id,
         id: Uuid::new_v4(),
@@ -256,16 +285,11 @@ pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subs
         frequency: req.frequency.clone(),
         schedule_day: req.schedule_day,
         schedule_month: req.schedule_month,
+        recurrence,
         start_date: req.start_date,
         end_date: req.end_date,
-        next_billing_date: next_billing_local(
-            req.start_date,
-            &req.frequency,
-            req.schedule_day,
-            req.schedule_month,
-            req.end_date,
-        ),
-        is_active: true,
+        next_billing_date,
+        is_active: req.is_active.unwrap_or(true),
         notes: req.notes.clone(),
         logo_url: req.logo_url.clone(),
         created_at: Utc::now(),
@@ -291,6 +315,17 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
     if let Some(name) = &req.name { sub.name = name.clone(); }
     if let Some(amount) = req.amount { sub.amount = amount; }
     if let Some(currency) = &req.currency { sub.currency = currency.clone(); }
+    if let Some(recurrence) = &req.recurrence {
+        sub.recurrence = recurrence.clone();
+    } else if req.frequency.is_some() || req.schedule_day.is_some() || req.schedule_month.is_some() {
+        let frequency = req.frequency.clone().unwrap_or_else(|| sub.frequency.clone());
+        sub.recurrence = Recurrence::from_legacy(
+            &frequency,
+            req.start_date.unwrap_or(sub.start_date),
+            req.schedule_day.or(sub.schedule_day),
+            req.schedule_month.or(sub.schedule_month),
+        );
+    }
     if let Some(frequency) = &req.frequency { sub.frequency = frequency.clone(); }
     if let Some(day) = req.schedule_day { sub.schedule_day = Some(day); }
     if let Some(month) = req.schedule_month { sub.schedule_month = Some(month); }
@@ -299,18 +334,19 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
     if let Some(next_billing_date) = req.next_billing_date {
         sub.next_billing_date = Some(next_billing_date);
     } else {
-        sub.next_billing_date = next_billing_local(
+        sub.next_billing_date = crate::utils::recurrence::next_occurrence_on_or_after(
             sub.start_date,
-            &sub.frequency,
-            sub.schedule_day,
-            sub.schedule_month,
+            &sub.recurrence,
+            chrono::Utc::now().date_naive(),
             sub.end_date,
         );
     }
     if let Some(account_id) = req.account_id { sub.account_id = account_id; }
     if let Some(category_id) = req.category_id { sub.category_id = category_id; }
     if let Some(is_active) = req.is_active { sub.is_active = is_active; }
-    if let Some(notes) = &req.notes { sub.notes = Some(notes.clone()); }
+    if let Some(notes) = &req.notes {
+        sub.notes = if notes.trim().is_empty() { None } else { Some(notes.clone()) };
+    }
     if let Some(logo_url) = &req.logo_url { sub.logo_url = Some(logo_url.clone()); }
     sub.updated_at = Utc::now();
     let updated = sub.clone();
@@ -330,37 +366,30 @@ pub async fn delete_subscription(id: &Uuid) -> Result<(), ApiError> {
 
 pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, ApiError> {
     let subs = list_subscriptions().await?;
-    let month_start = chrono::NaiveDate::from_ymd_opt(year, month, 1)
-        .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(year, 1, 1).expect("valid date"));
-    Ok(subs
-        .into_iter()
-        .filter(|s| s.is_active && s.end_date.is_none_or(|end| end > month_start))
-        .map(|s| {
-        let billing_date = compute_billing_date(&s, year, month);
-        CalendarItem {
-            subscription_id: s.id,
-            name: s.name,
-            amount: s.amount,
-            currency: s.currency,
-            frequency: s.frequency,
-            billing_date,
-            is_active: s.is_active,
-            logo_url: s.logo_url,
+    let mut items = Vec::new();
+    for sub in subs.into_iter().filter(|s| s.is_active) {
+        for (billing_date, amount) in crate::utils::recurrence::occurrences_in_month(
+            sub.start_date,
+            &sub.recurrence,
+            sub.end_date,
+            year,
+            month,
+            sub.amount,
+        ) {
+            items.push(CalendarItem {
+                subscription_id: sub.id,
+                name: sub.name.clone(),
+                amount,
+                currency: sub.currency.clone(),
+                frequency: sub.frequency.clone(),
+                billing_date,
+                is_active: sub.is_active,
+                logo_url: sub.logo_url.clone(),
+            });
         }
-    }).collect())
-}
-
-fn compute_billing_date(sub: &Subscription, year: i32, month: u32) -> chrono::NaiveDate {
-    // Use next_billing_date if it falls in the target month, otherwise use start_date day
-    if let Some(nbd) = sub.next_billing_date && nbd.year() == year && nbd.month() == month {
-        return nbd;
     }
-    let day = sub
-        .schedule_day
-        .map(|d| d as u32)
-        .unwrap_or_else(|| sub.start_date.day())
-        .min(days_in_month_local(year, month));
-    chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(sub.start_date)
+    items.sort_by_key(|item| item.billing_date);
+    Ok(items)
 }
 
 // ── Transaction operations ──
@@ -418,7 +447,9 @@ pub async fn update_transaction(id: &Uuid, req: &UpdateTransactionRequest) -> Re
     if let Some(date) = req.date { txn.date = date; }
     if let Some(account_id) = req.account_id { txn.account_id = account_id; }
     if let Some(category_id) = req.category_id { txn.category_id = category_id; }
-    if let Some(notes) = &req.notes { txn.notes = Some(notes.clone()); }
+    if let Some(notes) = &req.notes {
+        txn.notes = if notes.trim().is_empty() { None } else { Some(notes.clone()) };
+    }
     if let Some(logo_url) = &req.logo_url { txn.logo_url = Some(logo_url.clone()); }
     txn.updated_at = Utc::now();
     let updated = txn.clone();
@@ -830,7 +861,7 @@ mod tests {
     }
 
     #[test]
-    fn compute_billing_date_uses_start_day() {
+    fn local_calendar_uses_recurrence_days() {
         let sub = Subscription {
             account_id: Uuid::nil(),
             id: Uuid::new_v4(),
@@ -840,8 +871,14 @@ mod tests {
             amount: Decimal::new(10, 2),
             currency: "EUR".into(),
             frequency: "monthly".into(),
-            schedule_day: None,
+            schedule_day: Some(15),
             schedule_month: None,
+            recurrence: Recurrence::from_legacy(
+                "monthly",
+                chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                Some(15),
+                None,
+            ),
             start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             end_date: None,
             next_billing_date: None,
@@ -851,34 +888,32 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
-        let result = compute_billing_date(&sub, 2024, 6);
-        assert_eq!(result.day(), 15);
+        let dates = crate::utils::recurrence::occurrences_in_month(
+            sub.start_date,
+            &sub.recurrence,
+            sub.end_date,
+            2024,
+            6,
+            sub.amount,
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0].0.day(), 15);
     }
 
     #[test]
-    fn compute_billing_date_clamps_day() {
-        let sub = Subscription {
-            account_id: Uuid::nil(),
-            id: Uuid::new_v4(),
-            user_id: Uuid::nil(),
-            category_id: Uuid::nil(),
-            name: "Test".into(),
-            amount: Decimal::new(10, 2),
-            currency: "EUR".into(),
-            frequency: "monthly".into(),
-            schedule_day: None,
-            schedule_month: None,
-            start_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(),
-            end_date: None,
-            next_billing_date: None,
-            is_active: true,
-            notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        let result = compute_billing_date(&sub, 2024, 2);
-        assert_eq!(result.day(), 29); // Feb 2024 clamps to 29
+    fn local_calendar_clamps_short_months() {
+        let start = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
+        let recurrence = Recurrence::from_legacy("monthly", start, Some(31), None);
+        let dates = crate::utils::recurrence::occurrences_in_month(
+            start,
+            &recurrence,
+            None,
+            2024,
+            2,
+            Decimal::new(10, 2),
+        );
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0].0.day(), 29);
     }
 
     #[test]

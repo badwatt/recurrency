@@ -16,12 +16,6 @@ fn icon_tag() -> Element {
     }}
 }
 
-fn icon_star() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        polygon { points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" }
-    }}
-}
-
 fn icon_pencil() -> Element {
     rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
         path { d: "M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }
@@ -158,16 +152,6 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
         });
     };
 
-    let handle_set_default = move |id: Uuid| {
-        spawn(async move {
-            let _ = Storage::set_default_category(&id).await;
-            match Storage::list_categories().await {
-                Ok(data) => CATEGORIES.write().set_data(data),
-                Err(e) => CATEGORIES.write().set_error(e.to_string()),
-            }
-        });
-    };
-
     if let Some(err) = &state.error {
         return rsx! {
             div { class: "p-4 md:p-6",
@@ -224,6 +208,7 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                              let cat_icon = cat.icon.clone().unwrap_or_else(|| "Tag".into());
                              let cat_id = cat.id;
                              let is_default = cat.is_default;
+                             let is_system = cat.is_system;
                              rsx! {
                                 div { key: "{cat.id}", class: "rounded-lg border border-border bg-card p-3 sm:p-4",
                                     div { class: "flex items-center gap-2 sm:gap-3",
@@ -243,26 +228,21 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                                             if is_default {
                                                 span { class: "text-xs text-muted-foreground", "Default" }
                                             }
+                                            if is_system {
+                                                span { class: "ml-1 text-[10px] uppercase tracking-wide text-muted-foreground/60", "System" }
+                                            }
                                         }
                                         // Actions
                                         div { class: "flex gap-0.5 sm:gap-1 shrink-0",
-                                            if !is_default {
+                                            if !is_system {
                                                 button {
                                                     class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                    title: "Set as default",
-                                                    onclick: move |_| handle_set_default(cat_id),
-                                                    {icon_star()}
+                                                    onclick: {
+                                                        let cat = cat.clone();
+                                                        move |_| open_edit(&cat)
+                                                    },
+                                                    {icon_pencil()}
                                                 }
-                                            }
-                                            button {
-                                                class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                onclick: {
-                                                    let cat = cat.clone();
-                                                    move |_| open_edit(&cat)
-                                                },
-                                                {icon_pencil()}
-                                            }
-                                            if !is_default {
                                                 button {
                                                     class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
                                                     onclick: move |_| handle_delete(cat_id),

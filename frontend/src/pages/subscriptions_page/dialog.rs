@@ -13,6 +13,8 @@ const MONTHS: [&str; 12] = [
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn render_dialog(
     mut form: Signal<DialogForm>,
+    mut recurrence: Signal<Recurrence>,
+    active: Signal<bool>,
     editing_id: Signal<Option<Uuid>>,
     mut dialog_open: Signal<bool>,
     mut name_error: Signal<String>,
@@ -46,21 +48,15 @@ pub(crate) fn render_dialog(
     let form_name = form().name;
     let form_amount = form().amount;
     let form_currency = form().currency;
-    let form_frequency = form().frequency;
-    let form_schedule_day = form().schedule_day;
-    let form_schedule_month = form().schedule_month;
+    let rec = recurrence();
+    let rec_interval = rec.interval;
+    let rec_unit = rec.unit.clone();
+    let rec_days = rec.days.clone();
+    let rec_weekdays = rec.weekdays.clone();
+    let rec_dates = rec.dates.clone();
     let form_start_date = form().start_date;
     let form_end_date = form().end_date;
     let today = chrono::Utc::now().date_naive();
-    let reference_date = form_start_date
-        .parse::<chrono::NaiveDate>()
-        .unwrap_or(today);
-    let default_day = reference_date.day() as i16;
-    let default_weekday = reference_date.weekday().number_from_monday() as i16;
-    let default_month = reference_date.month() as i16;
-    let selected_day = form_schedule_day.unwrap_or(default_day);
-    let selected_weekday = form_schedule_day.unwrap_or(default_weekday);
-    let selected_month = form_schedule_month.unwrap_or(default_month);
     let form_account = form_account_id();
     let selected_account = form_account.clone();
     let form_category_id = form().category_id;
@@ -71,18 +67,12 @@ pub(crate) fn render_dialog(
     let amount_err = amount_error();
     let currency_err = currency_error();
     let frequency_err = frequency_error();
-    let frequency_label = FREQUENCIES
-        .iter()
-        .find(|(value, _)| *value == form_frequency)
-        .map(|(_, label)| *label)
-        .unwrap_or("Monthly");
-    let schedule_hint = match form_frequency.as_str() {
-        "daily" => "Charges every day.".to_string(),
-        "weekly" => format!("Charges every {}", WEEKDAYS[(selected_weekday - 1).clamp(0, 6) as usize]),
-        "monthly" => format!("Charges on day {selected_day} of each month."),
-        "quarterly" => format!("Charges every 3 months on day {selected_day}."),
-        "yearly" => format!("Charges every year on {} {selected_day}.", MONTHS[(selected_month - 1).clamp(0, 11) as usize]),
-        _ => "Choose how often this subscription renews.".to_string(),
+    let schedule_hint = recurrence_hint(&rec);
+    let unit_label = match rec_unit.as_str() {
+        "day" => "days",
+        "week" => "weeks",
+        "month" => "months",
+        _ => "years",
     };
     let start_date_err = start_date_error();
     let end_date_err = end_date_error();
@@ -104,6 +94,7 @@ pub(crate) fn render_dialog(
                         class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
                         onclick: move |_| {
                             let f = form();
+                            let rec = recurrence();
                             let mut valid = true;
 
                             // Validate name
@@ -131,10 +122,30 @@ pub(crate) fn render_dialog(
                                 valid = false;
                             }
 
-                            // Validate frequency
-                            if f.frequency.is_empty() {
-                                frequency_error.set("Frequency is required".into());
+                            // Validate recurrence
+                            if !(1..=100).contains(&rec.interval) {
+                                frequency_error.set("Repeat every must be between 1 and 100".into());
                                 valid = false;
+                            } else {
+                                match rec.unit.as_str() {
+                                    "week" if rec.weekdays.is_empty() => {
+                                        frequency_error.set("Choose at least one weekday".into());
+                                        valid = false;
+                                    }
+                                    "month" if rec.days.is_empty() => {
+                                        frequency_error.set("Choose at least one day of the month".into());
+                                        valid = false;
+                                    }
+                                    "year" if rec.dates.is_empty() => {
+                                        frequency_error.set("Add at least one annual date".into());
+                                        valid = false;
+                                    }
+                                    "year" if rec.dates.iter().any(|d| !(1..=12).contains(&d.month) || d.day > 31) => {
+                                        frequency_error.set("Check the annual dates".into());
+                                        valid = false;
+                                    }
+                                    _ => {}
+                                }
                             }
 
                             // Start date is optional; today is the anchor when omitted.
@@ -151,28 +162,6 @@ pub(crate) fn render_dialog(
                                         None
                                     }
                                 });
-
-                            // Validate recurrence details
-                            match f.frequency.as_str() {
-                                "weekly" if !(1..=7).contains(&f.schedule_day.unwrap_or(1)) => {
-                                    frequency_error.set("Choose a weekday".into());
-                                    valid = false;
-                                }
-                                "monthly" | "quarterly"
-                                    if !(1..=31).contains(&f.schedule_day.unwrap_or(1)) =>
-                                {
-                                    frequency_error.set("Choose a day of the month".into());
-                                    valid = false;
-                                }
-                                "yearly"
-                                    if !(1..=31).contains(&f.schedule_day.unwrap_or(1))
-                                        || !(1..=12).contains(&f.schedule_month.unwrap_or(1)) =>
-                                {
-                                    frequency_error.set("Choose a month and day".into());
-                                    valid = false;
-                                }
-                                _ => {}
-                            }
 
                             // Validate optional end date
                             let end_date = if f.end_date.is_empty() {
@@ -212,9 +201,11 @@ pub(crate) fn render_dialog(
                                     name: Some(f.name),
                                     amount: Some(amount),
                                     currency: Some(f.currency),
-                                    frequency: Some(f.frequency),
-                                    schedule_day: f.schedule_day,
-                                    schedule_month: f.schedule_month,
+                                    frequency: Some(rec.legacy_frequency()),
+                                    schedule_day: rec.legacy_day(),
+                                    schedule_month: rec.legacy_month(),
+                                    recurrence: Some(rec.clone()),
+                                    is_active: Some(active()),
                                     start_date: Some(f.start_date.parse().unwrap_or_else(|_| chrono::Utc::now().date_naive())),
                                     end_date,
                                     clear_end_date: f.end_date.is_empty(),
@@ -239,9 +230,11 @@ pub(crate) fn render_dialog(
                                     name: f.name,
                                     amount,
                                     currency: f.currency,
-                                    frequency: f.frequency,
-                                    schedule_day: f.schedule_day,
-                                    schedule_month: f.schedule_month,
+                                    frequency: rec.legacy_frequency(),
+                                    schedule_day: rec.legacy_day(),
+                                    schedule_month: rec.legacy_month(),
+                                    recurrence: Some(rec.clone()),
+                                    is_active: Some(active()),
                                     start_date: f.start_date.parse().unwrap_or_else(|_| chrono::Utc::now().date_naive()),
                                     end_date,
                                     category_id: category,
@@ -269,7 +262,7 @@ pub(crate) fn render_dialog(
             div { class: "space-y-4",
                 // Name
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Name" }
+                    label { class: "text-sm font-medium", "Name " span { class: "text-destructive", "*" } }
                     input {
                         class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                         placeholder: "Netflix, Spotify, etc.",
@@ -287,7 +280,7 @@ pub(crate) fn render_dialog(
                 // Amount + Currency
                 div { class: "grid grid-cols-2 gap-4",
                     div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Amount" }
+                        label { class: "text-sm font-medium", "Amount " span { class: "text-destructive", "*" } }
                         input {
                             r#type: "number",
                             step: "0.01",
@@ -305,7 +298,7 @@ pub(crate) fn render_dialog(
                         }
                     }
                     div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Currency" }
+                        label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
                         select {
                             class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
                             value: form_currency.to_string(),
@@ -323,56 +316,73 @@ pub(crate) fn render_dialog(
                     }
                 }
 
-                // Billing schedule
+                // Billing schedule — a single, explicit recurrence control.
                 div { class: "rounded-lg border border-border/60 bg-background/30 p-4 space-y-4",
                     div { class: "flex flex-wrap items-start justify-between gap-2",
                         div {
-                            p { class: "text-sm font-semibold", "Billing schedule" }
+                            p { class: "text-sm font-semibold", "Billing schedule " span { class: "text-destructive", "*" } }
                             p { class: "text-xs text-muted-foreground", {schedule_hint} }
-                        }
-                        span { class: "rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground", {frequency_label} }
-                    }
-                    div { class: "grid grid-cols-2 gap-2 sm:grid-cols-5",
-                        for (val, label) in FREQUENCIES {
-                            {
-                                let value = val.to_string();
-                                let active = form_frequency == *val;
-                                rsx! {
-                                    button {
-                                        r#type: "button",
-                                        class: if active {
-                                            "h-9 rounded-md border border-primary/50 bg-primary/15 px-2 text-xs font-semibold text-primary"
-                                        } else {
-                                            "h-9 rounded-md border border-border/60 px-2 text-xs font-medium text-muted-foreground hover:border-border hover:text-foreground"
-                                        },
-                                        onclick: move |_| {
-                                            let start = form().start_date.parse::<chrono::NaiveDate>().ok();
-                                            let (day, month) = match value.as_str() {
-                                                "weekly" => (start.map(|d| d.weekday().number_from_monday() as i16), None),
-                                                "monthly" | "quarterly" => (start.map(|d| d.day() as i16), None),
-                                                "yearly" => (start.map(|d| d.day() as i16), start.map(|d| d.month() as i16)),
-                                                _ => (None, None),
-                                            };
-                                            form.write().frequency = value.clone();
-                                            form.write().schedule_day = day;
-                                            form.write().schedule_month = month;
-                                            frequency_error.set(String::new());
-                                        },
-                                        {label.to_string()}
-                                    }
-                                }
-                            }
                         }
                     }
 
-                    if form_frequency == "weekly" {
+                    div { class: "flex flex-wrap items-center gap-2",
+                        span { class: "text-sm font-medium", "Every" }
+                        input {
+                            r#type: "number",
+                            min: "1",
+                            max: "100",
+                            value: rec_interval.to_string(),
+                            oninput: move |e: Event<FormData>| {
+                                if let Ok(value) = e.value().parse::<u16>() {
+                                    recurrence.write().interval = value.clamp(1, 100);
+                                    frequency_error.set(String::new());
+                                }
+                            },
+                            class: "h-9 w-20 rounded-md border border-border/60 bg-background px-2 text-sm",
+                        }
+                        select {
+                            class: "h-9 rounded-md border border-border/60 bg-background px-2 text-sm",
+                            value: rec_unit.clone(),
+                            onchange: move |e: Event<FormData>| {
+                                let unit = e.value();
+                                let start = form().start_date.parse::<chrono::NaiveDate>().ok().unwrap_or(today);
+                                let mut next = recurrence();
+                                next.unit = unit.clone();
+                                match unit.as_str() {
+                                    "week" if next.weekdays.is_empty() => {
+                                        next.weekdays = vec![start.weekday().number_from_monday() as u8];
+                                    }
+                                    "month" if next.days.is_empty() => {
+                                        next.days = vec![start.day() as u8];
+                                    }
+                                    "year" if next.dates.is_empty() => {
+                                        next.dates = vec![crate::models::subscription::AnnualDate {
+                                            month: start.month() as u8,
+                                            day: start.day() as u8,
+                                            amount: None,
+                                        }];
+                                    }
+                                    _ => {}
+                                }
+                                recurrence.set(next);
+                                frequency_error.set(String::new());
+                            },
+                            option { value: "day", selected: rec_unit == "day", "days" }
+                            option { value: "week", selected: rec_unit == "week", "weeks" }
+                            option { value: "month", selected: rec_unit == "month", "months" }
+                            option { value: "year", selected: rec_unit == "year", "years" }
+                        }
+                        span { class: "text-sm text-muted-foreground", {unit_label} }
+                    }
+
+                    if rec_unit == "week" {
                         div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Day of the week" }
+                            label { class: "text-sm font-medium", "Charge on" }
                             div { class: "flex flex-wrap gap-1.5",
                                 for (idx, day) in WEEKDAYS.iter().enumerate() {
                                     {
-                                        let value = (idx + 1) as i16;
-                                        let active = selected_weekday == value;
+                                        let value = (idx + 1) as u8;
+                                        let active = rec_weekdays.contains(&value);
                                         rsx! {
                                             button {
                                                 r#type: "button",
@@ -382,7 +392,13 @@ pub(crate) fn render_dialog(
                                                     "rounded-md border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent"
                                                 },
                                                 onclick: move |_| {
-                                                    form.write().schedule_day = Some(value);
+                                                    let mut next = recurrence();
+                                                    if next.weekdays.contains(&value) {
+                                                        next.weekdays.retain(|d| *d != value);
+                                                    } else {
+                                                        next.weekdays.push(value);
+                                                    }
+                                                    recurrence.set(next);
                                                     frequency_error.set(String::new());
                                                 },
                                                 {day.to_string()}
@@ -392,52 +408,155 @@ pub(crate) fn render_dialog(
                                 }
                             }
                         }
-                    } else if form_frequency == "monthly" || form_frequency == "quarterly" {
-                        label { class: "block max-w-48 space-y-1.5 text-sm", "Day of the month"
-                            select {
-                                class: "h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm",
-                                value: selected_day.to_string(),
-                                onchange: move |e: Event<FormData>| {
-                                    form.write().schedule_day = e.value().parse().ok();
-                                    frequency_error.set(String::new());
-                                },
-                                for day in 1..=31 {
-                                    option { value: day.to_string(), selected: selected_day == day, "Day {day}" }
+                    } else if rec_unit == "month" {
+                        div { class: "space-y-1.5",
+                            label { class: "text-sm font-medium", "Charge on these days" }
+                            div { class: "flex flex-wrap gap-1",
+                                for day in 1..=31u8 {
+                                    {
+                                        let active = rec_days.contains(&day);
+                                        rsx! {
+                                            button {
+                                                r#type: "button",
+                                                class: if active {
+                                                    "h-8 w-8 rounded-md bg-primary text-xs font-semibold text-primary-foreground"
+                                                } else {
+                                                    "h-8 w-8 rounded-md border border-border/60 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                                },
+                                                onclick: move |_| {
+                                                    let mut next = recurrence();
+                                                    if next.days.contains(&day) {
+                                                        next.days.retain(|d| *d != day);
+                                                    } else {
+                                                        next.days.push(day);
+                                                    }
+                                                    recurrence.set(next);
+                                                    frequency_error.set(String::new());
+                                                },
+                                                {day.to_string()}
+                                            }
+                                        }
+                                    }
                                 }
+                                if rec_days.iter().any(|day| *day >= 29) || rec_days.contains(&0) {
+                                    button {
+                                        r#type: "button",
+                                        class: if rec_days.contains(&0) {
+                                            "h-8 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground"
+                                        } else {
+                                            "h-8 rounded-md border border-border/60 px-2 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                        },
+                                        onclick: move |_| {
+                                            let mut next = recurrence();
+                                            if next.days.contains(&0) {
+                                                next.days.retain(|d| *d != 0);
+                                            } else {
+                                                next.days.retain(|d| *d < 29);
+                                                next.days.push(0);
+                                            }
+                                            recurrence.set(next);
+                                            frequency_error.set(String::new());
+                                        },
+                                        "Last day"
+                                    }
+                                }
+                            }
+                            p { class: "text-[11px] text-muted-foreground",
+                                "Days 29-31 use “Last day” for short months. Each selected day is a separate charge."
                             }
                         }
-                    } else if form_frequency == "yearly" {
-                        div { class: "grid grid-cols-2 gap-4",
-                            label { class: "space-y-1.5 text-sm", "Month"
-                                select {
-                                    class: "h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm",
-                                    value: selected_month.to_string(),
-                                    onchange: move |e: Event<FormData>| {
-                                        form.write().schedule_month = e.value().parse().ok();
-                                        frequency_error.set(String::new());
-                                    },
-                                    for (idx, month) in MONTHS.iter().enumerate() {
-                                        option { value: (idx + 1).to_string(), selected: selected_month == (idx + 1) as i16, {month.to_string()} }
+                    } else if rec_unit == "year" {
+                        div { class: "space-y-2",
+                            label { class: "text-sm font-medium", "Annual dates" }
+                            for (index, entry) in rec_dates.iter().enumerate() {
+                                {
+                                    let idx = index;
+                                    let entry = entry.clone();
+                                    let day_value = entry.day.to_string();
+                                    let amount_value = entry.amount.map(|value| value.to_string()).unwrap_or_default();
+                                    rsx! {
+                                        div { class: "flex flex-wrap items-center gap-2 rounded-md border border-border/50 p-2",
+                                            select {
+                                                class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                                value: entry.month.to_string(),
+                                                onchange: move |e: Event<FormData>| {
+                                                    if let Ok(month) = e.value().parse::<u8>() {
+                                                        let mut next = recurrence();
+                                                        if let Some(date) = next.dates.get_mut(idx) { date.month = month; }
+                                                        recurrence.set(next);
+                                                    }
+                                                },
+                                                for (month_idx, month) in MONTHS.iter().enumerate() {
+                                                    option { value: (month_idx + 1).to_string(), selected: entry.month as usize == month_idx + 1, {month.to_string()} }
+                                                }
+                                            }
+                                            select {
+                                                class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                                value: day_value,
+                                                onchange: move |e: Event<FormData>| {
+                                                    if let Ok(day) = e.value().parse::<u8>() {
+                                                        let mut next = recurrence();
+                                                        if let Some(date) = next.dates.get_mut(idx) { date.day = day; }
+                                                        recurrence.set(next);
+                                                    }
+                                                },
+                                                for day in 1..=31u8 {
+                                                    option { value: day.to_string(), selected: entry.day == day, "Day {day}" }
+                                                }
+                                                option { value: "0", selected: entry.day == 0, "Last day" }
+                                            }
+                                            input {
+                                                r#type: "number",
+                                                step: "0.01",
+                                                min: "0",
+                                                placeholder: "Same amount",
+                                                value: amount_value,
+                                                oninput: move |e: Event<FormData>| {
+                                                    let amount = e.value().parse::<Decimal>().ok();
+                                                    let mut next = recurrence();
+                                                    if let Some(date) = next.dates.get_mut(idx) { date.amount = amount; }
+                                                    recurrence.set(next);
+                                                },
+                                                class: "h-8 w-32 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                            }
+                                            button {
+                                                r#type: "button",
+                                                class: "ml-auto h-8 rounded-md px-2 text-xs text-destructive hover:bg-destructive/10",
+                                                onclick: move |_| {
+                                                    let mut next = recurrence();
+                                                    if idx < next.dates.len() { next.dates.remove(idx); }
+                                                    recurrence.set(next);
+                                                },
+                                                "Remove"
+                                            }
+                                        }
                                     }
                                 }
                             }
-                            label { class: "space-y-1.5 text-sm", "Day"
-                                select {
-                                    class: "h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm",
-                                    value: selected_day.to_string(),
-                                    onchange: move |e: Event<FormData>| {
-                                        form.write().schedule_day = e.value().parse().ok();
-                                        frequency_error.set(String::new());
-                                    },
-                                    for day in 1..=31 {
-                                        option { value: day.to_string(), selected: selected_day == day, "Day {day}" }
-                                    }
-                                }
+                            button {
+                                r#type: "button",
+                                class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",
+                                onclick: move |_| {
+                                    let start = form().start_date.parse::<chrono::NaiveDate>().ok().unwrap_or(today);
+                                    let mut next = recurrence();
+                                    next.dates.push(crate::models::subscription::AnnualDate {
+                                        month: start.month() as u8,
+                                        day: start.day() as u8,
+                                        amount: None,
+                                    });
+                                    recurrence.set(next);
+                                    frequency_error.set(String::new());
+                                },
+                                "+ Add annual date"
+                            }
+                            p { class: "text-[11px] text-muted-foreground",
+                                "Leave the amount empty to use the subscription amount. Each date is a separate charge."
                             }
                         }
                     } else {
-                        p { class: "text-xs text-muted-foreground", "No extra schedule needed. Every day is a renewal day." }
+                        p { class: "text-xs text-muted-foreground", "Charges every selected number of days from the activation date." }
                     }
+
                     if !frequency_err.is_empty() {
                         p { class: "text-xs text-red-500", {frequency_err.to_string()} }
                     }
@@ -448,7 +567,6 @@ pub(crate) fn render_dialog(
                     div { class: "space-y-1.5",
                         div { class: "flex items-center justify-between gap-2",
                             label { class: "text-sm font-medium", "Start date" }
-                            span { class: "text-[11px] text-muted-foreground", "Optional" }
                         }
                         input {
                             r#type: "date",
@@ -467,7 +585,6 @@ pub(crate) fn render_dialog(
                     div { class: "space-y-1.5",
                         div { class: "flex items-center justify-between gap-2",
                             label { class: "text-sm font-medium", "End date" }
-                            span { class: "text-[11px] text-muted-foreground", "Optional" }
                         }
                         div { class: "flex gap-2",
                             input {
@@ -491,7 +608,7 @@ pub(crate) fn render_dialog(
                                 }
                             }
                         }
-                        p { class: "text-[11px] text-muted-foreground", "Billing stops before this date." }
+                        p { class: "text-[11px] text-muted-foreground", "Last billing date (inclusive)." }
                         if !end_date_err.is_empty() {
                             p { class: "text-xs text-red-500", {end_date_err.to_string()} }
                         }
@@ -500,7 +617,7 @@ pub(crate) fn render_dialog(
 
                 // Account (search or create, same combobox as categories)
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Account" }
+                    label { class: "text-sm font-medium", "Account " span { class: "text-destructive", "*" } }
                     AccountCombobox {
                         selected_id: selected_account.clone(),
                         on_change: move |id: String| {
@@ -513,7 +630,7 @@ pub(crate) fn render_dialog(
 
                 // Category (optional)
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Category (optional)" }
+                    label { class: "text-sm font-medium", "Category" }
                     {rsx! {
                         crate::components::CategoryCombobox {
                             selected_id: form_category_id,
@@ -528,7 +645,7 @@ pub(crate) fn render_dialog(
 
                 // Logo
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Logo (optional)" }
+                    label { class: "text-sm font-medium", "Logo" }
                     LogoSearch {
                         selected_url: form_logo_url.clone(),
                         default_query: form_name.clone(),
@@ -538,7 +655,7 @@ pub(crate) fn render_dialog(
 
                 // Notes
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Notes (optional)" }
+                    label { class: "text-sm font-medium", "Notes" }
                     textarea {
                         class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
                         placeholder: "Additional notes...",
@@ -553,3 +670,78 @@ pub(crate) fn render_dialog(
 }
 
 
+
+fn recurrence_hint(recurrence: &Recurrence) -> String {
+    let every = recurrence.interval;
+    match recurrence.unit.as_str() {
+        "day" => {
+            if every == 1 {
+                "Charges every day.".to_string()
+            } else {
+                format!("Charges every {every} days.")
+            }
+        }
+        "week" => {
+            let mut days = recurrence.weekdays.clone();
+            days.sort_unstable();
+            days.dedup();
+            let names = days
+                .iter()
+                .filter_map(|day| WEEKDAYS.get(*day as usize - 1))
+                .copied()
+                .collect::<Vec<_>>()
+                .join(", ");
+            if every == 1 {
+                format!("Charges every week on {names}.")
+            } else {
+                format!("Charges every {every} weeks on {names}.")
+            }
+        }
+        "month" => {
+            let mut days = recurrence.days.clone();
+            days.sort_unstable();
+            days.dedup();
+            let names = days
+                .iter()
+                .map(|day| {
+                    if *day == 0 {
+                        "the last day".to_string()
+                    } else {
+                        format!("day {day}")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if every == 1 {
+                format!("Charges monthly on {names}.")
+            } else {
+                format!("Charges every {every} months on {names}.")
+            }
+        }
+        _ => {
+            let mut dates = recurrence.dates.clone();
+            dates.sort_by_key(|date| (date.month, date.day));
+            let names = dates
+                .iter()
+                .map(|date| {
+                    let day = if date.day == 0 {
+                        "last day".to_string()
+                    } else {
+                        date.day.to_string()
+                    };
+                    let month = MONTHS
+                        .get(date.month as usize - 1)
+                        .copied()
+                        .unwrap_or("month");
+                    format!("{day} {month}")
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if every == 1 {
+                format!("Charges every year on {names}.")
+            } else {
+                format!("Charges every {every} years on {names}.")
+            }
+        }
+    }
+}

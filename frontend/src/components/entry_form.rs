@@ -153,6 +153,8 @@ impl EntryForm {
             frequency: self.frequency.clone(),
             schedule_day: self.schedule_day,
             schedule_month: self.schedule_month,
+            recurrence: None,
+            is_active: None,
             start_date: self.parse_start_date().unwrap_or(
                 chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
             ),

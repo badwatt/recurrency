@@ -1,7 +1,136 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+
+/// Unified recurrence definition. Kept in sync with the backend JSONB model.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Recurrence {
+    pub interval: u16,
+    /// "day", "week", "month" or "year".
+    pub unit: String,
+    /// Days of the month. 0 means the last day of the month.
+    #[serde(default)]
+    pub days: Vec<u8>,
+    /// ISO weekdays, Monday = 1.
+    #[serde(default)]
+    pub weekdays: Vec<u8>,
+    /// Explicit annual dates, optionally with a per-date amount.
+    #[serde(default)]
+    pub dates: Vec<AnnualDate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AnnualDate {
+    pub month: u8,
+    pub day: u8,
+    #[serde(default)]
+    pub amount: Option<Decimal>,
+}
+
+
+impl Recurrence {
+    /// Build the new recurrence model from the legacy frequency columns.
+    pub fn from_legacy(
+        frequency: &str,
+        start: NaiveDate,
+        day: Option<i16>,
+        month: Option<i16>,
+    ) -> Self {
+        let fallback_day = start.day().min(31) as u8;
+        let day = day.map(|value| value.clamp(1, 31) as u8).unwrap_or(fallback_day);
+        match frequency {
+            "daily" => Self {
+                interval: 1,
+                unit: "day".into(),
+                ..Default::default()
+            },
+            "weekly" => Self {
+                interval: 1,
+                unit: "week".into(),
+                weekdays: vec![day.clamp(1, 7)],
+                ..Default::default()
+            },
+            "quarterly" => Self {
+                interval: 3,
+                unit: "month".into(),
+                days: vec![day],
+                ..Default::default()
+            },
+            "yearly" => Self {
+                interval: 1,
+                unit: "year".into(),
+                dates: vec![AnnualDate {
+                    month: month
+                        .map(|value| value.clamp(1, 12) as u8)
+                        .unwrap_or(start.month() as u8),
+                    day,
+                    amount: None,
+                }],
+                ..Default::default()
+            },
+            _ => Self {
+                interval: 1,
+                unit: "month".into(),
+                days: vec![day],
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn legacy_frequency(&self) -> String {
+        match self.unit.as_str() {
+            "day" => "daily".into(),
+            "week" => "weekly".into(),
+            "year" => "yearly".into(),
+            _ if self.interval == 3 => "quarterly".into(),
+            _ => "monthly".into(),
+        }
+    }
+
+    pub fn legacy_day(&self) -> Option<i16> {
+        match self.unit.as_str() {
+            "week" => self.weekdays.first().map(|day| i16::from(*day)),
+            "year" => self
+                .dates
+                .iter()
+                .min_by_key(|date| (date.month, date.day))
+                .map(|date| i16::from(date.day)),
+            "month" => self.days.first().map(|day| {
+                if *day == 0 {
+                    31
+                } else {
+                    i16::from(*day)
+                }
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn legacy_month(&self) -> Option<i16> {
+        if self.unit == "year" {
+            self.dates
+                .iter()
+                .min_by_key(|date| (date.month, date.day))
+                .map(|date| i16::from(date.month))
+        } else {
+            None
+        }
+    }
+}
+
+impl Default for Recurrence {
+    fn default() -> Self {
+        Self {
+            interval: 1,
+            unit: "month".to_string(),
+            days: vec![1],
+            weekdays: Vec::new(),
+            dates: Vec::new(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Subscription {
@@ -18,6 +147,8 @@ pub struct Subscription {
     pub schedule_day: Option<i16>,
     #[serde(default)]
     pub schedule_month: Option<i16>,
+    #[serde(default)]
+    pub recurrence: Recurrence,
     pub start_date: NaiveDate,
     #[serde(default)]
     pub end_date: Option<NaiveDate>,
@@ -37,6 +168,10 @@ pub struct CreateSubscriptionRequest {
     pub frequency: String,
     pub schedule_day: Option<i16>,
     pub schedule_month: Option<i16>,
+    #[serde(default)]
+    pub recurrence: Option<Recurrence>,
+    #[serde(default)]
+    pub is_active: Option<bool>,
     pub start_date: NaiveDate,
     pub end_date: Option<NaiveDate>,
     #[serde(default)]
@@ -54,6 +189,8 @@ pub struct UpdateSubscriptionRequest {
     pub frequency: Option<String>,
     pub schedule_day: Option<i16>,
     pub schedule_month: Option<i16>,
+    #[serde(default)]
+    pub recurrence: Option<Recurrence>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
     #[serde(default)]
@@ -95,6 +232,7 @@ mod tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()),
@@ -134,6 +272,8 @@ mod tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: None,
+            is_active: None,
             start_date: NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
             end_date: None,
             category_id: None,
@@ -271,6 +411,8 @@ mod tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: None,
+            is_active: None,
             start_date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
             end_date: None,
             category_id: Some(Uuid::new_v4()),
@@ -351,6 +493,7 @@ mod subscription_tests {
             frequency: frequency.into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: None,
@@ -392,6 +535,8 @@ mod subscription_tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: None,
+            is_active: None,
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             category_id: Some(cat),
@@ -413,6 +558,8 @@ mod subscription_tests {
             frequency: "yearly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: None,
+            is_active: None,
             start_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             end_date: None,
             category_id: Some(cat),
@@ -453,6 +600,7 @@ mod subscription_tests {
             frequency: None,
             schedule_day: None,
             schedule_month: None,
+            recurrence: None,
             start_date: None,
             end_date: None,
             clear_end_date: false,
@@ -489,6 +637,7 @@ mod subscription_tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: None,
@@ -539,6 +688,7 @@ mod subscription_tests {
             frequency: "yearly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: None,
@@ -564,6 +714,7 @@ mod subscription_tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: None,
@@ -590,6 +741,7 @@ mod subscription_tests {
                 frequency: "monthly".into(),
                 schedule_day: None,
                 schedule_month: None,
+                recurrence: Recurrence::default(),
                 start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 end_date: None,
                 next_billing_date: None,
@@ -633,6 +785,7 @@ mod subscription_tests {
             frequency: "monthly".into(),
             schedule_day: None,
             schedule_month: None,
+            recurrence: Recurrence::default(),
             start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             end_date: None,
             next_billing_date: Some(next),
@@ -674,6 +827,7 @@ mod subscription_tests {
             frequency: Some("yearly".into()),
             schedule_day: None,
             schedule_month: None,
+            recurrence: None,
             start_date: Some(NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()),
             end_date: None,
             clear_end_date: false,

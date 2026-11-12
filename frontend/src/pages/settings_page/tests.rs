@@ -10,6 +10,7 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page/delivery_card.rs"),
     include_str!("../../layout/settings_layout.rs"),
     include_str!("../../components/server_url.rs"),
+    include_str!("../subscriptions_page/cards.rs"),
 );
 
     #[test]
@@ -85,6 +86,14 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(login.contains(r#"if cfg!(not(target_arch = "wasm32"))"#));
         assert!(editor.contains("logout_on_change"));
         assert!(editor.contains("set_server"));
+    }
+
+
+    #[test]
+    fn category_badge_is_shown_but_not_for_system_category() {
+        assert!(SETTINGS_SOURCES.contains("Category") || SETTINGS_SOURCES.contains("category"));
+        assert!(SETTINGS_SOURCES.contains("!c.is_system"));
+        assert!(SETTINGS_SOURCES.contains("cat.name"));
     }
 
     #[test]

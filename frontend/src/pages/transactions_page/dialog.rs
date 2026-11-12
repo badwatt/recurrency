@@ -256,7 +256,7 @@ pub fn TransactionDialog(
             div { class: "space-y-4",
                 // Name
                 div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Name" }
+                    label { class: "text-sm font-medium", "Name " span { class: "text-destructive", "*" } }
                     input {
                         r#type: "text",
                         value: form_name.to_string(),
@@ -273,7 +273,7 @@ pub fn TransactionDialog(
                 // Amount
                 div { class: "grid grid-cols-2 gap-4",
                     div { class: "space-y-2",
-                        label { class: "text-sm font-medium", "Amount" }
+                        label { class: "text-sm font-medium", "Amount " span { class: "text-destructive", "*" } }
                         input {
                             r#type: "number",
                             step: "0.01",
@@ -289,7 +289,7 @@ pub fn TransactionDialog(
                         }
                     }
                     div { class: "space-y-2",
-                        label { class: "text-sm font-medium", "Currency" }
+                        label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
                         select {
                             value: form_currency.to_string(),
                             onchange: move |e| {
@@ -308,7 +308,7 @@ pub fn TransactionDialog(
                 }
                 // Date
                 div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Date" }
+                    label { class: "text-sm font-medium", "Date " span { class: "text-destructive", "*" } }
                     input {
                         r#type: "date",
                         value: form_date.to_string(),
@@ -324,7 +324,7 @@ pub fn TransactionDialog(
                 }
                 // Account (search or create, same combobox as categories)
                 div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Account" }
+                    label { class: "text-sm font-medium", "Account " span { class: "text-destructive", "*" } }
                     AccountCombobox {
                         selected_id: form_account_id().to_string(),
                         on_change: move |id: String| {
@@ -336,7 +336,7 @@ pub fn TransactionDialog(
                 }
                 // Category (optional)
                 div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Category (optional)" }
+                    label { class: "text-sm font-medium", "Category" }
                     {rsx! {
                         CategoryCombobox {
                             selected_id: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
@@ -359,7 +359,7 @@ pub fn TransactionDialog(
                 }
                 // Logo
                 div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Logo (optional)" }
+                    label { class: "text-sm font-medium", "Logo" }
                     LogoSearch {
                         selected_url: form_logo_url(),
                         default_query: form_name(),

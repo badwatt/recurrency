@@ -2,6 +2,7 @@
 use crate::state::preferences::PREFERENCES;
 use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::components::toast::ToastContainer;
+use crate::components::update_banner::UpdateBanner;
 
 // Branded app loader (auth init, pre-WASM)
 #[allow(non_snake_case)]
@@ -193,6 +194,7 @@ pub fn AppLayout() -> Element {
             }
 
             main { id: "main-content", class: "flex-1 w-full max-w-7xl mx-auto",
+                UpdateBanner {}
                 Outlet::<crate::Route> {}
             }
 

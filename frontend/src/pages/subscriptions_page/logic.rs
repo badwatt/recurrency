@@ -35,13 +35,14 @@ pub const STATUS_OPTIONS: &[(&str, &str)] = &[
     ("all", "All"),
     ("active", "Active"),
     ("inactive", "Inactive"),
+    ("finalized", "Finalized"),
 ];
 
 pub const SORT_OPTIONS: &[(&str, &str)] = &[
     ("next_billing_date", "Upcoming date"),
     ("amount", "Price"),
     ("name", "Name"),
-    ("frequency", "Frequency"),
+    ("frequency", "Repeat"),
     ("start_date", "Start date"),
 ];
 
@@ -69,13 +70,14 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
     let mut result: Vec<Subscription> = subs.to_vec();
 
     match filters.status.as_deref() {
-        Some("active") => result.retain(|s| s.is_active),
+        Some("active") => result.retain(|s| s.is_active && !subscription_is_finalized(s.is_active, s.end_date, chrono::Utc::now().date_naive())),
         Some("inactive") => result.retain(|s| !s.is_active),
+        Some("finalized") => result.retain(|s| subscription_is_finalized(s.is_active, s.end_date, chrono::Utc::now().date_naive())),
         _ => {}
     }
 
-    if let Some(ref freq) = filters.frequency {
-        result.retain(|s| s.frequency == *freq);
+    if let Some(ref unit) = filters.frequency {
+        result.retain(|s| s.recurrence.unit == *unit || s.frequency == *unit);
     }
 
     if let Some(ref cat_id) = filters.category_id
@@ -100,12 +102,11 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
 }
 
 pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
-    let freq_order: std::collections::HashMap<&str, i32> = std::collections::HashMap::from([
-        ("daily", 0),
-        ("weekly", 1),
-        ("monthly", 2),
-        ("quarterly", 3),
-        ("yearly", 4),
+    let unit_order: std::collections::HashMap<&str, i32> = std::collections::HashMap::from([
+        ("day", 0),
+        ("week", 1),
+        ("month", 2),
+        ("year", 3),
     ]);
 
     subs.sort_by(|a, b| {
@@ -124,9 +125,24 @@ pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
             "amount" => a.amount.cmp(&b.amount),
             "name" => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
             "frequency" => {
-                let a_ord = freq_order.get(a.frequency.as_str()).copied().unwrap_or(99);
-                let b_ord = freq_order.get(b.frequency.as_str()).copied().unwrap_or(99);
-                a_ord.cmp(&b_ord)
+                let legacy_order: std::collections::HashMap<&str, i32> =
+                    std::collections::HashMap::from([
+                        ("daily", 0),
+                        ("weekly", 1),
+                        ("monthly", 2),
+                        ("quarterly", 3),
+                        ("yearly", 4),
+                    ]);
+                let a_ord = unit_order.get(a.recurrence.unit.as_str()).copied().unwrap_or(99);
+                let b_ord = unit_order.get(b.recurrence.unit.as_str()).copied().unwrap_or(99);
+                a_ord
+                    .cmp(&b_ord)
+                    .then_with(|| a.recurrence.interval.cmp(&b.recurrence.interval))
+                    .then_with(|| {
+                        let a_legacy = legacy_order.get(a.frequency.as_str()).copied().unwrap_or(99);
+                        let b_legacy = legacy_order.get(b.frequency.as_str()).copied().unwrap_or(99);
+                        a_legacy.cmp(&b_legacy)
+                    })
             }
             "start_date" => {
                 let a_val = a
@@ -161,9 +177,53 @@ pub fn apply_filters_and_sort(
     result
 }
 
-/// Returns CSS opacity class based on active status.
-pub fn subscription_card_opacity(is_active: bool) -> &'static str {
-    if is_active { "" } else { "opacity-60" }
+/// A subscription is finalized after its inclusive end date has passed.
+pub fn subscription_is_finalized(
+    is_active: bool,
+    end_date: Option<chrono::NaiveDate>,
+    today: chrono::NaiveDate,
+) -> bool {
+    is_active && end_date.is_some_and(|end| end < today)
+}
+
+/// Returns CSS opacity class based on active/finalized status.
+pub fn subscription_card_opacity(is_active: bool, finalized: bool) -> &'static str {
+    if is_active && !finalized { "" } else { "opacity-60" }
+}
+
+/// Human-readable end-date state shown under the next payment line.
+pub fn subscription_end_text(
+    end_date: Option<chrono::NaiveDate>,
+    today: chrono::NaiveDate,
+    date_format: &str,
+) -> Option<String> {
+    let end = end_date?;
+    if end < today {
+        Some(format!("Finalizó el {}", format_date(&end, date_format)))
+    } else {
+        Some(format!("Finaliza el {}", format_date(&end, date_format)))
+    }
+}
+
+/// Split subscriptions into active, inactive and finalized sections.
+pub fn subscription_sections(
+    subscriptions: &[Subscription],
+    today: chrono::NaiveDate,
+) -> (Vec<Subscription>, Vec<Subscription>, Vec<Subscription>) {
+    let mut active = Vec::new();
+    let mut inactive = Vec::new();
+    let mut finalized = Vec::new();
+    for sub in subscriptions {
+        let is_finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
+        if !sub.is_active {
+            inactive.push(sub.clone());
+        } else if is_finalized {
+            finalized.push(sub.clone());
+        } else {
+            active.push(sub.clone());
+        }
+    }
+    (active, inactive, finalized)
 }
 
 /// Formats next billing date text.

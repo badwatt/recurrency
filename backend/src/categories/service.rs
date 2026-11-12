@@ -153,6 +153,11 @@ impl CategoryService {
         req: UpdateCategoryRequest,
     ) -> AppResult<Category> {
         let existing = Self::get_by_id(pool, user_id, id).await?;
+        if existing.is_system {
+            return Err(AppError::BadRequest(
+                "Uncategorized is a system category and cannot be edited".to_string(),
+            ));
+        }
 
         let name = req.name.unwrap_or(existing.name);
 
@@ -199,10 +204,10 @@ impl CategoryService {
     pub async fn delete(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<()> {
         let category = Self::get_by_id(pool, user_id, id).await?;
 
-        // Cannot delete the default category
-        if category.is_default {
+        // The system fallback is permanent.
+        if category.is_system {
             return Err(AppError::BadRequest(
-                "Cannot delete the default category".to_string(),
+                "Uncategorized is a system category and cannot be deleted".to_string(),
             ));
         }
 
@@ -251,6 +256,13 @@ impl CategoryService {
     /// Set a category as the default
     /// Also reassigns all subscriptions and transactions that were using the previous default
     pub async fn set_default(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<Category> {
+        let category = Self::get_by_id(pool, user_id, id).await?;
+        if !category.is_system {
+            return Err(AppError::BadRequest(
+                "Uncategorized is the fixed default category".to_string(),
+            ));
+        }
+
         // Use a transaction to ensure atomicity
         let mut tx = pool.begin().await?;
 

@@ -283,12 +283,13 @@
     // ── Card display helpers tests ──
     #[test]
     fn subscription_card_opacity_active() {
-        assert_eq!(subscription_card_opacity(true), "");
+        assert_eq!(subscription_card_opacity(true, false), "");
     }
 
     #[test]
     fn subscription_card_opacity_inactive() {
-        assert_eq!(subscription_card_opacity(false), "opacity-60");
+        assert_eq!(subscription_card_opacity(false, false), "opacity-60");
+        assert_eq!(subscription_card_opacity(true, true), "opacity-60");
     }
 
     #[test]
@@ -406,19 +407,21 @@
 fn billing_schedule_ui_exposes_recurrence_controls() {
     let src = include_str!("dialog.rs");
     assert!(src.contains("Billing schedule"));
-    assert!(src.contains("Day of the week"));
-    assert!(src.contains("Day of the month"));
+    assert!(src.contains("Charge on"));
+    assert!(src.contains("Charge on these days"));
+    assert!(src.contains("Annual dates"));
     assert!(src.contains("Start date"));
     assert!(src.contains("End date"));
     assert!(src.contains("Leave empty to start from today."));
-    assert!(src.contains("Billing stops before this date."));
+    assert!(src.contains("Last billing date (inclusive)."));
 }
 
 #[test]
 fn dialog_submits_schedule_and_end_date() {
     let src = include_str!("dialog.rs");
-    assert!(src.contains("schedule_day: f.schedule_day"));
-    assert!(src.contains("schedule_month: f.schedule_month"));
+    assert!(src.contains("schedule_day: rec.legacy_day()"));
+    assert!(src.contains("schedule_month: rec.legacy_month()"));
+    assert!(src.contains("recurrence: Some(rec.clone())"));
     assert!(src.contains("clear_end_date: f.end_date.is_empty()"));
-    assert!(!src.contains("schedule_day: None"));
+    assert!(!src.contains("recurrence: None"));
 }

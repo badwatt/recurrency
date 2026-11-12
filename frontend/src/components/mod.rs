@@ -11,6 +11,7 @@ pub mod select;
 pub mod server_url;
 pub mod toast;
 pub mod tooltip;
+pub mod update_banner;
 
 pub mod label_combobox;
 pub use label_combobox::{AccountCombobox, CategoryCombobox};
