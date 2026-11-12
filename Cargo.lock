@@ -5453,7 +5453,7 @@ dependencies = [
 
 [[package]]
 name = "recurrency_backend"
-version = "0.38.0"
+version = "0.38.1"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -5483,7 +5483,7 @@ dependencies = [
 
 [[package]]
 name = "recurrency_frontend"
-version = "0.38.0"
+version = "0.38.1"
 dependencies = [
  "chrono",
  "dioxus",
@@ -5505,7 +5505,7 @@ dependencies = [
 
 [[package]]
 name = "recurrency_tools"
-version = "0.38.0"
+version = "0.38.1"
 dependencies = [
  "tokio",
 ]
