@@ -253,6 +253,12 @@ pub fn patch_gradle(content: &str, code: Option<u32>) -> String {
     let mut out = content
         .replace("extractNativeLibs=\"false\"", "extractNativeLibs=\"true\"")
         .replace("jvmTarget = \"1.8\"", "jvmTarget = \"17\"");
+    if !out.contains("androidx.documentfile:documentfile")
+        && out.contains("androidx.webkit:webkit")
+        && out.contains("dependencies {")
+    {
+        out = out.replace("dependencies {", "dependencies {\n    implementation(\"androidx.documentfile:documentfile:1.0.1\")");
+    }
 
     if let Some(code) = code {
         let mut lines = Vec::new();
@@ -302,6 +308,7 @@ fn inject_block() -> String {
             "        addJavascriptInterface(SystemBarsBridge(this), \"RecurrencyAndroid\")\n",
             "        addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")\n",
             "        addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")\n",
+            "        addJavascriptInterface(SyncFolderBridge(this), \"RecurrencySyncFolder\")\n",
             "        addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")\n",
             "        // Prevent FOUC: mocha background + themed native loader.\n",
             "        // setBackgroundColor paints mocha behind WebView — eliminates white flash.\n",
@@ -351,6 +358,67 @@ private class ImagePickerBridge(private val view: android.webkit.WebView) {
     fun pickImage() {
         val activity = view.context as? WryActivity ?: return
         activity.runOnUiThread { activity.pickImageForWebView(view) }
+    }
+}
+
+private class SyncFolderBridge(private val view: android.webkit.WebView) {
+    private val prefs get() = view.context.getSharedPreferences("recurrency_sync", 0)
+
+    private fun tree(): androidx.documentfile.provider.DocumentFile? {
+        val raw = prefs.getString("tree_uri", null) ?: return null
+        return try {
+            androidx.documentfile.provider.DocumentFile.fromTreeUri(view.context, android.net.Uri.parse(raw))
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    @android.webkit.JavascriptInterface
+    fun hasFolder(): Boolean = tree() != null
+
+    @android.webkit.JavascriptInterface
+    fun folderName(): String = tree()?.name ?: ""
+
+    @android.webkit.JavascriptInterface
+    fun disconnect() {
+        prefs.edit().remove("tree_uri").apply()
+    }
+
+    @android.webkit.JavascriptInterface
+    fun chooseFolder() {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.chooseSyncFolder(view) }
+    }
+
+    @android.webkit.JavascriptInterface
+    fun readAll(): String {
+        val tree = tree() ?: return "[]"
+        val result = org.json.JSONArray()
+        for (file in tree.listFiles()) {
+            if (file.isFile && file.name?.startsWith("recurrency-sync-") == true && file.name?.endsWith(".json") == true) {
+                try {
+                    val text = view.context.contentResolver.openInputStream(file.uri)?.bufferedReader()?.use { it.readText() } ?: ""
+                    if (text.isNotEmpty()) result.put(text)
+                } catch (_: Exception) {}
+            }
+        }
+        return result.toString()
+    }
+
+    @android.webkit.JavascriptInterface
+    fun writeFile(content: String): Boolean {
+        val tree = tree() ?: return false
+        val device = prefs.getString("device_id", null) ?: java.util.UUID.randomUUID().toString().also {
+            prefs.edit().putString("device_id", it).apply()
+        }
+        val filename = "recurrency-sync-" + device + ".json"
+        return try {
+            val file = tree.findFile(filename) ?: tree.createFile("application/json", filename) ?: return false
+            view.context.contentResolver.openOutputStream(file.uri, "wt")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 }
 
@@ -444,7 +512,7 @@ pub fn patch_wry_activity(content: &str) -> String {
     if out.contains(field) {
         out = out.replace(
             field,
-            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
+            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencySyncWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
         );
     }
     let methods = r##"    // --- Recurrency image picker ---
@@ -514,6 +582,21 @@ pub fn patch_wry_activity(content: &str) -> String {
         out.insert_str(pos, methods);
     }
     let file_methods = r##"    // --- Recurrency file picker and back handling ---
+    fun chooseSyncFolder(view: android.webkit.WebView) {
+        recurrencySyncWebView = view
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+        }
+        try {
+            startActivityForResult(intent, RECURRENCY_SYNC_FOLDER)
+        } catch (_: Exception) {
+            recurrencySyncWebView = null
+        }
+    }
+
     fun pickJsonForWebView(view: android.webkit.WebView) {
         recurrencyFileWebView = view
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
@@ -556,12 +639,12 @@ pub fn patch_wry_activity(content: &str) -> String {
     if !out.contains("requestCode == RECURRENCY_FILE_PICK") {
         out = out.replace(
             "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
-            "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
+            "        super.onActivityResult(requestCode, resultCode, data)\n                if (requestCode == RECURRENCY_SYNC_FOLDER) {\n            val view = recurrencySyncWebView ?: return\n            recurrencySyncWebView = null\n            val uri = data?.data\n            if (resultCode == RESULT_OK && uri != null) {\n                try {\n                    contentResolver.takePersistableUriPermission(\n                        uri,\n                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,\n                    )\n                    view.context.getSharedPreferences(\"recurrency_sync\", 0)\n                        .edit().putString(\"tree_uri\", uri.toString()).apply()\n                    view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('ok')\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('')\", null) }\n                }\n            } else {\n                view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('')\", null) }\n            }\n            return\n        }\nif (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
         );
     }
     out = out.replace(
         "    companion object {\n",
-        "    companion object {\n        private const val RECURRENCY_IMAGE_PICK = 4711\n        private const val RECURRENCY_FILE_PICK = 4712\n",
+        "    companion object {\n        private const val RECURRENCY_IMAGE_PICK = 4711\n        private const val RECURRENCY_FILE_PICK = 4712\n        private const val RECURRENCY_SYNC_FOLDER = 4713\n",
     );
     patch_file_and_back(out)
 }
@@ -571,7 +654,7 @@ fn patch_file_and_back(mut out: String) -> String {
     if !out.contains("recurrencyFileWebView") && out.contains(field) {
         out = out.replace(
             field,
-            &format!("{field}\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
+            &format!("{field}\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencySyncWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
         );
     }
     let methods = r##"    // --- Recurrency file picker and back handling ---
@@ -618,13 +701,13 @@ fn patch_file_and_back(mut out: String) -> String {
     {
         out = out.replace(
             "        private const val RECURRENCY_IMAGE_PICK = 4711\n",
-            "        private const val RECURRENCY_IMAGE_PICK = 4711\n        private const val RECURRENCY_FILE_PICK = 4712\n",
+            "        private const val RECURRENCY_IMAGE_PICK = 4711\n        private const val RECURRENCY_FILE_PICK = 4712\n        private const val RECURRENCY_SYNC_FOLDER = 4713\n",
         );
     }
     if !out.contains("requestCode == RECURRENCY_FILE_PICK") {
         out = out.replace(
             "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
-            "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
+            "        super.onActivityResult(requestCode, resultCode, data)\n                if (requestCode == RECURRENCY_SYNC_FOLDER) {\n            val view = recurrencySyncWebView ?: return\n            recurrencySyncWebView = null\n            val uri = data?.data\n            if (resultCode == RESULT_OK && uri != null) {\n                try {\n                    contentResolver.takePersistableUriPermission(\n                        uri,\n                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,\n                    )\n                    view.context.getSharedPreferences(\"recurrency_sync\", 0)\n                        .edit().putString(\"tree_uri\", uri.toString()).apply()\n                    view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('ok')\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('')\", null) }\n                }\n            } else {\n                view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('')\", null) }\n            }\n            return\n        }\nif (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
         );
     }
     out
@@ -660,6 +743,9 @@ pub fn patch_webview(content: &str) -> String {
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")")
+            || line
+                .trim_start()
+                .starts_with("addJavascriptInterface(SyncFolderBridge(this), \"RecurrencySyncFolder\")")
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")")
@@ -1227,6 +1313,9 @@ mod image_picker_tests {
         assert!(once.contains("onBackPressed"));
         assert!(once.contains("Press back again to exit"));
         assert!(once.contains("RECURRENCY_FILE_PICK"));
+        assert!(once.contains("RECURRENCY_SYNC_FOLDER"));
+        assert!(once.contains("chooseSyncFolder"));
+        assert!(once.contains("recurrencySyncWebView"));
         assert!(once.contains("import android.content.Intent"));
         let twice = patch_wry_activity(&once);
         assert_eq!(once, twice);
@@ -1237,6 +1326,8 @@ mod image_picker_tests {
         let source = "class RustWebView {\n    init {\n        settings.javaScriptCanOpenWindowsAutomatically = true\n    }\n}\n";
         let once = patch_webview(source);
         assert!(once.contains("ImagePickerBridge"));
+        assert!(once.contains("SyncFolderBridge"));
+        assert!(once.contains("RecurrencySyncFolder"));
         assert!(once.contains("RecurrencyImagePicker"));
         assert!(once.contains("DownloadBridge"));
         assert!(once.contains("RecurrencyDownload"));

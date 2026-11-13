@@ -680,3 +680,12 @@ fn android_backup_picker_uses_the_native_bridge() {
     assert!(src.contains("RecurrencyFilePicker"));
     assert!(src.contains("__recurrencyBackupPicked"));
 }
+
+#[test]
+fn local_sync_card_uses_android_folder_bridge() {
+    let src = include_str!("sync_card.rs");
+    assert!(src.contains("Cloud folder sync"));
+    assert!(src.contains("RecurrencySyncFolder"));
+    assert!(src.contains("sync_merge"));
+    assert!(src.contains("APP_MODE().mode.is_offline()"));
+}

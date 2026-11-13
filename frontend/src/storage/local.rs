@@ -361,6 +361,7 @@ pub async fn delete_subscription(id: &Uuid) -> Result<(), ApiError> {
     }
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No subscriptions".into()))?;
     list.retain(|s| &s.id != id);
+    record_tombstone("subscription", *id);
     save_collection("subscriptions", list)
 }
 
@@ -464,6 +465,7 @@ pub async fn delete_transaction(id: &Uuid) -> Result<(), ApiError> {
     }
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No transactions".into()))?;
     list.retain(|t| &t.id != id);
+    record_tombstone("transaction", *id);
     save_collection("transactions", list)
 }
 
@@ -668,6 +670,7 @@ pub async fn delete_account(id: &Uuid) -> Result<(), ApiError> {
     }
 
     list.retain(|a| &a.id != id);
+    record_tombstone("account", *id);
     save_collection("accounts", list)
 }
 
@@ -747,6 +750,7 @@ pub async fn delete_category(id: &Uuid) -> Result<(), ApiError> {
     }
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
     list.retain(|c| &c.id != id);
+    record_tombstone("category", *id);
     save_collection("categories", list)
 }
 
@@ -837,6 +841,52 @@ pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
+
+    #[derive(Clone)]
+    struct MergeItem {
+        id: Uuid,
+        updated_at: chrono::DateTime<Utc>,
+        value: &'static str,
+    }
+
+    #[test]
+    fn merge_by_id_keeps_the_newer_record() {
+        let id = Uuid::new_v4();
+        let old = MergeItem {
+            id,
+            updated_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
+            value: "old",
+        };
+        let new = MergeItem {
+            id,
+            updated_at: Utc.with_ymd_and_hms(2026, 1, 2, 0, 0, 0).unwrap(),
+            value: "new",
+        };
+        let merged = merge_by_id(vec![old], vec![new], |item| item.id, |item| item.updated_at);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].value, "new");
+    }
+
+    #[test]
+    fn sync_document_round_trips() {
+        let doc = SyncDocument {
+            format_version: 1,
+            device_id: "device".to_string(),
+            tombstones: vec![Tombstone {
+                kind: "subscription".to_string(),
+                id: Uuid::new_v4(),
+                deleted_at: Utc::now(),
+            }],
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&doc).unwrap();
+        let back: SyncDocument = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.device_id, "device");
+        assert_eq!(back.tombstones.len(), 1);
+    }
+
+
 
     #[test]
     fn default_categories_count() {
@@ -920,4 +970,219 @@ mod tests {
     fn local_storage_module_compiles() {
         assert!(true);
     }
+}
+
+// ── Cloud-folder sync document ───────────────────────────────
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Tombstone {
+    pub kind: String,
+    pub id: Uuid,
+    pub deleted_at: chrono::DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct SyncDocument {
+    #[serde(default = "sync_format_version")]
+    pub format_version: u32,
+    #[serde(default)]
+    pub device_id: String,
+    #[serde(default)]
+    pub subscriptions: Vec<Subscription>,
+    #[serde(default)]
+    pub transactions: Vec<Transaction>,
+    #[serde(default)]
+    pub accounts: Vec<Account>,
+    #[serde(default)]
+    pub categories: Vec<Category>,
+    #[serde(default)]
+    pub tombstones: Vec<Tombstone>,
+}
+
+fn sync_format_version() -> u32 { 1 }
+
+fn load_text(name: &str) -> Option<String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let dir = data_dir()?;
+        std::fs::read_to_string(dir.join(name)).ok()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let window = web_sys::window()?;
+        let storage = window.local_storage().ok()??;
+        storage.get_item(&format!("recurrency_local_{name}")).ok()?
+    }
+}
+
+fn save_text(name: &str, value: &str) -> Result<(), ApiError> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let dir = crate::state::auth::get_app_data_dir()
+            .map(|d| d.join("recurrency"))
+            .ok_or_else(|| ApiError::Network("No data directory".into()))?;
+        std::fs::create_dir_all(&dir).map_err(|e| ApiError::Network(e.to_string()))?;
+        std::fs::write(dir.join(name), value).map_err(|e| ApiError::Network(e.to_string()))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let window = web_sys::window().ok_or_else(|| ApiError::Network("No window".into()))?;
+        let storage = window
+            .local_storage()
+            .map_err(|_| ApiError::Network("No local storage".into()))?
+            .ok_or_else(|| ApiError::Network("No local storage".into()))?;
+        storage
+            .set_item(&format!("recurrency_local_{name}"), value)
+            .map_err(|_| ApiError::Network("Could not write local storage".into()))
+    }
+}
+
+fn sync_device_id() -> Result<String, ApiError> {
+    if let Some(value) = load_text("sync_device_id")
+        && !value.trim().is_empty()
+    {
+        return Ok(value.trim().to_string());
+    }
+    let value = Uuid::new_v4().to_string();
+    save_text("sync_device_id", &value)?;
+    Ok(value)
+}
+
+fn load_tombstones() -> Vec<Tombstone> {
+    load_collection("tombstones").unwrap_or_default()
+}
+
+fn record_tombstone(kind: &str, id: Uuid) {
+    let mut tombstones = load_tombstones();
+    tombstones.retain(|item| !(item.kind == kind && item.id == id));
+    tombstones.push(Tombstone {
+        kind: kind.to_string(),
+        id,
+        deleted_at: Utc::now(),
+    });
+    let _ = save_collection("tombstones", &tombstones);
+}
+
+fn normalize_defaults<T>(items: &mut [T])
+where
+    T: IsDefaultRecord + Clone,
+{
+    let first_default = items.iter().position(|item| item.is_default());
+    let fallback = first_default.or(if items.is_empty() { None } else { Some(0) });
+    for (index, item) in items.iter_mut().enumerate() {
+        item.set_default(Some(index) == fallback);
+    }
+}
+
+trait IsDefaultRecord {
+    fn is_default(&self) -> bool;
+    fn set_default(&mut self, value: bool);
+}
+
+impl IsDefaultRecord for Account {
+    fn is_default(&self) -> bool { self.is_default }
+    fn set_default(&mut self, value: bool) { self.is_default = value; }
+}
+
+impl IsDefaultRecord for Category {
+    fn is_default(&self) -> bool { self.is_default }
+    fn set_default(&mut self, value: bool) { self.is_default = value; }
+}
+
+pub async fn sync_snapshot() -> Result<String, ApiError> {
+    let document = SyncDocument {
+        format_version: 1,
+        device_id: sync_device_id()?,
+        subscriptions: list_subscriptions().await?,
+        transactions: list_transactions().await?,
+        accounts: list_accounts().await?,
+        categories: list_categories().await?,
+        tombstones: load_tombstones(),
+    };
+    serde_json::to_string(&document).map_err(|e| ApiError::Parse(e.to_string()))
+}
+
+fn merge_by_id<T>(
+    local: Vec<T>,
+    remote: Vec<T>,
+    id: impl Fn(&T) -> Uuid,
+    updated: impl Fn(&T) -> chrono::DateTime<Utc>,
+) -> Vec<T>
+where
+    T: Clone,
+{
+    let mut merged: std::collections::HashMap<Uuid, T> =
+        local.into_iter().map(|item| (id(&item), item)).collect();
+    for item in remote {
+        let key = id(&item);
+        match merged.get(&key) {
+            Some(current) if updated(current) > updated(&item) => {}
+            _ => {
+                merged.insert(key, item);
+            }
+        }
+    }
+    merged.into_values().collect()
+}
+
+pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
+    let mut remote_docs = Vec::new();
+    for raw in remote_files {
+        if let Ok(doc) = serde_json::from_str::<SyncDocument>(raw) {
+            remote_docs.push(doc);
+        }
+    }
+
+    let mut subscriptions = list_subscriptions().await?;
+    let mut transactions = list_transactions().await?;
+    let mut accounts = list_accounts().await?;
+    let mut categories = list_categories().await?;
+    let mut tombstones = load_tombstones();
+
+    for doc in &remote_docs {
+        subscriptions = merge_by_id(subscriptions, doc.subscriptions.clone(), |i| i.id, |i| i.updated_at);
+        transactions = merge_by_id(transactions, doc.transactions.clone(), |i| i.id, |i| i.updated_at);
+        accounts = merge_by_id(accounts, doc.accounts.clone(), |i| i.id, |i| i.updated_at);
+        categories = merge_by_id(categories, doc.categories.clone(), |i| i.id, |i| i.updated_at);
+        for tombstone in &doc.tombstones {
+            if let Some(existing) = tombstones.iter_mut().find(|item| item.kind == tombstone.kind && item.id == tombstone.id) {
+                if tombstone.deleted_at > existing.deleted_at {
+                    existing.deleted_at = tombstone.deleted_at;
+                }
+            } else {
+                tombstones.push(tombstone.clone());
+            }
+        }
+    }
+
+    let is_deleted = |kind: &str, id: Uuid, updated: chrono::DateTime<Utc>| {
+        tombstones.iter().any(|t| t.kind == kind && t.id == id && t.deleted_at >= updated)
+    };
+    subscriptions.retain(|i| !is_deleted("subscription", i.id, i.updated_at));
+    transactions.retain(|i| !is_deleted("transaction", i.id, i.updated_at));
+    accounts.retain(|i| !is_deleted("account", i.id, i.updated_at));
+    categories.retain(|i| !is_deleted("category", i.id, i.updated_at));
+
+    normalize_defaults(&mut accounts);
+    normalize_defaults(&mut categories);
+    save_collection("subscriptions", &subscriptions)?;
+    save_collection("transactions", &transactions)?;
+    save_collection("accounts", &accounts)?;
+    save_collection("categories", &categories)?;
+    save_collection("tombstones", &tombstones)?;
+    *SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions.clone());
+    *TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions.clone());
+    *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts.clone());
+    *CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(categories.clone());
+
+    let document = SyncDocument {
+        format_version: 1,
+        device_id: sync_device_id()?,
+        subscriptions,
+        transactions,
+        accounts,
+        categories,
+        tombstones,
+    };
+    serde_json::to_string(&document).map_err(|e| ApiError::Parse(e.to_string()))
 }

@@ -5,6 +5,7 @@ use dioxus::prelude::*;
 
 mod about_page;
 mod backup_card;
+mod sync_card;
 mod delete_account_card;
 mod delivery_card;
 mod preferences_card;
@@ -13,6 +14,7 @@ mod summary_card;
 
 use about_page::AboutPage;
 use backup_card::BackupCard;
+use sync_card::SyncFolderCard;
 use delete_account_card::DeleteAccountCard;
 use delivery_card::DeliveryCard;
 use preferences_card::PreferencesCard;
@@ -67,6 +69,7 @@ pub fn SettingsProfilePage() -> Element {
             PageHeader { title: "Profile", subtitle: "Your identity and session" }
             ProfileCard {}
             BackupCard {}
+            SyncFolderCard {}
             MobileSessionCard {}
             DeleteAccountCard {}
         }
