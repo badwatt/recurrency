@@ -13,6 +13,8 @@ pub mod notification_preferences;
 pub mod notifications;
 pub mod preferences;
 pub mod reports;
+pub mod server;
 pub mod settings;
 pub mod subscriptions;
 pub mod transactions;
+pub mod update;

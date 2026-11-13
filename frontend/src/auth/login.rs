@@ -1,7 +1,6 @@
 #[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
 use crate::api::{auth, demo, client::ApiError};
-use crate::components::server_url::ServerUrlEditor;
-use crate::state::app_mode::APP_MODE;
+use crate::state::app_mode::{APP_MODE, DEFAULT_NATIVE_SERVER};
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
@@ -17,6 +16,11 @@ fn draft_email() -> String {
 
 fn draft_password() -> String {
     LOGIN_DRAFT.lock().map(|d| d.1.clone()).unwrap_or_default()
+}
+
+/// Credentials typed on the login form, used to prefill sign-up.
+pub(crate) fn draft_credentials() -> (String, String) {
+    (draft_email(), draft_password())
 }
 
 fn set_draft_email(value: &str) {
@@ -49,6 +53,15 @@ pub fn LoginPage() -> Element {
     let _nav = navigator();
 
     let offline = APP_MODE().mode.is_offline();
+    let server_label = if offline {
+        "This device (local mode)".to_string()
+    } else {
+        APP_MODE()
+            .mode
+            .server_url()
+            .unwrap_or(DEFAULT_NATIVE_SERVER)
+            .to_string()
+    };
 
     // Check demo status on mount
     // Skip demo status check on Android (reqwest hangs)
@@ -286,11 +299,20 @@ pub fn LoginPage() -> Element {
                     }
                 }
 
-                // Native builds need an explicit server address before signing in.
+                // Native builds show the active server and move URL/QR editing to
+                // a dedicated screen, keeping the mobile form focused.
                 if cfg!(not(target_arch = "wasm32")) {
                     div {
-                        class: "border-b border-border px-6 py-4",
-                        ServerUrlEditor {}
+                        class: "mx-6 mt-4 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2",
+                        div { class: "min-w-0",
+                            p { class: "text-[11px] uppercase tracking-wider text-muted-foreground", "Server" }
+                            p { class: "truncate text-sm font-medium", {server_label} }
+                        }
+                        Link {
+                            to: Route::ServerSettings {},
+                            class: "inline-flex h-8 shrink-0 items-center rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-accent",
+                            "Change"
+                        }
                     }
                 }
 
@@ -316,6 +338,8 @@ pub fn LoginPage() -> Element {
                         input {
                             id: "login-email",
                             r#type: "email",
+                            inputmode: "email",
+                            autocomplete: "email",
                             placeholder: "email@example.com",
                             value: email.to_string(),
                             oninput: move |e| {
@@ -338,6 +362,7 @@ pub fn LoginPage() -> Element {
                         input {
                             id: "login-password",
                             r#type: "password",
+                            autocomplete: "current-password",
                             value: auth_field.to_string(),
                             oninput: move |e| {
                                 let value = e.value();

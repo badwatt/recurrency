@@ -137,6 +137,7 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         .route("/health", get(health_check))
         .route("/api/health", get(health_check))
         .route("/api/ready", get(readiness_check))
+        .route("/api/info", get(app_info))
         .route("/api/currency/rates", get(currency::handlers::rates))
         .route("/api/currency/settings", get(currency::handlers::get_settings).put(currency::handlers::update_settings))
         .route("/api/backup", get(backup::handlers::export))
@@ -224,6 +225,14 @@ async fn health_check() -> Json<serde_json::Value> {
     }))
 }
 
+/// Public identity endpoint used by clients before saving a server URL.
+async fn app_info() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "name": "recurrency",
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
+}
+
 /// Readiness verifies the database before a load balancer or container
 /// healthcheck sends traffic to this instance.
 async fn readiness_check(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
@@ -277,6 +286,13 @@ fn cors_layer() -> CorsLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn app_info_identifies_recurrency() {
+        let body = app_info().await.0;
+        assert_eq!(body["name"], "recurrency");
+        assert!(body["version"].as_str().is_some());
+    }
 
     #[tokio::test]
     async fn readiness_fails_when_database_is_unavailable() {

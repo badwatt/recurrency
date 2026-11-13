@@ -6,9 +6,10 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn RegisterPage() -> Element {
+    let (draft_email, draft_password) = crate::auth::login::draft_credentials();
     let mut name = use_signal(String::new);
-    let mut email = use_signal(String::new);
-    let mut auth_field = use_signal(String::new);
+    let mut email = use_signal(|| draft_email);
+    let mut auth_field = use_signal(|| draft_password);
     let mut show_text_visible = use_signal(|| false);
     let mut loading = use_signal(|| false);
     let mut error_msg = use_signal(String::new);
@@ -430,5 +431,17 @@ mod tests {
     fn error_parse_during_register() {
         let err = crate::api::client::ApiError::Parse("unexpected end".into());
         assert!(err.to_string().contains("unexpected end"));
+    }
+}
+
+
+#[cfg(test)]
+mod signup_draft_tests {
+    #[test]
+    fn register_prefills_from_login_draft() {
+        let source = include_str!("register.rs");
+        assert!(source.contains("draft_credentials"));
+        assert!(source.contains("use_signal(|| draft_email)"));
+        assert!(source.contains("use_signal(|| draft_password)"));
     }
 }

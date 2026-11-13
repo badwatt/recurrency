@@ -19,36 +19,46 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
     });
     let mut error = use_signal(String::new);
     let mut saved = use_signal(String::new);
+    let mut loading = use_signal(|| false);
 
     let mut save = move |_| {
+        if loading() {
+            return;
+        }
         let raw = value().trim().to_string();
-        let url = match normalize_server_url(&raw) {
-            Ok(url) => url,
-            Err(message) => {
-                saved.set(String::new());
-                error.set(message);
-                return;
-            }
-        };
-
-        let previous = APP_MODE().mode.server_url().unwrap_or_default().to_string();
-        let changed = previous != url;
-
-        error.set(String::new());
-        value.set(url.clone());
-        APP_MODE.write().set_server(url.clone());
-        crate::api::client::set_base_url(&url);
-
-        if changed && logout_on_change && AUTH().is_authenticated {
-            AUTH.write().logout();
-            AUTH.write().persist_to_storage();
-            TOAST.write().success("Server saved. Sign in again.");
-            navigator().push(crate::Route::Login {});
+        if let Err(message) = normalize_server_url(&raw) {
+            saved.set(String::new());
+            error.set(message);
             return;
         }
 
-        saved.set("Server saved".to_string());
-        TOAST.write().success("Server saved");
+        loading.set(true);
+        error.set(String::new());
+        saved.set(String::new());
+        spawn(async move {
+            match crate::api::server::validate_server(&raw).await {
+                Ok(url) => {
+                    let previous = APP_MODE().mode.server_url().unwrap_or_default().to_string();
+                    let changed = previous != url;
+                    value.set(url.clone());
+                    APP_MODE.write().set_server(url.clone());
+                    crate::api::client::set_base_url(&url);
+
+                    if changed && logout_on_change && AUTH().is_authenticated {
+                        AUTH.write().logout();
+                        AUTH.write().persist_to_storage();
+                        TOAST.write().success("Server saved. Sign in again.");
+                        navigator().push(crate::Route::Login {});
+                        return;
+                    }
+
+                    saved.set("Server saved".to_string());
+                    TOAST.write().success("Server saved");
+                }
+                Err(message) => error.set(message),
+            }
+            loading.set(false);
+        });
     };
 
     let use_local = move |_| {
@@ -89,9 +99,10 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
                 }
                 button {
                     r#type: "button",
-                    class: "inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90",
+                    disabled: loading(),
+                    class: "inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
                     onclick: move |_| save(()),
-                    "Save server"
+                    if loading() { "Checking…" } else { "Save server" }
                 }
             }
             if !error().is_empty() {

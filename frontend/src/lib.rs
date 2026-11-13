@@ -36,6 +36,8 @@ pub enum Route {
     Login {},
     #[route("/register")]
     Register {},
+    #[route("/server")]
+    ServerSettings {},
 
     // Protected (layout with sidebar)
     #[layout(layout::AppLayout)]
@@ -333,6 +335,11 @@ fn Login() -> Element {
 #[component]
 fn Register() -> Element {
     rsx! { crate::auth::RegisterPage {} }
+}
+
+#[component]
+fn ServerSettings() -> Element {
+    rsx! { crate::auth::server_settings::ServerSettingsPage {} }
 }
 
 #[component]
