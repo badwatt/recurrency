@@ -1,5 +1,5 @@
 use crate::components::toast::TOAST;
-use crate::state::app_mode::{normalize_server_url, APP_MODE, DEFAULT_NATIVE_SERVER};
+use crate::state::app_mode::{normalize_server_url, APP_MODE, NATIVE_SERVER_OVERRIDE};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
@@ -14,7 +14,7 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
         APP_MODE()
             .mode
             .server_url()
-            .unwrap_or(DEFAULT_NATIVE_SERVER)
+            .unwrap_or(NATIVE_SERVER_OVERRIDE)
             .to_string()
     });
     let mut error = use_signal(String::new);

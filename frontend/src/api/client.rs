@@ -45,7 +45,7 @@ impl std::fmt::Display for ApiError {
 /// Uses RwLock for thread-safe mutability without Dioxus runtime dependency (works in tests).
 static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 
-/// Returns true if the app is in local (SQLite) mode — no server needed.
+/// Returns true if the app is in local on-device mode — no server needed.
 pub fn is_offline_mode() -> bool {
     // 1. Check BASE_URL_OVERRIDE — explicit URL override means server mode
     if let Ok(lock) = BASE_URL_OVERRIDE.read()
@@ -178,8 +178,8 @@ fn get_base_url_impl() -> String {
                 }
             }
         }
-        eprintln!("[get_base_url] Native fallback server");
-        crate::state::app_mode::DEFAULT_NATIVE_SERVER.to_string()
+        eprintln!("[get_base_url] Native server override");
+        crate::state::app_mode::NATIVE_SERVER_OVERRIDE.to_string()
     }
 }
 
@@ -731,10 +731,10 @@ mod tests {
     #[test]
     #[serial]
     fn set_base_url_empty_clears_override() {
-        // Empty string is rejected, falls back to the default server
+        // Empty string clears the override; no personal server is prefilled.
         set_base_url("");
         let url = get_base_url();
-        assert!(url.starts_with("http"));
+        assert!(url.is_empty() || url.starts_with("http"));
     }
 
     #[test]
@@ -742,9 +742,9 @@ mod tests {
     fn set_base_url_preserves_previous_on_empty() {
         set_base_url("http://first:9000");
         set_base_url("");
-        // Empty string clears override, falls back to the default server
+        // Empty string clears the override; any fallback is non-personal.
         let url = get_base_url();
-        assert!(url.starts_with("http"));
+        assert!(url.is_empty() || url.starts_with("http"));
     }
 
     #[test]

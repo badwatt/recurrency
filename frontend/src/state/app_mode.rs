@@ -1,17 +1,18 @@
 use dioxus::prelude::*;
 
-/// Default server for native builds when no URL has been configured. Web
-/// builds always use the origin they are served from.
-pub const DEFAULT_NATIVE_SERVER: &str =
+/// Optional compile-time server override for native builds. It is empty by
+/// default so no personal or branded server is prefilled. Web builds always use
+/// the origin they are served from.
+pub const NATIVE_SERVER_OVERRIDE: &str =
     match option_env!("RECURRENCY_API_URL") {
         Some(url) => url,
-        None => "https://recurrency.azama.es",
+        None => "",
     };
 
-/// Application mode: local SQLite or remote server.
+/// Application mode: on-device storage or a remote Recurrency server.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
-    /// Use local SQLite database — no server needed.
+    /// Use on-device storage — no server needed.
     Offline,
     /// Connect to a remote Recurrency server.
     Server(String),
@@ -86,7 +87,9 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
                 }
             }
         }
-        (AppMode::Server(DEFAULT_NATIVE_SERVER.to_string()), true)
+        // Never prefill a branded or personal server. A fresh native install
+        // starts locally until the user configures a server.
+        (AppMode::Offline, true)
     }
 }
 

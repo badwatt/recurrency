@@ -1,6 +1,6 @@
 #[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
 use crate::api::{auth, demo, client::ApiError};
-use crate::state::app_mode::{APP_MODE, DEFAULT_NATIVE_SERVER};
+use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE};
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
@@ -56,11 +56,16 @@ pub fn LoginPage() -> Element {
     let server_label = if offline {
         "This device (local mode)".to_string()
     } else {
-        APP_MODE()
+        let url = APP_MODE()
             .mode
             .server_url()
-            .unwrap_or(DEFAULT_NATIVE_SERVER)
-            .to_string()
+            .map(str::to_string)
+            .unwrap_or_else(|| NATIVE_SERVER_OVERRIDE.to_string());
+        if url.is_empty() {
+            "Not configured".to_string()
+        } else {
+            url
+        }
     };
 
     // Check demo status on mount
