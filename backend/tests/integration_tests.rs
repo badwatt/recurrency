@@ -1120,3 +1120,29 @@ async fn debt_manual_payment_and_automatic_payoff(pool: PgPool) {
         .unwrap();
     assert_eq!(payments.len(), 3);
 }
+
+// ── Schema reconciliation ────────────────────────────────────────────────────
+
+#[sqlx::test]
+async fn schema_reconciliation_creates_the_expected_indexes(pool: PgPool) {
+    let default_category_index: Option<String> = sqlx::query_scalar(
+        "SELECT indexname FROM pg_indexes
+         WHERE schemaname = 'public' AND indexname = 'categories_one_default_per_user'",
+    )
+    .fetch_optional(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        default_category_index.as_deref(),
+        Some("categories_one_default_per_user")
+    );
+
+    let verified_index: Option<String> = sqlx::query_scalar(
+        "SELECT indexname FROM pg_indexes
+         WHERE schemaname = 'public' AND indexname = 'idx_users_verified'",
+    )
+    .fetch_optional(&pool)
+    .await
+    .unwrap();
+    assert_eq!(verified_index.as_deref(), Some("idx_users_verified"));
+}

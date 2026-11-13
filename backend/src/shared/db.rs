@@ -1,4 +1,5 @@
 use sqlx::postgres::{PgPool, PgPoolOptions};
+#[cfg(feature = "embedded-db")]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -17,8 +18,15 @@ const EMBEDDED_PG_MAJOR: u32 = 18;
 #[cfg(feature = "embedded-db")]
 const PREVIOUS_EMBEDDED_PG_MAJOR: u32 = 17;
 
+/// The old embedded schema snapshot already contained the initial tables and
+/// columns. Migrations up to this version must be marked as applied before
+/// SQLx can continue from 013 onward.
+#[cfg(feature = "embedded-db")]
+const LEGACY_EMBEDDED_BASELINE_VERSION: i64 = 12;
+
 /// True once the local embedded PostgreSQL fallback has been selected. Kept
 /// separate from the pool because migrations differ for a fresh local cluster.
+#[cfg(feature = "embedded-db")]
 static EMBEDDED_DATABASE: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "embedded-db")]
@@ -51,12 +59,18 @@ fn embedded_pg_major(data_dir: &std::path::Path) -> Result<Option<u32>, sqlx::Er
     let Ok(version) = std::fs::read_to_string(&version_path) else {
         return Ok(None);
     };
-    let major = version.lines().next().unwrap_or_default().trim().parse::<u32>().map_err(|_| {
-        configuration_error(format!(
-            "invalid local database version in {}",
-            version_path.display()
-        ))
-    })?;
+    let major = version
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .parse::<u32>()
+        .map_err(|_| {
+            configuration_error(format!(
+                "invalid local database version in {}",
+                version_path.display()
+            ))
+        })?;
     Ok(Some(major))
 }
 
@@ -116,10 +130,7 @@ fn wait_for_local_server(psql: &std::path::Path, port: u16, password: &str) -> b
 /// Upgrade an existing local PostgreSQL 17 cluster to the current major.
 /// The old data directory is preserved next to the new one for rollback.
 #[cfg(feature = "embedded-db")]
-async fn migrate_embedded_data(
-    root: &std::path::Path,
-    password: &str,
-) -> Result<(), sqlx::Error> {
+async fn migrate_embedded_data(root: &std::path::Path, password: &str) -> Result<(), sqlx::Error> {
     let data_dir = root.join("data");
     let Some(major) = embedded_pg_major(&data_dir)? else {
         return Ok(());
@@ -146,10 +157,7 @@ async fn migrate_embedded_data(
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(
-            &migration_dir,
-            std::fs::Permissions::from_mode(0o700),
-        );
+        let _ = std::fs::set_permissions(&migration_dir, std::fs::Permissions::from_mode(0o700));
     }
     let dump_path = migration_dir.join("pg17.sql");
     let log_path = migration_dir.join("pg17.log");
@@ -168,16 +176,16 @@ async fn migrate_embedded_data(
         .arg(&data_dir)
         .args([
             "-o",
-            &format!(
-                "-p {old_port} -c listen_addresses=127.0.0.1 -c unix_socket_directories=/tmp"
-            ),
+            &format!("-p {old_port} -c listen_addresses=127.0.0.1 -c unix_socket_directories=/tmp"),
             "-l",
         ])
         .arg(&log_path)
         .status()
         .map_err(|error| configuration_error(format!("starting PostgreSQL 17: {error}")))?;
     if !start.success() {
-        return Err(configuration_error("PostgreSQL 17 did not start for migration"));
+        return Err(configuration_error(
+            "PostgreSQL 17 did not start for migration",
+        ));
     }
     if !wait_for_local_server(&old_bin.join("psql"), old_port, password) {
         let _ = std::process::Command::new(old_bin.join("pg_ctl"))
@@ -196,10 +204,7 @@ async fn migrate_embedded_data(
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(
-            &dump_path,
-            std::fs::Permissions::from_mode(0o600),
-        );
+        let _ = std::fs::set_permissions(&dump_path, std::fs::Permissions::from_mode(0o600));
     }
     let dump = std::process::Command::new(old_bin.join("pg_dump"))
         .args([
@@ -227,10 +232,14 @@ async fn migrate_embedded_data(
         .arg("fast")
         .status();
     if !dump.success() {
-        return Err(configuration_error("could not dump the local PostgreSQL 17 database"));
+        return Err(configuration_error(
+            "could not dump the local PostgreSQL 17 database",
+        ));
     }
     if !matches!(stop, Ok(status) if status.success()) {
-        return Err(configuration_error("could not stop PostgreSQL 17 after the local dump"));
+        return Err(configuration_error(
+            "could not stop PostgreSQL 17 after the local dump",
+        ));
     }
 
     let new_data = root.join("data.new");
@@ -307,10 +316,12 @@ async fn migrate_embedded_data(
             configuration_error(format!("keeping the previous local database: {error}"))
         })?;
     }
-    std::fs::rename(&data_dir, &backup)
-        .map_err(|error| configuration_error(format!("keeping the previous local database: {error}")))?;
-    std::fs::rename(&new_data, &data_dir)
-        .map_err(|error| configuration_error(format!("activating the upgraded local database: {error}")))?;
+    std::fs::rename(&data_dir, &backup).map_err(|error| {
+        configuration_error(format!("keeping the previous local database: {error}"))
+    })?;
+    std::fs::rename(&new_data, &data_dir).map_err(|error| {
+        configuration_error(format!("activating the upgraded local database: {error}"))
+    })?;
     let _ = std::fs::remove_dir_all(&migration_dir);
     tracing::info!("Upgraded local PostgreSQL 17 data to version {EMBEDDED_PG_MAJOR}");
     Ok(())
@@ -359,12 +370,12 @@ async fn embedded_url() -> Result<String, sqlx::Error> {
                 .config("max_connections", "20")
                 .build();
             let mut pg = PostgreSQL::new(settings);
-            pg.setup()
-                .await
-                .map_err(|error| configuration_error(format!("embedded database setup: {error}")))?;
-            pg.start()
-                .await
-                .map_err(|error| configuration_error(format!("embedded database start: {error}")))?;
+            pg.setup().await.map_err(|error| {
+                configuration_error(format!("embedded database setup: {error}"))
+            })?;
+            pg.start().await.map_err(|error| {
+                configuration_error(format!("embedded database start: {error}"))
+            })?;
             if !pg
                 .database_exists(EMBEDDED_DATABASE_NAME)
                 .await
@@ -404,13 +415,11 @@ pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
 }
 
 pub async fn create_pool_with_url(database_url: Option<&str>) -> Result<PgPool, sqlx::Error> {
-    let explicit_url = database_url
-        .map(str::to_string)
-        .or_else(|| {
-            std::env::var("DATABASE_URL")
-                .ok()
-                .filter(|url| !url.trim().is_empty())
-        });
+    let explicit_url = database_url.map(str::to_string).or_else(|| {
+        std::env::var("DATABASE_URL")
+            .ok()
+            .filter(|url| !url.trim().is_empty())
+    });
 
     let (database_url, max_connections) = match explicit_url {
         Some(url) => {
@@ -462,10 +471,19 @@ pub async fn create_pool_with_retry_url(database_url: Option<&str>) -> Result<Pg
             Err(e) => {
                 attempts += 1;
                 if attempts >= max_attempts {
-                    tracing::error!("Failed to connect to database after {} attempts: {}", attempts, e);
+                    tracing::error!(
+                        "Failed to connect to database after {} attempts: {}",
+                        attempts,
+                        e
+                    );
                     return Err(e);
                 }
-                tracing::warn!("Database not ready (attempt {}/{}): {}. Retrying in 5s...", attempts, max_attempts, e);
+                tracing::warn!(
+                    "Database not ready (attempt {}/{}): {}. Retrying in 5s...",
+                    attempts,
+                    max_attempts,
+                    e
+                );
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         }
@@ -521,16 +539,85 @@ async fn repair_legacy_demo_seed_checksums(pool: &PgPool) -> Result<(), sqlx::Er
     Ok(())
 }
 
-/// The embedded cluster is created empty. Apply the complete current schema
-/// directly instead of replaying migrations that assume the uuid-ossp
-/// extension is installed on the host PostgreSQL.
-const EMBEDDED_SCHEMA: &str = include_str!("../../embedded_schema.sql");
+/// Databases created before the embedded schema was removed have the domain
+/// tables but no `_sqlx_migrations` table. Mark the initial schema as applied,
+/// then let SQLx run the later, idempotent migrations (including the
+/// reconciliation in 025).
+#[cfg(feature = "embedded-db")]
+fn should_baseline_legacy_embedded(has_applied_migrations: bool, has_legacy_schema: bool) -> bool {
+    !has_applied_migrations && has_legacy_schema
+}
 
-pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
-    if EMBEDDED_DATABASE.load(Ordering::SeqCst) {
-        sqlx::raw_sql(EMBEDDED_SCHEMA).execute(pool).await?;
+#[cfg(feature = "embedded-db")]
+async fn baseline_legacy_embedded(pool: &PgPool) -> Result<(), sqlx::Error> {
+    if !EMBEDDED_DATABASE.load(Ordering::SeqCst) {
         return Ok(());
     }
+
+    let migration_table: Option<String> =
+        sqlx::query_scalar("SELECT to_regclass('_sqlx_migrations')::text")
+            .fetch_one(pool)
+            .await?;
+    let has_applied_migrations = match migration_table {
+        Some(_) => {
+            let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
+                .fetch_one(pool)
+                .await?;
+            count > 0
+        }
+        None => false,
+    };
+    let legacy_schema: Option<String> = sqlx::query_scalar("SELECT to_regclass('users')::text")
+        .fetch_one(pool)
+        .await?;
+
+    if !should_baseline_legacy_embedded(has_applied_migrations, legacy_schema.is_some()) {
+        return Ok(());
+    }
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS _sqlx_migrations (
+            version BIGINT PRIMARY KEY,
+            description TEXT NOT NULL,
+            installed_on TIMESTAMPTZ NOT NULL DEFAULT now(),
+            success BOOLEAN NOT NULL,
+            checksum BYTEA NOT NULL,
+            execution_time BIGINT NOT NULL
+        )",
+    )
+    .execute(pool)
+    .await?;
+
+    let migrator = sqlx::migrate!("./migrations");
+    let mut baselined = 0usize;
+    for migration in migrator
+        .iter()
+        .filter(|migration| migration.version <= LEGACY_EMBEDDED_BASELINE_VERSION)
+    {
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations
+                (version, description, success, checksum, execution_time)
+             VALUES ($1, $2, TRUE, $3, 0)
+             ON CONFLICT (version) DO NOTHING",
+        )
+        .bind(migration.version)
+        .bind(migration.description.to_string())
+        .bind(migration.checksum.as_ref())
+        .execute(pool)
+        .await?;
+        baselined += 1;
+    }
+    tracing::info!("Baselined {baselined} migrations for a legacy embedded database");
+    Ok(())
+}
+
+#[cfg(not(feature = "embedded-db"))]
+async fn baseline_legacy_embedded(_pool: &PgPool) -> Result<(), sqlx::Error> {
+    Ok(())
+}
+
+pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
+    baseline_legacy_embedded(pool).await?;
     repair_legacy_demo_seed_checksums(pool).await?;
     sqlx::migrate!("./migrations").run(pool).await?;
     Ok(())
@@ -575,10 +662,8 @@ mod tests {
     #[cfg(feature = "embedded-db")]
     #[test]
     fn embedded_pg_major_reads_the_cluster_version() {
-        let dir = std::env::temp_dir().join(format!(
-            "recurrency-pg-version-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("recurrency-pg-version-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("PG_VERSION"), "17\n").unwrap();
         assert_eq!(embedded_pg_major(&dir).unwrap(), Some(17));
@@ -590,41 +675,32 @@ mod tests {
     #[cfg(feature = "embedded-db")]
     #[test]
     fn embedded_pg_major_is_none_for_a_missing_cluster() {
-        let dir = std::env::temp_dir().join(format!(
-            "recurrency-pg-missing-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("recurrency-pg-missing-{}", uuid::Uuid::new_v4()));
         assert_eq!(embedded_pg_major(&dir).unwrap(), None);
     }
 
+    #[cfg(feature = "embedded-db")]
     #[test]
-    fn embedded_schema_covers_every_domain_table() {
-        for table in [
-            "users",
-            "accounts",
-            "categories",
-            "subscriptions",
-            "transactions",
-            "notification_preferences",
-            "notifications",
-            "user_preferences",
-            "notification_channels",
-            "summary_notification_settings",
-            "debts",
-            "debt_payments",
-            "currency_settings",
-        ] {
-            assert!(
-                EMBEDDED_SCHEMA.contains(&format!("CREATE TABLE IF NOT EXISTS {table}")),
-                "embedded schema is missing {table}"
-            );
-        }
+    fn legacy_baseline_only_applies_without_history() {
+        assert!(should_baseline_legacy_embedded(false, true));
+        assert!(!should_baseline_legacy_embedded(true, true));
+        assert!(!should_baseline_legacy_embedded(false, false));
     }
 
+    #[cfg(feature = "embedded-db")]
     #[test]
-    fn embedded_schema_does_not_require_host_extensions() {
-        assert!(!EMBEDDED_SCHEMA.contains("CREATE EXTENSION"));
-        assert!(!EMBEDDED_SCHEMA.contains("uuid_generate_v4"));
+    fn legacy_baseline_covers_the_initial_schema() {
+        let versions = sqlx::migrate!("./migrations")
+            .iter()
+            .filter(|migration| migration.version <= LEGACY_EMBEDDED_BASELINE_VERSION)
+            .map(|migration| migration.version)
+            .collect::<Vec<_>>();
+        // There is no 011 migration: accounts was introduced as 012.
+        let expected = (1..=LEGACY_EMBEDDED_BASELINE_VERSION)
+            .filter(|version| *version != 11)
+            .collect::<Vec<_>>();
+        assert_eq!(versions, expected);
     }
 
     #[test]
