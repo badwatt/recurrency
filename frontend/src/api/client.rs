@@ -481,6 +481,7 @@ fn panic_msg(p: Box<dyn std::any::Any + Send>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn auth_url_format() {
@@ -541,6 +542,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn get_base_url_default() {
         // When env var is not set, default to localhost
         let url = get_base_url();
@@ -667,6 +669,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn get_base_url_is_valid_url() {
         let url = get_base_url();
         assert!(url.starts_with("http://") || url.starts_with("https://"));
@@ -710,6 +713,7 @@ mod tests {
     // ── set_base_url / get_base_url override tests ──
 
     #[test]
+    #[serial]
     fn set_base_url_accepts_valid_url() {
         set_base_url("http://my-server:3000");
         let url = get_base_url();
@@ -717,6 +721,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn set_base_url_https() {
         set_base_url("https://secure.example.com");
         let url = get_base_url();
@@ -724,6 +729,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn set_base_url_empty_clears_override() {
         // Empty string is rejected, falls back to the default server
         set_base_url("");
@@ -732,6 +738,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn set_base_url_preserves_previous_on_empty() {
         set_base_url("http://first:9000");
         set_base_url("");
@@ -741,6 +748,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn get_base_url_consecutive_calls_same() {
         let url1 = get_base_url();
         let url2 = get_base_url();
@@ -748,6 +756,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn set_base_url_overrides_previous() {
         set_base_url("http://original:8080");
         let first = get_base_url();
@@ -813,6 +822,7 @@ mod tests {
     // ── Base URL format validation ──
 
     #[test]
+    #[serial]
     fn base_url_valid_format_starts_with_http() {
         let url = get_base_url();
         assert!(
@@ -823,6 +833,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn base_url_not_empty() {
         let url = get_base_url();
         assert!(!url.is_empty());
@@ -976,6 +987,7 @@ mod tests {
     // ── concurrent set_base_url calls ──
 
     #[test]
+    #[serial]
     fn set_base_url_idempotent() {
         set_base_url("http://first:1000");
         set_base_url("http://first:1000"); // call twice
@@ -1170,6 +1182,7 @@ mod tests {
     // ── Base URL override survives multiple get_base_url calls ──
 
     #[test]
+    #[serial]
     fn multiple_get_base_url_calls_with_override() {
         set_base_url("http://persist:7777");
         for _ in 0..5 {

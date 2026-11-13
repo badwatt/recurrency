@@ -56,6 +56,7 @@ gloo-timers = { version = "0.4.0", features = ["futures"], optional = true }
 
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
+serial_test = "4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = { version = "3", default-features = false, features = ["json", "rustls", "gzip"] }
