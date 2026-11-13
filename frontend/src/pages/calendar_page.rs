@@ -82,6 +82,7 @@ fn CalendarPaymentRow(
     rsx! {
         div {
             class: row_class.to_string(),
+            style: if is_past { "opacity: 0.55;" } else { "" },
             div { class: "flex items-center justify-between gap-3",
                 div { class: "flex min-w-0 items-center gap-3",
                     div { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10",
@@ -194,9 +195,9 @@ pub fn CalendarPage() -> Element {
     let total = month_total(&items);
     let total_display = format_currency(total, &currency);
     let today_date = Local::now().date_naive();
-    let is_current_month = year == today_date.year() && month == today_date.month();
+    let viewing_current_month = year == today_date.year() && month == today_date.month();
     let month_start = NaiveDate::from_ymd_opt(year, month, 1);
-    let (pending_from, pending_label) = if is_current_month {
+    let (pending_from, pending_label) = if viewing_current_month {
         (Some(today_date), "Pending from today")
     } else if (year, month) > (today_date.year(), today_date.month()) {
         (month_start.and_then(|date| date.pred_opt()), "Pending this month")
@@ -277,8 +278,10 @@ pub fn CalendarPage() -> Element {
     };
 
     let go_today = move |_| {
-        current_year.set(now.year());
-        current_month.set(now.month());
+        if !is_current_month(now.year(), now.month()) {
+            current_year.set(now.year());
+            current_month.set(now.month());
+        }
     };
 
     let go_prev_mobile = move |_| {
@@ -300,8 +303,10 @@ pub fn CalendarPage() -> Element {
         current_month.set(m);
     };
     let go_today_mobile = move |_| {
-        current_year.set(now.year());
-        current_month.set(now.month());
+        if !is_current_month(now.year(), now.month()) {
+            current_year.set(now.year());
+            current_month.set(now.month());
+        }
     };
 
 // Selected day dialog data: gather CalendarItems with full display info

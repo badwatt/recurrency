@@ -1187,3 +1187,16 @@ fn calendar_shows_transfer_and_pending_summary() {
         assert_eq!(payment_count_label(1), "1 payment");
         assert_eq!(payment_count_label(2), "2 payments");
     }
+
+    #[test]
+    fn mobile_past_rows_use_an_inline_opacity() {
+        let src = include_str!("../calendar_page.rs");
+        assert!(src.contains("opacity: 0.55;"));
+        assert!(src.contains("is_current_month(now.year(), now.month())"));
+    }
+
+    #[test]
+    fn today_is_a_noop_in_the_current_month() {
+        let now = Local::now().date_naive();
+        assert!(is_current_month(now.year(), now.month()));
+    }

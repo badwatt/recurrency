@@ -1858,3 +1858,9 @@ fn subscriptions_support_bulk_category() {
     assert!(src.contains("Set category"));
     assert!(src.contains("Apply category"));
 }
+
+#[test]
+fn subscription_card_overlay_uses_an_inline_background() {
+    let src = include_str!("cards.rs");
+    assert!(src.contains("background-color: var(--card); opacity: 0.75;"));
+}

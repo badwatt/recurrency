@@ -2,6 +2,7 @@ use crate::layout::app_layout::{Icon, svg_icon};
 use crate::pages::settings_page::APP_VERSION;
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
+use crate::utils::scroll::scroll_to_top;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SettingsSection {
@@ -148,6 +149,7 @@ fn SettingsSidebarLink(section: SettingsSection, active: bool) -> Element {
             onclick: move |e| {
                 e.prevent_default();
                 nav.push(to.clone());
+                scroll_to_top();
             },
             {svg_icon(section.icon(), 18)}
             span { {section.label()} }
@@ -172,6 +174,7 @@ fn SettingsMobileLink(section: SettingsSection, active: bool) -> Element {
             onclick: move |e| {
                 e.prevent_default();
                 nav.push(to.clone());
+                scroll_to_top();
             },
             {svg_icon(section.icon(), 15)}
             span { {section.label()} }

@@ -5,4 +5,5 @@ pub mod format;
 pub mod icons;
 pub mod image;
 pub mod recurrence;
+pub mod scroll;
 

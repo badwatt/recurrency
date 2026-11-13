@@ -51,6 +51,18 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
         TOAST.write().success("Server saved");
     };
 
+    let use_local = move |_| {
+        APP_MODE.write().set_local();
+        if AUTH().is_authenticated {
+            AUTH.write().logout();
+            AUTH.write().persist_to_storage();
+        }
+        TOAST.write().success("Local mode enabled. Your data stays on this device.");
+        navigator().push(crate::Route::Login {});
+    };
+
+    let local_mode = APP_MODE().mode.is_offline();
+
     rsx! {
         div { class: "space-y-3",
             label {
@@ -91,6 +103,38 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
                     "Use the address of your Recurrency server, without /api."
                 }
             }
+            if cfg!(not(target_arch = "wasm32")) {
+                div { class: "flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between",
+                    div {
+                        p { class: "text-sm font-medium", if local_mode { "Using this device" } else { "No server needed?" } }
+                        p { class: "text-xs text-muted-foreground",
+                            if local_mode {
+                                "Your subscriptions and transactions are stored locally."
+                            } else {
+                                "Use Recurrency entirely offline. You can switch back later."
+                            }
+                        }
+                    }
+                    if !local_mode {
+                        button {
+                            r#type: "button",
+                            class: "inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
+                            onclick: use_local,
+                            "Use this device"
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod local_mode_tests {
+    #[test]
+    fn native_server_editor_offers_local_mode() {
+        let src = include_str!("server_url.rs");
+        assert!(src.contains("Use this device"));
+        assert!(src.contains("set_local"));
     }
 }

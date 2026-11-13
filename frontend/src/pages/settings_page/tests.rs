@@ -673,3 +673,10 @@ fn summary_card_offers_last_day_of_month() {
     assert!(src.contains("Last day"));
     assert!(src.contains("value: \"0\""));
 }
+
+#[test]
+fn android_backup_picker_uses_the_native_bridge() {
+    let src = include_str!("backup_card.rs");
+    assert!(src.contains("RecurrencyFilePicker"));
+    assert!(src.contains("__recurrencyBackupPicked"));
+}

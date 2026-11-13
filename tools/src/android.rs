@@ -301,6 +301,7 @@ fn inject_block() -> String {
             "        // Expose the system-bars bridge so the theme can paint status/nav bars.\n",
             "        addJavascriptInterface(SystemBarsBridge(this), \"RecurrencyAndroid\")\n",
             "        addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")\n",
+            "        addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")\n",
             "        addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")\n",
             "        // Prevent FOUC: mocha background + themed native loader.\n",
             "        // setBackgroundColor paints mocha behind WebView — eliminates white flash.\n",
@@ -350,6 +351,14 @@ private class ImagePickerBridge(private val view: android.webkit.WebView) {
     fun pickImage() {
         val activity = view.context as? WryActivity ?: return
         activity.runOnUiThread { activity.pickImageForWebView(view) }
+    }
+}
+
+private class FilePickerBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun pickJson() {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.pickJsonForWebView(view) }
     }
 }
 
@@ -423,7 +432,7 @@ private class DownloadBridge(private val view: android.webkit.WebView) {
 pub fn patch_wry_activity(content: &str) -> String {
     let mut out = content.to_string();
     if out.contains("// --- Recurrency image picker ---") {
-        return out;
+        return patch_file_and_back(out);
     }
     if !out.contains("import android.content.Intent") {
         out = out.replace(
@@ -435,7 +444,7 @@ pub fn patch_wry_activity(content: &str) -> String {
     if out.contains(field) {
         out = out.replace(
             field,
-            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null"),
+            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
         );
     }
     let methods = r##"    // --- Recurrency image picker ---
@@ -504,10 +513,120 @@ pub fn patch_wry_activity(content: &str) -> String {
     if let Some(pos) = out.rfind("    companion object {") {
         out.insert_str(pos, methods);
     }
+    let file_methods = r##"    // --- Recurrency file picker and back handling ---
+    fun pickJsonForWebView(view: android.webkit.WebView) {
+        recurrencyFileWebView = view
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "application/json"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        try {
+            startActivityForResult(intent, RECURRENCY_FILE_PICK)
+        } catch (_: Exception) {
+            recurrencyFileWebView = null
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (mWebView.canGoBack()) {
+            mWebView.goBack()
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (now - recurrencyLastBackPress < 2000) {
+            super.onBackPressed()
+            return
+        }
+        recurrencyLastBackPress = now
+        android.widget.Toast.makeText(
+            this,
+            "Press back again to exit",
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+"##;
+    if !out.contains("// --- Recurrency file picker and back handling ---")
+        && let Some(pos) = out.rfind("    companion object {")
+    {
+        out.insert_str(pos, file_methods);
+    }
+    // Handle the JSON result before the image-picker branch.
+    if !out.contains("requestCode == RECURRENCY_FILE_PICK") {
+        out = out.replace(
+            "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
+            "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
+        );
+    }
     out = out.replace(
         "    companion object {\n",
-        "    companion object {\n        private const val RECURRENCY_IMAGE_PICK = 4711\n",
+        "    companion object {\n        private const val RECURRENCY_IMAGE_PICK = 4711\n        private const val RECURRENCY_FILE_PICK = 4712\n",
     );
+    patch_file_and_back(out)
+}
+
+fn patch_file_and_back(mut out: String) -> String {
+    let field = "    private lateinit var mWebView: RustWebView";
+    if !out.contains("recurrencyFileWebView") && out.contains(field) {
+        out = out.replace(
+            field,
+            &format!("{field}\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
+        );
+    }
+    let methods = r##"    // --- Recurrency file picker and back handling ---
+    fun pickJsonForWebView(view: android.webkit.WebView) {
+        recurrencyFileWebView = view
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "application/json"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        try {
+            startActivityForResult(intent, RECURRENCY_FILE_PICK)
+        } catch (_: Exception) {
+            recurrencyFileWebView = null
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (mWebView.canGoBack()) {
+            mWebView.goBack()
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (now - recurrencyLastBackPress < 2000) {
+            super.onBackPressed()
+            return
+        }
+        recurrencyLastBackPress = now
+        android.widget.Toast.makeText(
+            this,
+            "Press back again to exit",
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+"##;
+    if !out.contains("// --- Recurrency file picker and back handling ---")
+        && let Some(pos) = out.rfind("    companion object {")
+    {
+        out.insert_str(pos, methods);
+    }
+    if !out.contains("private const val RECURRENCY_FILE_PICK")
+        && out.contains("private const val RECURRENCY_IMAGE_PICK = 4711")
+    {
+        out = out.replace(
+            "        private const val RECURRENCY_IMAGE_PICK = 4711\n",
+            "        private const val RECURRENCY_IMAGE_PICK = 4711\n        private const val RECURRENCY_FILE_PICK = 4712\n",
+        );
+    }
+    if !out.contains("requestCode == RECURRENCY_FILE_PICK") {
+        out = out.replace(
+            "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
+            "        super.onActivityResult(requestCode, resultCode, data)\n        if (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
+        );
+    }
     out
 }
 
@@ -538,6 +657,9 @@ pub fn patch_webview(content: &str) -> String {
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")")
+            || line
+                .trim_start()
+                .starts_with("addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")")
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")")
@@ -1102,6 +1224,9 @@ mod image_picker_tests {
         assert!(once.contains("Recurrency image picker"));
         assert!(once.contains("recurrencyImageWebView"));
         assert!(once.contains("RECURRENCY_IMAGE_PICK = 4711"));
+        assert!(once.contains("onBackPressed"));
+        assert!(once.contains("Press back again to exit"));
+        assert!(once.contains("RECURRENCY_FILE_PICK"));
         assert!(once.contains("import android.content.Intent"));
         let twice = patch_wry_activity(&once);
         assert_eq!(once, twice);

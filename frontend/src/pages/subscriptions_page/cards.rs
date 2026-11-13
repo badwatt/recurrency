@@ -105,7 +105,10 @@ pub fn render_grid_card(
                     class: "pointer-events-none absolute inset-0 h-full w-full select-none object-cover",
                     style: "opacity:0.28; filter:blur(52px) saturate(1.7); transform:scale(1.35);",
                 }
-                div { class: "pointer-events-none absolute inset-0 bg-card/75" }
+                div {
+                    class: "pointer-events-none absolute inset-0",
+                    style: "background-color: var(--card); opacity: 0.75;",
+                }
             }
 
             // Account color top accent strip

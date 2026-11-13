@@ -2,6 +2,7 @@
 use crate::state::preferences::PREFERENCES;
 use crate::theme::hooks::{apply_theme_class, toggle_theme};
 use crate::components::toast::ToastContainer;
+use crate::utils::scroll::scroll_to_top;
 use crate::components::update_banner::UpdateBanner;
 
 // Branded app loader (auth init, pre-WASM)
@@ -139,6 +140,7 @@ pub fn AppLayout() -> Element {
                             onclick: move |e| {
                                 e.prevent_default();
                                 nav.push(crate::Route::Dashboard {});
+                                scroll_to_top();
                             },
                             class: "flex items-center gap-2 hover:opacity-80 transition-opacity",
                             LogoIcon {}
@@ -193,6 +195,7 @@ pub fn AppLayout() -> Element {
                             onclick: move |e| {
                                 e.prevent_default();
                                 nav.push(crate::Route::Settings {});
+                                scroll_to_top();
                             },
                             class: "inline-flex items-center justify-center rounded-full p-0.5 ring-primary/40 hover:ring-2 transition-all",
                             UserAvatar {}
@@ -329,6 +332,7 @@ fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Elem
             onclick: move |e| {
                 e.prevent_default();
                 nav.push(to.clone());
+                scroll_to_top();
             },
             class: navlink_class(active),
             {svg_icon(icon, 18)}
@@ -347,6 +351,7 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
             onclick: move |e| {
                 e.prevent_default();
                 nav.push(to.clone());
+                scroll_to_top();
             },
             class: if active {
                 "flex flex-col items-center gap-0.5 px-3 py-1 text-primary"
@@ -868,5 +873,17 @@ mod tests {
     fn layout_has_skip_to_content_link() {
         let src = include_str!("app_layout.rs");
         assert!(src.contains("Skip to content"), "must have skip-to-content accessibility link");
+    }
+}
+
+#[cfg(test)]
+mod navigation_tests {
+    #[test]
+    fn menu_links_scroll_to_the_top() {
+        let src = include_str!("app_layout.rs");
+        let layout = include_str!("settings_layout.rs");
+        assert!(src.contains("scroll_to_top"));
+        assert!(layout.contains("scroll_to_top"));
+        assert!(include_str!("../utils/scroll.rs").contains("window.scrollTo(0, 0)"));
     }
 }

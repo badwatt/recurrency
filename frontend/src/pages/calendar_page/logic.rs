@@ -83,6 +83,12 @@ pub fn items_for_day(
         .collect()
 }
 
+/// Whether the selected calendar month is the current local month.
+pub fn is_current_month(year: i32, month: u32) -> bool {
+    let now = Local::now().date_naive();
+    now.year() == year && now.month() == month
+}
+
 /// Check if a day is today.
 pub fn is_today(year: i32, month: u32, day: u32) -> bool {
     let now = Local::now().date_naive();

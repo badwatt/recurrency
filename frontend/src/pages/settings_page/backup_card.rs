@@ -44,6 +44,36 @@ pub fn BackupCard() -> Element {
         });
     };
 
+    let mut stage_text = move |text: String| {
+        match serde_json::from_str::<Value>(&text) {
+            Ok(value) => pending.set(Some(value)),
+            Err(_) => TOAST.write().error("That file is not a Recurrency backup"),
+        }
+    };
+
+    let open_android_backup = move |_| {
+        spawn(async move {
+            let mut eval = document::eval(r#"
+                if (window.RecurrencyFilePicker) {
+                    await new Promise((resolve) => {
+                        window.__recurrencyBackupPicked = (data) => {
+                            dioxus.send(data);
+                            resolve();
+                        };
+                        window.RecurrencyFilePicker.pickJson();
+                    });
+                } else {
+                    dioxus.send('');
+                }
+            "#);
+            match eval.recv::<String>().await {
+                Ok(text) if !text.is_empty() => stage_text(text),
+                Ok(_) => {}
+                Err(_) => TOAST.write().error("Could not open the file picker"),
+            }
+        });
+    };
+
     let restore = move |_| {
         let Some(value) = pending() else {
             return;
@@ -139,19 +169,28 @@ pub fn BackupCard() -> Element {
                         }
                         p { class: "text-sm font-medium", "Drop a backup here" }
                         p { class: "text-xs text-muted-foreground", "or choose a .json file" }
-                        label {
-                            class: "relative mt-1 inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
-                            "Choose file"
-                            input {
-                                r#type: "file",
-                                accept: "application/json,.json",
-                                aria_label: "Choose backup file",
-                                class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
-                                onchange: move |event: Event<FormData>| {
-                                    if let Some(file) = event.files().first().cloned() {
-                                        stage_file(file);
-                                    }
-                                },
+                        if cfg!(target_os = "android") {
+                            button {
+                                r#type: "button",
+                                class: "mt-1 inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
+                                onclick: open_android_backup,
+                                "Choose file"
+                            }
+                        } else {
+                            label {
+                                class: "relative mt-1 inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
+                                "Choose file"
+                                input {
+                                    r#type: "file",
+                                    accept: "application/json,.json",
+                                    aria_label: "Choose backup file",
+                                    class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
+                                    onchange: move |event: Event<FormData>| {
+                                        if let Some(file) = event.files().first().cloned() {
+                                            stage_file(file);
+                                        }
+                                    },
+                                }
                             }
                         }
                     }
