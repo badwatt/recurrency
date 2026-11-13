@@ -455,8 +455,10 @@ Current suite: **1218 backend unit tests** (**1222** with `embedded-db`),
 
 1. Bump `version` in the root `Cargo.toml` (the single source of truth).
 2. Commit and push to `main`.
-3. The Release workflow runs only when that version increases; it publishes the
-   all-in-one image, builds and signs the APK, and creates the GitHub release.
+3. The Release workflow runs only when that version increases. It builds and
+   pushes the all-in-one image, signs the latest APK, builds the standalone
+   `recurrency` binary, builds Linux/macOS/Windows desktop bundles, and creates
+   one GitHub release with every artifact.
 
 A manual `workflow_dispatch` releases the current version.
 

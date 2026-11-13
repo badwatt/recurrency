@@ -7,11 +7,10 @@ on:
     paths:
       - "Cargo.toml"
   workflow_dispatch:
-    inputs:
-      skip_docker:
-        description: "Skip docker image build (APK-only run)"
-        type: boolean
-        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
@@ -23,22 +22,10 @@ permissions:
   packages: write
 
 jobs:
-  # ── Cleanup: Delete old artifacts to free up storage ─────
-  cleanup-artifacts:
-    needs: prepare
-    if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: geekyeggo/delete-artifact@v6
-        with:
-          name: |
-            docker-*
-            build-*
-          failOnError: false
-
   # ── Prepare: detect a version increase in the workspace manifest ──
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
       previous: ${{ steps.version.outputs.previous }}
@@ -85,6 +72,7 @@ jobs:
     needs: prepare
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:18-alpine
@@ -138,6 +126,7 @@ jobs:
     needs: prepare
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -180,13 +169,12 @@ jobs:
           cargo clippy --lib --jobs 4 -- -D warnings
           cargo test --lib --jobs 4
 
-  # ─��� Build Docker images + create release ──────────────────
+  # ── Build and push the all-in-one image ────────────────────
   docker:
-    if: ${{ needs.prepare.outputs.changed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.skip_docker != true) }}
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
     needs: [prepare, test-backend, test-frontend]
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ needs.prepare.outputs.version }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -214,18 +202,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ needs.prepare.outputs.version }}
-          generate_release_notes: true
-          draft: false
-
   # ── Build Android APK ──────────────────────────────────────
   android:
     needs: [prepare, test-backend, test-frontend]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -354,7 +336,7 @@ jobs:
             fi
           fi
 
-      - name: Upload APK to Release
+      - name: Prepare APK artifact
         run: |
           APK=$(find frontend/target/dx -name 'app-release.apk' -type f 2>/dev/null | head -1)
           if [ -z "$APK" ]; then
@@ -364,16 +346,97 @@ jobs:
             echo "ERROR: No APK found"
             exit 1
           fi
-          echo "Using APK: $APK"
-          unzip -l "$APK" | grep -i ic_launcher || true
           mkdir -p target/bin/android
-          APK_NAME="recurrency-${{ needs.prepare.outputs.version }}-aarch64.apk"
-          cp "$APK" "target/bin/android/$APK_NAME"
-          cp "$APK" "target/bin/android/recurrency-latest-aarch64.apk"
-          ls -lh "target/bin/android/"
+          cp "$APK" target/bin/android/recurrency-latest-aarch64.apk
+          ls -lh target/bin/android/recurrency-latest-aarch64.apk
 
-      - name: Release APK
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recurrency-apk
+          path: target/bin/android/recurrency-latest-aarch64.apk
+          retention-days: 14
+
+  # ── Desktop bundles ─────────────────────────────────────────
+  desktop:
+    needs: [prepare, test-backend, test-frontend]
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
+    uses: ./.github/workflows/desktop.yml
+
+  # ── Standalone all-in-one binary ───────────────────────────
+  binary:
+    needs: [prepare, test-backend, test-frontend]
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config libssl-dev binaryen >/dev/null 2>&1
+
+      - name: Install dx
+        uses: taiki-e/install-action@v2
+        with:
+          tool: dioxus-cli@${{ env.DX_VERSION }}
+
+      - name: Cache PostgreSQL runtime
+        uses: actions/cache@v4
+        with:
+          path: ~/.theseus/postgresql
+          key: postgresql-18.7.0-${{ runner.os }}
+
+      - name: Cache Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          cache-all-crates: true
+
+      - name: Build all-in-one binary
+        env:
+          CARGO_BUILD_JOBS: 4
+          RUST_BACKTRACE: 1
+        run: cargo run -p recurrency_tools -- build-app
+
+      - name: Verify binary
+        run: target/bin/recurrency --version
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recurrency-binary
+          path: target/bin/recurrency
+          retention-days: 14
+
+  # ── Publish every artifact to the GitHub release ────────────
+  release:
+    needs: [prepare, docker, android, desktop, binary]
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List release assets
+        run: find release-assets -maxdepth 2 -type f -printf '%f %s\n' | sort
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
-          files: target/bin/android/*.apk
+          generate_release_notes: true
+          draft: false
+          files: release-assets/*

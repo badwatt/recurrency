@@ -2,6 +2,7 @@ name: Desktop
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -13,6 +14,7 @@ env:
 jobs:
   build:
     name: Desktop ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
