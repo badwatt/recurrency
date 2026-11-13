@@ -1,4 +1,5 @@
-use crate::api::client::{api_get, api_post, api_put, ApiError};
+use dioxus::prelude::ReadableExt;
+use crate::api::client::{api_get, api_post, api_put, is_offline_mode, ApiError};
 use crate::models::auth::*;
 
 #[allow(dead_code)]
@@ -8,10 +9,35 @@ pub async fn get() -> Result<SettingsResponse, ApiError> {
 
 /// GET /api/settings returns the user directly, not wrapped in SettingsResponse.
 pub async fn get_user() -> Result<UserResponse, ApiError> {
+    if is_offline_mode() {
+        return crate::state::auth::AUTH
+            .try_read()
+            .ok()
+            .and_then(|auth| auth.user.clone())
+            .ok_or(ApiError::Unauthorized);
+    }
     api_get("/api/settings").await
 }
 
 pub async fn update(req: &UpdateSettingsRequest) -> Result<SettingsResponse, ApiError> {
+    if is_offline_mode() {
+        let user = crate::state::auth::AUTH
+            .try_read()
+            .ok()
+            .and_then(|auth| auth.user.clone())
+            .ok_or(ApiError::Unauthorized)?;
+        let fallback_name = user.name.clone().unwrap_or_default();
+        let fallback_avatar = user.avatar.clone();
+        let profile = crate::storage::local_auth::update_profile(
+            user.id,
+            req.email.as_deref().unwrap_or(&user.email),
+            req.name.as_deref().unwrap_or(&fallback_name),
+            req.avatar.clone().or(fallback_avatar),
+            req.currency.clone(),
+        )
+        .map_err(ApiError::Network)?;
+        return Ok(SettingsResponse { user: profile });
+    }
     api_put("/api/settings", req).await
 }
 

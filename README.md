@@ -449,7 +449,7 @@ cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
 Current suite: **1218 backend unit tests** (**1222** with `embedded-db`),
-**48 backend integration tests**, **1730 frontend tests** and **8 tooling tests**.
+**48 backend integration tests**, **1732 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 

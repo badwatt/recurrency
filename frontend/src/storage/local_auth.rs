@@ -22,6 +22,8 @@ pub struct LocalAccount {
     pub currency: String,
     pub salt: String,
     pub password_hash: String,
+    #[serde(default)]
+    pub avatar: Option<String>,
 }
 
 impl LocalAccount {
@@ -29,7 +31,7 @@ impl LocalAccount {
         UserResponse {
             id: self.id,
             email: self.email.clone(),
-                avatar: None,
+            avatar: self.avatar.clone(),
             name: Some(self.name.clone()),
             currency: self.currency.clone(),
             verified: true,
@@ -135,6 +137,7 @@ pub fn register(email: &str, password: &str, name: &str) -> Result<UserResponse,
         currency: "EUR".to_string(),
         password_hash: hash_password(&salt, password),
         salt,
+        avatar: None,
     };
     let user = account.to_user();
     accounts.push(account);
@@ -154,6 +157,43 @@ pub fn login(email: &str, password: &str) -> Result<UserResponse, String> {
         return Err("Invalid email or password".to_string());
     }
     Ok(account.to_user())
+}
+
+/// Update the signed-in on-device account. The password is not changed.
+pub fn update_profile(
+    user_id: Uuid,
+    email: &str,
+    name: &str,
+    avatar: Option<String>,
+    currency: Option<String>,
+) -> Result<UserResponse, String> {
+    let email = normalize_email(email);
+    if !email.contains('@') {
+        return Err("Enter a valid email".to_string());
+    }
+    if name.trim().len() < 2 {
+        return Err("Name must be at least 2 characters".to_string());
+    }
+    let mut accounts = load_accounts();
+    if accounts
+        .iter()
+        .any(|account| account.id != user_id && account.email == email)
+    {
+        return Err("An account with this email already exists".to_string());
+    }
+    let account = accounts
+        .iter_mut()
+        .find(|account| account.id == user_id)
+        .ok_or_else(|| "Local account not found".to_string())?;
+    account.email = email;
+    account.name = name.trim().to_string();
+    account.avatar = avatar;
+    if let Some(currency) = currency.filter(|value| !value.trim().is_empty()) {
+        account.currency = currency.to_uppercase();
+    }
+    let user = account.to_user();
+    save_accounts(&accounts)?;
+    Ok(user)
 }
 
 #[cfg(test)]
@@ -200,6 +240,7 @@ mod tests {
             currency: "EUR".into(),
             salt: "s".into(),
             password_hash: "h".into(),
+            avatar: None,
         };
         let user = acc.to_user();
         assert_eq!(user.email, "a@b.com");
