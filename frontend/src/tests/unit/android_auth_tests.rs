@@ -31,6 +31,7 @@ fn test_dirs_data_dir_returns_some_on_native() {
 #[test]
 #[serial]
 fn test_set_authenticated_writes_auth_files() {
+    let _guard = crate::state::auth::AUTH_FILE_TEST_LOCK.lock().unwrap();
     // Clean up first
     let auth_dir = native_auth_dir();
     let _ = std::fs::remove_file(auth_dir.join("auth-token.txt"));

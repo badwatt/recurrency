@@ -29,6 +29,9 @@ pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
 #[allow(dead_code)]
 const USER_KEY: &str = "recurrency-auth-user";
 
+#[cfg(test)]
+pub(crate) static AUTH_FILE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AuthState {
     pub user: Option<UserResponse>,
@@ -489,6 +492,7 @@ mod tests {
     #[test]
     #[serial]
     fn persist_to_storage_writes_files_on_native() {
+        let _guard = AUTH_FILE_TEST_LOCK.lock().unwrap();
         #[cfg(not(target_arch = "wasm32"))]
         {
             let data_dir =
@@ -530,6 +534,7 @@ mod tests {
     #[test]
     #[serial]
     fn persist_to_storage_no_op_without_token() {
+        let _guard = AUTH_FILE_TEST_LOCK.lock().unwrap();
         #[cfg(not(target_arch = "wasm32"))]
         {
             let state = AuthState::default();
