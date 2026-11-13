@@ -10,6 +10,7 @@ title = ""
 watch_path = ["src", "styles", "assets"]
 
 [bundle]
+publisher = "badwatt"
 identifier = "com.badwatt.recurrency"
 icon = ["assets/icons/clock-1024.png"]
 

@@ -81,6 +81,8 @@
             libXcursor
             libXext
             libXi
+            xdotool
+            linuxdeploy
             libXinerama
             libxcb
           ];

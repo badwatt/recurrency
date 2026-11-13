@@ -616,6 +616,13 @@ fn do_patch_android() -> i32 {
 }
 
 fn do_build_desktop() -> i32 {
+    let package_type = if cfg!(target_os = "linux") {
+        "deb"
+    } else if cfg!(target_os = "macos") {
+        "dmg"
+    } else {
+        "nsis"
+    };
     let code = run(
         &root().join("frontend"),
         "dx",
@@ -624,6 +631,8 @@ fn do_build_desktop() -> i32 {
             "--platform",
             "desktop",
             "--release",
+            "--package-types",
+            package_type,
             "--out-dir",
             "../target/bin/desktop",
         ],

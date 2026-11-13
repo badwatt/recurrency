@@ -72,7 +72,7 @@ pub async fn latest() -> Option<Release> {
 pub async fn install_apk(url: &str) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        let mut eval = document::eval(
+        let mut eval = dioxus::document::eval(
             r#"
             if (!window.RecurrencyUpdater || !window.RecurrencyUpdater.install) {
                 dioxus.send('unavailable');
