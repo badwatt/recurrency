@@ -15,6 +15,7 @@ const FRONTEND_LOG: &str = "/tmp/recurrency_frontend.log";
 const DEFAULT_DATABASE_URL: &str =
     "postgres://recurrency:recurrency_dev_password@localhost:5432/recurrency";
 const POSTGRESQL_VERSION: &str = "18.7.0";
+const POSTGRESQL_VERSION_REQ: &str = "=18.7.0";
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -112,7 +113,7 @@ fn envs() -> Vec<(String, String)> {
         ("ENABLE_DEMO".into(), demo),
         ("APP_PORT".into(), port),
         ("RECURRENCY_API_URL".into(), api),
-        ("POSTGRESQL_VERSION".into(), POSTGRESQL_VERSION.into()),
+        ("POSTGRESQL_VERSION".into(), POSTGRESQL_VERSION_REQ.into()),
     ]
 }
 
