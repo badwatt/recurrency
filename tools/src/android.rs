@@ -198,6 +198,29 @@ pub fn patch_manifest(content: &str) -> String {
         "android:label=\"RecurrencyFrontend\"",
         "android:label=\"Recurrency\"",
     );
+    if !out.contains("android.permission.CAMERA") {
+        if let Some(pos) = out.find("<application") {
+            out.insert_str(
+                pos,
+                "    <uses-permission android:name=\"android.permission.CAMERA\" />\n    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n",
+            );
+        }
+    }
+    if !out.contains("androidx.core.content.FileProvider") {
+        let provider = r#"        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/recurrency_file_paths" />
+        </provider>
+"#;
+        if let Some(pos) = out.rfind("</application>") {
+            out.insert_str(pos, provider);
+        }
+    }
     if !out.contains("android:allowBackup=") {
         if out.contains("<application ") {
             out = out.replacen(
@@ -259,6 +282,15 @@ pub fn patch_gradle(content: &str, code: Option<u32>) -> String {
     {
         out = out.replace("dependencies {", "dependencies {\n    implementation(\"androidx.documentfile:documentfile:1.0.1\")");
     }
+    if !out.contains("com.journeyapps:zxing-android-embedded")
+        && out.contains("com.android.application")
+        && out.contains("dependencies {")
+    {
+        out = out.replace(
+            "dependencies {",
+            "dependencies {\n    implementation(\"androidx.appcompat:appcompat:1.7.0\")\n    implementation(\"com.journeyapps:zxing-android-embedded:4.3.0\")",
+        );
+    }
 
     if let Some(code) = code {
         let mut lines = Vec::new();
@@ -310,6 +342,8 @@ fn inject_block() -> String {
             "        addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")\n",
             "        addJavascriptInterface(SyncFolderBridge(this), \"RecurrencySyncFolder\")\n",
             "        addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")\n",
+            "        addJavascriptInterface(QrScannerBridge(this), \"RecurrencyQr\")\n",
+            "        addJavascriptInterface(ApkUpdaterBridge(this), \"RecurrencyUpdater\")\n",
             "        // Prevent FOUC: mocha background + themed native loader.\n",
             "        // setBackgroundColor paints mocha behind WebView — eliminates white flash.\n",
             "        // addDocumentStartJavaScript injects CSS + loader HTML before WASM loads.\n",
@@ -427,6 +461,22 @@ private class FilePickerBridge(private val view: android.webkit.WebView) {
     fun pickJson() {
         val activity = view.context as? WryActivity ?: return
         activity.runOnUiThread { activity.pickJsonForWebView(view) }
+    }
+}
+
+private class QrScannerBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun scan() {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.scanQrForWebView(view) }
+    }
+}
+
+private class ApkUpdaterBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun install(url: String) {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.downloadAndInstallApk(view, url) }
     }
 }
 
@@ -581,7 +631,59 @@ pub fn patch_wry_activity(content: &str) -> String {
     if let Some(pos) = out.rfind("    companion object {") {
         out.insert_str(pos, methods);
     }
-    let file_methods = r##"    // --- Recurrency file picker and back handling ---
+    let file_methods = r##"    // --- Recurrency QR scanner and APK updater ---
+    fun scanQrForWebView(view: android.webkit.WebView) {
+        recurrencyQrWebView = view
+        try {
+            com.journeyapps.barcodescanner.IntentIntegrator(this)
+                .setPrompt("Scan a Recurrency server QR")
+                .setBeepEnabled(false)
+                .setOrientationLocked(false)
+                .initiateScan()
+        } catch (_: Exception) {
+            recurrencyQrWebView = null
+            view.post { view.evaluateJavascript("window.__recurrencyQrScanned && window.__recurrencyQrScanned('')", null) }
+        }
+    }
+
+    fun downloadAndInstallApk(view: android.webkit.WebView, url: String) {
+        recurrencyUpdateWebView = view
+        if (!url.startsWith("https://github.com/badwatt/recurrency/") || !url.endsWith(".apk")) {
+            view.post { view.evaluateJavascript("window.__recurrencyApkStatus && window.__recurrencyApkStatus('error')", null) }
+            return
+        }
+        Thread {
+            try {
+                val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 15000
+                connection.readTimeout = 30000
+                connection.instanceFollowRedirects = true
+                connection.connect()
+                if (connection.responseCode !in 200..299) throw IllegalStateException("HTTP " + connection.responseCode)
+                val dir = java.io.File(cacheDir, "updates").apply { mkdirs() }
+                val file = java.io.File(dir, "recurrency-latest.apk")
+                connection.inputStream.use { input -> file.outputStream().use { output -> input.copyTo(output) } }
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this,
+                    packageName + ".fileprovider",
+                    file,
+                )
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                runOnUiThread {
+                    startActivity(intent)
+                    view.post { view.evaluateJavascript("window.__recurrencyApkStatus && window.__recurrencyApkStatus('installing')", null) }
+                }
+            } catch (_: Exception) {
+                view.post { view.evaluateJavascript("window.__recurrencyApkStatus && window.__recurrencyApkStatus('error')", null) }
+            }
+        }.start()
+    }
+
+    // --- Recurrency file picker and back handling ---
     fun chooseSyncFolder(view: android.webkit.WebView) {
         recurrencySyncWebView = view
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
@@ -870,6 +972,14 @@ fn patch_res_dir(res: &Path, icon: &Path, image_magick: &str) -> Result<(), Stri
         )
         .map_err(|err| err.to_string())?;
     }
+
+    let xml_dir = res.join("xml");
+    fs::create_dir_all(&xml_dir).map_err(|err| err.to_string())?;
+    fs::write(
+        xml_dir.join("recurrency_file_paths.xml"),
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<paths>\n    <cache-path name=\"updates\" path=\"updates/\" />\n</paths>\n",
+    )
+    .map_err(|err| err.to_string())?;
 
     let styles = values.join("styles.xml");
     if styles.is_file() {
