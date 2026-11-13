@@ -77,7 +77,12 @@ fn root() -> PathBuf {
 
 fn has_command(name: &str) -> bool {
     env::var_os("PATH")
-        .map(|paths| env::split_paths(&paths).any(|dir| dir.join(name).is_file()))
+        .map(|paths| {
+            env::split_paths(&paths).any(|dir| {
+                dir.join(name).is_file()
+                    || (cfg!(windows) && dir.join(format!("{name}.exe")).is_file())
+            })
+        })
         .unwrap_or(false)
 }
 
