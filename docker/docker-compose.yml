@@ -16,12 +16,13 @@ services:
       - "8080:80"
     environment:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      DATABASE_URL: ${DATABASE_URL:-}
       ENABLE_WEB: ${ENABLE_WEB:-true}
       ENABLE_DEMO: ${ENABLE_DEMO:-false}
       PGPASSWORD: ${PGPASSWORD:-recurrency}
       RUST_LOG: info
     volumes:
-      - recurrency_db:/var/lib/postgresql/15/main
+      - recurrency_db:/var/lib/postgresql/18/main
 
 volumes:
   recurrency_db:

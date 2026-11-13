@@ -75,9 +75,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Prevent services from auto-starting during build
 RUN echo '#!/bin/sh\nexit 101' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-15 \
     ca-certificates \
     curl \
+    gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+        https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-18 postgresql-contrib-18 \
     && rm -rf /var/lib/apt/lists/*
 
 # Single application binary: backend + embedded frontend.
@@ -88,8 +95,8 @@ RUN chmod +x /usr/local/bin/recurrency
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# PostgreSQL data directory
-RUN mkdir -p /var/lib/postgresql/15/main && chown postgres:postgres /var/lib/postgresql/15/main
+# PostgreSQL data directory (PG 18)
+RUN mkdir -p /var/lib/postgresql/18/main && chown postgres:postgres /var/lib/postgresql/18/main
 RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql
 
 ENV APP_PORT=80 \

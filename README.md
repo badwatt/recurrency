@@ -45,7 +45,7 @@ headless API mode.
 docker run -d \
   --name recurrency \
   -p 80:80 -p 8080:80 \
-  -v recurrency_db:/var/lib/postgresql/15/main \
+  -v recurrency_db:/var/lib/postgresql/18/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   ghcr.io/badwatt/recurrency:latest
 ```
@@ -54,8 +54,16 @@ Open **http://localhost**. The binary serves the web UI and the API on the
 same port; the API is available at `http://localhost/api` and directly at
 `http://localhost:8080/api`.
 
+The image includes PostgreSQL **18**. If `DATABASE_URL` is set, the entrypoint
+does not start the bundled PostgreSQL at all and connects to that external
+server instead.
+
 The named volume persists PostgreSQL across container recreation. Keep the same
 `JWT_SECRET`; changing it invalidates existing sessions.
+
+> PostgreSQL 18 uses a new data directory (`/var/lib/postgresql/18/main`).
+> Volumes created by the old PostgreSQL 15 image need a `pg_dump`/restore before
+> upgrading. Keep the old volume until the restored instance has been verified.
 
 > [!IMPORTANT]
 > The container fails fast if the application cannot start (missing/placeholder
@@ -64,7 +72,7 @@ The named volume persists PostgreSQL across container recreation. Keep the same
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.40.0`.
+> `ghcr.io/badwatt/recurrency:0.41.0`.
 
 ### From source
 
@@ -217,7 +225,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | set by the Docker entrypoint | PostgreSQL connection string |
+| `DATABASE_URL` | bundled local PostgreSQL | PostgreSQL connection string; when set, Docker does not start its bundled database |
 | `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
 | `JWT_SECRET` | **required** | JWT signing secret; startup fails if missing or placeholder |
 | `APP_PORT` | `8080` (`80` in the Docker image) | Application listen port |
@@ -227,7 +235,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 | `ENABLE_DEMO` | `false` | Enable the optional demo login |
 | `ENABLE_WEB` | `true` | Serve the embedded web UI; `false` for headless |
 | `RECURRENCY_DATA_DIR` | `recurrency-data` | Standalone binary only: local database directory when `DATABASE_URL` is unset |
-| `PGPASSWORD` | `recurrency` | PostgreSQL password inside the image |
+| `PGPASSWORD` | `recurrency` | Password for the bundled PostgreSQL; ignored with an external `DATABASE_URL` |
 | `RECURRENCY_API_URL` | compiled default | Default server URL for native builds |
 | `FIXER_API_KEY` | — | Optional server-wide Fixer key; users can also save their own key in Settings |
 | `SMTP_HOST` | — | SMTP server |
@@ -284,7 +292,7 @@ The same image can run without the web UI:
 docker run -d \
   --name recurrency \
   -p 8080:80 \
-  -v recurrency_db:/var/lib/postgresql/15/main \
+  -v recurrency_db:/var/lib/postgresql/18/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
   ghcr.io/badwatt/recurrency:latest
