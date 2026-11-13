@@ -9,7 +9,7 @@ description = "Recurrency API - Backend for subscription tracker"
 # Integration tests need a running PostgreSQL (docker/docker-compose.dev.yml).
 # Run them with: cargo test --features integration-tests
 integration-tests = []
-# Bundle frontend/dist/public into the standalone recurrency-aio binary.
+# Bundle frontend/dist/public into the standalone recurrency binary.
 embedded-web = ["dep:include_dir"]
 
 [dependencies]

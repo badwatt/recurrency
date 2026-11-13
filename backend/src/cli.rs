@@ -70,9 +70,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
 pub fn usage() -> &'static str {
     "Recurrency all-in-one\n\n\
      Usage:\n\
-       recurrency-aio [serve] [options]\n\
-       recurrency-aio migrate [--database-url URL]\n\
-       recurrency-aio doctor\n\n\
+       recurrency [serve] [options]\n\
+       recurrency migrate [--database-url URL]\n\
+       recurrency doctor\n\n\
      Options:\n\
        --port PORT             API port (default: APP_PORT or 8080)\n\
        --database-url URL      PostgreSQL connection string\n\

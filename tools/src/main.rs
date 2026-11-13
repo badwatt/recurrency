@@ -442,7 +442,7 @@ fn copy_backend_binary() -> i32 {
     let bin = root().join("target/bin");
     let _ = fs::create_dir_all(&bin);
     let source = root().join("backend/target/release/recurrency_backend");
-    let destination = bin.join("recurrency-aio");
+    let destination = bin.join("recurrency");
     match fs::copy(&source, &destination) {
         Ok(_) => 0,
         Err(err) => {
@@ -472,7 +472,7 @@ fn do_build_app() -> i32 {
     if copy_backend_binary() != 0 {
         return 1;
     }
-    println!("Built target/bin/recurrency-aio.");
+    println!("Built target/bin/recurrency.");
     0
 }
 
@@ -484,7 +484,7 @@ fn do_build_api() -> i32 {
     if copy_backend_binary() != 0 {
         return 1;
     }
-    println!("Built target/bin/recurrency-aio.");
+    println!("Built target/bin/recurrency.");
     0
 }
 
@@ -589,14 +589,14 @@ fn do_clear() -> i32 {
 }
 
 fn do_clear_app() -> i32 {
-    remove(root().join("target/bin/recurrency-aio"));
+    remove(root().join("target/bin/recurrency"));
     remove(root().join("frontend/dist"));
     println!("API + web artifacts cleared.");
     0
 }
 
 fn do_clear_api() -> i32 {
-    remove(root().join("target/bin/recurrency-aio"));
+    remove(root().join("target/bin/recurrency"));
     remove(root().join("backend/target/release/recurrency_backend"));
     println!("API artifacts cleared.");
     0
@@ -641,8 +641,8 @@ fn print_help() {
   reset         Reset the local database (asks for confirmation)
   coverage      Run llvm-cov for backend and frontend
   build-all     Build backend + web + desktop
-  build-app     Build web + backend into target/bin/recurrency-aio
-  build-api     Build backend into target/bin/recurrency-aio
+  build-app     Build web + backend into target/bin/recurrency
+  build-api     Build backend into target/bin/recurrency
   build-web     Build the web frontend
   build-android Build the local Android APK
   setup-android Install Android SDK/NDK

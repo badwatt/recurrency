@@ -1773,11 +1773,27 @@
 
     #[test]
     fn logo_avatars_fit_the_frame() {
-        // Normal logo frames use object-contain. The ambient logo background
-        // is a separate decorative image and may use object-cover.
+        // The logo wrapper has no size of its own. If the <img> uses
+        // h-full/w-full it resolves against that auto-sized wrapper and the
+        // outer overflow-hidden container crops the image. Give the image an
+        // explicit size matching its frame and use object-contain.
         let cards = include_str!("cards.rs");
-        assert!(cards.contains("object-contain"));
-        assert!(cards.contains("Logo-derived ambient background"));
+        let dashboard = include_str!("../dashboard.rs");
+        let transactions = include_str!("../transactions_page.rs");
+        for (name, src) in [
+            ("subscriptions", cards),
+            ("dashboard", dashboard),
+            ("transactions", transactions),
+        ] {
+            assert!(
+                !src.contains("object-cover"),
+                "{name} logos must fit inside their frame (object-contain)"
+            );
+            assert!(
+                !src.contains("\"h-full w-full"),
+                "{name} logos need an explicit size so the auto-sized wrapper does not overflow"
+            );
+        }
     }
 
 
@@ -1845,12 +1861,4 @@ fn subscriptions_support_bulk_category() {
     let src = include_str!("../subscriptions_page.rs");
     assert!(src.contains("Set category"));
     assert!(src.contains("Apply category"));
-}
-
-#[test]
-fn grid_cards_use_logo_as_ambient_background() {
-    let src = include_str!("cards.rs");
-    assert!(src.contains("Logo-derived ambient background"));
-    assert!(src.contains("opacity-[0.10]"));
-    assert!(src.contains("bg-gradient-to-br from-card/20"));
 }

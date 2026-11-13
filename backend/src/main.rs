@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if cli.command == Command::Version {
-        println!("recurrency-aio {}", env!("CARGO_PKG_VERSION"));
+        println!("recurrency {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     init_logging();
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
             let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             let one: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&db_pool).await?;
-            println!("recurrency-aio {}: configuration OK (database={one})", env!("CARGO_PKG_VERSION"));
+            println!("recurrency {}: configuration OK (database={one})", env!("CARGO_PKG_VERSION"));
             return Ok(());
         }
         Command::Serve => {}

@@ -64,7 +64,7 @@ The named volume persists PostgreSQL across container recreation. Keep the same
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.39.0`.
+> `ghcr.io/badwatt/recurrency:0.39.1`.
 
 ### From source
 
@@ -246,19 +246,19 @@ embedded and served by Axum:
 cd recurrency
 nix develop
 cargo build-app
-./target/bin/recurrency-aio --help
+./target/bin/recurrency --help
 
 # API + embedded web UI
 DATABASE_URL="postgres://recurrency:recurrency@localhost:5432/recurrency" \
   JWT_SECRET="$(openssl rand -hex 32)" \
-  ./target/bin/recurrency-aio serve
+  ./target/bin/recurrency serve
 
 # API only, same binary
-ENABLE_WEB=false ./target/bin/recurrency-aio serve
+ENABLE_WEB=false ./target/bin/recurrency serve
 
 # Migrations and configuration check
-./target/bin/recurrency-aio migrate --database-url "$DATABASE_URL"
-./target/bin/recurrency-aio doctor
+./target/bin/recurrency migrate --database-url "$DATABASE_URL"
+./target/bin/recurrency doctor
 ```
 
 The binary embeds the built frontend, but PostgreSQL remains an external
@@ -326,7 +326,7 @@ All commands run inside `nix develop`.
 | Install Android SDK/NDK | `cargo setup-android` |
 | Patch an existing Android build | `cargo patch-android` |
 
-Artifacts land in `target/bin/` (APK, desktop bundle and `recurrency-aio`).
+Artifacts land in `target/bin/` (APK, desktop bundle and `recurrency`).
 
 The aliases live in `.cargo/config.toml`. Their raw equivalents are
 `cargo test --workspace --lib`, `cargo fmt --all`,
@@ -383,7 +383,7 @@ cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
 Current suite: **1207 backend unit tests**, **47 backend integration tests**,
-**1697 frontend tests** and **8 tooling tests**.
+**1696 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 
