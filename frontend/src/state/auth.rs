@@ -3,23 +3,22 @@ use dioxus::prelude::*;
 
 #[allow(dead_code)]
 const TOKEN_KEY: &str = "recurrency-auth-token";
-/// Returns the app data directory for native platforms.
-/// Tries dirs::data_dir() first, then falls back to Android-specific paths.
+/// Returns the app data directory for native platforms. Android uses its
+/// canonical private files directory; desktop uses dirs::data_dir().
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]
 pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
-    // 1. Try standard dirs (works on desktop Linux/macOS/Windows)
-    if let Some(dir) = dirs::data_dir() {
-        return Some(dir);
-    }
-    // 2. Android fallback: /data/data/<package>/files is the canonical private dir
-    //    The parent /data/data/<package> always exists for installed apps.
-    //    We just need to return a path so create_dir_all() can create the subdir.
+    // Android's canonical private files directory is stable across launches.
+    // Prefer it over dirs::data_dir(), which is not defined for Android.
     let android_files = std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");
     if android_files.parent().map(|p| p.exists()).unwrap_or(false) {
         return Some(android_files);
     }
-    // 3. Fallback: HOME/.recurrency (works on desktop when dirs fails)
+    // Desktop: Linux/macOS/Windows data directory.
+    if let Some(dir) = dirs::data_dir() {
+        return Some(dir);
+    }
+    // Fallback: HOME/.recurrency (works on desktop when dirs fails)
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
         return Some(std::path::PathBuf::from(home).join(".recurrency"));
     }

@@ -72,6 +72,12 @@ fn accounts_file() -> Option<std::path::PathBuf> {
         .map(|d| d.join("recurrency").join("local_accounts.json"))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn legacy_accounts_file() -> Option<std::path::PathBuf> {
+    dirs::data_dir()
+        .map(|dir| dir.join("recurrency").join("local_accounts.json"))
+}
+
 fn load_accounts() -> Vec<LocalAccount> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -86,10 +92,25 @@ fn load_accounts() -> Vec<LocalAccount> {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        accounts_file()
-            .and_then(|f| std::fs::read_to_string(f).ok())
-            .and_then(|json| serde_json::from_str(&json).ok())
-            .unwrap_or_default()
+        let primary = accounts_file();
+        let accounts = primary
+            .as_ref()
+            .and_then(|file| std::fs::read_to_string(file).ok())
+            .and_then(|json| serde_json::from_str::<Vec<LocalAccount>>(&json).ok());
+        if let Some(accounts) = accounts {
+            return accounts;
+        }
+        // Older Android builds could resolve dirs::data_dir() differently.
+        // Recover an account file from that path once and persist it in the
+        // canonical location.
+        if let Some(legacy) = legacy_accounts_file()
+            && let Ok(json) = std::fs::read_to_string(&legacy)
+            && let Ok(accounts) = serde_json::from_str::<Vec<LocalAccount>>(&json)
+        {
+            let _ = save_accounts(&accounts);
+            return accounts;
+        }
+        Vec::new()
     }
 }
 
