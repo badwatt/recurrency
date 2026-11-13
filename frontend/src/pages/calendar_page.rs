@@ -74,13 +74,14 @@ fn CalendarPaymentRow(
     logo_url: Option<String>,
     is_past: bool,
 ) -> Element {
+    let row_class = if is_past {
+        "rounded-lg border border-border bg-card p-3 opacity-55"
+    } else {
+        "rounded-lg border border-border bg-card p-3"
+    };
     rsx! {
         div {
-            class: if is_past {
-                "rounded-lg border border-border bg-card p-3 opacity-55"
-            } else {
-                "rounded-lg border border-border bg-card p-3"
-            },
+            class: row_class.to_string(),
             div { class: "flex items-center justify-between gap-3",
                 div { class: "flex min-w-0 items-center gap-3",
                     div { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10",

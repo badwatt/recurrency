@@ -99,7 +99,7 @@ pub fn render_grid_card(
             // Tailwind classes are missing from an older cached stylesheet.
             if let Some(url) = logo_url.as_deref() {
                 img {
-                    src: "{url}",
+                    src: url.to_string(),
                     alt: "",
                     aria_hidden: "true",
                     class: "pointer-events-none absolute inset-0 h-full w-full select-none object-cover",
