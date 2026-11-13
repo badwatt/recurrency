@@ -179,7 +179,10 @@ timeline; reports turn the same data into trends and category breakdowns.
 ### Built for real devices
 
 - **Web** — responsive layouts, grid/list toggle and mobile floating actions.
-- **Android and desktop** — native clients with a configurable server URL.
+- **Android and desktop** — native Android, Windows, macOS and Linux clients with a configurable server URL.
+- **QR server setup** — scan a server QR instead of typing its address.
+- **In-app Android update** — download the latest APK and hand it to the installer.
+- **APK download QR** — settings shows a code for the latest Android build.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
@@ -385,6 +388,7 @@ All commands run inside `nix develop`.
 | Coverage | `cargo coverage` |
 | Tailwind CSS | `cargo css` |
 | Local debug APK | `cargo build-android` |
+| Desktop bundle | `cargo build-desktop` |
 | Install Android SDK/NDK | `cargo setup-android` |
 | Patch an existing Android build | `cargo patch-android` |
 
