@@ -562,7 +562,7 @@ pub fn patch_wry_activity(content: &str) -> String {
     if out.contains(field) {
         out = out.replace(
             field,
-            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencySyncWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
+            &format!("{field}\n    private var recurrencyImageWebView: android.webkit.WebView? = null\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencySyncWebView: android.webkit.WebView? = null\n    private var recurrencyQrWebView: android.webkit.WebView? = null\n    private var recurrencyUpdateWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
         );
     }
     let methods = r##"    // --- Recurrency image picker ---
@@ -635,7 +635,7 @@ pub fn patch_wry_activity(content: &str) -> String {
     fun scanQrForWebView(view: android.webkit.WebView) {
         recurrencyQrWebView = view
         try {
-            com.journeyapps.barcodescanner.IntentIntegrator(this)
+            com.google.zxing.integration.android.IntentIntegrator(this)
                 .setPrompt("Scan a Recurrency server QR")
                 .setBeepEnabled(false)
                 .setOrientationLocked(false)
@@ -756,7 +756,7 @@ fn patch_file_and_back(mut out: String) -> String {
     if !out.contains("recurrencyFileWebView") && out.contains(field) {
         out = out.replace(
             field,
-            &format!("{field}\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencySyncWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
+            &format!("{field}\n    private var recurrencyFileWebView: android.webkit.WebView? = null\n    private var recurrencySyncWebView: android.webkit.WebView? = null\n    private var recurrencyQrWebView: android.webkit.WebView? = null\n    private var recurrencyUpdateWebView: android.webkit.WebView? = null\n    private var recurrencyLastBackPress: Long = 0"),
         );
     }
     let methods = r##"    // --- Recurrency file picker and back handling ---
