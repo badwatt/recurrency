@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS summary_notification_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT summary_frequency_check CHECK (frequency IN ('daily', 'weekly', 'monthly')),
     CONSTRAINT summary_weekday_check CHECK (weekday IS NULL OR weekday BETWEEN 1 AND 7),
-    CONSTRAINT summary_day_check CHECK (day_of_month IS NULL OR day_of_month BETWEEN 1 AND 31),
+    CONSTRAINT summary_day_check CHECK (day_of_month IS NULL OR day_of_month BETWEEN 0 AND 31),
     CONSTRAINT summary_hour_check CHECK (hour BETWEEN 0 AND 23),
     CONSTRAINT summary_minute_check CHECK (minute BETWEEN 0 AND 59),
     CONSTRAINT summary_period_check CHECK (period IN ('current', 'next'))

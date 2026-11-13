@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.42.0`.
+> `ghcr.io/badwatt/recurrency:0.43.0`.
 
 ### From source
 
@@ -404,8 +404,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1211 backend unit tests** (plus 2 embedded-db migration
-tests), **47 backend integration tests**, **1706 frontend tests** and
+Current suite: **1213 backend unit tests** (plus 2 embedded-db migration
+tests), **47 backend integration tests**, **1707 frontend tests** and
 **8 tooling tests**.
 
 ### Releasing

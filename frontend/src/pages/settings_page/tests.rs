@@ -666,3 +666,10 @@ fn backup_download_button_is_right_on_desktop_and_centered_on_mobile() {
     assert!(src.contains("sm:justify-between"));
     assert!(src.contains("sm:text-left"));
 }
+
+#[test]
+fn summary_card_offers_last_day_of_month() {
+    let src = include_str!("summary_card.rs");
+    assert!(src.contains("Last day"));
+    assert!(src.contains("value: \"0\""));
+}

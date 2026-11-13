@@ -48,8 +48,8 @@ pub fn validate_schedule(spec: &ScheduleSpec) -> Result<Tz, String> {
             }
         }
         "monthly" => {
-            if !matches!(spec.day_of_month, Some(1..=31)) {
-                return Err("Monthly notifications need a day of month".to_string());
+            if !matches!(spec.day_of_month, Some(0..=31)) {
+                return Err("Monthly notifications need a day of month (0 = last day)".to_string());
             }
         }
         _ => return Err("Notification frequency is invalid".to_string()),
@@ -83,11 +83,12 @@ pub fn next_run_at(now: DateTime<Utc>, spec: &ScheduleSpec) -> Result<DateTime<U
             }
         }
         "monthly" => {
-            let day = spec.day_of_month.unwrap_or(1) as u32;
+            let configured_day = spec.day_of_month.unwrap_or(1);
             let date = local_now.date_naive();
+            let day = scheduled_day(date.year(), date.month(), configured_day);
             let candidate = local_datetime(
                 &timezone,
-                date.with_day(day.min(days_in_month(date.year(), date.month())))
+                date.with_day(day)
                     .ok_or_else(|| "Could not compute next notification date".to_string())?,
                 spec,
             )?;
@@ -99,9 +100,10 @@ pub fn next_run_at(now: DateTime<Utc>, spec: &ScheduleSpec) -> Result<DateTime<U
                 };
                 let next = chrono::NaiveDate::from_ymd_opt(year, month, 1)
                     .ok_or_else(|| "Could not compute next notification date".to_string())?;
+                let day = scheduled_day(year, month, configured_day);
                 local_datetime(
                     &timezone,
-                    next.with_day(day.min(days_in_month(year, month)))
+                    next.with_day(day)
                         .ok_or_else(|| "Could not compute next notification date".to_string())?,
                     spec,
                 )?
@@ -112,6 +114,17 @@ pub fn next_run_at(now: DateTime<Utc>, spec: &ScheduleSpec) -> Result<DateTime<U
         _ => return Err("Notification frequency is invalid".to_string()),
     };
     Ok(candidate_date.with_timezone(&Utc))
+}
+
+/// Resolve a configured monthly day. Zero means the last day of the month;
+/// ordinary days are clamped for short months.
+fn scheduled_day(year: i32, month: u32, configured_day: i16) -> u32 {
+    let last = days_in_month(year, month);
+    if configured_day == 0 {
+        last
+    } else {
+        (u32::try_from(configured_day).unwrap_or(1)).clamp(1, last)
+    }
 }
 
 fn local_datetime(
@@ -385,8 +398,22 @@ mod tests {
     }
 
     #[test]
+    fn monthly_last_day_targets_the_end_of_the_month() {
+        let now = Utc.with_ymd_and_hms(2027, 1, 31, 10, 0, 0).unwrap();
+        let next = next_run_at(now, &spec("monthly", None, Some(0))).unwrap();
+        assert_eq!(next, Utc.with_ymd_and_hms(2027, 2, 28, 9, 0, 0).unwrap());
+    }
+
+    #[test]
+    fn monthly_last_day_handles_leap_years() {
+        let now = Utc.with_ymd_and_hms(2024, 2, 1, 10, 0, 0).unwrap();
+        let next = next_run_at(now, &spec("monthly", None, Some(0))).unwrap();
+        assert_eq!(next, Utc.with_ymd_and_hms(2024, 2, 29, 9, 0, 0).unwrap());
+    }
+
+    #[test]
     fn invalid_schedule_is_rejected() {
-        let mut invalid = spec("monthly", None, Some(0));
+        let mut invalid = spec("monthly", None, Some(32));
         assert!(validate_schedule(&invalid).is_err());
         invalid = spec("weekly", Some(0), None);
         assert!(validate_schedule(&invalid).is_err());

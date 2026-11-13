@@ -142,6 +142,7 @@ pub fn SummaryCard() -> Element {
                             for value in 1..=crate::utils::constants::MAX_MONTH_DAY {
                                 option { value: value.to_string(), "{value}" }
                             }
+                            option { value: "0", "Last day" }
                         }
                     }
                 }
