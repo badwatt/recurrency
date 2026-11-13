@@ -198,13 +198,13 @@ pub fn patch_manifest(content: &str) -> String {
         "android:label=\"RecurrencyFrontend\"",
         "android:label=\"Recurrency\"",
     );
-    if !out.contains("android.permission.CAMERA") {
-        if let Some(pos) = out.find("<application") {
-            out.insert_str(
-                pos,
-                "    <uses-permission android:name=\"android.permission.CAMERA\" />\n    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n",
-            );
-        }
+    if !out.contains("android.permission.CAMERA")
+        && let Some(pos) = out.find("<application")
+    {
+        out.insert_str(
+            pos,
+            "    <uses-permission android:name=\"android.permission.CAMERA\" />\n    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n",
+        );
     }
     if !out.contains("androidx.core.content.FileProvider") {
         let provider = r#"        <provider
