@@ -89,6 +89,15 @@ pub fn is_today(year: i32, month: u32, day: u32) -> bool {
     now.year() == year && now.month() == month && now.day() == day
 }
 
+/// Human-readable payment count for the mobile sections.
+pub fn payment_count_label(count: usize) -> String {
+    if count == 1 {
+        "1 payment".to_string()
+    } else {
+        format!("{count} payments")
+    }
+}
+
 /// Compute month total.
 pub fn month_total(items: &[CalendarItem]) -> rust_decimal::Decimal {
     items.iter().map(|i| i.amount).sum()

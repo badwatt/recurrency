@@ -410,7 +410,7 @@ pub fn CalendarPage() -> Element {
                                         "Upcoming"
                                     }
                                     if !upcoming_display.is_empty() {
-                                        span { class: "text-xs text-muted-foreground", "{upcoming_display.len()} payments" }
+                                        span { class: "text-xs text-muted-foreground", {payment_count_label(upcoming_display.len())} }
                                     }
                                 }
                                 if upcoming_display.is_empty() {
@@ -437,7 +437,7 @@ pub fn CalendarPage() -> Element {
                                         h3 { class: "text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground",
                                             "Past"
                                         }
-                                        span { class: "text-xs text-muted-foreground", "{past_display.len()} payments" }
+                                        span { class: "text-xs text-muted-foreground", {payment_count_label(past_display.len())} }
                                     }
                                     for (id, name, date_str, amount_str, logo_url, is_past) in &past_display {
                                         CalendarPaymentRow {

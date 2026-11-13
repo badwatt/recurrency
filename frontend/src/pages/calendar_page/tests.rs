@@ -1180,3 +1180,10 @@ fn calendar_shows_transfer_and_pending_summary() {
         assert!(upcoming < past);
         assert!(src.contains("past_display"));
     }
+
+    #[test]
+    fn payment_count_label_handles_singular_and_plural() {
+        assert_eq!(payment_count_label(0), "0 payments");
+        assert_eq!(payment_count_label(1), "1 payment");
+        assert_eq!(payment_count_label(2), "2 payments");
+    }
