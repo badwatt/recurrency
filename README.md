@@ -270,11 +270,15 @@ ENABLE_WEB=false ./target/bin/recurrency serve
 ./target/bin/recurrency doctor
 ```
 
-The binary embeds both the built frontend and a local PostgreSQL runtime. If
-`DATABASE_URL` is omitted, it starts a private database under
+The binary embeds both the built frontend and a local PostgreSQL 18.7 runtime.
+If `DATABASE_URL` is omitted, it starts a private database under
 `./recurrency-data` (override with `RECURRENCY_DATA_DIR`), creates the schema on
 first run, and stops the local database on `Ctrl-C`/`SIGTERM`. Set
 `DATABASE_URL` to use an external PostgreSQL instead.
+
+Existing local clusters created by older releases (PostgreSQL 17) are upgraded
+automatically on startup with `pg_dump`/restore. The old data directory is kept
+as `data.pg17` for rollback.
 
 Embedded PostgreSQL is used rather than SQLite because the application relies
 on PostgreSQL types and SQL semantics (UUID, JSONB, decimal money, intervals,
@@ -402,8 +406,9 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1210 backend unit tests**, **47 backend integration tests**,
-**1697 frontend tests** and **8 tooling tests**.
+Current suite: **1210 backend unit tests** (plus 2 embedded-db migration
+tests), **47 backend integration tests**, **1697 frontend tests** and
+**8 tooling tests**.
 
 ### Releasing
 

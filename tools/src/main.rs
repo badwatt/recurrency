@@ -14,7 +14,7 @@ const BACKEND_LOG: &str = "/tmp/recurrency_backend.log";
 const FRONTEND_LOG: &str = "/tmp/recurrency_frontend.log";
 const DEFAULT_DATABASE_URL: &str =
     "postgres://recurrency:recurrency_dev_password@localhost:5432/recurrency";
-const POSTGRESQL_VERSION: &str = "17.12.0";
+const POSTGRESQL_VERSION: &str = "18.7.0";
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -493,10 +493,29 @@ fn ensure_postgres_archive() -> i32 {
     }
 }
 
+fn clear_postgresql_build_cache() {
+    for profile in ["release", "debug"] {
+        let build_dir = root().join("backend/target").join(profile).join("build");
+        let Ok(entries) = fs::read_dir(build_dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("postgresql_embedded-")
+            {
+                let _ = fs::remove_dir_all(entry.path());
+            }
+        }
+    }
+}
+
 fn do_build_app() -> i32 {
     if ensure_postgres_archive() != 0 {
         return 1;
     }
+    clear_postgresql_build_cache();
     let web = run(
         &root().join("frontend"),
         "dx",

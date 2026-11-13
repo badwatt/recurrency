@@ -12,6 +12,10 @@ const DEFAULT_MAX_CONNECTIONS: u32 = 5;
 const DEFAULT_EMBEDDED_DATA_DIR: &str = "recurrency-data";
 #[cfg(feature = "embedded-db")]
 const EMBEDDED_DATABASE_NAME: &str = "recurrency";
+#[cfg(feature = "embedded-db")]
+const EMBEDDED_PG_MAJOR: u32 = 18;
+#[cfg(feature = "embedded-db")]
+const PREVIOUS_EMBEDDED_PG_MAJOR: u32 = 17;
 
 /// True once the local embedded PostgreSQL fallback has been selected. Kept
 /// separate from the pool because migrations differ for a fresh local cluster.
@@ -38,6 +42,278 @@ fn parse_max_connections(value: Option<&str>) -> u32 {
 
 fn configuration_error(message: impl Into<String>) -> sqlx::Error {
     sqlx::Error::Configuration(std::io::Error::other(message.into()).into())
+}
+
+/// Read the major version recorded by initdb in a local cluster.
+#[cfg(feature = "embedded-db")]
+fn embedded_pg_major(data_dir: &std::path::Path) -> Result<Option<u32>, sqlx::Error> {
+    let version_path = data_dir.join("PG_VERSION");
+    let Ok(version) = std::fs::read_to_string(&version_path) else {
+        return Ok(None);
+    };
+    let major = version.lines().next().unwrap_or_default().trim().parse::<u32>().map_err(|_| {
+        configuration_error(format!(
+            "invalid local database version in {}",
+            version_path.display()
+        ))
+    })?;
+    Ok(Some(major))
+}
+
+/// Find the PostgreSQL binaries from the previous embedded release. They are
+/// kept in the data root so an in-place 17 -> 18 upgrade can use pg_dump.
+#[cfg(feature = "embedded-db")]
+fn previous_embedded_bin(root: &std::path::Path) -> Option<std::path::PathBuf> {
+    let installations = std::fs::read_dir(root.join("postgres")).ok()?;
+    let mut candidates = installations
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().starts_with("17."))
+        .map(|entry| entry.path().join("bin"))
+        .filter(|path| path.join("pg_ctl").is_file() && path.join("pg_dump").is_file())
+        .collect::<Vec<_>>();
+    candidates.sort();
+    candidates.pop()
+}
+
+#[cfg(feature = "embedded-db")]
+fn free_local_port() -> Result<u16, sqlx::Error> {
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0))
+        .map_err(|error| configuration_error(format!("local database port: {error}")))?;
+    listener
+        .local_addr()
+        .map(|address| address.port())
+        .map_err(|error| configuration_error(format!("local database port: {error}")))
+}
+
+#[cfg(feature = "embedded-db")]
+fn wait_for_local_server(psql: &std::path::Path, port: u16, password: &str) -> bool {
+    for _ in 0..40 {
+        let status = std::process::Command::new(psql)
+            .args([
+                "-h",
+                "127.0.0.1",
+                "-p",
+                &port.to_string(),
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "-c",
+                "SELECT 1",
+            ])
+            .env("PGPASSWORD", password)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        if matches!(status, Ok(status) if status.success()) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    false
+}
+
+/// Upgrade an existing local PostgreSQL 17 cluster to the current major.
+/// The old data directory is preserved next to the new one for rollback.
+#[cfg(feature = "embedded-db")]
+async fn migrate_embedded_data(
+    root: &std::path::Path,
+    password: &str,
+) -> Result<(), sqlx::Error> {
+    let data_dir = root.join("data");
+    let Some(major) = embedded_pg_major(&data_dir)? else {
+        return Ok(());
+    };
+    if major == EMBEDDED_PG_MAJOR {
+        return Ok(());
+    }
+    if major != PREVIOUS_EMBEDDED_PG_MAJOR {
+        return Err(configuration_error(format!(
+            "local database version {major} is not supported; expected {EMBEDDED_PG_MAJOR} or {PREVIOUS_EMBEDDED_PG_MAJOR}"
+        )));
+    }
+
+    let old_bin = previous_embedded_bin(root).ok_or_else(|| {
+        configuration_error(
+            "local PostgreSQL 17 binaries were not found; cannot upgrade the local database safely",
+        )
+    })?;
+    let old_port = free_local_port()?;
+    let migration_dir = root.join("migration");
+    std::fs::create_dir_all(&migration_dir).map_err(|error| {
+        configuration_error(format!("local database migration directory: {error}"))
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(
+            &migration_dir,
+            std::fs::Permissions::from_mode(0o700),
+        );
+    }
+    let dump_path = migration_dir.join("pg17.sql");
+    let log_path = migration_dir.join("pg17.log");
+
+    // A previous crash may have left the old postmaster running. Reclaim the
+    // data directory before taking the migration dump.
+    let _ = std::process::Command::new(old_bin.join("pg_ctl"))
+        .args(["stop", "-D"])
+        .arg(&data_dir)
+        .args(["-m", "fast"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+    let start = std::process::Command::new(old_bin.join("pg_ctl"))
+        .args(["start", "-D"])
+        .arg(&data_dir)
+        .args([
+            "-o",
+            &format!(
+                "-p {old_port} -c listen_addresses=127.0.0.1 -c unix_socket_directories=/tmp"
+            ),
+            "-l",
+        ])
+        .arg(&log_path)
+        .status()
+        .map_err(|error| configuration_error(format!("starting PostgreSQL 17: {error}")))?;
+    if !start.success() {
+        return Err(configuration_error("PostgreSQL 17 did not start for migration"));
+    }
+    if !wait_for_local_server(&old_bin.join("psql"), old_port, password) {
+        let _ = std::process::Command::new(old_bin.join("pg_ctl"))
+            .args(["stop", "-D"])
+            .arg(&data_dir)
+            .arg("-m")
+            .arg("fast")
+            .status();
+        return Err(configuration_error(
+            "PostgreSQL 17 did not become ready for migration",
+        ));
+    }
+
+    let dump_file = std::fs::File::create(&dump_path)
+        .map_err(|error| configuration_error(format!("local database dump: {error}")))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(
+            &dump_path,
+            std::fs::Permissions::from_mode(0o600),
+        );
+    }
+    let dump = std::process::Command::new(old_bin.join("pg_dump"))
+        .args([
+            "-h",
+            "127.0.0.1",
+            "-p",
+            &old_port.to_string(),
+            "-U",
+            "postgres",
+            "-d",
+            EMBEDDED_DATABASE_NAME,
+            "--no-owner",
+            "--no-privileges",
+            "--format=plain",
+        ])
+        .env("PGPASSWORD", password)
+        .stdout(dump_file)
+        .status()
+        .map_err(|error| configuration_error(format!("local database dump: {error}")))?;
+
+    let stop = std::process::Command::new(old_bin.join("pg_ctl"))
+        .args(["stop", "-D"])
+        .arg(&data_dir)
+        .arg("-m")
+        .arg("fast")
+        .status();
+    if !dump.success() {
+        return Err(configuration_error("could not dump the local PostgreSQL 17 database"));
+    }
+    if !matches!(stop, Ok(status) if status.success()) {
+        return Err(configuration_error("could not stop PostgreSQL 17 after the local dump"));
+    }
+
+    let new_data = root.join("data.new");
+    if new_data.exists() {
+        std::fs::remove_dir_all(&new_data).map_err(|error| {
+            configuration_error(format!("removing incomplete local database: {error}"))
+        })?;
+    }
+    let settings = postgresql_embedded::SettingsBuilder::new()
+        .data_dir(&new_data)
+        .installation_dir(root.join("postgres"))
+        .host("127.0.0.1")
+        .port(0)
+        .password(password)
+        .temporary(false)
+        .config("shared_buffers", "16MB")
+        .config("max_connections", "20")
+        .build();
+    let mut new_pg = postgresql_embedded::PostgreSQL::new(settings);
+    if let Err(error) = new_pg.setup().await {
+        return Err(configuration_error(format!(
+            "creating upgraded local database: {error}"
+        )));
+    }
+    if let Err(error) = new_pg.start().await {
+        return Err(configuration_error(format!(
+            "starting upgraded local database: {error}"
+        )));
+    }
+
+    if let Err(error) = new_pg.create_database(EMBEDDED_DATABASE_NAME).await {
+        let _ = new_pg.stop().await;
+        return Err(configuration_error(format!(
+            "creating upgraded local database: {error}"
+        )));
+    }
+
+    let new_port = new_pg.settings().port;
+    let new_bin = new_pg.settings().binary_dir();
+    let restore = std::process::Command::new(new_bin.join("psql"))
+        .args([
+            "-h",
+            "127.0.0.1",
+            "-p",
+            &new_port.to_string(),
+            "-U",
+            "postgres",
+            "-d",
+            EMBEDDED_DATABASE_NAME,
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+        ])
+        .arg(&dump_path)
+        .env("PGPASSWORD", password)
+        .stdout(std::process::Stdio::null())
+        .status();
+    let _ = new_pg.stop().await;
+
+    if !matches!(restore, Ok(status) if status.success()) {
+        let _ = std::fs::remove_dir_all(&new_data);
+        return Err(configuration_error(
+            "could not restore the local database after the version upgrade",
+        ));
+    }
+
+    let backup = root.join("data.pg17");
+    if backup.exists() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_secs())
+            .unwrap_or_default();
+        std::fs::rename(&backup, root.join(format!("data.pg17.{stamp}"))).map_err(|error| {
+            configuration_error(format!("keeping the previous local database: {error}"))
+        })?;
+    }
+    std::fs::rename(&data_dir, &backup)
+        .map_err(|error| configuration_error(format!("keeping the previous local database: {error}")))?;
+    std::fs::rename(&new_data, &data_dir)
+        .map_err(|error| configuration_error(format!("activating the upgraded local database: {error}")))?;
+    let _ = std::fs::remove_dir_all(&migration_dir);
+    tracing::info!("Upgraded local PostgreSQL 17 data to version {EMBEDDED_PG_MAJOR}");
+    Ok(())
 }
 
 #[cfg(feature = "embedded-db")]
@@ -71,6 +347,7 @@ async fn embedded_url() -> Result<String, sqlx::Error> {
                     password
                 }
             };
+            migrate_embedded_data(&root, &password).await?;
             let settings = SettingsBuilder::new()
                 .data_dir(root.join("data"))
                 .installation_dir(root.join("postgres"))
@@ -293,6 +570,31 @@ mod tests {
             // opening a cluster in a unit test would make the suite slow.
             assert!(!EMBEDDED_DATABASE.load(Ordering::SeqCst));
         }
+    }
+
+    #[cfg(feature = "embedded-db")]
+    #[test]
+    fn embedded_pg_major_reads_the_cluster_version() {
+        let dir = std::env::temp_dir().join(format!(
+            "recurrency-pg-version-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("PG_VERSION"), "17\n").unwrap();
+        assert_eq!(embedded_pg_major(&dir).unwrap(), Some(17));
+        std::fs::write(dir.join("PG_VERSION"), "18\n").unwrap();
+        assert_eq!(embedded_pg_major(&dir).unwrap(), Some(18));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(feature = "embedded-db")]
+    #[test]
+    fn embedded_pg_major_is_none_for_a_missing_cluster() {
+        let dir = std::env::temp_dir().join(format!(
+            "recurrency-pg-missing-{}",
+            uuid::Uuid::new_v4()
+        ));
+        assert_eq!(embedded_pg_major(&dir).unwrap(), None);
     }
 
     #[test]
