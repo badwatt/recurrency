@@ -98,10 +98,15 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # PostgreSQL data directory (PG 18)
 RUN mkdir -p /var/lib/postgresql/18/main && chown postgres:postgres /var/lib/postgresql/18/main
 RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql
+RUN mkdir -p /var/lib/recurrency/backups
+VOLUME ["/var/lib/recurrency/backups"]
 
 ENV APP_PORT=80 \
     RUST_LOG=info \
     ENABLE_WEB=true
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:${APP_PORT:-80}/api/ready || exit 1
 
 EXPOSE 80
 

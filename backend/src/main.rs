@@ -3,14 +3,15 @@ use recurrency_backend::{
     reports, shared, subscriptions, transactions,
 };
 
-use axum::extract::DefaultBodyLimit;
-use axum::http::HeaderValue;
+use axum::extract::{DefaultBodyLimit, State};
+use axum::http::{HeaderValue, StatusCode};
 use axum::{
     extract::Json,
     routing::{delete, get, post, put},
     Router,
 };
 use recurrency_backend::cli::{self, Command};
+use recurrency_backend::shared::app_state::AppState;
 use recurrency_backend::shared::app_utils::parse_port;
 use std::net::SocketAddr;
 
@@ -57,6 +58,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             shared::db::run_migrations(&db_pool).await?;
             shared::db::shutdown_embedded().await;
             println!("Migrations complete.");
+            return Ok(());
+        }
+        Command::Backup => {
+            let database_url = cli
+                .database_url
+                .clone()
+                .or_else(|| std::env::var("DATABASE_URL").ok())
+                .filter(|url| !url.trim().is_empty())
+                .ok_or_else(|| {
+                    std::io::Error::other(
+                        "DATABASE_URL or --database-url is required for backups",
+                    )
+                })?;
+            backup::cli::run(&database_url).await?;
+            shared::db::shutdown_embedded().await;
             return Ok(());
         }
         Command::Doctor => {
@@ -113,8 +129,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[allow(unused_variables)]
 fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
-    use shared::app_state::AppState;
-
     let cors = cors_layer();
 
     let app_state = AppState::new(db_pool.clone());
@@ -122,6 +136,7 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/health", get(health_check))
+        .route("/api/ready", get(readiness_check))
         .route("/api/currency/rates", get(currency::handlers::rates))
         .route("/api/currency/settings", get(currency::handlers::get_settings).put(currency::handlers::update_settings))
         .route("/api/backup", get(backup::handlers::export))
@@ -209,6 +224,27 @@ async fn health_check() -> Json<serde_json::Value> {
     }))
 }
 
+/// Readiness verifies the database before a load balancer or container
+/// healthcheck sends traffic to this instance.
+async fn readiness_check(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
+    match sqlx::query_scalar::<_, i32>("SELECT 1")
+        .fetch_one(&state.pool)
+        .await
+    {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "OK", "database": "ok"})),
+        ),
+        Err(error) => {
+            tracing::warn!("Readiness check failed: {error}");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({"status": "UNAVAILABLE", "database": "unavailable"})),
+            )
+        }
+    }
+}
+
 /// Resolve the allowed CORS origin. `None` means permissive (`*`), which is
 /// fine for a token-in-header API with no cookies. Set `CORS_ALLOWED_ORIGIN`
 /// to restrict the app to a single origin in production.
@@ -241,6 +277,18 @@ fn cors_layer() -> CorsLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn readiness_fails_when_database_is_unavailable() {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .acquire_timeout(std::time::Duration::from_millis(100))
+            .connect_lazy("postgres://127.0.0.1:1/missing")
+            .unwrap();
+        let state = AppState::new(pool);
+        let (status, body) = readiness_check(State(state)).await;
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(body.0["database"], "unavailable");
+    }
 
     #[tokio::test]
     async fn test_health_check_structure() {

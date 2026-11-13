@@ -23,6 +23,14 @@ services:
       RUST_LOG: info
     volumes:
       - recurrency_db:/var/lib/postgresql/18/main
+      - recurrency_backups:/var/lib/recurrency/backups
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/api/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
 
 volumes:
   recurrency_db:
+  recurrency_backups:

@@ -4,6 +4,7 @@
 pub enum Command {
     Serve,
     Migrate,
+    Backup,
     Doctor,
     Help,
     Version,
@@ -37,6 +38,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         cli.command = match first.as_str() {
             "serve" => Command::Serve,
             "migrate" => Command::Migrate,
+            "backup" => Command::Backup,
             "doctor" => Command::Doctor,
             "help" => Command::Help,
             "version" => Command::Version,
@@ -72,6 +74,7 @@ pub fn usage() -> &'static str {
      Usage:\n\
        recurrency [serve] [options]\n\
        recurrency migrate [--database-url URL]\n\
+       recurrency backup [--database-url URL]\n\
        recurrency doctor\n\n\
      Options:\n\
        --port PORT             API port (default: APP_PORT or 8080)\n\
@@ -119,6 +122,7 @@ mod tests {
     #[test]
     fn parses_commands_and_help() {
         assert_eq!(parse(args(&["migrate"])).unwrap().command, Command::Migrate);
+        assert_eq!(parse(args(&["backup"])).unwrap().command, Command::Backup);
         assert_eq!(parse(args(&["doctor"])).unwrap().command, Command::Doctor);
         assert_eq!(parse(args(&["--help"])).unwrap().command, Command::Help);
         assert_eq!(parse(args(&["--version"])).unwrap().command, Command::Version);

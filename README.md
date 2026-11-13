@@ -234,6 +234,12 @@ timeline; reports turn the same data into trends and category breakdowns.
 |---|---|---|
 | `DATABASE_URL` | bundled local PostgreSQL | PostgreSQL connection string; when set, Docker does not start its bundled database |
 | `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
+| `BACKUP_ENABLED` | `true` | Run the daily PostgreSQL logical backup loop |
+| `BACKUP_DIR` | `/var/lib/recurrency/backups` | Directory for `.dump` files |
+| `BACKUP_RETENTION_DAYS` | `7` | Delete backups older than this many days |
+| `BACKUP_INTERVAL_SECONDS` | `86400` | Delay between automatic backups |
+| `BACKUP_RESTORE_TEST` | `true` | Restore each dump into a temporary database |
+| `DATABASE_ADMIN_URL` | bundled `postgres` URL | Admin connection used only for the restore test |
 | `JWT_SECRET` | generated in `app_secrets` | Optional JWT signing secret; when set it overrides the database-stored secret |
 | `APP_PORT` | `8080` (`80` in the Docker image) | Application listen port |
 | `APP_ENV` | `development` | Set `production` to lower the default log level |
@@ -273,6 +279,7 @@ ENABLE_WEB=false ./target/bin/recurrency serve
 
 # Migrations and configuration check
 ./target/bin/recurrency migrate --database-url "$DATABASE_URL"
+./target/bin/recurrency backup --database-url "$DATABASE_URL"
 ./target/bin/recurrency doctor
 ```
 
@@ -281,6 +288,11 @@ If `DATABASE_URL` is omitted, it starts a private database under
 `./recurrency-data` (override with `RECURRENCY_DATA_DIR`), creates the schema on
 first run, and stops the local database on `Ctrl-C`/`SIGTERM`. Set
 `DATABASE_URL` to use an external PostgreSQL instead.
+
+`recurrency backup` creates a validated logical dump in `/var/lib/recurrency/backups`
+(or `BACKUP_DIR`) and applies the retention window. The all-in-one image runs
+it daily after `/api/ready` succeeds. The `recurrency_backups` volume keeps the
+dumps outside the database volume.
 
 Existing local clusters created by older releases (PostgreSQL 17) are upgraded
 automatically on startup with `pg_dump`/restore. The old data directory is kept
@@ -293,6 +305,28 @@ domain module and would risk changing financial behaviour.
 
 `--no-web` is equivalent to `ENABLE_WEB=false`. `cargo build-api` builds the
 API-only binary without embedded assets or the local database.
+
+### Database backups
+
+The container backs up PostgreSQL automatically:
+
+```text
+/var/lib/recurrency/backups/recurrency-YYYYMMDD-HHMMSS.dump
+```
+
+Each dump is validated with `pg_restore --list`; when `DATABASE_ADMIN_URL` is
+available it is also restored into a temporary database and queried. Old dumps
+are removed after `BACKUP_RETENTION_DAYS`.
+
+Run one manually:
+
+```bash
+docker exec recurrency recurrency backup
+```
+
+Keep the `recurrency_backups` volume mounted. For an external PostgreSQL, set
+`DATABASE_ADMIN_URL` to a role that can create/drop the temporary restore
+database.
 
 ### Headless API
 
@@ -410,7 +444,7 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1211 backend unit tests** (**1215** with `embedded-db`),
+Current suite: **1218 backend unit tests** (**1222** with `embedded-db`),
 **48 backend integration tests**, **1717 frontend tests** and **8 tooling tests**.
 
 ### Releasing
@@ -427,6 +461,8 @@ A manual `workflow_dispatch` releases the current version.
 ## Security
 
 - Argon2 password hashing and JWT authentication.
+- The bundled PostgreSQL application role is `NOSUPERUSER`; `uuid-ossp` is
+  installed by the container's `postgres` role before migrations.
 - The JWT signing secret is generated once and stored in `app_secrets` when
   `JWT_SECRET` is not set. Full PostgreSQL backups include it; set `JWT_SECRET`
   from a secret manager in production if the signing key must stay outside the
