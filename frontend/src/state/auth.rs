@@ -15,7 +15,7 @@ pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
     // 2. Android fallback: /data/data/<package>/files is the canonical private dir
     //    The parent /data/data/<package> always exists for installed apps.
     //    We just need to return a path so create_dir_all() can create the subdir.
-    let android_files = std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
+    let android_files = std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");
     if android_files.parent().map(|p| p.exists()).unwrap_or(false) {
         return Some(android_files);
     }
@@ -459,7 +459,7 @@ mod tests {
     }
 
     // ── get_app_data_dir tests ──
-    // Android path check: /data/data/com.alvaro17f.recurrency/files
+    // Android path check: /data/data/com.badwatt.recurrency/files
     // This path only exists on Android devices, not on test machines.
     // Line 18-20 (android_files parent().map(...).unwrap_or(false)) is only hit on Android.
     // Line 22-25 (HOME/.recurrency fallback) is only hit when dirs::data_dir() returns None
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn android_path_parent_exists_check() {
         // Test the android path parent existence logic
-        let android_files = std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
+        let android_files = std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");
         let parent = android_files.parent().expect("should have parent");
         // On non-Android (Linux), /data/data/ does NOT exist, so this returns None
         let exists = parent.exists();

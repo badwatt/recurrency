@@ -217,17 +217,17 @@ mod tests {
         {
             // Verify the Android path format
             let android_path =
-                std::path::PathBuf::from("/data/data/com.alvaro17f.recurrency/files");
+                std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");
             let parent = android_path.parent().expect("Android path has parent");
             // On Linux test machines, /data/data does not exist
             // On Android devices, /data/data exists
             // This tests the path construction (line 18 in auth.rs)
             assert!(android_path
                 .to_string_lossy()
-                .contains("com.alvaro17f.recurrency"));
+                .contains("com.badwatt.recurrency"));
             assert!(parent
                 .to_string_lossy()
-                .ends_with("/data/data/com.alvaro17f.recurrency"));
+                .ends_with("/data/data/com.badwatt.recurrency"));
         }
     }
 
