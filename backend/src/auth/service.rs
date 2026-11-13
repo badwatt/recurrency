@@ -21,6 +21,19 @@ static JWT_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
 /// Must never be accepted as a production signing key.
 const INSECURE_JWT_SECRET: &str = "change-me-in-production";
 
+/// Key used to persist the generated JWT secret in PostgreSQL.
+const JWT_SECRET_KEY: &str = "jwt_secret";
+
+/// Generate a 256-bit secret from two UUID v4 values. The result is a
+/// 64-character lowercase hexadecimal string.
+fn generate_jwt_secret() -> String {
+    format!(
+        "{}{}",
+        Uuid::new_v4().simple(),
+        Uuid::new_v4().simple()
+    )
+}
+
 /// Validate and resolve the JWT secret from an environment value.
 /// A missing or empty secret is rejected so misconfiguration is caught at startup.
 fn resolve_jwt_secret(value: Option<String>) -> Result<Vec<u8>, String> {
@@ -42,6 +55,45 @@ pub fn init_jwt_secret() -> Result<(), String> {
     let secret = resolve_jwt_secret(std::env::var("JWT_SECRET").ok())?;
     // Ignore if already set (e.g. by a test).
     let _ = JWT_SECRET.set(secret);
+    Ok(())
+}
+
+/// Initialize the JWT secret for a server process.
+///
+/// `JWT_SECRET` remains the explicit override. When it is absent, the secret
+/// is loaded from `app_secrets`; on the first run a random secret is generated
+/// and persisted there. That keeps the standalone binary and Docker
+/// zero-config while allowing several application instances to share the same
+/// signing key through PostgreSQL.
+pub async fn init_jwt_secret_from_pool(pool: &sqlx::PgPool) -> Result<(), String> {
+    if let Some(value) = std::env::var("JWT_SECRET")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        let secret = resolve_jwt_secret(Some(value))?;
+        let _ = JWT_SECRET.set(secret);
+        return Ok(());
+    }
+
+    let candidate = generate_jwt_secret();
+    sqlx::query(
+        "INSERT INTO app_secrets (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING",
+    )
+    .bind(JWT_SECRET_KEY)
+    .bind(&candidate)
+    .execute(pool)
+    .await
+    .map_err(|error| format!("could not store the generated JWT secret: {error}"))?;
+
+    let stored: String = sqlx::query_scalar("SELECT value FROM app_secrets WHERE key = $1")
+        .bind(JWT_SECRET_KEY)
+        .fetch_one(pool)
+        .await
+        .map_err(|error| format!("could not read the stored JWT secret: {error}"))?;
+    if stored.trim().is_empty() {
+        return Err("stored JWT secret is empty".to_string());
+    }
+    let _ = JWT_SECRET.set(stored.into_bytes());
     Ok(())
 }
 
@@ -522,6 +574,14 @@ mod tests {
     #[test]
     fn resolve_jwt_secret_placeholder_is_error() {
         assert!(resolve_jwt_secret(Some("change-me-in-production".into())).is_err());
+    }
+
+    #[test]
+    fn generate_jwt_secret_is_256_bits_of_hex() {
+        let secret = generate_jwt_secret();
+        assert_eq!(secret.len(), 64);
+        assert!(secret.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_ne!(secret, generate_jwt_secret());
     }
 
     #[test]

@@ -15,7 +15,7 @@ services:
       - "80:80"
       - "8080:80"
     environment:
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      JWT_SECRET: ${JWT_SECRET:-}
       DATABASE_URL: ${DATABASE_URL:-}
       ENABLE_WEB: ${ENABLE_WEB:-true}
       ENABLE_DEMO: ${ENABLE_DEMO:-false}

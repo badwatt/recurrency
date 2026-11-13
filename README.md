@@ -46,7 +46,6 @@ docker run -d \
   --name recurrency \
   -p 80:80 -p 8080:80 \
   -v recurrency_db:/var/lib/postgresql/18/main \
-  -e JWT_SECRET="$(openssl rand -hex 32)" \
   ghcr.io/badwatt/recurrency:latest
 ```
 
@@ -58,17 +57,19 @@ The image includes PostgreSQL **18**. If `DATABASE_URL` is set, the entrypoint
 does not start the bundled PostgreSQL at all and connects to that external
 server instead.
 
-The named volume persists PostgreSQL across container recreation. Keep the same
-`JWT_SECRET`; changing it invalidates existing sessions.
+The named volume persists PostgreSQL across container recreation. On first boot
+the application generates a random JWT signing secret and stores it in the
+database, so no configuration is required. Set `JWT_SECRET` to override it;
+changing the effective secret invalidates existing sessions.
 
 > PostgreSQL 18 uses a new data directory (`/var/lib/postgresql/18/main`).
 > Volumes created by the old PostgreSQL 15 image need a `pg_dump`/restore before
 > upgrading. Keep the old volume until the restored instance has been verified.
 
 > [!IMPORTANT]
-> The container fails fast if the application cannot start (missing/placeholder
-> `JWT_SECRET`, failed migration, or database error). It exits instead of serving
-> an empty frontend, so Docker can restart it or surface the failure.
+> The container fails fast if the application cannot start (failed migration or
+> database error). It exits instead of serving an empty frontend, so Docker can
+> restart it or surface the failure.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
@@ -227,7 +228,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 |---|---|---|
 | `DATABASE_URL` | bundled local PostgreSQL | PostgreSQL connection string; when set, Docker does not start its bundled database |
 | `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
-| `JWT_SECRET` | **required** | JWT signing secret; startup fails if missing or placeholder |
+| `JWT_SECRET` | generated in `app_secrets` | Optional JWT signing secret; when set it overrides the database-stored secret |
 | `APP_PORT` | `8080` (`80` in the Docker image) | Application listen port |
 | `APP_ENV` | `development` | Set `production` to lower the default log level |
 | `RUST_LOG` | `APP_ENV` default | Tracing filter, for example `info` or `debug` |
@@ -259,7 +260,6 @@ cargo build-app
 
 # API + embedded web UI
 DATABASE_URL="postgres://recurrency:recurrency@localhost:5432/recurrency" \
-  JWT_SECRET="$(openssl rand -hex 32)" \
   ./target/bin/recurrency serve
 
 # API only, same binary
@@ -297,7 +297,6 @@ docker run -d \
   --name recurrency \
   -p 8080:80 \
   -v recurrency_db:/var/lib/postgresql/18/main \
-  -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
   ghcr.io/badwatt/recurrency:latest
 ```
@@ -312,14 +311,13 @@ docker run -d \
 
 ```bash
 curl -O https://raw.githubusercontent.com/badwatt/recurrency/main/docker/docker-compose.yml
-JWT_SECRET="$(openssl rand -hex 32)" docker compose up -d recurrency
+docker compose up -d recurrency
 ```
 
 Headless:
 
 ```bash
-ENABLE_WEB=false JWT_SECRET="$(openssl rand -hex 32)" \
-  docker compose up -d recurrency
+ENABLE_WEB=false docker compose up -d recurrency
 ```
 
 The compose file publishes `80` and `8080` (both map to the binary's port
@@ -406,7 +404,7 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1210 backend unit tests** (plus 2 embedded-db migration
+Current suite: **1211 backend unit tests** (plus 2 embedded-db migration
 tests), **47 backend integration tests**, **1697 frontend tests** and
 **8 tooling tests**.
 
@@ -424,6 +422,10 @@ A manual `workflow_dispatch` releases the current version.
 ## Security
 
 - Argon2 password hashing and JWT authentication.
+- The JWT signing secret is generated once and stored in `app_secrets` when
+  `JWT_SECRET` is not set. Full PostgreSQL backups include it; set `JWT_SECRET`
+  from a secret manager in production if the signing key must stay outside the
+  database.
 - Notification credentials encrypted at rest with AES-256-GCM.
 - Private-network notification targets blocked unless explicitly allowed.
 - No `unsafe` Rust.

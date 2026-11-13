@@ -6,12 +6,8 @@ echo "=== Recurrency ==="
 export APP_PORT="${APP_PORT:-80}"
 export ENABLE_DEMO="${ENABLE_DEMO:-false}"
 
-# Validate runtime configuration before doing any database work.
-if [ -z "${JWT_SECRET:-}" ]; then
-    echo "ERROR: JWT_SECRET must be set to a strong random value" >&2
-    exit 1
-fi
-export JWT_SECRET
+# JWT_SECRET is optional. When absent, the application generates it once and
+# stores it in app_secrets, so sessions survive container recreation.
 
 # ── External PostgreSQL ─────────────────────────────────
 # An explicit DATABASE_URL always wins. Do not start or initialize the

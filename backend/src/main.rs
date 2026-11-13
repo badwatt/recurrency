@@ -60,7 +60,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Ok(());
         }
         Command::Doctor => {
-            auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
             let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             let one: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&db_pool).await?;
             shared::db::shutdown_embedded().await;
@@ -72,9 +71,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     tracing::info!("Starting Recurrency API server...");
-    auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
     let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
     shared::db::run_migrations(&db_pool).await?;
+    auth::service::init_jwt_secret_from_pool(&db_pool)
+        .await
+        .map_err(std::io::Error::other)?;
     tracing::info!("Database connected and migrations complete");
 
     let enable_web = cli
