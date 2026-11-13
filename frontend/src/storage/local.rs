@@ -2,8 +2,9 @@ use crate::models::account::{Account, CreateAccountRequest, UpdateAccountRequest
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Recurrence, Subscription, UpdateSubscriptionRequest};
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
+use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest, UpdateDebtRequest};
 use crate::api::client::ApiError;
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, NaiveDate, Utc};
 
 #[allow(unused_imports)]
 use rust_decimal::Decimal;
@@ -20,34 +21,27 @@ static SUBSCRIPTIONS: std::sync::Mutex<Option<Vec<Subscription>>> = std::sync::M
 static TRANSACTIONS: std::sync::Mutex<Option<Vec<Transaction>>> = std::sync::Mutex::new(None);
 static CATEGORIES: std::sync::Mutex<Option<Vec<Category>>> = std::sync::Mutex::new(None);
 static ACCOUNTS: std::sync::Mutex<Option<Vec<Account>>> = std::sync::Mutex::new(None);
+static DEBTS: std::sync::Mutex<Option<Vec<Debt>>> = std::sync::Mutex::new(None);
+static DEBT_PAYMENTS: std::sync::Mutex<Option<Vec<DebtPayment>>> = std::sync::Mutex::new(None);
 
 // ── Default categories ──
 
-const DEFAULT_CATEGORIES: &[(&str, &str, &str)] = &[
-    ("Streaming", "tv", "#ef4444"),
-    ("Music", "music", "#f97316"),
-    ("Cloud", "cloud", "#3b82f6"),
-    ("Gaming", "gamepad-2", "#8b5cf6"),
-    ("News", "newspaper", "#6b7280"),
-    ("Fitness", "dumbbell", "#22c55e"),
-    ("Education", "graduation-cap", "#eab308"),
-    ("Utilities", "zap", "#06b6d4"),
-    ("Insurance", "shield", "#64748b"),
-    ("Other", "ellipsis", "#9ca3af"),
-];
+/// The only category created automatically. It is the permanent fallback for
+/// subscriptions and transactions that do not have a user category.
+const DEFAULT_CATEGORY_NAME: &str = "Uncategorized";
 
 fn default_categories() -> Vec<Category> {
-    DEFAULT_CATEGORIES.iter().map(|(name, icon, color)| Category {
+    vec![Category {
         id: Uuid::new_v4(),
         user_id: uuid::Uuid::nil(),
-        name: name.to_string(),
-        icon: Some(icon.to_string()),
-        color: Some(color.to_string()),
+        name: DEFAULT_CATEGORY_NAME.to_string(),
+        icon: None,
+        color: None,
         is_system: true,
         is_default: true,
         created_at: Utc::now(),
         updated_at: Utc::now(),
-    }).collect()
+    }]
 }
 
 // ── Persistence helpers ──
@@ -688,7 +682,471 @@ pub async fn set_default_account(id: &Uuid) -> Result<(), ApiError> {
     save_collection("accounts", list)
 }
 
+// ── Debt operations ──
+
+async fn default_category_id() -> Result<Uuid, ApiError> {
+    list_categories()
+        .await?
+        .into_iter()
+        .find(|category| category.is_default)
+        .or_else(list_categories_blocking_fallback)
+        .map(|category| category.id)
+        .ok_or_else(|| ApiError::Network("Default category missing".into()))
+}
+
+fn list_categories_blocking_fallback() -> Option<Category> {
+    CATEGORIES
+        .lock()
+        .ok()
+        .and_then(|cache| cache.as_ref().and_then(|list| list.first().cloned()))
+}
+
+fn normalize_payment_days(days: &mut Vec<u8>, start: NaiveDate) {
+    if days.is_empty() {
+        days.push(start.day() as u8);
+    }
+    days.sort_unstable();
+    days.dedup();
+}
+
+fn monthly_recurrence(days: &[u8]) -> Recurrence {
+    Recurrence {
+        interval: 1,
+        unit: "month".into(),
+        days: days.to_vec(),
+        ..Default::default()
+    }
+}
+
+pub async fn list_debts() -> Result<Vec<Debt>, ApiError> {
+    let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    if cache.is_none() {
+        *cache = load_collection("debts");
+    }
+    let mut debts = cache.clone().unwrap_or_default();
+    debts.sort_by_key(|debt| (!debt.is_active, debt.created_at));
+    Ok(debts)
+}
+
+pub async fn create_debt(req: &CreateDebtRequest) -> Result<Debt, ApiError> {
+    ensure_accounts().await?;
+    let account_id = if req.account_id.is_nil() {
+        default_account_id()?
+    } else {
+        req.account_id
+    };
+    let category_id = match req.category_id {
+        Some(id) => id,
+        None => default_category_id().await?,
+    };
+    let debt_type = req.debt_type.trim().to_lowercase();
+    if debt_type != crate::utils::constants::DEBT_TYPE_MANUAL
+        && debt_type != crate::utils::constants::DEBT_TYPE_AUTOMATIC
+    {
+        return Err(ApiError::Http(400, "Debt type must be manual or automatic".into()));
+    }
+    if req.total_amount <= Decimal::ZERO {
+        return Err(ApiError::Http(400, "Debt amount must be greater than zero".into()));
+    }
+    if req.name.trim().is_empty() {
+        return Err(ApiError::Http(400, "Debt name is required".into()));
+    }
+    let start_date = req.start_date.unwrap_or_else(|| Utc::now().date_naive());
+    let mut payment_days = req.payment_days.clone();
+    let (monthly_payment, next_payment_date, subscription_id) =
+        if debt_type == crate::utils::constants::DEBT_TYPE_AUTOMATIC {
+            normalize_payment_days(&mut payment_days, start_date);
+            if payment_days.iter().any(|day| *day > 31) {
+                return Err(ApiError::Http(400, "Payment days must be 0-31".into()));
+            }
+            let monthly = req.monthly_payment.ok_or_else(|| {
+                ApiError::Http(400, "Automatic debts need a monthly payment".into())
+            })?;
+            if monthly <= Decimal::ZERO {
+                return Err(ApiError::Http(400, "Monthly payment must be greater than zero".into()));
+            }
+            let recurrence = monthly_recurrence(&payment_days);
+            let subscription = create_subscription(&crate::models::subscription::CreateSubscriptionRequest {
+                name: req.name.clone(),
+                amount: monthly,
+                currency: req.currency.clone(),
+                frequency: "monthly".into(),
+                schedule_day: payment_days.first().map(|day| i16::from(*day)),
+                schedule_month: None,
+                recurrence: Some(recurrence.clone()),
+                is_active: Some(true),
+                start_date,
+                end_date: None,
+                account_id,
+                category_id: Some(category_id),
+                notes: Some("Automatic debt payment".to_string()),
+                logo_url: req.logo_url.clone(),
+            })
+            .await?;
+            let next = crate::utils::recurrence::next_occurrence_on_or_after(
+                start_date,
+                &recurrence,
+                Utc::now().date_naive(),
+                None,
+            );
+            (Some(monthly), next, Some(subscription.id))
+        } else {
+            (None, None, None)
+        };
+
+    let debt = Debt {
+        id: Uuid::new_v4(),
+        user_id: Uuid::nil(),
+        account_id,
+        category_id,
+        name: req.name.trim().to_string(),
+        currency: req.currency.to_uppercase(),
+        total_amount: req.total_amount,
+        remaining_amount: req.total_amount,
+        paid_amount: Decimal::ZERO,
+        debt_type,
+        monthly_payment,
+        payment_days,
+        start_date,
+        next_payment_date,
+        subscription_id,
+        is_active: true,
+        notes: req.notes.clone(),
+        logo_url: req.logo_url.clone(),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+    let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache.get_or_insert_with(Vec::new);
+    list.push(debt.clone());
+    save_collection("debts", list)?;
+    Ok(debt)
+}
+
+pub async fn update_debt(id: &Uuid, req: &UpdateDebtRequest) -> Result<Debt, ApiError> {
+    ensure_accounts().await?;
+    let existing = {
+        let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        if cache.is_none() {
+            *cache = load_collection("debts");
+        }
+        cache
+            .as_ref()
+            .and_then(|list| list.iter().find(|debt| &debt.id == id).cloned())
+            .ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?
+    };
+    let debt_type = req
+        .debt_type
+        .clone()
+        .unwrap_or_else(|| existing.debt_type.clone())
+        .trim()
+        .to_lowercase();
+    if debt_type != crate::utils::constants::DEBT_TYPE_MANUAL
+        && debt_type != crate::utils::constants::DEBT_TYPE_AUTOMATIC
+    {
+        return Err(ApiError::Http(400, "Debt type must be manual or automatic".into()));
+    }
+    let total_amount = req.total_amount.unwrap_or(existing.total_amount);
+    if total_amount <= Decimal::ZERO {
+        return Err(ApiError::Http(400, "Debt amount must be greater than zero".into()));
+    }
+    let paid = existing.total_amount - existing.remaining_amount;
+    let remaining_amount = if total_amount == existing.total_amount {
+        existing.remaining_amount
+    } else {
+        (total_amount - paid).max(Decimal::ZERO)
+    };
+    let start_date = req.start_date.unwrap_or(existing.start_date);
+    let mut payment_days = req.payment_days.clone().unwrap_or_else(|| existing.payment_days.clone());
+    let mut subscription_id = existing.subscription_id;
+    let mut monthly_payment = None;
+    let mut next_payment_date = None;
+    if debt_type == crate::utils::constants::DEBT_TYPE_AUTOMATIC {
+        normalize_payment_days(&mut payment_days, start_date);
+        if payment_days.iter().any(|day| *day > 31) {
+            return Err(ApiError::Http(400, "Payment days must be 0-31".into()));
+        }
+        let monthly = req
+            .monthly_payment
+            .or(existing.monthly_payment)
+            .ok_or_else(|| ApiError::Http(400, "Automatic debts need a monthly payment".into()))?;
+        monthly_payment = Some(monthly);
+        let recurrence = monthly_recurrence(&payment_days);
+        let account_id = req.account_id.unwrap_or(existing.account_id);
+        let category_id = req.category_id.unwrap_or(existing.category_id);
+        if let Some(sub_id) = subscription_id {
+            update_subscription(
+                &sub_id,
+                &crate::models::subscription::UpdateSubscriptionRequest {
+                    name: req.name.clone(),
+                    amount: Some(monthly),
+                    category_id: Some(category_id),
+                    account_id: Some(account_id),
+                    recurrence: Some(recurrence.clone()),
+                    start_date: Some(start_date),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        } else {
+            let subscription = create_subscription(&crate::models::subscription::CreateSubscriptionRequest {
+                name: req.name.clone().unwrap_or_else(|| existing.name.clone()),
+                amount: monthly,
+                currency: req.currency.clone().unwrap_or_else(|| existing.currency.clone()),
+                frequency: "monthly".into(),
+                schedule_day: payment_days.first().map(|day| i16::from(*day)),
+                schedule_month: None,
+                recurrence: Some(recurrence.clone()),
+                is_active: Some(true),
+                start_date,
+                end_date: None,
+                account_id,
+                category_id: Some(category_id),
+                notes: Some("Automatic debt payment".to_string()),
+                logo_url: req.logo_url.clone().or_else(|| existing.logo_url.clone()),
+            })
+            .await?;
+            subscription_id = Some(subscription.id);
+        }
+        next_payment_date = crate::utils::recurrence::next_occurrence_on_or_after(
+            start_date,
+            &recurrence,
+            Utc::now().date_naive(),
+            None,
+        );
+    } else {
+        payment_days.clear();
+        if let Some(sub_id) = subscription_id {
+            let _ = delete_subscription(&sub_id).await;
+        }
+        subscription_id = None;
+    }
+    let notes = if req.clear_notes {
+        None
+    } else {
+        match &req.notes {
+            Some(value) if value.trim().is_empty() => None,
+            Some(value) => Some(value.clone()),
+            None => existing.notes.clone(),
+        }
+    };
+    let updated = Debt {
+        account_id: req.account_id.unwrap_or(existing.account_id),
+        category_id: req.category_id.unwrap_or(existing.category_id),
+        name: req.name.clone().unwrap_or(existing.name),
+        currency: req.currency.clone().unwrap_or(existing.currency).to_uppercase(),
+        total_amount,
+        remaining_amount,
+        paid_amount: total_amount - remaining_amount,
+        debt_type,
+        monthly_payment,
+        payment_days,
+        start_date,
+        next_payment_date,
+        subscription_id,
+        is_active: remaining_amount > Decimal::ZERO,
+        notes,
+        logo_url: req.logo_url.clone().or(existing.logo_url),
+        updated_at: Utc::now(),
+        ..existing
+    };
+    let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No debts".into()))?;
+    let item = list.iter_mut().find(|debt| &debt.id == id).ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?;
+    *item = updated.clone();
+    save_collection("debts", list)?;
+    Ok(updated)
+}
+
+pub async fn delete_debt(id: &Uuid) -> Result<(), ApiError> {
+    let subscription_id = {
+        let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        if cache.is_none() {
+            *cache = load_collection("debts");
+        }
+        let list = cache.as_mut().ok_or_else(|| ApiError::Network("No debts".into()))?;
+        let subscription_id = list
+            .iter()
+            .find(|debt| &debt.id == id)
+            .and_then(|debt| debt.subscription_id);
+        list.retain(|debt| &debt.id != id);
+        save_collection("debts", list)?;
+        subscription_id
+    };
+    if let Some(sub_id) = subscription_id {
+        let _ = delete_subscription(&sub_id).await;
+    }
+    record_tombstone("debt", *id);
+    let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    if payments.is_none() {
+        *payments = load_collection("debt_payments");
+    }
+    if let Some(list) = payments.as_mut() {
+        list.retain(|payment| &payment.debt_id != id);
+        save_collection("debt_payments", list)?;
+    }
+    Ok(())
+}
+
+pub async fn record_debt_payment(id: &Uuid, req: &RecordDebtPaymentRequest) -> Result<Debt, ApiError> {
+    if req.amount <= Decimal::ZERO {
+        return Err(ApiError::Http(400, "Payment must be greater than zero".into()));
+    }
+    let existing = {
+        let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        if cache.is_none() {
+            *cache = load_collection("debts");
+        }
+        let list = cache.as_mut().ok_or_else(|| ApiError::Network("No debts".into()))?;
+        let debt = list.iter_mut().find(|debt| &debt.id == id).ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?;
+        if debt.remaining_amount <= Decimal::ZERO {
+            return Err(ApiError::Http(400, "Debt is already paid".into()));
+        }
+        if req.amount > debt.remaining_amount {
+            return Err(ApiError::Http(400, "Payment exceeds the remaining debt".into()));
+        }
+        debt.remaining_amount -= req.amount;
+        debt.paid_amount += req.amount;
+        debt.is_active = debt.remaining_amount > Decimal::ZERO;
+        debt.updated_at = Utc::now();
+        let clone = debt.clone();
+        save_collection("debts", list)?;
+        clone
+    };
+    {
+        let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        let list = payments.get_or_insert_with(Vec::new);
+        list.push(DebtPayment {
+            id: Uuid::new_v4(),
+            debt_id: *id,
+            user_id: Uuid::nil(),
+            amount: req.amount,
+            paid_on: req.paid_on,
+            note: req.note.clone(),
+            created_at: Utc::now(),
+        });
+        save_collection("debt_payments", list)?;
+    }
+    if !existing.is_active
+        && let Some(sub_id) = existing.subscription_id
+    {
+        let _ = update_subscription(
+            &sub_id,
+            &crate::models::subscription::UpdateSubscriptionRequest {
+                is_active: Some(false),
+                end_date: Some(existing.start_date),
+                ..Default::default()
+            },
+        )
+        .await;
+    }
+    Ok(existing)
+}
+
+pub async fn list_debt_payments(id: &Uuid) -> Result<Vec<DebtPayment>, ApiError> {
+    let mut cache = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    if cache.is_none() {
+        *cache = load_collection("debt_payments");
+    }
+    Ok(cache
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|payment| &payment.debt_id == id)
+        .collect())
+}
+
 // ── Category operations ──
+
+fn migrate_legacy_categories(categories: &mut Vec<Category>) -> Result<bool, ApiError> {
+    let keep = categories
+        .iter()
+        .position(|category| category.is_system && category.name == "Uncategorized");
+    let created = keep.is_none();
+    let keep_id = if let Some(index) = keep {
+        categories[index].is_system = true;
+        categories[index].name = "Uncategorized".into();
+        categories[index].icon = None;
+        categories[index].color = None;
+        categories[index].is_default = true;
+        categories[index].id
+    } else {
+        let category = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            name: "Uncategorized".into(),
+            icon: None,
+            color: None,
+            is_system: true,
+            is_default: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let id = category.id;
+        categories.push(category);
+        id
+    };
+
+    let removed: Vec<Uuid> = categories
+        .iter()
+        .filter(|category| category.is_system && category.id != keep_id)
+        .map(|category| category.id)
+        .collect();
+    if removed.is_empty() {
+        for category in categories.iter_mut() {
+            category.is_default = category.id == keep_id;
+            if category.id == keep_id {
+                category.is_system = true;
+                category.name = "Uncategorized".into();
+                category.icon = None;
+                category.color = None;
+            }
+        }
+        return Ok(created);
+    }
+
+    if let Some(mut subscriptions) = load_collection::<Subscription>("subscriptions") {
+        let mut changed = false;
+        for subscription in &mut subscriptions {
+            if removed.contains(&subscription.category_id) {
+                subscription.category_id = keep_id;
+                subscription.updated_at = Utc::now();
+                changed = true;
+            }
+        }
+        if changed { save_collection("subscriptions", &subscriptions)?; }
+    }
+    if let Some(mut transactions) = load_collection::<Transaction>("transactions") {
+        let mut changed = false;
+        for transaction in &mut transactions {
+            if removed.contains(&transaction.category_id) {
+                transaction.category_id = keep_id;
+                transaction.updated_at = Utc::now();
+                changed = true;
+            }
+        }
+        if changed { save_collection("transactions", &transactions)?; }
+    }
+    if let Some(mut debts) = load_collection::<Debt>("debts") {
+        let mut changed = false;
+        for debt in &mut debts {
+            if removed.contains(&debt.category_id) {
+                debt.category_id = keep_id;
+                debt.updated_at = Utc::now();
+                changed = true;
+            }
+        }
+        if changed { save_collection("debts", &debts)?; }
+    }
+    categories.retain(|category| !removed.contains(&category.id));
+    for category in categories.iter_mut() {
+        category.is_default = category.id == keep_id;
+    }
+    for id in removed {
+        record_tombstone("category", id);
+    }
+    Ok(true)
+}
 
 pub async fn list_categories() -> Result<Vec<Category>, ApiError> {
     let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
@@ -701,6 +1159,11 @@ pub async fn list_categories() -> Result<Vec<Category>, ApiError> {
                 save_collection("categories", list)?;
             }
         }
+    }
+    if let Some(list) = cache.as_mut()
+        && migrate_legacy_categories(list)?
+    {
+        save_collection("categories", list)?;
     }
     Ok(cache.clone().unwrap_or_default())
 }
@@ -734,6 +1197,12 @@ pub async fn update_category(id: &Uuid, req: &UpdateCategoryRequest) -> Result<C
     }
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
     let cat = list.iter_mut().find(|c| &c.id == id).ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    if cat.is_system {
+        return Err(ApiError::Http(
+            400,
+            "Uncategorized is a system category and cannot be edited".into(),
+        ));
+    }
     if let Some(name) = &req.name { cat.name = name.clone(); }
     if let Some(icon) = &req.icon { cat.icon = Some(icon.clone()); }
     if let Some(color) = &req.color { cat.color = Some(color.clone()); }
@@ -749,6 +1218,16 @@ pub async fn delete_category(id: &Uuid) -> Result<(), ApiError> {
         *cache = load_collection("categories");
     }
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
+    let category = list
+        .iter()
+        .find(|c| &c.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    if category.is_system || category.is_default {
+        return Err(ApiError::Http(
+            400,
+            "Uncategorized is a system category and cannot be deleted".into(),
+        ));
+    }
     list.retain(|c| &c.id != id);
     record_tombstone("category", *id);
     save_collection("categories", list)
@@ -760,13 +1239,17 @@ pub async fn set_default_category(id: &Uuid) -> Result<(), ApiError> {
         *cache = load_collection("categories");
     }
     let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
-    // Unset all defaults
-    for cat in list.iter_mut() {
-        cat.is_default = false;
+    let Some(category) = list.iter().find(|c| &c.id == id) else {
+        return Err(ApiError::Http(404, "Not found".into()));
+    };
+    if !category.is_system {
+        return Err(ApiError::Http(
+            400,
+            "Uncategorized is the fixed default category".into(),
+        ));
     }
-    // Set the target
-    if let Some(cat) = list.iter_mut().find(|c| &c.id == id) {
-        cat.is_default = true;
+    for cat in list.iter_mut() {
+        cat.is_default = cat.is_system;
     }
     save_collection("categories", list)
 }
@@ -891,7 +1374,7 @@ mod tests {
     #[test]
     fn default_categories_count() {
         let cats = default_categories();
-        assert_eq!(cats.len(), DEFAULT_CATEGORIES.len());
+        assert_eq!(cats.len(), 1);
         assert!(cats.iter().all(|c| c.is_system));
         assert!(cats.iter().all(|c| c.is_default));
     }
@@ -906,8 +1389,28 @@ mod tests {
     #[test]
     fn default_categories_names() {
         let cats = default_categories();
-        assert!(cats.iter().any(|c| c.name == "Streaming"));
-        assert!(cats.iter().any(|c| c.name == "Other"));
+        assert_eq!(cats.len(), 1);
+        assert_eq!(cats[0].name, DEFAULT_CATEGORY_NAME);
+        assert_eq!(cats[0].name, "Uncategorized");
+    }
+
+    #[test]
+    fn system_category_is_the_only_default() {
+        let mut cats = default_categories();
+        cats.push(Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            name: "Custom".into(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        });
+        normalize_category_defaults(&mut cats);
+        assert!(cats[0].is_default);
+        assert!(!cats[1].is_default);
     }
 
     #[test]
@@ -972,6 +1475,94 @@ mod tests {
     }
 }
 
+// ── Portable backup ─────────────────────────────────────────
+
+pub async fn export_backup() -> Result<serde_json::Value, ApiError> {
+    let debt_payments = {
+        let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        if payments.is_none() { *payments = load_collection("debt_payments"); }
+        payments.clone().unwrap_or_default()
+    };
+    Ok(serde_json::json!({
+        "format_version": 1,
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "exported_at": Utc::now(),
+        "accounts": list_accounts().await?,
+        "categories": list_categories().await?,
+        "subscriptions": list_subscriptions().await?,
+        "transactions": list_transactions().await?,
+        "debts": list_debts().await?,
+        "debt_payments": debt_payments,
+    }))
+}
+
+pub async fn import_backup(backup: &serde_json::Value) -> Result<serde_json::Value, ApiError> {
+    if backup.get("format_version").and_then(|value| value.as_u64()) != Some(1) {
+        return Err(ApiError::Http(400, "Unsupported backup format version".into()));
+    }
+    let mut accounts: Vec<Account> = serde_json::from_value(
+        backup.get("accounts").cloned().unwrap_or_else(|| serde_json::json!([])),
+    )
+    .map_err(|error| ApiError::Parse(error.to_string()))?;
+    let mut categories: Vec<Category> = serde_json::from_value(
+        backup.get("categories").cloned().unwrap_or_else(|| serde_json::json!([])),
+    )
+    .map_err(|error| ApiError::Parse(error.to_string()))?;
+    let mut subscriptions: Vec<Subscription> = serde_json::from_value(
+        backup.get("subscriptions").cloned().unwrap_or_else(|| serde_json::json!([])),
+    )
+    .map_err(|error| ApiError::Parse(error.to_string()))?;
+    let mut transactions: Vec<Transaction> = serde_json::from_value(
+        backup.get("transactions").cloned().unwrap_or_else(|| serde_json::json!([])),
+    )
+    .map_err(|error| ApiError::Parse(error.to_string()))?;
+    let mut debts: Vec<Debt> = serde_json::from_value(
+        backup.get("debts").cloned().unwrap_or_else(|| serde_json::json!([])),
+    )
+    .map_err(|error| ApiError::Parse(error.to_string()))?;
+    let mut debt_payments: Vec<DebtPayment> = serde_json::from_value(
+        backup.get("debt_payments").cloned().unwrap_or_else(|| serde_json::json!([])),
+    )
+    .map_err(|error| ApiError::Parse(error.to_string()))?;
+    if accounts.is_empty() || categories.is_empty() {
+        return Err(ApiError::Http(400, "Backup must contain at least one account and category".into()));
+    }
+
+    for account in &mut accounts { account.user_id = Uuid::nil(); }
+    for category in &mut categories { category.user_id = Uuid::nil(); }
+    for subscription in &mut subscriptions { subscription.user_id = Uuid::nil(); }
+    for transaction in &mut transactions { transaction.user_id = Uuid::nil(); }
+    for debt in &mut debts { debt.user_id = Uuid::nil(); }
+    for payment in &mut debt_payments { payment.user_id = Uuid::nil(); }
+
+    normalize_defaults(&mut accounts);
+    migrate_legacy_categories(&mut categories)?;
+    normalize_category_defaults(&mut categories);
+    save_collection("accounts", &accounts)?;
+    save_collection("categories", &categories)?;
+    save_collection("subscriptions", &subscriptions)?;
+    save_collection("transactions", &transactions)?;
+    save_collection("debts", &debts)?;
+    save_collection("debt_payments", &debt_payments)?;
+    save_collection("tombstones", &Vec::<Tombstone>::new())?;
+    let counts = serde_json::json!({
+        "accounts": accounts.len(),
+        "categories": categories.len(),
+        "subscriptions": subscriptions.len(),
+        "transactions": transactions.len(),
+        "debts": debts.len(),
+        "debt_payments": debt_payments.len(),
+    });
+    *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts);
+    *CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(categories);
+    *SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions);
+    *TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions);
+    *DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debts);
+    *DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debt_payments);
+
+    Ok(counts)
+}
+
 // ── Cloud-folder sync document ───────────────────────────────
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -995,6 +1586,10 @@ pub struct SyncDocument {
     pub accounts: Vec<Account>,
     #[serde(default)]
     pub categories: Vec<Category>,
+    #[serde(default)]
+    pub debts: Vec<Debt>,
+    #[serde(default)]
+    pub debt_payments: Vec<DebtPayment>,
     #[serde(default)]
     pub tombstones: Vec<Tombstone>,
 }
@@ -1063,6 +1658,13 @@ fn record_tombstone(kind: &str, id: Uuid) {
     let _ = save_collection("tombstones", &tombstones);
 }
 
+fn normalize_category_defaults(categories: &mut [Category]) {
+    let system = categories.iter().position(|category| category.is_system);
+    for (index, category) in categories.iter_mut().enumerate() {
+        category.is_default = system == Some(index);
+    }
+}
+
 fn normalize_defaults<T>(items: &mut [T])
 where
     T: IsDefaultRecord + Clone,
@@ -1097,6 +1699,12 @@ pub async fn sync_snapshot() -> Result<String, ApiError> {
         transactions: list_transactions().await?,
         accounts: list_accounts().await?,
         categories: list_categories().await?,
+        debts: list_debts().await?,
+        debt_payments: {
+            let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+            if payments.is_none() { *payments = load_collection("debt_payments"); }
+            payments.clone().unwrap_or_default()
+        },
         tombstones: load_tombstones(),
     };
     serde_json::to_string(&document).map_err(|e| ApiError::Parse(e.to_string()))
@@ -1137,6 +1745,12 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
     let mut transactions = list_transactions().await?;
     let mut accounts = list_accounts().await?;
     let mut categories = list_categories().await?;
+    let mut debts = list_debts().await?;
+    let mut debt_payments = {
+        let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        if payments.is_none() { *payments = load_collection("debt_payments"); }
+        payments.clone().unwrap_or_default()
+    };
     let mut tombstones = load_tombstones();
 
     for doc in &remote_docs {
@@ -1144,6 +1758,8 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
         transactions = merge_by_id(transactions, doc.transactions.clone(), |i| i.id, |i| i.updated_at);
         accounts = merge_by_id(accounts, doc.accounts.clone(), |i| i.id, |i| i.updated_at);
         categories = merge_by_id(categories, doc.categories.clone(), |i| i.id, |i| i.updated_at);
+        debts = merge_by_id(debts, doc.debts.clone(), |i| i.id, |i| i.updated_at);
+        debt_payments = merge_by_id(debt_payments, doc.debt_payments.clone(), |i| i.id, |i| i.created_at);
         for tombstone in &doc.tombstones {
             if let Some(existing) = tombstones.iter_mut().find(|item| item.kind == tombstone.kind && item.id == tombstone.id) {
                 if tombstone.deleted_at > existing.deleted_at {
@@ -1162,18 +1778,23 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
     transactions.retain(|i| !is_deleted("transaction", i.id, i.updated_at));
     accounts.retain(|i| !is_deleted("account", i.id, i.updated_at));
     categories.retain(|i| !is_deleted("category", i.id, i.updated_at));
+    debts.retain(|i| !is_deleted("debt", i.id, i.updated_at));
 
     normalize_defaults(&mut accounts);
-    normalize_defaults(&mut categories);
+    normalize_category_defaults(&mut categories);
     save_collection("subscriptions", &subscriptions)?;
     save_collection("transactions", &transactions)?;
     save_collection("accounts", &accounts)?;
     save_collection("categories", &categories)?;
+    save_collection("debts", &debts)?;
+    save_collection("debt_payments", &debt_payments)?;
     save_collection("tombstones", &tombstones)?;
     *SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions.clone());
     *TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions.clone());
     *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts.clone());
     *CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(categories.clone());
+    *DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debts.clone());
+    *DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debt_payments.clone());
 
     let document = SyncDocument {
         format_version: 1,
@@ -1182,6 +1803,8 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
         transactions,
         accounts,
         categories,
+        debts,
+        debt_payments,
         tombstones,
     };
     serde_json::to_string(&document).map_err(|e| ApiError::Parse(e.to_string()))
