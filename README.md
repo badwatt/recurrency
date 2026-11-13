@@ -97,6 +97,12 @@ cargo up
 Press `Ctrl+C` to stop all three.
 
 > [!NOTE]
+> Development uses PostgreSQL 18. Its Compose volume is mounted at
+> `/var/lib/postgresql`; a PostgreSQL 16 volume from an older checkout is
+> preserved inside it but is not reused. Export it with `pg_dump` first if you
+> need that development data.
+
+> [!NOTE]
 > **Demo mode is optional.** The production image ships with it disabled
 > (`ENABLE_DEMO=false`). `cargo up` enables it for local development; set
 > `ENABLE_DEMO=false` to hide the demo login button. There is no demo data unless
@@ -404,9 +410,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1213 backend unit tests** (plus 2 embedded-db migration
-tests), **47 backend integration tests**, **1717 frontend tests** and
-**8 tooling tests**.
+Current suite: **1211 backend unit tests** (**1215** with `embedded-db`),
+**48 backend integration tests**, **1717 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 
