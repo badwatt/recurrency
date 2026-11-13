@@ -94,6 +94,20 @@ pub fn render_grid_card(
             class: "group relative overflow-hidden rounded-xl border {card_border} bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
             style: "animation: fadeSlideIn 0.5s ease-out both; animation-delay: {stagger_delay}ms;",
 
+            // Logo-derived ambient color wash. Inline styles are intentional:
+            // Android WebView must apply the opacity/blur even when arbitrary
+            // Tailwind classes are missing from an older cached stylesheet.
+            if let Some(url) = logo_url.as_deref() {
+                img {
+                    src: "{url}",
+                    alt: "",
+                    aria_hidden: "true",
+                    class: "pointer-events-none absolute inset-0 h-full w-full select-none object-cover",
+                    style: "opacity:0.28; filter:blur(52px) saturate(1.7); transform:scale(1.35);",
+                }
+                div { class: "pointer-events-none absolute inset-0 bg-card/75" }
+            }
+
             // Account color top accent strip
             div {
                 class: "absolute top-0 left-0 right-0 h-[3px]",

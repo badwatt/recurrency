@@ -1773,10 +1773,8 @@
 
     #[test]
     fn logo_avatars_fit_the_frame() {
-        // The logo wrapper has no size of its own. If the <img> uses
-        // h-full/w-full it resolves against that auto-sized wrapper and the
-        // outer overflow-hidden container crops the image. Give the image an
-        // explicit size matching its frame and use object-contain.
+        // Normal logo frames use object-contain. The ambient logo wash is a
+        // separate decorative layer and may use object-cover.
         let cards = include_str!("cards.rs");
         let dashboard = include_str!("../dashboard.rs");
         let transactions = include_str!("../transactions_page.rs");
@@ -1786,14 +1784,12 @@
             ("transactions", transactions),
         ] {
             assert!(
-                !src.contains("object-cover"),
-                "{name} logos must fit inside their frame (object-contain)"
-            );
-            assert!(
                 !src.contains("\"h-full w-full"),
                 "{name} logos need an explicit size so the auto-sized wrapper does not overflow"
             );
         }
+        assert!(cards.contains("object-contain"));
+        assert!(cards.contains("Logo-derived ambient color wash"));
     }
 
 

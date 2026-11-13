@@ -64,7 +64,7 @@ The named volume persists PostgreSQL across container recreation. Keep the same
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.39.1`.
+> `ghcr.io/badwatt/recurrency:0.39.2`.
 
 ### From source
 
