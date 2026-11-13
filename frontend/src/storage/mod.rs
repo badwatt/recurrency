@@ -1,3 +1,4 @@
+pub mod folder_sync;
 pub mod local;
 pub mod local_auth;
 pub mod provider;

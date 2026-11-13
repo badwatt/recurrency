@@ -685,7 +685,16 @@ fn android_backup_picker_uses_the_native_bridge() {
 fn local_sync_card_uses_android_folder_bridge() {
     let src = include_str!("sync_card.rs");
     assert!(src.contains("Cloud folder sync"));
-    assert!(src.contains("RecurrencySyncFolder"));
-    assert!(src.contains("sync_merge"));
+    let bridge = include_str!("../../storage/folder_sync.rs");
+    assert!(bridge.contains("RecurrencySyncFolder"));
+    assert!(bridge.contains("sync_merge"));
+    assert!(src.contains("folder_sync::sync_once"));
     assert!(src.contains("APP_MODE().mode.is_offline()"));
+}
+
+#[test]
+fn backup_choose_file_has_a_pointer_cursor_on_desktop() {
+    let src = include_str!("backup_card.rs");
+    assert!(src.contains("cursor: pointer;"));
+    assert!(src.contains("cursor-pointer"));
 }

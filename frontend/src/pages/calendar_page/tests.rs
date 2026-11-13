@@ -1192,7 +1192,7 @@ fn calendar_shows_transfer_and_pending_summary() {
     fn mobile_past_rows_use_an_inline_opacity() {
         let src = include_str!("../calendar_page.rs");
         assert!(src.contains("opacity: 0.55;"));
-        assert!(src.contains("is_current_month(now.year(), now.month())"));
+        assert!(src.contains("is_current_month(current_year(), current_month())"));
     }
 
     #[test]

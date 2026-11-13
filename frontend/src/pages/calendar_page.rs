@@ -278,7 +278,7 @@ pub fn CalendarPage() -> Element {
     };
 
     let go_today = move |_| {
-        if !is_current_month(now.year(), now.month()) {
+        if !is_current_month(current_year(), current_month()) {
             current_year.set(now.year());
             current_month.set(now.month());
         }
@@ -303,7 +303,7 @@ pub fn CalendarPage() -> Element {
         current_month.set(m);
     };
     let go_today_mobile = move |_| {
-        if !is_current_month(now.year(), now.month()) {
+        if !is_current_month(current_year(), current_month()) {
             current_year.set(now.year());
             current_month.set(now.month());
         }

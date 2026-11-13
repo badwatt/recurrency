@@ -179,12 +179,14 @@ pub fn BackupCard() -> Element {
                         } else {
                             label {
                                 class: "relative mt-1 inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
+                                style: "cursor: pointer;",
                                 "Choose file"
                                 input {
                                     r#type: "file",
                                     accept: "application/json,.json",
                                     aria_label: "Choose backup file",
                                     class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
+                                    style: "cursor: pointer;",
                                     onchange: move |event: Event<FormData>| {
                                         if let Some(file) = event.files().first().cloned() {
                                             stage_file(file);

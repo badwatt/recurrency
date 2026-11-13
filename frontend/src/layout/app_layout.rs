@@ -57,6 +57,16 @@ pub fn AppLayout() -> Element {
         );
     });
 
+    #[cfg(target_os = "android")]
+    use_future(move || async move {
+        loop {
+            if crate::state::app_mode::APP_MODE().mode.is_offline() {
+                let _ = crate::storage::folder_sync::sync_once().await;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+    });
+
     if !auth.initialized {
         // Wait for auth hydration. Mode is hydrated independently via Default impl.
         return rsx! { AppLoader {} };
@@ -885,5 +895,6 @@ mod navigation_tests {
         assert!(src.contains("scroll_to_top"));
         assert!(layout.contains("scroll_to_top"));
         assert!(include_str!("../utils/scroll.rs").contains("window.scrollTo(0, 0)"));
+        assert!(src.contains("folder_sync::sync_once"));
     }
 }

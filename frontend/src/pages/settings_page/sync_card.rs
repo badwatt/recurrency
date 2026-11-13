@@ -1,31 +1,7 @@
 use crate::components::toast::TOAST;
 use crate::state::app_mode::APP_MODE;
-use crate::storage::local;
+use crate::storage::folder_sync;
 use dioxus::prelude::*;
-
-async fn sync_status() -> (bool, String) {
-    let mut eval = document::eval(
-        r#"
-        const bridge = window.RecurrencySyncFolder;
-        dioxus.send(JSON.stringify({
-            linked: !!(bridge && bridge.hasFolder && bridge.hasFolder()),
-            name: bridge && bridge.folderName ? bridge.folderName() : "",
-        }));
-        "#,
-    );
-    match eval.recv::<String>().await {
-        Ok(raw) => serde_json::from_str::<serde_json::Value>(&raw)
-            .ok()
-            .map(|value| {
-                (
-                    value["linked"].as_bool().unwrap_or(false),
-                    value["name"].as_str().unwrap_or_default().to_string(),
-                )
-            })
-            .unwrap_or((false, String::new())),
-        Err(_) => (false, String::new()),
-    }
-}
 
 #[component]
 pub fn SyncFolderCard() -> Element {
@@ -40,7 +16,7 @@ pub fn SyncFolderCard() -> Element {
         if !local_mode {
             return;
         }
-        let (has_folder, name) = sync_status().await;
+        let (has_folder, name) = folder_sync::status().await;
         linked.set(has_folder);
         folder_name.set(name);
     });
@@ -52,28 +28,14 @@ pub fn SyncFolderCard() -> Element {
         busy.set(true);
         error.set(String::new());
         spawn(async move {
-            let mut eval = document::eval(r#"
-                if (!window.RecurrencySyncFolder) {
-                    dioxus.send('');
-                    return;
-                }
-                await new Promise((resolve) => {
-                    window.__recurrencySyncFolderChosen = (value) => {
-                        dioxus.send(value);
-                        resolve();
-                    };
-                    window.RecurrencySyncFolder.chooseFolder();
-                });
-            "#);
-            match eval.recv::<String>().await {
-                Ok(value) if value == "ok" => {
-                    let (has_folder, name) = sync_status().await;
+            match folder_sync::choose_folder().await {
+                Ok(()) => {
+                    let (has_folder, name) = folder_sync::status().await;
                     linked.set(has_folder);
                     folder_name.set(name);
                     TOAST.write().success("Sync folder connected");
                 }
-                Ok(_) => error.set("No folder selected".to_string()),
-                Err(_) => error.set("Could not open the folder picker".to_string()),
+                Err(message) => error.set(message),
             }
             busy.set(false);
         });
@@ -86,29 +48,7 @@ pub fn SyncFolderCard() -> Element {
         busy.set(true);
         error.set(String::new());
         spawn(async move {
-            let result = async {
-                let mut eval = document::eval(r#"
-                    const bridge = window.RecurrencySyncFolder;
-                    dioxus.send(bridge && bridge.readAll ? bridge.readAll() : '[]');
-                "#);
-                let remote_raw = eval.recv::<String>().await.unwrap_or_else(|_| "[]".to_string());
-                let remote: Vec<String> = serde_json::from_str(&remote_raw).unwrap_or_default();
-                let merged = local::sync_merge(&remote).await?;
-                let mut eval = document::eval(r#"
-                    const content = await dioxus.recv();
-                    const bridge = window.RecurrencySyncFolder;
-                    dioxus.send(String(!!(bridge && bridge.writeFile && bridge.writeFile(content))));
-                "#);
-                let _ = eval.send(merged);
-                let written = eval.recv::<String>().await.unwrap_or_else(|_| "false".to_string());
-                if written != "true" {
-                    return Err(crate::api::client::ApiError::Network(
-                        "Could not write the sync file".to_string(),
-                    ));
-                }
-                Ok::<(), crate::api::client::ApiError>(())
-            }
-            .await;
+            let result = folder_sync::sync_once().await;
             match result {
                 Ok(()) => {
                     last_sync.set(chrono::Local::now().format("%H:%M").to_string());
@@ -122,9 +62,7 @@ pub fn SyncFolderCard() -> Element {
 
     let disconnect = move |_| {
         spawn(async move {
-            let _ = document::eval(
-                "window.RecurrencySyncFolder && window.RecurrencySyncFolder.disconnect && window.RecurrencySyncFolder.disconnect();",
-            );
+            folder_sync::disconnect().await;
             linked.set(false);
             folder_name.set(String::new());
             TOAST.write().success("Sync folder disconnected");
