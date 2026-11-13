@@ -309,6 +309,7 @@ pub fn LoginPage() -> Element {
                 if cfg!(not(target_arch = "wasm32")) {
                     div {
                         class: "mx-6 mt-4 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2",
+                        style: "margin: 1rem 1.5rem 0 1.5rem;",
                         div { class: "min-w-0",
                             p { class: "text-[11px] uppercase tracking-wider text-muted-foreground", "Server" }
                             p { class: "truncate text-sm font-medium", {server_label} }
