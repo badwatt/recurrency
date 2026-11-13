@@ -4,6 +4,7 @@ use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
 mod about_page;
+mod apk_card;
 mod backup_card;
 mod sync_card;
 mod delete_account_card;
@@ -13,6 +14,7 @@ mod profile_card;
 mod summary_card;
 
 use about_page::AboutPage;
+use apk_card::ApkCard;
 use backup_card::BackupCard;
 use sync_card::SyncFolderCard;
 use delete_account_card::DeleteAccountCard;
@@ -68,6 +70,7 @@ pub fn SettingsProfilePage() -> Element {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
             PageHeader { title: "Profile", subtitle: "Your identity and session" }
             ProfileCard {}
+            ApkCard {}
             BackupCard {}
             SyncFolderCard {}
             MobileSessionCard {}

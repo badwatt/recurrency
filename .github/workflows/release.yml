@@ -369,7 +369,8 @@ jobs:
           mkdir -p target/bin/android
           APK_NAME="recurrency-${{ needs.prepare.outputs.version }}-aarch64.apk"
           cp "$APK" "target/bin/android/$APK_NAME"
-          ls -lh "target/bin/android/$APK_NAME"
+          cp "$APK" "target/bin/android/recurrency-latest-aarch64.apk"
+          ls -lh "target/bin/android/"
 
       - name: Release APK
         uses: softprops/action-gh-release@v3
