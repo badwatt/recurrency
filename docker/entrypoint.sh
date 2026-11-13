@@ -1,85 +1,54 @@
 #!/bin/bash
 set -e
 
-echo "=== Recurrency - All-in-One ==="
-
-cleanup() {
-    kill "${BACKEND_PID:-}" "${NGINX_PID:-}" 2>/dev/null || true
-}
-trap cleanup TERM INT
+echo "=== Recurrency ==="
 
 # ── Configure PostgreSQL ─────────────────────────────────
-echo "Configuring PostgreSQL..."
-
 PG_HBA="/etc/postgresql/15/main/pg_hba.conf"
 PG_CONF="/etc/postgresql/15/main/postgresql.conf"
 
-# Trust all local connections (all-in-one container, no external access)
-cat > "$PG_HBA" << EOF
+cat > "$PG_HBA" << PGEOF
 local   all   all   trust
 host    all   all   127.0.0.1/32   trust
 host    all   all   ::1/128        trust
-EOF
+PGEOF
 
-# Listen on localhost (backend connects via TCP)
 sed -i "s/^#\?listen_addresses.*$/listen_addresses = 'localhost'/" "$PG_CONF" 2>/dev/null || true
 grep -q "^listen_addresses" "$PG_CONF" || echo "listen_addresses = 'localhost'" >> "$PG_CONF"
 
 # ── Start PostgreSQL ────────────────────────────────────
-# Self-heal ownership: volumes created by older images (where Postgres ran as
-# root) can be owned by root:root, which makes pg_ctl fail to open
-# postmaster.pid. Reclaim the datadir (and the pg_ctl log dir) before starting.
-echo "Fixing data directory ownership..."
+# Self-heal ownership for volumes created by older images.
 chown -R postgres:postgres /var/lib/postgresql/15/main
-# A freshly started container cannot have a live postmaster; a recycled PID
-# would otherwise trigger a false "another server might be running".
 rm -f /var/lib/postgresql/15/main/postmaster.pid
 mkdir -p /var/log/postgresql
 chown -R postgres:postgres /var/log/postgresql
 
 echo "Starting PostgreSQL..."
-su - postgres -c "/usr/lib/postgresql/15/bin/pg_ctl start -D /var/lib/postgresql/15/main -o '-c config_file=/etc/postgresql/15/main/postgresql.conf' -l /var/log/postgresql/postgresql.log" || true
+su - postgres -c "/usr/lib/postgresql/15/bin/pg_ctl start -D /var/lib/postgresql/15/main -o '-c config_file=/etc/postgresql/15/main/postgresql.conf' -l /var/log/postgresql/postgresql.log"
 
-# ── Wait for PostgreSQL to accept real queries ─────────
-echo "Waiting for PostgreSQL to be ready..."
-PGPASSWORD="${PGPASSWORD:-recurrency}"
-export PGPASSWORD
-for i in $(seq 1 60); do
+# ── Wait for PostgreSQL and create the database ────────
+echo "Waiting for PostgreSQL..."
+export PGPASSWORD="${PGPASSWORD:-recurrency}"
+for _ in $(seq 1 60); do
     if psql -h localhost -U postgres -c "SELECT 1" >/dev/null 2>&1; then
-        echo "PostgreSQL is ready."
         break
     fi
     sleep 1
 done
 
-# ── Create user/database if absent ────────────────────
 DB_USER="recurrency"
 DB_PASS="${PGPASSWORD:-recurrency}"
 DB_NAME="recurrency"
 
-# Try to connect as recurrency first — if it fails, create user
 if ! psql "postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}" -c "SELECT 1" >/dev/null 2>&1; then
-    echo "Creating user and database..."
+    echo "Creating database..."
     psql -h localhost -U postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}' SUPERUSER;" 2>/dev/null || true
     psql -h localhost -U postgres -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" 2>/dev/null || true
     psql -h localhost -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" 2>/dev/null || true
-    echo "Database configured."
 fi
 
-# ── Verify connectivity ─────────────────────────────────
-echo "Verifying database connectivity..."
-for i in $(seq 1 60); do
-    if psql "postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}" -c "SELECT 1" >/dev/null 2>&1; then
-        echo "Database reachable."
-        break
-    fi
-    sleep 1
-done
-
-# ── Set environment for backend ───────────────────────────
 export DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
-export APP_HOST="${APP_HOST:-0.0.0.0}"
-export APP_PORT="${APP_PORT:-8080}"
+export APP_PORT="${APP_PORT:-80}"
 if [ -z "${JWT_SECRET:-}" ]; then
     echo "ERROR: JWT_SECRET must be set to a strong random value" >&2
     exit 1
@@ -87,61 +56,5 @@ fi
 export JWT_SECRET
 export ENABLE_DEMO="${ENABLE_DEMO:-false}"
 
-# ── Start backend on internal port ──────────────────────
-echo "Starting backend on port ${APP_PORT}..."
-/usr/local/bin/recurrency_backend &
-BACKEND_PID=$!
-
-# ── Wait for backend to be ready ───────────────────────
-echo "Waiting for backend..."
-BACKEND_READY=0
-for i in $(seq 1 60); do
-    if curl -sf http://localhost:${APP_PORT}/api/health >/dev/null 2>&1; then
-        BACKEND_READY=1
-        break
-    fi
-    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-        echo "ERROR: backend exited before becoming ready." >&2
-        wait "$BACKEND_PID" || true
-        exit 1
-    fi
-    sleep 1
-done
-
-if [ "$BACKEND_READY" -ne 1 ]; then
-    echo "ERROR: backend did not become ready; refusing to serve a broken frontend." >&2
-    kill "$BACKEND_PID" 2>/dev/null || true
-    wait "$BACKEND_PID" 2>/dev/null || true
-    exit 1
-fi
-echo "Backend is ready."
-
-# ── Web frontend (optional) ─────────────────────────────
-if [ "${ENABLE_WEB:-true}" = "false" ]; then
-    echo ""
-    echo "=== Recurrency backend-only mode ==="
-    echo "  API: http://localhost:${APP_PORT}"
-    echo ""
-    wait "$BACKEND_PID"
-    exit $?
-fi
-
-echo "Starting nginx on port 80..."
-nginx -g 'daemon off;' &
-NGINX_PID=$!
-
-echo ""
-echo "=== Recurrency is running ==="
-echo "  Frontend:  http://localhost:80"
-echo "  API:       http://localhost:80/api"
-echo "  Backend:   http://localhost:${APP_PORT} (internal)"
-echo ""
-
-set +e
-wait -n "$BACKEND_PID" "$NGINX_PID"
-STATUS=$?
-set -e
-echo "ERROR: backend or nginx exited (status ${STATUS}); stopping the container." >&2
-kill "$BACKEND_PID" "$NGINX_PID" 2>/dev/null || true
-wait "$BACKEND_PID" "$NGINX_PID" 2>/dev/null || true
-exit 1
+echo "Starting Recurrency on port ${APP_PORT}..."
+exec /usr/local/bin/recurrency serve

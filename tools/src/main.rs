@@ -14,6 +14,7 @@ const BACKEND_LOG: &str = "/tmp/recurrency_backend.log";
 const FRONTEND_LOG: &str = "/tmp/recurrency_frontend.log";
 const DEFAULT_DATABASE_URL: &str =
     "postgres://recurrency:recurrency_dev_password@localhost:5432/recurrency";
+const POSTGRESQL_VERSION: &str = "17.12.0";
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -111,6 +112,7 @@ fn envs() -> Vec<(String, String)> {
         ("ENABLE_DEMO".into(), demo),
         ("APP_PORT".into(), port),
         ("RECURRENCY_API_URL".into(), api),
+        ("POSTGRESQL_VERSION".into(), POSTGRESQL_VERSION.into()),
     ]
 }
 
@@ -452,7 +454,49 @@ fn copy_backend_binary() -> i32 {
     }
 }
 
+fn ensure_postgres_archive() -> i32 {
+    if !cfg!(target_os = "linux") {
+        return 0;
+    }
+    let Some(home) = env::var_os("HOME") else {
+        return 0;
+    };
+    let target = match env::consts::ARCH {
+        "x86_64" => "x86_64-unknown-linux-gnu",
+        "aarch64" => "aarch64-unknown-linux-gnu",
+        _ => return 0,
+    };
+    let cache = PathBuf::from(home)
+        .join(".theseus/postgresql")
+        .join(format!("postgresql-{POSTGRESQL_VERSION}-{target}.tar.gz"));
+    if cache.is_file() {
+        return 0;
+    }
+    if let Some(parent) = cache.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let url = format!(
+        "https://github.com/theseus-rs/postgresql-binaries/releases/download/{POSTGRESQL_VERSION}/postgresql-{POSTGRESQL_VERSION}-{target}.tar.gz"
+    );
+    println!("Downloading embedded PostgreSQL runtime …");
+    let status = Command::new("curl")
+        .args(["-fL", "--retry", "3", "-o"])
+        .arg(&cache)
+        .arg(url)
+        .status();
+    match status {
+        Ok(status) if status.success() => 0,
+        _ => {
+            eprintln!("Could not download the embedded PostgreSQL runtime.");
+            1
+        }
+    }
+}
+
 fn do_build_app() -> i32 {
+    if ensure_postgres_archive() != 0 {
+        return 1;
+    }
     let web = run(
         &root().join("frontend"),
         "dx",
@@ -464,7 +508,7 @@ fn do_build_app() -> i32 {
     let backend = run(
         &root().join("backend"),
         "cargo",
-        &["build", "--release", "--features", "embedded-web"],
+        &["build", "--release", "--features", "embedded-web,embedded-db"],
     );
     if backend != 0 {
         return backend;

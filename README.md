@@ -44,27 +44,27 @@ headless API mode.
 ```bash
 docker run -d \
   --name recurrency \
-  -p 80:80 -p 8080:8080 \
+  -p 80:80 -p 8080:80 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   ghcr.io/badwatt/recurrency:latest
 ```
 
-Open **http://localhost**. The API is available through nginx at
-`http://localhost/api` and directly at `http://localhost:8080/api`.
+Open **http://localhost**. The binary serves the web UI and the API on the
+same port; the API is available at `http://localhost/api` and directly at
+`http://localhost:8080/api`.
 
 The named volume persists PostgreSQL across container recreation. Keep the same
 `JWT_SECRET`; changing it invalidates existing sessions.
 
 > [!IMPORTANT]
-> The container fails fast if the backend cannot start (missing/placeholder
+> The container fails fast if the application cannot start (missing/placeholder
 > `JWT_SECRET`, failed migration, or database error). It exits instead of serving
-> a frontend that would return 502 errors, so Docker can restart it or surface
-> the failure.
+> an empty frontend, so Docker can restart it or surface the failure.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.39.2`.
+> `ghcr.io/badwatt/recurrency:0.40.0`.
 
 ### From source
 
@@ -220,12 +220,13 @@ timeline; reports turn the same data into trends and category breakdowns.
 | `DATABASE_URL` | set by the Docker entrypoint | PostgreSQL connection string |
 | `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
 | `JWT_SECRET` | **required** | JWT signing secret; startup fails if missing or placeholder |
-| `APP_PORT` | `8080` | Backend listen port |
+| `APP_PORT` | `8080` (`80` in the Docker image) | Application listen port |
 | `APP_ENV` | `development` | Set `production` to lower the default log level |
 | `RUST_LOG` | `APP_ENV` default | Tracing filter, for example `info` or `debug` |
 | `CORS_ALLOWED_ORIGIN` | `*` | Restrict browser requests to one origin |
 | `ENABLE_DEMO` | `false` | Enable the optional demo login |
-| `ENABLE_WEB` | `true` | Docker only: serve the web UI; `false` for headless |
+| `ENABLE_WEB` | `true` | Serve the embedded web UI; `false` for headless |
+| `RECURRENCY_DATA_DIR` | `recurrency-data` | Standalone binary only: local database directory when `DATABASE_URL` is unset |
 | `PGPASSWORD` | `recurrency` | PostgreSQL password inside the image |
 | `RECURRENCY_API_URL` | compiled default | Default server URL for native builds |
 | `FIXER_API_KEY` | — | Optional server-wide Fixer key; users can also save their own key in Settings |
@@ -261,26 +262,36 @@ ENABLE_WEB=false ./target/bin/recurrency serve
 ./target/bin/recurrency doctor
 ```
 
-The binary embeds the built frontend, but PostgreSQL remains an external
-service. `--no-web` is equivalent to `ENABLE_WEB=false`. `cargo build-api`
-builds the API-only binary without embedded assets.
+The binary embeds both the built frontend and a local PostgreSQL runtime. If
+`DATABASE_URL` is omitted, it starts a private database under
+`./recurrency-data` (override with `RECURRENCY_DATA_DIR`), creates the schema on
+first run, and stops the local database on `Ctrl-C`/`SIGTERM`. Set
+`DATABASE_URL` to use an external PostgreSQL instead.
+
+Embedded PostgreSQL is used rather than SQLite because the application relies
+on PostgreSQL types and SQL semantics (UUID, JSONB, decimal money, intervals,
+partial indexes). A SQLite backend would require a second repository for every
+domain module and would risk changing financial behaviour.
+
+`--no-web` is equivalent to `ENABLE_WEB=false`. `cargo build-api` builds the
+API-only binary without embedded assets or the local database.
 
 ### Headless API
 
-The same image can run without nginx:
+The same image can run without the web UI:
 
 ```bash
 docker run -d \
   --name recurrency \
-  -p 8080:8080 \
+  -p 8080:80 \
   -v recurrency_db:/var/lib/postgresql/15/main \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ENABLE_WEB=false \
   ghcr.io/badwatt/recurrency:latest
 ```
 
-- nginx is not started; PostgreSQL and the backend still run.
 - API: `http://localhost:8080/api`.
+- The web UI is not mounted; PostgreSQL and the binary still run.
 - `ENABLE_WEB=false` is a runtime toggle; no rebuild is needed.
 - Put Caddy, Traefik, nginx or another reverse proxy in front for TLS.
 - Native clients enter the server URL **without** `/api`; the app adds API paths.
@@ -299,8 +310,9 @@ ENABLE_WEB=false JWT_SECRET="$(openssl rand -hex 32)" \
   docker compose up -d recurrency
 ```
 
-The compose file publishes `80` and `8080`. In headless mode nothing listens on
-port 80; remove `80:80` if you do not want to expose it.
+The compose file publishes `80` and `8080` (both map to the binary's port
+`80`). In headless mode nothing listens on port 80; remove `80:8080` if you do
+not want to expose it.
 
 ---
 
@@ -382,8 +394,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1207 backend unit tests**, **47 backend integration tests**,
-**1696 frontend tests** and **8 tooling tests**.
+Current suite: **1210 backend unit tests**, **47 backend integration tests**,
+**1697 frontend tests** and **8 tooling tests**.
 
 ### Releasing
 

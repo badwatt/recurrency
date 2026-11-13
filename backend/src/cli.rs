@@ -75,7 +75,8 @@ pub fn usage() -> &'static str {
        recurrency doctor\n\n\
      Options:\n\
        --port PORT             API port (default: APP_PORT or 8080)\n\
-       --database-url URL      PostgreSQL connection string\n\
+       --database-url URL      PostgreSQL connection string; omit to use the\n\
+                               local database under RECURRENCY_DATA_DIR\n\
        --no-web                API-only mode; do not serve the embedded web UI\n\
        --enable-web            Serve the embedded web UI\n\
        -h, --help              Show this help\n\

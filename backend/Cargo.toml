@@ -11,11 +11,13 @@ description = "Recurrency API - Backend for subscription tracker"
 integration-tests = []
 # Bundle frontend/dist/public into the standalone recurrency binary.
 embedded-web = ["dep:include_dir"]
+# Zero-config local fallback: embedded PostgreSQL for the standalone binary.
+embedded-db = ["dep:postgresql_embedded"]
 
 [dependencies]
 # Web framework
 axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
 tower-http = { version = "0.7", default-features = false, features = ["cors", "trace"] }
 
 # Serialization
@@ -32,6 +34,7 @@ argon2 = "0.6"
 
 # Embedded frontend for the all-in-one binary
 include_dir = { version = "0.7", optional = true }
+postgresql_embedded = { version = "0.22", default-features = false, features = ["bundled", "tokio", "tls-native-tls"], optional = true }
 
 # UUID
 uuid.workspace = true

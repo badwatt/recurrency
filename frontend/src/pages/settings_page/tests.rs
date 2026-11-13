@@ -658,3 +658,11 @@ fn backup_download_uses_native_download_bridge() {
     let src = include_str!("backup_card.rs");
     assert!(src.contains("save_text"));
 }
+
+#[test]
+fn backup_download_button_is_right_on_desktop_and_centered_on_mobile() {
+    let src = include_str!("backup_card.rs");
+    assert!(src.contains("sm:flex-row"));
+    assert!(src.contains("sm:justify-between"));
+    assert!(src.contains("sm:text-left"));
+}

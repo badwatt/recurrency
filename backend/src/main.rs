@@ -55,6 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Migrate => {
             let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             shared::db::run_migrations(&db_pool).await?;
+            shared::db::shutdown_embedded().await;
             println!("Migrations complete.");
             return Ok(());
         }
@@ -62,6 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             auth::service::init_jwt_secret().map_err(std::io::Error::other)?;
             let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             let one: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&db_pool).await?;
+            shared::db::shutdown_embedded().await;
             println!("recurrency {}: configuration OK (database={one})", env!("CARGO_PKG_VERSION"));
             return Ok(());
         }
@@ -85,7 +87,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    let server = axum::serve(listener, app);
+    #[cfg(unix)]
+    let terminate = async {
+        if let Ok(mut signal) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            signal.recv().await;
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        result = server => result?,
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("Shutdown signal received");
+        }
+        _ = terminate => {
+            tracing::info!("Termination signal received");
+        }
+    }
+    shared::db::shutdown_embedded().await;
 
     Ok(())
 }

@@ -72,7 +72,7 @@ pub fn BackupCard() -> Element {
                 p { class: "text-sm text-muted-foreground", "Download your accounts, subscriptions, transactions, debts and payment history as JSON." }
             }
             div { class: "p-6 space-y-4",
-                div { class: "flex flex-col items-center gap-3 rounded-lg border border-border/50 p-4 text-center",
+                div { class: "flex flex-col items-center gap-3 rounded-lg border border-border/50 p-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left",
                     div {
                         p { class: "text-sm font-medium", "Download a backup" }
                         p { class: "text-xs text-muted-foreground", "Keep it somewhere safe; it contains your financial data." }
