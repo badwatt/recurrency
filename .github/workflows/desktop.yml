@@ -32,6 +32,13 @@ jobs:
             pkg-config libssl-dev libwebkit2gtk-4.1-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev libxdo-dev imagemagick >/dev/null 2>&1
 
+      - name: Install linuxdeploy
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p "$HOME/.local/share/.dx/tools"
+          curl -L --fail --silent --show-error             -o "$HOME/.local/share/.dx/tools/linuxdeploy-x86_64.AppImage"             https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-x86_64.AppImage
+          chmod +x "$HOME/.local/share/.dx/tools/linuxdeploy-x86_64.AppImage"
+
       - name: Install dx
         uses: taiki-e/install-action@v2
         with:

@@ -388,7 +388,7 @@ All commands run inside `nix develop`.
 | Coverage | `cargo coverage` |
 | Tailwind CSS | `cargo css` |
 | Local debug APK | `cargo build-android` |
-| Desktop bundle | `cargo build-desktop` |
+| Desktop bundle | `cargo build-desktop` (Linux AppImage, macOS DMG, Windows NSIS) |
 | Install Android SDK/NDK | `cargo setup-android` |
 | Patch an existing Android build | `cargo patch-android` |
 

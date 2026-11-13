@@ -620,15 +620,33 @@ fn do_patch_android() -> i32 {
     }
 }
 
+fn run_without_source_date_epoch(cwd: &Path, program: &str, args: &[&str]) -> i32 {
+    let parts = prefixed(program, args);
+    let mut cmd = Command::new(&parts[0]);
+    cmd.args(&parts[1..])
+        .current_dir(cwd)
+        .env_remove("SOURCE_DATE_EPOCH")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    match cmd.status() {
+        Ok(status) => status.code().unwrap_or(1),
+        Err(err) => {
+            eprintln!("Failed to run {program}: {err}");
+            1
+        }
+    }
+}
+
 fn do_build_desktop() -> i32 {
     let package_type = if cfg!(target_os = "linux") {
-        "deb"
+        "appimage"
     } else if cfg!(target_os = "macos") {
         "dmg"
     } else {
         "nsis"
     };
-    let code = run(
+    let code = run_without_source_date_epoch(
         &root().join("frontend"),
         "dx",
         &[
@@ -643,9 +661,40 @@ fn do_build_desktop() -> i32 {
         ],
     );
     if code == 0 {
+        if let Err(error) = rename_desktop_artifacts(&root().join("target/bin/desktop")) {
+            eprintln!("Could not rename desktop artifacts: {error}");
+            return 1;
+        }
         println!("Built target/bin/desktop/.");
     }
     code
+}
+
+fn desktop_artifact_name(name: &str) -> Option<String> {
+    let suffix = name
+        .strip_prefix("recurrency-frontend")
+        .or_else(|| name.strip_prefix("recurrency_frontend"))
+        .or_else(|| name.strip_prefix("RecurrencyFrontend"))?;
+    Some(format!("recurrency-desktop{suffix}"))
+}
+
+fn rename_desktop_artifacts(dir: &Path) -> std::io::Result<()> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        let Some(renamed) = desktop_artifact_name(name) else {
+            continue;
+        };
+        let target = dir.join(renamed);
+        fs::rename(&path, &target)?;
+    }
+    Ok(())
 }
 
 fn remove(path: PathBuf) {
@@ -736,4 +785,26 @@ fn print_help() {
 
 Also: cargo test-all, cargo fmt-all, cargo clippy-all, cargo dev-help."
     );
+}
+
+#[cfg(test)]
+mod desktop_artifact_tests {
+    use super::desktop_artifact_name;
+
+    #[test]
+    fn desktop_artifacts_are_renamed_consistently() {
+        assert_eq!(
+            desktop_artifact_name("recurrency-frontend_0.48.0_amd64.deb").as_deref(),
+            Some("recurrency-desktop_0.48.0_amd64.deb")
+        );
+        assert_eq!(
+            desktop_artifact_name("RecurrencyFrontend_0.48.0_x64-setup.exe").as_deref(),
+            Some("recurrency-desktop_0.48.0_x64-setup.exe")
+        );
+        assert_eq!(
+            desktop_artifact_name("recurrency_frontend_0.48.0_x86_64.AppImage").as_deref(),
+            Some("recurrency-desktop_0.48.0_x86_64.AppImage")
+        );
+        assert_eq!(desktop_artifact_name("other.deb"), None);
+    }
 }
