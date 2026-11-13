@@ -72,6 +72,11 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
     };
 
     let local_mode = APP_MODE().mode.is_offline();
+    let server_url = APP_MODE().mode.server_url().map(str::to_string);
+    let server_qr = server_url.as_ref().and_then(|url| {
+        let payload = format!(r#"{{"type":"recurrency-server","url":"{url}"}}"#);
+        crate::utils::qr::svg(&payload).ok()
+    });
 
     rsx! {
         div { class: "space-y-3",
@@ -112,6 +117,18 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
             } else {
                 p { class: "text-xs text-muted-foreground",
                     "Use the address of your Recurrency server, without /api."
+                }
+            }
+            if let Some(svg) = server_qr {
+                div { class: "flex flex-col items-center gap-2 rounded-lg border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-start",
+                    div { class: "h-32 w-32 shrink-0 rounded bg-white p-1 [&>svg]:h-full [&>svg]:w-full", dangerous_inner_html: svg }
+                    div {
+                        p { class: "text-sm font-medium", "Connect with QR" }
+                        p { class: "text-xs text-muted-foreground", "Scan this from another device to use the same server." }
+                        if let Some(url) = server_url {
+                            p { class: "mt-1 break-all font-mono text-[11px] text-muted-foreground", {url} }
+                        }
+                    }
                 }
             }
             if cfg!(not(target_arch = "wasm32")) {

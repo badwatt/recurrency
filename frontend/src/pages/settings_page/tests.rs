@@ -73,7 +73,7 @@ const SETTINGS_SOURCES: &str = concat!(
     #[test]
     fn native_server_url_is_editable_before_login_and_in_settings() {
         let login = include_str!("../../auth/login.rs");
-        assert!(login.contains("ServerUrlEditor"));
+        assert!(login.contains("Route::ServerSettings"));
         assert!(login.contains(r#"cfg!(not(target_arch = "wasm32"))"#));
         assert!(SETTINGS_SOURCES.contains("ServerUrlEditor"));
         assert!(SETTINGS_SOURCES.contains("Save server"));
