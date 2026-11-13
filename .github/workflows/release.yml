@@ -27,7 +27,7 @@ jobs:
   cleanup-artifacts:
     needs: prepare
     if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: geekyeggo/delete-artifact@v6
         with:
@@ -38,7 +38,7 @@ jobs:
 
   # ── Prepare: detect a version increase in the workspace manifest ──
   prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       previous: ${{ steps.version.outputs.previous }}
@@ -84,7 +84,7 @@ jobs:
   test-backend:
     needs: prepare
     if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:18-alpine
@@ -137,7 +137,7 @@ jobs:
   test-frontend:
     needs: prepare
     if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -184,7 +184,7 @@ jobs:
   docker:
     if: ${{ needs.prepare.outputs.changed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.skip_docker != true) }}
     needs: [prepare, test-backend, test-frontend]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ needs.prepare.outputs.version }}
     steps:
@@ -225,7 +225,7 @@ jobs:
   android:
     needs: [prepare, test-backend, test-frontend]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
