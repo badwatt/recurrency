@@ -5,7 +5,6 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::ConvertedAmount;
 use crate::components::logo_search::LogoSearch;
@@ -69,7 +68,7 @@ pub fn DebtsPage() -> Element {
     let load = use_callback(move |_: ()| {
         spawn(async move {
             DEBTS.write().set_loading();
-            match api::debts::list().await {
+            match crate::storage::Storage::list_debts().await {
                 Ok(debts) => DEBTS.write().set_data(debts),
                 Err(err) => DEBTS.write().set_error(err.to_string()),
             }
@@ -199,7 +198,7 @@ pub fn DebtsPage() -> Element {
         saving.set(true);
         spawn(async move {
             let result = if let Some(id) = edit {
-                api::debts::update(
+                crate::storage::Storage::update_debt(
                     &id,
                     &crate::models::debt::UpdateDebtRequest {
                         name: Some(name().trim().to_string()),
@@ -218,7 +217,7 @@ pub fn DebtsPage() -> Element {
                 )
                 .await
             } else {
-                api::debts::create(&CreateDebtRequest {
+                crate::storage::Storage::create_debt(&CreateDebtRequest {
                     name: name().trim().to_string(),
                     total_amount,
                     currency: currency(),
@@ -274,7 +273,7 @@ pub fn DebtsPage() -> Element {
             },
         };
         spawn(async move {
-            match api::debts::record_payment(&debt.id, &req).await {
+            match crate::storage::Storage::record_debt_payment(&debt.id, &req).await {
                 Ok(_) => {
                     pay_open.set(false);
                     load.call(());
@@ -289,7 +288,7 @@ pub fn DebtsPage() -> Element {
         history_payments.set(Vec::new());
         history_open.set(true);
         spawn(async move {
-            if let Ok(items) = api::debts::payments(&debt.id).await {
+            if let Ok(items) = crate::storage::Storage::list_debt_payments(&debt.id).await {
                 history_payments.set(items);
             }
         });
@@ -433,7 +432,7 @@ pub fn DebtsPage() -> Element {
         bulk_busy.set(true);
         spawn(async move {
             for id in ids {
-                let _ = api::debts::delete(&id).await;
+                let _ = crate::storage::Storage::delete_debt(&id).await;
             }
             load.call(());
             selected.write().clear();
@@ -517,7 +516,7 @@ pub fn DebtsPage() -> Element {
                             spawn(async move {
                                 for id in ids {
                                     let req = crate::models::debt::UpdateDebtRequest { category_id: Some(category_id), ..Default::default() };
-                                    let _ = api::debts::update(&id, &req).await;
+                                    let _ = crate::storage::Storage::update_debt(&id, &req).await;
                                 }
                                 load.call(());
                                 selected.write().clear();
@@ -902,7 +901,7 @@ pub fn DebtsPage() -> Element {
                             onclick: move |_| {
                                 let Some(debt) = delete_debt() else { return };
                                 spawn(async move {
-                                    let _ = api::debts::delete(&debt.id).await;
+                                    let _ = crate::storage::Storage::delete_debt(&debt.id).await;
                                     delete_open.set(false);
                                     load.call(());
                                 });

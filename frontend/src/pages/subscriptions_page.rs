@@ -130,7 +130,7 @@ pub fn SubscriptionsPage() -> Element {
     use_effect(move || {
         if DEBTS().debts.is_empty() {
             spawn(async move {
-                if let Ok(debts) = api::debts::list().await {
+                if let Ok(debts) = crate::storage::Storage::list_debts().await {
                     let ids = debts.iter().filter_map(|debt| debt.subscription_id).collect();
                     DEBTS.write().set_data(debts);
                     filters.write().debt_subscription_ids = ids;

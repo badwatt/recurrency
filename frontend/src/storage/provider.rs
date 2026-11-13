@@ -170,6 +170,55 @@ impl Storage {
         }
     }
 
+    // ── Debts ──
+    pub async fn list_debts() -> Result<Vec<crate::models::debt::Debt>, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::list_debts().await
+        } else {
+            crate::api::debts::list().await
+        }
+    }
+
+    pub async fn create_debt(req: &crate::models::debt::CreateDebtRequest) -> Result<crate::models::debt::Debt, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::create_debt(req).await
+        } else {
+            crate::api::debts::create(req).await
+        }
+    }
+
+    pub async fn update_debt(id: &uuid::Uuid, req: &crate::models::debt::UpdateDebtRequest) -> Result<crate::models::debt::Debt, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::update_debt(id, req).await
+        } else {
+            crate::api::debts::update(id, req).await
+        }
+    }
+
+    pub async fn delete_debt(id: &uuid::Uuid) -> Result<(), ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::delete_debt(id).await
+        } else {
+            crate::api::debts::delete(id).await
+        }
+    }
+
+    pub async fn record_debt_payment(id: &uuid::Uuid, req: &crate::models::debt::RecordDebtPaymentRequest) -> Result<crate::models::debt::Debt, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::record_debt_payment(id, req).await
+        } else {
+            crate::api::debts::record_payment(id, req).await
+        }
+    }
+
+    pub async fn list_debt_payments(id: &uuid::Uuid) -> Result<Vec<crate::models::debt::DebtPayment>, ApiError> {
+        if crate::api::client::is_offline_mode() {
+            crate::storage::local::list_debt_payments(id).await
+        } else {
+            crate::api::debts::payments(id).await
+        }
+    }
+
     // ── Reports ──
 
     pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::report::ReportResponse, ApiError> {
