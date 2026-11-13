@@ -3,6 +3,7 @@
 //! Root cause: dirs::data_dir() returns None on Android (no jni feature).
 //! Fix: add jni feature to dirs crate.
 
+use serial_test::serial;
 use std::path::PathBuf;
 
 /// Returns the native auth persistence dir used by the app.
@@ -28,6 +29,7 @@ fn test_dirs_data_dir_returns_some_on_native() {
 
 /// TDD RED: After set_authenticated, auth files must exist.
 #[test]
+#[serial]
 fn test_set_authenticated_writes_auth_files() {
     // Clean up first
     let auth_dir = native_auth_dir();

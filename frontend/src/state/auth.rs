@@ -215,6 +215,7 @@ pub static AUTH: GlobalSignal<AuthState> = Signal::global(AuthState::default);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use uuid::Uuid;
 
     fn sample_user() -> UserResponse {
@@ -486,6 +487,7 @@ mod tests {
 
     // ── persist_to_storage tests (native) ──
     #[test]
+    #[serial]
     fn persist_to_storage_writes_files_on_native() {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -526,6 +528,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn persist_to_storage_no_op_without_token() {
         #[cfg(not(target_arch = "wasm32"))]
         {
