@@ -77,6 +77,28 @@ pub fn TransactionRowSkeleton() -> Element {
     }
 }
 
+/// Debt card skeleton — matches the debt grid card layout.
+#[component]
+pub fn DebtCardSkeleton() -> Element {
+    rsx! {
+        div { class: "rounded-xl border border-border/50 bg-card p-4 flex flex-col gap-3",
+            div { class: "flex items-start gap-3",
+                Skeleton { class: "h-11 w-11 rounded-xl shrink-0" }
+                div { class: "flex-1 space-y-1.5",
+                    Skeleton { class: "h-4 w-32" }
+                    Skeleton { class: "h-3 w-16" }
+                }
+                Skeleton { class: "h-6 w-24" }
+            }
+            Skeleton { class: "h-2 w-full rounded-full" }
+            div { class: "flex items-center justify-between",
+                Skeleton { class: "h-3 w-20" }
+                Skeleton { class: "h-3 w-24" }
+            }
+        }
+    }
+}
+
 /// Category card skeleton — matches category card layout.
 #[component]
 pub fn CategoryCardSkeleton() -> Element {
@@ -206,6 +228,9 @@ mod tests {
 
     #[test]
     fn category_card_skeleton_builds() { let _el: Element = rsx! { CategoryCardSkeleton {} }; }
+
+    #[test]
+    fn debt_card_skeleton_builds() { let _el: Element = rsx! { DebtCardSkeleton {} }; }
 
     #[test]
     fn report_card_skeleton_builds() { let _el: Element = rsx! { ReportCardSkeleton {} }; }

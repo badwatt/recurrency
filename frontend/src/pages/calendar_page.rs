@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::storage::Storage;
 use crate::components::page_header::PageHeader;
-use crate::components::skeleton::SkeletonCalendar;
+use crate::components::skeleton::{Skeleton, SkeletonCalendar};
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::models::subscription::CalendarItem;
@@ -26,6 +26,80 @@ mod logic;
 pub use logic::*;
 use delete_dialog::DeleteSubscriptionDialog;
 use edit_dialog::EditSubscriptionDialog;
+
+#[component]
+fn CalendarNavigation(
+    month_label: String,
+    on_prev: EventHandler<MouseEvent>,
+    on_next: EventHandler<MouseEvent>,
+    on_today: EventHandler<MouseEvent>,
+) -> Element {
+    rsx! {
+        div { class: "flex items-center justify-between gap-2",
+            div { class: "flex min-w-0 items-center gap-2",
+                button {
+                    r#type: "button",
+                    aria_label: "Previous month",
+                    onclick: move |event| on_prev.call(event),
+                    class: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border hover:bg-accent",
+                    ChevronLeft { size: 16 }
+                }
+                h2 { class: "min-w-0 truncate text-center text-base font-semibold sm:min-w-[200px] sm:text-xl",
+                    {month_label}
+                }
+                button {
+                    r#type: "button",
+                    aria_label: "Next month",
+                    onclick: move |event| on_next.call(event),
+                    class: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border hover:bg-accent",
+                    ChevronRight { size: 16 }
+                }
+            }
+            button {
+                r#type: "button",
+                onclick: move |event| on_today.call(event),
+                class: "h-9 shrink-0 rounded-md border border-border px-3 text-sm hover:bg-accent",
+                "Today"
+            }
+        }
+    }
+}
+
+#[component]
+fn CalendarPaymentRow(
+    id: String,
+    name: String,
+    date_str: String,
+    amount_str: String,
+    logo_url: Option<String>,
+    is_past: bool,
+) -> Element {
+    rsx! {
+        div {
+            class: if is_past {
+                "rounded-lg border border-border bg-card p-3 opacity-55"
+            } else {
+                "rounded-lg border border-border bg-card p-3"
+            },
+            div { class: "flex items-center justify-between gap-3",
+                div { class: "flex min-w-0 items-center gap-3",
+                    div { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10",
+                        if let Some(url) = logo_url {
+                            {logo_image_with_fallback(&format!("month-{id}"), Some(url.as_str()), &name, "h-6 w-6 rounded object-contain")}
+                        } else {
+                            span { class: "text-primary", {icon_credit_card()} }
+                        }
+                    }
+                    div { class: "min-w-0",
+                        p { class: "truncate font-medium", {name} }
+                        p { class: "text-sm text-muted-foreground", {date_str} }
+                    }
+                }
+                p { class: "shrink-0 text-lg font-semibold", {amount_str} }
+            }
+        }
+    }
+}
 
 #[component]
 pub fn CalendarPage() -> Element {
@@ -160,11 +234,12 @@ pub fn CalendarPage() -> Element {
         .map(|d| d.map(|d| day_cell_info(&items, year, month, d, &currency)))
         .collect();
 
-    // Sort upcoming items by billing date for mobile view
+    // Split the mobile list so upcoming payments stay visible above the
+    // already-processed payments from the same month.
     let mut upcoming: Vec<_> = items.iter().collect();
     upcoming.sort_by_key(|a| a.billing_date);
     let today = now;
-    let upcoming_display: Vec<(String, String, String, String, Option<String>, bool)> = upcoming
+    let mobile_rows: Vec<(String, String, String, String, Option<String>, bool)> = upcoming
         .iter()
         .map(|item| {
             (
@@ -177,6 +252,8 @@ pub fn CalendarPage() -> Element {
             )
         })
         .collect();
+    let (past_display, upcoming_display): (Vec<_>, Vec<_>) =
+        mobile_rows.into_iter().partition(|row| row.5);
 
     let go_prev = move |_| {
         let (y, m) = if current_month() == 1 {
@@ -199,6 +276,29 @@ pub fn CalendarPage() -> Element {
     };
 
     let go_today = move |_| {
+        current_year.set(now.year());
+        current_month.set(now.month());
+    };
+
+    let go_prev_mobile = move |_| {
+        let (y, m) = if current_month() == 1 {
+            (current_year() - 1, 12)
+        } else {
+            (current_year(), current_month() - 1)
+        };
+        current_year.set(y);
+        current_month.set(m);
+    };
+    let go_next_mobile = move |_| {
+        let (y, m) = if current_month() == 12 {
+            (current_year() + 1, 1)
+        } else {
+            (current_year(), current_month() + 1)
+        };
+        current_year.set(y);
+        current_month.set(m);
+    };
+    let go_today_mobile = move |_| {
         current_year.set(now.year());
         current_month.set(now.month());
     };
@@ -260,12 +360,20 @@ pub fn CalendarPage() -> Element {
                 }
             }
 
-            // Mobile: upcoming payments list
+            // Mobile: month navigation + upcoming/past lists
             div { class: "md:hidden space-y-4",
+                div { class: "rounded-xl border border-border/60 bg-card p-2",
+                    CalendarNavigation {
+                        month_label: month_label.clone(),
+                        on_prev: go_prev_mobile,
+                        on_next: go_next_mobile,
+                        on_today: go_today_mobile,
+                    }
+                }
                 div { class: "flex items-center justify-between",
-                    h2 { class: "text-lg font-semibold flex items-center gap-2",
+                    h2 { class: "flex items-center gap-2 text-lg font-semibold",
                         {icon_calendar()}
-                        "Upcoming Payments"
+                        "Payments this month"
                     }
                     p { class: "text-lg font-bold", {total_display.to_string()} }
                 }
@@ -273,11 +381,21 @@ pub fn CalendarPage() -> Element {
                 {if is_loading() {
                     rsx! {
                         div { class: "space-y-2",
-                            div { class: "animate-pulse rounded-md bg-muted h-4 w-1/3" }
-                            div { class: "animate-pulse rounded-md bg-muted h-3 w-2/3" }
+                            for _ in 0..3 {
+                                div { class: "rounded-lg border border-border bg-card p-3",
+                                    div { class: "flex items-center gap-3",
+                                        Skeleton { class: "h-10 w-10 rounded-full" }
+                                        div { class: "flex-1 space-y-1.5",
+                                            Skeleton { class: "h-4 w-32" }
+                                            Skeleton { class: "h-3 w-24" }
+                                        }
+                                        Skeleton { class: "h-5 w-16" }
+                                    }
+                                }
+                            }
                         }
                     }
-                } else if upcoming_display.is_empty() {
+                } else if upcoming_display.is_empty() && past_display.is_empty() {
                     rsx! {
                         div { class: "rounded-lg border border-border bg-card py-8 text-center text-muted-foreground",
                             "No payments scheduled this month"
@@ -285,31 +403,54 @@ pub fn CalendarPage() -> Element {
                     }
                 } else {
                     rsx! {
-                        div { class: "space-y-2",
-                            for (id, name, date_str, amount_str, logo_url, is_past) in &upcoming_display {
-                                {rsx! {
-                                    div {
-                                        key: "{id}",
-                                        class: if *is_past { "rounded-lg border border-border bg-card p-3 opacity-50" } else { "rounded-lg border border-border bg-card p-3" },
-                                        div { class: "flex items-center justify-between",
-                                            div { class: "flex items-center gap-3",
-                                                div { class: "flex h-10 w-10 items-center justify-center rounded-full bg-primary/10",
-                                                    if let Some(url) = logo_url {
-                                                        {logo_image_with_fallback(&format!("upcoming-{}", id), Some(url.as_str()), name, "h-6 w-6 rounded object-contain")
-                                                        }
-                                                    } else {
-                                                        span { class: "text-primary", {icon_credit_card()} }
-                                                    }
-                                                }
-                                                div {
-                                                    p { class: "font-medium", {name.to_string()} }
-                                                    p { class: "text-sm text-muted-foreground", {date_str.to_string()} }
-                                                }
-                                            }
-                                            p { class: "text-lg font-semibold", {amount_str.to_string()} }
+                        div { class: "space-y-4",
+                            div { class: "space-y-2",
+                                div { class: "flex items-center justify-between",
+                                    h3 { class: "text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground",
+                                        "Upcoming"
+                                    }
+                                    if !upcoming_display.is_empty() {
+                                        span { class: "text-xs text-muted-foreground", "{upcoming_display.len()} payments" }
+                                    }
+                                }
+                                if upcoming_display.is_empty() {
+                                    p { class: "rounded-lg border border-dashed border-border/60 bg-muted/10 px-3 py-4 text-center text-sm text-muted-foreground",
+                                        "No upcoming payments left this month"
+                                    }
+                                } else {
+                                    for (id, name, date_str, amount_str, logo_url, is_past) in &upcoming_display {
+                                        CalendarPaymentRow {
+                                            key: "{id}",
+                                            id: id.clone(),
+                                            name: name.clone(),
+                                            date_str: date_str.clone(),
+                                            amount_str: amount_str.clone(),
+                                            logo_url: logo_url.clone(),
+                                            is_past: *is_past,
                                         }
                                     }
-                                }}
+                                }
+                            }
+                            if !past_display.is_empty() {
+                                div { class: "space-y-2 border-t border-border/60 pt-4",
+                                    div { class: "flex items-center justify-between",
+                                        h3 { class: "text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground",
+                                            "Past"
+                                        }
+                                        span { class: "text-xs text-muted-foreground", "{past_display.len()} payments" }
+                                    }
+                                    for (id, name, date_str, amount_str, logo_url, is_past) in &past_display {
+                                        CalendarPaymentRow {
+                                            key: "{id}",
+                                            id: id.clone(),
+                                            name: name.clone(),
+                                            date_str: date_str.clone(),
+                                            amount_str: amount_str.clone(),
+                                            logo_url: logo_url.clone(),
+                                            is_past: *is_past,
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -319,24 +460,12 @@ pub fn CalendarPage() -> Element {
             // Desktop: Full calendar
             div { class: "hidden md:block rounded-xl bg-card/80 border border-border/40",
                 // Navigation header
-                div { class: "flex items-center justify-between p-4 border-b border-border",
-                    div { class: "flex items-center gap-4",
-                        button {
-                            onclick: go_prev,
-                            class: "h-9 w-9 inline-flex items-center justify-center rounded-md border border-border hover:bg-accent",
-                            ChevronLeft { size: 16 }
-                        }
-                        h2 { class: "text-xl font-semibold min-w-[200px] text-center", {month_label.to_string()} }
-                        button {
-                            onclick: go_next,
-                            class: "h-9 w-9 inline-flex items-center justify-center rounded-md border border-border hover:bg-accent",
-                            ChevronRight { size: 16 }
-                        }
-                    }
-                    button {
-                        onclick: go_today,
-                        class: "h-9 px-3 rounded-md border border-border text-sm hover:bg-accent",
-                        "Today"
+                div { class: "border-b border-border p-4",
+                    CalendarNavigation {
+                        month_label: month_label.clone(),
+                        on_prev: go_prev,
+                        on_next: go_next,
+                        on_today: go_today,
                     }
                 }
 

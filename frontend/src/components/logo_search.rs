@@ -2,9 +2,12 @@ use crate::api;
 use crate::components::dialog::Dialog;
 use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
+use crate::utils::image::data_url;
 use dioxus::prelude::*;
 
 const LOGO_PAGE_SIZE: usize = 8;
+const MAX_LOGO_UPLOAD_BYTES: u64 = 5_000_000;
+const MAX_LOGO_STORED_BYTES: usize = 500_000;
 
 fn page_count(total: usize) -> usize {
     total.div_ceil(LOGO_PAGE_SIZE)
@@ -55,6 +58,39 @@ fn logo_candidates(query: &str) -> Vec<LogoResult> {
     out
 }
 
+/// Resize a browser-selected logo to a compact transparent PNG. Android's
+/// native picker already returns a small JPEG.
+async fn resize_logo(data_url: String) -> Option<String> {
+    let mut eval = document::eval(r#"
+        const source = await dioxus.recv();
+        try {
+            const image = new Image();
+            const loaded = new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+                image.src = source;
+            });
+            await loaded;
+            const max = 256;
+            const scale = Math.min(1, max / image.width, max / image.height);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            dioxus.send(canvas.toDataURL('image/png'));
+        } catch (_) {
+            dioxus.send('');
+        }
+    "#);
+    eval.send(data_url).ok()?;
+    eval.recv::<String>()
+        .await
+        .ok()
+        .filter(|value| value.starts_with("data:image/"))
+}
+
 #[component]
 pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventHandler<String>) -> Element {
     let mut dialog_open = use_signal(|| false);
@@ -63,6 +99,18 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
     let mut error_msg = use_signal(String::new);
     let mut searching = use_signal(|| false);
     let mut page = use_signal(|| 0usize);
+    let mut upload_error = use_signal(String::new);
+    let mut url_input = use_signal(|| selected_url.clone());
+    let mut last_selected = use_signal(|| selected_url.clone());
+
+    let selected_for_effect = selected_url.clone();
+    use_effect(move || {
+        let next = selected_for_effect.clone();
+        if next != last_selected() {
+            last_selected.set(next.clone());
+            url_input.set(next);
+        }
+    });
 
     let mut do_search = move || {
         let q = query().trim().to_string();
@@ -89,6 +137,57 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
         });
     };
 
+    let mut apply_url = move || {
+        let value = url_input().trim().to_string();
+        if value.is_empty() {
+            upload_error.set("Paste an image URL first".to_string());
+        } else {
+            upload_error.set(String::new());
+            on_select.call(value);
+        }
+    };
+
+    let mut use_upload = move |file: dioxus::html::FileData| {
+        if file.size() > MAX_LOGO_UPLOAD_BYTES {
+            upload_error.set("Logo must be 5 MB or smaller".to_string());
+            return;
+        }
+        let content_type = file
+            .content_type()
+            .unwrap_or_else(|| "image/png".to_string());
+        if !content_type.starts_with("image/") {
+            upload_error.set("Choose an image file".to_string());
+            return;
+        }
+        upload_error.set(String::new());
+        spawn(async move {
+            match file.read_bytes().await {
+                Ok(bytes) => {
+                    let original = data_url(&content_type, &bytes);
+                    let selected = if cfg!(target_os = "android") {
+                        Some(original.clone())
+                    } else {
+                        match resize_logo(original.clone()).await {
+                            Some(resized) => Some(resized),
+                            None if bytes.len() <= MAX_LOGO_STORED_BYTES => Some(original),
+                            None => None,
+                        }
+                    };
+                    match selected {
+                        Some(value) => {
+                            url_input.set(value.clone());
+                            on_select.call(value);
+                        }
+                        None => upload_error.set(
+                            "Could not process that image. Try a smaller logo.".to_string(),
+                        ),
+                    }
+                }
+                Err(_) => upload_error.set("Could not read the selected image".to_string()),
+            }
+        });
+    };
+
     let all_results = results();
     let total = all_results.len();
     let pages = page_count(total);
@@ -97,32 +196,113 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
     let page_label = format!("Page {} of {}", current_page + 1, pages);
 
     rsx! {
-        // Selected logo preview + button
-        div { class: "flex items-center gap-3",
-            if !selected_url.is_empty() {
-                {logo_image_with_fallback("selected-logo", Some(selected_url.as_str()), "Logo", "h-10 w-10 rounded object-contain border border-border")}
-            }
-            button {
-                r#type: "button",
-                class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
-                onclick: move |_| {
-                    if !default_query.is_empty() {
-                        query.set(default_query.clone());
-                    }
-                    results.set(vec![]);
-                    error_msg.set(String::new());
-                    page.set(0);
-                    dialog_open.set(true);
-                },
-                if !selected_url.is_empty() { "Change" } else { "Add logo" }
-            }
-            if !selected_url.is_empty() {
+        // Selected logo preview, upload, URL and search controls.
+        div { class: "space-y-2",
+            div { class: "flex flex-wrap items-center gap-2",
+                if !selected_url.is_empty() {
+                    {logo_image_with_fallback("selected-logo", Some(selected_url.as_str()), "Logo", "h-10 w-10 rounded object-contain border border-border")}
+                }
                 button {
                     r#type: "button",
-                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50",
-                    onclick: move |_| on_select.call("".to_string()),
-                    "Remove"
+                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
+                    onclick: move |_| {
+                        if !default_query.is_empty() {
+                            query.set(default_query.clone());
+                        }
+                        results.set(vec![]);
+                        error_msg.set(String::new());
+                        page.set(0);
+                        dialog_open.set(true);
+                    },
+                    if !selected_url.is_empty() { "Change" } else { "Add logo" }
                 }
+                if cfg!(target_os = "android") {
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
+                        onclick: move |_| {
+                            let on_select = on_select;
+                            spawn(async move {
+                                let mut eval = document::eval(r#"
+                                    if (window.RecurrencyImagePicker) {
+                                        await new Promise((resolve) => {
+                                            window.__recurrencyAvatarPicked = (data) => {
+                                                dioxus.send(data);
+                                                resolve();
+                                            };
+                                            window.RecurrencyImagePicker.pickImage();
+                                        });
+                                    } else {
+                                        dioxus.send('');
+                                    }
+                                "#);
+                                match eval.recv::<String>().await {
+                                    Ok(data) if data.starts_with("data:image/") => {
+                                        url_input.set(data.clone());
+                                        on_select.call(data);
+                                    }
+                                    Ok(_) => {}
+                                    Err(_) => upload_error.set(
+                                        "Could not open the gallery. Try again.".to_string(),
+                                    ),
+                                }
+                            });
+                        },
+                        "Upload image"
+                    }
+                } else {
+                    label {
+                        class: "relative inline-flex cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-within:ring-2 focus-within:ring-ring",
+                        "Upload image"
+                        input {
+                            r#type: "file",
+                            accept: "image/*",
+                            aria_label: "Upload logo image",
+                            class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
+                            onchange: move |event: Event<FormData>| {
+                                if let Some(file) = event.files().first().cloned() {
+                                    use_upload(file);
+                                }
+                            },
+                        }
+                    }
+                }
+                if !selected_url.is_empty() {
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50",
+                        onclick: move |_| {
+                            url_input.set(String::new());
+                            on_select.call("".to_string())
+                        },
+                        "Remove"
+                    }
+                }
+            }
+            div { class: "flex gap-2",
+                input {
+                    r#type: "text",
+                    inputmode: "url",
+                    value: "{url_input()}",
+                    placeholder: "Paste logo URL (https://…)",
+                    class: "flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+                    oninput: move |event: FormEvent| url_input.set(event.value()),
+                    onkeydown: move |event: KeyboardEvent| {
+                        if event.key().to_string() == "Enter" {
+                            apply_url();
+                        }
+                    },
+                }
+                button {
+                    r#type: "button",
+                    class: "inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                    disabled: url_input().trim().is_empty(),
+                    onclick: move |_| apply_url(),
+                    "Use URL"
+                }
+            }
+            if !upload_error().is_empty() {
+                p { class: "text-xs text-destructive", {upload_error()} }
             }
         }
 
@@ -188,6 +368,7 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                                         };
                                         let on_sel = on_select;
                                         move |_| {
+                                            url_input.set(url.clone());
                                             on_sel.call(url.clone());
                                             dialog_open.set(false);
                                         }
@@ -230,6 +411,17 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn logo_picker_supports_upload_and_pasted_urls() {
+        let src = include_str!("logo_search.rs");
+        assert!(src.contains("Upload image"));
+        assert!(src.contains("Use URL"));
+        assert!(src.contains("read_bytes"));
+        assert!(src.contains("resize_logo"));
+        assert!(src.contains("RecurrencyImagePicker"));
+    }
+
+
     use super::*;
     use crate::models::logo::LogoResult;
 

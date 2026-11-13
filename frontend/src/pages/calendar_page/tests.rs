@@ -1161,3 +1161,22 @@ fn calendar_shows_transfer_and_pending_summary() {
     assert!(src.contains("Transfer this month"));
     assert!(src.contains("Pending from today"));
 }
+
+    #[test]
+    fn calendar_mobile_has_month_navigation_and_today() {
+        let src = include_str!("../calendar_page.rs");
+        assert!(src.contains("CalendarNavigation"));
+        assert!(src.contains("aria_label: \"Previous month\""));
+        assert!(src.contains("aria_label: \"Next month\""));
+        assert!(src.contains("\"Today\""));
+        assert!(src.contains("md:hidden"));
+    }
+
+    #[test]
+    fn calendar_mobile_lists_upcoming_before_past() {
+        let src = include_str!("../calendar_page.rs");
+        let upcoming = src.find("\"Upcoming\"").expect("upcoming section");
+        let past = src.find("\"Past\"").expect("past section");
+        assert!(upcoming < past);
+        assert!(src.contains("past_display"));
+    }

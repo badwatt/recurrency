@@ -10,6 +10,7 @@ use crate::components::dialog::Dialog;
 use crate::components::ConvertedAmount;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::skeleton::DebtCardSkeleton;
 use crate::components::ListToolbar;
 use crate::components::{AccountCombobox, CategoryCombobox};
 use crate::models::debt::{
@@ -544,8 +545,10 @@ pub fn DebtsPage() -> Element {
             }
 
             if DEBTS().is_loading && DEBTS().debts.is_empty() {
-                div { class: "flex h-52 items-center justify-center rounded-xl border border-border/40 bg-card/80",
-                    p { class: "text-sm text-muted-foreground", "Loading debts…" }
+                div { class: "grid gap-4 grid-cols-1 lg:grid-cols-2",
+                    for _ in 0..4 {
+                        DebtCardSkeleton {}
+                    }
                 }
             } else if DEBTS().debts.is_empty() {
                 div { class: "rounded-xl border border-border/40 bg-card/80 p-8 flex flex-col items-center gap-3",
@@ -1047,6 +1050,12 @@ mod tests {
         assert!(src.contains("aria_label: \"Sort\""));
         assert!(src.contains("show_view: false"));
         assert!(src.contains("visible_debts"));
+    }
+
+    #[test]
+    fn debts_loading_uses_the_shared_card_skeleton() {
+        let src = include_str!("debts_page.rs");
+        assert!(src.contains("DebtCardSkeleton"));
     }
 }
 

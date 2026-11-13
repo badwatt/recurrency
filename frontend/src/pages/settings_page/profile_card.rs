@@ -2,33 +2,12 @@ use crate::api::settings;
 use crate::components::toast::TOAST;
 use crate::layout::app_layout::{avatar_color, avatar_initials};
 use crate::models::auth::{UpdateSettingsRequest, is_valid_email};
+use crate::utils::image::base64_encode;
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
 const MAX_AVATAR_BYTES: u64 = 15_000_000;
 
-fn base64_encode(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let a = chunk[0];
-        let b = chunk.get(1).copied().unwrap_or(0);
-        let c = chunk.get(2).copied().unwrap_or(0);
-        out.push(TABLE[(a >> 2) as usize] as char);
-        out.push(TABLE[((a & 0b11) << 4 | b >> 4) as usize] as char);
-        out.push(if chunk.len() > 1 {
-            TABLE[((b & 0b1111) << 2 | c >> 6) as usize] as char
-        } else {
-            '='
-        });
-        out.push(if chunk.len() > 2 {
-            TABLE[(c & 0b111111) as usize] as char
-        } else {
-            '='
-        });
-    }
-    out
-}
 
 /// Profile card: editable email and display name.
 async fn resize_avatar(data_url: String) -> Option<String> {
