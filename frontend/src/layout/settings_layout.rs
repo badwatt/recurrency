@@ -1,64 +1,121 @@
 use crate::layout::app_layout::{Icon, svg_icon};
 use crate::pages::settings_page::APP_VERSION;
 use crate::state::auth::AUTH;
-use dioxus::prelude::*;
 use crate::utils::scroll::scroll_to_top;
+use dioxus::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SettingsSection {
-    Profile,
-    Preferences,
+    Account,
+    General,
     Money,
     Notifications,
+    Data,
+    Server,
     About,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SettingsGroup {
+    Personal,
+    Configuration,
+    System,
+}
+
+impl SettingsGroup {
+    const ALL: [Self; 3] = [Self::Personal, Self::Configuration, Self::System];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Personal => "Personal",
+            Self::Configuration => "Configuration",
+            Self::System => "System",
+        }
+    }
+
+    fn sections(self) -> &'static [SettingsSection] {
+        match self {
+            Self::Personal => &[SettingsSection::Account],
+            Self::Configuration => &[
+                SettingsSection::General,
+                SettingsSection::Money,
+                SettingsSection::Notifications,
+            ],
+            Self::System => &[
+                SettingsSection::Data,
+                SettingsSection::Server,
+                SettingsSection::About,
+            ],
+        }
+    }
+}
+
 impl SettingsSection {
-    const ALL: [Self; 5] = [
-        Self::Profile,
-        Self::Preferences,
+    const ALL: [Self; 7] = [
+        Self::Account,
+        Self::General,
         Self::Money,
         Self::Notifications,
+        Self::Data,
+        Self::Server,
         Self::About,
     ];
 
     fn label(self) -> &'static str {
         match self {
-            Self::Profile => "Profile",
-            Self::Preferences => "Preferences",
+            Self::Account => "Account",
+            Self::General => "General",
             Self::Money => "Money",
             Self::Notifications => "Notifications",
+            Self::Data => "Data & backup",
+            Self::Server => "Server",
             Self::About => "About",
+        }
+    }
+
+    fn description(self) -> &'static str {
+        match self {
+            Self::Account => "Profile, session and account removal",
+            Self::General => "Currency, week start, dates and updates",
+            Self::Money => "Accounts, categories and exchange rates",
+            Self::Notifications => "Delivery channels and summaries",
+            Self::Data => "Backups, restore and folder sync",
+            Self::Server => "Server connection and device pairing",
+            Self::About => "Version, release notes and Android app",
         }
     }
 
     fn icon(self) -> Icon {
         match self {
-            Self::Profile => Icon::Settings,
-            Self::Preferences => Icon::Sun,
+            Self::Account => Icon::Settings,
+            Self::General => Icon::Sun,
             Self::Money => Icon::Categories,
             Self::Notifications => Icon::Bell,
+            Self::Data => Icon::Reports,
+            Self::Server => Icon::Monitor,
             Self::About => Icon::Info,
         }
     }
 
     fn route(self) -> crate::Route {
         match self {
-            Self::Profile => crate::Route::SettingsProfile {},
-            Self::Preferences => crate::Route::SettingsPreferences {},
+            Self::Account => crate::Route::SettingsProfile {},
+            Self::General => crate::Route::SettingsPreferences {},
             Self::Money => crate::Route::SettingsMoney {},
             Self::Notifications => crate::Route::SettingsNotifications {},
+            Self::Data => crate::Route::SettingsData {},
+            Self::Server => crate::Route::SettingsServer {},
             Self::About => crate::Route::SettingsAboutPage {},
         }
     }
 
     fn is_active(self, route: &crate::Route) -> bool {
         match self {
-            Self::Profile => matches!(
+            Self::Account => matches!(
                 route,
                 crate::Route::Settings {} | crate::Route::SettingsProfile {}
             ),
-            Self::Preferences => matches!(route, crate::Route::SettingsPreferences {}),
+            Self::General => matches!(route, crate::Route::SettingsPreferences {}),
             Self::Money => matches!(
                 route,
                 crate::Route::SettingsMoney {}
@@ -68,6 +125,8 @@ impl SettingsSection {
                     | crate::Route::Categories {}
             ),
             Self::Notifications => matches!(route, crate::Route::SettingsNotifications {}),
+            Self::Data => matches!(route, crate::Route::SettingsData {}),
+            Self::Server => matches!(route, crate::Route::SettingsServer {}),
             Self::About => matches!(route, crate::Route::SettingsAboutPage {}),
         }
     }
@@ -83,11 +142,18 @@ pub fn SettingsLayout() -> Element {
             div { class: "mx-auto flex w-full max-w-7xl gap-8 lg:gap-10",
                 aside { class: "hidden lg:flex w-52 shrink-0 flex-col self-start sticky top-20",
                     p { class: "px-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground/70", "Settings" }
-                    nav { class: "mt-3 flex flex-col gap-1", aria_label: "Settings sections",
-                        for section in SettingsSection::ALL {
-                            SettingsSidebarLink {
-                                section,
-                                active: section.is_active(&current),
+                    nav { class: "mt-3 flex flex-col gap-4", aria_label: "Settings sections",
+                        for group in SettingsGroup::ALL {
+                            div { class: "flex flex-col gap-1",
+                                p { class: "px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/50",
+                                    {group.label()}
+                                }
+                                for section in group.sections() {
+                                    SettingsSidebarLink {
+                                        section: *section,
+                                        active: section.is_active(&current),
+                                    }
+                                }
                             }
                         }
                     }
@@ -137,9 +203,9 @@ fn SettingsSidebarLink(section: SettingsSection, active: bool) -> Element {
     let nav = navigator();
     let to = section.route();
     let class = if active {
-        "flex items-center gap-3 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground"
+        "flex items-start gap-3 rounded-lg border border-primary/20 bg-accent px-3 py-2.5 text-sm font-medium text-accent-foreground"
     } else {
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+        "flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 hover:border-border/50 transition-colors"
     };
     rsx! {
         a {
@@ -151,8 +217,11 @@ fn SettingsSidebarLink(section: SettingsSection, active: bool) -> Element {
                 nav.push(to.clone());
                 scroll_to_top();
             },
-            {svg_icon(section.icon(), 18)}
-            span { {section.label()} }
+            span { class: "mt-0.5 shrink-0", {svg_icon(section.icon(), 17)} }
+            span { class: "min-w-0 flex flex-col gap-0.5",
+                span { {section.label()} }
+                span { class: "text-[10px] font-normal leading-snug text-muted-foreground/80", {section.description()} }
+            }
         }
     }
 }

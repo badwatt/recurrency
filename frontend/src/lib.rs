@@ -65,6 +65,10 @@ pub enum Route {
             SettingsMoney {},
             #[route("/settings/notifications")]
             SettingsNotifications {},
+            #[route("/settings/data")]
+            SettingsData {},
+            #[route("/settings/server")]
+            SettingsServer {},
             #[route("/settings/about")]
             SettingsAboutPage {},
             #[route("/settings/accounts")]
@@ -431,6 +435,16 @@ fn SettingsMoney() -> Element {
 #[component]
 fn SettingsNotifications() -> Element {
     rsx! { crate::pages::SettingsNotificationsPage {} }
+}
+
+#[component]
+fn SettingsData() -> Element {
+    rsx! { crate::pages::SettingsDataPage {} }
+}
+
+#[component]
+fn SettingsServer() -> Element {
+    rsx! { crate::pages::SettingsServerPage {} }
 }
 
 #[component]

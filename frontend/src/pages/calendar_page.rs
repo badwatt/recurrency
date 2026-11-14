@@ -563,7 +563,7 @@ pub fn CalendarPage() -> Element {
                                                                         span { class: "shrink-0", {icon_credit_card()} }
                                                                     }
                                                                     span { class: "truncate", {item.name.to_string()} }
-                                                                    span { class: "ml-auto shrink-0 font-medium", {item.amount_str.to_string()} }
+                                                                    span { class: "amount-sensitive ml-auto shrink-0 font-medium", {item.amount_str.to_string()} }
                                                                 }
                                                             }}
                                                         }

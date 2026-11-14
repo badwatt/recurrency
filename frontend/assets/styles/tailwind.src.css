@@ -214,7 +214,11 @@
     transition: filter 120ms ease;
 }
 .privacy-mode .amount-sensitive {
-    filter: blur(6px);
+    filter: blur(12px);
     user-select: none;
     pointer-events: none;
+}
+.privacy-mode .amount-sensitive-xl {
+    filter: blur(20px);
+    opacity: 0.35;
 }

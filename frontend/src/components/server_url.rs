@@ -22,7 +22,7 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
     let mut loading = use_signal(|| false);
     let mut scanning = use_signal(|| false);
 
-    let mut save = move |_| {
+    let save = use_callback(move |_: ()| {
         if loading() {
             return;
         }
@@ -60,7 +60,7 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
             }
             loading.set(false);
         });
-    };
+    });
 
     let scan = move |_| {
         if scanning() {
@@ -114,6 +114,11 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
                     spellcheck: "false",
                     placeholder: "https://recurrency.example.com",
                     value: value,
+                    onkeydown: move |event: KeyboardEvent| {
+                        if event.key() == Key::Enter {
+                            save.call(());
+                        }
+                    },
                     oninput: move |e| {
                         value.set(e.value());
                         error.set(String::new());
@@ -125,7 +130,7 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
                     r#type: "button",
                     disabled: loading(),
                     class: "inline-flex h-10 w-full shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto",
-                    onclick: move |_| save(()),
+                    onclick: move |_| save.call(()),
                     if loading() { "Checking…" } else { "Save server" }
                 }
             }
@@ -182,5 +187,7 @@ mod local_mode_tests {
         assert!(src.contains("set_local"));
         assert!(src.contains("Scan QR"));
         assert!(src.contains("parse_qr_payload"));
+        assert!(src.contains("onkeydown"));
+        assert!(src.contains("Key::Enter"));
     }
 }

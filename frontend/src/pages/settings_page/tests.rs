@@ -6,6 +6,8 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page.rs"),
     include_str!("../settings_page/profile_card.rs"),
     include_str!("../settings_page/preferences_card.rs"),
+    include_str!("../settings_page/exchange_rates_card.rs"),
+    include_str!("../settings_page/server_card.rs"),
     include_str!("../settings_page/delete_account_card.rs"),
     include_str!("../settings_page/delivery_card.rs"),
     include_str!("../settings_page/summary_card.rs"),
@@ -25,6 +27,17 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(SETTINGS_SOURCES.contains("AccountsPage"));
         assert!(SETTINGS_SOURCES.contains("CategoriesPage"));
         assert!(SETTINGS_SOURCES.contains("role: \"tablist\""));
+        assert!(SETTINGS_SOURCES.contains("ExchangeRatesCard"));
+    }
+
+    #[test]
+    fn settings_group_data_and_server_apart() {
+        assert!(SETTINGS_SOURCES.contains("SettingsDataPage"));
+        assert!(SETTINGS_SOURCES.contains("SettingsServerPage"));
+        assert!(SETTINGS_SOURCES.contains("BackupCard"));
+        assert!(SETTINGS_SOURCES.contains("SyncFolderCard"));
+        assert!(SETTINGS_SOURCES.contains("ServerCard"));
+        assert!(SETTINGS_SOURCES.contains("SettingsGroup"));
     }
 
     #[test]

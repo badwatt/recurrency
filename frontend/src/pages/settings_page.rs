@@ -6,22 +6,26 @@ use dioxus::prelude::*;
 mod about_page;
 mod apk_card;
 mod backup_card;
-mod sync_card;
 mod delete_account_card;
 mod delivery_card;
+mod exchange_rates_card;
 mod preferences_card;
 mod profile_card;
+mod server_card;
 mod summary_card;
+mod sync_card;
 
 use about_page::AboutPage;
 use apk_card::ApkCard;
 use backup_card::BackupCard;
-use sync_card::SyncFolderCard;
 use delete_account_card::DeleteAccountCard;
 use delivery_card::DeliveryCard;
+use exchange_rates_card::ExchangeRatesCard;
 use preferences_card::PreferencesCard;
 use profile_card::ProfileCard;
+use server_card::ServerCard;
 use summary_card::SummaryCard;
+use sync_card::SyncFolderCard;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum MoneyTab {
@@ -68,11 +72,8 @@ fn MobileSessionCard() -> Element {
 pub fn SettingsProfilePage() -> Element {
     rsx! {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Profile", subtitle: "Your identity and session" }
+            PageHeader { title: "Account", subtitle: "Your profile, session and account" }
             ProfileCard {}
-            ApkCard {}
-            BackupCard {}
-            SyncFolderCard {}
             MobileSessionCard {}
             DeleteAccountCard {}
         }
@@ -83,7 +84,7 @@ pub fn SettingsProfilePage() -> Element {
 pub fn SettingsPreferencesPage() -> Element {
     rsx! {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Preferences", subtitle: "Defaults applied across Recurrency" }
+            PageHeader { title: "General", subtitle: "Defaults, locale and app updates" }
             PreferencesCard {}
         }
     }
@@ -128,6 +129,28 @@ pub fn SettingsMoneyPage() -> Element {
             } else {
                 crate::pages::CategoriesPage { embedded: true }
             }
+            ExchangeRatesCard {}
+        }
+    }
+}
+
+#[component]
+pub fn SettingsDataPage() -> Element {
+    rsx! {
+        div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
+            PageHeader { title: "Data & backup", subtitle: "Keep a copy of your data and sync devices" }
+            BackupCard {}
+            SyncFolderCard {}
+        }
+    }
+}
+
+#[component]
+pub fn SettingsServerPage() -> Element {
+    rsx! {
+        div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
+            PageHeader { title: "Server", subtitle: "Connection and device pairing" }
+            ServerCard {}
         }
     }
 }
@@ -153,10 +176,14 @@ pub fn SettingsNotificationsPage() -> Element {
     }
 }
 
-
 #[component]
 pub fn SettingsAboutPage() -> Element {
-    rsx! { AboutPage {} }
+    rsx! {
+        div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
+            AboutPage {}
+            ApkCard {}
+        }
+    }
 }
 
 #[cfg(test)]

@@ -17,7 +17,7 @@ pub fn ServerSettingsPage() -> Element {
     let mut loading = use_signal(|| false);
     let mut scanning = use_signal(|| false);
 
-    let save = move |_| {
+    let save = use_callback(move |_: ()| {
         if loading() {
             return;
         }
@@ -44,7 +44,7 @@ pub fn ServerSettingsPage() -> Element {
             }
             loading.set(false);
         });
-    };
+    });
 
     let scan = move |_| {
         if scanning() {
@@ -112,6 +112,11 @@ pub fn ServerSettingsPage() -> Element {
                         spellcheck: "false",
                         placeholder: "https://recurrency.example.com",
                         value: value,
+                        onkeydown: move |event: KeyboardEvent| {
+                            if event.key() == Key::Enter {
+                                save.call(());
+                            }
+                        },
                         oninput: move |event| {
                             value.set(event.value());
                             error.set(String::new());
@@ -134,7 +139,7 @@ pub fn ServerSettingsPage() -> Element {
                     button {
                         r#type: "button",
                         disabled: loading(),
-                        onclick: save,
+                        onclick: move |_| save.call(()),
                         class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:flex-1",
                         if loading() { "Checking server…" } else { "Save server" }
                     }
@@ -172,6 +177,9 @@ mod tests {
         assert!(source.contains("Use this device"));
         assert!(source.contains("w-full"));
         assert!(source.contains("sm:flex-1"));
+        assert!(source.contains("onkeydown"));
+        assert!(source.contains("Key::Enter"));
+        assert!(source.contains("save.call"));
     }
 
     #[test]

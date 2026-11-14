@@ -17,7 +17,8 @@ fn privacy_toggle_lives_in_the_app_header() {
 fn privacy_css_blurs_sensitive_amounts() {
     let css = include_str!("../../../assets/styles/tailwind.src.css");
     assert!(css.contains(".privacy-mode .amount-sensitive"));
-    assert!(css.contains("filter: blur(6px)"));
+    assert!(css.contains("filter: blur(12px)"));
+    assert!(css.contains("filter: blur(20px)"));
 }
 
 #[test]
@@ -26,4 +27,16 @@ fn frameless_is_a_native_window_menu_item() {
     assert!(source.contains("use_muda_event_handler"));
     assert!(source.contains("set_decorations"));
     assert!(source.contains("MENU_ID"));
+}
+
+#[test]
+fn calendar_day_cells_blur_their_amounts() {
+    let source = include_str!("../../pages/calendar_page.rs");
+    assert!(source.contains("amount-sensitive ml-auto shrink-0 font-medium"));
+}
+
+#[test]
+fn dashboard_hero_uses_stronger_blur() {
+    let source = include_str!("../../pages/dashboard.rs");
+    assert!(source.contains("amount-sensitive-xl"));
 }

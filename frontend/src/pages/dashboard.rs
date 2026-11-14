@@ -615,7 +615,7 @@ pub fn Dashboard() -> Element {
                             "Plan for {month_label}"
                         }
                         p { class: "text-sm text-muted-foreground mt-5", "Transfer this month" }
-                        div { class: "amount-sensitive text-4xl md:text-6xl font-bold text-foreground tracking-tight font-mono tabular-nums mt-1",
+                        div { class: "amount-sensitive amount-sensitive-xl text-4xl md:text-6xl font-bold text-foreground tracking-tight font-mono tabular-nums mt-1",
                             "{format_currency(budget_total, &currency)}"
                         }
                         p { class: "text-xs text-muted-foreground mt-2",
@@ -635,7 +635,7 @@ pub fn Dashboard() -> Element {
                             "Pending from today"
                         }
                         div {
-                            class: if pending_total > Decimal::ZERO { "amount-sensitive text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-foreground" } else { "amount-sensitive text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-muted-foreground" },
+                            class: if pending_total > Decimal::ZERO { "amount-sensitive amount-sensitive-xl text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-foreground" } else { "amount-sensitive amount-sensitive-xl text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-muted-foreground" },
                             "{format_currency(pending_total, &currency)}"
                         }
                         p { class: "text-xs text-muted-foreground mt-2",
