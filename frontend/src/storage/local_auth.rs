@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-const ACCOUNTS_KEY: &str = "recurrency_local_accounts";
+const ACCOUNTS_KEY: &str = "recurrency_local_auth_accounts";
+const ACCOUNTS_FILE: &str = "local_auth_accounts.json";
 const HASH_ROUNDS: usize = 8192;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -69,7 +70,7 @@ fn validate(email: &str, password: &str, name: &str) -> Result<(), String> {
 #[cfg(not(target_arch = "wasm32"))]
 fn accounts_file() -> Option<std::path::PathBuf> {
     crate::state::auth::get_app_data_dir()
-        .map(|d| d.join("recurrency").join("local_accounts.json"))
+        .map(|d| d.join("recurrency").join(ACCOUNTS_FILE))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
