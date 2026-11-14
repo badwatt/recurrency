@@ -1,6 +1,7 @@
 use crate::api::currency;
 use crate::api::settings;
 use crate::components::server_url::ServerUrlEditor;
+use crate::components::web_server_qr::WebServerQr;
 use crate::components::toast::TOAST;
 use crate::models::auth::UpdateSettingsRequest;
 use crate::models::currency::UpdateCurrencySettingsRequest;
@@ -261,6 +262,9 @@ pub fn PreferencesCard() -> Element {
                     }
                 }
             }
+        }
+        if cfg!(target_arch = "wasm32") {
+            WebServerQr {}
         }
         if cfg!(not(target_arch = "wasm32")) {
             div { class: "rounded-xl bg-card/80 border border-border/40",

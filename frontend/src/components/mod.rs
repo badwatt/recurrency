@@ -24,3 +24,5 @@ pub mod subscription_form;
 pub mod entry_form;
 pub mod page_header;
 pub mod skeleton;
+
+pub mod web_server_qr;
