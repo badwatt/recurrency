@@ -57,7 +57,7 @@ pub fn AppLayout() -> Element {
         );
     });
 
-    #[cfg(target_os = "android")]
+    #[cfg(not(target_arch = "wasm32"))]
     use_future(move || async move {
         loop {
             if crate::state::app_mode::APP_MODE().mode.is_offline() {

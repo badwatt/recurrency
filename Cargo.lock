@@ -5601,6 +5601,7 @@ dependencies = [
  "lucide-dioxus",
  "qrcode",
  "reqwest 0.13.5",
+ "rfd",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",

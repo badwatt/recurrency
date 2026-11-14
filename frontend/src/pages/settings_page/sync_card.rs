@@ -1,11 +1,10 @@
 use crate::components::toast::TOAST;
-use crate::state::app_mode::APP_MODE;
 use crate::storage::folder_sync;
 use dioxus::prelude::*;
 
 #[component]
 pub fn SyncFolderCard() -> Element {
-    let local_mode = cfg!(target_os = "android") && APP_MODE().mode.is_offline();
+    let local_mode = crate::storage::folder_sync::is_available();
     let mut linked = use_signal(|| false);
     let mut folder_name = use_signal(String::new);
     let mut busy = use_signal(|| false);

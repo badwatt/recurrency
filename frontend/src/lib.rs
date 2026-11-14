@@ -130,6 +130,26 @@ fn font_face_css() -> String {
 /// Application entry point. Called by the thin `main.rs` binary and by `dx`
 /// for every platform (web, desktop, Android cdylib).
 pub fn launch() {
+    #[cfg(feature = "desktop")]
+    {
+        let frameless = cfg!(target_os = "linux")
+            && std::env::var("RECURRENCY_FRAMELESS")
+                .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
+                .unwrap_or(false);
+        if frameless {
+            use dioxus::desktop::{Config, WindowBuilder};
+            dioxus::LaunchBuilder::desktop()
+                .with_cfg(
+                    Config::new().with_window(
+                        WindowBuilder::new()
+                            .with_title("Recurrency")
+                            .with_decorations(false),
+                    ),
+                )
+                .launch(App);
+            return;
+        }
+    }
     dioxus::launch(App);
 }
 

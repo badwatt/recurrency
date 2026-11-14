@@ -688,8 +688,9 @@ fn local_sync_card_uses_android_folder_bridge() {
     let bridge = include_str!("../../storage/folder_sync.rs");
     assert!(bridge.contains("RecurrencySyncFolder"));
     assert!(bridge.contains("sync_merge"));
+    assert!(bridge.contains("AsyncFileDialog"));
     assert!(src.contains("folder_sync::sync_once"));
-    assert!(src.contains("APP_MODE().mode.is_offline()"));
+    assert!(src.contains("folder_sync::is_available"));
 }
 
 #[test]
