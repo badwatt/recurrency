@@ -104,16 +104,6 @@ const JETBRAINS_MONO: Asset = asset!("/assets/fonts/jetbrains-mono-latin.woff2")
 const FAVICON: Asset = asset!("/assets/icons/clock-32.png");
 const APPLE_TOUCH_ICON: Asset = asset!("/assets/icons/clock-256.png");
 
-/// CSS that hides body until styles load — prevents FOUC.
-/// Mocha default. Theme class applied by apply_theme_class at runtime.
-const FOUC_PREVENTION_CSS: &str = r#"
-body { visibility: hidden; }
-html { background-color: #1e1e2e; color: #c4d0f0; }
-html.light { background-color: #FAF9F2; color: #212121; }
-html.dark { background-color: #0d0d11; color: #ededed; }
-html.mocha { background-color: #1e1e2e; color: #c4d0f0; }
-"#;
-
 /// Generate @font-face CSS using Dioxus-resolved asset URLs.
 /// This avoids hardcoded paths that break in Android APK bundles.
 fn font_face_css() -> String {
@@ -139,20 +129,15 @@ fn font_face_css() -> String {
 pub fn launch() {
     #[cfg(feature = "desktop")]
     {
-        let frameless = crate::state::window::enabled();
-        if frameless {
-            use dioxus::desktop::{Config, WindowBuilder};
-            dioxus::LaunchBuilder::desktop()
-                .with_cfg(
-                    Config::new().with_window(
-                        WindowBuilder::new()
-                            .with_title("Recurrency")
-                            .with_decorations(false),
-                    ),
-                )
-                .launch(App);
-            return;
+        use dioxus::desktop::{Config, WindowBuilder};
+        let mut window = WindowBuilder::new().with_title("Recurrency");
+        if crate::state::window::enabled() {
+            window = window.with_decorations(false);
         }
+        dioxus::LaunchBuilder::desktop()
+            .with_cfg(Config::new().with_window(window))
+            .launch(App);
+        return;
     }
     dioxus::launch(App);
 }
@@ -269,79 +254,50 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
         }
     });
 
-    // Show body only after CSS + fonts are fully applied — prevents FOUC on Android.
-    // Uses link.onload events instead of sheet.cssRules (which throws SecurityError
-    // on Android WebView's custom protocol, causing premature body reveal).
+    // Reveal the app only after the static stylesheet and fonts are ready.
+    // The loader is plain HTML/CSS, so it is painted before WASM and Tailwind.
     use_effect(move || {
-        dioxus::document::eval(
+        let _ = dioxus::document::eval(
             r#"
-            (function() {
+            (function () {
+                var done = false;
                 function reveal() {
-                    // Never let a slow font load keep the native loader forever.
-                    var fontsReady = Promise.race([
-                        document.fonts.ready,
-                        new Promise(function(resolve) { setTimeout(resolve, 900); })
-                    ]);
-                    fontsReady.then(function() {
-                        requestAnimationFrame(function() {
-                            requestAnimationFrame(function() {
-                                document.body.style.setProperty('visibility', 'visible', 'important');
-                                ['pre-wasm-loader', 'dxloader'].forEach(function (id) {
-                                    var el = document.getElementById(id);
-                                    if (el) el.remove();
-                                });
-                            });
-                        });
+                    if (done) return;
+                    done = true;
+                    var main = document.getElementById('main');
+                    if (main) main.style.visibility = 'visible';
+                    ['recurrency-loader', 'pre-wasm-loader', 'dxloader'].forEach(function (id) {
+                        var el = document.getElementById(id);
+                        if (el) el.remove();
                     });
                 }
-
-                var links = document.querySelectorAll('link[rel="stylesheet"]');
-                if (links.length === 0) {
-                    // No stylesheets yet — poll until one appears
-                    var poll = setInterval(function() {
-                        var l = document.querySelectorAll('link[rel="stylesheet"]');
-                        if (l.length > 0) {
-                            clearInterval(poll);
-                            waitForStylesheets(l);
-                        }
-                    }, 50);
-                    setTimeout(function() { clearInterval(poll); reveal(); }, 1200);
-                    return;
-                }
-                waitForStylesheets(links);
-
-                function waitForStylesheets(links) {
-                    var remaining = links.length;
-                    function done() {
-                        remaining--;
-                        if (remaining <= 0) reveal();
-                    }
-                    for (var i = 0; i < links.length; i++) {
-                        // Check if already loaded (sheet exists and is accessible)
-                        var loaded = false;
-                        try { loaded = links[i].sheet && links[i].sheet.cssRules && links[i].sheet.cssRules.length > 0; } catch(e) { loaded = false; }
-                        if (loaded) {
-                            done();
-                        } else if (links[i].complete) {
-                            done();
-                        } else {
-                            links[i].addEventListener('load', done);
-                            links[i].addEventListener('error', done);
-                        }
-                    }
-                    // Safety: reveal after 3s no matter what
-                    setTimeout(reveal, 1200);
-                }
+                var links = Array.prototype.slice.call(document.querySelectorAll('link[rel="stylesheet"]'));
+                var pending = links.filter(function (link) {
+                    return !link.sheet && !link.complete;
+                });
+                var styles = pending.length === 0
+                    ? Promise.resolve()
+                    : Promise.all(pending.map(function (link) {
+                        return new Promise(function (resolve) {
+                            link.addEventListener('load', resolve);
+                            link.addEventListener('error', resolve);
+                        });
+                    }));
+                var fonts = document.fonts && document.fonts.ready
+                    ? Promise.race([document.fonts.ready, new Promise(function (resolve) { setTimeout(resolve, 700); })])
+                    : Promise.resolve();
+                Promise.all([styles, fonts]).then(function () {
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(reveal);
+                    });
+                });
+                setTimeout(reveal, 3000);
             })();
-        "#,
+            "#,
         );
     });
 
     rsx! {
-        // CRITICAL: Hide body until CSS + fonts load — prevents FOUC.
-        // Dioxus mobile ignores index.html, generates minimal HTML with body visible.
-        // This \u003cstyle\u003e in \u003chead\u003e hides body + sets themed background BEFORE any paint.
-        document::Style { {FOUC_PREVENTION_CSS} }
         // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK
         document::Style { {font_face_css()} }
         document::Link { rel: "icon", r#type: "image/png", href: FAVICON.to_string() }

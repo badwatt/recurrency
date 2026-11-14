@@ -11,58 +11,84 @@
   <meta name="twitter:card" content="summary" />
   <meta name="theme-color" content="#1e1e2e" />
   <style>
-    /* Critical FOUC-prevention: hide body until Dioxus renders */
-    body { visibility: hidden; }
-    /* Pre-wasm-loader must be visible during load despite hidden body */
-    #pre-wasm-loader { visibility: visible !important; }
-    /* Theme backgrounds — matches :root CSS vars for each theme */
-    html, #pre-wasm-loader { background-color: #1e1e2e; color: #cdd6f4; }
-    html.light, html.light #pre-wasm-loader { background-color: #FAF9F2; color: #212121; }
-    html.dark, html.dark #pre-wasm-loader { background-color: #0d0d11; color: #ededed; }
-    html.mocha, html.mocha #pre-wasm-loader { background-color: #1e1e2e; color: #cdd6f4; }
-    #pre-wasm-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif; }
-    ._loader-ring { width: 48px; height: 48px; position: relative; }
-    .loader-ring track { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #3b4261; }
-    .loader-ring arc { position: absolute; inset: 0; border-radius: 50%; border: 2px solid transparent; border-top-color: #6366f1; animation: loader-spin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-    .loader-ring arc:nth-child(3) { inset: 6px; border-top-color: #818cf8; animation-duration: 1.4s; animation-direction: reverse; }
-    @keyframes loader-spin { to { transform: rotate(360deg); } }
-    .loader-brand { margin-top: 24px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #cdd6f4; }
-    html.light .loader-brand { color: #212121; }
-    .loader-tagline { margin-top: 6px; font-size: 13px; color: #a6adc8; }
-    .loader-dots { display: inline-block; }
-    .loader-dots span { animation: loader-dot 1.2s infinite; opacity: 0; }
-    .loader-dots span:nth-child(1) { animation-delay: 0s; }
-    .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes loader-dot { 0%, 60%, 100% { opacity: 0; } 30% { opacity: 1; } }
+    /* Critical pre-WASM styles. Keep this tiny and self-contained: it must
+       paint correctly before Tailwind or the WASM bundle exists. */
+    html { background-color: #1e1e2e; color: #cdd6f4; }
+    html.light { background-color: #FAF9F2; color: #212121; }
+    html.dark { background-color: #0d0d11; color: #ededed; }
+    html.mocha { background-color: #1e1e2e; color: #cdd6f4; }
+    body { margin: 0; background-color: inherit; color: inherit; }
+    #main { visibility: hidden; }
+
+    .recurrency-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: inherit;
+      color: inherit;
+      font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
+    }
+    .recurrency-spinner {
+      position: relative;
+      width: 48px;
+      height: 48px;
+    }
+    .recurrency-spinner::before,
+    .recurrency-spinner::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border: 3px solid rgba(205, 214, 244, 0.16);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: recurrency-spin 0.9s linear infinite;
+    }
+    .recurrency-spinner::after {
+      inset: 7px;
+      border-top-color: transparent;
+      border-bottom-color: #818cf8;
+      animation-duration: 1.4s;
+      animation-direction: reverse;
+    }
+    html.light .recurrency-spinner::before,
+    html.light .recurrency-spinner::after {
+      border-color: rgba(33, 33, 33, 0.14);
+      border-top-color: #6366f1;
+    }
+    html.light .recurrency-spinner::after {
+      border-top-color: transparent;
+      border-bottom-color: #818cf8;
+    }
+    .recurrency-brand {
+      margin-top: 24px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .recurrency-tagline {
+      margin-top: 6px;
+      font-size: 13px;
+      opacity: 0.7;
+    }
+    .recurrency-dots span {
+      animation: recurrency-dot 1.2s infinite;
+      opacity: 0;
+    }
+    .recurrency-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .recurrency-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes recurrency-spin { to { transform: rotate(360deg); } }
+    @keyframes recurrency-dot {
+      0%, 60%, 100% { opacity: 0; }
+      30% { opacity: 1; }
+    }
   </style>
-  <noscript><style>body{visibility:visible!important}</style></noscript>
+  <noscript><style>#recurrency-loader{display:none}#main{visibility:visible}</style></noscript>
   <!-- Same clock favicon during loading and after the WASM bundle mounts. -->
   <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAADMUExURWNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WJl8WFk8WBj8XJ08o6Q9aao97O1+HJ18nh78+Xl/fr6/////2Rn8ZeZ9ubm/fv8/+3t/eDh/KSm9/b3/vf3/sfI+pOV9Xh684WH9IWI9MbI+uXm/ZKU9WVo8V9i8Xl884KE9IqM9fv7/4qM9Hd684iL9OLi/G5w8v7+/7u8+Xp98+fo/d/g/Jia9mhr8crL+sTF+m5x8vj4/oKF9HN18qqr96an92ls8o2Q9XtwkJgAAAAKdFJOUwAeftD2Rcv+5MoJ1gbKAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAW5JREFUOMuFk4lygjAQhgMoahIuhUVFOWwLeFLsofY+3v+dGhkJh1b+YSYZ8mWT7P6LEEKCKLXwmVqSKKBMbbmDL6ojt7P1Lv5XXUYIMr4iWUBiKT6hCmUfKZ0iIqlYJqqmG4au9UmBSIjfnw4M0wImyzQGlL8F5TN7OAIYO5OJMwYYDe38fw7YUxc8P5jd3M6COw/cqV0F6NCFMIrnizBczOMoBHdIywAZjCBcUkxX6/WKDcsQRgNSBgzwIraFbixrcxwjD4wSQPom+DEuABz7YKqEA1SzxoFSBpRgbGmUA4oOTkJOwP2RJIkDulJEMCDdZsDKenhU2U6yTcGg5wB5egbY7Q+kBvAjMF6+WLB+faO1I/JLsulhv4P3j3n1kkQ9PTNDPr++f2rP5Ik6uYIqtUTxVOdBzlKdF0shTMqFYvFyJ9ttEvgXys0Nk6Z1wzRarmLa38y0asW0jbYXetcapyc0tx4jetebt6H9/wDLaj2GGyXoywAAAABJRU5ErkJggg==">
-  <script>
-    // Safety net: if WASM fails or takes >15s, show body + drop the loader anyway
-    setTimeout(function(){
-      var p = document.getElementById('pre-wasm-loader');
-      if (p) p.remove();
-      if(document.body.style.visibility === 'hidden' || getComputedStyle(document.body).visibility === 'hidden') {
-        document.body.style.visibility = 'visible';
-      }
-    }, 6000);
-  </script>
-  <title>Recurrency</title>
-</head>
-
-<body><!-- hidden via inline CSS until Dioxus renders -->
-  <div id="pre-wasm-loader">
-    <div class="_loader-ring loader-ring">
-      <track></track>
-      <arc></arc>
-      <arc></arc>
-    </div>
-    <div class="loader-brand">Recurrency</div>
-    <div class="loader-tagline">Every expense is a subscription<span class="loader-dots"><span>.</span><span>.</span><span>.</span></span></div>
-  </div>
-  <div id="main"></div>
   <script>
     // Set theme class on <html> — prevents flash of wrong theme.
     // Mocha is default. Always add 'dark' for Tailwind dark: utilities.
@@ -91,6 +117,25 @@
       } catch (e) { }
     })();
   </script>
+  <script>
+    // Safety net: never leave a blank screen if the WASM bundle cannot start.
+    setTimeout(function () {
+      var loader = document.getElementById('recurrency-loader');
+      if (loader) loader.remove();
+      var main = document.getElementById('main');
+      if (main) main.style.visibility = 'visible';
+    }, 6000);
+  </script>
+  <title></title>
+</head>
+
+<body>
+  <div id="recurrency-loader" class="recurrency-loader" role="status" aria-live="polite">
+    <div class="recurrency-spinner" aria-hidden="true"></div>
+    <div class="recurrency-brand">Recurrency</div>
+    <div class="recurrency-tagline">Every expense is a subscription<span class="recurrency-dots"><span>.</span><span>.</span><span>.</span></span></div>
+  </div>
+  <div id="main"></div>
 </body>
 
 </html>

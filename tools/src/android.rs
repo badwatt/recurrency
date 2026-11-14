@@ -351,19 +351,20 @@ const BRIDGE_MARKER: &str = "// --- Recurrency system bars bridge ---";
 
 const LOADER_SCRIPT: &str = r##"(function(){
 var S=document.createElement('style');
-S.textContent='body{visibility:hidden}html{background:#1e1e2e;color:#cdd6f4}html.light{background:#FAF9F2;color:#212121}html.dark{background:#0d0d11;color:#ededed}html.mocha{background:#1e1e2e;color:#cdd6f4}#dxloader{visibility:visible!important;display:flex;flex-direction:column;align-items:center;justify-content:center;position:fixed;inset:0;z-index:99999;font-family:system-ui,sans-serif}@keyframes dxspin{to{transform:rotate(360deg)}}@keyframes dxpulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes dxdot{0%,60%,100%{opacity:0}30%{opacity:1}}#dxloader .spin-outer{position:relative;width:48px;height:48px}#dxloader .spin-ring{position:absolute;inset:0;border-radius:50%;border:4px solid #3b4261}#dxloader .spin-ring.top{border-top-color:#6366f1;animation:dxspin .9s linear infinite}#dxloader .spin-ring.inner{inset:6px;border-bottom-color:#818cf8;animation:dxspin 1.4s linear infinite reverse}#dxloader .brand{margin-top:24px;font-size:20px;font-weight:700;letter-spacing:-0.02em}#dxloader .tagline{margin-top:6px;font-size:13px;animation:dxpulse 2s ease-in-out infinite}#dxloader .tagline .dot{animation:dxdot 1.2s infinite;opacity:0}#dxloader .tagline .dot:nth-child(2){animation-delay:.2s}#dxloader .tagline .dot:nth-child(3){animation-delay:.4s}#dxloader.light{background:#FAF9F2;color:#212121}#dxloader.light .spin-ring{border-color:#d4d4d8}#dxloader.light .spin-ring.top{border-top-color:#6366f1}#dxloader.light .spin-ring.inner{border-bottom-color:#818cf8}#dxloader.light .brand{color:#212121}#dxloader.light .tagline{color:#71717a}#dxloader.dark{background:#0d0d11;color:#ededed}#dxloader.dark .spin-ring{border-color:#27272a}#dxloader.dark .spin-ring.top{border-top-color:#a78bfa}#dxloader.dark .spin-ring.inner{border-bottom-color:#7c3aed}#dxloader.dark .brand{color:#ededed}#dxloader.dark .tagline{color:#a1a1aa}';
+S.textContent='html{background:#1e1e2e;color:#cdd6f4}html.light{background:#FAF9F2;color:#212121}html.dark{background:#0d0d11;color:#ededed}html.mocha{background:#1e1e2e;color:#cdd6f4}body{margin:0;background:inherit;color:inherit}#main{visibility:hidden}.recurrency-loader{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:inherit;color:inherit;font-family:system-ui,sans-serif}.recurrency-spinner{position:relative;width:48px;height:48px}.recurrency-spinner:before,.recurrency-spinner:after{content:"";position:absolute;inset:0;border:3px solid rgba(205,214,244,.16);border-top-color:#6366f1;border-radius:50%;animation:recurrency-spin .9s linear infinite}.recurrency-spinner:after{inset:7px;border-top-color:transparent;border-bottom-color:#818cf8;animation-duration:1.4s;animation-direction:reverse}html.light .recurrency-spinner:before,html.light .recurrency-spinner:after{border-color:rgba(33,33,33,.14);border-top-color:#6366f1}html.light .recurrency-spinner:after{border-top-color:transparent;border-bottom-color:#818cf8}.recurrency-brand{margin-top:24px;font-size:20px;font-weight:700;letter-spacing:-.02em}.recurrency-tagline{margin-top:6px;font-size:13px;opacity:.7}.recurrency-dots span{animation:recurrency-dot 1.2s infinite;opacity:0}.recurrency-dots span:nth-child(2){animation-delay:.2s}.recurrency-dots span:nth-child(3){animation-delay:.4s}@keyframes recurrency-spin{to{transform:rotate(360deg)}}@keyframes recurrency-dot{0%,60%,100%{opacity:0}30%{opacity:1}}';
 document.documentElement.appendChild(S);
 var t='mocha';
-try{var s=localStorage.getItem('recurrency-theme');if(s&&['light','dark','mocha'].indexOf(s)>=0)t=s;}catch(e){}
+try{var s=localStorage.getItem('recurrency-theme');if(s&&['light','dark','mocha','system'].indexOf(s)>=0)t=s;}catch(e){}
 if(t==='system'){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)t='mocha';else t='light';}catch(e){t='mocha';}}
+document.documentElement.className=t==='light'?'light':t+' dark';
+function ensureLoader(){
+if(document.getElementById('recurrency-loader'))return;
 var D=document.createElement('div');
-D.id='dxloader';
-D.innerHTML=`<div class="spin-outer"><div class="spin-ring top"></div><div class="spin-ring inner"></div></div><div class="brand">Recurrency</div><div class="tagline">Every expense is a subscription<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>`;
-D.className=t;
+D.id='recurrency-loader';D.className='recurrency-loader';D.setAttribute('role','status');D.setAttribute('aria-live','polite');
+D.innerHTML='<div class="recurrency-spinner" aria-hidden="true"></div><div class="recurrency-brand">Recurrency</div><div class="recurrency-tagline">Every expense is a subscription<span class="recurrency-dots"><span>.</span><span>.</span><span>.</span></span></div>';
 document.documentElement.appendChild(D);
-var h=document.documentElement;
-if(t==='light')h.className='light';
-else h.className=t+' dark';
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureLoader);else ensureLoader();
 })();"##;
 
 fn inject_block() -> String {
@@ -1467,6 +1468,14 @@ mod tests {
         assert!(patched.contains("tools:replace=\"android:screenOrientation\""));
         assert!(patched.contains("xmlns:tools="));
         assert_eq!(patch_manifest(&patched), patched);
+    }
+
+    #[test]
+    fn android_loader_matches_the_web_spinner() {
+        assert!(LOADER_SCRIPT.contains("recurrency-loader"));
+        assert!(LOADER_SCRIPT.contains("recurrency-spinner"));
+        assert!(LOADER_SCRIPT.contains("recurrency-brand"));
+        assert!(!LOADER_SCRIPT.contains("dxloader"));
     }
 
     #[test]

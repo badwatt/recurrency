@@ -64,23 +64,23 @@ fn index_html_meta_theme_color_matches_css_variables() {
     // Bug: dark theme-color was #030712 but CSS --background hsl(222.2,84%,4.9%)=#020817.
     // Fix: body-end script sets meta.content to correct hex values per theme.
     let html = include_str!("../../../index.html");
-    // Script in body sets meta.content with dark/mocha/light hex values
-    let body_section = html.split("\x3cbody").nth(1).unwrap_or("");
+    // Theme script runs in <head> before the loader paints.
+    let head = html.split("\x3cbody").next().unwrap_or("");
     assert!(
-        body_section.contains("meta.content"),
+        head.contains("meta.content"),
         "Body script must set meta[name=theme-color] content"
     );
     // Verify the hex values are correct
     assert!(
-        body_section.contains("#0d0d11"),
+        head.contains("#0d0d11"),
         "Dark mode meta theme-color must be #0d0d11 (matches CSS --background)"
     );
     assert!(
-        body_section.contains("#1e1e2e"),
+        head.contains("#1e1e2e"),
         "Mocha mode meta theme-color must be #1e1e2e (matches CSS --background)"
     );
     assert!(
-        body_section.contains("#FAF9F2"),
+        head.contains("#FAF9F2"),
         "Light mode meta theme-color must be #FAF9F2 (matches CSS --background)"
     );
 }
@@ -105,95 +105,34 @@ fn index_html_forwards_theme_to_android_system_bars() {
 #[test]
 fn tailwind_src_has_theme_and_loader_css() {
     let css = include_str!("../../../assets/styles/tailwind.src.css");
-    // Theme selectors
     for selector in [":root", ".dark", ".mocha"] {
         assert!(css.contains(selector), "tailwind.src.css must define {}", selector);
     }
-    // Loader CSS variables
-    assert!(css.contains("--loader-bg"), "tailwind.src.css must define --loader-bg");
-    assert!(css.contains("--loader-fg"), "tailwind.src.css must define --loader-fg");
-    // Loader element styles
-    assert!(css.contains("#pre-wasm-loader"), "tailwind.src.css must style #pre-wasm-loader");
-    assert!(css.contains(".rings"), "tailwind.src.css must define .rings");
-    assert!(css.contains(".r1"), "tailwind.src.css must define .r1");
-    assert!(css.contains(".r2"), "tailwind.src.css must define .r2");
-    // Keyframes
-    assert!(css.contains("@keyframes spin"), "tailwind.src.css must define @keyframes spin");
-    assert!(css.contains("@keyframes pulse"), "tailwind.src.css must define @keyframes pulse");
-    // Opaque loader colors
-    assert!(
-        css.contains("--loader-bg: #FAF9F2") || css.contains("--loader-bg:#FAF9F2"),
-        "light --loader-bg must be opaque #FAF9F2"
-    );
-    assert!(
-        css.contains("--loader-bg: #0d0d11") || css.contains("--loader-bg:#0d0d11"),
-        "dark --loader-bg must be opaque #0d0d11"
-    );
-    assert!(
-        css.contains("--loader-bg: #1e1e2e") || css.contains("--loader-bg:#1e1e2e"),
-        "mocha --loader-bg must be opaque #1e1e2e"
-    );
-    // No backdrop-filter or rgba in loader styles
-    assert!(
-        !css.contains("backdrop-filter"),
-        "tailwind.src.css must NOT use backdrop-filter"
-    );
+    assert!(css.contains(".recurrency-loader"), "must style the canonical loader");
+    assert!(css.contains(".recurrency-spinner"), "must style the canonical spinner");
+    assert!(css.contains("@keyframes recurrency-spin"), "must define the canonical spin keyframe");
+    assert!(!css.contains("#pre-wasm-loader"), "legacy pre-wasm loader must be gone");
+    assert!(!css.contains("--loader-bg"), "legacy loader variables must be gone");
 }
 
 #[test]
 fn index_html_has_loading_spinner_before_wasm() {
-    // Before WASM loads, there's a gap where only index.html is visible.
-    // Must show a themed loading spinner so users see a themed page, not blank.
     let html = include_str!("../../../index.html");
     let body_section = html.split("\x3cbody").nth(1).unwrap_or("");
-    // Must have a spinner element (id="pre-wasm-loader" or class containing "loading")
-    let has_spinner = body_section.contains("pre-wasm-loader")
-        || body_section.contains("loading")
-        || body_section.contains("spinner");
-    assert!(
-        has_spinner,
-        "index.html must have a loading spinner in <body> that shows before WASM loads"
-    );
-    // Spinner CSS variables live in tailwind.src.css (loaded via asset!()).
-    let css = include_str!("../../../assets/styles/tailwind.src.css").to_lowercase();
-    let has_css_vars = css.contains("--primary")
-        || css.contains("--foreground")
-        || css.contains("--background");
-    assert!(
-        has_css_vars,
-        "tailwind.src.css must define spinner CSS variables (--primary, --foreground)"
-    );
+    assert!(body_section.contains("recurrency-loader"));
+    assert!(body_section.contains("recurrency-spinner"));
+    assert!(body_section.contains("recurrency-brand"));
 }
 
 #[test]
 fn index_html_loader_styles_moved_to_tailwind_src() {
-    // Pre-WASM loader CSS moved from inline index.html <style> to tailwind.src.css.
-    // Verify tailwind.src.css defines opaque loader bg and no backdrop-filter.
     let css = include_str!("../../../assets/styles/tailwind.src.css");
-    let style_section = css;
-    assert!(
-        !style_section.contains("backdrop-filter"),
-        "#pre-wasm-loader must NOT use backdrop-filter with opaque bg"
-    );
-    assert!(
-        !style_section.contains("rgba("),
-        "#pre-wasm-loader must NOT use rgba() — must be opaque"
-    );
-    assert!(
-        style_section.contains("--loader-bg: #FAF9F2")
-            || style_section.contains("--loader-bg:#FAF9F2"),
-        "Light theme loader must be opaque #FAF9F2"
-    );
-    assert!(
-        style_section.contains("--loader-bg: #0d0d11")
-            || style_section.contains("--loader-bg:#0d0d11"),
-        "Dark theme loader must be opaque #0d0d11"
-    );
-    assert!(
-        style_section.contains("--loader-bg: #1e1e2e")
-            || style_section.contains("--loader-bg:#1e1e2e"),
-        "Mocha theme loader must be opaque #1e1e2e"
-    );
+    assert!(!css.contains("backdrop-filter"));
+    assert!(css.contains(".recurrency-loader"));
+    assert!(css.contains(".recurrency-spinner"));
+    assert!(css.contains("html.light .recurrency-loader"));
+    assert!(css.contains("html.dark .recurrency-loader"));
+    assert!(css.contains("html.mocha .recurrency-loader"));
 }
 
 #[test]
@@ -237,51 +176,32 @@ fn index_html_body_must_not_have_hidden_class() {
 }
 
 #[test]
-fn index_html_body_hidden_via_css_visibility() {
-    // Body must be hidden via inline CSS visibility, not display:none class,
-    // so Dioxus use_effect can reveal it by setting style.visibility='visible'.
+fn index_html_hides_main_until_wasm_renders() {
     let html = include_str!("../../../index.html");
     let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
-    assert!(
-        style_section.contains("body { visibility: hidden; }"),
-        "index.html inline style must hide body with visibility:hidden"
-    );
+    assert!(style_section.contains("#main { visibility: hidden; }"));
+    assert!(!style_section.contains("body { visibility: hidden; }"));
 }
 
 #[test]
-fn index_html_pre_wasm_loader_visible() {
-    // Body hidden via visibility:hidden also hides children.
-    // Loader inside body must override visibility so spinner shows during load.
+fn index_html_pre_wasm_loader_is_sibling_of_main() {
     let html = include_str!("../../../index.html");
-    let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
-    assert!(
-        style_section.contains("visibility: visible") && style_section.contains("pre-wasm-loader"),
-        "#pre-wasm-loader must override visibility despite hidden body"
-    );
+    let body_section = html.split("\x3cbody").nth(1).unwrap_or("");
+    let loader = body_section.find("id=\"recurrency-loader\"").unwrap_or(usize::MAX);
+    let main = body_section.find("id=\"main\"").unwrap_or(usize::MAX);
+    assert!(loader < main, "loader must exist before the app root");
+    assert!(body_section.contains("recurrency-spinner"));
 }
 
 #[test]
 fn index_html_critical_theming_prevents_android_fouc() {
-    // Android WebView shows default white before CSS loads.
-    // Inline critical background colors on html prevent white flash before Tailwind.
     let html = include_str!("../../../index.html");
     let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
-    assert!(
-        style_section.contains("html, #pre-wasm-loader { background-color:"),
-        "index.html must set html background-color inline for light theme"
-    );
-    assert!(
-        style_section.contains("html.dark, html.dark #pre-wasm-loader { background-color:"),
-        "index.html must set html.dark background-color inline"
-    );
-    assert!(
-        style_section.contains("html.mocha, html.mocha #pre-wasm-loader { background-color:"),
-        "index.html must set html.mocha background-color inline"
-    );
-    // Verify exact hex values match Tailwind theme
-    assert!(style_section.contains("#FAF9F2"), "Light theme bg must be #FAF9F2");
-    assert!(style_section.contains("#0d0d11"), "Dark theme bg must be #0d0d11");
-    assert!(style_section.contains("#1e1e2e"), "Mocha theme bg must be #1e1e2e");
+    assert!(style_section.contains("html.light { background-color: #FAF9F2;"));
+    assert!(style_section.contains("html.dark { background-color: #0d0d11;"));
+    assert!(style_section.contains("html.mocha { background-color: #1e1e2e;"));
+    assert!(style_section.contains(".recurrency-loader"));
+    assert!(style_section.contains("recurrency-spin"));
 }
 
 #[test]
@@ -295,4 +215,29 @@ fn loading_favicon_is_the_same_png_as_the_loaded_clock() {
         !html.contains("image/svg+xml"),
         "there must not be a second, different loading favicon"
     );
+}
+
+#[test]
+fn web_title_is_not_duplicated() {
+    let html = include_str!("../../../index.html");
+    assert!(html.contains("<title></title>"), "Dioxus appends the app title; the template must be empty");
+    assert!(!html.contains("<title>Recurrency</title>"));
+    let config = include_str!("../../../Dioxus.toml");
+    assert!(config.contains("title = \"Recurrency\""));
+}
+
+#[test]
+fn desktop_window_title_is_recurrency() {
+    let source = include_str!("../../lib.rs");
+    assert!(source.contains("WindowBuilder::new().with_title(\"Recurrency\")"));
+}
+
+#[test]
+fn all_platforms_use_the_same_loader_markup() {
+    let app = include_str!("../../layout/app_layout.rs");
+    assert!(app.contains("recurrency-spinner"));
+    let android = include_str!("../../../../tools/src/android.rs");
+    assert!(android.contains("recurrency-spinner"));
+    let desktop = include_str!("../../../../vendor/dioxus-desktop/src/assets/prod.index.html");
+    assert!(desktop.contains("recurrency-spinner"));
 }

@@ -16,15 +16,12 @@ use dioxus::desktop::use_muda_event_handler;
 #[allow(non_snake_case)]
 pub fn AppLoader() -> Element {
     rsx! {
-        div { class: "fixed inset-0 z-50 flex flex-col items-center justify-center bg-background",
-            div { class: "relative h-12 w-12",
-                div { class: "absolute inset-0 animate-spin rounded-full border-2 border-muted border-t-primary" }
-                div { class: "absolute inset-1.5 animate-spin rounded-full border-2 border-muted/50 border-b-primary/50", style: "animation-direction: reverse; animation-duration: 1.4s" }
-            }
-            p { class: "mt-6 text-xl font-bold tracking-tight text-foreground", "Recurrency" }
-            p { class: "mt-1 text-sm text-muted-foreground",
+        div { class: "recurrency-loader", role: "status", aria_live: "polite",
+            div { class: "recurrency-spinner", aria_hidden: "true" }
+            div { class: "recurrency-brand", "Recurrency" }
+            div { class: "recurrency-tagline",
                 "Every expense is a subscription"
-                span { class: "animate-pulse", "..." }
+                span { class: "recurrency-dots", span { "." } span { "." } span { "." } }
             }
         }
     }
@@ -58,12 +55,6 @@ pub enum Icon {
 pub fn AppLayout() -> Element {
     let auth = AUTH();
     let privacy = *crate::state::privacy::PRIVACY.read();
-
-    use_future(move || async move {
-        let _ = dioxus::document::eval(
-            "var p=document.getElementById('pre-wasm-loader');if(p)p.style.display='none';",
-        );
-    });
 
     #[cfg(all(target_os = "linux", feature = "desktop"))]
     use_muda_event_handler(move |event| {
