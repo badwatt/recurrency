@@ -4,7 +4,7 @@ out_dir = "dist"
 asset_dir = "assets"
 
 [web.app]
-title = ""
+title = "Recurrency"
 
 [web.watcher]
 watch_path = ["src", "styles", "assets"]
