@@ -194,10 +194,40 @@ pub fn patch_strings(content: &str) -> String {
 }
 
 pub fn patch_manifest(content: &str) -> String {
-    let mut out = content.replace(
-        "android:label=\"RecurrencyFrontend\"",
-        "android:label=\"Recurrency\"",
-    );
+    let mut out = content
+        .replace(
+            "android:label=\"RecurrencyFrontend\"",
+            "android:label=\"Recurrency\"",
+        )
+        // ZXing declares its CaptureActivity as sensorLandscape. Locking that
+        // activity to the current orientation would therefore force landscape.
+        // The activity comes from a library manifest, so override it here.
+        ;
+    if !out.contains("xmlns:tools=") {
+        out = if out.contains("<manifest ") {
+            out.replacen(
+                "<manifest ",
+                "<manifest xmlns:tools=\"http://schemas.android.com/tools\" ",
+                1,
+            )
+        } else {
+            out.replacen(
+                "<manifest>",
+                "<manifest xmlns:tools=\"http://schemas.android.com/tools\">",
+                1,
+            )
+        };
+    }
+    if !out.contains("com.journeyapps.barcodescanner.CaptureActivity") {
+        let scanner = r#"        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="portrait"
+            tools:replace="android:screenOrientation" />
+"#;
+        if let Some(position) = out.rfind("</application>") {
+            out.insert_str(position, scanner);
+        }
+    }
     if !out.contains("android.permission.CAMERA")
         && let Some(pos) = out.find("<application")
     {
@@ -280,7 +310,10 @@ pub fn patch_gradle(content: &str, code: Option<u32>) -> String {
         && out.contains("androidx.webkit:webkit")
         && out.contains("dependencies {")
     {
-        out = out.replace("dependencies {", "dependencies {\n    implementation(\"androidx.documentfile:documentfile:1.0.1\")");
+        out = out.replace(
+            "dependencies {",
+            "dependencies {\n    implementation(\"androidx.documentfile:documentfile:1.0.1\")",
+        );
     }
     if !out.contains("com.journeyapps:zxing-android-embedded")
         && out.contains("com.android.application")
@@ -751,6 +784,32 @@ pub fn patch_wry_activity(content: &str) -> String {
     patch_file_and_back(out)
 }
 
+/// Return the scanned QR value to the WebView. Without this branch the
+/// scanner closes but Rust never receives the result.
+fn patch_qr_result(mut out: String) -> String {
+    if out.contains("RECURRENCY_QR_RESULT") {
+        return out;
+    }
+    let marker = "        super.onActivityResult(requestCode, resultCode, data)\n";
+    if let Some(position) = out.find(marker) {
+        let insert_at = position + marker.len();
+        out.insert_str(
+            insert_at,
+            r#"        if (requestCode == com.google.zxing.integration.android.IntentIntegrator.REQUEST_CODE) {
+            val view = recurrencyQrWebView ?: return
+            recurrencyQrWebView = null
+            // RECURRENCY_QR_RESULT
+            val result = com.google.zxing.integration.android.IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+            val quoted = org.json.JSONObject.quote(result?.contents ?: "")
+            view.post { view.evaluateJavascript("window.__recurrencyQrScanned && window.__recurrencyQrScanned(" + quoted + ")", null) }
+            return
+        }
+"#,
+        );
+    }
+    out
+}
+
 fn patch_file_and_back(mut out: String) -> String {
     let field = "    private lateinit var mWebView: RustWebView";
     if !out.contains("recurrencyFileWebView") && out.contains(field) {
@@ -812,7 +871,7 @@ fn patch_file_and_back(mut out: String) -> String {
             "        super.onActivityResult(requestCode, resultCode, data)\n                if (requestCode == RECURRENCY_SYNC_FOLDER) {\n            val view = recurrencySyncWebView ?: return\n            recurrencySyncWebView = null\n            val uri = data?.data\n            if (resultCode == RESULT_OK && uri != null) {\n                try {\n                    contentResolver.takePersistableUriPermission(\n                        uri,\n                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,\n                    )\n                    view.context.getSharedPreferences(\"recurrency_sync\", 0)\n                        .edit().putString(\"tree_uri\", uri.toString()).apply()\n                    view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('ok')\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('')\", null) }\n                }\n            } else {\n                view.post { view.evaluateJavascript(\"window.__recurrencySyncFolderChosen && window.__recurrencySyncFolderChosen('')\", null) }\n            }\n            return\n        }\nif (requestCode == RECURRENCY_FILE_PICK) {\n            val view = recurrencyFileWebView ?: return\n            recurrencyFileWebView = null\n            val uri = data?.data\n            if (resultCode != RESULT_OK || uri == null) {\n                view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                return\n            }\n            Thread {\n                try {\n                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: \"\"\n                    val quoted = org.json.JSONObject.quote(text)\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked(\" + quoted + \")\", null) }\n                } catch (_: Exception) {\n                    view.post { view.evaluateJavascript(\"window.__recurrencyBackupPicked && window.__recurrencyBackupPicked('')\", null) }\n                }\n            }.start()\n            return\n        }\n        if (requestCode != RECURRENCY_IMAGE_PICK) return",
         );
     }
-    out
+    patch_qr_result(out)
 }
 
 pub fn patch_webview(content: &str) -> String {
@@ -839,15 +898,15 @@ pub fn patch_webview(content: &str) -> String {
         if line
             .trim_start()
             .starts_with("addJavascriptInterface(SystemBarsBridge(this), \"RecurrencyAndroid\")")
-            || line
-                .trim_start()
-                .starts_with("addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")")
-            || line
-                .trim_start()
-                .starts_with("addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")")
-            || line
-                .trim_start()
-                .starts_with("addJavascriptInterface(SyncFolderBridge(this), \"RecurrencySyncFolder\")")
+            || line.trim_start().starts_with(
+                "addJavascriptInterface(ImagePickerBridge(this), \"RecurrencyImagePicker\")",
+            )
+            || line.trim_start().starts_with(
+                "addJavascriptInterface(FilePickerBridge(this), \"RecurrencyFilePicker\")",
+            )
+            || line.trim_start().starts_with(
+                "addJavascriptInterface(SyncFolderBridge(this), \"RecurrencySyncFolder\")",
+            )
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")")
@@ -1400,6 +1459,17 @@ mod tests {
     }
 
     #[test]
+    fn patch_manifest_locks_the_scanner_to_portrait() {
+        let manifest = r#"<manifest><application android:label="Recurrency"><activity android:name="dev.dioxus.main.MainActivity" /></application></manifest>"#;
+        let patched = patch_manifest(manifest);
+        assert!(patched.contains("com.journeyapps.barcodescanner.CaptureActivity"));
+        assert!(patched.contains("android:screenOrientation=\"portrait\""));
+        assert!(patched.contains("tools:replace=\"android:screenOrientation\""));
+        assert!(patched.contains("xmlns:tools="));
+        assert_eq!(patch_manifest(&patched), patched);
+    }
+
+    #[test]
     fn patch_styles_inserts_system_bar_colors() {
         let content = "<style name=\"AppTheme\" parent=\"@style/Theme.AppCompat.Light.NoActionBar\">\n</style>";
         let patched = patch_styles(content);
@@ -1407,7 +1477,6 @@ mod tests {
         assert_eq!(patch_styles(&patched), patched);
     }
 }
-
 
 #[cfg(test)]
 mod image_picker_tests {
@@ -1426,6 +1495,9 @@ mod image_picker_tests {
         assert!(once.contains("RECURRENCY_SYNC_FOLDER"));
         assert!(once.contains("chooseSyncFolder"));
         assert!(once.contains("recurrencySyncWebView"));
+        assert!(once.contains("recurrencyQrWebView"));
+        assert!(once.contains("RECURRENCY_QR_RESULT"));
+        assert!(once.contains("parseActivityResult"));
         assert!(once.contains("import android.content.Intent"));
         let twice = patch_wry_activity(&once);
         assert_eq!(once, twice);
@@ -1442,7 +1514,16 @@ mod image_picker_tests {
         assert!(once.contains("DownloadBridge"));
         assert!(once.contains("RecurrencyDownload"));
         let twice = patch_webview(&once);
-        assert_eq!(once.matches("addJavascriptInterface(ImagePickerBridge").count(), 1);
-        assert_eq!(twice.matches("addJavascriptInterface(ImagePickerBridge").count(), 1);
+        assert_eq!(
+            once.matches("addJavascriptInterface(ImagePickerBridge")
+                .count(),
+            1
+        );
+        assert_eq!(
+            twice
+                .matches("addJavascriptInterface(ImagePickerBridge")
+                .count(),
+            1
+        );
     }
 }

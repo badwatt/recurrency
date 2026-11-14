@@ -1,5 +1,5 @@
 use crate::api::server::{parse_qr_payload, validate_server};
-use crate::state::app_mode::{normalize_server_url, APP_MODE, NATIVE_SERVER_OVERRIDE};
+use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, normalize_server_url};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
@@ -135,7 +135,7 @@ pub fn ServerSettingsPage() -> Element {
                         r#type: "button",
                         disabled: loading(),
                         onclick: save,
-                        class: "inline-flex h-10 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                        class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:flex-1",
                         if loading() { "Checking server…" } else { "Save server" }
                     }
                     if crate::utils::qr::scanner_available() {
@@ -143,7 +143,7 @@ pub fn ServerSettingsPage() -> Element {
                             r#type: "button",
                             disabled: scanning(),
                             onclick: scan,
-                            class: "inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                            class: "inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-accent disabled:opacity-50 sm:w-auto",
                             if scanning() { "Scanning…" } else { "Scan QR" }
                         }
                     }
@@ -170,6 +170,8 @@ mod tests {
         assert!(source.contains("validate_server"));
         assert!(source.contains("parse_qr_payload"));
         assert!(source.contains("Use this device"));
+        assert!(source.contains("w-full"));
+        assert!(source.contains("sm:flex-1"));
     }
 
     #[test]

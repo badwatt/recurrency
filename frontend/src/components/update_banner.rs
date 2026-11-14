@@ -2,8 +2,7 @@ use crate::components::toast::TOAST;
 use dioxus::prelude::*;
 use serde::Deserialize;
 
-const LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/badwatt/recurrency/releases/latest";
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/badwatt/recurrency/releases/latest";
 const DISMISSED_FILE: &str = "update_dismissed.txt";
 const DISMISSED_KEY: &str = "recurrency-update-dismissed";
 
@@ -63,13 +62,15 @@ fn read_dismissed() -> Option<String> {
     let path = crate::state::auth::get_app_data_dir()?
         .join("recurrency")
         .join(DISMISSED_FILE);
-    std::fs::read_to_string(path).ok().map(|value| value.trim().to_string())
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|value| value.trim().to_string())
 }
 
 #[cfg(target_arch = "wasm32")]
 fn store_dismissed(version: &str) {
-    if let Some(storage) = web_sys::window()
-        .and_then(|window| window.local_storage().ok().flatten())
+    if let Some(storage) =
+        web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     {
         let _ = storage.set_item(DISMISSED_KEY, version);
     }
@@ -165,8 +166,12 @@ pub fn UpdateBanner() -> Element {
         updating.set(true);
         spawn(async move {
             match crate::api::update::install_apk(&url).await {
-                Ok(()) => TOAST.write().success("Downloading update. Follow the Android installer."),
-                Err(error) => TOAST.write().error(format!("Could not start the update: {error}")),
+                Ok(()) => TOAST
+                    .write()
+                    .success("Downloading update. Follow the Android installer."),
+                Err(error) => TOAST
+                    .write()
+                    .error(format!("Could not start the update: {error}")),
             }
             updating.set(false);
         });
@@ -206,12 +211,14 @@ pub fn UpdateBanner() -> Element {
                     if updating() { "Starting…" } else { "Update" }
                 }
             }
-            a {
-                href,
-                target: "_blank",
-                rel: "noopener noreferrer",
-                class: "inline-flex h-8 shrink-0 items-center rounded-md border border-primary/30 px-3 text-xs font-medium text-primary hover:bg-primary/10",
-                "View release"
+            if !cfg!(target_os = "android") {
+                a {
+                    href,
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    class: "inline-flex h-8 shrink-0 items-center rounded-md border border-primary/30 px-3 text-xs font-medium text-primary hover:bg-primary/10",
+                    "View release"
+                }
             }
             button {
                 r#type: "button",

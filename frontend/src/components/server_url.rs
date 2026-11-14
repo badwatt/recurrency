@@ -1,5 +1,5 @@
 use crate::components::toast::TOAST;
-use crate::state::app_mode::{normalize_server_url, APP_MODE, NATIVE_SERVER_OVERRIDE};
+use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, normalize_server_url};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
@@ -20,6 +20,7 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
     let mut error = use_signal(String::new);
     let mut saved = use_signal(String::new);
     let mut loading = use_signal(|| false);
+    let mut scanning = use_signal(|| false);
 
     let mut save = move |_| {
         if loading() {
@@ -61,13 +62,37 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
         });
     };
 
+    let scan = move |_| {
+        if scanning() {
+            return;
+        }
+        scanning.set(true);
+        error.set(String::new());
+        saved.set(String::new());
+        spawn(async move {
+            match crate::utils::qr::scan().await {
+                Ok(raw) => match crate::api::server::parse_qr_payload(&raw) {
+                    Ok(url) => {
+                        value.set(url);
+                        saved.set("QR read. Press Save server to verify it.".to_string());
+                    }
+                    Err(message) => error.set(message),
+                },
+                Err(message) => error.set(message),
+            }
+            scanning.set(false);
+        });
+    };
+
     let use_local = move |_| {
         APP_MODE.write().set_local();
         if AUTH().is_authenticated {
             AUTH.write().logout();
             AUTH.write().persist_to_storage();
         }
-        TOAST.write().success("Local mode enabled. Your data stays on this device.");
+        TOAST
+            .write()
+            .success("Local mode enabled. Your data stays on this device.");
         navigator().push(crate::Route::Login {});
     };
 
@@ -99,9 +124,18 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
                 button {
                     r#type: "button",
                     disabled: loading(),
-                    class: "inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                    class: "inline-flex h-10 w-full shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto",
                     onclick: move |_| save(()),
                     if loading() { "Checking…" } else { "Save server" }
+                }
+            }
+            if crate::utils::qr::scanner_available() {
+                button {
+                    r#type: "button",
+                    disabled: scanning(),
+                    class: "inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                    onclick: scan,
+                    if scanning() { "Scanning…" } else { "Scan QR" }
                 }
             }
             if !error().is_empty() {
@@ -146,5 +180,7 @@ mod local_mode_tests {
         let src = include_str!("server_url.rs");
         assert!(src.contains("Use this device"));
         assert!(src.contains("set_local"));
+        assert!(src.contains("Scan QR"));
+        assert!(src.contains("parse_qr_payload"));
     }
 }
