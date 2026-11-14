@@ -638,7 +638,7 @@ pub fn patch_wry_activity(content: &str) -> String {
             com.google.zxing.integration.android.IntentIntegrator(this)
                 .setPrompt("Scan a Recurrency server QR")
                 .setBeepEnabled(false)
-                .setOrientationLocked(false)
+                .setOrientationLocked(true)
                 .initiateScan()
         } catch (_: Exception) {
             recurrencyQrWebView = null

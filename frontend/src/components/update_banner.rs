@@ -1,3 +1,4 @@
+use crate::components::toast::TOAST;
 use dioxus::prelude::*;
 use serde::Deserialize;
 
@@ -7,9 +8,26 @@ const DISMISSED_FILE: &str = "update_dismissed.txt";
 const DISMISSED_KEY: &str = "recurrency-update-dismissed";
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
+struct Asset {
+    name: String,
+    browser_download_url: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 struct Release {
     tag_name: String,
     html_url: String,
+    #[serde(default)]
+    assets: Vec<Asset>,
+}
+
+impl Release {
+    fn apk_url(&self) -> Option<&str> {
+        self.assets
+            .iter()
+            .find(|asset| asset.name.ends_with("-aarch64.apk"))
+            .map(|asset| asset.browser_download_url.as_str())
+    }
 }
 
 fn current_version() -> &'static str {
@@ -112,6 +130,7 @@ async fn fetch_latest() -> Option<Release> {
 pub fn UpdateBanner() -> Element {
     let mut release = use_signal(|| None::<Release>);
     let mut dismissed = use_signal(|| false);
+    let mut updating = use_signal(|| false);
 
     use_future(move || async move {
         if !crate::state::preferences::PREFERENCES().show_updates() {
@@ -137,6 +156,21 @@ pub fn UpdateBanner() -> Element {
     };
     let version = info.tag_name.trim_start_matches('v').to_string();
     let href = info.html_url.clone();
+    let apk_url = info.apk_url().map(str::to_string);
+    let update_apk = apk_url.clone();
+    let update = move |_| {
+        let Some(url) = update_apk.clone() else {
+            return;
+        };
+        updating.set(true);
+        spawn(async move {
+            match crate::api::update::install_apk(&url).await {
+                Ok(()) => TOAST.write().success("Downloading update. Follow the Android installer."),
+                Err(error) => TOAST.write().error(format!("Could not start the update: {error}")),
+            }
+            updating.set(false);
+        });
+    };
 
     rsx! {
         div {
@@ -161,6 +195,15 @@ pub fn UpdateBanner() -> Element {
                 p { class: "text-sm font-semibold", "Recurrency {version} is available" }
                 p { class: "text-xs text-muted-foreground",
                     "You are on {current_version()}. The update is ready when you are."
+                }
+            }
+            if cfg!(target_os = "android") && apk_url.is_some() {
+                button {
+                    r#type: "button",
+                    disabled: updating(),
+                    onclick: update,
+                    class: "inline-flex h-8 shrink-0 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                    if updating() { "Starting…" } else { "Update" }
                 }
             }
             a {
