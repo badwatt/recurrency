@@ -550,11 +550,20 @@ pub fn DebtsPage() -> Element {
                     }
                 }
             } else if DEBTS().debts.is_empty() {
-                div { class: "rounded-xl border border-border/40 bg-card/80 p-8 flex flex-col items-center gap-3",
-                    Wallet { size: 36 }
-                    p { class: "text-lg font-medium", "No debts yet" }
-                    p { class: "text-sm text-muted-foreground text-center",
-                        "Add a manual debt or let an automatic debt pay itself month by month."
+                div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
+                    span { class: "text-muted-foreground", Wallet { size: 40 } }
+                    div { class: "text-center",
+                        p { class: "text-lg font-medium", "No debts yet" }
+                        p { class: "text-sm text-muted-foreground",
+                            "Add a manual debt or let an automatic debt pay itself month by month."
+                        }
+                    }
+                    button {
+                        r#type: "button",
+                        class: "hidden md:inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                        onclick: move |_| open_create.call(()),
+                        Plus { size: 16 }
+                        "Add Debt"
                     }
                 }
             } else if visible_debts.is_empty() {

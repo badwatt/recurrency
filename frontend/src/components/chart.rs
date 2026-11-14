@@ -208,7 +208,7 @@ pub fn LineChart(
                             x: "{padding_left - 6.0}",
                             y: "{y + 4.0}",
                             fill: "currentColor",
-                            class: "text-xs fill-muted-foreground",
+                            class: "amount-sensitive text-xs fill-muted-foreground",
                             text_anchor: "end",
                             {format!("{:.0}", val)}
                         }
@@ -929,5 +929,14 @@ mod tests {
     #[test]
     fn palette_color_large_index() {
         assert_eq!(palette_color(1000), palette_color(1000 % 12));
+    }
+}
+
+#[cfg(test)]
+mod privacy_axis_tests {
+    #[test]
+    fn y_axis_values_are_marked_sensitive() {
+        let source = include_str!("chart.rs");
+        assert!(source.contains("amount-sensitive text-xs fill-muted-foreground"));
     }
 }

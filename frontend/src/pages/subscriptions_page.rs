@@ -783,12 +783,16 @@ pub fn SubscriptionsPage() -> Element {
                 }
             } else if state.subscriptions.is_empty() {
                 rsx! {
-                    div { class: "rounded-xl border border-border/40 bg-card/80 p-6 flex h-64 flex-col items-center justify-center gap-4",
-                        p { class: "text-lg font-medium", "No subscriptions yet" }
-                        p { class: "text-sm text-muted-foreground", "Click the button above to add your first subscription" }
+                    div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
+                        span { class: "text-muted-foreground", CreditCard { size: 40 } }
+                        div { class: "text-center",
+                            p { class: "text-lg font-medium", "No subscriptions yet" }
+                            p { class: "text-sm text-muted-foreground", "Add your first recurring expense" }
+                        }
                         button {
-                            class: "hidden md:inline-flex bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:bg-primary/90 active:scale-[0.97] transition-all duration-200",
+                            class: "hidden md:inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
                             onclick: move |_| handle_create.call(()),
+                            Plus { size: 16 }
                             "Add Subscription"
                         }
                     }
