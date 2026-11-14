@@ -78,11 +78,16 @@ jobs:
         shell: bash
         run: |
           set -e
-          APP=$(find frontend/target/dx -type d -name 'Recurrency.app' | head -1)
-          test -n "$APP"
-          plutil -p "$APP/Contents/Info.plist" | grep -q 'CFBundleName.*Recurrency'
-          codesign --verify --deep --strict --verbose=2 "$APP"
-          echo "Verified $APP"
+          DMG=$(find target/bin/desktop -maxdepth 1 -name '*.dmg' | head -1)
+          test -n "$DMG"
+          codesign --verify --strict --verbose=2 "$DMG"
+          MOUNT=$(mktemp -d)
+          trap 'hdiutil detach "$MOUNT" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT" >/dev/null
+          test -d "$MOUNT/Recurrency.app"
+          plutil -p "$MOUNT/Recurrency.app/Contents/Info.plist" | grep -q 'CFBundleName.*Recurrency'
+          codesign --verify --deep --strict --verbose=2 "$MOUNT/Recurrency.app"
+          echo "Verified $DMG"
 
       - name: Upload desktop bundle artifact (manual runs)
         if: inputs.tag == ''

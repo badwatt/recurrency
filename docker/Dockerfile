@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 COPY Cargo.toml Cargo.lock* ./
+COPY vendor/ ./vendor/
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY tools/Cargo.toml tools/Cargo.toml
@@ -49,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock* ./
+COPY vendor/ ./vendor/
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY tools/Cargo.toml tools/Cargo.toml
