@@ -9,6 +9,14 @@ fn download_json(json: &str) {
     crate::utils::download::save_text("recurrency-backup.json", "application/json", json);
 }
 
+fn download_started_message() -> &'static str {
+    if cfg!(target_os = "android") {
+        "Backup saved to Downloads."
+    } else {
+        "Backup download started. Check your Downloads folder."
+    }
+}
+
 #[component]
 pub fn BackupCard() -> Element {
     let mut exporting = use_signal(|| false);
@@ -23,7 +31,10 @@ pub fn BackupCard() -> Element {
         spawn(async move {
             match backup::export().await {
                 Ok(value) => match serde_json::to_string_pretty(&value) {
-                    Ok(json) => download_json(&json),
+                    Ok(json) => {
+                        download_json(&json);
+                        TOAST.write().success(download_started_message());
+                    }
                     Err(error) => TOAST.write().error(format!("Could not encode backup: {error}")),
                 },
                 Err(error) => TOAST.write().error(format!("Could not create backup: {error}")),

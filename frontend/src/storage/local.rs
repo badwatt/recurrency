@@ -1532,7 +1532,11 @@ pub async fn import_backup(backup: &serde_json::Value) -> Result<serde_json::Val
     for category in &mut categories { category.user_id = Uuid::nil(); }
     for subscription in &mut subscriptions { subscription.user_id = Uuid::nil(); }
     for transaction in &mut transactions { transaction.user_id = Uuid::nil(); }
-    for debt in &mut debts { debt.user_id = Uuid::nil(); }
+    for debt in &mut debts {
+        debt.user_id = Uuid::nil();
+        // Server backups omit the derived paid_amount field.
+        debt.paid_amount = (debt.total_amount - debt.remaining_amount).max(Decimal::ZERO);
+    }
     for payment in &mut debt_payments { payment.user_id = Uuid::nil(); }
 
     normalize_defaults(&mut accounts);

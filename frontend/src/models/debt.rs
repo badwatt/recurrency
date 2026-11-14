@@ -14,6 +14,7 @@ pub struct Debt {
     pub currency: String,
     pub total_amount: Decimal,
     pub remaining_amount: Decimal,
+    #[serde(default)]
     pub paid_amount: Decimal,
     pub debt_type: String,
     pub monthly_payment: Option<Decimal>,

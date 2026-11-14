@@ -698,3 +698,11 @@ fn backup_choose_file_has_a_pointer_cursor_on_desktop() {
     assert!(src.contains("cursor: pointer;"));
     assert!(src.contains("cursor-pointer"));
 }
+
+
+#[test]
+fn backup_download_shows_a_toast() {
+    let src = include_str!("backup_card.rs");
+    assert!(src.contains("Backup download started"));
+    assert!(src.contains("TOAST.write().success"));
+}
