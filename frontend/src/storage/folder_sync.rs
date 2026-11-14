@@ -171,10 +171,11 @@ mod platform {
         let mut files = Vec::new();
         for entry in std::fs::read_dir(&folder).map_err(|error| error.to_string())? {
             let path = entry.map_err(|error| error.to_string())?.path();
-            if path.is_file() && is_sync_file(&path) {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    files.push(content);
-                }
+            if path.is_file()
+                && is_sync_file(&path)
+                && let Ok(content) = std::fs::read_to_string(&path)
+            {
+                files.push(content);
             }
         }
         Ok(files)
