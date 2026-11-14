@@ -14,6 +14,10 @@ publisher = "badwatt"
 identifier = "com.badwatt.recurrency"
 icon = ["assets/icons/clock-1024.png"]
 
+[bundle.macos]
+bundle_name = "Recurrency"
+signing_identity = "-"
+
 [android]
 name = "Recurrency"
 build_targets = ["aarch64-linux-android"]

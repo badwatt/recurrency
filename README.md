@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.48.5`.
+> `ghcr.io/badwatt/recurrency:0.48.6`.
 
 ### From source
 
@@ -394,6 +394,20 @@ All commands run inside `nix develop`.
 | Patch an existing Android build | `cargo patch-android` |
 
 Artifacts land in `target/bin/` (APK, desktop bundle and `recurrency`).
+
+### macOS and Gatekeeper
+
+Release DMGs are ad-hoc signed, but they are not notarized because the project
+does not ship an Apple Developer certificate. If macOS says the app is damaged,
+remove the download quarantine after installing it:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Recurrency.app
+```
+
+Right-clicking the app and choosing **Open** also allows it. Both Intel
+(`x86_64`) and Apple Silicon (`aarch64`) DMGs are built separately; use the one
+matching your Mac.
 
 The aliases live in `.cargo/config.toml`. Their raw equivalents are
 `cargo test --workspace --lib`, `cargo fmt --all`,

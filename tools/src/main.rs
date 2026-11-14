@@ -674,7 +674,8 @@ fn desktop_artifact_name(name: &str) -> Option<String> {
     let suffix = name
         .strip_prefix("recurrency-frontend")
         .or_else(|| name.strip_prefix("recurrency_frontend"))
-        .or_else(|| name.strip_prefix("RecurrencyFrontend"))?;
+        .or_else(|| name.strip_prefix("RecurrencyFrontend"))
+        .or_else(|| name.strip_prefix("Recurrency"))?;
     Some(format!("recurrency-desktop{suffix}"))
 }
 
@@ -804,6 +805,10 @@ mod desktop_artifact_tests {
         assert_eq!(
             desktop_artifact_name("recurrency_frontend_0.48.0_x86_64.AppImage").as_deref(),
             Some("recurrency-desktop_0.48.0_x86_64.AppImage")
+        );
+        assert_eq!(
+            desktop_artifact_name("Recurrency_0.48.0_aarch64.dmg").as_deref(),
+            Some("recurrency-desktop_0.48.0_aarch64.dmg")
         );
         assert_eq!(desktop_artifact_name("other.deb"), None);
     }
