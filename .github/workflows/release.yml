@@ -169,6 +169,27 @@ jobs:
           cargo clippy --lib --jobs 4 -- -D warnings
           cargo test --lib --jobs 4
 
+  # ── Create the release early so builders upload directly ───
+  create-release:
+    needs: [prepare, test-backend, test-frontend]
+    if: ${{ needs.prepare.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Create or reuse GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+          else
+            gh release create "$TAG" --title "Recurrency $TAG" --generate-notes
+          fi
+
   # ── Build and push the all-in-one image ────────────────────
   docker:
     if: ${{ needs.prepare.outputs.changed == 'true' }}
@@ -204,7 +225,7 @@ jobs:
 
   # ── Build Android APK ──────────────────────────────────────
   android:
-    needs: [prepare, test-backend, test-frontend]
+    needs: [prepare, test-backend, test-frontend, create-release]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -350,22 +371,23 @@ jobs:
           cp "$APK" target/bin/android/recurrency-latest-aarch64.apk
           ls -lh target/bin/android/recurrency-latest-aarch64.apk
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: recurrency-apk
-          path: target/bin/android/recurrency-latest-aarch64.apk
-          retention-days: 14
+      - name: Upload APK to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: gh release upload "v${VERSION}" target/bin/android/recurrency-latest-aarch64.apk --clobber
 
   # ── Desktop bundles ─────────────────────────────────────────
   desktop:
-    needs: [prepare, test-backend, test-frontend]
+    needs: [prepare, test-backend, test-frontend, create-release]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     uses: ./.github/workflows/desktop.yml
+    with:
+      tag: v${{ needs.prepare.outputs.version }}
 
   # ── Standalone all-in-one binary ───────────────────────────
   binary:
-    needs: [prepare, test-backend, test-frontend]
+    needs: [prepare, test-backend, test-frontend, create-release]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -408,35 +430,9 @@ jobs:
       - name: Verify binary
         run: target/bin/recurrency --version
 
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: recurrency-binary
-          path: target/bin/recurrency
-          retention-days: 14
+      - name: Upload binary to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: gh release upload "v${VERSION}" target/bin/recurrency --clobber
 
-  # ── Publish every artifact to the GitHub release ────────────
-  release:
-    needs: [prepare, docker, android, desktop, binary]
-    if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-assets
-          merge-multiple: true
-
-      - name: List release assets
-        run: find release-assets -maxdepth 2 -type f -printf '%f %s\n' | sort
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ needs.prepare.outputs.version }}
-          generate_release_notes: true
-          draft: false
-          files: release-assets/*

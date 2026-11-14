@@ -3,9 +3,15 @@ name: Desktop
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      tag:
+        description: "GitHub release tag to upload to"
+        required: false
+        type: string
+        default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   DX_VERSION: "0.7.10"
@@ -67,9 +73,17 @@ jobs:
       - name: Build desktop bundle
         run: cargo build-desktop
 
-      - name: Upload desktop bundle
+      - name: Upload desktop bundle artifact (manual runs)
+        if: inputs.tag == ''
         uses: actions/upload-artifact@v4
         with:
           name: recurrency-desktop-${{ runner.os }}
           path: target/bin/desktop/*
           if-no-files-found: error
+
+      - name: Upload desktop bundle to release
+        if: inputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ inputs.tag }}" target/bin/desktop/* --clobber
