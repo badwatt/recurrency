@@ -3,7 +3,7 @@ resolver = "2"
 members = ["backend", "frontend", "tools"]
 
 [workspace.package]
-version = "0.48.2"
+version = "0.48.3"
 edition = "2024"
 authors = ["badwatt"]
 
