@@ -1,9 +1,10 @@
 [workspace]
 resolver = "2"
 members = ["backend", "frontend", "tools"]
+exclude = ["vendor/tao"]
 
 [workspace.package]
-version = "0.48.5"
+version = "0.48.6"
 edition = "2024"
 authors = ["badwatt"]
 
@@ -28,3 +29,6 @@ lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
 opt-level = 3
+
+[patch.crates-io]
+tao = { path = "vendor/tao" }
