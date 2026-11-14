@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.48.9`.
+> `ghcr.io/badwatt/recurrency:0.48.10`.
 
 ### From source
 

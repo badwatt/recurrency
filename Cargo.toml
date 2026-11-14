@@ -4,7 +4,7 @@ members = ["backend", "frontend", "tools"]
 exclude = ["vendor/tao", "vendor/dioxus-desktop"]
 
 [workspace.package]
-version = "0.48.9"
+version = "0.48.10"
 edition = "2024"
 authors = ["badwatt"]
 
