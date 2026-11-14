@@ -1540,7 +1540,8 @@ pub async fn import_backup(backup: &serde_json::Value) -> Result<serde_json::Val
     for payment in &mut debt_payments { payment.user_id = Uuid::nil(); }
 
     normalize_defaults(&mut accounts);
-    migrate_legacy_categories(&mut categories)?;
+    // Restoring a backup must preserve every category from the backup,
+    // including legacy system categories from older installations.
     normalize_category_defaults(&mut categories);
     save_collection("accounts", &accounts)?;
     save_collection("categories", &categories)?;
