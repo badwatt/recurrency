@@ -219,6 +219,10 @@ impl<T: 'static> EventLoop<T> {
       .expect("Failed to initialize gtk backend!")
   }
 
+  // gtk-rs deprecated `MainContext::channel` in favour of async channels.
+  // tao 0.34 still needs the GLib receiver here; keep the warning scoped to
+  // this function instead of hiding deprecations for the whole crate.
+  #[allow(deprecated)]
   fn new_gtk(app_id: Option<&str>) -> Result<EventLoop<T>, Box<dyn Error>> {
     // This should be done by gtk::Application::new, but does not work properly
     gtk::init()?;

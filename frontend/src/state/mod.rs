@@ -6,6 +6,8 @@ pub mod create_intent;
 pub mod debts;
 pub mod notifications;
 pub mod preferences;
+pub mod privacy;
 pub mod rates;
 pub mod subscriptions;
 pub mod transactions;
+pub mod window;

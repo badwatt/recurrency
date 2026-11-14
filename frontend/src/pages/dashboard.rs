@@ -9,10 +9,10 @@ use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
 use crate::models::account::Account;
 use crate::models::subscription::Subscription;
-use crate::state::rates::RatesState;
 use crate::models::transaction::Transaction;
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
+use crate::state::rates::RatesState;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::transactions::TRANSACTIONS;
 use crate::storage::Storage;
@@ -615,7 +615,7 @@ pub fn Dashboard() -> Element {
                             "Plan for {month_label}"
                         }
                         p { class: "text-sm text-muted-foreground mt-5", "Transfer this month" }
-                        div { class: "text-4xl md:text-6xl font-bold text-foreground tracking-tight font-mono tabular-nums mt-1",
+                        div { class: "amount-sensitive text-4xl md:text-6xl font-bold text-foreground tracking-tight font-mono tabular-nums mt-1",
                             "{format_currency(budget_total, &currency)}"
                         }
                         p { class: "text-xs text-muted-foreground mt-2",
@@ -635,7 +635,7 @@ pub fn Dashboard() -> Element {
                             "Pending from today"
                         }
                         div {
-                            class: if pending_total > Decimal::ZERO { "text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-foreground" } else { "text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-muted-foreground" },
+                            class: if pending_total > Decimal::ZERO { "amount-sensitive text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-foreground" } else { "amount-sensitive text-3xl md:text-4xl font-bold tracking-tight font-mono tabular-nums mt-5 text-muted-foreground" },
                             "{format_currency(pending_total, &currency)}"
                         }
                         p { class: "text-xs text-muted-foreground mt-2",
@@ -763,16 +763,17 @@ pub fn Dashboard() -> Element {
                                         }
                                         div { class: "text-left sm:text-right",
                                             p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
-                                            p { class: "text-sm font-semibold font-mono tabular-nums text-foreground",
+                                            p { class: "amount-sensitive text-sm font-semibold font-mono tabular-nums text-foreground",
                                                 "{format_currency(account.budget, &currency)}"
                                             }
                                             p { class: "text-[11px] text-muted-foreground",
-                                                "{format_currency(account.subscriptions, &currency)} recurring"
+                                                span { class: "amount-sensitive", "{format_currency(account.subscriptions, &currency)}" }
+                                                " recurring"
                                             }
                                         }
                                         div { class: "text-right",
                                             p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
-                                            p { class: pending_class.to_string(),
+                                            p { class: format!("amount-sensitive {pending_class}"),
                                                 {format_currency(account.pending, &currency).to_string()}
                                             }
                                             p { class: "text-[11px] text-muted-foreground",
@@ -798,11 +799,11 @@ pub fn Dashboard() -> Element {
                         div { class: "flex items-center gap-8 sm:gap-12",
                             div { class: "text-left sm:text-right",
                                 p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
-                                p { class: "text-base font-bold font-mono tabular-nums", "{format_currency(budget_total, &currency)}" }
+                                p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(budget_total, &currency)}" }
                             }
                             div { class: "text-right",
                                 p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
-                                p { class: "text-base font-bold font-mono tabular-nums", "{format_currency(pending_total, &currency)}" }
+                                p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(pending_total, &currency)}" }
                             }
                         }
                     }
@@ -1172,7 +1173,13 @@ mod tests {
             transaction(main_id, dec!(8), date(2024, 5, 20)),
         ];
 
-        let plan = build_account_budgets(&[main, savings], &subs, &txns, today, &RatesState::default());
+        let plan = build_account_budgets(
+            &[main, savings],
+            &subs,
+            &txns,
+            today,
+            &RatesState::default(),
+        );
         let main_plan = plan.iter().find(|b| b.account_id == main_id).unwrap();
         let savings_plan = plan.iter().find(|b| b.account_id == savings_id).unwrap();
 
@@ -1183,7 +1190,13 @@ mod tests {
         assert_eq!(main_plan.pending_count, 2);
 
         let today_txn = transaction(main_id, dec!(4), today);
-        let plan_with_today = build_account_budgets(&[account("Main")], &[], &[today_txn], today, &RatesState::default());
+        let plan_with_today = build_account_budgets(
+            &[account("Main")],
+            &[],
+            &[today_txn],
+            today,
+            &RatesState::default(),
+        );
         assert_eq!(plan_with_today[0].budget, dec!(4));
         assert_eq!(plan_with_today[0].pending, dec!(0));
 
@@ -1208,7 +1221,6 @@ mod tests {
         assert_eq!(plan[0].name, "No account");
         assert_eq!(plan[0].pending, dec!(10));
     }
-
 
     #[test]
     fn dashboard_converts_foreign_currency_totals() {
@@ -1309,5 +1321,4 @@ mod tests {
         assert_eq!(total_budget(&plan), dec!(10));
         assert_eq!(total_pending(&plan), dec!(0));
     }
-
 }

@@ -183,8 +183,13 @@ impl Config {
     pub fn with_window(mut self, window: WindowBuilder) -> Self {
         // We need to do a swap because the window builder only takes itself as muy self
         self.window = window;
-        // If the decorations are off for the window, remove the menu as well
-        if !self.window.window.decorations && matches!(self.menu, MenuBuilderState::Unset) {
+        // If the decorations are off for the window, remove the menu as well.
+        // On Linux the menu is drawn inside the window, so keep it available:
+        // it is the way back to decorated mode from a frameless window.
+        if !self.window.window.decorations
+            && !cfg!(target_os = "linux")
+            && matches!(self.menu, MenuBuilderState::Unset)
+        {
             self.menu = MenuBuilderState::Set(None);
         }
         self

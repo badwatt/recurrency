@@ -2,16 +2,16 @@ use crate::api::settings;
 use crate::components::toast::TOAST;
 use crate::layout::app_layout::{avatar_color, avatar_initials};
 use crate::models::auth::{UpdateSettingsRequest, is_valid_email};
-use crate::utils::image::base64_encode;
 use crate::state::auth::AUTH;
+use crate::utils::image::base64_encode;
 use dioxus::prelude::*;
 
 const MAX_AVATAR_BYTES: u64 = 15_000_000;
 
-
 /// Profile card: editable email and display name.
 async fn resize_avatar(data_url: String) -> Option<String> {
-    let mut eval = document::eval(r#"
+    let mut eval = document::eval(
+        r#"
         const source = await dioxus.recv();
         try {
             const image = new Image();
@@ -34,12 +34,52 @@ async fn resize_avatar(data_url: String) -> Option<String> {
         } catch (_) {
             dioxus.send('');
         }
-    "#);
+    "#,
+    );
     eval.send(data_url).ok()?;
     eval.recv::<String>()
         .await
         .ok()
         .filter(|value| value.starts_with("data:image/"))
+}
+
+/// Read and downscale a desktop image without relying on WebView canvas APIs.
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(target_os = "android"),
+    feature = "desktop"
+))]
+async fn pick_desktop_avatar() -> Result<String, String> {
+    let Some(file) = rfd::AsyncFileDialog::new()
+        .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+        .pick_file()
+        .await
+    else {
+        return Err("No photo selected".to_string());
+    };
+    let bytes = file.read().await;
+    if bytes.len() as u64 > MAX_AVATAR_BYTES {
+        return Err("Photo must be 15 MB or smaller".to_string());
+    }
+    let image = image::load_from_memory(&bytes)
+        .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
+    let resized = image
+        .resize(256, 256, image::imageops::FilterType::Lanczos3)
+        .to_rgb8();
+    let mut output = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 86)
+        .encode_image(&resized)
+        .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
+    Ok(format!("data:image/jpeg;base64,{}", base64_encode(&output)))
+}
+
+#[cfg(not(all(
+    not(target_arch = "wasm32"),
+    not(target_os = "android"),
+    feature = "desktop"
+)))]
+async fn pick_desktop_avatar() -> Result<String, String> {
+    Err("The native photo picker is unavailable".to_string())
 }
 
 #[component]
@@ -170,6 +210,23 @@ pub fn ProfileCard() -> Element {
                                 },
                                 "Change photo"
                             }
+                        } else if cfg!(all(not(target_arch = "wasm32"), not(target_os = "android"))) {
+                            button {
+                                r#type: "button",
+                                class: "inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                                onclick: move |_| {
+                                    spawn(async move {
+                                        match pick_desktop_avatar().await {
+                                            Ok(data) => {
+                                                avatar.set(data);
+                                                error.set(String::new());
+                                            }
+                                            Err(message) => error.set(message),
+                                        }
+                                    });
+                                },
+                                "Change photo"
+                            }
                         } else {
                             label {
                                 class: "relative inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent focus-within:ring-2 focus-within:ring-ring",
@@ -274,7 +331,6 @@ pub fn ProfileCard() -> Element {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,5 +349,13 @@ mod tests {
         assert!(base64_encode(&[0]).ends_with("=="));
         assert!(base64_encode(&[0, 0]).ends_with("="));
         assert!(!base64_encode(&[0, 0, 0]).ends_with('='));
+    }
+
+    #[test]
+    fn desktop_avatar_uses_native_picker_and_resizes() {
+        let src = include_str!("profile_card.rs");
+        assert!(src.contains("AsyncFileDialog"));
+        assert!(src.contains("image::load_from_memory"));
+        assert!(src.contains("pick_desktop_avatar"));
     }
 }

@@ -2,20 +2,20 @@ use dioxus::prelude::*;
 use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Trash};
 use uuid::Uuid;
 
-use crate::storage::Storage;
-use crate::components::page_header::PageHeader;
-use crate::components::skeleton::{Skeleton, SkeletonCalendar};
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
+use crate::components::page_header::PageHeader;
+use crate::components::skeleton::{Skeleton, SkeletonCalendar};
 use crate::models::subscription::CalendarItem;
-use crate::state::auth::AUTH;
+use crate::pages::dashboard::{build_month_budgets, total_budget, total_pending};
 use crate::state::accounts::ACCOUNTS;
+use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::preferences::PREFERENCES;
+use crate::state::rates::RATES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::transactions::TRANSACTIONS;
-use crate::state::rates::RATES;
-use crate::pages::dashboard::{build_month_budgets, total_budget, total_pending};
+use crate::storage::Storage;
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 use chrono::{Datelike, Local, NaiveDate};
@@ -23,9 +23,9 @@ use chrono::{Datelike, Local, NaiveDate};
 mod delete_dialog;
 mod edit_dialog;
 mod logic;
-pub use logic::*;
 use delete_dialog::DeleteSubscriptionDialog;
 use edit_dialog::EditSubscriptionDialog;
+pub use logic::*;
 
 #[component]
 fn CalendarNavigation(
@@ -97,7 +97,7 @@ fn CalendarPaymentRow(
                         p { class: "text-sm text-muted-foreground", {date_str} }
                     }
                 }
-                p { class: "shrink-0 text-lg font-semibold", {amount_str} }
+                p { class: "amount-sensitive shrink-0 text-lg font-semibold", {amount_str} }
             }
         }
     }
@@ -200,7 +200,10 @@ pub fn CalendarPage() -> Element {
     let (pending_from, pending_label) = if viewing_current_month {
         (Some(today_date), "Pending from today")
     } else if (year, month) > (today_date.year(), today_date.month()) {
-        (month_start.and_then(|date| date.pred_opt()), "Pending this month")
+        (
+            month_start.and_then(|date| date.pred_opt()),
+            "Pending this month",
+        )
     } else {
         (None, "Pending")
     };
@@ -309,7 +312,7 @@ pub fn CalendarPage() -> Element {
         }
     };
 
-// Selected day dialog data: gather CalendarItems with full display info
+    // Selected day dialog data: gather CalendarItems with full display info
     let selected_day_items: Vec<(CalendarItem, String, String, String)> = selected_day()
         .map(|(sy, sm, sd)| {
             let day_refs = items_for_day(&items, sy, sm, sd);
@@ -358,11 +361,11 @@ pub fn CalendarPage() -> Element {
             div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2",
                 div { class: "rounded-xl border border-border/60 bg-card p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Transfer this month" }
-                    p { class: "mt-2 font-mono text-2xl font-bold tabular-nums", {month_budget_display.to_string()} }
+                    p { class: "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums", {month_budget_display.to_string()} }
                 }
                 div { class: "rounded-xl border border-border/60 bg-card p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", {pending_label.to_string()} }
-                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "mt-2 font-mono text-2xl font-bold tabular-nums" } else { "mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, {month_pending_display.to_string()} }
+                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums" } else { "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, {month_pending_display.to_string()} }
                 }
             }
 
@@ -381,7 +384,7 @@ pub fn CalendarPage() -> Element {
                         {icon_calendar()}
                         "Payments this month"
                     }
-                    p { class: "text-lg font-bold", {total_display.to_string()} }
+                    p { class: "amount-sensitive text-lg font-bold", {total_display.to_string()} }
                 }
 
                 {if is_loading() {
@@ -627,7 +630,7 @@ pub fn CalendarPage() -> Element {
                                                     }
                                                 }
                                             }
-                                            p { class: "text-lg font-bold shrink-0",
+                                            p { class: "amount-sensitive text-lg font-bold shrink-0",
                                                 "{format_currency(item.amount, &item.currency)}"
                                             }
                                         }

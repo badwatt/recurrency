@@ -83,7 +83,10 @@ pub enum Route {
     CatchAll { path: Vec<String> },
 }
 
-const TAILWIND_CSS: Asset = asset!("/assets/styles/tailwind.css", AssetOptions::css().with_static_head(true));
+const TAILWIND_CSS: Asset = asset!(
+    "/assets/styles/tailwind.css",
+    AssetOptions::css().with_static_head(true)
+);
 
 // Self-hosted fonts — registered as Dioxus assets so they're bundled in APK
 // Eliminates @import chain to Google Fonts CDN that caused FOUC on Android
@@ -132,10 +135,7 @@ fn font_face_css() -> String {
 pub fn launch() {
     #[cfg(feature = "desktop")]
     {
-        let frameless = cfg!(target_os = "linux")
-            && std::env::var("RECURRENCY_FRAMELESS")
-                .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
-                .unwrap_or(false);
+        let frameless = crate::state::window::enabled();
         if frameless {
             use dioxus::desktop::{Config, WindowBuilder};
             dioxus::LaunchBuilder::desktop()
@@ -205,13 +205,14 @@ fn App() -> Element {
                 let url_file: std::path::PathBuf =
                     data_dir.join("recurrency").join("server_url.txt");
                 if url_file.exists()
-                    && let Ok(url) = std::fs::read_to_string(&url_file) {
-                        let url = url.trim().to_string();
-                        if !url.is_empty() {
-                            crate::api::client::set_base_url(&url);
-                            eprintln!("[App] Server URL from file: {}", url);
-                        }
+                    && let Ok(url) = std::fs::read_to_string(&url_file)
+                {
+                    let url = url.trim().to_string();
+                    if !url.is_empty() {
+                        crate::api::client::set_base_url(&url);
+                        eprintln!("[App] Server URL from file: {}", url);
                     }
+                }
             }
         }
 
@@ -247,7 +248,8 @@ fn App() -> Element {
         #[cfg(target_arch = "wasm32")]
         {
             let version = env!("CARGO_PKG_VERSION");
-            dioxus::document::eval(&format!(r#"
+            dioxus::document::eval(&format!(
+                r#"
                 console.log(`%c
    ____
   |  _ \ ___  ___ _   _ _ __ ___ _ __ _   _
@@ -258,7 +260,8 @@ fn App() -> Element {
 Recurrency v{version}
 Thanks for using Recurrency. If it saves you money, consider starring the project on GitHub.
 `, "color:#8b9cff;font-family:monospace;font-size:12px;");
-            "#));
+            "#
+            ));
         }
     });
 
@@ -266,7 +269,8 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
     // Uses link.onload events instead of sheet.cssRules (which throws SecurityError
     // on Android WebView's custom protocol, causing premature body reveal).
     use_effect(move || {
-        dioxus::document::eval(r#"
+        dioxus::document::eval(
+            r#"
             (function() {
                 function reveal() {
                     // Never let a slow font load keep the native loader forever.
@@ -325,7 +329,8 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
                     setTimeout(reveal, 1200);
                 }
             })();
-        "#);
+        "#,
+        );
     });
 
     rsx! {

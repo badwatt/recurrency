@@ -253,7 +253,6 @@ timeline; reports turn the same data into trends and category breakdowns.
 | `RECURRENCY_DATA_DIR` | `recurrency-data` | Standalone binary only: local database directory when `DATABASE_URL` is unset |
 | `PGPASSWORD` | `recurrency` | Password for the bundled PostgreSQL; ignored with an external `DATABASE_URL` |
 | `RECURRENCY_API_URL` | — | Optional native server override; never prefilled |
-| `RECURRENCY_FRAMELESS` | `false` | Linux desktop only: run without window decorations |
 | `FIXER_API_KEY` | — | Optional server-wide Fixer key; users can also save their own key in Settings |
 | `SMTP_HOST` | — | SMTP server |
 | `SMTP_PORT` | `587` | SMTP port |

@@ -1,8 +1,8 @@
 use crate::api::currency;
 use crate::api::settings;
 use crate::components::server_url::ServerUrlEditor;
-use crate::components::web_server_qr::WebServerQr;
 use crate::components::toast::TOAST;
+use crate::components::web_server_qr::WebServerQr;
 use crate::models::auth::UpdateSettingsRequest;
 use crate::models::currency::UpdateCurrencySettingsRequest;
 use crate::state::auth::AUTH;
@@ -93,7 +93,9 @@ pub fn PreferencesCard() -> Element {
                 }
                 Err(error) => {
                     log::error!("Failed to save exchange-rate settings: {error}");
-                    TOAST.write().error(format!("Could not save exchange settings: {error}"));
+                    TOAST
+                        .write()
+                        .error(format!("Could not save exchange settings: {error}"));
                 }
             }
             saving_rates.set(false);

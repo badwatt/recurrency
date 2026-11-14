@@ -1,5 +1,5 @@
-use crate::components::logo_image_with_fallback;
 use crate::components::ConvertedAmount;
+use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::TransactionRowSkeleton;
 use crate::components::tooltip::Tooltip;
@@ -7,9 +7,9 @@ use crate::models::transaction::*;
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
+use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::state::preferences::PREFERENCES;
 use crate::state::transactions::TRANSACTIONS;
-use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
 use crate::storage::Storage;
 use crate::utils::dates::format_date;
 use crate::utils::format::format_currency;
@@ -443,7 +443,7 @@ pub fn TransactionsPage() -> Element {
                                         span { class: "text-sm font-semibold text-muted-foreground",
                                             "{group.label} · {group.transactions.len()} transactions"
                                         }
-                                        span { class: "text-sm font-bold",
+                                        span { class: "amount-sensitive text-sm font-bold",
                                             {format_currency(group.total, &currency)}
                                         }
                                     }

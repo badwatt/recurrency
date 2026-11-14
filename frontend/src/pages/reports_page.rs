@@ -1,13 +1,13 @@
-use crate::storage::Storage;
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
 use crate::models::report::*;
-use crate::state::auth::AUTH;
 use crate::state::accounts::ACCOUNTS;
+use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::transactions::TRANSACTIONS;
+use crate::storage::Storage;
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
 use chrono::{Datelike, Utc};
@@ -75,11 +75,26 @@ pub fn build_export_csv(
         report.monthly_summary.year, report.monthly_summary.month
     ));
     csv.push_str("\nSummary\nMetric,Value\n");
-    csv.push_str(&format!("Total spending,{}\n", report.monthly_summary.overall_total));
-    csv.push_str(&format!("Subscriptions,{}\n", report.monthly_summary.subscriptions_total));
-    csv.push_str(&format!("One-time,{}\n", report.monthly_summary.transactions_total));
-    csv.push_str(&format!("Active subscriptions,{}\n", report.monthly_summary.subscriptions_count));
-    csv.push_str(&format!("Transactions,{}\n", report.monthly_summary.transactions_count));
+    csv.push_str(&format!(
+        "Total spending,{}\n",
+        report.monthly_summary.overall_total
+    ));
+    csv.push_str(&format!(
+        "Subscriptions,{}\n",
+        report.monthly_summary.subscriptions_total
+    ));
+    csv.push_str(&format!(
+        "One-time,{}\n",
+        report.monthly_summary.transactions_total
+    ));
+    csv.push_str(&format!(
+        "Active subscriptions,{}\n",
+        report.monthly_summary.subscriptions_count
+    ));
+    csv.push_str(&format!(
+        "Transactions,{}\n",
+        report.monthly_summary.transactions_count
+    ));
 
     csv.push_str("\nSpending trends\nPeriod,Total\n");
     for trend in &report.recent_trends {
@@ -97,7 +112,9 @@ pub fn build_export_csv(
         ));
     }
 
-    csv.push_str("\nSubscriptions\nName,Amount,Currency,Account,Category,Next billing,Active,Notes\n");
+    csv.push_str(
+        "\nSubscriptions\nName,Amount,Currency,Account,Category,Next billing,Active,Notes\n",
+    );
     for sub in subscriptions {
         let account = accounts
             .iter()
@@ -116,7 +133,9 @@ pub fn build_export_csv(
             sub.currency,
             csv_escape(account),
             csv_escape(category),
-            sub.next_billing_date.map(|date| date.to_string()).unwrap_or_default(),
+            sub.next_billing_date
+                .map(|date| date.to_string())
+                .unwrap_or_default(),
             sub.is_active,
             csv_escape(sub.notes.as_deref().unwrap_or(""))
         ));
@@ -262,7 +281,11 @@ pub fn ReportsPage() -> Element {
                 &CATEGORIES().categories,
             );
             crate::utils::download::save_text(
-                &format!("recurrency-report-{}-{}.csv", selected_year(), selected_month()),
+                &format!(
+                    "recurrency-report-{}-{}.csv",
+                    selected_year(),
+                    selected_month()
+                ),
                 "text/csv",
                 &csv,
             );
@@ -360,7 +383,7 @@ pub fn ReportsPage() -> Element {
                                     span { class: "text-sm font-medium text-muted-foreground", "Total Spending" }
                                     span { class: "text-muted-foreground", Wallet { size: 16 } }
                                 }
-                                p { class: "text-2xl font-bold",
+                                p { class: "amount-sensitive text-2xl font-bold",
                                     {format_currency(r.monthly_summary.overall_total, &currency)}
                                 }
                                 p { class: "text-xs text-muted-foreground",
@@ -374,11 +397,13 @@ pub fn ReportsPage() -> Element {
                                     span { class: "text-sm font-medium text-muted-foreground", "Subscriptions" }
                                     span { class: "text-muted-foreground", CreditCard { size: 16 } }
                                 }
-                                p { class: "text-2xl font-bold",
+                                p { class: "amount-sensitive text-2xl font-bold",
                                     {format_currency(r.monthly_summary.subscriptions_total, &currency)}
                                 }
                                 p { class: "text-xs text-muted-foreground",
-                                    "{r.monthly_summary.subscriptions_count} active · {format_currency(r.monthly_summary.subscriptions_total * rust_decimal::Decimal::from(12), &currency)} / year"
+                                    "{r.monthly_summary.subscriptions_count} active · "
+                                    span { class: "amount-sensitive", {format_currency(r.monthly_summary.subscriptions_total * rust_decimal::Decimal::from(12), &currency)} }
+                                    " / year"
                                 }
                             }
                             // One-time
@@ -387,7 +412,7 @@ pub fn ReportsPage() -> Element {
                                     span { class: "text-sm font-medium text-muted-foreground", "One-time" }
                                     span { class: "text-muted-foreground", Receipt { size: 16 } }
                                 }
-                                p { class: "text-2xl font-bold",
+                                p { class: "amount-sensitive text-2xl font-bold",
                                     {format_currency(r.monthly_summary.transactions_total, &currency)}
                                 }
                                 p { class: "text-xs text-muted-foreground",
@@ -408,7 +433,7 @@ pub fn ReportsPage() -> Element {
                                             span { class: "text-sm font-medium text-muted-foreground", "Avg / Month" }
                                             span { class: "text-muted-foreground", TrendingUp { size: 16 } }
                                         }
-                                        p { class: "text-2xl font-bold",
+                                        p { class: "amount-sensitive text-2xl font-bold",
                                             {format_currency(avg, &currency)}
                                         }
                                         p { class: "text-xs text-muted-foreground",
@@ -535,7 +560,7 @@ pub fn ReportsPage() -> Element {
                                                     }
                                                     div { class: "flex items-center gap-4",
                                                         span { class: "text-muted-foreground", "{cat.count} items" }
-                                                        span { class: "font-bold",
+                                                        span { class: "amount-sensitive font-bold",
                                                             {format_currency(cat.total, &currency)}
                                                         }
                                                     }

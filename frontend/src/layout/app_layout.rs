@@ -1,9 +1,16 @@
 #![allow(clippy::suspicious_else_formatting)]
-use crate::state::preferences::PREFERENCES;
-use crate::theme::hooks::{apply_theme_class, toggle_theme};
+use crate::components::privacy_toggle::PrivacyToggle;
+#[cfg(all(target_os = "linux", feature = "desktop"))]
+use crate::components::toast::TOAST;
 use crate::components::toast::ToastContainer;
-use crate::utils::scroll::scroll_to_top;
 use crate::components::update_banner::UpdateBanner;
+use crate::state::preferences::PREFERENCES;
+#[cfg(all(target_os = "linux", feature = "desktop"))]
+use crate::state::window;
+use crate::theme::hooks::{apply_theme_class, toggle_theme};
+use crate::utils::scroll::scroll_to_top;
+#[cfg(all(target_os = "linux", feature = "desktop"))]
+use dioxus::desktop::use_muda_event_handler;
 
 // Branded app loader (auth init, pre-WASM)
 #[allow(non_snake_case)]
@@ -50,11 +57,27 @@ pub enum Icon {
 #[component]
 pub fn AppLayout() -> Element {
     let auth = AUTH();
+    let privacy = *crate::state::privacy::PRIVACY.read();
 
     use_future(move || async move {
         let _ = dioxus::document::eval(
             "var p=document.getElementById('pre-wasm-loader');if(p)p.style.display='none';",
         );
+    });
+
+    #[cfg(all(target_os = "linux", feature = "desktop"))]
+    use_muda_event_handler(move |event| {
+        if event.id().0 != window::MENU_ID {
+            return;
+        }
+        let frameless = !window::stored();
+        window::set_stored(frameless);
+        dioxus::desktop::window().set_decorations(!frameless);
+        TOAST.write().success(if frameless {
+            "Frameless window enabled"
+        } else {
+            "Window decorations restored"
+        });
     });
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -85,7 +108,6 @@ pub fn AppLayout() -> Element {
         let theme = PREFERENCES().theme().to_string();
         apply_theme_class(&theme);
     });
-
 
     // Mobile bottom bar: hide on scroll down, show on scroll up
     use_effect(move || {
@@ -138,7 +160,7 @@ pub fn AppLayout() -> Element {
             "Skip to content"
         }
 
-        div { class: "flex flex-col min-h-dvh bg-background",
+        div { class: if privacy { "privacy-mode flex flex-col min-h-dvh bg-background" } else { "flex flex-col min-h-dvh bg-background" },
 
             // ── Top navigation bar (sticky) ──
             header { class: "sticky top-0 z-30 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl",
@@ -195,8 +217,9 @@ pub fn AppLayout() -> Element {
                             }
                         }
                     }
-                    // Right: theme + profile and settings
+                    // Right: privacy + theme + profile and settings
                     div { class: "flex items-center gap-1",
+                        PrivacyToggle {}
                         ThemeToggleButton {}
                         a {
                             href: "/settings",
@@ -374,7 +397,6 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
     }
 }
 
-
 // ── Theme toggle button ──
 #[component]
 fn ThemeToggleButton() -> Element {
@@ -451,7 +473,9 @@ pub fn avatar_color(seed: &str) -> &'static str {
     const COLORS: [&str; 8] = [
         "#6366f1", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6", "#0ea5e9", "#22c55e", "#eab308",
     ];
-    let hash = seed.bytes().fold(0usize, |acc, b| acc.wrapping_add(b as usize));
+    let hash = seed
+        .bytes()
+        .fold(0usize, |acc, b| acc.wrapping_add(b as usize));
     COLORS[hash % COLORS.len()]
 }
 
@@ -764,8 +788,14 @@ mod tests {
         let src = include_str!("app_layout.rs");
         // Check production code only (before #[cfg(test)])
         let prod_code = src.split("#[cfg(test)]").next().unwrap_or(src);
-        assert!(!prod_code.contains("lg:fixed"), "layout code must not contain lg:fixed");
-        assert!(prod_code.contains("top-0") && prod_code.contains("sticky"), "must have sticky top nav");
+        assert!(
+            !prod_code.contains("lg:fixed"),
+            "layout code must not contain lg:fixed"
+        );
+        assert!(
+            prod_code.contains("top-0") && prod_code.contains("sticky"),
+            "must have sticky top nav"
+        );
     }
 
     #[test]
@@ -777,16 +807,22 @@ mod tests {
     #[test]
     fn navlink_active_uses_accent_background() {
         let cls = navlink_class(true);
-        assert!(cls.contains("bg-accent"), "active nav link must use accent bg: {}", cls);
+        assert!(
+            cls.contains("bg-accent"),
+            "active nav link must use accent bg: {}",
+            cls
+        );
     }
 
     #[test]
     fn navlink_inactive_is_muted() {
         let cls = navlink_class(false);
-        assert!(cls.contains("text-muted-foreground"), "inactive nav link must be muted: {}", cls);
+        assert!(
+            cls.contains("text-muted-foreground"),
+            "inactive nav link must be muted: {}",
+            cls
+        );
     }
-
-
 
     #[test]
     fn icon_variants_are_instantiable() {
@@ -810,12 +846,6 @@ mod tests {
         assert_ne!(Icon::Dashboard as u8, Icon::Subscriptions as u8);
         assert_ne!(Icon::Sun as u8, Icon::Moon as u8);
     }
-
-
-
-
-
-
 
     #[test]
     fn svg_icon_renders_all_variants() {
@@ -841,12 +871,18 @@ mod tests {
     #[test]
     fn layout_has_main_content_id() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("main-content"), "must have main-content id for skip link");
+        assert!(
+            src.contains("main-content"),
+            "must have main-content id for skip link"
+        );
     }
 
     #[test]
     fn avatar_initials_use_name_words() {
-        assert_eq!(avatar_initials(Some("Ada Lovelace"), "ada@example.com"), "AL");
+        assert_eq!(
+            avatar_initials(Some("Ada Lovelace"), "ada@example.com"),
+            "AL"
+        );
         assert_eq!(avatar_initials(Some("Álvaro"), "a@example.com"), "ÁL");
     }
 
@@ -857,7 +893,10 @@ mod tests {
 
     #[test]
     fn avatar_color_is_stable() {
-        assert_eq!(avatar_color("demo@example.com"), avatar_color("demo@example.com"));
+        assert_eq!(
+            avatar_color("demo@example.com"),
+            avatar_color("demo@example.com")
+        );
         assert!(avatar_color("a@example.com") != avatar_color(""));
     }
 
@@ -882,7 +921,10 @@ mod tests {
     #[test]
     fn layout_has_skip_to_content_link() {
         let src = include_str!("app_layout.rs");
-        assert!(src.contains("Skip to content"), "must have skip-to-content accessibility link");
+        assert!(
+            src.contains("Skip to content"),
+            "must have skip-to-content accessibility link"
+        );
     }
 }
 

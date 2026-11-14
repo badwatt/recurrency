@@ -5595,6 +5595,7 @@ dependencies = [
  "dioxus",
  "dirs 7.0.0",
  "gloo-timers 0.4.0",
+ "image",
  "log",
  "lucide-dioxus",
  "qrcode",

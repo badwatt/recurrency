@@ -61,6 +61,7 @@ serial_test = "4"
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))'.dependencies]
 rfd = { version = "0.17", default-features = false, optional = true }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = { version = "3", default-features = false, features = ["json", "rustls", "gzip"] }
@@ -70,6 +71,6 @@ tokio = { version = "1", features = ["time", "sync", "rt"] }
 [features]
 default = ["web"]
 web = ["dioxus/web", "web-sys", "gloo-timers"]
-desktop = ["dioxus/desktop", "dep:rfd"]
+desktop = ["dioxus/desktop", "dep:rfd", "dep:image"]
 mobile = ["dioxus/mobile"]
 server = ["dioxus/server"]

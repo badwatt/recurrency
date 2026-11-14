@@ -20,9 +20,10 @@ pub mod update_banner;
 pub mod label_combobox;
 pub use label_combobox::{AccountCombobox, CategoryCombobox};
 pub use logo_image::logo_image_with_fallback;
-pub mod subscription_form;
 pub mod entry_form;
 pub mod page_header;
+pub mod privacy_toggle;
 pub mod skeleton;
+pub mod subscription_form;
 
 pub mod web_server_qr;

@@ -79,6 +79,19 @@ mod desktop_platforms {
             ])
             .unwrap();
 
+        #[cfg(target_os = "linux")]
+        window_menu
+            .append_items(&[
+                &PredefinedMenuItem::separator(),
+                &MenuItem::with_id(
+                    "recurrency-frameless",
+                    "Frameless window",
+                    true,
+                    None,
+                ),
+            ])
+            .unwrap();
+
         let edit_menu = Submenu::new("Edit", true);
         edit_menu
             .append_items(&[
