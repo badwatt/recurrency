@@ -23,24 +23,27 @@ impl Release {
     /// Pick the installer for the current native platform.
     pub fn native_asset(&self) -> Option<&ReleaseAsset> {
         #[cfg(not(any(target_os = "android", target_os = "linux", target_os = "macos", target_os = "windows")))]
+        return None;
+
+        #[cfg(any(target_os = "android", target_os = "linux", target_os = "macos", target_os = "windows"))]
         {
-            return None;
+            #[cfg(target_os = "android")]
+            let suffix = "-aarch64.apk";
+            #[cfg(target_os = "linux")]
+            let suffix = "_x86_64.AppImage";
+            #[cfg(target_os = "macos")]
+            let suffix = if std::env::consts::ARCH == "aarch64" {
+                "_aarch64.dmg"
+            } else {
+                "_x86_64.dmg"
+            };
+            #[cfg(target_os = "windows")]
+            let suffix = "_x64-setup.exe";
+
+            self.assets
+                .iter()
+                .find(|asset| asset.name.ends_with(suffix))
         }
-        #[cfg(target_os = "android")]
-        let suffix = "-aarch64.apk";
-        #[cfg(target_os = "linux")]
-        let suffix = "_x86_64.AppImage";
-        #[cfg(target_os = "macos")]
-        let suffix = if std::env::consts::ARCH == "aarch64" {
-            "_aarch64.dmg"
-        } else {
-            "_x86_64.dmg"
-        };
-        #[cfg(target_os = "windows")]
-        let suffix = "_x64-setup.exe";
-        self.assets
-            .iter()
-            .find(|asset| asset.name.ends_with(suffix))
     }
 }
 
