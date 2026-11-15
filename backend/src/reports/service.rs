@@ -328,11 +328,21 @@ impl ReportService {
         user_id: Uuid,
         months_count: i32,
     ) -> AppResult<Vec<SpendingTrend>> {
-        let months = trend_months(
-            chrono::Utc::now().date_naive(),
-            months_count,
-            TREND_FUTURE_MONTHS,
-        );
+        let today = chrono::Utc::now().date_naive();
+        Self::get_recent_trends_for(pool, user_id, today.year(), today.month(), months_count).await
+    }
+
+    /// Trends centered on the report period, not on today's date.
+    pub async fn get_recent_trends_for(
+        pool: &PgPool,
+        user_id: Uuid,
+        year: i32,
+        month: u32,
+        months_count: i32,
+    ) -> AppResult<Vec<SpendingTrend>> {
+        let anchor = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+            .unwrap_or_else(|| chrono::Utc::now().date_naive());
+        let months = trend_months(anchor, months_count, TREND_FUTURE_MONTHS);
         if months.is_empty() {
             return Ok(Vec::new());
         }
@@ -427,7 +437,7 @@ impl ReportService {
         let (monthly_summary, category_breakdown, recent_trends) = tokio::try_join!(
             Self::get_monthly_summary(pool, user_id, year, month),
             Self::get_category_breakdown(pool, user_id, year, month),
-            Self::get_recent_trends(pool, user_id, TREND_PAST_MONTHS),
+            Self::get_recent_trends_for(pool, user_id, year, month, TREND_PAST_MONTHS),
         )?;
 
         Ok(ReportResponse {
