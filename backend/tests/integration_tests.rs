@@ -17,6 +17,8 @@ use recurrency_backend::notifications::channels::{NotificationProvider, UpdateNo
 use recurrency_backend::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
 use recurrency_backend::categories::models::CreateCategoryRequest;
 use recurrency_backend::categories::service::CategoryService;
+use recurrency_backend::preferences::models::UpdatePreferencesRequest;
+use recurrency_backend::preferences::service::SqlxPreferencesService;
 use recurrency_backend::debts::models::{CreateDebtRequest, RecordDebtPaymentRequest};
 use recurrency_backend::debts::service::DebtService;
 use recurrency_backend::reports::service::ReportService;
@@ -1145,4 +1147,35 @@ async fn schema_reconciliation_creates_the_expected_indexes(pool: PgPool) {
     .await
     .unwrap();
     assert_eq!(verified_index.as_deref(), Some("idx_users_verified"));
+}
+
+
+#[sqlx::test]
+async fn preferences_update_all_fields_in_one_call(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxPreferencesService::new(pool.clone());
+
+    let response = service
+        .update_preferences(
+            user_id,
+            UpdatePreferencesRequest {
+                theme: Some("dark".into()),
+                subscriptions_view: Some("list".into()),
+                first_day_of_week: Some("sunday".into()),
+                date_format: Some("YYYY/MM/DD".into()),
+            },
+        )
+        .await
+        .expect("preferences update should succeed");
+
+    assert_eq!(response.theme, "dark");
+    assert_eq!(response.subscriptions_view, "list");
+    assert_eq!(response.first_day_of_week, "sunday");
+    assert_eq!(response.date_format, "YYYY/MM/DD");
+
+    let loaded = service.get_preferences(user_id).await.unwrap();
+    assert_eq!(loaded.theme, response.theme);
+    assert_eq!(loaded.subscriptions_view, response.subscriptions_view);
+    assert_eq!(loaded.first_day_of_week, response.first_day_of_week);
+    assert_eq!(loaded.date_format, response.date_format);
 }
