@@ -1,13 +1,9 @@
+use crate::components::color_picker::ColorField;
 use crate::utils::icons::{ICON_NAMES, icon_display};
 use dioxus::prelude::*;
 
-/// Shared account form fields: name, icon picker, and color palette.
+/// Shared account form fields: name, icon picker, and color picker.
 /// Used by the Accounts page and by the inline create flow in account selects.
-pub const COLOR_PALETTE: &[&str] = &[
-    "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-    "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
-    "#f43f5e", "#6b7280", "#78716c", "#a3a3a3",
-];
 
 #[component]
 pub fn AccountFields(
@@ -80,31 +76,11 @@ pub fn AccountFields(
             }
 
             // Color
-            div { class: "space-y-2",
-                div { class: "flex items-center justify-between",
-                    label { class: "text-sm font-medium", "Color" }
-                    input {
-                        r#type: "color",
-                        value: color(),
-                        aria_label: "Custom color",
-                        oninput: move |e| color.set(e.value()),
-                        class: "h-8 w-10 cursor-pointer rounded-md border border-input bg-background p-0.5",
-                    }
-                }
-                div { class: "grid grid-cols-10 gap-1",
-                    for palette_color in COLOR_PALETTE {
-                        {let is_selected = *palette_color == color();
-                         rsx! {
-                            button {
-                                r#type: "button",
-                                key: "{palette_color}",
-                                class: if is_selected { "h-8 w-8 rounded-full border-2 border-foreground ring-2 ring-ring" } else { "h-8 w-8 rounded-full border border-border hover:ring-1 hover:ring-ring" },
-                                style: "background-color: {palette_color}",
-                                onclick: move |_| color.set(palette_color.to_string()),
-                            }
-                        }}
-                    }
-                }
+            ColorField {
+                label: "Color",
+                value: color,
+                name: Some(name()),
+                icon: Some(icon()),
             }
         }
     }

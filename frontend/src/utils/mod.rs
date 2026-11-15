@@ -5,7 +5,7 @@ pub mod download;
 pub mod format;
 pub mod icons;
 pub mod image;
+pub mod pdf;
 pub mod qr;
 pub mod recurrence;
 pub mod scroll;
-

@@ -1,15 +1,15 @@
-use crate::storage::Storage;
+use crate::components::color_picker::ColorField;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::CategoryCardSkeleton;
 use crate::models::category::*;
 use crate::state::categories::CATEGORIES;
-use crate::utils::color::is_valid_hex;
+use crate::storage::Storage;
+use crate::utils::color::{DEFAULT_COLOR, FALLBACK_COLOR, is_valid_hex, with_alpha};
 use crate::utils::icons::{ICON_NAMES, icon_display};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-/// Available color palette for category picker.
 fn icon_tag() -> Element {
     rsx! { svg { view_box: "0 0 24 24", width: "32", height: "32", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
         path { d: "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" }
@@ -39,19 +39,13 @@ fn icon_plus() -> Element {
     }}
 }
 
-const COLOR_PALETTE: &[&str] = &[
-    "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-    "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
-    "#f43f5e", "#6b7280", "#78716c", "#a3a3a3",
-];
-
 #[component]
 pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut editing_id = use_signal(|| None::<Uuid>);
     let mut form_name = use_signal(String::new);
     let mut form_icon = use_signal(|| "Tag".to_string());
-    let mut form_color = use_signal(|| "#6b7280".to_string());
+    let mut form_color = use_signal(|| DEFAULT_COLOR.to_string());
     let mut form_saving = use_signal(|| false);
     let mut show_icon_picker = use_signal(|| false);
     let mut icon_search = use_signal(String::new);
@@ -78,7 +72,7 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
         editing_id.set(None);
         form_name.set(String::new());
         form_icon.set("Tag".into());
-        form_color.set("#6b7280".into());
+        form_color.set(DEFAULT_COLOR.into());
         show_icon_picker.set(false);
         name_error.set(String::new());
         dialog_open.set(true);
@@ -88,7 +82,11 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
         editing_id.set(Some(cat.id));
         form_name.set(cat.name.clone());
         form_icon.set(cat.icon.clone().unwrap_or_else(|| "Tag".into()));
-        form_color.set(cat.color.clone().unwrap_or_else(|| "#6b7280".into()));
+        form_color.set(
+            cat.color
+                .clone()
+                .unwrap_or_else(|| DEFAULT_COLOR.to_string()),
+        );
         show_icon_picker.set(false);
         name_error.set(String::new());
         dialog_open.set(true);
@@ -205,18 +203,22 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                 rsx! {
                     div { class: "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
                         for cat in &state.categories {
-                            {let cat_color = cat.color.clone().unwrap_or_else(|| "#888".into());
-                             let cat_bg = format!("{}20", cat_color);
+                            {let cat_color = cat.color.clone().unwrap_or_else(|| FALLBACK_COLOR.to_string());
+                             let cat_bg = with_alpha(&cat_color, 0x24);
+                             let cat_glow = with_alpha(&cat_color, 0x14);
                              let cat_icon = cat.icon.clone().unwrap_or_else(|| "Tag".into());
                              let cat_id = cat.id;
                              let is_default = cat.is_default;
                              let is_system = cat.is_system;
                              rsx! {
-                                div { key: "{cat.id}", class: "rounded-lg border border-border bg-card p-3 sm:p-4",
+                                div {
+                                    key: "{cat.id}",
+                                    class: "group rounded-xl border border-border/60 bg-card p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md sm:p-4",
+                                    style: "background-image: linear-gradient(135deg, {cat_glow}, transparent 62%);",
                                     div { class: "flex items-center gap-2 sm:gap-3",
                                         // Icon circle
                                         div {
-                                            class: "flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full",
+                                            class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-black/5 sm:h-12 sm:w-12",
                                             style: "background-color: {cat_bg}",
                                             span {
                                                 style: "color: {cat_color}",
@@ -295,9 +297,13 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                             }
                         }
                         div {
-                            class: "flex h-10 w-10 items-center justify-center rounded-full",
-                            style: "background-color: {form_color()}20",
-                            span { style: "color: {form_color()}", {icon_display(&form_icon())} }
+                            class: "flex h-11 w-11 items-center justify-center rounded-xl ring-1 ring-inset ring-black/5",
+                            style: "background-color: {with_alpha(&form_color(), 0x24)}",
+                            span {
+                                class: "text-lg",
+                                style: "color: {form_color()}",
+                                {icon_display(&form_icon())}
+                            }
                         }
                         if show_icon_picker() {
                             input {
@@ -323,30 +329,11 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                         }
                     }
                     // Color
-                    div { class: "space-y-2",
-                        div { class: "flex items-center justify-between",
-                            label { class: "text-sm font-medium", "Color" }
-                            input {
-                                r#type: "color",
-                                value: form_color(),
-                                aria_label: "Custom color",
-                                oninput: move |e| form_color.set(e.value()),
-                                class: "h-8 w-10 cursor-pointer rounded-md border border-input bg-background p-0.5",
-                            }
-                        }
-                        div { class: "grid grid-cols-10 gap-1",
-                            for color in COLOR_PALETTE {
-                                {let is_selected = *color == form_color();
-                                 rsx! {
-                                    button {
-                                        key: "{color}",
-                                        class: if is_selected { "h-8 w-8 rounded-full border-2 border-foreground ring-2 ring-ring" } else { "h-8 w-8 rounded-full border border-border hover:ring-1 hover:ring-ring" },
-                                        style: "background-color: {color}",
-                                        onclick: move |_| form_color.set(color.to_string()),
-                                    }
-                                }}
-                            }
-                        }
+                    ColorField {
+                        label: "Color",
+                        value: form_color,
+                        name: Some(form_name()),
+                        icon: Some(form_icon()),
                     }
                     // Actions
                     div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2",
@@ -418,12 +405,6 @@ mod tests {
     }
 
     #[test]
-    fn color_palette_not_empty() {
-        assert!(!COLOR_PALETTE.is_empty());
-        assert_eq!(COLOR_PALETTE.len(), 20);
-    }
-
-    #[test]
     fn icon_names_not_empty() {
         assert!(!ICON_NAMES.is_empty());
     }
@@ -432,7 +413,11 @@ mod tests {
     #[test]
     fn icon_display_all_mappings() {
         for name in ICON_NAMES {
-            assert!(icon_display(name).is_ok(), "icon_display failed for {}", name);
+            assert!(
+                icon_display(name).is_ok(),
+                "icon_display failed for {}",
+                name
+            );
         }
     }
 
@@ -473,63 +458,16 @@ mod tests {
         assert!(name.trim().len() >= 2);
     }
 
-    // ── Color palette tests ──
     #[test]
-    fn color_palette_has_hex_format() {
-        for color in COLOR_PALETTE {
-            assert!(
-                color.starts_with('#'),
-                "Color {} should start with #",
-                color
-            );
-            assert_eq!(
-                color.len(),
-                7,
-                "Color {} should be 7 chars (#RRGGBB)",
-                color
-            );
-        }
+    fn new_category_uses_the_shared_default_color() {
+        assert_eq!(DEFAULT_COLOR, "#6b7280");
+        assert!(is_valid_hex(DEFAULT_COLOR));
     }
 
     #[test]
-    fn color_palette_has_unique_colors() {
-        let mut seen = std::collections::HashSet::new();
-        for color in COLOR_PALETTE {
-            assert!(seen.insert(*color), "Duplicate color: {}", color);
-        }
-    }
-
-    #[test]
-    fn color_palette_includes_red() {
-        assert!(COLOR_PALETTE.contains(&"#ef4444"));
-    }
-
-    #[test]
-    fn color_palette_includes_blue() {
-        assert!(COLOR_PALETTE.contains(&"#3b82f6"));
-    }
-
-    #[test]
-    fn color_default_is_gray() {
-        // Default color used in form: #6b7280
-        assert!(COLOR_PALETTE.contains(&"#6b7280"));
-    }
-
-    // ── Category background color computation ──
-    #[test]
-    fn category_bg_transparency() {
-        // The component uses format!("{}20", cat_color) for bg
-        let cat_color = "#ef4444";
-        let cat_bg = format!("{}20", cat_color);
-        assert_eq!(cat_bg, "#ef444420");
-    }
-
-    #[test]
-    fn category_color_fallback() {
-        // If no color, defaults to #888
-        let cat_color: Option<String> = None;
-        let resolved = cat_color.unwrap_or_else(|| "#888".into());
-        assert_eq!(resolved, "#888");
+    fn category_card_uses_picker_color_with_alpha() {
+        assert_eq!(with_alpha("#ef4444", 0x24), "#ef444424");
+        assert_eq!(with_alpha("", 0x24), FALLBACK_COLOR);
     }
 
     #[test]
@@ -613,12 +551,6 @@ mod tests {
         }
     }
 
-    // ── Color palette non-empty test ──
-    #[test]
-    fn color_palette_has_elements() {
-        assert!(!COLOR_PALETTE.is_empty());
-    }
-
     // ── TDD: Modal click-outside ──
     #[test]
     fn category_dialog_uses_click_outside_component() {
@@ -628,21 +560,15 @@ mod tests {
         assert!(true); // structural check
     }
 
-    // ── Color palette additional tests ──
     #[test]
-    fn color_palette_has_multiple_colors() {
-        assert!(
-            COLOR_PALETTE.len() > 5,
-            "Palette should have multiple colors"
-        );
-    }
-
-    #[test]
-    fn color_palette_colors_are_valid() {
-        for color in COLOR_PALETTE {
-            assert!(color.starts_with('#'), "Colors should be hex format");
-            assert_eq!(color.len(), 7, "Hex colors should be 7 chars");
-        }
+    fn category_form_uses_the_picker_only() {
+        let source = include_str!("categories_page.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or_default();
+        assert!(source.contains("ColorField"));
+        assert!(!source.contains("PALETTE"));
+        assert!(!source.contains("r#type: \"color\""));
     }
 
     // Icon tests check that function doesn't panic
@@ -848,9 +774,12 @@ mod color_picker_tests {
     }
 
     #[test]
-    fn category_form_exposes_native_color_picker() {
-        let source = include_str!("categories_page.rs");
-        assert!(source.contains("r#type: \"color\""));
-        assert!(source.contains("Custom color"));
+    fn category_form_delegates_to_the_color_picker() {
+        let source = include_str!("categories_page.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or_default();
+        assert!(source.contains("ColorField"));
+        assert!(!source.contains("PALETTE"));
     }
 }

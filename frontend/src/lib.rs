@@ -152,14 +152,18 @@ pub fn launch() {
 
 #[component]
 fn App() -> Element {
-    // Hydrate auth state, preferences, app mode from storage
-    use_future(move || async move {
+    // Restore the session synchronously during the first render. The layout
+    // waits for `initialized`; doing this in a hook avoids a frame where the
+    // router could redirect to Login before the persisted session is read.
+    use_hook(|| {
         if !AUTH().initialized {
             AUTH.write().hydrate_from_storage();
             AUTH.write().initialized = true;
         }
         PREFERENCES.write().hydrate_from_storage();
+    });
 
+    use_future(move || async move {
         // Hydrate app mode from persistent storage
         // APP_MODE hydrates on first read via Default impl, but signal needs explicit write
         let mode_state = APP_MODE();
@@ -170,15 +174,10 @@ fn App() -> Element {
             }
         }
 
-        // A session created in one mode must not leak into the other: an
-        // offline session (token "offline") is invalid in server mode and a
-        // server JWT is meaningless offline.
+        // A persisted session is kept across launches until the user logs out.
+        // Switching mode already calls logout explicitly, so startup never
+        // discards a valid session.
         let offline = mode_state.mode.is_offline();
-        if let Some(token) = AUTH().token.clone()
-            && (token == "offline") != offline
-        {
-            AUTH.write().logout();
-        }
 
         // Restore saved server URL from persistent storage.
         // On WASM: localStorage handled by get_base_url_impl()
@@ -458,5 +457,20 @@ fn CatchAll(path: Vec<String>) -> Element {
                 "Back to dashboard"
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod startup_session_tests {
+    #[test]
+    fn startup_hydrates_before_rendering_and_keeps_the_session() {
+        let source = include_str!("lib.rs")
+            .split("mod startup_session_tests")
+            .next()
+            .unwrap_or_default();
+        assert!(source.contains("use_hook"));
+        assert!(source.contains("hydrate_from_storage"));
+        assert!(!source.contains("AUTH.write().logout()"));
+        assert!(!source.contains("(token == \"offline\") != offline"));
     }
 }

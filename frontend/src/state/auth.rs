@@ -27,6 +27,47 @@ pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
 
 #[allow(dead_code)]
 const USER_KEY: &str = "recurrency-auth-user";
+#[cfg(not(target_arch = "wasm32"))]
+const TOKEN_FILE: &str = "auth-token.txt";
+#[cfg(not(target_arch = "wasm32"))]
+const USER_FILE: &str = "auth-user.json";
+
+#[cfg(not(target_arch = "wasm32"))]
+mod native {
+    use super::{TOKEN_FILE, USER_FILE};
+    use crate::models::auth::UserResponse;
+    use std::path::Path;
+
+    pub(super) fn to_json<T: serde::Serialize>(value: &T) -> Result<String, String> {
+        serde_json::to_string(value).map_err(|error| error.to_string())
+    }
+
+    pub(super) fn write_session(
+        dir: &Path,
+        token: &str,
+        user: &UserResponse,
+    ) -> Result<(), String> {
+        std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
+        std::fs::write(dir.join(TOKEN_FILE), token).map_err(|error| error.to_string())?;
+        let user_json = to_json(user)?;
+        std::fs::write(dir.join(USER_FILE), user_json).map_err(|error| error.to_string())
+    }
+
+    pub(super) fn read_session(dir: &Path) -> Option<(String, UserResponse)> {
+        let token = std::fs::read_to_string(dir.join(TOKEN_FILE)).ok()?;
+        if token.is_empty() {
+            return None;
+        }
+        let user_json = std::fs::read_to_string(dir.join(USER_FILE)).ok()?;
+        let user = serde_json::from_str(&user_json).ok()?;
+        Some((token, user))
+    }
+
+    pub(super) fn clear_session(dir: &Path) {
+        let _ = std::fs::remove_file(dir.join(TOKEN_FILE));
+        let _ = std::fs::remove_file(dir.join(USER_FILE));
+    }
+}
 
 #[cfg(test)]
 pub(crate) static AUTH_FILE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -105,23 +146,24 @@ impl AuthState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let (Some(token), Some(user)) = (&self.token, &self.user) {
-                if let Some(data_dir) = get_app_data_dir() {
-                    let app_dir = data_dir.join("recurrency");
-                    if let Err(e) = std::fs::create_dir_all(&app_dir) {
-                        eprintln!("[Auth] Failed to create app dir {:?}: {}", app_dir, e);
-                    }
-                    if let Err(e) = std::fs::write(app_dir.join("auth-token.txt"), token) {
-                        eprintln!("[Auth] Failed to write token: {}", e);
-                    }
-                    if let Ok(user_json) = serde_json::to_string(user)
-                        && let Err(e) = std::fs::write(app_dir.join("auth-user.json"), &user_json) {
-                            eprintln!("[Auth] Failed to write user: {}", e);
-                        }
-                } else {
+            if self.token.is_some() && self.user.is_some() {
+                let Some(dir) = native_app_dir() else {
                     eprintln!("[Auth] get_app_data_dir() returned None — cannot persist auth");
+                    return;
+                };
+                if let Err(error) = self.persist_to_dir(&dir) {
+                    eprintln!("[Auth] Failed to persist session: {error}");
                 }
             }
+        }
+    }
+
+    /// Write the current session to `dir`. No-op when signed out.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn persist_to_dir(&self, dir: &std::path::Path) -> Result<(), String> {
+        match (&self.token, &self.user) {
+            (Some(token), Some(user)) => native::write_session(dir, token, user),
+            _ => Ok(()),
         }
     }
 
@@ -139,10 +181,8 @@ impl AuthState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(data_dir) = get_app_data_dir() {
-                let app_dir = data_dir.join("recurrency");
-                let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
-                let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+            if let Some(dir) = native_app_dir() {
+                native::clear_session(&dir);
             }
         }
     }
@@ -170,46 +210,32 @@ impl AuthState {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(data_dir) = get_app_data_dir() {
-                let app_dir = data_dir.join("recurrency");
-                let token_file = app_dir.join("auth-token.txt");
-                let user_file = app_dir.join("auth-user.json");
-                eprintln!("[Auth] Hydrate: looking for files in {:?}", app_dir);
-                match (
-                    std::fs::read_to_string(&token_file),
-                    std::fs::read_to_string(&user_file),
-                ) {
-                    (Ok(token), Ok(user_json)) => {
-                        if let Ok(user) = serde_json::from_str::<UserResponse>(&user_json)
-                            && !token.is_empty() {
-                                eprintln!(
-                                    "[Auth] Hydrate: token found (length {}), user hydrated",
-                                    token.len()
-                                );
-                                self.token = Some(token);
-                                self.user = Some(user);
-                                self.is_authenticated = true;
-                                self.initialized = true;
-                                return true;
-                            }
-                        eprintln!("[Auth] Hydrate: files found but parse failed");
-                    }
-                    (Err(e1), e2) => {
-                        eprintln!(
-                            "[Auth] Hydrate: token file error: {:?}, user file result: {:?}",
-                            e1, e2
-                        );
-                    }
-                    (Ok(_), Err(e2)) => {
-                        eprintln!("[Auth] Hydrate: user file error: {:?}", e2);
-                    }
-                }
-            } else {
-                eprintln!("[Auth] Hydrate: get_app_data_dir() returned None");
+            if let Some(dir) = native_app_dir()
+                && self.hydrate_from_dir(&dir)
+            {
+                return true;
             }
         }
         false
     }
+
+    /// Restore a session from `dir`. Returns true when a valid session was read.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn hydrate_from_dir(&mut self, dir: &std::path::Path) -> bool {
+        let Some((token, user)) = native::read_session(dir) else {
+            return false;
+        };
+        self.token = Some(token);
+        self.user = Some(user);
+        self.is_authenticated = true;
+        self.initialized = true;
+        true
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn native_app_dir() -> Option<std::path::PathBuf> {
+    get_app_data_dir().map(|dir| dir.join("recurrency"))
 }
 
 pub static AUTH: GlobalSignal<AuthState> = Signal::global(AuthState::default);
@@ -224,7 +250,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
@@ -557,7 +583,7 @@ mod tests {
         let user = crate::models::auth::UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
@@ -573,7 +599,7 @@ mod tests {
         let user = crate::models::auth::UserResponse {
             id: uuid::Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
@@ -581,5 +607,143 @@ mod tests {
         state.set_authenticated("test-token".into(), user, false);
         state.logout();
         assert!(state.token.is_none());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    mod native_session {
+        use super::*;
+        use serde::Serialize;
+        use serde::ser::Error as _;
+
+        struct Failing;
+        impl Serialize for Failing {
+            fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                Err(S::Error::custom("serialization failed"))
+            }
+        }
+
+        fn temp_dir(label: &str) -> std::path::PathBuf {
+            let dir = std::env::temp_dir()
+                .join(format!("recurrency-auth-{label}-{}", uuid::Uuid::new_v4()));
+            let _ = std::fs::remove_dir_all(&dir);
+            dir
+        }
+
+        #[test]
+        fn session_json_reports_serialization_errors() {
+            assert!(super::super::native::to_json(&Failing).is_err());
+        }
+
+        #[test]
+        fn session_round_trips_through_an_isolated_directory() {
+            let dir = temp_dir("roundtrip");
+            let user = sample_user();
+            super::super::native::write_session(&dir, "token-123", &user).unwrap();
+
+            let (token, restored) = super::super::native::read_session(&dir).unwrap();
+            assert_eq!(token, "token-123");
+            assert_eq!(restored, user);
+
+            super::super::native::clear_session(&dir);
+            assert!(super::super::native::read_session(&dir).is_none());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn read_session_returns_none_without_a_token_file() {
+            let dir = temp_dir("missing-token");
+            std::fs::create_dir_all(&dir).unwrap();
+            assert!(super::super::native::read_session(&dir).is_none());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn read_session_returns_none_for_an_empty_token() {
+            let dir = temp_dir("empty-token");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("auth-token.txt"), "").unwrap();
+            assert!(super::super::native::read_session(&dir).is_none());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn read_session_returns_none_without_a_user_file() {
+            let dir = temp_dir("missing-user");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("auth-token.txt"), "token").unwrap();
+            assert!(super::super::native::read_session(&dir).is_none());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn read_session_returns_none_for_a_corrupt_user_file() {
+            let dir = temp_dir("corrupt-user");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("auth-token.txt"), "token").unwrap();
+            std::fs::write(dir.join("auth-user.json"), "{not json").unwrap();
+            assert!(super::super::native::read_session(&dir).is_none());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn write_session_reports_directory_errors() {
+            let base = temp_dir("write-dir");
+            std::fs::create_dir_all(&base).unwrap();
+            let blocker = base.join("blocker");
+            std::fs::write(&blocker, "file").unwrap();
+            let error =
+                super::super::native::write_session(&blocker.join("nested"), "t", &sample_user())
+                    .unwrap_err();
+            assert!(!error.is_empty());
+            let _ = std::fs::remove_dir_all(&base);
+        }
+
+        #[test]
+        fn write_session_reports_token_write_errors() {
+            let dir = temp_dir("write-token");
+            std::fs::create_dir_all(dir.join("auth-token.txt")).unwrap();
+            assert!(super::super::native::write_session(&dir, "t", &sample_user()).is_err());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn write_session_reports_user_write_errors() {
+            let dir = temp_dir("write-user");
+            std::fs::create_dir_all(dir.join("auth-user.json")).unwrap();
+            assert!(super::super::native::write_session(&dir, "t", &sample_user()).is_err());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn auth_state_restores_a_persisted_session() {
+            let dir = temp_dir("restore");
+            let mut state = AuthState::default();
+            state.set_authenticated("jwt-token".into(), sample_user(), false);
+            state.persist_to_dir(&dir).unwrap();
+
+            let mut restored = AuthState::default();
+            assert!(restored.hydrate_from_dir(&dir));
+            assert_eq!(restored.token.as_deref(), Some("jwt-token"));
+            assert!(restored.is_authenticated);
+            assert!(restored.initialized);
+
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn persist_to_dir_is_a_noop_without_a_session() {
+            let dir = temp_dir("signed-out");
+            AuthState::default().persist_to_dir(&dir).unwrap();
+            assert!(!dir.exists());
+        }
+
+        #[test]
+        fn hydrate_from_dir_returns_false_when_empty() {
+            let dir = temp_dir("hydrate-empty");
+            assert!(!AuthState::default().hydrate_from_dir(&dir));
+        }
     }
 }

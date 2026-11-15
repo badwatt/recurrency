@@ -3,6 +3,7 @@ pub mod badge;
 pub mod button;
 pub mod card;
 pub mod chart;
+pub mod color_picker;
 pub mod converted_amount;
 pub use converted_amount::ConvertedAmount;
 pub mod dialog;

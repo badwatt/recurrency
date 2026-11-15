@@ -1,6 +1,7 @@
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
+use crate::components::toast::TOAST;
 use crate::models::report::*;
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -8,8 +9,12 @@ use crate::state::categories::CATEGORIES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::transactions::TRANSACTIONS;
 use crate::storage::Storage;
+use crate::utils::download::{
+    ExportResult, export_csv as download_csv, export_filename, export_pdf as download_pdf,
+};
 use crate::utils::format::format_currency;
 use crate::utils::icons::icon_display;
+use crate::utils::pdf::build_report_pdf;
 use chrono::{Datelike, Utc};
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronDown, CreditCard, Download, Receipt, TrendingUp, Wallet};
@@ -77,8 +82,7 @@ pub fn build_export_csv(
     csv.push_str("Recurrency export\n");
     csv.push_str(&format!(
         "Period,{month_name} {}\nFormat,1\nCurrency,{}\n",
-        report.monthly_summary.year,
-        currency,
+        report.monthly_summary.year, currency,
     ));
     csv.push_str("\nSummary\nMetric,Value\n");
     csv.push_str(&format!(
@@ -345,35 +349,72 @@ pub fn ReportsPage() -> Element {
 
     let csv_currency = currency.clone();
     let export_csv = move |_| {
-        if let Some(report) = report() {
-            let csv = build_export_csv(
-                &report,
-                &csv_currency,
-                &SUBSCRIPTIONS().subscriptions,
-                &TRANSACTIONS().transactions,
-                &ACCOUNTS().accounts,
-                &CATEGORIES().categories,
-            );
-            crate::utils::download::save_text(
-                &format!(
-                    "recurrency-report-{}-{}.csv",
-                    selected_year(),
-                    selected_month()
-                ),
-                "text/csv",
-                &csv,
-            );
-        }
         export_open.set(false);
+        let Some(report) = report() else {
+            TOAST.write().error("The report is still loading");
+            return;
+        };
+        let csv = build_export_csv(
+            &report,
+            &csv_currency,
+            &SUBSCRIPTIONS().subscriptions,
+            &TRANSACTIONS().transactions,
+            &ACCOUNTS().accounts,
+            &CATEGORIES().categories,
+        );
+        let filename = export_filename(&selected_year(), &selected_month(), "csv");
+        spawn(async move {
+            match download_csv(filename, csv).await {
+                Ok(ExportResult::Saved(path)) => {
+                    TOAST.write().success(format!("CSV saved to {path}"));
+                }
+                Ok(ExportResult::Downloaded) => {
+                    TOAST.write().success("CSV download started");
+                }
+                Ok(ExportResult::Printed) => {
+                    TOAST.write().success("CSV report ready");
+                }
+                Ok(ExportResult::Cancelled) => {}
+                Err(error) => {
+                    TOAST
+                        .write()
+                        .error(format!("Could not export CSV: {error}"));
+                }
+            }
+        });
     };
 
     let pdf_currency = currency.clone();
     let export_pdf = move |_| {
-        if let Some(report) = report() {
-            let html = build_export_html(&report, &pdf_currency, &CATEGORIES().categories);
-            crate::utils::download::print_html(&html);
-        }
         export_open.set(false);
+        let Some(report) = report() else {
+            TOAST.write().error("The report is still loading");
+            return;
+        };
+        let pdf = build_report_pdf(&report, &pdf_currency, &CATEGORIES().categories);
+        let html = build_export_html(&report, &pdf_currency, &CATEGORIES().categories);
+        let filename = export_filename(&selected_year(), &selected_month(), "pdf");
+        spawn(async move {
+            match download_pdf(filename, pdf, html).await {
+                Ok(ExportResult::Saved(path)) => {
+                    TOAST.write().success(format!("PDF saved to {path}"));
+                }
+                Ok(ExportResult::Downloaded) => {
+                    TOAST.write().success("PDF download started");
+                }
+                Ok(ExportResult::Printed) => {
+                    TOAST
+                        .write()
+                        .success("Print dialog opened — choose “Save as PDF”");
+                }
+                Ok(ExportResult::Cancelled) => {}
+                Err(error) => {
+                    TOAST
+                        .write()
+                        .error(format!("Could not export PDF: {error}"));
+                }
+            }
+        });
     };
 
     rsx! {
@@ -1485,15 +1526,19 @@ mod export_tests {
 #[cfg(test)]
 mod export_menu_tests {
     #[test]
-    fn export_menu_offers_csv_and_pdf_with_mobile_download_bridge() {
-        let src = include_str!("reports_page.rs");
-        assert!(src.contains("CSV"));
-        assert!(src.contains("PDF"));
-        assert!(src.contains("save_text"));
-        assert!(src.contains("print_html"));
+    fn export_menu_uses_native_save_flows_and_toasts() {
+        let source = include_str!("reports_page.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or_default();
+        assert!(source.contains("CSV"));
+        assert!(source.contains("PDF"));
+        assert!(source.contains("download_csv"));
+        assert!(source.contains("download_pdf"));
+        assert!(source.contains("build_report_pdf"));
+        assert!(source.contains("TOAST.write().success"));
     }
 }
-
 
 #[cfg(test)]
 mod report_period_tests {
