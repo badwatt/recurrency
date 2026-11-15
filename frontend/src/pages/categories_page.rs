@@ -4,6 +4,7 @@ use crate::components::page_header::PageHeader;
 use crate::components::skeleton::CategoryCardSkeleton;
 use crate::models::category::*;
 use crate::state::categories::CATEGORIES;
+use crate::utils::color::is_valid_hex;
 use crate::utils::icons::{ICON_NAMES, icon_display};
 use dioxus::prelude::*;
 use uuid::Uuid;
@@ -323,7 +324,16 @@ pub fn CategoriesPage(#[props(default = false)] embedded: bool) -> Element {
                     }
                     // Color
                     div { class: "space-y-2",
-                        label { class: "text-sm font-medium", "Color" }
+                        div { class: "flex items-center justify-between",
+                            label { class: "text-sm font-medium", "Color" }
+                            input {
+                                r#type: "color",
+                                value: form_color(),
+                                aria_label: "Custom color",
+                                oninput: move |e| form_color.set(e.value()),
+                                class: "h-8 w-10 cursor-pointer rounded-md border border-input bg-background p-0.5",
+                            }
+                        }
                         div { class: "grid grid-cols-10 gap-1",
                             for color in COLOR_PALETTE {
                                 {let is_selected = *color == form_color();
@@ -385,7 +395,7 @@ pub fn validate_category_form(name: &str, icon: &str, color: &str) -> CategoryVa
     }
     if color.trim().is_empty() {
         result.color_error = Some("Color is required".into());
-    } else if !COLOR_PALETTE.contains(&color) {
+    } else if !is_valid_hex(color) {
         result.color_error = Some("Invalid color".into());
     }
     result
@@ -824,5 +834,23 @@ mod tests {
         let r = validate_category_form("", "House", "#ef4444");
         assert!(!r.is_valid());
         assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+    }
+}
+
+#[cfg(test)]
+mod color_picker_tests {
+    use super::*;
+
+    #[test]
+    fn custom_hex_color_is_valid() {
+        let result = validate_category_form("Food", "Tag", "#123abc");
+        assert!(result.color_error.is_none());
+    }
+
+    #[test]
+    fn category_form_exposes_native_color_picker() {
+        let source = include_str!("categories_page.rs");
+        assert!(source.contains("r#type: \"color\""));
+        assert!(source.contains("Custom color"));
     }
 }

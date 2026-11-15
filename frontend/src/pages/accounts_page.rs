@@ -1,10 +1,13 @@
-use crate::components::account_fields::{AccountFields, COLOR_PALETTE};
+use crate::components::account_fields::AccountFields;
+#[cfg(test)]
+use crate::components::account_fields::COLOR_PALETTE;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::CategoryCardSkeleton;
 use crate::models::account::*;
 use crate::state::accounts::ACCOUNTS;
 use crate::storage::Storage;
+use crate::utils::color::is_valid_hex;
 use crate::utils::icons::icon_display;
 use dioxus::prelude::*;
 use uuid::Uuid;
@@ -354,7 +357,7 @@ pub fn validate_account_form(name: &str, icon: &str, color: &str) -> AccountVali
     }
     if color.trim().is_empty() {
         result.color_error = Some("Color is required".into());
-    } else if !COLOR_PALETTE.contains(&color) {
+    } else if !is_valid_hex(color) {
         result.color_error = Some("Invalid color".into());
     }
     result
@@ -798,5 +801,23 @@ mod tests {
         let r = validate_account_form("", "House", "#ef4444");
         assert!(!r.is_valid());
         assert_eq!(r.name_error.as_deref(), Some("Name is required"));
+    }
+}
+
+#[cfg(test)]
+mod color_picker_tests {
+    use super::*;
+
+    #[test]
+    fn custom_hex_color_is_valid() {
+        let result = validate_account_form("Cash", "Wallet", "#123abc");
+        assert!(result.color_error.is_none());
+    }
+
+    #[test]
+    fn account_form_exposes_native_color_picker() {
+        let source = include_str!("../components/account_fields.rs");
+        assert!(source.contains("r#type: \"color\""));
+        assert!(source.contains("Custom color"));
     }
 }

@@ -81,7 +81,16 @@ pub fn AccountFields(
 
             // Color
             div { class: "space-y-2",
-                label { class: "text-sm font-medium", "Color" }
+                div { class: "flex items-center justify-between",
+                    label { class: "text-sm font-medium", "Color" }
+                    input {
+                        r#type: "color",
+                        value: color(),
+                        aria_label: "Custom color",
+                        oninput: move |e| color.set(e.value()),
+                        class: "h-8 w-10 cursor-pointer rounded-md border border-input bg-background p-0.5",
+                    }
+                }
                 div { class: "grid grid-cols-10 gap-1",
                     for palette_color in COLOR_PALETTE {
                         {let is_selected = *palette_color == color();
