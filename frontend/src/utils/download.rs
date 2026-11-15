@@ -125,22 +125,43 @@ pub fn save_text(filename: &str, mime: &str, text: &str) {
     ));
 }
 
+const PRINT_FALLBACK_JS: &str = r#"(function() {
+    if (window.RecurrencyDownload && window.RecurrencyDownload.printHtml) {
+        window.RecurrencyDownload.printHtml(__REPORT_HTML__);
+        return;
+    }
+    const previous = document.getElementById('recurrency-print-frame');
+    if (previous) previous.remove();
+    const frame = document.createElement('iframe');
+    frame.id = 'recurrency-print-frame';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:768px;border:0;';
+    frame.srcdoc = __REPORT_HTML__;
+    frame.onload = function() {
+        const win = frame.contentWindow;
+        if (!win) {
+            frame.remove();
+            return;
+        }
+        const cleanup = function() { frame.remove(); };
+        win.addEventListener('afterprint', cleanup, { once: true });
+        setTimeout(function() {
+            try {
+                win.focus();
+                win.print();
+            } catch (error) {
+                cleanup();
+            }
+        }, 100);
+        setTimeout(cleanup, 120000);
+    };
+    document.body.appendChild(frame);
+})();"#;
+
 pub fn print_html(html: &str) {
     let html = js_string(html);
-    let _ = dioxus::document::eval(&format!(
-        r#"(function() {{
-            if (window.RecurrencyDownload && window.RecurrencyDownload.printHtml) {{
-                window.RecurrencyDownload.printHtml({html});
-                return;
-            }}
-            const w = window.open('', '_blank');
-            if (w) {{
-                w.document.write({html});
-                w.document.close();
-                setTimeout(() => w.print(), 400);
-            }}
-        }})();"#
-    ));
+    let script = PRINT_FALLBACK_JS.replace("__REPORT_HTML__", &html);
+    let _ = dioxus::document::eval(&script);
 }
 
 #[cfg(test)]
@@ -171,5 +192,12 @@ mod tests {
     #[test]
     fn js_string_escapes_quotes() {
         assert_eq!(js_string("a\"b"), "\"a\\\"b\"");
+    }
+
+    #[test]
+    fn print_fallback_uses_a_hidden_frame_instead_of_a_new_tab() {
+        assert!(PRINT_FALLBACK_JS.contains("createElement('iframe')"));
+        assert!(PRINT_FALLBACK_JS.contains("srcdoc"));
+        assert!(!PRINT_FALLBACK_JS.contains("window.open"));
     }
 }
