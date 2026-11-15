@@ -424,9 +424,11 @@ impl ReportService {
         year: i32,
         month: u32,
     ) -> AppResult<ReportResponse> {
-        let monthly_summary = Self::get_monthly_summary(pool, user_id, year, month).await?;
-        let category_breakdown = Self::get_category_breakdown(pool, user_id, year, month).await?;
-        let recent_trends = Self::get_recent_trends(pool, user_id, TREND_PAST_MONTHS).await?;
+        let (monthly_summary, category_breakdown, recent_trends) = tokio::try_join!(
+            Self::get_monthly_summary(pool, user_id, year, month),
+            Self::get_category_breakdown(pool, user_id, year, month),
+            Self::get_recent_trends(pool, user_id, TREND_PAST_MONTHS),
+        )?;
 
         Ok(ReportResponse {
             monthly_summary,

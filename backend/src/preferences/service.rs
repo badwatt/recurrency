@@ -46,58 +46,33 @@ impl SqlxPreferencesService {
         user_id: Uuid,
         req: UpdatePreferencesRequest,
     ) -> AppResult<PreferencesResponse> {
-        if let Some(theme) = req.theme {
-            sqlx::query(
-                r#"
-                INSERT INTO user_preferences (user_id, key, value)
-                VALUES ($1, 'theme', $2)
-                ON CONFLICT (user_id, key) DO UPDATE SET value = $2
-                "#,
-            )
-            .bind(user_id)
-            .bind(&theme)
-            .execute(&self.pool)
-            .await?;
+        let mut keys: Vec<String> = Vec::new();
+        let mut values: Vec<String> = Vec::new();
+        let fields = [
+            ("theme", req.theme),
+            ("subscriptions_view", req.subscriptions_view),
+            ("first_day_of_week", req.first_day_of_week),
+            ("date_format", req.date_format),
+        ];
+        for (key, value) in fields {
+            if let Some(value) = value {
+                keys.push(key.to_string());
+                values.push(value);
+            }
         }
 
-        if let Some(subscriptions_view) = req.subscriptions_view {
+        if !keys.is_empty() {
             sqlx::query(
                 r#"
                 INSERT INTO user_preferences (user_id, key, value)
-                VALUES ($1, 'subscriptions_view', $2)
-                ON CONFLICT (user_id, key) DO UPDATE SET value = $2
+                SELECT $1, key, value
+                FROM UNNEST($2::text[], $3::text[]) AS t(key, value)
+                ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value
                 "#,
             )
             .bind(user_id)
-            .bind(&subscriptions_view)
-            .execute(&self.pool)
-            .await?;
-        }
-
-        if let Some(first_day_of_week) = req.first_day_of_week {
-            sqlx::query(
-                r#"
-                INSERT INTO user_preferences (user_id, key, value)
-                VALUES ($1, 'first_day_of_week', $2)
-                ON CONFLICT (user_id, key) DO UPDATE SET value = $2
-                "#,
-            )
-            .bind(user_id)
-            .bind(&first_day_of_week)
-            .execute(&self.pool)
-            .await?;
-        }
-
-        if let Some(date_format) = req.date_format {
-            sqlx::query(
-                r#"
-                INSERT INTO user_preferences (user_id, key, value)
-                VALUES ($1, 'date_format', $2)
-                ON CONFLICT (user_id, key) DO UPDATE SET value = $2
-                "#,
-            )
-            .bind(user_id)
-            .bind(&date_format)
+            .bind(&keys)
+            .bind(&values)
             .execute(&self.pool)
             .await?;
         }
@@ -132,27 +107,6 @@ impl PreferencesServiceTrait for SqlxPreferencesService {
     }
 }
 
-// Backward compatibility: keep PreferencesService for now
-pub struct PreferencesService;
-
-impl PreferencesService {
-    pub async fn get_preferences(pool: &PgPool, user_id: Uuid) -> AppResult<PreferencesResponse> {
-        SqlxPreferencesService::new(pool.clone())
-            .get_preferences(user_id)
-            .await
-    }
-
-    pub async fn update_preferences(
-        pool: &PgPool,
-        user_id: Uuid,
-        req: UpdatePreferencesRequest,
-    ) -> AppResult<PreferencesResponse> {
-        SqlxPreferencesService::new(pool.clone())
-            .update_preferences(user_id, req)
-            .await
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,7 +125,7 @@ mod tests {
     fn apply_preference_subscriptions_view() {
         let mut response = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut response, "subscriptions_view", "list");
-        assert_eq!(response.theme, "system"); // unchanged
+        assert_eq!(response.theme, "mocha"); // unchanged
         assert_eq!(response.subscriptions_view, "list");
     }
 
@@ -179,7 +133,7 @@ mod tests {
     fn apply_preference_unknown_key_ignored() {
         let mut response = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut response, "unknown_key", "value");
-        assert_eq!(response.theme, "system");
+        assert_eq!(response.theme, "mocha");
         assert_eq!(response.subscriptions_view, "grid");
     }
 
@@ -205,7 +159,7 @@ mod tests {
     #[test]
     fn preferences_response_default_values() {
         let resp = PreferencesResponse::default();
-        assert_eq!(resp.theme, "system");
+        assert_eq!(resp.theme, "mocha");
         assert_eq!(resp.subscriptions_view, "grid");
     }
 
@@ -282,7 +236,7 @@ mod tests {
     fn apply_preference_theme_case_sensitive() {
         let mut response = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut response, "Theme", "dark"); // Wrong case
-        assert_eq!(response.theme, "system"); // Should not change
+        assert_eq!(response.theme, "mocha"); // Should not change
     }
 
     #[test]
@@ -313,7 +267,7 @@ mod tests {
         SqlxPreferencesService::apply_preference(&mut response, "region", "US");
         SqlxPreferencesService::apply_preference(&mut response, "timezone", "UTC");
         // All should be ignored
-        assert_eq!(response.theme, "system");
+        assert_eq!(response.theme, "mocha");
         assert_eq!(response.subscriptions_view, "grid");
     }
 
@@ -399,13 +353,6 @@ mod tests {
         assert_eq!(req1.subscriptions_view, req2.subscriptions_view);
     }
 
-    // ── PreferencesService struct ──
-
-    #[test]
-    fn preferences_service_can_be_referenced() {
-        // Just test the struct exists and can be referenced
-        let _service: PreferencesService = PreferencesService;
-    }
 
     // Apply preference edge cases using the 3-arg function
     #[test]
@@ -421,7 +368,7 @@ mod tests {
     fn apply_preference_view_only() {
         let mut prefs = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut prefs, "subscriptions_view", "list");
-        assert_eq!(prefs.theme, "system"); // unchanged
+        assert_eq!(prefs.theme, "mocha"); // unchanged
         assert_eq!(prefs.subscriptions_view, "list");
         assert_eq!(prefs.first_day_of_week, "monday"); // unchanged
     }

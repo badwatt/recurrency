@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn preferences_response_default_values() {
         let resp = PreferencesResponse::default();
-        assert_eq!(resp.theme, "system");
+        assert_eq!(resp.theme, "mocha");
         assert_eq!(resp.subscriptions_view, "grid");
         assert_eq!(resp.first_day_of_week, "monday");
     }

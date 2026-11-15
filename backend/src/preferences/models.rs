@@ -19,7 +19,7 @@ pub struct UpdatePreferencesRequest {
 impl Default for PreferencesResponse {
     fn default() -> Self {
         Self {
-            theme: "system".to_string(),
+            theme: "mocha".to_string(),
             subscriptions_view: "grid".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn default_preferences() {
         let prefs = PreferencesResponse::default();
-        assert_eq!(prefs.theme, "system");
+        assert_eq!(prefs.theme, "mocha");
         assert_eq!(prefs.subscriptions_view, "grid");
         assert_eq!(prefs.first_day_of_week, "monday");
         assert_eq!(prefs.date_format, "DD-MM-YYYY");
@@ -98,7 +98,7 @@ mod tests {
     fn preferences_first_day_of_week_valid_values() {
         for day in ["monday", "sunday"] {
             let prefs = PreferencesResponse {
-                theme: "system".to_string(),
+                theme: "mocha".to_string(),
                 subscriptions_view: "grid".to_string(),
                 first_day_of_week: day.to_string(),
                 date_format: "DD-MM-YYYY".to_string(),
@@ -111,7 +111,7 @@ mod tests {
     fn preferences_date_format_valid_values() {
         for fmt in ["DD-MM-YYYY", "YYYY-MM-DD"] {
             let prefs = PreferencesResponse {
-                theme: "system".to_string(),
+                theme: "mocha".to_string(),
                 subscriptions_view: "grid".to_string(),
                 first_day_of_week: "monday".to_string(),
                 date_format: fmt.to_string(),

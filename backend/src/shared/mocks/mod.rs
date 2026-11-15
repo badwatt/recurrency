@@ -3236,7 +3236,7 @@ mod tests {
             let result = mock.get_preferences(user_id).await;
             assert!(result.is_ok());
             let prefs = result.unwrap();
-            assert_eq!(prefs.theme, "system");
+            assert_eq!(prefs.theme, "mocha");
             assert_eq!(prefs.subscriptions_view, "grid");
         }
 

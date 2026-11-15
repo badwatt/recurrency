@@ -463,14 +463,13 @@ pub fn Dashboard() -> Element {
     let auth_state = AUTH();
 
     let today = Local::now().date_naive();
-    let plan = build_account_budgets(
+    let visible = build_account_budgets(
         &accounts_state.accounts,
         &sub_state.subscriptions,
         &txns_state.transactions,
         today,
         &crate::state::rates::RATES(),
     );
-    let visible: Vec<AccountBudget> = plan.clone();
 
     let budget_total = total_budget(&visible);
     let pending_total = total_pending(&visible);

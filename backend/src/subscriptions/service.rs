@@ -207,6 +207,56 @@ impl SubscriptionService {
         Ok(())
     }
 
+    /// Refresh all stale next-billing dates in one database round trip.
+    async fn refresh_next_billing_dates(
+        pool: &PgPool,
+        user_id: Uuid,
+        subscriptions: &mut [Subscription],
+    ) -> AppResult<()> {
+        let today = Utc::now().date_naive();
+        let mut updates = Vec::new();
+
+        for subscription in subscriptions.iter_mut() {
+            if !subscription.is_active
+                || subscription.next_billing_date.is_some_and(|date| date >= today)
+            {
+                continue;
+            }
+            let next = next_occurrence_on_or_after(
+                subscription.start_date,
+                &subscription.recurrence.0,
+                today,
+                subscription.end_date,
+            );
+            if next != subscription.next_billing_date {
+                subscription.next_billing_date = next;
+                updates.push((subscription.id, next));
+            }
+        }
+
+        if updates.is_empty() {
+            return Ok(());
+        }
+
+        let ids: Vec<Uuid> = updates.iter().map(|(id, _)| *id).collect();
+        let dates: Vec<Option<NaiveDate>> = updates.iter().map(|(_, date)| *date).collect();
+        sqlx::query(
+            r#"
+            UPDATE subscriptions AS s
+            SET next_billing_date = u.next_date, updated_at = NOW()
+            FROM UNNEST($1::uuid[], $2::date[]) AS u(id, next_date)
+            WHERE s.id = u.id AND s.user_id = $3
+            "#,
+        )
+        .bind(&ids)
+        .bind(&dates)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn get_all(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<Subscription>> {
         let mut subscriptions = sqlx::query_as::<_, Subscription>(
             "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
@@ -214,10 +264,7 @@ impl SubscriptionService {
         .bind(user_id)
         .fetch_all(pool)
         .await?;
-        for subscription in &mut subscriptions {
-            Self::refresh_next_billing_date(pool, subscription).await?;
-        }
-
+        Self::refresh_next_billing_dates(pool, user_id, &mut subscriptions).await?;
         Ok(subscriptions)
     }
 

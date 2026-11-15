@@ -42,11 +42,6 @@ pub async fn register(
 }
 
 #[allow(dead_code)]
-pub async fn verify(token: &str) -> Result<serde_json::Value, ApiError> {
-    api_post("/api/auth/verify", &serde_json::json!({ "token": token })).await
-}
-
-#[allow(dead_code)]
 pub async fn verify_email(token: &str, code: &str) -> Result<serde_json::Value, ApiError> {
     let base = crate::api::client::get_base_url();
     let url = format!("{}/api/auth/verify-email", base);
@@ -89,37 +84,6 @@ pub async fn resend_verification(token: &str) -> Result<serde_json::Value, ApiEr
         return Err(ApiError::Http(status, body));
     }
     resp.json::<serde_json::Value>()
-        .await
-        .map_err(|e| ApiError::Parse(e.to_string()))
-}
-
-#[allow(dead_code)]
-pub async fn get_current_user(token: &str) -> Result<UserResponse, ApiError> {
-    api_get_with_token("/api/auth/me", token).await
-}
-
-#[allow(dead_code)]
-async fn api_get_with_token<T: serde::de::DeserializeOwned>(
-    path: &str,
-    token: &str,
-) -> Result<T, ApiError> {
-    let base = crate::api::client::get_base_url();
-    let url = format!("{}{}", base, path);
-    let client = crate::api::client::get_client();
-    let resp = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status().as_u16();
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
-        return Err(ApiError::Http(status, body));
-    }
-    resp.json::<T>()
         .await
         .map_err(|e| ApiError::Parse(e.to_string()))
 }
@@ -191,12 +155,6 @@ mod tests {
         let code = "123456";
         let body = serde_json::json!({ "code": code });
         assert_eq!(body["code"], "123456");
-    }
-
-    #[test]
-    fn get_current_user_path() {
-        let path = "/api/auth/me";
-        assert!(path.contains("me"));
     }
 
     #[test]

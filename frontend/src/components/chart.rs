@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::state::privacy::PRIVACY;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BarData {
     pub label: String,
@@ -103,6 +105,7 @@ pub fn LineChart(
     color: String,
     highlight_index: Option<usize>,
 ) -> Element {
+    let hide_amounts = *PRIVACY.read();
     if data.is_empty() {
         return rsx! {
             div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
@@ -208,9 +211,9 @@ pub fn LineChart(
                             x: "{padding_left - 6.0}",
                             y: "{y + 4.0}",
                             fill: "currentColor",
-                            class: "amount-sensitive text-xs fill-muted-foreground",
+                            class: "text-xs fill-muted-foreground",
                             text_anchor: "end",
-                            {format!("{:.0}", val)}
+                            {if hide_amounts { "••••".to_string() } else { format!("{:.0}", val) }}
                         }
                     }
                 }).collect::<Vec<_>>();
@@ -935,8 +938,9 @@ mod tests {
 #[cfg(test)]
 mod privacy_axis_tests {
     #[test]
-    fn y_axis_values_are_marked_sensitive() {
+    fn y_axis_values_are_hidden_when_privacy_is_on() {
         let source = include_str!("chart.rs");
-        assert!(source.contains("amount-sensitive text-xs fill-muted-foreground"));
+        assert!(source.contains("let hide_amounts"));
+        assert!(source.contains("••••"));
     }
 }
