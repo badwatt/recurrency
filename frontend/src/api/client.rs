@@ -824,6 +824,7 @@ mod tests {
     #[test]
     #[serial]
     fn base_url_valid_format_starts_with_http() {
+        set_base_url("https://recurrency.example.com");
         let url = get_base_url();
         assert!(
             url.starts_with("http://")
@@ -835,6 +836,7 @@ mod tests {
     #[test]
     #[serial]
     fn base_url_not_empty() {
+        set_base_url("https://recurrency.example.com");
         let url = get_base_url();
         assert!(!url.is_empty());
     }
