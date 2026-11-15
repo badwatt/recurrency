@@ -10,6 +10,27 @@
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
   <meta name="theme-color" content="#1e1e2e" />
+  <script>
+    // Set the theme class before the first paint. No system theme: the
+    // preference is always light, dark or mocha (mocha is the default).
+    (() => {
+      try {
+        const themes = {
+          light: ['light', '#FAF9F2'],
+          dark: ['dark', '#0d0d11'],
+          mocha: ['mocha dark', '#1e1e2e'],
+        };
+        const stored = localStorage.getItem('recurrency-theme');
+        const name = themes[stored] ? stored : 'mocha';
+        const [className, color] = themes[name];
+        document.documentElement.className = className;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
+        try {
+          window.RecurrencyAndroid?.setSystemBars?.(color, name === 'light');
+        } catch (_) {}
+      } catch (_) {}
+    })();
+  </script>
   <style>
     /* Critical pre-WASM styles. Keep this tiny and self-contained: it must
        paint correctly before Tailwind or the WASM bundle exists. */
@@ -90,39 +111,13 @@
   <!-- Same clock favicon during loading and after the WASM bundle mounts. -->
   <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAADMUExURWNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WJl8WFk8WBj8XJ08o6Q9aao97O1+HJ18nh78+Xl/fr6/////2Rn8ZeZ9ubm/fv8/+3t/eDh/KSm9/b3/vf3/sfI+pOV9Xh684WH9IWI9MbI+uXm/ZKU9WVo8V9i8Xl884KE9IqM9fv7/4qM9Hd684iL9OLi/G5w8v7+/7u8+Xp98+fo/d/g/Jia9mhr8crL+sTF+m5x8vj4/oKF9HN18qqr96an92ls8o2Q9XtwkJgAAAAKdFJOUwAeftD2Rcv+5MoJ1gbKAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAW5JREFUOMuFk4lygjAQhgMoahIuhUVFOWwLeFLsofY+3v+dGhkJh1b+YSYZ8mWT7P6LEEKCKLXwmVqSKKBMbbmDL6ojt7P1Lv5XXUYIMr4iWUBiKT6hCmUfKZ0iIqlYJqqmG4au9UmBSIjfnw4M0wImyzQGlL8F5TN7OAIYO5OJMwYYDe38fw7YUxc8P5jd3M6COw/cqV0F6NCFMIrnizBczOMoBHdIywAZjCBcUkxX6/WKDcsQRgNSBgzwIraFbixrcxwjD4wSQPom+DEuABz7YKqEA1SzxoFSBpRgbGmUA4oOTkJOwP2RJIkDulJEMCDdZsDKenhU2U6yTcGg5wB5egbY7Q+kBvAjMF6+WLB+faO1I/JLsulhv4P3j3n1kkQ9PTNDPr++f2rP5Ik6uYIqtUTxVOdBzlKdF0shTMqFYvFyJ9ttEvgXys0Nk6Z1wzRarmLa38y0asW0jbYXetcapyc0tx4jetebt6H9/wDLaj2GGyXoywAAAABJRU5ErkJggg==">
   <script>
-    // Set theme class on <html> — prevents flash of wrong theme.
-    // Mocha is default. Always add 'dark' for Tailwind dark: utilities.
-    (function () {
-      try {
-        var stored = localStorage.getItem('recurrency-theme');
-        var theme = stored || 'mocha';
-        var cls = 'mocha';
-        if (theme === 'dark') cls = 'dark';
-        else if (theme === 'light') cls = 'light';
-        else if (theme === 'mocha') cls = 'mocha';
-        else if (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) cls = 'mocha';
-        else if (theme === 'system') cls = 'light';
-        var extra = cls === 'light' ? '' : ' dark';
-        document.documentElement.className = cls + extra;
-        var colors = { light: '#FAF9F2', dark: '#0d0d11', mocha: '#1e1e2e' };
-        var color = colors[cls] || colors.mocha;
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.content = color;
-        // Android: paint status/navigation bars + icon contrast from the theme.
-        try {
-          if (window.RecurrencyAndroid && window.RecurrencyAndroid.setSystemBars) {
-            window.RecurrencyAndroid.setSystemBars(color, cls === 'light');
-          }
-        } catch (err) { }
-      } catch (e) { }
-    })();
-  </script>
-  <script>
     // Safety net: never leave a blank screen if the WASM bundle cannot start.
-    setTimeout(function () {
-      var loader = document.getElementById('recurrency-loader');
-      if (loader) loader.remove();
-      var main = document.getElementById('main');
+    setTimeout(() => {
+      // Never uncover the app before its CSS has loaded; on a slow network
+      // that would show an unstyled page. Keep the inline loader instead.
+      if (!window.__recurrencyCssReady) return;
+      document.getElementById('recurrency-loader')?.remove();
+      const main = document.getElementById('main');
       if (main) main.style.visibility = 'visible';
     }, 6000);
   </script>

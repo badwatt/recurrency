@@ -87,10 +87,7 @@ pub enum Route {
     CatchAll { path: Vec<String> },
 }
 
-const TAILWIND_CSS: Asset = asset!(
-    "/assets/styles/tailwind.css",
-    AssetOptions::css().with_static_head(true)
-);
+const TAILWIND_CSS: Asset = asset!("/assets/styles/tailwind.css");
 
 // Self-hosted fonts — registered as Dioxus assets so they're bundled in APK
 // Eliminates @import chain to Google Fonts CDN that caused FOUC on Android
@@ -130,12 +127,18 @@ pub fn launch() {
     #[cfg(feature = "desktop")]
     {
         use dioxus::desktop::{Config, WindowBuilder};
-        let mut window = WindowBuilder::new().with_title("Recurrency");
+        let mut window = WindowBuilder::new()
+            .with_title("Recurrency")
+            .with_background_color((30, 30, 46, 255));
         if crate::state::window::enabled() {
             window = window.with_decorations(false);
         }
         dioxus::LaunchBuilder::desktop()
-            .with_cfg(Config::new().with_window(window))
+            .with_cfg(
+                Config::new()
+                    .with_window(window)
+                    .with_background_color((30, 30, 46, 255)),
+            )
             .launch(App);
         return;
     }
@@ -261,37 +264,45 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
             r#"
             (function () {
                 var done = false;
-                function reveal() {
-                    if (done) return;
-                    done = true;
-                    var main = document.getElementById('main');
-                    if (main) main.style.visibility = 'visible';
+                function removeLoaders() {
                     ['recurrency-loader', 'pre-wasm-loader', 'dxloader'].forEach(function (id) {
                         var el = document.getElementById(id);
                         if (el) el.remove();
                     });
                 }
-                var links = Array.prototype.slice.call(document.querySelectorAll('link[rel="stylesheet"]'));
-                var pending = links.filter(function (link) {
-                    return !link.sheet && !link.complete;
-                });
-                var styles = pending.length === 0
-                    ? Promise.resolve()
-                    : Promise.all(pending.map(function (link) {
-                        return new Promise(function (resolve) {
-                            link.addEventListener('load', resolve);
-                            link.addEventListener('error', resolve);
-                        });
-                    }));
-                var fonts = document.fonts && document.fonts.ready
-                    ? Promise.race([document.fonts.ready, new Promise(function (resolve) { setTimeout(resolve, 700); })])
-                    : Promise.resolve();
-                Promise.all([styles, fonts]).then(function () {
+                function reveal(force) {
+                    if (done) return;
+                    var main = document.getElementById('main');
+                    // The CSS link is loaded asynchronously. Keep the loader
+                    // until both the stylesheet and the first Dioxus element
+                    // exist: revealing earlier causes the exact FOUC we saw.
+                    if (!force && (!window.__recurrencyCssReady || !main || main.childElementCount === 0)) {
+                        setTimeout(function () { reveal(false); }, 50);
+                        return;
+                    }
+                    done = true;
+                    if (main) main.style.visibility = 'visible';
                     requestAnimationFrame(function () {
-                        requestAnimationFrame(reveal);
+                        requestAnimationFrame(removeLoaders);
                     });
-                });
-                setTimeout(reveal, 3000);
+                }
+                function afterWindowLoad() {
+                    var fonts = document.fonts && document.fonts.ready
+                        ? Promise.race([document.fonts.ready, new Promise(function (resolve) { setTimeout(resolve, 700); })])
+                        : Promise.resolve();
+                    fonts.then(function () {
+                        requestAnimationFrame(function () {
+                            requestAnimationFrame(function () { reveal(false); });
+                        });
+                    });
+                }
+
+                if (document.readyState === 'complete') {
+                    afterWindowLoad();
+                } else {
+                    window.addEventListener('load', afterWindowLoad, { once: true });
+                }
+                setTimeout(function () { reveal(false); }, 6000);
             })();
             "#,
         );
@@ -302,7 +313,14 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
         document::Style { {font_face_css()} }
         document::Link { rel: "icon", r#type: "image/png", href: FAVICON.to_string() }
         document::Link { rel: "apple-touch-icon", href: APPLE_TOUCH_ICON.to_string() }
-        document::Stylesheet { href: TAILWIND_CSS }
+        // Load CSS without blocking the first paint. The inline loader in
+        // index.html paints immediately; #main stays hidden until this link
+        // has loaded and switched from print to all.
+        document::Stylesheet {
+            href: TAILWIND_CSS.to_string(),
+            media: "print",
+            onload: "this.media='all';window.__recurrencyCssReady=true;",
+        }
         // Wrapper div uses CSS variables for theme-aware background/text.
         div {
             class: "min-h-dvh bg-background text-foreground",

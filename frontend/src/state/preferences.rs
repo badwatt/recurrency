@@ -12,10 +12,10 @@ const VIEW_FILE: &str = "subscriptions_view.txt";
 const TRANSACTIONS_VIEW_FILE: &str = "transactions_view.txt";
 const UPDATES_FILE: &str = "show_updates.txt";
 
-/// Themes the user can pick in settings ("system" is resolved in JS).
+/// Themes the user can pick in settings.
 const SETTABLE_THEMES: [&str; 3] = ["light", "dark", "mocha"];
 /// Values accepted when rehydrating from local storage.
-const STORED_THEMES: [&str; 4] = ["light", "dark", "mocha", "system"];
+const STORED_THEMES: [&str; 3] = ["light", "dark", "mocha"];
 const VALID_VIEWS: [&str; 2] = ["grid", "list"];
 
 /// Persist a preference value to localStorage (WASM) or a file (native).

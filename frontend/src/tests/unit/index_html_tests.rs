@@ -67,7 +67,7 @@ fn index_html_meta_theme_color_matches_css_variables() {
     // Theme script runs in <head> before the loader paints.
     let head = html.split("\x3cbody").next().unwrap_or("");
     assert!(
-        head.contains("meta.content"),
+        head.contains("setAttribute('content'"),
         "Body script must set meta[name=theme-color] content"
     );
     // Verify the hex values are correct
@@ -97,7 +97,7 @@ fn index_html_forwards_theme_to_android_system_bars() {
         "index.html must call setSystemBars with the theme color"
     );
     assert!(
-        html.contains("cls === 'light'"),
+        html.contains("name === 'light'"),
         "system-bar icon contrast must follow the light theme"
     );
 }
@@ -229,7 +229,8 @@ fn web_title_is_not_duplicated() {
 #[test]
 fn desktop_window_title_is_recurrency() {
     let source = include_str!("../../lib.rs");
-    assert!(source.contains("WindowBuilder::new().with_title(\"Recurrency\")"));
+    assert!(source.contains("WindowBuilder::new()"));
+    assert!(source.contains("with_title(\"Recurrency\")"));
 }
 
 #[test]
@@ -240,4 +241,30 @@ fn all_platforms_use_the_same_loader_markup() {
     assert!(android.contains("recurrency-spinner"));
     let desktop = include_str!("../../../../vendor/dioxus-desktop/src/assets/prod.index.html");
     assert!(desktop.contains("recurrency-spinner"));
+}
+
+#[test]
+fn stylesheet_does_not_block_first_paint() {
+    let source = include_str!("../../lib.rs");
+    assert!(!source.contains("with_static_head(true)"));
+    assert!(source.contains("media: \"print\""));
+    assert!(source.contains("window.__recurrencyCssReady=true"));
+    assert!(source.contains("window.__recurrencyCssReady"));
+}
+
+#[test]
+fn theme_bootstrap_is_simple_and_has_no_system_theme() {
+    let html = include_str!("../../../index.html");
+    let script = html
+        .split("// Set the theme class")
+        .nth(1)
+        .unwrap_or("")
+        .split("</script>")
+        .next()
+        .unwrap_or("");
+    assert!(!script.contains("var "));
+    assert!(!script.contains("let "));
+    assert!(!script.contains("else if"));
+    assert!(!script.contains("theme === 'system'"));
+    assert!(script.contains("themes[stored]"));
 }
