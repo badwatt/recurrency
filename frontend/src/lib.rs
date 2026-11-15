@@ -127,6 +127,11 @@ pub fn launch() {
     #[cfg(feature = "desktop")]
     {
         use dioxus::desktop::{Config, WindowBuilder};
+        #[cfg(target_os = "linux")]
+        dioxus::desktop::FRAMELESS_ENABLED.store(
+            crate::state::window::stored(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
         let mut window = WindowBuilder::new()
             .with_title("Recurrency")
             .with_background_color((30, 30, 46, 255));

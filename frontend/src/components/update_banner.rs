@@ -1,33 +1,9 @@
+use crate::api::update::{self, Release};
 use crate::components::toast::TOAST;
 use dioxus::prelude::*;
-use serde::Deserialize;
 
-const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/badwatt/recurrency/releases/latest";
 const DISMISSED_FILE: &str = "update_dismissed.txt";
 const DISMISSED_KEY: &str = "recurrency-update-dismissed";
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-struct Asset {
-    name: String,
-    browser_download_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-struct Release {
-    tag_name: String,
-    html_url: String,
-    #[serde(default)]
-    assets: Vec<Asset>,
-}
-
-impl Release {
-    fn apk_url(&self) -> Option<&str> {
-        self.assets
-            .iter()
-            .find(|asset| asset.name.ends_with("-aarch64.apk"))
-            .map(|asset| asset.browser_download_url.as_str())
-    }
-}
 
 fn current_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -85,48 +61,6 @@ fn store_dismissed(version: &str) {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-async fn fetch_latest() -> Option<Release> {
-    let response = crate::api::client::get_client()
-        .get(LATEST_RELEASE_URL)
-        .header("User-Agent", "recurrency")
-        .header("Accept", "application/vnd.github+json")
-        .send()
-        .await
-        .ok()?;
-    if !response.status().is_success() {
-        return None;
-    }
-    response.json::<Release>().await.ok()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn fetch_latest() -> Option<Release> {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    std::thread::spawn(move || {
-        let result = {
-            let req = ureq::get(LATEST_RELEASE_URL)
-                .header("User-Agent", "recurrency")
-                .header("Accept", "application/vnd.github+json")
-                .config()
-                .timeout_global(Some(std::time::Duration::from_secs(10)))
-                .http_status_as_error(false)
-                .build();
-            req.call().ok().and_then(|mut response| {
-                if !response.status().is_success() {
-                    return None;
-                }
-                response.body_mut().read_json::<Release>().ok()
-            })
-        };
-        let _ = tx.send(result);
-    });
-    tokio::time::timeout(std::time::Duration::from_secs(12), rx)
-        .await
-        .ok()?
-        .ok()?
-}
-
 #[component]
 pub fn UpdateBanner() -> Element {
     let mut release = use_signal(|| None::<Release>);
@@ -138,7 +72,7 @@ pub fn UpdateBanner() -> Element {
             return;
         }
         let dismissed_version = read_dismissed();
-        if let Some(info) = fetch_latest().await
+        if let Some(info) = update::latest().await
             && is_newer_version(current_version(), &info.tag_name)
         {
             if dismissed_version.as_deref() == Some(info.tag_name.as_str()) {
@@ -157,18 +91,20 @@ pub fn UpdateBanner() -> Element {
     };
     let version = info.tag_name.trim_start_matches('v').to_string();
     let href = info.html_url.clone();
-    let apk_url = info.apk_url().map(str::to_string);
-    let update_apk = apk_url.clone();
+    let native = info
+        .native_asset()
+        .map(|asset| (asset.browser_download_url.clone(), asset.name.clone()));
+    let update_asset = native.clone();
     let update = move |_| {
-        let Some(url) = update_apk.clone() else {
+        let Some((url, filename)) = update_asset.clone() else {
             return;
         };
         updating.set(true);
         spawn(async move {
-            match crate::api::update::install_apk(&url).await {
+            match update::install(&url, &filename).await {
                 Ok(()) => TOAST
                     .write()
-                    .success("Downloading update. Follow the Android installer."),
+                    .success("Downloading update. Follow the installer."),
                 Err(error) => TOAST
                     .write()
                     .error(format!("Could not start the update: {error}")),
@@ -202,7 +138,7 @@ pub fn UpdateBanner() -> Element {
                     "You are on {current_version()}. The update is ready when you are."
                 }
             }
-            if cfg!(target_os = "android") && apk_url.is_some() {
+            if !cfg!(target_arch = "wasm32") && native.is_some() {
                 button {
                     r#type: "button",
                     disabled: updating(),
@@ -211,7 +147,7 @@ pub fn UpdateBanner() -> Element {
                     if updating() { "Starting…" } else { "Update" }
                 }
             }
-            if !cfg!(target_os = "android") {
+            if cfg!(target_arch = "wasm32") {
                 a {
                     href,
                     target: "_blank",

@@ -44,6 +44,9 @@ pub use wry;
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub use muda;
 
+#[cfg(target_os = "linux")]
+pub use menubar::FRAMELESS_ENABLED;
+
 // Tray icon
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod trayicon;

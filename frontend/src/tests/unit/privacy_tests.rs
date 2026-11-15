@@ -40,3 +40,10 @@ fn dashboard_hero_uses_stronger_blur() {
     let source = include_str!("../../pages/dashboard.rs");
     assert!(source.contains("amount-sensitive-xl"));
 }
+
+#[test]
+fn frameless_menu_item_is_checkable() {
+    let menu = include_str!("../../../../vendor/dioxus-desktop/src/menubar.rs");
+    assert!(menu.contains("CheckMenuItem::with_id"));
+    assert!(menu.contains("FRAMELESS_ENABLED"));
+}

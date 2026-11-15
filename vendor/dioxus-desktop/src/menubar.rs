@@ -1,4 +1,8 @@
+use std::sync::atomic::AtomicBool;
 use tao::window::Window;
+
+/// Set before creating the default menu so the Linux check item starts in sync.
+pub static FRAMELESS_ENABLED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub type DioxusMenu = muda::Menu;
@@ -35,6 +39,8 @@ pub fn default_menu_bar() -> DioxusMenu {
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 mod desktop_platforms {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use muda::CheckMenuItem;
     use muda::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
     #[allow(unused)]
@@ -83,10 +89,11 @@ mod desktop_platforms {
         window_menu
             .append_items(&[
                 &PredefinedMenuItem::separator(),
-                &MenuItem::with_id(
+                &CheckMenuItem::with_id(
                     "recurrency-frameless",
                     "Frameless window",
                     true,
+                    super::FRAMELESS_ENABLED.load(std::sync::atomic::Ordering::Relaxed),
                     None,
                 ),
             ])
