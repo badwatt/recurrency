@@ -38,6 +38,9 @@ mod native {
     use crate::models::auth::UserResponse;
     use std::path::Path;
 
+    const LEGACY_TEST_TOKEN: &str = "tdd-token";
+    const LEGACY_TEST_EMAIL: &str = "tdd@test.com";
+
     pub(super) fn to_json<T: serde::Serialize>(value: &T) -> Result<String, String> {
         serde_json::to_string(value).map_err(|error| error.to_string())
     }
@@ -59,7 +62,14 @@ mod native {
             return None;
         }
         let user_json = std::fs::read_to_string(dir.join(USER_FILE)).ok()?;
-        let user = serde_json::from_str(&user_json).ok()?;
+        let user: UserResponse = serde_json::from_str(&user_json).ok()?;
+        // Older test builds wrote their fixture directly into the real app
+        // data directory. Remove that fixture instead of showing a fake
+        // account after installing a release.
+        if token == LEGACY_TEST_TOKEN && user.email == LEGACY_TEST_EMAIL {
+            clear_session(dir);
+            return None;
+        }
         Some((token, user))
     }
 
@@ -144,7 +154,7 @@ impl AuthState {
                 }
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), not(test)))]
         {
             if self.token.is_some() && self.user.is_some() {
                 let Some(dir) = native_app_dir() else {
@@ -179,7 +189,7 @@ impl AuthState {
                 let _ = storage.remove_item(USER_KEY);
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), not(test)))]
         {
             if let Some(dir) = native_app_dir() {
                 native::clear_session(&dir);
@@ -208,7 +218,7 @@ impl AuthState {
                 }
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), not(test)))]
         {
             if let Some(dir) = native_app_dir()
                 && self.hydrate_from_dir(&dir)
@@ -233,7 +243,7 @@ impl AuthState {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(test)))]
 fn native_app_dir() -> Option<std::path::PathBuf> {
     get_app_data_dir().map(|dir| dir.join("recurrency"))
 }
@@ -520,39 +530,22 @@ mod tests {
         let _guard = AUTH_FILE_TEST_LOCK.lock().unwrap();
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let data_dir =
-                get_app_data_dir().expect("get_app_data_dir should return Some on native");
-            let app_dir = data_dir.join("recurrency");
-            // Clean up before test - ensure fresh state
-            let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
-            let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
-            // Wait a bit for file system
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            let dir = std::env::temp_dir().join(format!(
+                "recurrency-auth-persist-{}",
+                uuid::Uuid::new_v4()
+            ));
+            let _ = std::fs::remove_dir_all(&dir);
 
             let mut state = AuthState::default();
             state.set_authenticated("unique-token-xyz123".into(), sample_user(), false);
-            state.persist_to_storage();
+            state.persist_to_dir(&dir).unwrap();
 
-            // Verify files exist
-            assert!(
-                app_dir.join("auth-token.txt").exists(),
-                "Token file should exist"
-            );
-            assert!(
-                app_dir.join("auth-user.json").exists(),
-                "User file should exist"
-            );
+            assert!(dir.join(TOKEN_FILE).exists(), "Token file should exist");
+            assert!(dir.join(USER_FILE).exists(), "User file should exist");
+            let token_content = std::fs::read_to_string(dir.join(TOKEN_FILE)).unwrap();
+            assert_eq!(token_content, "unique-token-xyz123");
 
-            // Verify content
-            let token_content = std::fs::read_to_string(app_dir.join("auth-token.txt")).unwrap();
-            assert_eq!(
-                token_content, "unique-token-xyz123",
-                "Token content should match"
-            );
-
-            // Clean up
-            let _ = std::fs::remove_file(app_dir.join("auth-token.txt"));
-            let _ = std::fs::remove_file(app_dir.join("auth-user.json"));
+            let _ = std::fs::remove_dir_all(&dir);
         }
     }
 
@@ -738,6 +731,24 @@ mod tests {
             let dir = temp_dir("signed-out");
             AuthState::default().persist_to_dir(&dir).unwrap();
             assert!(!dir.exists());
+        }
+
+        #[test]
+        fn hydrate_removes_the_legacy_tdd_fixture() {
+            let dir = temp_dir("legacy-tdd");
+            let user = crate::models::auth::UserResponse {
+                id: uuid::Uuid::new_v4(),
+                email: "tdd@test.com".into(),
+                avatar: None,
+                name: Some("TDD Test".into()),
+                currency: "EUR".into(),
+                verified: false,
+            };
+            super::super::native::write_session(&dir, "tdd-token", &user).unwrap();
+            assert!(!AuthState::default().hydrate_from_dir(&dir));
+            assert!(!dir.join(TOKEN_FILE).exists());
+            assert!(!dir.join(USER_FILE).exists());
+            let _ = std::fs::remove_dir_all(&dir);
         }
 
         #[test]

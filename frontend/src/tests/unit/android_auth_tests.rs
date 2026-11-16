@@ -4,14 +4,6 @@
 //! Fix: add jni feature to dirs crate.
 
 use serial_test::serial;
-use std::path::PathBuf;
-
-/// Returns the native auth persistence dir used by the app.
-fn native_auth_dir() -> PathBuf {
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("recurrency")
-}
 
 /// TDD RED: persist_to_storage must write auth files on Android.
 /// Without jni feature, dirs::data_dir() returns None → no files → login on restart.
@@ -32,28 +24,27 @@ fn test_dirs_data_dir_returns_some_on_native() {
 #[serial]
 fn test_set_authenticated_writes_auth_files() {
     let _guard = crate::state::auth::AUTH_FILE_TEST_LOCK.lock().unwrap();
-    // Clean up first
-    let auth_dir = native_auth_dir();
-    let _ = std::fs::remove_file(auth_dir.join("auth-token.txt"));
-    let _ = std::fs::remove_file(auth_dir.join("auth-user.json"));
+    let auth_dir = std::env::temp_dir().join(format!(
+        "recurrency-android-auth-{}",
+        uuid::Uuid::new_v4()
+    ));
+    let _ = std::fs::remove_dir_all(&auth_dir);
 
     let mut state = crate::state::auth::AuthState::default();
     let user = crate::models::auth::UserResponse {
         id: uuid::Uuid::new_v4(),
         email: "tdd@test.com".into(),
-                avatar: None,
+        avatar: None,
         name: Some("TDD Test".into()),
         currency: "EUR".into(),
         verified: false,
     };
     state.set_authenticated("tdd-token".into(), user, false);
-
-    let token_path = auth_dir.join("auth-token.txt");
-    let user_path = auth_dir.join("auth-user.json");
+    state.persist_to_dir(&auth_dir).unwrap();
 
     assert!(
-        token_path.exists() && user_path.exists(),
-        "Auth files must exist after set_authenticated.         dirs::data_dir()={:?}. Fix: add jni feature to dirs crate.",
-        dirs::data_dir()
+        auth_dir.join("auth-token.txt").exists() && auth_dir.join("auth-user.json").exists(),
+        "Auth files must exist after persist_to_dir"
     );
+    let _ = std::fs::remove_dir_all(&auth_dir);
 }
