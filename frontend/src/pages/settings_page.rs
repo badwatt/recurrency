@@ -84,8 +84,9 @@ pub fn SettingsProfilePage() -> Element {
 pub fn SettingsPreferencesPage() -> Element {
     rsx! {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "General", subtitle: "Defaults, locale and app updates" }
+            PageHeader { title: "General", subtitle: "Defaults, locale, exchange rates and app updates" }
             PreferencesCard {}
+            ExchangeRatesCard {}
         }
     }
 }
@@ -95,9 +96,9 @@ pub fn SettingsMoneyPage() -> Element {
     let mut tab = use_signal(|| MoneyTab::Accounts);
     rsx! {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
-            PageHeader { title: "Money", subtitle: "Accounts and categories that organize your money" }
+            PageHeader { title: "Accounts & categories", subtitle: "Accounts and categories that organize your money" }
 
-            div { class: "flex items-center gap-1 border-b border-border/50", role: "tablist", aria_label: "Money sections",
+            div { class: "flex items-center gap-1 border-b border-border/50", role: "tablist", aria_label: "Accounts and categories sections",
                 button {
                     r#type: "button",
                     role: "tab",
@@ -129,7 +130,6 @@ pub fn SettingsMoneyPage() -> Element {
             } else {
                 crate::pages::CategoriesPage { embedded: true }
             }
-            ExchangeRatesCard {}
         }
     }
 }

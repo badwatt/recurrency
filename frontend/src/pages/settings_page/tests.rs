@@ -22,12 +22,17 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn settings_page_exposes_money_section() {
-        assert!(SETTINGS_SOURCES.contains("Money"));
+    fn settings_page_exposes_accounts_and_categories_section() {
+        assert!(SETTINGS_SOURCES.contains("Accounts & categories"));
         assert!(SETTINGS_SOURCES.contains("AccountsPage"));
         assert!(SETTINGS_SOURCES.contains("CategoriesPage"));
         assert!(SETTINGS_SOURCES.contains("role: \"tablist\""));
+    }
+
+    #[test]
+    fn exchange_rates_live_in_general() {
         assert!(SETTINGS_SOURCES.contains("ExchangeRatesCard"));
+        assert!(include_str!("../settings_page.rs").contains("PreferencesCard {}\n            ExchangeRatesCard"));
     }
 
     #[test]

@@ -65,7 +65,7 @@ impl SettingsSection {
         match self {
             Self::Account => "Account",
             Self::General => "General",
-            Self::Money => "Money",
+            Self::Money => "Accounts & categories",
             Self::Notifications => "Notifications",
             Self::Data => "Data & backup",
             Self::Server => "Server",
@@ -76,8 +76,8 @@ impl SettingsSection {
     fn description(self) -> &'static str {
         match self {
             Self::Account => "Profile, session and account removal",
-            Self::General => "Currency, week start, dates and updates",
-            Self::Money => "Accounts, categories and exchange rates",
+            Self::General => "Currency, exchange rates, week start and dates",
+            Self::Money => "Accounts and categories",
             Self::Notifications => "Delivery channels and summaries",
             Self::Data => "Backups, restore and folder sync",
             Self::Server => "Server connection and device pairing",
