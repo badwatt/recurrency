@@ -261,8 +261,9 @@ pub fn AppLayout() -> Element {
                             }
                         }
                     }
-                    // Right: privacy + theme + profile and settings
+                    // Right: AI + privacy + theme + profile and settings
                     div { class: "flex items-center gap-1",
+                        AiTopButton {}
                         PrivacyToggle {}
                         ThemeToggleButton {}
                         a {
@@ -448,12 +449,43 @@ fn MobileCreateFab(open: Signal<bool>) -> Element {
 }
 
 #[component]
+fn AiTopButton() -> Element {
+    let nav = navigator();
+    let configured = is_configured();
+    if crate::api::client::is_offline_mode() {
+        return rsx! {};
+    }
+    rsx! {
+        button {
+            r#type: "button",
+            aria_label: if configured { "Open AI assistant" } else { "Configure AI assistant" },
+            title: if configured { "AI assistant" } else { "Configure AI assistant" },
+            class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+            onclick: move |_| {
+                if configured {
+                    *AI_CHAT_OPEN.write() = true;
+                } else {
+                    nav.push(crate::Route::SettingsAi {});
+                    scroll_to_top();
+                }
+            },
+            {svg_icon(Icon::Ai, 19)}
+        }
+    }
+}
+
+#[component]
 fn AiFab() -> Element {
     if !is_configured() {
         return rsx! {};
     }
+    let class = if cfg!(all(not(target_arch = "wasm32"), not(target_os = "android"))) {
+        "flex fixed bottom-6 right-6 z-40"
+    } else {
+        "hidden md:flex fixed bottom-6 right-6 z-40"
+    };
     rsx! {
-        div { class: "hidden md:flex fixed bottom-6 right-6 z-40",
+        div { class, 
             button {
                 r#type: "button",
                 aria_label: "Open AI assistant",

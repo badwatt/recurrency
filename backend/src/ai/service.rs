@@ -531,6 +531,11 @@ impl AiServiceTrait for SqlxAiService {
             .map_err(|error| AppError::Internal(format!("Speech transcription failed: {error}")))?;
         let status = response.status();
         if !status.is_success() {
+            if status == reqwest::StatusCode::NOT_FOUND {
+                return Err(AppError::BadRequest(
+                    "This provider does not expose /audio/transcriptions. Choose an STT-capable provider, or use browser, Android or on-device speech.".to_string(),
+                ));
+            }
             let body = response.text().await.unwrap_or_default();
             return Err(AppError::Internal(format!(
                 "AI provider returned {status}: {}",
