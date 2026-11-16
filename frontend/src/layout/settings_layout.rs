@@ -45,8 +45,8 @@ impl SettingsGroup {
             Self::System => &[
                 SettingsSection::Data,
                 SettingsSection::Server,
-                SettingsSection::About,
                 SettingsSection::Admin,
+                SettingsSection::About,
             ],
         }
     }
@@ -60,8 +60,8 @@ impl SettingsSection {
         Self::Notifications,
         Self::Data,
         Self::Server,
-        Self::About,
         Self::Admin,
+        Self::About,
     ];
 
     fn label(self) -> &'static str {

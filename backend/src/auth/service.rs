@@ -24,8 +24,7 @@ const INSECURE_JWT_SECRET: &str = "change-me-in-production";
 /// Key used to persist the generated JWT secret in PostgreSQL.
 const JWT_SECRET_KEY: &str = "jwt_secret";
 
-/// Built-in demo account that must never become the installation administrator.
-const DEMO_EMAIL: &str = "demo@recurrency.app";
+use crate::shared::constants::DEMO_EMAIL;
 
 /// Generate a 256-bit secret from two UUID v4 values. The result is a
 /// 64-character lowercase hexadecimal string.

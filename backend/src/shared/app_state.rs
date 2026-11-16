@@ -119,6 +119,38 @@ impl AdminServiceTrait for TestAdminService {
             tables: std::collections::BTreeMap::new(),
         })
     }
+
+    async fn restore_backup(
+        &self,
+        _backup: crate::admin::models::FullBackup,
+    ) -> crate::shared::error::AppResult<crate::admin::models::RestoreResult> {
+        Ok(crate::admin::models::RestoreResult { restored_tables: 0 })
+    }
+
+    async fn delete_user(
+        &self,
+        _actor_id: uuid::Uuid,
+        _user_id: uuid::Uuid,
+    ) -> crate::shared::error::AppResult<()> {
+        Ok(())
+    }
+
+    async fn set_admin(
+        &self,
+        _actor_id: uuid::Uuid,
+        user_id: uuid::Uuid,
+        is_admin: bool,
+    ) -> crate::shared::error::AppResult<crate::admin::models::AdminUser> {
+        Ok(crate::admin::models::AdminUser {
+            id: user_id,
+            email: String::new(),
+            name: None,
+            currency: "EUR".to_string(),
+            verified: true,
+            is_admin,
+            created_at: chrono::Utc::now(),
+        })
+    }
 }
 
 /// Creates an AppState with mock auth service for testing.

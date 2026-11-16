@@ -21,8 +21,18 @@ pub struct AdminSettings {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct UpdateAdminRoleRequest {
+    pub is_admin: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct UpdateAdminSettingsRequest {
     pub registration_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RestoreResult {
+    pub restored_tables: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

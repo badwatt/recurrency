@@ -1,6 +1,13 @@
-use axum::{Json, extract::State, http::HeaderMap};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::HeaderMap,
+};
 
-use crate::admin::models::{AdminSettings, AdminUser, FullBackup, UpdateAdminSettingsRequest};
+use crate::admin::models::{
+    AdminSettings, AdminUser, FullBackup, RestoreResult, UpdateAdminRoleRequest,
+    UpdateAdminSettingsRequest,
+};
 use crate::auth::models::Claims;
 use crate::shared::OptionalQuery;
 use crate::shared::app_state::AppState;
@@ -67,6 +74,43 @@ pub async fn full_backup(
 ) -> AppResult<Json<FullBackup>> {
     require_admin(&state, query.as_ref(), &headers).await?;
     Ok(Json(state.admin_service.full_backup().await?))
+}
+
+pub async fn update_role(
+    State(state): State<AppState>,
+    Path(user_id): Path<uuid::Uuid>,
+    OptionalQuery(query): OptionalQuery<AdminQuery>,
+    headers: HeaderMap,
+    Json(req): Json<UpdateAdminRoleRequest>,
+) -> AppResult<Json<AdminUser>> {
+    let claims = require_admin(&state, query.as_ref(), &headers).await?;
+    Ok(Json(
+        state
+            .admin_service
+            .set_admin(claims.sub, user_id, req.is_admin)
+            .await?,
+    ))
+}
+
+pub async fn restore_backup(
+    State(state): State<AppState>,
+    OptionalQuery(query): OptionalQuery<AdminQuery>,
+    headers: HeaderMap,
+    Json(backup): Json<FullBackup>,
+) -> AppResult<Json<RestoreResult>> {
+    require_admin(&state, query.as_ref(), &headers).await?;
+    Ok(Json(state.admin_service.restore_backup(backup).await?))
+}
+
+pub async fn delete_user(
+    State(state): State<AppState>,
+    Path(user_id): Path<uuid::Uuid>,
+    OptionalQuery(query): OptionalQuery<AdminQuery>,
+    headers: HeaderMap,
+) -> AppResult<Json<serde_json::Value>> {
+    let claims = require_admin(&state, query.as_ref(), &headers).await?;
+    state.admin_service.delete_user(claims.sub, user_id).await?;
+    Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
 #[cfg(test)]

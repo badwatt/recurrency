@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.51.0`.
+> `ghcr.io/badwatt/recurrency:0.52.0`.
 
 ### From source
 
@@ -186,7 +186,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
-- **Admin panel** — review users, close registrations and download a full installation backup. The first real account becomes administrator.
+- **Admin panel** — review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups. The first real account becomes administrator.
 
 ### Your data and the project
 
@@ -463,8 +463,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1223 backend unit tests**, **54 backend integration tests**,
-**1790 frontend tests** and **10 tooling tests**.
+Current suite: **1223 backend unit tests**, **59 backend integration tests**,
+**1792 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 

@@ -150,6 +150,12 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         .route("/api/admin/users", get(admin::handlers::list_users))
         .route("/api/admin/settings", get(admin::handlers::get_settings).put(admin::handlers::update_settings))
         .route("/api/admin/backup", get(admin::handlers::full_backup))
+        .route(
+            "/api/admin/backup/restore",
+            post(admin::handlers::restore_backup).layer(DefaultBodyLimit::max(64 * 1024 * 1024)),
+        )
+        .route("/api/admin/users/{id}", delete(admin::handlers::delete_user))
+        .route("/api/admin/users/{id}/role", put(admin::handlers::update_role))
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))

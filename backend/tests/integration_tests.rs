@@ -1311,3 +1311,81 @@ async fn admin_handlers_reject_non_administrators(pool: PgPool) {
     .unwrap();
     assert!(allowed.0.iter().any(|user| user.is_admin));
 }
+
+
+#[sqlx::test]
+async fn admin_can_delete_a_member_and_their_data(pool: PgPool) {
+    let (admin_id, _) = create_test_user(&pool).await;
+    let (member_id, _) = create_test_user(&pool).await;
+    create_subscription(&pool, member_id, "Member sub", Decimal::from(9), "monthly").await;
+
+    let service = SqlxAdminService::new(pool.clone());
+    service.delete_user(admin_id, member_id).await.unwrap();
+    assert!(!service.list_users().await.unwrap().iter().any(|user| user.id == member_id));
+    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM subscriptions WHERE user_id = $1")
+        .bind(member_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(remaining, 0);
+}
+
+#[sqlx::test]
+async fn admin_cannot_delete_themselves(pool: PgPool) {
+    let (admin_id, _) = create_test_user(&pool).await;
+    let service = SqlxAdminService::new(pool);
+    assert!(matches!(
+        service.delete_user(admin_id, admin_id).await,
+        Err(AppError::BadRequest(_))
+    ));
+}
+
+#[sqlx::test]
+async fn admin_full_backup_can_be_restored(pool: PgPool) {
+    let (admin_id, _) = create_test_user(&pool).await;
+    let (member_id, _) = create_test_user(&pool).await;
+    let service = SqlxAdminService::new(pool.clone());
+    let backup = service.full_backup().await.unwrap();
+
+    service.delete_user(admin_id, member_id).await.unwrap();
+    assert!(!service.list_users().await.unwrap().iter().any(|user| user.id == member_id));
+
+    let result = service.restore_backup(backup).await.unwrap();
+    assert_eq!(result.restored_tables, 14);
+    let users = service.list_users().await.unwrap();
+    assert!(users.iter().any(|user| user.id == member_id));
+    assert!(users.iter().any(|user| user.id == admin_id));
+}
+
+
+#[sqlx::test]
+async fn admin_can_change_a_user_role(pool: PgPool) {
+    let (admin_id, _) = create_test_user(&pool).await;
+    let (member_id, _) = create_test_user(&pool).await;
+    let service = SqlxAdminService::new(pool);
+
+    let promoted = service.set_admin(admin_id, member_id, true).await.unwrap();
+    assert!(promoted.is_admin);
+    assert!(
+        service
+            .list_users()
+            .await
+            .unwrap()
+            .iter()
+            .find(|user| user.id == member_id)
+            .is_some_and(|user| user.is_admin)
+    );
+
+    let demoted = service.set_admin(admin_id, member_id, false).await.unwrap();
+    assert!(!demoted.is_admin);
+}
+
+#[sqlx::test]
+async fn last_administrator_cannot_be_demoted(pool: PgPool) {
+    let (admin_id, _) = create_test_user(&pool).await;
+    let service = SqlxAdminService::new(pool);
+    assert!(matches!(
+        service.set_admin(admin_id, admin_id, false).await,
+        Err(AppError::Conflict(_))
+    ));
+}

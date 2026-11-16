@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::client::{ApiError, api_get, api_put};
+use crate::api::client::{ApiError, api_delete, api_get, api_post, api_put};
 
 const ADMIN_USERS_PATH: &str = "/api/admin/users";
 const ADMIN_SETTINGS_PATH: &str = "/api/admin/settings";
 const ADMIN_BACKUP_PATH: &str = "/api/admin/backup";
+const ADMIN_RESTORE_PATH: &str = "/api/admin/backup/restore";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AdminUser {
@@ -25,6 +26,11 @@ pub struct AdminSettings {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UpdateAdminSettingsRequest {
     pub registration_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct UpdateAdminRoleRequest {
+    pub is_admin: bool,
 }
 
 pub async fn users() -> Result<Vec<AdminUser>, ApiError> {
@@ -49,6 +55,27 @@ pub async fn full_backup() -> Result<serde_json::Value, ApiError> {
     api_get(ADMIN_BACKUP_PATH).await
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RestoreResult {
+    pub restored_tables: usize,
+}
+
+pub async fn restore_backup(backup: &serde_json::Value) -> Result<RestoreResult, ApiError> {
+    api_post(ADMIN_RESTORE_PATH, backup).await
+}
+
+pub async fn delete_user(id: uuid::Uuid) -> Result<(), ApiError> {
+    api_delete(&format!("{ADMIN_USERS_PATH}/{id}")).await
+}
+
+pub async fn set_admin(id: uuid::Uuid, is_admin: bool) -> Result<AdminUser, ApiError> {
+    api_put(
+        &format!("{ADMIN_USERS_PATH}/{id}/role"),
+        &UpdateAdminRoleRequest { is_admin },
+    )
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,6 +85,15 @@ mod tests {
         assert!(ADMIN_USERS_PATH.starts_with("/api/"));
         assert!(ADMIN_SETTINGS_PATH.starts_with("/api/"));
         assert!(ADMIN_BACKUP_PATH.starts_with("/api/"));
+        assert!(ADMIN_RESTORE_PATH.starts_with("/api/"));
+    }
+
+    #[test]
+    fn role_update_serializes_the_flag() {
+        let request = UpdateAdminRoleRequest { is_admin: true };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("is_admin"));
+        assert!(json.contains("true"));
     }
 
     #[test]

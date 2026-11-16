@@ -37,10 +37,21 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
+    fn administration_sits_just_before_about() {
+        let layout = include_str!("../../layout/settings_layout.rs");
+        let admin = layout.find("SettingsSection::Admin").unwrap();
+        let about = layout.find("SettingsSection::About").unwrap();
+        assert!(admin < about, "Administration must appear before About");
+    }
+
+    #[test]
     fn administration_is_available_to_admins() {
         assert!(SETTINGS_SOURCES.contains("Administration"));
         assert!(SETTINGS_SOURCES.contains("SettingsAdminPage"));
         assert!(SETTINGS_SOURCES.contains("full_backup"));
+        assert!(SETTINGS_SOURCES.contains("restore_backup"));
+        assert!(SETTINGS_SOURCES.contains("delete_user"));
+        assert!(SETTINGS_SOURCES.contains("set_admin"));
         assert!(SETTINGS_SOURCES.contains("registration_enabled"));
     }
 
