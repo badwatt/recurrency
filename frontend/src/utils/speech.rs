@@ -105,9 +105,7 @@ fn speech_error(code: &str) -> String {
             "Microphone permission denied or no microphone was found".to_string()
         }
         "no-speech" => "No speech detected. Try again".to_string(),
-        "network" | "service-not-allowed" => {
-            "Speech recognition is unavailable in this browser. Brave does not provide Web Speech; try Chrome, Android or on-device speech.".to_string()
-        }
+        "network" | "service-not-allowed" => "The speech service is unavailable".to_string(),
         "aborted" => "Dictation was cancelled".to_string(),
         "recording" => "Could not record audio".to_string(),
         other => format!("Voice input failed: {other}"),
