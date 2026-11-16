@@ -111,11 +111,21 @@
   <!-- Same clock favicon during loading and after the WASM bundle mounts. -->
   <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAADMUExURWNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WNm8WJl8WFk8WBj8XJ08o6Q9aao97O1+HJ18nh78+Xl/fr6/////2Rn8ZeZ9ubm/fv8/+3t/eDh/KSm9/b3/vf3/sfI+pOV9Xh684WH9IWI9MbI+uXm/ZKU9WVo8V9i8Xl884KE9IqM9fv7/4qM9Hd684iL9OLi/G5w8v7+/7u8+Xp98+fo/d/g/Jia9mhr8crL+sTF+m5x8vj4/oKF9HN18qqr96an92ls8o2Q9XtwkJgAAAAKdFJOUwAeftD2Rcv+5MoJ1gbKAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAW5JREFUOMuFk4lygjAQhgMoahIuhUVFOWwLeFLsofY+3v+dGhkJh1b+YSYZ8mWT7P6LEEKCKLXwmVqSKKBMbbmDL6ojt7P1Lv5XXUYIMr4iWUBiKT6hCmUfKZ0iIqlYJqqmG4au9UmBSIjfnw4M0wImyzQGlL8F5TN7OAIYO5OJMwYYDe38fw7YUxc8P5jd3M6COw/cqV0F6NCFMIrnizBczOMoBHdIywAZjCBcUkxX6/WKDcsQRgNSBgzwIraFbixrcxwjD4wSQPom+DEuABz7YKqEA1SzxoFSBpRgbGmUA4oOTkJOwP2RJIkDulJEMCDdZsDKenhU2U6yTcGg5wB5egbY7Q+kBvAjMF6+WLB+faO1I/JLsulhv4P3j3n1kkQ9PTNDPr++f2rP5Ik6uYIqtUTxVOdBzlKdF0shTMqFYvFyJ9ttEvgXys0Nk6Z1wzRarmLa38y0asW0jbYXetcapyc0tx4jetebt6H9/wDLaj2GGyXoywAAAABJRU5ErkJggg==">
   <script>
+    // If a browser misses the stylesheet onload switch, force print media to
+    // all; the loader still waits for the CSS sentinel before revealing.
+    setTimeout(() => {
+      document.querySelectorAll('link[rel="stylesheet"][media="print"]').forEach((link) => {
+        link.media = 'all';
+      });
+    }, 1200);
     // Safety net: never leave a blank screen if the WASM bundle cannot start.
     setTimeout(() => {
-      // Never uncover the app before its CSS has loaded; on a slow network
-      // that would show an unstyled page. Keep the inline loader instead.
-      if (!window.__recurrencyCssReady) return;
+      // Never uncover the app before its CSS has actually been applied;
+      // onload alone can fire while the print-media stylesheet still isn't
+      // active, which caused the unstyled giant-clock frame.
+      const cssApplied = getComputedStyle(document.documentElement)
+        .getPropertyValue('--recurrency-css-ready').trim() === '1';
+      if (!cssApplied) return;
       document.getElementById('recurrency-loader')?.remove();
       const main = document.getElementById('main');
       if (main) main.style.visibility = 'visible';

@@ -286,13 +286,22 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
                         if (el) el.remove();
                     });
                 }
+                function cssApplied() {
+                    try {
+                        return getComputedStyle(document.documentElement)
+                            .getPropertyValue('--recurrency-css-ready')
+                            .trim() === '1';
+                    } catch (_) {
+                        return false;
+                    }
+                }
                 function reveal(force) {
                     if (done) return;
                     var main = document.getElementById('main');
                     // The CSS link is loaded asynchronously. Keep the loader
                     // until both the stylesheet and the first Dioxus element
                     // exist: revealing earlier causes the exact FOUC we saw.
-                    if (!force && (!window.__recurrencyCssReady || !main || main.childElementCount === 0)) {
+                    if (!force && (!cssApplied() || !main || main.childElementCount === 0)) {
                         setTimeout(function () { reveal(false); }, 50);
                         return;
                     }
