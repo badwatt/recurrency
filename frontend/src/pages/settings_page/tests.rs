@@ -375,8 +375,8 @@ const SETTINGS_SOURCES: &str = concat!(
             [("email".to_string(), true), ("push".to_string(), false)]
                 .into_iter()
                 .collect();
-        assert_eq!(*channels.get("email").unwrap(), true);
-        assert_eq!(*channels.get("push").unwrap(), false);
+        assert!(*channels.get("email").unwrap());
+        assert!(!*channels.get("push").unwrap());
     }
 
 

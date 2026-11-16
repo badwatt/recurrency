@@ -1,6 +1,5 @@
 
     use super::*;
-use rust_decimal::Decimal;
 
 use crate::components::entry_form::{EntryForm as EditForm, EntityType};
 

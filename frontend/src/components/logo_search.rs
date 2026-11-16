@@ -496,15 +496,6 @@ mod tests {
     }
 
     #[test]
-    fn loading_state_transitions() {
-        let mut searching = false;
-        searching = true;
-        assert!(searching);
-        searching = false;
-        assert!(!searching);
-    }
-
-    #[test]
     fn results_empty() {
         let results: Vec<LogoResult> = vec![];
         assert!(results.is_empty());

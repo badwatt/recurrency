@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn logo_alt_text_uses_name() {
         let name = "Spotify";
-        let alt = format!("{}", name);
+        let alt = name.to_string();
         assert_eq!(alt, "Spotify");
     }
 
@@ -253,7 +253,7 @@ mod tests {
     fn logo_transparency_check_js_format() {
         // JS to detect transparency: draw image to canvas, check alpha channel
         let img_id = "logo-img-test-id";
-        let wrapper_id = "logo-wrapper-test-id";
+        let _wrapper_id = "logo-wrapper-test-id";
         let js = format!(
             r#"
             (function() {{

@@ -70,7 +70,6 @@ pub fn SettingsAiPage() -> Element {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn ai_page_has_a_hero_and_both_cards() {

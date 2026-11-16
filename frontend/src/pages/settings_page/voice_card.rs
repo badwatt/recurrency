@@ -285,7 +285,6 @@ pub fn AiVoiceCard() -> Element {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn voice_card_exposes_every_transcription_path() {

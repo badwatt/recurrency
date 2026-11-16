@@ -5,8 +5,6 @@ use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use crate::currency::service::{RatesResponse, convert};
-#[cfg(test)]
-use crate::shared::date_utils::days_in_month;
 use crate::subscriptions::models::Recurrence;
 
 #[derive(Debug, Clone)]
@@ -54,71 +52,6 @@ pub fn monthly_equivalent(amount: Decimal, frequency: &str) -> Decimal {
         "yearly" => amount / Decimal::from(12),
         _ => amount,
     }
-}
-
-#[cfg(test)]
-fn add_months_with_day(date: NaiveDate, months: i32, day: i16) -> NaiveDate {
-    let total = date.year() * 12 + date.month() as i32 - 1 + months;
-    let year = total.div_euclid(12);
-    let month = (total.rem_euclid(12) + 1) as u32;
-    let day = (day.max(1) as u32).min(days_in_month(year, month));
-    NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
-}
-
-#[cfg(test)]
-fn advance_scheduled(
-    date: NaiveDate,
-    frequency: &str,
-    schedule_day: Option<i16>,
-    schedule_month: Option<i16>,
-) -> NaiveDate {
-    match frequency {
-        "daily" => date + chrono::Duration::days(1),
-        "weekly" => date + chrono::Duration::weeks(1),
-        "monthly" => add_months_with_day(date, 1, schedule_day.unwrap_or(date.day() as i16)),
-        "quarterly" => add_months_with_day(date, 3, schedule_day.unwrap_or(date.day() as i16)),
-        "yearly" => {
-            let year = date.year() + 1;
-            let month = schedule_month.unwrap_or(date.month() as i16) as u32;
-            let day = schedule_day.unwrap_or(date.day() as i16);
-            let day = (day.max(1) as u32).min(days_in_month(year, month));
-            NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
-        }
-        _ => date + chrono::Duration::days(30),
-    }
-}
-
-#[cfg(test)]
-fn billing_dates_in_month(
-    next_billing_date: Option<NaiveDate>,
-    frequency: &str,
-    schedule_day: Option<i16>,
-    schedule_month: Option<i16>,
-    end_date: Option<NaiveDate>,
-    year: i32,
-    month: u32,
-) -> Vec<NaiveDate> {
-    let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
-    let month_end = NaiveDate::from_ymd_opt(year, month, days_in_month(year, month))
-        .expect("valid month end");
-    let Some(mut date) = next_billing_date else {
-        return Vec::new();
-    };
-    let mut guard = 0;
-    while date < month_start && guard < 1000 {
-        date = advance_scheduled(date, frequency, schedule_day, schedule_month);
-        guard += 1;
-    }
-    let mut dates = Vec::new();
-    while date <= month_end && guard < 2000 {
-        if end_date.is_some_and(|end| date >= end) {
-            break;
-        }
-        dates.push(date);
-        date = advance_scheduled(date, frequency, schedule_day, schedule_month);
-        guard += 1;
-    }
-    dates
 }
 
 pub fn build_account_summaries(

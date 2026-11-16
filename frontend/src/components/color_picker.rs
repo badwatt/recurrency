@@ -74,7 +74,6 @@ pub fn ColorField(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     fn production_source() -> &'static str {
         include_str!("color_picker.rs")

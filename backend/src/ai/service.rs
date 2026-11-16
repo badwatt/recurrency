@@ -272,21 +272,7 @@ impl SqlxAiService {
             AppError::BadRequest("Subscription data must be an object".to_string())
         })?;
         data.entry("currency").or_insert_with(|| json!(currency));
-        let find_logo = data
-            .remove("find_logo")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(false);
-        let name = data
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        if find_logo
-            && data.get("logo_url").and_then(Value::as_str).is_none()
-            && let Some(logo) = find_logo_url(&name).await
-        {
-            data.insert("logo_url".to_string(), json!(logo));
-        }
+        attach_logo(&mut data).await;
         if data.get("frequency").is_none() {
             let annual = data
                 .get("recurrence")
@@ -340,21 +326,7 @@ impl SqlxAiService {
             AppError::BadRequest("Transaction data must be an object".to_string())
         })?;
         data.entry("currency").or_insert_with(|| json!(currency));
-        let find_logo = data
-            .remove("find_logo")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(false);
-        let name = data
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        if find_logo
-            && data.get("logo_url").and_then(Value::as_str).is_none()
-            && let Some(logo) = find_logo_url(&name).await
-        {
-            data.insert("logo_url".to_string(), json!(logo));
-        }
+        attach_logo(&mut data).await;
         data.entry("date")
             .or_insert_with(|| json!(Utc::now().date_naive().to_string()));
         let request: CreateTransactionRequest = serde_json::from_value(Value::Object(data))
@@ -399,21 +371,7 @@ impl SqlxAiService {
             .ok_or_else(|| AppError::BadRequest("Debt data must be an object".to_string()))?;
         data.entry("currency").or_insert_with(|| json!(currency));
         data.entry("debt_type").or_insert_with(|| json!("manual"));
-        let find_logo = data
-            .remove("find_logo")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(false);
-        let name = data
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        if find_logo
-            && data.get("logo_url").and_then(Value::as_str).is_none()
-            && let Some(logo) = find_logo_url(&name).await
-        {
-            data.insert("logo_url".to_string(), json!(logo));
-        }
+        attach_logo(&mut data).await;
         let request: CreateDebtRequest = serde_json::from_value(Value::Object(data))
             .map_err(|error| AppError::BadRequest(format!("Invalid debt: {error}")))?;
         let debt = SqlxDebtService::new(self.pool.clone())
@@ -678,25 +636,27 @@ impl AiServiceTrait for SqlxAiService {
     }
 }
 
-async fn resolve_update_logo(data: &Value) -> Value {
-    let mut data = data.clone();
-    let Some(object) = data.as_object_mut() else {
-        return data;
-    };
-    let find_logo = object
+async fn attach_logo(data: &mut serde_json::Map<String, Value>) {
+    let find_logo = data
         .remove("find_logo")
         .and_then(|value| value.as_bool())
         .unwrap_or(false);
-    if find_logo && object.get("logo_url").and_then(Value::as_str).is_none() {
-        let name = object
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        if let Some(logo) = find_logo_url(name).await {
-            object.insert("logo_url".to_string(), json!(logo));
-        }
+    if !find_logo || data.get("logo_url").and_then(Value::as_str).is_some() {
+        return;
     }
-    data
+    let name = data.get("name").and_then(Value::as_str).unwrap_or_default();
+    if let Some(logo) = find_logo_url(name).await {
+        data.insert("logo_url".to_string(), json!(logo));
+    }
+}
+
+async fn resolve_update_logo(data: &Value) -> Value {
+    let Some(object) = data.as_object().cloned() else {
+        return data.clone();
+    };
+    let mut object = object;
+    attach_logo(&mut object).await;
+    Value::Object(object)
 }
 
 async fn find_logo_url(name: &str) -> Option<String> {

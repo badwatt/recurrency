@@ -321,21 +321,38 @@ mod desktop {
         let decoder =
             file_path("decoder").ok_or_else(|| "Speech decoder is missing".to_string())?;
         tokio::task::spawn_blocking(move || {
-            let mut config = sherpa_onnx::OfflineRecognizerConfig::default();
-            config.model_config.whisper = sherpa_onnx::OfflineWhisperModelConfig {
-                encoder: Some(encoder),
-                decoder: Some(decoder),
-                language: None,
-                task: Some("transcribe".to_string()),
-                tail_paddings: -1,
-                ..Default::default()
-            };
-            config.model_config.tokens = Some(tokens);
-            config.model_config.num_threads = std::thread::available_parallelism()
-                .map(|v| v.get())
-                .unwrap_or(1) as i32;
-            let recognizer = sherpa_onnx::OfflineRecognizer::create(&config)
-                .ok_or_else(|| "Could not load the speech model".to_string())?;
+            // Loading Whisper takes seconds. Keep the recognizer alive between
+            // dictations instead of rebuilding it for every phrase.
+            static RECOGNIZER: std::sync::OnceLock<
+                std::sync::Mutex<Option<(String, sherpa_onnx::OfflineRecognizer)>>,
+            > = std::sync::OnceLock::new();
+            let mut cached = RECOGNIZER
+                .get_or_init(|| std::sync::Mutex::new(None))
+                .lock()
+                .map_err(|_| "Could not lock the speech model".to_string())?;
+            let model_key = model.id.to_string();
+            if cached.as_ref().map(|(key, _)| key) != Some(&model_key) {
+                let mut config = sherpa_onnx::OfflineRecognizerConfig::default();
+                config.model_config.whisper = sherpa_onnx::OfflineWhisperModelConfig {
+                    encoder: Some(encoder),
+                    decoder: Some(decoder),
+                    language: None,
+                    task: Some("transcribe".to_string()),
+                    tail_paddings: -1,
+                    ..Default::default()
+                };
+                config.model_config.tokens = Some(tokens);
+                config.model_config.num_threads = std::thread::available_parallelism()
+                    .map(|v| v.get())
+                    .unwrap_or(1) as i32;
+                let recognizer = sherpa_onnx::OfflineRecognizer::create(&config)
+                    .ok_or_else(|| "Could not load the speech model".to_string())?;
+                *cached = Some((model_key, recognizer));
+            }
+            let recognizer = &cached
+                .as_ref()
+                .ok_or_else(|| "Could not load the speech model".to_string())?
+                .1;
             let stream = recognizer.create_stream();
             stream.accept_waveform(16_000, &samples);
             recognizer.decode(&stream);

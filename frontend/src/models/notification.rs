@@ -230,13 +230,13 @@ mod tests {
 
     #[test]
     fn notification_preference_different_days() {
-        for days in &[0, 1, 3, 7, 14, 30] {
+        for days in &[0_i32, 1, 3, 7, 14, 30] {
             let pref = NotificationPreference {
                 channel: "email".into(),
                 enabled: true,
                 reminder_days_before: *days,
             };
-            assert_eq!(pref.reminder_days_before, *days as i32);
+            assert_eq!(pref.reminder_days_before, *days);
         }
     }
 

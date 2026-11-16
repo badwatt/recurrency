@@ -33,11 +33,6 @@ pub fn CardContent(children: Element) -> Element {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn card_classes_exist() {
-        assert!(!"rounded-lg border border-border bg-card".is_empty());
-    }
-
-    #[test]
     fn card_class_contains_rounded() {
         let cls = "rounded-xl border border-border/40 bg-card/80 text-card-foreground";
         assert!(cls.contains("rounded-xl"));
