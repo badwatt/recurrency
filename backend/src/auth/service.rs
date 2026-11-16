@@ -24,6 +24,9 @@ const INSECURE_JWT_SECRET: &str = "change-me-in-production";
 /// Key used to persist the generated JWT secret in PostgreSQL.
 const JWT_SECRET_KEY: &str = "jwt_secret";
 
+/// Built-in demo account that must never become the installation administrator.
+const DEMO_EMAIL: &str = "demo@recurrency.app";
+
 /// Generate a 256-bit secret from two UUID v4 values. The result is a
 /// 64-character lowercase hexadecimal string.
 fn generate_jwt_secret() -> String {
@@ -138,7 +141,7 @@ impl SqlxAuthService {
 
     async fn register_impl(&self, req: CreateUserRequest) -> AppResult<AuthResponse> {
         let existing = sqlx::query_as::<_, User>(
-            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE email = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at FROM users WHERE email = $1"
         )
         .bind(&req.email)
         .fetch_optional(&self.pool)
@@ -158,9 +161,12 @@ impl SqlxAuthService {
 
         let user = sqlx::query_as::<_, User>(
             r#"
-            INSERT INTO users (id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at)
-            VALUES ($1, $2, NULL, $3, $4, 'EUR', $5, $6, $7, $7)
-            RETURNING id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at
+            INSERT INTO users (id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at)
+            VALUES ($1, $2, NULL, $3, $4, 'EUR', $5,
+                NOT EXISTS (SELECT 1 FROM users WHERE is_admin = true)
+                AND NOT EXISTS (SELECT 1 FROM users WHERE email <> $8),
+                $6, $7, $7)
+            RETURNING id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -170,6 +176,7 @@ impl SqlxAuthService {
         .bind(verified)
         .bind(code)
         .bind(Utc::now())
+        .bind(DEMO_EMAIL)
         .fetch_one(&self.pool)
         .await?;
 
@@ -211,7 +218,7 @@ impl SqlxAuthService {
 
     async fn login_impl(&self, req: LoginRequest) -> AppResult<AuthResponse> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE email = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at FROM users WHERE email = $1"
         )
         .bind(&req.email)
         .fetch_optional(&self.pool)
@@ -237,7 +244,7 @@ impl SqlxAuthService {
 
     async fn verify_email_impl(&self, user_id: Uuid, code: String) -> AppResult<UserResponse> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE id = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at FROM users WHERE id = $1"
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -256,7 +263,7 @@ impl SqlxAuthService {
 
         let user = sqlx::query_as::<_, User>(
             "UPDATE users SET verified = true, verification_code = NULL, updated_at = NOW() WHERE id = $1
-             RETURNING id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at"
+             RETURNING id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at"
         )
         .bind(user_id)
         .fetch_one(&self.pool)
@@ -294,7 +301,7 @@ impl SqlxAuthService {
 
     async fn get_user_by_id_impl(&self, user_id: Uuid) -> AppResult<User> {
         sqlx::query_as::<_, User>(
-            "SELECT id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at FROM users WHERE id = $1"
+            "SELECT id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at FROM users WHERE id = $1"
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -343,7 +350,7 @@ impl SqlxAuthService {
                 currency = COALESCE(NULLIF($4, ''), currency),
                 updated_at = NOW()
             WHERE id = $1
-            RETURNING id, email, avatar, password_hash, name, currency, verified, verification_code, created_at, updated_at
+            RETURNING id, email, avatar, password_hash, name, currency, verified, is_admin, verification_code, created_at, updated_at
             "#,
         )
         .bind(user_id)
@@ -665,6 +672,7 @@ mod tests {
             name: Some("Test".to_string()),
             currency: "USD".to_string(),
             verified: true,
+            is_admin: false,
             verification_code: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -690,6 +698,7 @@ mod tests {
             name: None,
             currency: "EUR".to_string(),
             verified: true,
+            is_admin: false,
             verification_code: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -741,6 +750,7 @@ mod tests {
                 name: None,
                 currency: "EUR".to_string(),
                 verified: false,
+                is_admin: false,
             },
             requires_verification: true,
         };
@@ -758,6 +768,7 @@ mod tests {
                 name: None,
                 currency: "EUR".to_string(),
                 verified: true,
+                is_admin: false,
             },
             requires_verification: false,
         };
@@ -775,6 +786,7 @@ mod tests {
                 name: None,
                 currency: "USD".to_string(),
                 verified: true,
+                is_admin: false,
             },
             requires_verification: false,
         };
@@ -954,6 +966,7 @@ mod tests {
             name: Some("Special Email User".to_string()),
             currency: "EUR".to_string(),
             verified: true,
+            is_admin: false,
             verification_code: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -989,6 +1002,7 @@ mod tests {
             name: None,
             currency: "JPY".to_string(),
             verified: false,
+            is_admin: false,
             verification_code: Some("654321".to_string()),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),

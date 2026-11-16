@@ -1,4 +1,5 @@
 use crate::accounts::service::{AccountServiceTrait, SqlxAccountService};
+use crate::admin::service::{AdminServiceTrait, SqlxAdminService};
 use crate::auth::service::{AuthServiceTrait, SqlxAuthService};
 use crate::backup::service::{BackupServiceTrait, SqlxBackupService};
 use crate::categories::service::{CategoryServiceTrait, SqlxCategoryService};
@@ -17,6 +18,7 @@ use std::sync::Arc;
 pub struct AppState {
     pub pool: sqlx::PgPool,
     pub auth_service: Arc<dyn AuthServiceTrait>,
+    pub admin_service: Arc<dyn AdminServiceTrait>,
     pub subscription_service: Arc<dyn SubscriptionServiceTrait>,
     pub transaction_service: Arc<dyn TransactionServiceTrait>,
     pub account_service: Arc<dyn AccountServiceTrait>,
@@ -35,6 +37,7 @@ impl AppState {
     pub fn new(pool: sqlx::PgPool) -> Self {
         Self {
             auth_service: Arc::new(SqlxAuthService::new(pool.clone())),
+            admin_service: Arc::new(SqlxAdminService::new(pool.clone())),
             subscription_service: Arc::new(SqlxSubscriptionService::new(pool.clone())),
             transaction_service: Arc::new(SqlxTransactionService::new(pool.clone())),
             account_service: Arc::new(SqlxAccountService::new(pool.clone())),

@@ -9,7 +9,10 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use axum::{Json, extract::State, http::{HeaderMap, header::AUTHORIZATION}};
 use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
+use recurrency_backend::admin::service::{AdminServiceTrait, SqlxAdminService};
+use recurrency_backend::shared::app_state::AppState;
 use recurrency_backend::accounts::service::AccountService;
 use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest, UpdateSettingsRequest};
 use recurrency_backend::auth::service::{AuthService, AuthServiceTrait, SqlxAuthService};
@@ -1178,4 +1181,133 @@ async fn preferences_update_all_fields_in_one_call(pool: PgPool) {
     assert_eq!(loaded.subscriptions_view, response.subscriptions_view);
     assert_eq!(loaded.first_day_of_week, response.first_day_of_week);
     assert_eq!(loaded.date_format, response.date_format);
+}
+
+
+// ── Administration ───────────────────────────────────────────────────────────
+
+#[sqlx::test]
+async fn first_registered_user_is_admin(pool: PgPool) {
+    let first = AuthService::register(
+        &pool,
+        CreateUserRequest {
+            email: format!("admin_{}@test.com", Uuid::new_v4()),
+            password: "testpassword123".to_string(),
+            name: "Admin".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+    let second = AuthService::register(
+        &pool,
+        CreateUserRequest {
+            email: format!("member_{}@test.com", Uuid::new_v4()),
+            password: "testpassword123".to_string(),
+            name: "Member".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(first.user.is_admin);
+    assert!(!second.user.is_admin);
+}
+
+#[sqlx::test]
+async fn admin_settings_toggle_registration(pool: PgPool) {
+    let service = SqlxAdminService::new(pool);
+    assert!(service.settings().await.unwrap().registration_enabled);
+
+    let updated = service.set_registration_enabled(false).await.unwrap();
+    assert!(!updated.registration_enabled);
+    assert!(!service.settings().await.unwrap().registration_enabled);
+
+    let restored = service.set_registration_enabled(true).await.unwrap();
+    assert!(restored.registration_enabled);
+}
+
+#[sqlx::test]
+async fn admin_full_backup_includes_every_application_table(pool: PgPool) {
+    let _ = create_test_user(&pool).await;
+    let service = SqlxAdminService::new(pool);
+    let backup = service.full_backup().await.unwrap();
+
+    assert!(backup.tables.contains_key("users"));
+    assert!(backup.tables.contains_key("app_settings"));
+    assert!(backup.tables.contains_key("accounts"));
+    assert!(backup.tables["users"].as_array().is_some_and(|rows| !rows.is_empty()));
+}
+
+
+#[sqlx::test]
+async fn registration_handler_respects_the_admin_setting(pool: PgPool) {
+    SqlxAdminService::new(pool.clone())
+        .set_registration_enabled(false)
+        .await
+        .unwrap();
+
+    let state = AppState::new(pool.clone());
+    let result = recurrency_backend::auth::handlers::register(
+        State(state),
+        Json(CreateUserRequest {
+            email: format!("blocked_{}@test.com", Uuid::new_v4()),
+            password: "testpassword123".to_string(),
+            name: "Blocked".to_string(),
+        }),
+    )
+    .await;
+    assert!(matches!(result, Err(AppError::Forbidden(_))));
+
+    // Re-enable and verify the handler delegates to the real registration
+    // service again.
+    SqlxAdminService::new(pool.clone())
+        .set_registration_enabled(true)
+        .await
+        .unwrap();
+    let state = AppState::new(pool);
+    let created = recurrency_backend::auth::handlers::register(
+        State(state),
+        Json(CreateUserRequest {
+            email: format!("allowed_{}@test.com", Uuid::new_v4()),
+            password: "testpassword123".to_string(),
+            name: "Allowed".to_string(),
+        }),
+    )
+    .await
+    .unwrap();
+    assert!(!created.0.user.email.is_empty());
+}
+
+
+#[sqlx::test]
+async fn admin_handlers_reject_non_administrators(pool: PgPool) {
+    let (_, admin_token) = create_test_user(&pool).await;
+    let (_, member_token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        format!("Bearer {member_token}").parse().unwrap(),
+    );
+
+    let rejected = recurrency_backend::admin::handlers::list_users(
+        State(state.clone()),
+        recurrency_backend::shared::OptionalQuery(None),
+        headers.clone(),
+    )
+    .await;
+    assert!(matches!(rejected, Err(AppError::Forbidden(_))));
+
+    headers.insert(
+        AUTHORIZATION,
+        format!("Bearer {admin_token}").parse().unwrap(),
+    );
+    let allowed = recurrency_backend::admin::handlers::list_users(
+        State(state),
+        recurrency_backend::shared::OptionalQuery(None),
+        headers,
+    )
+    .await
+    .unwrap();
+    assert!(allowed.0.iter().any(|user| user.is_admin));
 }

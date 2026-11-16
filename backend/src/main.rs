@@ -1,6 +1,6 @@
 use recurrency_backend::{
-    accounts, auth, backup, categories, currency, debts, demo, logos, notifications, preferences,
-    reports, shared, subscriptions, transactions,
+    accounts, admin, auth, backup, categories, currency, debts, demo, logos, notifications,
+    preferences, reports, shared, subscriptions, transactions,
 };
 
 use axum::extract::{DefaultBodyLimit, State};
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "DATABASE_URL or --database-url is required for backups",
                     )
                 })?;
-            backup::cli::run(&database_url).await?;
+            backup::cli::run(&database_url, cli.backup_dir.clone()).await?;
             shared::db::shutdown_embedded().await;
             return Ok(());
         }
@@ -147,6 +147,9 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         )
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
+        .route("/api/admin/users", get(admin::handlers::list_users))
+        .route("/api/admin/settings", get(admin::handlers::get_settings).put(admin::handlers::update_settings))
+        .route("/api/admin/backup", get(admin::handlers::full_backup))
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))

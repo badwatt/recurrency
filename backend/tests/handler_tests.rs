@@ -114,6 +114,7 @@ mod auth_model_tests {
             name: Some("Serialize Me".to_string()),
             currency: "GBP".to_string(),
             verified: true,
+            is_admin: false,
         };
         let json = serde_json::to_string(&user).unwrap();
         assert!(json.contains("serialize@test.com"));

@@ -20,6 +20,9 @@ pub enum AppError {
     #[error("Conflict: {0}")]
     Conflict(String),
 
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
+
     #[error("Internal server error: {0}")]
     Internal(String),
 
@@ -40,6 +43,7 @@ impl IntoResponse for AppError {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::Database(e) => {
                 tracing::error!("Database error: {:?}", e);
@@ -190,6 +194,14 @@ mod tests {
             jsonwebtoken::errors::ErrorKind::InvalidToken,
         ))
         .into_response();
+    }
+
+    #[test]
+    fn forbidden_into_response_status() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let err = AppError::Forbidden("nope".into());
+        assert_eq!(err.into_response().status(), StatusCode::FORBIDDEN);
     }
 
     #[test]

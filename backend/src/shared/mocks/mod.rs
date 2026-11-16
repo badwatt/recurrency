@@ -122,6 +122,7 @@ impl MockAuthService {
             name: Some(name.to_string()),
             currency: "USD".to_string(),
             verified,
+            is_admin: false,
             verification_code: if verified {
                 None
             } else {
@@ -165,6 +166,7 @@ impl MockAuthService {
             name: Some(req.name.clone()),
             currency: "USD".to_string(),
             verified: false,
+            is_admin: false,
             verification_code: Some("123456".to_string()),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -3419,6 +3421,7 @@ mod tests {
                 name: Some("Clone".to_string()),
                 currency: "USD".to_string(),
                 verified: true,
+                is_admin: false,
                 verification_code: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),

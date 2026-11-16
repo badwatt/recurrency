@@ -14,6 +14,11 @@ pub async fn register(
     Json(req): Json<CreateUserRequest>,
 ) -> AppResult<Json<AuthResponse>> {
     req.validate()?;
+    if !state.admin_service.settings().await?.registration_enabled {
+        return Err(crate::shared::error::AppError::Forbidden(
+            "Registration is disabled".to_string(),
+        ));
+    }
     let response = state.auth_service.register(req).await?;
     Ok(Json(response))
 }
@@ -274,6 +279,7 @@ mod tests {
             name: None,
             currency: "EUR".to_string(),
             verified: false,
+            is_admin: false,
         };
         let json = serde_json::to_string(&user).unwrap();
         assert!(json.contains("user@test.com"));
@@ -301,6 +307,7 @@ mod tests {
             name: Some("Test User".to_string()),
             currency: "USD".to_string(),
             verified: true,
+            is_admin: false,
         };
         let resp = AuthResponse {
             token: "jwt-token".to_string(),

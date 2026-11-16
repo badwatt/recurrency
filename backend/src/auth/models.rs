@@ -14,6 +14,7 @@ pub struct User {
     pub name: Option<String>,
     pub currency: String,
     pub verified: bool,
+    pub is_admin: bool,
     pub verification_code: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -82,6 +83,7 @@ pub struct UserResponse {
     pub name: Option<String>,
     pub currency: String,
     pub verified: bool,
+    pub is_admin: bool,
 }
 
 impl From<User> for UserResponse {
@@ -93,6 +95,7 @@ impl From<User> for UserResponse {
             name: user.name,
             currency: user.currency,
             verified: user.verified,
+            is_admin: user.is_admin,
         }
     }
 }
@@ -131,6 +134,7 @@ mod tests {
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
             verification_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -150,6 +154,7 @@ mod tests {
             name: None,
             currency: "USD".into(),
             verified: false,
+            is_admin: false,
             verification_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -167,6 +172,7 @@ mod tests {
             name: None,
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         let json = serde_json::to_string(&user).unwrap();
         assert!(json.contains("data:image/png"));
@@ -182,6 +188,7 @@ mod tests {
             name: Some("Test".into()),
             currency: "GBP".into(),
             verified: true,
+            is_admin: false,
             verification_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -203,6 +210,7 @@ mod tests {
             name: None,
             currency: "JPY".into(),
             verified: false,
+            is_admin: false,
             verification_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -297,6 +305,7 @@ mod tests {
             name: None,
             currency: "EUR".into(),
             verified: false,
+            is_admin: false,
         };
         let resp = AuthResponse {
             token: "tok".into(),
@@ -315,6 +324,7 @@ mod tests {
             name: None,
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         let resp = AuthResponse {
             token: "tok".into(),
@@ -333,6 +343,7 @@ mod tests {
             name: None,
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         let resp = AuthResponse {
             token: "tok123".into(),
@@ -355,6 +366,7 @@ mod tests {
             name: Some("Set".into()),
             currency: "USD".into(),
             verified: true,
+            is_admin: false,
             verification_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
