@@ -119,23 +119,29 @@ pub fn AppLayout() -> Element {
             TOAST.write().error("Session expired. Sign in again.");
         }
     });
-    use_future(move || async move {
-        if crate::api::client::is_offline_mode() {
+    // Keep this reactive: if the app briefly starts in local mode while the
+    // durable server mode is being recovered, the AI button must still load.
+    use_effect(move || {
+        let mode = crate::state::app_mode::APP_MODE();
+        let already_loaded = AI_SETTINGS.read().is_some();
+        if mode.mode.is_offline() || already_loaded {
             return;
         }
-        for attempt in 0..3 {
-            if let Ok(settings) = crate::api::ai::settings().await {
-                *AI_SETTINGS.write() = Some(settings);
-                return;
+        spawn(async move {
+            for attempt in 0..3 {
+                if let Ok(settings) = crate::api::ai::settings().await {
+                    *AI_SETTINGS.write() = Some(settings);
+                    return;
+                }
+                if *crate::state::auth::SESSION_EXPIRED.read() || attempt == 2 {
+                    return;
+                }
+                #[cfg(target_arch = "wasm32")]
+                gloo_timers::future::TimeoutFuture::new(2500).await;
+                #[cfg(not(target_arch = "wasm32"))]
+                tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
             }
-            if *crate::state::auth::SESSION_EXPIRED.read() || attempt == 2 {
-                return;
-            }
-            #[cfg(target_arch = "wasm32")]
-            gloo_timers::future::TimeoutFuture::new(2500).await;
-            #[cfg(not(target_arch = "wasm32"))]
-            tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
-        }
+        });
     });
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
