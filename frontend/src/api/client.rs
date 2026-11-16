@@ -671,6 +671,7 @@ mod tests {
     #[test]
     #[serial]
     fn get_base_url_is_valid_url() {
+        set_base_url("https://recurrency.example.com");
         let url = get_base_url();
         assert!(url.starts_with("http://") || url.starts_with("https://"));
         assert!(!url.is_empty());
