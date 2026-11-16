@@ -15,9 +15,11 @@ pub const PAGE_WIDTH: f32 = 595.28;
 /// A4 page height in PostScript points.
 pub const PAGE_HEIGHT: f32 = 841.89;
 
-const MARGIN: f32 = 48.0;
-const GAP: f32 = 12.0;
-const CONTENT_TOP: f32 = 112.0;
+const MARGIN: f32 = 45.35;
+const GAP: f32 = 9.0;
+const CONTENT_TOP: f32 = 45.35;
+const HEADER_BOTTOM: f32 = 96.0;
+const CONTENT_START: f32 = 114.0;
 const FOOTER_TOP: f32 = 54.0;
 const BOTTOM_LIMIT: f32 = 68.0;
 const TRACK_WIDTH: f32 = PAGE_WIDTH - 2.0 * MARGIN;
@@ -29,8 +31,8 @@ const ACCENT_SOFT: (f32, f32, f32) = (0.933, 0.941, 1.0);
 const CARD: (f32, f32, f32) = (0.984, 0.988, 1.0);
 const TRACK: (f32, f32, f32) = (0.933, 0.941, 0.969);
 const RULE: (f32, f32, f32) = (0.91, 0.918, 0.949);
+const ACCENT_BORDER: (f32, f32, f32) = (0.875, 0.890, 1.0);
 const WHITE: (f32, f32, f32) = (1.0, 1.0, 1.0);
-const HEADER_MUTED: (f32, f32, f32) = (0.878, 0.894, 1.0);
 
 const MONTHS: [&str; 12] = [
     "January",
@@ -177,10 +179,32 @@ pub fn truncate_to_width(text: &str, max_width: f32, size: f32) -> String {
     trimmed
 }
 
+type Color = (f32, f32, f32);
+
+#[derive(Clone, Copy)]
+struct PdfRect {
+    x: f32,
+    top: f32,
+    width: f32,
+    height: f32,
+    radius: f32,
+}
+
+impl PdfRect {
+    fn new(x: f32, top: f32, width: f32, height: f32, radius: f32) -> Self {
+        Self {
+            x,
+            top,
+            width,
+            height,
+            radius,
+        }
+    }
+}
+
 struct Pdf {
     pages: Vec<Vec<u8>>,
     y: f32,
-    page: usize,
     period: String,
     footer_right: String,
 }
@@ -190,7 +214,6 @@ impl Pdf {
         let mut pdf = Self {
             pages: Vec::new(),
             y: CONTENT_TOP,
-            page: 0,
             period,
             footer_right,
         };
@@ -200,24 +223,38 @@ impl Pdf {
 
     fn start_page(&mut self) {
         self.pages.push(Vec::new());
-        self.page += 1;
-        self.y = CONTENT_TOP;
+        self.y = CONTENT_START;
 
-        self.rect_at(0.0, 0.0, PAGE_WIDTH, 84.0, ACCENT);
-        self.text_at(MARGIN, 16.0, 8.5, true, HEADER_MUTED, "RECURRENCY");
-        self.text_at(MARGIN, 30.0, 22.0, true, WHITE, "Spending report");
+        let mark_size = 31.5;
+        self.rounded_rect_at(
+            PdfRect::new(MARGIN, CONTENT_TOP, mark_size, mark_size, 9.0),
+            Some(ACCENT),
+            None,
+        );
+        let letter_size = 16.5;
+        let letter_x = MARGIN + (mark_size - estimate_text_width("R", letter_size)) / 2.0;
         self.text_at(
-            MARGIN,
-            58.0,
-            9.5,
+            letter_x,
+            CONTENT_TOP + (mark_size - letter_size) / 2.0 - 0.5,
+            letter_size,
+            true,
+            WHITE,
+            "R",
+        );
+        let brand_x = MARGIN + mark_size + GAP;
+        self.text_at(brand_x, CONTENT_TOP - 0.5, 21.0, true, INK, "Recurrency");
+        self.text_at(
+            brand_x,
+            CONTENT_TOP + 24.0,
+            9.75,
             false,
-            HEADER_MUTED,
+            MUTED,
             "Monthly spending report",
         );
+        self.right_text_at("Report period", CONTENT_TOP + 1.0, 9.75, false, MUTED);
         let period = self.period.clone();
-        self.right_text_at(&period, 58.0, 9.5, false, HEADER_MUTED);
-        let page_label = format!("Page {}", self.page);
-        self.right_text_at(&page_label, 26.0, 8.5, false, HEADER_MUTED);
+        self.right_text_at(&period, CONTENT_TOP + 18.0, 13.5, true, INK);
+        self.line_at(MARGIN, HEADER_BOTTOM, PAGE_WIDTH - MARGIN, HEADER_BOTTOM, RULE);
     }
 
     fn finish_page(&mut self) {
@@ -270,34 +307,27 @@ impl Pdf {
             ),
         ];
         let card_width = (PAGE_WIDTH - 2.0 * MARGIN - 2.0 * GAP) / 3.0;
+        let card_height = 54.0;
         for (index, (label, value)) in cards.iter().enumerate() {
             let x = MARGIN + index as f32 * (card_width + GAP);
             let background = if index == 0 { ACCENT_SOFT } else { CARD };
-            self.rect_at(x, self.y, card_width, 66.0, background);
-            self.rect_at(x, self.y, 3.0, 66.0, ACCENT);
+            let border = if index == 0 { ACCENT_BORDER } else { RULE };
+            self.rounded_rect_at(
+                PdfRect::new(x, self.y, card_width, card_height, 9.0),
+                Some(background),
+                Some((border, 0.8)),
+            );
             self.text_at(
-                x + 14.0,
-                self.y + 14.0,
+                x + 12.0,
+                self.y + 12.0,
                 7.5,
                 true,
                 MUTED,
                 &label.to_uppercase(),
             );
-            self.text_at(x + 14.0, self.y + 32.0, 14.0, true, INK, value);
+            self.text_at(x + 12.0, self.y + 30.0, 16.5, true, INK, value);
         }
-        self.y += 88.0;
-        self.text_at(
-            MARGIN,
-            self.y,
-            8.5,
-            false,
-            MUTED,
-            &format!(
-                "{} active subscriptions · {} one-time expenses",
-                summary.subscriptions_count, summary.transactions_count
-            ),
-        );
-        self.y += 24.0;
+        self.y += card_height + 21.0;
     }
 
     fn categories(&mut self, report: &ReportResponse, currency: &str, categories: &[Category]) {
@@ -315,24 +345,36 @@ impl Pdf {
             return;
         }
         for category in &report.category_breakdown {
-            self.ensure_space(54.0);
+            self.ensure_space(58.0);
             let color = category_color(categories, &category.category_name);
             let amount = format_currency(category.total, currency);
-            let label_width = PAGE_WIDTH - 2.0 * MARGIN - estimate_text_width(&amount, 10.0) - 16.0;
-            let label = truncate_to_width(&category.category_name, label_width, 10.0);
-            self.text_at(MARGIN, self.y, 10.0, false, INK, &label);
-            self.right_text_at(&amount, self.y, 10.0, true, INK);
+            let label_width = PAGE_WIDTH
+                - 2.0 * MARGIN
+                - estimate_text_width(&amount, 9.75)
+                - 28.0;
+            let label = truncate_to_width(&category.category_name, label_width, 9.75);
+            self.circle_at(MARGIN, self.y + 2.0, 3.4, color_f32(color));
+            self.text_at(MARGIN + 12.0, self.y, 9.75, false, INK, &label);
+            self.right_text_at(&amount, self.y, 9.75, true, INK);
             self.y += 15.0;
-            self.rect_at(MARGIN, self.y, TRACK_WIDTH, 6.0, TRACK);
+            self.rounded_rect_at(
+                PdfRect::new(MARGIN, self.y, TRACK_WIDTH, 5.25, 2.6),
+                Some(TRACK),
+                None,
+            );
             let width = bar_width(category.percentage, TRACK_WIDTH);
             if width > 0.0 {
-                self.rect_at(MARGIN, self.y, width, 6.0, color_f32(color));
+                self.rounded_rect_at(
+                    PdfRect::new(MARGIN, self.y, width, 5.25, 2.6),
+                    Some(color_f32(color)),
+                    None,
+                );
             }
-            self.y += 12.0;
+            self.y += 8.25;
             self.text_at(
                 MARGIN,
                 self.y,
-                8.0,
+                8.25,
                 false,
                 MUTED,
                 &format!(
@@ -341,7 +383,7 @@ impl Pdf {
                     category.percentage.clamp(0.0, 100.0)
                 ),
             );
-            self.y += 18.0;
+            self.y += 19.0;
         }
     }
 
@@ -364,11 +406,11 @@ impl Pdf {
         self.y += 14.0;
         self.line_at(MARGIN, self.y, PAGE_WIDTH - MARGIN, self.y, RULE);
         for trend in &report.recent_trends {
-            self.ensure_space(22.0);
-            self.text_at(MARGIN, self.y + 6.0, 9.5, false, INK, &trend.period);
+            self.ensure_space(24.0);
+            self.text_at(MARGIN, self.y + 6.0, 9.75, false, INK, &trend.period);
             let total = format_currency(trend.total, currency);
-            self.right_text_at(&total, self.y + 6.0, 9.5, false, INK);
-            self.y += 22.0;
+            self.right_text_at(&total, self.y + 6.0, 9.75, false, INK);
+            self.y += 24.0;
             self.line_at(MARGIN, self.y, PAGE_WIDTH - MARGIN, self.y, RULE);
         }
         self.y += 8.0;
@@ -376,7 +418,7 @@ impl Pdf {
 
     fn heading(&mut self, text: &str) {
         self.ensure_space(40.0);
-        self.text_at(MARGIN, self.y, 15.0, true, INK, text);
+        self.text_at(MARGIN, self.y, 13.0, true, INK, text);
         self.y += 26.0;
     }
 
@@ -415,17 +457,94 @@ impl Pdf {
         self.text_at(x, top, size, bold, color, text);
     }
 
-    fn rect_at(&mut self, x: f32, top: f32, width: f32, height: f32, color: (f32, f32, f32)) {
-        if let Some(page) = self.pages.last_mut() {
-            let bottom = PAGE_HEIGHT - top - height;
-            let command = format!(
-                "q {r:.3} {g:.3} {b:.3} rg {x:.2} {bottom:.2} {width:.2} {height:.2} re f Q\n",
-                r = color.0,
-                g = color.1,
-                b = color.2,
-            );
-            page.extend_from_slice(command.as_bytes());
+    fn rounded_rect_at(
+        &mut self,
+        rect: PdfRect,
+        fill: Option<Color>,
+        stroke: Option<(Color, f32)>,
+    ) {
+        let Some(page) = self.pages.last_mut() else {
+            return;
+        };
+        let PdfRect {
+            x,
+            top,
+            width,
+            height,
+            radius,
+        } = rect;
+        let bottom = PAGE_HEIGHT - top - height;
+        let radius = radius.min(width / 2.0).min(height / 2.0);
+        let curve = radius * 0.552_284_8;
+        let mut command = String::from("q\n");
+        if let Some((r, g, b)) = fill {
+            let _ = writeln!(command, "{r:.3} {g:.3} {b:.3} rg");
         }
+        if let Some(((r, g, b), line_width)) = stroke {
+            let _ = writeln!(command, "{r:.3} {g:.3} {b:.3} RG {line_width:.2} w");
+        }
+        let _ = write!(
+            command,
+            "{x1:.2} {y:.2} m {x2:.2} {y:.2} l \
+             {x3:.2} {y:.2} {x4:.2} {y3:.2} {x4:.2} {y4:.2} c \
+             {x4:.2} {y5:.2} l \
+             {x4:.2} {y6:.2} {x3:.2} {y7:.2} {x2:.2} {y7:.2} c \
+             {x1:.2} {y7:.2} l \
+             {x0:.2} {y7:.2} {x:.2} {y6:.2} {x:.2} {y5:.2} c \
+             {x:.2} {y4:.2} l \
+             {x:.2} {y3:.2} {x0:.2} {y:.2} {x1:.2} {y:.2} c h ",
+            x = x,
+            y = bottom,
+            x0 = x + radius - curve,
+            x1 = x + radius,
+            x2 = x + width - radius,
+            x3 = x + width - radius + curve,
+            x4 = x + width,
+            y3 = bottom + radius - curve,
+            y4 = bottom + radius,
+            y5 = bottom + height - radius,
+            y6 = bottom + height - radius + curve,
+            y7 = bottom + height,
+        );
+        if fill.is_some() && stroke.is_some() {
+            command.push_str("B\nQ\n");
+        } else if fill.is_some() {
+            command.push_str("f\nQ\n");
+        } else {
+            command.push_str("S\nQ\n");
+        }
+        page.extend_from_slice(command.as_bytes());
+    }
+
+    fn circle_at(&mut self, left: f32, top: f32, radius: f32, color: (f32, f32, f32)) {
+        let Some(page) = self.pages.last_mut() else {
+            return;
+        };
+        let cx = left + radius;
+        let cy = PAGE_HEIGHT - top - radius;
+        let k = radius * 0.552_284_8;
+        let command = format!(
+            "q {r:.3} {g:.3} {b:.3} rg \
+             {cx:.2} {bottom:.2} m \
+             {cxk:.2} {bottom:.2} {right:.2} {cyk:.2} {right:.2} {cy:.2} c \
+             {right:.2} {cyk2:.2} {cxk:.2} {top_y:.2} {cx:.2} {top_y:.2} c \
+             {cxk3:.2} {top_y:.2} {left_edge:.2} {cyk2:.2} {left_edge:.2} {cy:.2} c \
+             {left_edge:.2} {cyk:.2} {cxk3:.2} {bottom:.2} {cx:.2} {bottom:.2} c h f Q\n",
+            r = color.0,
+            g = color.1,
+            b = color.2,
+            cx = cx,
+            cy = cy,
+            bottom = cy - radius,
+            top_y = cy + radius,
+            left_edge = cx - radius,
+            right = cx + radius,
+            cxk = cx + k,
+            cxk3 = cx - k,
+            cyk = cy - k,
+            cyk2 = cy + k,
+        );
+        page.extend_from_slice(command.as_bytes());
     }
 
     fn line_at(&mut self, x1: f32, top1: f32, x2: f32, top2: f32, color: (f32, f32, f32)) {
@@ -668,7 +787,7 @@ mod tests {
     fn long_reports_paginate() {
         let pdf = build_report_pdf(&report(120), "EUR", &[category("Food", "#22c55e")]);
         assert!(page_count(&pdf) > 1);
-        assert!(String::from_utf8_lossy(&pdf).contains("Page 2"));
+        assert!(String::from_utf8_lossy(&pdf).contains("Spending trends"));
     }
 
     #[test]
