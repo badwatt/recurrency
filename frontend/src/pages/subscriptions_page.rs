@@ -168,10 +168,15 @@ pub fn SubscriptionsPage() -> Element {
                     // Preserve local UI preferences; a view mode persisted on
                     // this device must win over the server value.
                     let saved_theme = PREFERENCES().theme().to_string();
+                    let local_theme = PREFERENCES().has_local_theme();
                     let saved_view = PREFERENCES().subscriptions_view().to_string();
                     let local_view = PREFERENCES().has_local_view();
                     PREFERENCES.write().set_data(p);
-                    PREFERENCES.write().set_theme(saved_theme);
+                    if local_theme {
+                        // A theme chosen on this device always wins and must
+                        // never be overwritten by a transient server default.
+                        PREFERENCES.write().set_theme(saved_theme);
+                    }
                     // Adopt the server view when nothing was stored locally, and
                     // persist the effective value so the next launch hydrates it
                     // before the first render (no grid flash).

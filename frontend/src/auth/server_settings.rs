@@ -1,5 +1,5 @@
 use crate::api::server::{parse_qr_payload, validate_server};
-use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, normalize_server_url};
+use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, last_server_url, normalize_server_url};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
@@ -9,8 +9,9 @@ pub fn ServerSettingsPage() -> Element {
         APP_MODE()
             .mode
             .server_url()
-            .unwrap_or(NATIVE_SERVER_OVERRIDE)
-            .to_string()
+            .map(str::to_string)
+            .or_else(last_server_url)
+            .unwrap_or_else(|| NATIVE_SERVER_OVERRIDE.to_string())
     });
     let mut error = use_signal(String::new);
     let mut status = use_signal(String::new);

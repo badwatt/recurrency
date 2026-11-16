@@ -181,7 +181,6 @@ fn App() -> Element {
         // A persisted session is kept across launches until the user logs out.
         // Switching mode already calls logout explicitly, so startup never
         // discards a valid session.
-        let offline = mode_state.mode.is_offline();
 
         // Restore saved server URL from persistent storage.
         // On WASM: localStorage handled by get_base_url_impl()
@@ -215,6 +214,15 @@ fn App() -> Element {
                 }
             }
         }
+
+        // If the first read happened before the data directory was ready,
+        // recover the durable mode/theme now instead of silently staying local.
+        if APP_MODE.write().reload_from_storage() {
+            eprintln!("[App] Recovered server mode from persistent storage");
+        }
+        PREFERENCES.write().rehydrate_local_theme();
+
+        let offline = APP_MODE().mode.is_offline();
 
         // Refresh the cached profile so avatar/name changes made on another
         // device appear without requiring a new login.

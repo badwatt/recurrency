@@ -6,6 +6,8 @@ pub mod categories;
 pub mod create_intent;
 pub mod debts;
 pub mod notifications;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod persistence;
 pub mod preferences;
 pub mod privacy;
 pub mod rates;

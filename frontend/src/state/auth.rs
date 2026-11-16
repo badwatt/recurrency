@@ -8,6 +8,12 @@ const TOKEN_KEY: &str = "recurrency-auth-token";
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]
 pub fn get_app_data_dir() -> Option<std::path::PathBuf> {
+    // Explicit override for portable installs and diagnostics.
+    if let Ok(dir) = std::env::var("RECURRENCY_DATA_DIR")
+        && !dir.trim().is_empty()
+    {
+        return Some(std::path::PathBuf::from(dir));
+    }
     // Android's canonical private files directory is stable across launches.
     // Prefer it over dirs::data_dir(), which is not defined for Android.
     let android_files = std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");

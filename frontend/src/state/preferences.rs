@@ -33,12 +33,7 @@ fn persist_local(key: &str, file_name: &str, value: &str) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let _ = key;
-        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-            let app_dir = data_dir.join("recurrency");
-            if std::fs::create_dir_all(&app_dir).is_ok() {
-                let _ = std::fs::write(app_dir.join(file_name), value);
-            }
-        }
+        crate::state::persistence::write(file_name, value);
     }
 }
 
@@ -59,13 +54,7 @@ fn read_local(key: &str, file_name: &str) -> Option<String> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let _ = key;
-        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-            let path = data_dir.join("recurrency").join(file_name);
-            if let Ok(value) = std::fs::read_to_string(&path) {
-                return Some(value);
-            }
-        }
-        None
+        crate::state::persistence::read(file_name)
     }
 }
 
@@ -81,6 +70,9 @@ pub struct PreferencesState {
     /// True when the view mode was set locally (hydrated or toggled), meaning
     /// it must take precedence over the server value fetched later.
     view_from_local: bool,
+    /// True when the theme was hydrated from disk or explicitly selected on
+    /// this device. A server preferences response must not overwrite it.
+    theme_from_local: bool,
 }
 
 impl Default for PreferencesState {
@@ -92,6 +84,7 @@ impl Default for PreferencesState {
             transactions_view: "list".into(),
             show_updates: true,
             view_from_local: false,
+            theme_from_local: false,
         }
     }
 }
@@ -118,7 +111,11 @@ impl PreferencesState {
 
     pub fn set_show_updates(&mut self, show: bool) {
         self.show_updates = show;
-        persist_local(UPDATES_KEY, UPDATES_FILE, if show { "true" } else { "false" });
+        persist_local(
+            UPDATES_KEY,
+            UPDATES_FILE,
+            if show { "true" } else { "false" },
+        );
     }
 
     /// Get first day of week: "monday" or "sunday" (default: "monday").
@@ -149,7 +146,15 @@ impl PreferencesState {
     }
 
     pub fn set_data(&mut self, prefs: PreferencesResponse) {
+        let local_theme = self
+            .theme_from_local
+            .then(|| self.preferences.theme.clone());
         self.preferences = prefs;
+        if let Some(theme) = local_theme {
+            // The device theme is authoritative; a server response must never
+            // reset it to the server default.
+            self.preferences.theme = theme;
+        }
         self.is_loading = false;
         self.initialized = true;
     }
@@ -158,6 +163,7 @@ impl PreferencesState {
         // Only accept valid themes; reject unknown values
         if SETTABLE_THEMES.contains(&theme.as_str()) {
             self.preferences.theme = theme.clone();
+            self.theme_from_local = true;
             persist_local(THEME_KEY, THEME_FILE, &theme);
         }
     }
@@ -183,6 +189,30 @@ impl PreferencesState {
         self.view_from_local
     }
 
+    pub fn has_local_theme(&self) -> bool {
+        self.theme_from_local
+    }
+
+    /// Restore the theme from its durable file if the first hydration ran
+    /// before the data directory was available. Never invents a default.
+    pub fn rehydrate_local_theme(&mut self) {
+        if self.theme_from_local {
+            return;
+        }
+        if let Some(theme) = read_local(THEME_KEY, THEME_FILE).as_deref().map(str::trim)
+            && STORED_THEMES.contains(&theme)
+        {
+            self.preferences.theme = theme.to_string();
+            self.theme_from_local = true;
+        }
+    }
+
+    pub fn ensure_theme_persisted(&self) {
+        if self.theme_from_local {
+            persist_local(THEME_KEY, THEME_FILE, self.theme());
+        }
+    }
+
     pub fn set_first_day_of_week(&mut self, day: String) {
         self.preferences.first_day_of_week = day;
     }
@@ -197,6 +227,7 @@ impl PreferencesState {
             && STORED_THEMES.contains(&theme)
         {
             self.preferences.theme = theme.to_string();
+            self.theme_from_local = true;
         }
         if let Some(view) = subscriptions_view.map(str::trim)
             && VALID_VIEWS.contains(&view)
@@ -537,4 +568,29 @@ mod tests {
         assert!(VALID_VIEWS.contains(&"grid"));
         assert!(VALID_VIEWS.contains(&"list"));
     }
+    #[test]
+    fn local_theme_wins_over_server_preferences() {
+        let mut state = PreferencesState::default();
+        state.apply_local_preferences(Some("dark"), None);
+        assert!(state.has_local_theme());
+        state.set_data(PreferencesResponse {
+            theme: "light".into(),
+            subscriptions_view: "list".into(),
+            first_day_of_week: "monday".into(),
+            date_format: "DD/MM/YYYY".into(),
+        });
+        assert_eq!(state.theme(), "dark");
+    }
+
+    #[test]
+    fn server_theme_applies_when_no_device_theme_exists() {
+        let mut state = PreferencesState::default();
+        assert!(!state.has_local_theme());
+        state.set_data(PreferencesResponse {
+            theme: "light".into(),
+            ..PreferencesResponse::default()
+        });
+        assert_eq!(state.theme(), "light");
+    }
+
 }

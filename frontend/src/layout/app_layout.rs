@@ -81,6 +81,21 @@ pub fn AppLayout() -> Element {
             if crate::state::app_mode::APP_MODE().mode.is_offline() {
                 let _ = crate::storage::folder_sync::sync_once().await;
             }
+            // Self-heal a mode/theme file removed by an external cleaner or a
+            // failed write while the app is running.
+            if crate::state::app_mode::APP_MODE().mode.is_offline() {
+                crate::state::app_mode::APP_MODE
+                    .write()
+                    .reload_from_storage();
+            }
+            if !crate::state::persistence::exists("app_mode.txt") {
+                crate::state::app_mode::APP_MODE.write().ensure_persisted();
+            }
+            if !crate::state::persistence::exists("theme.txt") {
+                crate::state::preferences::PREFERENCES
+                    .write()
+                    .ensure_theme_persisted();
+            }
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
         }
     });

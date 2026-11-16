@@ -3,11 +3,10 @@ use dioxus::prelude::*;
 /// Optional compile-time server override for native builds. It is empty by
 /// default so no personal or branded server is prefilled. Web builds always use
 /// the origin they are served from.
-pub const NATIVE_SERVER_OVERRIDE: &str =
-    match option_env!("RECURRENCY_API_URL") {
-        Some(url) => url,
-        None => "",
-    };
+pub const NATIVE_SERVER_OVERRIDE: &str = match option_env!("RECURRENCY_API_URL") {
+    Some(url) => url,
+    None => "",
+};
 
 /// Application mode: on-device storage or a remote Recurrency server.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,28 +62,39 @@ fn hydrate_mode_from_storage() -> (AppMode, bool) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         // Env var override
-        if let Ok(url) = std::env::var("RECURRENCY_API_URL") && !url.is_empty() {
+        if let Ok(url) = std::env::var("RECURRENCY_API_URL")
+            && !url.is_empty()
+        {
             return (AppMode::Server(url), true);
         }
-        // Try app data file
-        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-            let mode_file = data_dir.join("recurrency").join("app_mode.txt");
-            let url_file = data_dir.join("recurrency").join("server_url.txt");
-            if let Ok(mode_str) = std::fs::read_to_string(&mode_file) {
-                let mode_str = mode_str.trim();
-                match mode_str {
-                    "server" => {
-                        if let Ok(url) = std::fs::read_to_string(&url_file) {
-                            let url = url.trim().to_string();
-                            if !url.is_empty() {
-                                return (AppMode::Server(url), true);
-                            }
-                        }
-                        return (AppMode::Offline, false); // server mode but no URL
+        // Try the active data directory, its backup and legacy locations.
+        // `app_mode.txt` also embeds the URL, so a missing/lost
+        // `server_url.txt` can never silently downgrade a server install to
+        // local mode.
+        if let Some(mode_str) = crate::state::persistence::read("app_mode.txt") {
+            let mut lines = mode_str.lines();
+            let mode = lines.next().unwrap_or_default().trim();
+            let inline_url = lines.next().unwrap_or_default().trim().to_string();
+            match mode {
+                "server" => {
+                    let url = inline_url;
+                    let url = if url.is_empty() {
+                        crate::state::persistence::read("server_url.txt")
+                            .map(|value| value.trim().to_string())
+                            .filter(|value| !value.is_empty())
+                            .unwrap_or_default()
+                    } else {
+                        url
+                    };
+                    if !url.is_empty() {
+                        return (AppMode::Server(url), true);
                     }
-                    "offline" => return (AppMode::Offline, true),
-                    _ => {}
+                    // Keep the persisted mode; the server setup screen is a
+                    // better outcome than silently using local data.
+                    return (AppMode::Offline, false);
                 }
+                "offline" => return (AppMode::Offline, true),
+                _ => {}
             }
         }
         // Never prefill a branded or personal server. A fresh native install
@@ -109,8 +119,8 @@ pub fn normalize_server_url(input: &str) -> Result<String, String> {
         format!("https://{trimmed}")
     };
 
-    let parsed = reqwest::Url::parse(&with_scheme)
-        .map_err(|_| "Enter a valid server URL".to_string())?;
+    let parsed =
+        reqwest::Url::parse(&with_scheme).map_err(|_| "Enter a valid server URL".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("Server URL must start with http:// or https://".to_string());
     }
@@ -150,6 +160,31 @@ impl AppModeState {
         clear_mode_storage();
     }
 
+    /// Re-read durable mode. Only recovers a server installation that was
+    /// initialised as offline because storage was temporarily unavailable; an
+    /// explicit local choice remains local.
+    pub fn reload_from_storage(&mut self) -> bool {
+        if !self.mode.is_offline() {
+            return false;
+        }
+        let (mode, initialized) = hydrate_mode_from_storage();
+        if initialized && !mode.is_offline() {
+            self.mode = mode;
+            self.initialized = true;
+            if let Some(url) = self.mode.server_url() {
+                crate::api::client::set_base_url(url);
+            }
+            return true;
+        }
+        false
+    }
+
+    /// Re-write the current mode to its durable file. Used by the periodic
+    /// self-heal loop when an external cleanup removed the file.
+    pub fn ensure_persisted(&self) {
+        self.persist();
+    }
+
     fn persist(&self) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -171,18 +206,15 @@ impl AppModeState {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-                let app_dir = data_dir.join("recurrency");
-                let _ = std::fs::create_dir_all(&app_dir);
-                match &self.mode {
-                    AppMode::Offline => {
-                        let _ = std::fs::write(app_dir.join("app_mode.txt"), "offline");
-                        let _ = std::fs::remove_file(app_dir.join("server_url.txt"));
-                    }
-                    AppMode::Server(url) => {
-                        let _ = std::fs::write(app_dir.join("app_mode.txt"), "server");
-                        let _ = std::fs::write(app_dir.join("server_url.txt"), url);
-                    }
+            match &self.mode {
+                AppMode::Offline => {
+                    // Keep the last server URL for quick reconnection. The
+                    // mode file is authoritative.
+                    crate::state::persistence::write("app_mode.txt", "offline");
+                }
+                AppMode::Server(url) => {
+                    crate::state::persistence::write("app_mode.txt", &format!("server\n{url}"));
+                    crate::state::persistence::write("server_url.txt", url);
                 }
             }
         }
@@ -202,11 +234,23 @@ fn clear_mode_storage() {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
-            let app_dir = data_dir.join("recurrency");
-            let _ = std::fs::remove_file(app_dir.join("app_mode.txt"));
-            let _ = std::fs::remove_file(app_dir.join("server_url.txt"));
-        }
+        crate::state::persistence::remove("app_mode.txt");
+        crate::state::persistence::remove("server_url.txt");
+    }
+}
+
+/// Last server URL, preserved when the user switches to local mode so the
+/// connection can be restored without retyping the address.
+pub fn last_server_url() -> Option<String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::state::persistence::read("server_url.txt")
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        None
     }
 }
 
@@ -225,7 +269,10 @@ mod tests {
     #[test]
     fn app_mode_server_url() {
         assert_eq!(AppMode::Offline.server_url(), None);
-        assert_eq!(AppMode::Server("http://test:8080".into()).server_url(), Some("http://test:8080"));
+        assert_eq!(
+            AppMode::Server("http://test:8080".into()).server_url(),
+            Some("http://test:8080")
+        );
     }
 
     #[test]
@@ -350,5 +397,4 @@ mod tests {
         assert!(state.initialized, "set_local must mark initialized");
         assert!(state.mode.is_offline());
     }
-
 }
