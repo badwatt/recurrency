@@ -59,6 +59,7 @@
 
             # Additional build tools
             pkg-config
+            alsa-lib
             openssl
             cacert
             dbus
