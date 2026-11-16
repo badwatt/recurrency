@@ -27,7 +27,7 @@ jobs:
         os: [ubuntu-24.04, windows-latest, macos-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload desktop bundle artifact (manual runs)
         if: inputs.tag == ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: recurrency-desktop-${{ runner.os }}
           path: target/bin/desktop/*
