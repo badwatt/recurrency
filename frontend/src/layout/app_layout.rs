@@ -1,5 +1,7 @@
 #![allow(clippy::suspicious_else_formatting)]
+use crate::components::ai_chat::{AiChat, AI_CHAT_OPEN};
 use crate::components::privacy_toggle::PrivacyToggle;
+use crate::state::ai::{AI_SETTINGS, is_configured};
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 use crate::components::toast::TOAST;
 use crate::components::toast::ToastContainer;
@@ -42,6 +44,7 @@ pub enum Icon {
     Reports,
     Settings,
     Admin,
+    Ai,
     Logout,
     Sun,
     Moon,
@@ -96,6 +99,14 @@ pub fn AppLayout() -> Element {
     }
 
     let current_route: crate::Route = use_route();
+    use_future(move || async move {
+        if crate::api::client::is_offline_mode() {
+            return;
+        }
+        if let Ok(settings) = crate::api::ai::settings().await {
+            *AI_SETTINGS.write() = Some(settings);
+        }
+    });
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
         apply_theme_class(&theme);
@@ -285,8 +296,10 @@ pub fn AppLayout() -> Element {
 
         if !in_settings {
             MobileCreateFab { open: fab_open }
+            AiFab {}
         }
 
+        AiChat {}
         ToastContainer {}
     }
 }
@@ -295,6 +308,8 @@ pub fn AppLayout() -> Element {
 fn MobileCreateFab(open: Signal<bool>) -> Element {
     let nav = navigator();
     let mut open = open;
+    let mut pressed = use_signal(|| false);
+    let mut long_pressed = use_signal(|| false);
     let choose = Callback::new(move |intent: CreateIntent| {
         *CREATE_INTENT.write() = Some(intent);
         open.set(false);
@@ -305,9 +320,45 @@ fn MobileCreateFab(open: Signal<bool>) -> Element {
         });
     });
 
+    let start_press = move |_| {
+        pressed.set(true);
+        long_pressed.set(false);
+        spawn(async move {
+            #[cfg(target_arch = "wasm32")]
+            gloo_timers::future::TimeoutFuture::new(600).await;
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+            if pressed() && is_configured() {
+                long_pressed.set(true);
+                open.set(false);
+                *AI_CHAT_OPEN.write() = true;
+            }
+        });
+    };
+
+    let end_press = move |_| {
+        pressed.set(false);
+        if !long_pressed() {
+            open.toggle();
+        }
+        long_pressed.set(false);
+    };
+
     rsx! {
         div { class: "md:hidden fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2",
             if open() {
+                if is_configured() {
+                    button {
+                        r#type: "button",
+                        class: "inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium shadow-lg",
+                        onclick: move |_| {
+                            open.set(false);
+                            *AI_CHAT_OPEN.write() = true;
+                        },
+                        {svg_icon(Icon::Ai, 18)}
+                        "AI agent"
+                    }
+                }
                 button {
                     r#type: "button",
                     class: "inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium shadow-lg",
@@ -335,7 +386,15 @@ fn MobileCreateFab(open: Signal<bool>) -> Element {
                 aria_label: if open() { "Close create menu" } else { "Create subscription, transaction or debt" },
                 aria_expanded: if open() { "true" } else { "false" },
                 class: "flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl active:scale-95 transition-transform",
-                onclick: move |_| open.toggle(),
+                onpointerdown: start_press,
+                onpointerup: end_press,
+                onpointercancel: move |_| pressed.set(false),
+                onkeydown: move |event| {
+                    if matches!(event.key(), Key::Enter) {
+                        event.prevent_default();
+                        open.toggle();
+                    }
+                },
                 svg {
                     view_box: "0 0 24 24",
                     width: "26",
@@ -346,6 +405,25 @@ fn MobileCreateFab(open: Signal<bool>) -> Element {
                     stroke_linecap: "round",
                     {if open() { rsx! { line { x1: "6", y1: "6", x2: "18", y2: "18" } line { x1: "18", y1: "6", x2: "6", y2: "18" } } } else { rsx! { line { x1: "12", y1: "5", x2: "12", y2: "19" } line { x1: "5", y1: "12", x2: "19", y2: "12" } } }}
                 }
+            }
+        }
+    }
+}
+
+#[component]
+fn AiFab() -> Element {
+    if !is_configured() {
+        return rsx! {};
+    }
+    rsx! {
+        div { class: "hidden md:flex fixed bottom-6 right-6 z-40",
+            button {
+                r#type: "button",
+                aria_label: "Open AI assistant",
+                title: "AI assistant",
+                class: "flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:scale-95 transition-transform",
+                onclick: move |_| *AI_CHAT_OPEN.write() = true,
+                {svg_icon(Icon::Ai, 24)}
             }
         }
     }
@@ -637,6 +715,23 @@ pub(crate) fn svg_icon(icon: Icon, size: i32) -> Element {
                 path { d: "m9 12 2 2 4-4" }
             }
         },
+        Icon::Ai => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                path { d: "m12 3-1.9 5.1L5 10l5.1 1.9L12 17l1.9-5.1L19 10l-5.1-1.9L12 3Z" }
+                path { d: "M5 3v4" }
+                path { d: "M3 5h4" }
+                path { d: "M19 17v4" }
+                path { d: "M17 19h4" }
+            }
+        },
         Icon::Settings => rsx! {
             svg {
                 view_box: "0 0 24 24",
@@ -806,6 +901,15 @@ mod tests {
             prod_code.contains("top-0") && prod_code.contains("sticky"),
             "must have sticky top nav"
         );
+    }
+
+    #[test]
+    fn mobile_fab_supports_long_press_ai_and_ai_menu() {
+        let src = include_str!("app_layout.rs");
+        assert!(src.contains("onpointerdown"));
+        assert!(src.contains("AI_CHAT_OPEN"));
+        assert!(src.contains("AI agent"));
+        assert!(src.contains("AiFab"));
     }
 
     #[test]

@@ -4,6 +4,7 @@ use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
 mod about_page;
+mod ai_card;
 mod apk_card;
 mod backup_card;
 mod delete_account_card;
@@ -16,6 +17,7 @@ mod summary_card;
 mod sync_card;
 
 use about_page::AboutPage;
+use ai_card::AiSettingsCard;
 use apk_card::ApkCard;
 use backup_card::BackupCard;
 use delete_account_card::DeleteAccountCard;
@@ -86,6 +88,7 @@ pub fn SettingsPreferencesPage() -> Element {
         div { class: "flex flex-col gap-6 animate-in fade-in duration-300",
             PageHeader { title: "General", subtitle: "Defaults, locale, exchange rates and app updates" }
             PreferencesCard {}
+            AiSettingsCard {}
             ExchangeRatesCard {}
         }
     }

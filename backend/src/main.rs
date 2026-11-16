@@ -1,5 +1,5 @@
 use recurrency_backend::{
-    accounts, admin, auth, backup, categories, currency, debts, demo, logos, notifications,
+    accounts, admin, ai, auth, backup, categories, currency, debts, demo, logos, notifications,
     preferences, reports, shared, subscriptions, transactions,
 };
 
@@ -171,6 +171,8 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         )
         .route("/api/admin/users/{id}", delete(admin::handlers::delete_user))
         .route("/api/admin/users/{id}/role", put(admin::handlers::update_role))
+        .route("/api/ai/settings", get(ai::handlers::get_settings).put(ai::handlers::update_settings))
+        .route("/api/ai/chat", post(ai::handlers::chat))
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))

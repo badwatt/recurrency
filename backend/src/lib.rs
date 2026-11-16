@@ -4,6 +4,7 @@
 
 pub mod accounts;
 pub mod admin;
+pub mod ai;
 pub mod backup;
 pub mod auth;
 pub mod cli;

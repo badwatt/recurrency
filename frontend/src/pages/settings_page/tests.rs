@@ -5,6 +5,7 @@ use crate::utils::constants::CURRENCIES;
 const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page.rs"),
     include_str!("../admin_page.rs"),
+    include_str!("../settings_page/ai_card.rs"),
     include_str!("../settings_page/profile_card.rs"),
     include_str!("../settings_page/preferences_card.rs"),
     include_str!("../settings_page/exchange_rates_card.rs"),
@@ -31,9 +32,13 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn exchange_rates_live_in_general() {
+    fn ai_and_exchange_rates_live_in_general() {
+        assert!(SETTINGS_SOURCES.contains("AiSettingsCard"));
         assert!(SETTINGS_SOURCES.contains("ExchangeRatesCard"));
-        assert!(include_str!("../settings_page.rs").contains("PreferencesCard {}\n            ExchangeRatesCard"));
+        let page = include_str!("../settings_page.rs");
+        assert!(page.contains("PreferencesCard {}"));
+        assert!(page.contains("AiSettingsCard {}"));
+        assert!(page.contains("ExchangeRatesCard {}"));
     }
 
     #[test]

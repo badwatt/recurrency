@@ -1,5 +1,6 @@
 use crate::accounts::service::{AccountServiceTrait, SqlxAccountService};
 use crate::admin::service::{AdminServiceTrait, SqlxAdminService};
+use crate::ai::service::{AiServiceTrait, SqlxAiService};
 use crate::auth::service::{AuthServiceTrait, SqlxAuthService};
 use crate::backup::service::{BackupServiceTrait, SqlxBackupService};
 use crate::categories::service::{CategoryServiceTrait, SqlxCategoryService};
@@ -21,6 +22,7 @@ pub struct AppState {
     pub pool: sqlx::PgPool,
     pub auth_service: Arc<dyn AuthServiceTrait>,
     pub admin_service: Arc<dyn AdminServiceTrait>,
+    pub ai_service: Arc<dyn AiServiceTrait>,
     pub subscription_service: Arc<dyn SubscriptionServiceTrait>,
     pub transaction_service: Arc<dyn TransactionServiceTrait>,
     pub account_service: Arc<dyn AccountServiceTrait>,
@@ -40,6 +42,7 @@ impl AppState {
         Self {
             auth_service: Arc::new(SqlxAuthService::new(pool.clone())),
             admin_service: Arc::new(SqlxAdminService::new(pool.clone())),
+            ai_service: Arc::new(SqlxAiService::new(pool.clone())),
             subscription_service: Arc::new(SqlxSubscriptionService::new(pool.clone())),
             transaction_service: Arc::new(SqlxTransactionService::new(pool.clone())),
             account_service: Arc::new(SqlxAccountService::new(pool.clone())),
@@ -63,6 +66,7 @@ impl AppState {
         Self {
             auth_service,
             admin_service: Arc::new(TestAdminService),
+            ai_service: Arc::new(TestAiService),
             ..Self::new(pool)
         }
     }
@@ -149,6 +153,45 @@ impl AdminServiceTrait for TestAdminService {
             verified: true,
             is_admin,
             created_at: chrono::Utc::now(),
+        })
+    }
+}
+
+#[cfg(test)]
+struct TestAiService;
+
+#[cfg(test)]
+#[async_trait::async_trait]
+impl AiServiceTrait for TestAiService {
+    async fn settings(
+        &self,
+        _user_id: uuid::Uuid,
+    ) -> crate::shared::error::AppResult<crate::ai::models::AiSettingsResponse> {
+        Ok(crate::ai::models::AiSettingsResponse {
+            enabled: false,
+            provider: crate::ai::models::DEFAULT_PROVIDER.to_string(),
+            base_url: crate::ai::models::DEFAULT_BASE_URL.to_string(),
+            model: crate::ai::models::DEFAULT_MODEL.to_string(),
+            configured: false,
+        })
+    }
+
+    async fn update_settings(
+        &self,
+        _user_id: uuid::Uuid,
+        _req: crate::ai::models::UpdateAiSettingsRequest,
+    ) -> crate::shared::error::AppResult<crate::ai::models::AiSettingsResponse> {
+        self.settings(_user_id).await
+    }
+
+    async fn chat(
+        &self,
+        _user_id: uuid::Uuid,
+        _req: crate::ai::models::AiChatRequest,
+    ) -> crate::shared::error::AppResult<crate::ai::models::AiChatResponse> {
+        Ok(crate::ai::models::AiChatResponse {
+            reply: "AI is not configured in tests.".to_string(),
+            actions: Vec::new(),
         })
     }
 }

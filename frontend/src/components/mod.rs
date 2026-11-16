@@ -6,6 +6,7 @@ pub mod chart;
 pub mod color_picker;
 pub mod converted_amount;
 pub use converted_amount::ConvertedAmount;
+pub mod ai_chat;
 pub mod dialog;
 pub mod input;
 pub mod list_toolbar;

@@ -12,6 +12,8 @@ use uuid::Uuid;
 use axum::{Json, extract::State, http::{HeaderMap, header::AUTHORIZATION}};
 use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
 use recurrency_backend::admin::service::{AdminServiceTrait, SqlxAdminService};
+use recurrency_backend::ai::models::UpdateAiSettingsRequest;
+use recurrency_backend::ai::service::{AiServiceTrait, SqlxAiService};
 use recurrency_backend::cli::{AdminAction, AdminArgs};
 use recurrency_backend::shared::app_state::AppState;
 use recurrency_backend::accounts::service::AccountService;
@@ -1492,4 +1494,131 @@ async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
         .await
         .unwrap();
     assert!(!exists);
+}
+
+
+#[sqlx::test]
+async fn ai_settings_encrypt_the_provider_key(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAiService::new(pool.clone());
+    let settings = service
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled: true,
+                base_url: Some("https://api.example.com/v1".to_string()),
+                model: Some("test-model".to_string()),
+                api_key: Some("sk-test-secret".to_string()),
+                clear_api_key: false,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(settings.configured);
+    assert!(settings.enabled);
+    let encrypted: Vec<u8> =
+        sqlx::query_scalar("SELECT api_key_encrypted FROM ai_settings WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(!String::from_utf8_lossy(&encrypted).contains("sk-test-secret"));
+
+    let cleared = service
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled: false,
+                base_url: None,
+                model: None,
+                api_key: None,
+                clear_api_key: true,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(!cleared.configured);
+    assert!(!cleared.enabled);
+}
+
+
+#[sqlx::test]
+async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let model_content = serde_json::json!({
+        "reply": "Created the subscription.",
+        "actions": [{
+            "type": "create_subscription",
+            "data": {
+                "name": "AI subscription",
+                "amount": "9.99",
+                "frequency": "monthly",
+                "start_date": "2026-01-01"
+            }
+        }]
+    })
+    .to_string();
+    let response_body = serde_json::json!({
+        "choices": [{ "message": { "role": "assistant", "content": model_content } }]
+    })
+    .to_string();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = Vec::new();
+        let mut chunk = [0u8; 4096];
+        while request.windows(4).all(|window| window != b"\r\n\r\n") {
+            let read = stream.read(&mut chunk).unwrap();
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            response_body.len(),
+            response_body
+        );
+        stream.write_all(response.as_bytes()).unwrap();
+    });
+
+    let service = SqlxAiService::new(pool.clone());
+    service
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled: true,
+                base_url: Some(format!("http://127.0.0.1:{port}/v1")),
+                model: Some("test".to_string()),
+                api_key: Some("test-key".to_string()),
+                clear_api_key: false,
+            },
+        )
+        .await
+        .unwrap();
+    let response = service
+        .chat(
+            user_id,
+            recurrency_backend::ai::models::AiChatRequest {
+                messages: vec![recurrency_backend::ai::models::AiMessage {
+                    role: "user".to_string(),
+                    content: "Add a 9.99 monthly subscription called AI subscription".to_string(),
+                }],
+            },
+        )
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert!(response.actions.iter().any(|action| action.success));
+    let name: Option<String> =
+        sqlx::query_scalar("SELECT name FROM subscriptions WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+    assert_eq!(name.as_deref(), Some("AI subscription"));
 }
