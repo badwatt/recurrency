@@ -79,6 +79,7 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(lib.contains("/settings/categories"));
         assert!(lib.contains("/settings/notifications"));
         assert!(lib.contains("/settings/money"));
+        assert!(lib.contains("/settings/admin"));
     }
 
     #[test]
