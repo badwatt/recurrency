@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.54.0`.
+> `ghcr.io/badwatt/recurrency:0.55.0`.
 
 ### From source
 
@@ -186,8 +186,9 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories. Subscriptions, transactions and debts sort by created date and last-modified date.
-- **AI assistant (BYOK)** — optional OpenAI-compatible chat that can create, update and delete subscriptions, transactions and debts, including logos and multiple annual billing dates. Configure the endpoint, model and encrypted API key in Settings → General. Desktop has a floating AI button; mobile opens the same agent from the + menu or by long-pressing +.
-- **Admin panel** — server-mode administration: review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups. The first real account becomes administrator.
+- **AI assistant (BYOK)** — optional OpenAI-compatible chat that can create, update and delete subscriptions, transactions and debts, including logos and multiple annual billing dates. Settings → AI assistant has provider presets, an endpoint-backed model list with refresh and custom model entry, and an encrypted API key. Desktop has a floating AI button; mobile opens the same agent from the + menu or by long-pressing +.
+- **Voice input** — dictate into the AI chat with the browser speech engine, Android SpeechRecognizer, an OpenAI-compatible transcription endpoint, or a downloadable on-device Whisper model on desktop. Local model recommendations follow the device RAM and CPU.
+- **Admin panel** — server-mode administration: review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups using the same Backup & restore interface as Data & backup. The first real account becomes administrator.
 
 ### Your data and the project
 
@@ -473,8 +474,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1238 backend unit tests**, **63 backend integration tests**,
-**1802 frontend tests** and **10 tooling tests**.
+Current suite: **1243 backend unit tests**, **65 backend integration tests**,
+**1831 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 
