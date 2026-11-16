@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.50.6`.
+> `ghcr.io/badwatt/recurrency:0.51.0`.
 
 ### From source
 
@@ -186,6 +186,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
+- **Admin panel** — review users, close registrations and download a full installation backup. The first real account becomes administrator.
 
 ### Your data and the project
 
@@ -282,7 +283,7 @@ ENABLE_WEB=false ./target/bin/recurrency serve
 
 # Migrations and configuration check
 ./target/bin/recurrency migrate --database-url "$DATABASE_URL"
-./target/bin/recurrency backup --database-url "$DATABASE_URL"
+./target/bin/recurrency backup --database-url "$DATABASE_URL" --backup-dir ./backups
 ./target/bin/recurrency doctor
 ```
 
@@ -293,7 +294,7 @@ first run, and stops the local database on `Ctrl-C`/`SIGTERM`. Set
 `DATABASE_URL` to use an external PostgreSQL instead.
 
 `recurrency backup` creates a validated logical dump in `/var/lib/recurrency/backups`
-(or `BACKUP_DIR`) and applies the retention window. The all-in-one image runs
+(or `BACKUP_DIR`, or the explicit `--backup-dir`) and applies the retention window. The all-in-one image runs
 it daily after `/api/ready` succeeds. The `recurrency_backups` volume keeps the
 dumps outside the database volume.
 
@@ -462,8 +463,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1218 backend unit tests** (**1222** with `embedded-db`),
-**49 backend integration tests**, **1787 frontend tests** and **10 tooling tests**.
+Current suite: **1223 backend unit tests**, **54 backend integration tests**,
+**1790 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 
