@@ -2,6 +2,7 @@
 //! the page component so they can be unit-tested without the Dioxus runtime.
 
 use crate::models::subscription::CalendarItem;
+use crate::models::transaction::Transaction;
 use crate::state::accounts::ACCOUNTS;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::utils::format::format_currency;
@@ -224,6 +225,214 @@ pub fn format_frequency(freq: &str) -> &str {
         "monthly" => "Monthly",
         "quarterly" => "Quarterly",
         "yearly" => "Yearly",
+        "one-time" => "One-time",
         _ => freq,
     }
+}
+
+
+// ── Unified calendar entries (subscriptions + one-time transactions) ──
+
+/// What created a calendar entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CalendarEntryKind {
+    Subscription,
+    Transaction,
+}
+
+/// A subscription occurrence or a one-time transaction shown on a date.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarEntry {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub amount: rust_decimal::Decimal,
+    pub currency: String,
+    pub date: NaiveDate,
+    pub logo_url: Option<String>,
+    pub frequency: String,
+    pub kind: CalendarEntryKind,
+}
+
+impl CalendarEntry {
+    pub fn key(&self) -> String {
+        let prefix = match self.kind {
+            CalendarEntryKind::Subscription => "subscription",
+            CalendarEntryKind::Transaction => "transaction",
+        };
+        format!("{prefix}-{}-{}", self.id, self.date)
+    }
+}
+
+fn subscription_entry(item: &CalendarItem) -> CalendarEntry {
+    CalendarEntry {
+        id: item.subscription_id,
+        name: item.name.clone(),
+        amount: item.amount,
+        currency: item.currency.clone(),
+        date: item.billing_date,
+        logo_url: item.logo_url.clone(),
+        frequency: item.frequency.clone(),
+        kind: CalendarEntryKind::Subscription,
+    }
+}
+
+fn transaction_entry(transaction: &Transaction) -> CalendarEntry {
+    CalendarEntry {
+        id: transaction.id,
+        name: transaction.name.clone(),
+        amount: transaction.amount,
+        currency: transaction.currency.clone(),
+        date: transaction.date,
+        logo_url: transaction.logo_url.clone(),
+        frequency: "one-time".to_string(),
+        kind: CalendarEntryKind::Transaction,
+    }
+}
+
+/// Merge subscription occurrences and transactions for the selected month.
+pub fn calendar_entries(
+    subscriptions: &[CalendarItem],
+    transactions: &[Transaction],
+    year: i32,
+    month: u32,
+) -> Vec<CalendarEntry> {
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1);
+    let next_month = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    };
+    let Some(start) = month_start else {
+        return Vec::new();
+    };
+    let Some(end) = next_month else {
+        return Vec::new();
+    };
+    let mut entries: Vec<CalendarEntry> = subscriptions
+        .iter()
+        .filter(|item| item.billing_date >= start && item.billing_date < end)
+        .map(subscription_entry)
+        .chain(
+            transactions
+                .iter()
+                .filter(|transaction| transaction.date >= start && transaction.date < end)
+                .map(transaction_entry),
+        )
+        .collect();
+    entries.sort_by_key(|entry| entry.date);
+    entries
+}
+
+/// Pre-computed display information for a unified calendar entry.
+pub struct CalendarEntryDisplay {
+    pub key: String,
+    pub kind: CalendarEntryKind,
+    pub name: String,
+    pub amount_str: String,
+    pub title_str: String,
+    pub logo_url: Option<String>,
+    pub is_past: bool,
+}
+
+pub fn entry_display(entry: &CalendarEntry, currency: &str) -> CalendarEntryDisplay {
+    CalendarEntryDisplay {
+        key: entry.key(),
+        kind: entry.kind,
+        name: entry.name.clone(),
+        amount_str: format_currency(entry.amount, currency),
+        title_str: format!(
+            "{} - {}",
+            entry.name,
+            format_currency(entry.amount, &entry.currency)
+        ),
+        logo_url: entry.logo_url.clone(),
+        is_past: entry.date < Local::now().date_naive(),
+    }
+}
+
+pub fn entries_for_day(
+    entries: &[CalendarEntry],
+    year: i32,
+    month: u32,
+    day: u32,
+) -> Vec<&CalendarEntry> {
+    let Some(target) = NaiveDate::from_ymd_opt(year, month, day) else {
+        return Vec::new();
+    };
+    entries
+        .iter()
+        .filter(|entry| entry.date == target)
+        .collect()
+}
+
+pub fn calendar_month_total(entries: &[CalendarEntry]) -> rust_decimal::Decimal {
+    entries.iter().map(|entry| entry.amount).sum()
+}
+
+pub struct CalendarDayCellInfo {
+    pub day: u32,
+    pub is_today: bool,
+    pub items: Vec<CalendarEntryDisplay>,
+    pub extra_count: usize,
+}
+
+pub fn calendar_day_cell_is_empty(info: &CalendarDayCellInfo) -> bool {
+    info.items.is_empty() && info.extra_count == 0
+}
+
+pub fn calendar_day_cell_info(
+    entries: &[CalendarEntry],
+    year: i32,
+    month: u32,
+    day: u32,
+    currency: &str,
+) -> CalendarDayCellInfo {
+    let day_entries = entries_for_day(entries, year, month, day);
+    let display_items: Vec<CalendarEntryDisplay> = day_entries
+        .iter()
+        .take(3)
+        .map(|entry| entry_display(entry, currency))
+        .collect();
+    CalendarDayCellInfo {
+        day,
+        is_today: is_today(year, month, day),
+        items: display_items,
+        extra_count: day_entries.len().saturating_sub(3),
+    }
+}
+
+fn account_for_entry(entry: &CalendarEntry) -> Option<crate::models::account::Account> {
+    let accounts = ACCOUNTS();
+    match entry.kind {
+        CalendarEntryKind::Subscription => SUBSCRIPTIONS()
+            .subscriptions
+            .iter()
+            .find(|subscription| subscription.id == entry.id)
+            .and_then(|subscription| accounts.get_by_id(&subscription.account_id))
+            .cloned(),
+        CalendarEntryKind::Transaction => crate::state::transactions::TRANSACTIONS()
+            .transactions
+            .iter()
+            .find(|transaction| transaction.id == entry.id)
+            .and_then(|transaction| accounts.get_by_id(&transaction.account_id))
+            .cloned(),
+    }
+}
+
+pub fn entry_account_name(entry: &CalendarEntry) -> String {
+    account_for_entry(entry)
+        .map(|account| account.name.clone())
+        .unwrap_or_else(|| "No account".to_string())
+}
+
+pub fn entry_account_color(entry: &CalendarEntry) -> String {
+    account_for_entry(entry)
+        .and_then(|account| account.color.clone())
+        .unwrap_or_else(|| "#6b7280".to_string())
+}
+
+pub fn entry_account_icon(entry: &CalendarEntry) -> String {
+    account_for_entry(entry)
+        .and_then(|account| account.icon.clone())
+        .unwrap_or_else(|| "Tag".to_string())
 }

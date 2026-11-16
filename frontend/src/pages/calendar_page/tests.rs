@@ -1200,3 +1200,88 @@ fn calendar_shows_transfer_and_pending_summary() {
         let now = Local::now().date_naive();
         assert!(is_current_month(now.year(), now.month()));
     }
+
+// ── Transactions are part of the calendar ──
+fn make_transaction(
+    name: &str,
+    amount: rust_decimal::Decimal,
+    date: NaiveDate,
+) -> crate::models::transaction::Transaction {
+    crate::models::transaction::Transaction {
+        id: Uuid::new_v4(),
+        user_id: Uuid::nil(),
+        account_id: Uuid::nil(),
+        category_id: Uuid::nil(),
+        name: name.into(),
+        amount,
+        currency: "EUR".into(),
+        date,
+        notes: None,
+        logo_url: None,
+        created_at: chrono::DateTime::UNIX_EPOCH,
+        updated_at: chrono::DateTime::UNIX_EPOCH,
+    }
+}
+
+#[test]
+fn calendar_entries_include_one_time_transactions() {
+    let subscriptions = vec![make_calendar_item(
+        "Netflix",
+        dec!(15),
+        NaiveDate::from_ymd_opt(2024, 1, 5).unwrap(),
+    )];
+    let transactions = vec![
+        make_transaction(
+            "Groceries",
+            dec!(42.50),
+            NaiveDate::from_ymd_opt(2024, 1, 8).unwrap(),
+        ),
+        make_transaction(
+            "December coffee",
+            dec!(4),
+            NaiveDate::from_ymd_opt(2023, 12, 31).unwrap(),
+        ),
+    ];
+    let entries = calendar_entries(&subscriptions, &transactions, 2024, 1);
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].name, "Netflix");
+    assert_eq!(entries[1].name, "Groceries");
+    assert_eq!(entries[1].kind, CalendarEntryKind::Transaction);
+    assert_eq!(entries[1].frequency, "one-time");
+}
+
+#[test]
+fn transaction_is_shown_in_its_day_and_month_total() {
+    let transactions = vec![make_transaction(
+        "Groceries",
+        dec!(42.50),
+        NaiveDate::from_ymd_opt(2024, 1, 8).unwrap(),
+    )];
+    let entries = calendar_entries(&[], &transactions, 2024, 1);
+    assert_eq!(calendar_month_total(&entries), dec!(42.50));
+    let info = calendar_day_cell_info(&entries, 2024, 1, 8, "EUR");
+    assert_eq!(info.items.len(), 1);
+    assert_eq!(info.items[0].name, "Groceries");
+    assert_eq!(info.items[0].kind, CalendarEntryKind::Transaction);
+    assert!(!calendar_day_cell_is_empty(&info));
+    assert_eq!(format_frequency(&entries[0].frequency), "One-time");
+}
+
+#[test]
+fn subscription_and_transaction_on_the_same_day_are_both_listed() {
+    let subscriptions = vec![make_calendar_item(
+        "Netflix",
+        dec!(15),
+        NaiveDate::from_ymd_opt(2024, 1, 8).unwrap(),
+    )];
+    let transactions = vec![make_transaction(
+        "Groceries",
+        dec!(42.50),
+        NaiveDate::from_ymd_opt(2024, 1, 8).unwrap(),
+    )];
+    let entries = calendar_entries(&subscriptions, &transactions, 2024, 1);
+    let day = entries_for_day(&entries, 2024, 1, 8);
+    assert_eq!(day.len(), 2);
+    assert!(day.iter().any(|entry| entry.kind == CalendarEntryKind::Subscription));
+    assert!(day.iter().any(|entry| entry.kind == CalendarEntryKind::Transaction));
+}

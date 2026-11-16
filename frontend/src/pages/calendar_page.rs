@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Trash};
+use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Receipt, Trash};
 use uuid::Uuid;
 
 use crate::components::dialog::Dialog;
@@ -65,6 +65,8 @@ fn CalendarNavigation(
     }
 }
 
+type MobileCalendarRow = (String, String, String, String, Option<String>, bool, bool);
+
 #[component]
 fn CalendarPaymentRow(
     id: String,
@@ -73,6 +75,7 @@ fn CalendarPaymentRow(
     amount_str: String,
     logo_url: Option<String>,
     is_past: bool,
+    is_transaction: bool,
 ) -> Element {
     let row_class = if is_past {
         "rounded-lg border border-border bg-card p-3 opacity-55"
@@ -88,13 +91,22 @@ fn CalendarPaymentRow(
                     div { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10",
                         if let Some(url) = logo_url {
                             {logo_image_with_fallback(&format!("month-{id}"), Some(url.as_str()), &name, "h-6 w-6 rounded object-contain")}
+                        } else if is_transaction {
+                            span { class: "text-primary", Receipt { size: 16 } }
                         } else {
                             span { class: "text-primary", {icon_credit_card()} }
                         }
                     }
                     div { class: "min-w-0",
                         p { class: "truncate font-medium", {name} }
-                        p { class: "text-sm text-muted-foreground", {date_str} }
+                        p { class: "text-sm text-muted-foreground",
+                            {date_str}
+                            if is_transaction {
+                                span { class: "ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                                    "One-time"
+                                }
+                            }
+                        }
                     }
                 }
                 p { class: "amount-sensitive shrink-0 text-lg font-semibold", {amount_str} }
@@ -192,7 +204,8 @@ pub fn CalendarPage() -> Element {
     let currency = AUTH().currency().to_string();
     let first_day = PREFERENCES().first_day_of_week().to_string();
     let items = calendar_items();
-    let total = month_total(&items);
+    let entries = calendar_entries(&items, &TRANSACTIONS().transactions, year, month);
+    let total = calendar_month_total(&entries);
     let total_display = format_currency(total, &currency);
     let today_date = Local::now().date_naive();
     let viewing_current_month = year == today_date.year() && month == today_date.month();
@@ -234,26 +247,27 @@ pub fn CalendarPage() -> Element {
     };
 
     // Pre-compute day cells for desktop grid
-    let day_cells: Vec<Option<DayCellInfo>> = days
+    let day_cells: Vec<Option<CalendarDayCellInfo>> = days
         .iter()
-        .map(|d| d.map(|d| day_cell_info(&items, year, month, d, &currency)))
+        .map(|d| d.map(|d| calendar_day_cell_info(&entries, year, month, d, &currency)))
         .collect();
 
     // Split the mobile list so upcoming payments stay visible above the
     // already-processed payments from the same month.
-    let mut upcoming: Vec<_> = items.iter().collect();
-    upcoming.sort_by_key(|a| a.billing_date);
+    let mut upcoming: Vec<_> = entries.iter().collect();
+    upcoming.sort_by_key(|entry| entry.date);
     let today = now;
-    let mobile_rows: Vec<(String, String, String, String, Option<String>, bool)> = upcoming
+    let mobile_rows: Vec<MobileCalendarRow> = upcoming
         .iter()
-        .map(|item| {
+        .map(|entry| {
             (
-                item.subscription_id.to_string(),
-                item.name.clone(),
-                item.billing_date.format("%a, %b %e").to_string(),
-                format_currency(item.amount, &item.currency),
-                item.logo_url.clone(),
-                item.billing_date < today,
+                entry.key(),
+                entry.name.clone(),
+                entry.date.format("%a, %b %e").to_string(),
+                format_currency(entry.amount, &entry.currency),
+                entry.logo_url.clone(),
+                entry.date < today,
+                entry.kind == CalendarEntryKind::Transaction,
             )
         })
         .collect();
@@ -313,16 +327,21 @@ pub fn CalendarPage() -> Element {
     };
 
     // Selected day dialog data: gather CalendarItems with full display info
-    let selected_day_items: Vec<(CalendarItem, String, String, String)> = selected_day()
+    let selected_day_items: Vec<(CalendarEntry, String, String, String)> = selected_day()
         .map(|(sy, sm, sd)| {
-            let day_refs = items_for_day(&items, sy, sm, sd);
+            let day_refs = entries_for_day(&entries, sy, sm, sd);
             day_refs
                 .iter()
-                .map(|item| {
-                    let cat_name = category_name_for_item(item);
-                    let cat_icon = category_icon_for_item(item);
-                    let cat_color = category_color_for_item(item);
-                    ((*item).clone(), cat_name, cat_icon, cat_color)
+                .map(|entry| {
+                    let account_name = entry_account_name(entry);
+                    let account_icon = entry_account_icon(entry);
+                    let account_color = entry_account_color(entry);
+                    (
+                        (*entry).clone(),
+                        account_name,
+                        account_icon,
+                        account_color,
+                    )
                 })
                 .collect::<Vec<_>>()
         })
@@ -355,7 +374,7 @@ pub fn CalendarPage() -> Element {
         div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
-                PageHeader { title: "Calendar", subtitle: "Upcoming subscription payments" }
+                PageHeader { title: "Calendar", subtitle: "Upcoming payments" }
             }
 
             div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2",
@@ -427,7 +446,7 @@ pub fn CalendarPage() -> Element {
                                         "No upcoming payments left this month"
                                     }
                                 } else {
-                                    for (id, name, date_str, amount_str, logo_url, is_past) in &upcoming_display {
+                                    for (id, name, date_str, amount_str, logo_url, is_past, is_transaction) in &upcoming_display {
                                         CalendarPaymentRow {
                                             key: "{id}",
                                             id: id.clone(),
@@ -436,6 +455,7 @@ pub fn CalendarPage() -> Element {
                                             amount_str: amount_str.clone(),
                                             logo_url: logo_url.clone(),
                                             is_past: *is_past,
+                                            is_transaction: *is_transaction,
                                         }
                                     }
                                 }
@@ -448,7 +468,7 @@ pub fn CalendarPage() -> Element {
                                         }
                                         span { class: "text-xs text-muted-foreground", {payment_count_label(past_display.len())} }
                                     }
-                                    for (id, name, date_str, amount_str, logo_url, is_past) in &past_display {
+                                    for (id, name, date_str, amount_str, logo_url, is_past, is_transaction) in &past_display {
                                         CalendarPaymentRow {
                                             key: "{id}",
                                             id: id.clone(),
@@ -457,6 +477,7 @@ pub fn CalendarPage() -> Element {
                                             amount_str: amount_str.clone(),
                                             logo_url: logo_url.clone(),
                                             is_past: *is_past,
+                                            is_transaction: *is_transaction,
                                         }
                                     }
                                 }
@@ -514,7 +535,7 @@ pub fn CalendarPage() -> Element {
                                             let formatted_date = format!("{:04}-{:02}-{:02}", year, month, d);
                                             // Empty days go straight to the add dialog;
                                             // days with payments open the detail modal.
-                                            let empty_day = day_cell_is_empty(info);
+                                            let empty_day = calendar_day_cell_is_empty(info);
                                             let cell_date = formatted_date.clone();
                                             rsx! {
                                                 div {
@@ -549,16 +570,20 @@ pub fn CalendarPage() -> Element {
                                                         for item in &info.items {
                                                             {rsx! {
                                                                 div {
-                                                                    key: "{item.subscription_id}",
+                                                                    key: "{item.key}",
                                                                     class: if item.is_past {
                                                                         "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs opacity-50"
+                                                                    } else if item.kind == CalendarEntryKind::Transaction {
+                                                                        "flex items-center gap-1 rounded bg-muted px-1 py-0.5 text-xs"
                                                                     } else {
                                                                         "flex items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-xs"
                                                                     },
                                                                     title: item.title_str.to_string(),
                                                                     if let Some(url) = &item.logo_url {
-                                                                        {logo_image_with_fallback(&format!("cal-{}", item.subscription_id), Some(url.as_str()), &item.name, "h-4 w-4 rounded object-contain")
+                                                                        {logo_image_with_fallback(&format!("cal-{}", item.key), Some(url.as_str()), &item.name, "h-4 w-4 rounded object-contain")
                                                                         }
+                                                                    } else if item.kind == CalendarEntryKind::Transaction {
+                                                                        span { class: "shrink-0", Receipt { size: 14 } }
                                                                     } else {
                                                                         span { class: "shrink-0", {icon_credit_card()} }
                                                                     }
@@ -596,6 +621,10 @@ pub fn CalendarPage() -> Element {
                             div { class: "h-4 w-4 rounded bg-primary/10 opacity-50" }
                             span { "Completed" }
                         }
+                        div { class: "flex items-center gap-2",
+                            div { class: "h-4 w-4 rounded bg-muted" }
+                            span { "One-time" }
+                        }
                     }
                 }
             }
@@ -613,8 +642,8 @@ pub fn CalendarPage() -> Element {
                             for (item, cat_name, cat_icon, cat_color) in &selected_day_items {
                                 {rsx! {
                                     div {
-                                        key: "{item.subscription_id}",
-                                        class: if item.billing_date < now { "rounded-lg border border-border p-4 space-y-2 opacity-50" } else { "rounded-lg border border-border p-4 space-y-2" },
+                                        key: "{item.key()}",
+                                        class: if item.date < now { "rounded-lg border border-border p-4 space-y-2 opacity-50" } else { "rounded-lg border border-border p-4 space-y-2" },
                                         // Top row: name + amount
                                         div { class: "flex items-start justify-between gap-2",
                                             div { class: "flex-1 min-w-0",
@@ -624,7 +653,8 @@ pub fn CalendarPage() -> Element {
                                                         class: "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal",
                                                         style: "color: {cat_color}; background-color: {cat_color}15;",
                                                         {icon_display(cat_icon)}
-                                                        {cat_name.to_string()}                                                    }
+                                                        {cat_name.to_string()}
+                                                    }
                                                     span { class: "text-xs text-muted-foreground",
                                                         "{format_frequency(&item.frequency)}"
                                                     }
@@ -634,25 +664,26 @@ pub fn CalendarPage() -> Element {
                                                 "{format_currency(item.amount, &item.currency)}"
                                             }
                                         }
-                                        // Action buttons
-                                        div { class: "flex items-center gap-2 pt-1",
-                                            button {
-                                                class: "text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1",
-                                                onclick: {
-                                                    let sub_id = item.subscription_id;
-                                                    move |_| handle_edit(sub_id)
-                                                },
-                                                Pencil { size: 14 }
-                                                "Edit"
-                                            }
-                                            button {
-                                                class: "text-xs px-3 py-1.5 rounded-md border border-border text-red-600 hover:bg-red-50 dark:hover:bg-red-950 inline-flex items-center gap-1",
-                                                onclick: {
-                                                    let sub_id = item.subscription_id;
-                                                    move |_| handle_delete_request(sub_id)
-                                                },
-                                                Trash { size: 14 }
-                                                "Delete"
+                                        if item.kind == CalendarEntryKind::Subscription {
+                                            div { class: "flex items-center gap-2 pt-1",
+                                                button {
+                                                    class: "text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1",
+                                                    onclick: {
+                                                        let sub_id = item.id;
+                                                        move |_| handle_edit(sub_id)
+                                                    },
+                                                    Pencil { size: 14 }
+                                                    "Edit"
+                                                }
+                                                button {
+                                                    class: "text-xs px-3 py-1.5 rounded-md border border-border text-red-600 hover:bg-red-50 dark:hover:bg-red-950 inline-flex items-center gap-1",
+                                                    onclick: {
+                                                        let sub_id = item.id;
+                                                        move |_| handle_delete_request(sub_id)
+                                                    },
+                                                    Trash { size: 14 }
+                                                    "Delete"
+                                                }
                                             }
                                         }
                                     }
