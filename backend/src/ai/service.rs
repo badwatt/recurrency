@@ -1,3 +1,4 @@
+use base64::Engine;
 use chrono::Utc;
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -5,9 +6,11 @@ use uuid::Uuid;
 
 use crate::accounts::models::Account;
 use crate::ai::models::{
-    AI_JSON_INSTRUCTION, AiAction, AiActionResult, AiChatRequest, AiChatResponse,
-    AiModelOutput, AiSettingsResponse, DEFAULT_BASE_URL, DEFAULT_MODEL, DEFAULT_PROVIDER,
-    MAX_CHAT_MESSAGES, MAX_CONTEXT_ITEMS, MAX_MESSAGE_CHARS, UpdateAiSettingsRequest,
+    AI_JSON_INSTRUCTION, AiAction, AiActionResult, AiChatRequest, AiChatResponse, AiModelOutput,
+    AiModelsRequest, AiModelsResponse, AiSettingsResponse, AiTranscriptionRequest,
+    AiTranscriptionResponse, DEFAULT_BASE_URL, DEFAULT_MODEL, DEFAULT_PROVIDER, MAX_CHAT_MESSAGES,
+    MAX_CONTEXT_ITEMS, MAX_MESSAGE_CHARS, MAX_MODELS, MAX_TRANSCRIPTION_BYTES, MODELS_PATH,
+    TRANSCRIPTION_MODEL, TRANSCRIPTIONS_PATH, UpdateAiSettingsRequest,
 };
 use crate::categories::models::Category;
 use crate::debts::models::{CreateDebtRequest, UpdateDebtRequest};
@@ -23,6 +26,9 @@ const JWT_SECRET_KEY: &str = "jwt_secret";
 const API_KEY_FIELD: &str = "api_key";
 const CHAT_COMPLETIONS_PATH: &str = "chat/completions";
 const HTTP_TIMEOUT_SECONDS: u64 = 60;
+const TRANSCRIPTION_TIMEOUT_SECONDS: u64 = 120;
+const AUDIO_FILE_NAME: &str = "audio";
+const MIME_ERROR_LIMIT: usize = 500;
 
 #[derive(Debug, sqlx::FromRow)]
 struct AiSettingsRow {
@@ -49,6 +55,12 @@ pub trait AiServiceTrait: Send + Sync {
         req: UpdateAiSettingsRequest,
     ) -> AppResult<AiSettingsResponse>;
     async fn chat(&self, user_id: Uuid, req: AiChatRequest) -> AppResult<AiChatResponse>;
+    async fn models(&self, user_id: Uuid, req: AiModelsRequest) -> AppResult<AiModelsResponse>;
+    async fn transcribe(
+        &self,
+        user_id: Uuid,
+        req: AiTranscriptionRequest,
+    ) -> AppResult<AiTranscriptionResponse>;
 }
 
 pub struct SqlxAiService {
@@ -71,9 +83,9 @@ impl SqlxAiService {
                 .bind(JWT_SECRET_KEY)
                 .fetch_optional(&self.pool)
                 .await?;
-        stored.filter(|value| !value.trim().is_empty()).ok_or_else(|| {
-            AppError::Internal("JWT secret is required for AI settings".to_string())
-        })
+        stored
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| AppError::Internal("JWT secret is required for AI settings".to_string()))
     }
 
     async fn row(&self, user_id: Uuid) -> AppResult<Option<AiSettingsRow>> {
@@ -86,21 +98,16 @@ impl SqlxAiService {
         .await?)
     }
 
-    async fn runtime(&self, user_id: Uuid) -> AppResult<AiRuntime> {
+    async fn credentials(&self, user_id: Uuid) -> AppResult<(AiSettingsRow, String)> {
         let row = self
             .row(user_id)
             .await?
             .ok_or_else(|| AppError::BadRequest("AI assistant is not configured".to_string()))?;
-        if !row.enabled {
-            return Err(AppError::BadRequest(
-                "AI assistant is disabled".to_string(),
-            ));
-        }
-        let encrypted = row.api_key_encrypted.ok_or_else(|| {
+        let encrypted = row.api_key_encrypted.as_ref().ok_or_else(|| {
             AppError::BadRequest("Add an API key before using the AI assistant".to_string())
         })?;
         let secret = self.encryption_secret().await?;
-        let value = decrypt_with_secret(&secret, &encrypted)
+        let value = decrypt_with_secret(&secret, encrypted)
             .map_err(|error| AppError::Internal(format!("Could not read AI key: {error}")))?;
         let api_key = value
             .get(API_KEY_FIELD)
@@ -108,6 +115,14 @@ impl SqlxAiService {
             .filter(|key| !key.trim().is_empty())
             .ok_or_else(|| AppError::BadRequest("AI API key is empty".to_string()))?
             .to_string();
+        Ok((row, api_key))
+    }
+
+    async fn runtime(&self, user_id: Uuid) -> AppResult<AiRuntime> {
+        let (row, api_key) = self.credentials(user_id).await?;
+        if !row.enabled {
+            return Err(AppError::BadRequest("AI assistant is disabled".to_string()));
+        }
         Ok(AiRuntime {
             base_url: row.base_url,
             model: row.model,
@@ -253,13 +268,19 @@ impl SqlxAiService {
 
     async fn create_subscription(&self, user_id: Uuid, data: &Value) -> AppResult<String> {
         let currency = self.user_currency(user_id).await?;
-        let mut data = data
-            .as_object()
-            .cloned()
-            .ok_or_else(|| AppError::BadRequest("Subscription data must be an object".to_string()))?;
+        let mut data = data.as_object().cloned().ok_or_else(|| {
+            AppError::BadRequest("Subscription data must be an object".to_string())
+        })?;
         data.entry("currency").or_insert_with(|| json!(currency));
-        let find_logo = data.remove("find_logo").and_then(|value| value.as_bool()).unwrap_or(false);
-        let name = data.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let find_logo = data
+            .remove("find_logo")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let name = data
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         if find_logo
             && data.get("logo_url").and_then(Value::as_str).is_none()
             && let Some(logo) = find_logo_url(&name).await
@@ -267,32 +288,42 @@ impl SqlxAiService {
             data.insert("logo_url".to_string(), json!(logo));
         }
         if data.get("frequency").is_none() {
-            let annual = data.get("recurrence").and_then(|value| value.get("unit")).and_then(Value::as_str) == Some("year");
-            data.insert("frequency".to_string(), json!(if annual { "yearly" } else { "monthly" }));
+            let annual = data
+                .get("recurrence")
+                .and_then(|value| value.get("unit"))
+                .and_then(Value::as_str)
+                == Some("year");
+            data.insert(
+                "frequency".to_string(),
+                json!(if annual { "yearly" } else { "monthly" }),
+            );
         }
-        data.entry("start_date").or_insert_with(|| json!(Utc::now().date_naive().to_string()));
+        data.entry("start_date")
+            .or_insert_with(|| json!(Utc::now().date_naive().to_string()));
         let request: CreateSubscriptionRequest = serde_json::from_value(Value::Object(data))
             .map_err(|error| AppError::BadRequest(format!("Invalid subscription: {error}")))?;
         let subscription = SqlxSubscriptionService::new(self.pool.clone())
             .create(user_id, request)
             .await?;
-        Ok(format!("Created subscription {} ({})", subscription.name, subscription.id))
+        Ok(format!(
+            "Created subscription {} ({})",
+            subscription.name, subscription.id
+        ))
     }
 
-    async fn update_subscription(
-        &self,
-        user_id: Uuid,
-        action: &AiAction,
-    ) -> AppResult<String> {
+    async fn update_subscription(&self, user_id: Uuid, action: &AiAction) -> AppResult<String> {
         let id = action_uuid(action)?;
         let data = resolve_update_logo(&action.data).await;
-        let request: UpdateSubscriptionRequest =
-            serde_json::from_value(data)
-                .map_err(|error| AppError::BadRequest(format!("Invalid subscription update: {error}")))?;
+        let request: UpdateSubscriptionRequest = serde_json::from_value(data).map_err(|error| {
+            AppError::BadRequest(format!("Invalid subscription update: {error}"))
+        })?;
         let subscription = SqlxSubscriptionService::new(self.pool.clone())
             .update(user_id, id, request)
             .await?;
-        Ok(format!("Updated subscription {} ({})", subscription.name, subscription.id))
+        Ok(format!(
+            "Updated subscription {} ({})",
+            subscription.name, subscription.id
+        ))
     }
 
     async fn delete_subscription(&self, user_id: Uuid, action: &AiAction) -> AppResult<String> {
@@ -305,37 +336,51 @@ impl SqlxAiService {
 
     async fn create_transaction(&self, user_id: Uuid, data: &Value) -> AppResult<String> {
         let currency = self.user_currency(user_id).await?;
-        let mut data = data
-            .as_object()
-            .cloned()
-            .ok_or_else(|| AppError::BadRequest("Transaction data must be an object".to_string()))?;
+        let mut data = data.as_object().cloned().ok_or_else(|| {
+            AppError::BadRequest("Transaction data must be an object".to_string())
+        })?;
         data.entry("currency").or_insert_with(|| json!(currency));
-        let find_logo = data.remove("find_logo").and_then(|value| value.as_bool()).unwrap_or(false);
-        let name = data.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let find_logo = data
+            .remove("find_logo")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let name = data
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         if find_logo
             && data.get("logo_url").and_then(Value::as_str).is_none()
             && let Some(logo) = find_logo_url(&name).await
         {
             data.insert("logo_url".to_string(), json!(logo));
         }
-        data.entry("date").or_insert_with(|| json!(Utc::now().date_naive().to_string()));
+        data.entry("date")
+            .or_insert_with(|| json!(Utc::now().date_naive().to_string()));
         let request: CreateTransactionRequest = serde_json::from_value(Value::Object(data))
             .map_err(|error| AppError::BadRequest(format!("Invalid transaction: {error}")))?;
         let transaction = SqlxTransactionService::new(self.pool.clone())
             .create(user_id, request)
             .await?;
-        Ok(format!("Created transaction {} ({})", transaction.name, transaction.id))
+        Ok(format!(
+            "Created transaction {} ({})",
+            transaction.name, transaction.id
+        ))
     }
 
     async fn update_transaction(&self, user_id: Uuid, action: &AiAction) -> AppResult<String> {
         let id = action_uuid(action)?;
         let data = resolve_update_logo(&action.data).await;
-        let request: UpdateTransactionRequest = serde_json::from_value(data)
-            .map_err(|error| AppError::BadRequest(format!("Invalid transaction update: {error}")))?;
+        let request: UpdateTransactionRequest = serde_json::from_value(data).map_err(|error| {
+            AppError::BadRequest(format!("Invalid transaction update: {error}"))
+        })?;
         let transaction = SqlxTransactionService::new(self.pool.clone())
             .update(user_id, id, request)
             .await?;
-        Ok(format!("Updated transaction {} ({})", transaction.name, transaction.id))
+        Ok(format!(
+            "Updated transaction {} ({})",
+            transaction.name, transaction.id
+        ))
     }
 
     async fn delete_transaction(&self, user_id: Uuid, action: &AiAction) -> AppResult<String> {
@@ -354,8 +399,15 @@ impl SqlxAiService {
             .ok_or_else(|| AppError::BadRequest("Debt data must be an object".to_string()))?;
         data.entry("currency").or_insert_with(|| json!(currency));
         data.entry("debt_type").or_insert_with(|| json!("manual"));
-        let find_logo = data.remove("find_logo").and_then(|value| value.as_bool()).unwrap_or(false);
-        let name = data.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let find_logo = data
+            .remove("find_logo")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let name = data
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         if find_logo
             && data.get("logo_url").and_then(Value::as_str).is_none()
             && let Some(logo) = find_logo_url(&name).await
@@ -390,15 +442,118 @@ impl SqlxAiService {
     }
 
     async fn user_currency(&self, user_id: Uuid) -> AppResult<String> {
-        Ok(sqlx::query_scalar("SELECT currency FROM users WHERE id = $1")
-            .bind(user_id)
-            .fetch_one(&self.pool)
-            .await?)
+        Ok(
+            sqlx::query_scalar("SELECT currency FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&self.pool)
+                .await?,
+        )
     }
 }
 
 #[async_trait::async_trait]
 impl AiServiceTrait for SqlxAiService {
+    async fn models(&self, user_id: Uuid, req: AiModelsRequest) -> AppResult<AiModelsResponse> {
+        let (row, api_key) = self.credentials(user_id).await?;
+        let base_url = req.base_url.unwrap_or(row.base_url);
+        validate_base_url(&base_url)?;
+        let endpoint = models_endpoint(&base_url);
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+            .build()
+            .map_err(|error| AppError::Internal(format!("Could not create AI client: {error}")))?;
+        let response = client
+            .get(endpoint)
+            .bearer_auth(&api_key)
+            .send()
+            .await
+            .map_err(|error| AppError::Internal(format!("Could not load AI models: {error}")))?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!(
+                "AI provider returned {status}: {}",
+                body.chars().take(MIME_ERROR_LIMIT).collect::<String>()
+            )));
+        }
+        let value: Value = response
+            .json()
+            .await
+            .map_err(|error| AppError::Internal(format!("Invalid AI models response: {error}")))?;
+        Ok(AiModelsResponse {
+            models: parse_models(&value),
+        })
+    }
+
+    async fn transcribe(
+        &self,
+        user_id: Uuid,
+        req: AiTranscriptionRequest,
+    ) -> AppResult<AiTranscriptionResponse> {
+        let runtime = self.runtime(user_id).await?;
+        let mime_type = req.mime_type.trim().to_lowercase();
+        if !mime_type.starts_with("audio/") {
+            return Err(AppError::BadRequest(
+                "Speech audio must use an audio MIME type".to_string(),
+            ));
+        }
+        let audio = base64::engine::general_purpose::STANDARD
+            .decode(req.audio_base64.trim())
+            .map_err(|_| AppError::BadRequest("Speech audio is not valid base64".to_string()))?;
+        if audio.is_empty() {
+            return Err(AppError::BadRequest("Speech audio is empty".to_string()));
+        }
+        if audio.len() > MAX_TRANSCRIPTION_BYTES {
+            return Err(AppError::BadRequest("Speech audio is too long".to_string()));
+        }
+        let endpoint = transcription_endpoint(&runtime.base_url);
+        let file_name = format!("{AUDIO_FILE_NAME}.{}", audio_extension(&mime_type));
+        let part = reqwest::multipart::Part::bytes(audio)
+            .file_name(file_name)
+            .mime_str(&mime_type)
+            .map_err(|error| AppError::Internal(format!("Invalid audio MIME type: {error}")))?;
+        let form = reqwest::multipart::Form::new()
+            .part("file", part)
+            .text("model", TRANSCRIPTION_MODEL)
+            .text("response_format", "json");
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(
+                TRANSCRIPTION_TIMEOUT_SECONDS,
+            ))
+            .build()
+            .map_err(|error| AppError::Internal(format!("Could not create AI client: {error}")))?;
+        let response = client
+            .post(endpoint)
+            .bearer_auth(&runtime.api_key)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|error| AppError::Internal(format!("Speech transcription failed: {error}")))?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!(
+                "AI provider returned {status}: {}",
+                body.chars().take(MIME_ERROR_LIMIT).collect::<String>()
+            )));
+        }
+        let value: Value = response.json().await.map_err(|error| {
+            AppError::Internal(format!("Invalid speech transcription response: {error}"))
+        })?;
+        let text = value
+            .pointer("/text")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if text.is_empty() {
+            return Err(AppError::BadRequest(
+                "The provider returned an empty transcription".to_string(),
+            ));
+        }
+        Ok(AiTranscriptionResponse { text })
+    }
+
     async fn settings(&self, user_id: Uuid) -> AppResult<AiSettingsResponse> {
         let row = self.row(user_id).await?;
         Ok(match row {
@@ -425,12 +580,32 @@ impl AiServiceTrait for SqlxAiService {
         req: UpdateAiSettingsRequest,
     ) -> AppResult<AiSettingsResponse> {
         let existing = self.row(user_id).await?;
-        let base_url = req
-            .base_url
-            .unwrap_or_else(|| existing.as_ref().map_or(DEFAULT_BASE_URL.to_string(), |row| row.base_url.clone()));
-        let model = req
-            .model
-            .unwrap_or_else(|| existing.as_ref().map_or(DEFAULT_MODEL.to_string(), |row| row.model.clone()));
+        let provider = req
+            .provider
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| {
+                existing
+                    .as_ref()
+                    .map_or(DEFAULT_PROVIDER.to_string(), |row| row.provider.clone())
+            });
+        if provider.len() > 40
+            || !provider
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+        {
+            return Err(AppError::BadRequest("Invalid AI provider".to_string()));
+        }
+        let base_url = req.base_url.unwrap_or_else(|| {
+            existing
+                .as_ref()
+                .map_or(DEFAULT_BASE_URL.to_string(), |row| row.base_url.clone())
+        });
+        let model = req.model.unwrap_or_else(|| {
+            existing
+                .as_ref()
+                .map_or(DEFAULT_MODEL.to_string(), |row| row.model.clone())
+        });
         validate_base_url(&base_url)?;
         if model.trim().is_empty() {
             return Err(AppError::BadRequest("Model is required".to_string()));
@@ -453,7 +628,7 @@ impl AiServiceTrait for SqlxAiService {
         )
         .bind(user_id)
         .bind(req.enabled)
-        .bind(DEFAULT_PROVIDER)
+        .bind(&provider)
         .bind(&base_url)
         .bind(&model)
         .bind(encrypted)
@@ -472,13 +647,7 @@ impl AiServiceTrait for SqlxAiService {
             "role": "system",
             "content": format!("{AI_JSON_INSTRUCTION}\n\nCurrent data JSON:\n{context}")
         })];
-        for message in req
-            .messages
-            .iter()
-            .rev()
-            .take(MAX_CHAT_MESSAGES)
-            .rev()
-        {
+        for message in req.messages.iter().rev().take(MAX_CHAT_MESSAGES).rev() {
             if !matches!(message.role.as_str(), "user" | "assistant") {
                 continue;
             }
@@ -514,7 +683,10 @@ async fn resolve_update_logo(data: &Value) -> Value {
         .and_then(|value| value.as_bool())
         .unwrap_or(false);
     if find_logo && object.get("logo_url").and_then(Value::as_str).is_none() {
-        let name = object.get("name").and_then(Value::as_str).unwrap_or_default();
+        let name = object
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if let Some(logo) = find_logo_url(name).await {
             object.insert("logo_url".to_string(), json!(logo));
         }
@@ -533,6 +705,13 @@ async fn find_logo_url(name: &str) -> Option<String> {
         .map(|result| result.url)
 }
 
+fn api_root(base_url: &str) -> &str {
+    let base = base_url.trim_end_matches('/');
+    base.strip_suffix(CHAT_COMPLETIONS_PATH)
+        .map(|value| value.trim_end_matches('/'))
+        .unwrap_or(base)
+}
+
 fn chat_endpoint(base_url: &str) -> String {
     let base = base_url.trim_end_matches('/');
     if base.ends_with(CHAT_COMPLETIONS_PATH) {
@@ -540,6 +719,43 @@ fn chat_endpoint(base_url: &str) -> String {
     } else {
         format!("{base}/{CHAT_COMPLETIONS_PATH}")
     }
+}
+
+fn models_endpoint(base_url: &str) -> String {
+    format!("{}/{MODELS_PATH}", api_root(base_url))
+}
+
+fn transcription_endpoint(base_url: &str) -> String {
+    format!("{}/{TRANSCRIPTIONS_PATH}", api_root(base_url))
+}
+
+fn audio_extension(mime_type: &str) -> &'static str {
+    match mime_type.split(';').next().unwrap_or_default().trim() {
+        "audio/wav" | "audio/x-wav" | "audio/wave" => "wav",
+        "audio/mp4" | "audio/m4a" | "audio/x-m4a" => "m4a",
+        "audio/mpeg" | "audio/mp3" => "mp3",
+        "audio/ogg" => "ogg",
+        _ => "webm",
+    }
+}
+
+fn parse_models(value: &Value) -> Vec<String> {
+    let candidates = value
+        .get("data")
+        .and_then(Value::as_array)
+        .or_else(|| value.as_array());
+    let mut models: Vec<String> = candidates
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.get("id").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(ToOwned::to_owned)
+        .collect();
+    models.sort();
+    models.dedup();
+    models.truncate(MAX_MODELS);
+    models
 }
 
 fn validate_base_url(value: &str) -> AppResult<()> {
@@ -559,7 +775,9 @@ fn action_uuid(action: &AiAction) -> AppResult<Uuid> {
         .id
         .as_deref()
         .ok_or_else(|| AppError::BadRequest("Action id is required".to_string()))
-        .and_then(|id| Uuid::parse_str(id).map_err(|_| AppError::BadRequest("Invalid action id".to_string())))
+        .and_then(|id| {
+            Uuid::parse_str(id).map_err(|_| AppError::BadRequest("Invalid action id".to_string()))
+        })
 }
 
 fn parse_model_output(content: &str) -> AiModelOutput {
@@ -588,8 +806,56 @@ mod tests {
 
     #[test]
     fn endpoint_accepts_base_or_full_path() {
-        assert_eq!(chat_endpoint("https://api.example.com/v1"), "https://api.example.com/v1/chat/completions");
-        assert_eq!(chat_endpoint("https://api.example.com/v1/chat/completions"), "https://api.example.com/v1/chat/completions");
+        assert_eq!(
+            chat_endpoint("https://api.example.com/v1"),
+            "https://api.example.com/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_endpoint("https://api.example.com/v1/chat/completions"),
+            "https://api.example.com/v1/chat/completions"
+        );
+    }
+
+    #[test]
+    fn models_endpoint_strips_a_full_chat_path() {
+        assert_eq!(
+            models_endpoint("https://api.example.com/v1/chat/completions"),
+            "https://api.example.com/v1/models"
+        );
+        assert_eq!(
+            models_endpoint("https://api.example.com/v1/"),
+            "https://api.example.com/v1/models"
+        );
+    }
+
+    #[test]
+    fn transcription_endpoint_strips_a_full_chat_path() {
+        assert_eq!(
+            transcription_endpoint("https://api.example.com/v1/chat/completions"),
+            "https://api.example.com/v1/audio/transcriptions"
+        );
+    }
+
+    #[test]
+    fn model_list_is_sorted_filtered_and_deduplicated() {
+        let value = json!({
+            "data": [
+                {"id": "z-model"},
+                {"id": "a-model"},
+                {"id": "a-model"},
+                {"id": " "},
+                {}
+            ]
+        });
+        assert_eq!(parse_models(&value), vec!["a-model", "z-model"]);
+    }
+
+    #[test]
+    fn audio_extension_follows_the_recorder_mime() {
+        assert_eq!(audio_extension("audio/webm;codecs=opus"), "webm");
+        assert_eq!(audio_extension("audio/mp4"), "m4a");
+        assert_eq!(audio_extension("audio/ogg"), "ogg");
+        assert_eq!(audio_extension("audio/wav"), "wav");
     }
 
     #[test]

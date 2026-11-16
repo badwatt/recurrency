@@ -12,3 +12,5 @@ pub mod rates;
 pub mod subscriptions;
 pub mod transactions;
 pub mod window;
+
+pub mod voice;

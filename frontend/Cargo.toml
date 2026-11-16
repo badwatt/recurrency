@@ -46,6 +46,7 @@ lucide-dioxus = { version = "3.63.0", default-features = false, features = [
 ] }
 serde.workspace = true
 serde_json.workspace = true
+base64 = "0.22"
 sha2 = "0.11"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 chrono.workspace = true
@@ -62,6 +63,9 @@ serial_test = "4"
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))'.dependencies]
 rfd = { version = "0.17", default-features = false, optional = true }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"], optional = true }
+sherpa-onnx = { version = "2.0.1", default-features = false, optional = true }
+sysinfo = { version = "0.31.4", optional = true }
+futures-util = { version = "0.3", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = { version = "3", default-features = false, features = ["json", "rustls", "gzip"] }
@@ -71,6 +75,6 @@ tokio = { version = "1", features = ["time", "sync", "rt"] }
 [features]
 default = ["web"]
 web = ["dioxus/web", "web-sys", "gloo-timers"]
-desktop = ["dioxus/desktop", "dep:rfd", "dep:image"]
+desktop = ["dioxus/desktop", "dep:rfd", "dep:image", "dep:sherpa-onnx", "dep:sysinfo", "dep:futures-util"]
 mobile = ["dioxus/mobile"]
 server = ["dioxus/server"]

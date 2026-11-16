@@ -9,25 +9,36 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use axum::{Json, extract::State, http::{HeaderMap, header::AUTHORIZATION}};
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderMap, header::AUTHORIZATION},
+};
 use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
-use recurrency_backend::admin::service::{AdminServiceTrait, SqlxAdminService};
-use recurrency_backend::ai::models::UpdateAiSettingsRequest;
-use recurrency_backend::ai::service::{AiServiceTrait, SqlxAiService};
-use recurrency_backend::cli::{AdminAction, AdminArgs};
-use recurrency_backend::shared::app_state::AppState;
 use recurrency_backend::accounts::service::AccountService;
+use recurrency_backend::admin::service::{AdminServiceTrait, SqlxAdminService};
+use recurrency_backend::ai::models::{
+    AiModelsRequest, AiTranscriptionRequest, UpdateAiSettingsRequest,
+};
+use recurrency_backend::ai::service::{AiServiceTrait, SqlxAiService};
 use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest, UpdateSettingsRequest};
 use recurrency_backend::auth::service::{AuthService, AuthServiceTrait, SqlxAuthService};
-use recurrency_backend::notifications::channels::{NotificationProvider, UpdateNotificationChannelRequest, UpdateSummaryNotificationSettingsRequest, MASKED_VALUE};
-use recurrency_backend::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
 use recurrency_backend::categories::models::CreateCategoryRequest;
 use recurrency_backend::categories::service::CategoryService;
-use recurrency_backend::preferences::models::UpdatePreferencesRequest;
-use recurrency_backend::preferences::service::SqlxPreferencesService;
+use recurrency_backend::cli::{AdminAction, AdminArgs};
 use recurrency_backend::debts::models::{CreateDebtRequest, RecordDebtPaymentRequest};
 use recurrency_backend::debts::service::DebtService;
+use recurrency_backend::notifications::channels::{
+    MASKED_VALUE, NotificationProvider, UpdateNotificationChannelRequest,
+    UpdateSummaryNotificationSettingsRequest,
+};
+use recurrency_backend::notifications::settings::{
+    NotificationSettingsServiceTrait, SqlxNotificationSettingsService,
+};
+use recurrency_backend::preferences::models::UpdatePreferencesRequest;
+use recurrency_backend::preferences::service::SqlxPreferencesService;
 use recurrency_backend::reports::service::ReportService;
+use recurrency_backend::shared::app_state::AppState;
 use recurrency_backend::shared::error::AppError;
 use recurrency_backend::subscriptions::models::{
     CreateSubscriptionRequest, UpdateSubscriptionRequest,
@@ -391,7 +402,10 @@ async fn notification_channel_config_roundtrip(pool: PgPool) {
     assert_eq!(saved.config["token"], MASKED_VALUE);
 
     let listed = service.list_channels(user_id).await.unwrap();
-    let ntfy = listed.iter().find(|channel| channel.provider == "ntfy").unwrap();
+    let ntfy = listed
+        .iter()
+        .find(|channel| channel.provider == "ntfy")
+        .unwrap();
     assert!(ntfy.enabled);
     assert_eq!(ntfy.config["token"], MASKED_VALUE);
     assert_eq!(ntfy.config["topic"], "recurrency-test");
@@ -701,13 +715,19 @@ async fn subscription_schedule_and_end_date(pool: PgPool) {
         .unwrap();
     assert_eq!(sub.schedule_day, Some(15));
     assert_eq!(sub.end_date, Some(end));
-    assert_eq!(sub.next_billing_date, Some(NaiveDate::from_ymd_opt(2099, 1, 15).unwrap()));
+    assert_eq!(
+        sub.next_billing_date,
+        Some(NaiveDate::from_ymd_opt(2099, 1, 15).unwrap())
+    );
 
     let calendar = SubscriptionService::get_calendar(&pool, user_id, 2099, 1)
         .await
         .unwrap();
     assert_eq!(calendar.len(), 1);
-    assert_eq!(calendar[0].billing_date, NaiveDate::from_ymd_opt(2099, 1, 15).unwrap());
+    assert_eq!(
+        calendar[0].billing_date,
+        NaiveDate::from_ymd_opt(2099, 1, 15).unwrap()
+    );
 
     let after_end = SubscriptionService::get_calendar(&pool, user_id, 2099, 4)
         .await
@@ -834,11 +854,19 @@ async fn subscription_calendar_keeps_completed_dates(pool: PgPool) {
     let january = SubscriptionService::get_calendar(&pool, user_id, 2024, 1)
         .await
         .unwrap();
-    assert!(january.iter().any(|item| item.billing_date == NaiveDate::from_ymd_opt(2024, 1, 3).unwrap()));
+    assert!(
+        january
+            .iter()
+            .any(|item| item.billing_date == NaiveDate::from_ymd_opt(2024, 1, 3).unwrap())
+    );
     let february = SubscriptionService::get_calendar(&pool, user_id, 2024, 2)
         .await
         .unwrap();
-    assert!(february.iter().any(|item| item.billing_date == NaiveDate::from_ymd_opt(2024, 2, 3).unwrap()));
+    assert!(
+        february
+            .iter()
+            .any(|item| item.billing_date == NaiveDate::from_ymd_opt(2024, 2, 3).unwrap())
+    );
 }
 
 #[sqlx::test]
@@ -1061,7 +1089,6 @@ async fn account_delete_reassigns_subscriptions_to_default(pool: PgPool) {
     assert_eq!(sub_after.account_id, default.id);
 }
 
-
 #[sqlx::test]
 async fn debt_manual_payment_and_automatic_payoff(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
@@ -1155,7 +1182,6 @@ async fn schema_reconciliation_creates_the_expected_indexes(pool: PgPool) {
     assert_eq!(verified_index.as_deref(), Some("idx_users_verified"));
 }
 
-
 #[sqlx::test]
 async fn preferences_update_all_fields_in_one_call(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
@@ -1185,7 +1211,6 @@ async fn preferences_update_all_fields_in_one_call(pool: PgPool) {
     assert_eq!(loaded.first_day_of_week, response.first_day_of_week);
     assert_eq!(loaded.date_format, response.date_format);
 }
-
 
 // ── Administration ───────────────────────────────────────────────────────────
 
@@ -1238,9 +1263,12 @@ async fn admin_full_backup_includes_every_application_table(pool: PgPool) {
     assert!(backup.tables.contains_key("users"));
     assert!(backup.tables.contains_key("app_settings"));
     assert!(backup.tables.contains_key("accounts"));
-    assert!(backup.tables["users"].as_array().is_some_and(|rows| !rows.is_empty()));
+    assert!(
+        backup.tables["users"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty())
+    );
 }
-
 
 #[sqlx::test]
 async fn registration_handler_respects_the_admin_setting(pool: PgPool) {
@@ -1281,7 +1309,6 @@ async fn registration_handler_respects_the_admin_setting(pool: PgPool) {
     assert!(!created.0.user.email.is_empty());
 }
 
-
 #[sqlx::test]
 async fn admin_handlers_reject_non_administrators(pool: PgPool) {
     let (_, admin_token) = create_test_user(&pool).await;
@@ -1315,7 +1342,6 @@ async fn admin_handlers_reject_non_administrators(pool: PgPool) {
     assert!(allowed.0.iter().any(|user| user.is_admin));
 }
 
-
 #[sqlx::test]
 async fn admin_can_delete_a_member_and_their_data(pool: PgPool) {
     let (admin_id, _) = create_test_user(&pool).await;
@@ -1324,12 +1350,20 @@ async fn admin_can_delete_a_member_and_their_data(pool: PgPool) {
 
     let service = SqlxAdminService::new(pool.clone());
     service.delete_user(admin_id, member_id).await.unwrap();
-    assert!(!service.list_users().await.unwrap().iter().any(|user| user.id == member_id));
-    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM subscriptions WHERE user_id = $1")
-        .bind(member_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    assert!(
+        !service
+            .list_users()
+            .await
+            .unwrap()
+            .iter()
+            .any(|user| user.id == member_id)
+    );
+    let remaining: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM subscriptions WHERE user_id = $1")
+            .bind(member_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(remaining, 0);
 }
 
@@ -1351,7 +1385,14 @@ async fn admin_full_backup_can_be_restored(pool: PgPool) {
     let backup = service.full_backup().await.unwrap();
 
     service.delete_user(admin_id, member_id).await.unwrap();
-    assert!(!service.list_users().await.unwrap().iter().any(|user| user.id == member_id));
+    assert!(
+        !service
+            .list_users()
+            .await
+            .unwrap()
+            .iter()
+            .any(|user| user.id == member_id)
+    );
 
     let result = service.restore_backup(backup).await.unwrap();
     assert_eq!(result.restored_tables, 14);
@@ -1359,7 +1400,6 @@ async fn admin_full_backup_can_be_restored(pool: PgPool) {
     assert!(users.iter().any(|user| user.id == member_id));
     assert!(users.iter().any(|user| user.id == admin_id));
 }
-
 
 #[sqlx::test]
 async fn admin_can_change_a_user_role(pool: PgPool) {
@@ -1393,27 +1433,23 @@ async fn last_administrator_cannot_be_demoted(pool: PgPool) {
     ));
 }
 
-
 #[sqlx::test]
 async fn registration_status_is_public_and_matches_the_admin_setting(pool: PgPool) {
     let service = SqlxAdminService::new(pool.clone());
     service.set_registration_enabled(false).await.unwrap();
-    let status = recurrency_backend::auth::handlers::registration_status(State(AppState::new(
-        pool.clone(),
-    )))
-    .await
-    .unwrap();
+    let status =
+        recurrency_backend::auth::handlers::registration_status(State(AppState::new(pool.clone())))
+            .await
+            .unwrap();
     assert!(!status.0.registration_enabled);
 
     service.set_registration_enabled(true).await.unwrap();
-    let status = recurrency_backend::auth::handlers::registration_status(State(AppState::new(
-        pool,
-    )))
-    .await
-    .unwrap();
+    let status =
+        recurrency_backend::auth::handlers::registration_status(State(AppState::new(pool)))
+            .await
+            .unwrap();
     assert!(status.0.registration_enabled);
 }
-
 
 #[sqlx::test]
 async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
@@ -1427,12 +1463,15 @@ async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
         password: Some("testpassword123".to_string()),
         is_admin: None,
     };
-    recurrency_backend::admin::cli::run(&pool, &create).await.unwrap();
-    let user: Option<(Uuid, bool)> = sqlx::query_as("SELECT id, is_admin FROM users WHERE email = $1")
-        .bind(&email)
-        .fetch_optional(&pool)
+    recurrency_backend::admin::cli::run(&pool, &create)
         .await
         .unwrap();
+    let user: Option<(Uuid, bool)> =
+        sqlx::query_as("SELECT id, is_admin FROM users WHERE email = $1")
+            .bind(&email)
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
     let (user_id, is_admin) = user.unwrap();
     assert!(is_admin);
 
@@ -1469,14 +1508,20 @@ async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
         password: None,
         is_admin: None,
     };
-    recurrency_backend::admin::cli::run(&pool, &rename).await.unwrap();
+    recurrency_backend::admin::cli::run(&pool, &rename)
+        .await
+        .unwrap();
     let name: String = sqlx::query_scalar("SELECT name FROM users WHERE id = $1")
         .bind(user_id)
         .fetch_one(&pool)
         .await
         .unwrap();
     assert_eq!(name, "CLI Renamed");
-    assert!(recurrency_backend::admin::cli::run(&pool, &update).await.is_err());
+    assert!(
+        recurrency_backend::admin::cli::run(&pool, &update)
+            .await
+            .is_err()
+    );
 
     let delete = AdminArgs {
         action: AdminAction::Delete,
@@ -1487,7 +1532,9 @@ async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
         password: None,
         is_admin: None,
     };
-    recurrency_backend::admin::cli::run(&pool, &delete).await.unwrap();
+    recurrency_backend::admin::cli::run(&pool, &delete)
+        .await
+        .unwrap();
     let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)")
         .bind(member_email)
         .fetch_one(&pool)
@@ -1495,7 +1542,6 @@ async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
         .unwrap();
     assert!(!exists);
 }
-
 
 #[sqlx::test]
 async fn ai_settings_encrypt_the_provider_key(pool: PgPool) {
@@ -1506,6 +1552,7 @@ async fn ai_settings_encrypt_the_provider_key(pool: PgPool) {
             user_id,
             UpdateAiSettingsRequest {
                 enabled: true,
+                provider: Some("openai".to_string()),
                 base_url: Some("https://api.example.com/v1".to_string()),
                 model: Some("test-model".to_string()),
                 api_key: Some("sk-test-secret".to_string()),
@@ -1529,6 +1576,7 @@ async fn ai_settings_encrypt_the_provider_key(pool: PgPool) {
             user_id,
             UpdateAiSettingsRequest {
                 enabled: false,
+                provider: None,
                 base_url: None,
                 model: None,
                 api_key: None,
@@ -1541,6 +1589,115 @@ async fn ai_settings_encrypt_the_provider_key(pool: PgPool) {
     assert!(!cleared.enabled);
 }
 
+#[sqlx::test]
+async fn ai_lists_models_from_the_provider(pool: PgPool) {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let response_body = r#"{"data":[{"id":"z-model"},{"id":"a-model"}]}"#.to_string();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = Vec::new();
+        let mut chunk = [0u8; 4096];
+        while request.windows(4).all(|window| window != b"\r\n\r\n") {
+            let read = stream.read(&mut chunk).unwrap();
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            response_body.len(),
+            response_body
+        );
+        stream.write_all(response.as_bytes()).unwrap();
+    });
+
+    let service = SqlxAiService::new(pool.clone());
+    service
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled: true,
+                provider: Some("openai".to_string()),
+                base_url: Some(format!("http://127.0.0.1:{port}/v1")),
+                model: Some("a-model".to_string()),
+                api_key: Some("test-key".to_string()),
+                clear_api_key: false,
+            },
+        )
+        .await
+        .unwrap();
+    let models = service
+        .models(user_id, AiModelsRequest { base_url: None })
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert_eq!(models.models, vec!["a-model", "z-model"]);
+}
+
+#[sqlx::test]
+async fn ai_transcribes_audio_with_the_provider(pool: PgPool) {
+    use base64::Engine;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let response_body = r#"{"text":"hello from speech"}"#.to_string();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = Vec::new();
+        let mut chunk = [0u8; 4096];
+        while request.windows(4).all(|window| window != b"\r\n\r\n") {
+            let read = stream.read(&mut chunk).unwrap();
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            response_body.len(),
+            response_body
+        );
+        stream.write_all(response.as_bytes()).unwrap();
+    });
+
+    let service = SqlxAiService::new(pool.clone());
+    service
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled: true,
+                provider: Some("openai".to_string()),
+                base_url: Some(format!("http://127.0.0.1:{port}/v1")),
+                model: Some("a-model".to_string()),
+                api_key: Some("test-key".to_string()),
+                clear_api_key: false,
+            },
+        )
+        .await
+        .unwrap();
+    let audio = base64::engine::general_purpose::STANDARD.encode([1_u8, 2, 3, 4]);
+    let result = service
+        .transcribe(
+            user_id,
+            AiTranscriptionRequest {
+                audio_base64: audio,
+                mime_type: "audio/webm".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert_eq!(result.text, "hello from speech");
+}
 
 #[sqlx::test]
 async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
@@ -1602,6 +1759,7 @@ async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
             user_id,
             UpdateAiSettingsRequest {
                 enabled: true,
+                provider: Some("openai".to_string()),
                 base_url: Some(format!("http://127.0.0.1:{port}/v1")),
                 model: Some("test".to_string()),
                 api_key: Some("test-key".to_string()),
@@ -1632,9 +1790,11 @@ async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
         .fetch_optional(&pool)
         .await
         .unwrap()
-        .map(|(name, logo, recurrence): (String, Option<String>, String)| {
-            (Some(name), logo, Some(recurrence))
-        })
+        .map(
+            |(name, logo, recurrence): (String, Option<String>, String)| {
+                (Some(name), logo, Some(recurrence))
+            },
+        )
         .unwrap_or((None, None, None));
     assert_eq!(name.as_deref(), Some("AI subscription"));
     assert_eq!(logo.as_deref(), Some("https://example.test/logo.png"));

@@ -8,6 +8,7 @@ use dioxus::prelude::*;
 enum SettingsSection {
     Account,
     General,
+    Ai,
     Money,
     Notifications,
     Data,
@@ -39,6 +40,7 @@ impl SettingsGroup {
             Self::Personal => &[SettingsSection::Account],
             Self::Configuration => &[
                 SettingsSection::General,
+                SettingsSection::Ai,
                 SettingsSection::Money,
                 SettingsSection::Notifications,
             ],
@@ -53,9 +55,10 @@ impl SettingsGroup {
 }
 
 impl SettingsSection {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 9] = [
         Self::Account,
         Self::General,
+        Self::Ai,
         Self::Money,
         Self::Notifications,
         Self::Data,
@@ -68,6 +71,7 @@ impl SettingsSection {
         match self {
             Self::Account => "Account",
             Self::General => "General",
+            Self::Ai => "AI assistant",
             Self::Money => "Accounts & categories",
             Self::Notifications => "Notifications",
             Self::Data => "Data & backup",
@@ -81,6 +85,7 @@ impl SettingsSection {
         match self {
             Self::Account => "Profile, session and account removal",
             Self::General => "Currency, exchange rates, week start and dates",
+            Self::Ai => "Model, voice input and privacy",
             Self::Money => "Accounts and categories",
             Self::Notifications => "Delivery channels and summaries",
             Self::Data => "Backups, restore and folder sync",
@@ -94,6 +99,7 @@ impl SettingsSection {
         match self {
             Self::Account => Icon::Settings,
             Self::General => Icon::Sun,
+            Self::Ai => Icon::Ai,
             Self::Money => Icon::Categories,
             Self::Notifications => Icon::Bell,
             Self::Data => Icon::Reports,
@@ -107,6 +113,7 @@ impl SettingsSection {
         match self {
             Self::Account => crate::Route::SettingsProfile {},
             Self::General => crate::Route::SettingsPreferences {},
+            Self::Ai => crate::Route::SettingsAi {},
             Self::Money => crate::Route::SettingsMoney {},
             Self::Notifications => crate::Route::SettingsNotifications {},
             Self::Data => crate::Route::SettingsData {},
@@ -127,6 +134,7 @@ impl SettingsSection {
                 crate::Route::Settings {} | crate::Route::SettingsProfile {}
             ),
             Self::General => matches!(route, crate::Route::SettingsPreferences {}),
+            Self::Ai => matches!(route, crate::Route::SettingsAi {}),
             Self::Money => matches!(
                 route,
                 crate::Route::SettingsMoney {}

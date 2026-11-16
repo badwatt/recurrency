@@ -6,6 +6,12 @@ pub const DEFAULT_MODEL: &str = "gpt-4o-mini";
 pub const MAX_CONTEXT_ITEMS: usize = 40;
 pub const MAX_CHAT_MESSAGES: usize = 20;
 pub const MAX_MESSAGE_CHARS: usize = 8_000;
+pub const MODELS_PATH: &str = "models";
+pub const TRANSCRIPTIONS_PATH: &str = "audio/transcriptions";
+pub const TRANSCRIPTION_MODEL: &str = "whisper-1";
+pub const MAX_MODELS: usize = 200;
+pub const MAX_TRANSCRIPTION_BYTES: usize = 10_000_000;
+pub const TRANSCRIPTION_BODY_LIMIT_BYTES: usize = 15 * 1024 * 1024;
 pub const AI_JSON_INSTRUCTION: &str = r#"You are the Recurrency assistant. The user manages subscriptions, one-time transactions and debts.
 Respond with ONLY one JSON object and no markdown fences:
 {"reply":"short natural-language confirmation or answer","actions":[]}
@@ -26,6 +32,28 @@ Each annual date may have its own amount. Do not create duplicate dates.
 If the user asks to find or add a logo, set "find_logo": true in that action's data (create or update). If they provide a logo URL, put it in "logo_url". 
 If no action is needed, return an empty actions array."#;
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub struct AiModelsRequest {
+    #[serde(default)]
+    pub base_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiModelsResponse {
+    pub models: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct AiTranscriptionRequest {
+    pub audio_base64: String,
+    pub mime_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiTranscriptionResponse {
+    pub text: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiSettingsResponse {
     pub enabled: bool,
@@ -38,6 +66,8 @@ pub struct AiSettingsResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct UpdateAiSettingsRequest {
     pub enabled: bool,
+    #[serde(default)]
+    pub provider: Option<String>,
     #[serde(default)]
     pub base_url: Option<String>,
     #[serde(default)]
@@ -107,10 +137,10 @@ mod tests {
 
     #[test]
     fn settings_request_defaults_optional_fields() {
-        let request: UpdateAiSettingsRequest =
-            serde_json::from_str(r#"{"enabled":true}"#).unwrap();
+        let request: UpdateAiSettingsRequest = serde_json::from_str(r#"{"enabled":true}"#).unwrap();
         assert!(request.enabled);
         assert!(request.api_key.is_none());
+        assert!(request.provider.is_none());
         assert!(!request.clear_api_key);
     }
 

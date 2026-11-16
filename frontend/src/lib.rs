@@ -61,6 +61,8 @@ pub enum Route {
             SettingsProfile {},
             #[route("/settings/preferences")]
             SettingsPreferences {},
+            #[route("/settings/ai")]
+            SettingsAi {},
             #[route("/settings/money")]
             SettingsMoney {},
             #[route("/settings/notifications")]
@@ -405,6 +407,11 @@ fn SettingsProfile() -> Element {
 #[component]
 fn SettingsPreferences() -> Element {
     rsx! { crate::pages::SettingsPreferencesPage {} }
+}
+
+#[component]
+fn SettingsAi() -> Element {
+    rsx! { crate::pages::SettingsAiPage {} }
 }
 
 #[component]

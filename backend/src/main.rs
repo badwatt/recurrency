@@ -173,6 +173,13 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         .route("/api/admin/users/{id}/role", put(admin::handlers::update_role))
         .route("/api/ai/settings", get(ai::handlers::get_settings).put(ai::handlers::update_settings))
         .route("/api/ai/chat", post(ai::handlers::chat))
+        .route("/api/ai/models", post(ai::handlers::models))
+        .route(
+            "/api/ai/transcribe",
+            post(ai::handlers::transcribe).layer(DefaultBodyLimit::max(
+                ai::models::TRANSCRIPTION_BODY_LIMIT_BYTES,
+            )),
+        )
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))

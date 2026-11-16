@@ -194,6 +194,26 @@ impl AiServiceTrait for TestAiService {
             actions: Vec::new(),
         })
     }
+
+    async fn models(
+        &self,
+        _user_id: uuid::Uuid,
+        _req: crate::ai::models::AiModelsRequest,
+    ) -> crate::shared::error::AppResult<crate::ai::models::AiModelsResponse> {
+        Ok(crate::ai::models::AiModelsResponse {
+            models: vec![crate::ai::models::DEFAULT_MODEL.to_string()],
+        })
+    }
+
+    async fn transcribe(
+        &self,
+        _user_id: uuid::Uuid,
+        _req: crate::ai::models::AiTranscriptionRequest,
+    ) -> crate::shared::error::AppResult<crate::ai::models::AiTranscriptionResponse> {
+        Ok(crate::ai::models::AiTranscriptionResponse {
+            text: "test transcription".to_string(),
+        })
+    }
 }
 
 /// Creates an AppState with mock auth service for testing.

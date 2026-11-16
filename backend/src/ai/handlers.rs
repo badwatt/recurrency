@@ -1,6 +1,9 @@
 use axum::{Json, extract::State, http::HeaderMap};
 
-use crate::ai::models::{AiChatRequest, AiChatResponse, AiSettingsResponse, UpdateAiSettingsRequest};
+use crate::ai::models::{
+    AiChatRequest, AiChatResponse, AiModelsRequest, AiModelsResponse, AiSettingsResponse,
+    AiTranscriptionRequest, AiTranscriptionResponse, UpdateAiSettingsRequest,
+};
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
@@ -31,9 +34,7 @@ pub async fn update_settings(
     Json(req): Json<UpdateAiSettingsRequest>,
 ) -> AppResult<Json<AiSettingsResponse>> {
     let user_id = user_id(&state, query, &headers).await?;
-    Ok(Json(
-        state.ai_service.update_settings(user_id, req).await?,
-    ))
+    Ok(Json(state.ai_service.update_settings(user_id, req).await?))
 }
 
 pub async fn chat(
@@ -46,6 +47,26 @@ pub async fn chat(
     Ok(Json(state.ai_service.chat(user_id, req).await?))
 }
 
+pub async fn models(
+    State(state): State<AppState>,
+    OptionalQuery(query): OptionalQuery<AuthQuery>,
+    headers: HeaderMap,
+    Json(req): Json<AiModelsRequest>,
+) -> AppResult<Json<AiModelsResponse>> {
+    let user_id = user_id(&state, query, &headers).await?;
+    Ok(Json(state.ai_service.models(user_id, req).await?))
+}
+
+pub async fn transcribe(
+    State(state): State<AppState>,
+    OptionalQuery(query): OptionalQuery<AuthQuery>,
+    headers: HeaderMap,
+    Json(req): Json<AiTranscriptionRequest>,
+) -> AppResult<Json<AiTranscriptionResponse>> {
+    let user_id = user_id(&state, query, &headers).await?;
+    Ok(Json(state.ai_service.transcribe(user_id, req).await?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -56,6 +77,12 @@ mod tests {
             serde_json::from_str(r#"{"messages":[{"role":"user","content":"Add Netflix"}]}"#)
                 .unwrap();
         assert_eq!(request.messages.len(), 1);
+    }
+
+    #[test]
+    fn models_request_allows_the_default_endpoint() {
+        let request: AiModelsRequest = serde_json::from_str("{}").unwrap();
+        assert!(request.base_url.is_none());
     }
 
     #[test]

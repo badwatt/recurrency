@@ -17,7 +17,8 @@ pub use dashboard::Dashboard;
 pub use debts_page::DebtsPage;
 pub use reports_page::ReportsPage;
 pub use settings_page::{
-    SettingsAboutPage, SettingsDataPage, SettingsMoneyPage, SettingsNotificationsPage,
-    SettingsAdminPage, SettingsPreferencesPage, SettingsProfilePage, SettingsServerPage,
+    SettingsAboutPage, SettingsAiPage, SettingsDataPage, SettingsMoneyPage,
+    SettingsNotificationsPage, SettingsAdminPage, SettingsPreferencesPage, SettingsProfilePage,
+    SettingsServerPage,
 };
 pub use transactions_page::TransactionsPage;
