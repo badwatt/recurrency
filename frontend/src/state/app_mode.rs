@@ -52,6 +52,11 @@ impl Default for AppModeState {
 }
 
 fn hydrate_mode_from_storage() -> (AppMode, bool) {
+    // Unit tests must never inspect the real user data directory.
+    #[cfg(test)]
+    {
+        return (AppMode::Offline, true);
+    }
     // Web builds always use the origin serving the app. There is no server
     // chooser and no offline mode on the web.
     #[cfg(target_arch = "wasm32")]
@@ -186,6 +191,10 @@ impl AppModeState {
     }
 
     fn persist(&self) {
+        #[cfg(test)]
+        {
+            return;
+        }
         #[cfg(target_arch = "wasm32")]
         {
             if let Some(window) = web_sys::window() {
@@ -222,6 +231,10 @@ impl AppModeState {
 }
 
 fn clear_mode_storage() {
+    #[cfg(test)]
+    {
+        return;
+    }
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {

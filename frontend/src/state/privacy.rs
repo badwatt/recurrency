@@ -6,6 +6,10 @@ const STORAGE_KEY: &str = "recurrency-hide-amounts";
 const FILE: &str = "hide_amounts.txt";
 
 fn load() -> bool {
+    #[cfg(test)]
+    {
+        return false;
+    }
     #[cfg(target_arch = "wasm32")]
     {
         return web_sys::window()
@@ -34,6 +38,11 @@ fn is_enabled(value: &str) -> bool {
 }
 
 pub fn persist(enabled: bool) {
+    #[cfg(test)]
+    {
+        let _ = enabled;
+        return;
+    }
     let value = if enabled { "1" } else { "0" };
     #[cfg(target_arch = "wasm32")]
     {

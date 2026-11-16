@@ -71,6 +71,11 @@ impl VoiceMode {
 }
 
 fn load_value(key: &str, file: &str) -> Option<String> {
+    #[cfg(test)]
+    {
+        let _ = (key, file);
+        return None;
+    }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = file;
@@ -87,6 +92,11 @@ fn load_value(key: &str, file: &str) -> Option<String> {
 }
 
 fn store_value(key: &str, file: &str, value: &str) {
+    #[cfg(test)]
+    {
+        let _ = (key, file, value);
+        return;
+    }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = file;

@@ -20,6 +20,10 @@ fn parse_flag(value: &str) -> bool {
 }
 
 pub fn stored() -> bool {
+    #[cfg(test)]
+    {
+        return false;
+    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         let Some(dir) = crate::state::auth::get_app_data_dir() else {
@@ -36,6 +40,11 @@ pub fn stored() -> bool {
 }
 
 pub fn set_stored(enabled: bool) {
+    #[cfg(test)]
+    {
+        let _ = enabled;
+        return;
+    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         let Some(dir) = crate::state::auth::get_app_data_dir() else {

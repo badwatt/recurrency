@@ -20,6 +20,11 @@ const VALID_VIEWS: [&str; 2] = ["grid", "list"];
 
 /// Persist a preference value to localStorage (WASM) or a file (native).
 fn persist_local(key: &str, file_name: &str, value: &str) {
+    #[cfg(test)]
+    {
+        let _ = (key, file_name, value);
+        return;
+    }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = file_name;
@@ -39,6 +44,11 @@ fn persist_local(key: &str, file_name: &str, value: &str) {
 
 /// Read a persisted preference value from localStorage (WASM) or a file (native).
 fn read_local(key: &str, file_name: &str) -> Option<String> {
+    #[cfg(test)]
+    {
+        let _ = (key, file_name);
+        return None;
+    }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = file_name;
