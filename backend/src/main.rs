@@ -75,6 +75,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             shared::db::shutdown_embedded().await;
             return Ok(());
         }
+        Command::Admin => {
+            let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
+            shared::db::run_migrations(&db_pool).await?;
+            let admin = cli
+                .admin
+                .as_ref()
+                .ok_or_else(|| std::io::Error::other("admin action is required"))?;
+            admin::cli::run(&db_pool, admin).await?;
+            shared::db::shutdown_embedded().await;
+            return Ok(());
+        }
         Command::Doctor => {
             let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             let one: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&db_pool).await?;
@@ -147,6 +158,10 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         )
         .route("/api/auth/register", post(auth::handlers::register))
         .route("/api/auth/login", post(auth::handlers::login))
+        .route(
+            "/api/auth/registration",
+            get(auth::handlers::registration_status),
+        )
         .route("/api/admin/users", get(admin::handlers::list_users))
         .route("/api/admin/settings", get(admin::handlers::get_settings).put(admin::handlers::update_settings))
         .route("/api/admin/backup", get(admin::handlers::full_backup))

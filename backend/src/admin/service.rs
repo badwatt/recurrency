@@ -311,20 +311,7 @@ impl AdminServiceTrait for SqlxAdminService {
             }
         }
 
-        let mut transaction = self.pool.begin().await?;
-        for table in USER_DELETE_ORDER {
-            let query = format!("DELETE FROM \"{table}\" WHERE user_id = $1");
-            sqlx::query(sqlx::AssertSqlSafe(query))
-                .bind(user_id)
-                .execute(&mut *transaction)
-                .await?;
-        }
-        sqlx::query("DELETE FROM users WHERE id = $1")
-            .bind(user_id)
-            .execute(&mut *transaction)
-            .await?;
-        transaction.commit().await?;
-        Ok(())
+        delete_user_data(&self.pool, user_id).await
     }
 
     async fn set_admin(
@@ -366,6 +353,26 @@ impl AdminServiceTrait for SqlxAdminService {
         .fetch_one(&self.pool)
         .await?)
     }
+}
+
+pub(crate) async fn delete_user_data(
+    pool: &PgPool,
+    user_id: uuid::Uuid,
+) -> AppResult<()> {
+    let mut transaction = pool.begin().await?;
+    for table in USER_DELETE_ORDER {
+        let query = format!("DELETE FROM \"{table}\" WHERE user_id = $1");
+        sqlx::query(sqlx::AssertSqlSafe(query))
+            .bind(user_id)
+            .execute(&mut *transaction)
+            .await?;
+    }
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id)
+        .execute(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(())
 }
 
 #[cfg(test)]
