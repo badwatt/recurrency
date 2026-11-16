@@ -81,6 +81,8 @@ pub fn filter_sort_group(
             "date" => a.date.cmp(&b.date),
             "amount" => a.amount.cmp(&b.amount),
             "name" => a.name.cmp(&b.name),
+            "created_at" => a.created_at.cmp(&b.created_at),
+            "updated_at" => a.updated_at.cmp(&b.updated_at),
             _ => a.date.cmp(&b.date),
         };
         if sort.direction == "asc" {
