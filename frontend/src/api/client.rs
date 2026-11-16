@@ -288,6 +288,7 @@ fn ureq_handle_resp<T: serde::de::DeserializeOwned>(
 ) -> Result<T, ApiError> {
     let status = resp.status().as_u16();
     if status == 401 {
+        crate::state::auth::mark_session_expired();
         return Err(ApiError::Unauthorized);
     }
     if !(200..300).contains(&status) {
@@ -329,7 +330,10 @@ pub async fn api_get<T: DeserializeOwned + Send + 'static>(path: &str) -> Result
         }
         let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
-        if status == 401 { return Err(ApiError::Unauthorized); }
+        if status == 401 {
+            crate::state::auth::mark_session_expired();
+            return Err(ApiError::Unauthorized);
+        }
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));
@@ -373,7 +377,10 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
         }
         let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
-        if status == 401 { return Err(ApiError::Unauthorized); }
+        if status == 401 {
+            crate::state::auth::mark_session_expired();
+            return Err(ApiError::Unauthorized);
+        }
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));
@@ -417,7 +424,10 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
         }
         let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
-        if status == 401 { return Err(ApiError::Unauthorized); }
+        if status == 401 {
+            crate::state::auth::mark_session_expired();
+            return Err(ApiError::Unauthorized);
+        }
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));
@@ -440,7 +450,10 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
                 let req = ureq_request("DELETE", &url, &headers);
                 let mut resp = req.call().map_err(|e| ApiError::Network(e.to_string()))?;
                 let status = resp.status().as_u16();
-                if status == 401 { return Err(ApiError::Unauthorized); }
+                if status == 401 {
+            crate::state::auth::mark_session_expired();
+            return Err(ApiError::Unauthorized);
+        }
                 if !(200..300).contains(&status) {
                     let body = resp.body_mut().read_to_string().unwrap_or_default();
                     return Err(ApiError::Http(status, body));
@@ -463,7 +476,10 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
         }
         let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
-        if status == 401 { return Err(ApiError::Unauthorized); }
+        if status == 401 {
+            crate::state::auth::mark_session_expired();
+            return Err(ApiError::Unauthorized);
+        }
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));

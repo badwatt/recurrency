@@ -2,9 +2,7 @@
 use crate::components::ai_chat::{AiChat, AI_CHAT_OPEN};
 use crate::components::privacy_toggle::PrivacyToggle;
 use crate::state::ai::{AI_SETTINGS, is_configured};
-#[cfg(all(target_os = "linux", feature = "desktop"))]
-use crate::components::toast::TOAST;
-use crate::components::toast::ToastContainer;
+use crate::components::toast::{TOAST, ToastContainer};
 use crate::components::update_banner::UpdateBanner;
 use crate::state::preferences::PREFERENCES;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
@@ -114,12 +112,29 @@ pub fn AppLayout() -> Element {
     }
 
     let current_route: crate::Route = use_route();
+    use_effect(move || {
+        if *crate::state::auth::SESSION_EXPIRED.read() {
+            *crate::state::auth::SESSION_EXPIRED.write() = false;
+            crate::state::auth::clear_expired_session();
+            TOAST.write().error("Session expired. Sign in again.");
+        }
+    });
     use_future(move || async move {
         if crate::api::client::is_offline_mode() {
             return;
         }
-        if let Ok(settings) = crate::api::ai::settings().await {
-            *AI_SETTINGS.write() = Some(settings);
+        for attempt in 0..3 {
+            if let Ok(settings) = crate::api::ai::settings().await {
+                *AI_SETTINGS.write() = Some(settings);
+                return;
+            }
+            if *crate::state::auth::SESSION_EXPIRED.read() || attempt == 2 {
+                return;
+            }
+            #[cfg(target_arch = "wasm32")]
+            gloo_timers::future::TimeoutFuture::new(2500).await;
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
         }
     });
     use_effect(move || {
@@ -163,6 +178,7 @@ pub fn AppLayout() -> Element {
         crate::Route::Settings {}
             | crate::Route::SettingsProfile {}
             | crate::Route::SettingsPreferences {}
+            | crate::Route::SettingsAi {}
             | crate::Route::SettingsMoney {}
             | crate::Route::SettingsNotifications {}
             | crate::Route::SettingsData {}

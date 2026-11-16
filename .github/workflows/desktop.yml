@@ -70,6 +70,16 @@ jobs:
           workspaces: frontend
           cache-on-failure: true
 
+      - name: Refresh sherpa-onnx native libs
+        shell: bash
+        # The prebuilt sherpa archive lives outside Cargo's fingerprint output.
+        # A restored target cache can therefore make the linker look for
+        # libraries that are not present. Force the build script to fetch them.
+        run: |
+          cargo clean -p sherpa-onnx-sys || true
+          (cd frontend && cargo clean -p sherpa-onnx-sys) || true
+          rm -rf target/sherpa-onnx-prebuilt frontend/target/sherpa-onnx-prebuilt
+
       - name: Build desktop bundle
         run: cargo build-desktop
 

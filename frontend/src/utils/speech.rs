@@ -25,12 +25,30 @@ pub enum SpeechInput {
 
 /// Start dictation and wait for a final transcript or a recorded audio clip.
 pub async fn listen(mode: VoiceMode) -> Result<SpeechInput, String> {
+    let result = listen_once(mode).await;
+    if mode == VoiceMode::Auto
+        && let Err(error) = &result
+        && should_retry_with_provider(error)
+    {
+        return listen_once(VoiceMode::Provider).await;
+    }
+    result
+}
+
+async fn listen_once(mode: VoiceMode) -> Result<SpeechInput, String> {
     let mut eval = document::eval(&start_script(mode));
     let raw = eval
         .recv::<String>()
         .await
         .map_err(|_| "Voice input was interrupted".to_string())?;
     parse_result(&raw)
+}
+
+fn should_retry_with_provider(error: &str) -> bool {
+    let error = error.to_ascii_lowercase();
+    error.contains("speech service is unavailable")
+        || error.contains("service-not-allowed")
+        || error.contains("not supported on this device")
 }
 
 /// Stop the active recording or browser recognition. The pending `listen`
@@ -87,7 +105,7 @@ fn speech_error(code: &str) -> String {
             "Microphone permission denied or no microphone was found".to_string()
         }
         "no-speech" => "No speech detected. Try again".to_string(),
-        "network" => "The speech service is unavailable".to_string(),
+        "network" | "service-not-allowed" => "The speech service is unavailable".to_string(),
         "aborted" => "Dictation was cancelled".to_string(),
         "recording" => "Could not record audio".to_string(),
         other => format!("Voice input failed: {other}"),
@@ -358,6 +376,16 @@ mod tests {
                 .unwrap_err()
                 .contains("not supported")
         );
+    }
+
+    #[test]
+    fn unavailable_browser_speech_can_fall_back_to_provider() {
+        assert!(should_retry_with_provider("The speech service is unavailable"));
+        assert!(should_retry_with_provider("Voice input failed: service-not-allowed"));
+        assert!(should_retry_with_provider("Voice input is not supported on this device. Check the microphone permission."));
+        assert!(!should_retry_with_provider("No speech detected"));
+        assert!(!should_retry_with_provider("Microphone permission denied"));
+        assert!(!should_retry_with_provider("Dictation cancelled"));
     }
 
     #[test]

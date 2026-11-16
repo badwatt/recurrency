@@ -254,6 +254,22 @@ fn native_app_dir() -> Option<std::path::PathBuf> {
     get_app_data_dir().map(|dir| dir.join("recurrency"))
 }
 
+/// Set when an authenticated API call receives HTTP 401. The layout reacts by
+/// ending the stale session and returning to the login screen, while keeping
+/// the server mode and the user's theme untouched.
+pub static SESSION_EXPIRED: GlobalSignal<bool> = Signal::global(|| false);
+
+pub fn mark_session_expired() {
+    if AUTH().is_authenticated {
+        *SESSION_EXPIRED.write() = true;
+    }
+}
+
+pub fn clear_expired_session() {
+    AUTH.write().logout();
+    AUTH.write().persist_to_storage();
+}
+
 pub static AUTH: GlobalSignal<AuthState> = Signal::global(AuthState::default);
 
 #[cfg(test)]
