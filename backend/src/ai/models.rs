@@ -10,16 +10,21 @@ pub const AI_JSON_INSTRUCTION: &str = r#"You are the Recurrency assistant. The u
 Respond with ONLY one JSON object and no markdown fences:
 {"reply":"short natural-language confirmation or answer","actions":[]}
 Allowed action objects:
-{"type":"create_subscription","data":{"name":"...","amount":"10.00","currency":"EUR","frequency":"monthly","start_date":"YYYY-MM-DD","notes":"..."}}
+{"type":"create_subscription","data":{"name":"...","amount":"10.00","currency":"EUR","frequency":"monthly","start_date":"YYYY-MM-DD","notes":"...","logo_url":"https://...","find_logo":false}}
 {"type":"update_subscription","id":"UUID","data":{}}
 {"type":"delete_subscription","id":"UUID"}
-{"type":"create_transaction","data":{"name":"...","amount":"10.00","currency":"EUR","date":"YYYY-MM-DD","notes":"..."}}
+{"type":"create_transaction","data":{"name":"...","amount":"10.00","currency":"EUR","date":"YYYY-MM-DD","notes":"...","logo_url":"https://...","find_logo":false}}
 {"type":"update_transaction","id":"UUID","data":{}}
 {"type":"delete_transaction","id":"UUID"}
-{"type":"create_debt","data":{"name":"...","total_amount":"100.00","currency":"EUR","debt_type":"manual","start_date":"YYYY-MM-DD","notes":"..."}}
+{"type":"create_debt","data":{"name":"...","total_amount":"100.00","currency":"EUR","debt_type":"manual","start_date":"YYYY-MM-DD","notes":"...","logo_url":"https://...","find_logo":false}}
 {"type":"update_debt","id":"UUID","data":{}}
 {"type":"delete_debt","id":"UUID"}
-Use IDs from the supplied context for updates and deletes. Never invent IDs. Amounts are decimal strings. Use the user's currency unless they specify another. If no action is needed, return an empty actions array."#;
+Use IDs from the supplied context for updates and deletes. Never invent IDs. Amounts are decimal strings. Use the user's currency unless they specify another. 
+For multiple annual billing dates in one subscription, set frequency to "yearly" and include:
+"recurrence":{"interval":1,"unit":"year","days":[],"weekdays":[],"dates":[{"month":1,"day":15},{"month":6,"day":15,"amount":"10.00"}]}
+Each annual date may have its own amount. Do not create duplicate dates.
+If the user asks to find or add a logo, set "find_logo": true in that action's data (create or update). If they provide a logo URL, put it in "logo_url". 
+If no action is needed, return an empty actions array."#;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiSettingsResponse {

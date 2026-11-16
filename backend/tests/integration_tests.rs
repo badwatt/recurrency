@@ -1557,8 +1557,18 @@ async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
             "data": {
                 "name": "AI subscription",
                 "amount": "9.99",
-                "frequency": "monthly",
-                "start_date": "2026-01-01"
+                "start_date": "2026-01-01",
+                "logo_url": "https://example.test/logo.png",
+                "recurrence": {
+                    "interval": 1,
+                    "unit": "year",
+                    "days": [],
+                    "weekdays": [],
+                    "dates": [
+                        {"month": 1, "day": 15},
+                        {"month": 6, "day": 15, "amount": "5.00"}
+                    ]
+                }
             }
         }]
     })
@@ -1614,11 +1624,19 @@ async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
         .unwrap();
     server.join().unwrap();
     assert!(response.actions.iter().any(|action| action.success));
-    let name: Option<String> =
-        sqlx::query_scalar("SELECT name FROM subscriptions WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .unwrap();
+    let (name, logo, recurrence): (Option<String>, Option<String>, Option<String>) =
+        sqlx::query_as(
+            "SELECT name, logo_url, recurrence::text FROM subscriptions WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap()
+        .map(|(name, logo, recurrence): (String, Option<String>, String)| {
+            (Some(name), logo, Some(recurrence))
+        })
+        .unwrap_or((None, None, None));
     assert_eq!(name.as_deref(), Some("AI subscription"));
+    assert_eq!(logo.as_deref(), Some("https://example.test/logo.png"));
+    assert!(recurrence.unwrap().contains("\"month\": 6"));
 }

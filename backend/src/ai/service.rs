@@ -148,8 +148,10 @@ impl SqlxAiService {
                 "amount": value.amount,
                 "currency": value.currency,
                 "frequency": value.frequency,
+                "recurrence": value.recurrence.0,
                 "next_billing_date": value.next_billing_date,
                 "is_active": value.is_active,
+                "logo_url": value.logo_url,
             })).collect::<Vec<_>>(),
             "transactions": transactions.into_iter().take(MAX_CONTEXT_ITEMS).map(|value| json!({
                 "id": value.id,
@@ -157,6 +159,7 @@ impl SqlxAiService {
                 "amount": value.amount,
                 "currency": value.currency,
                 "date": value.date,
+                "logo_url": value.logo_url,
             })).collect::<Vec<_>>(),
             "debts": debts.into_iter().take(MAX_CONTEXT_ITEMS).map(|value| json!({
                 "id": value.id,
@@ -165,6 +168,7 @@ impl SqlxAiService {
                 "remaining_amount": value.remaining_amount,
                 "currency": value.currency,
                 "debt_type": value.debt_type,
+                "logo_url": value.logo_url,
             })).collect::<Vec<_>>(),
             "accounts": accounts.into_iter().take(MAX_CONTEXT_ITEMS).map(|value| json!({
                 "id": value.id,
@@ -254,7 +258,18 @@ impl SqlxAiService {
             .cloned()
             .ok_or_else(|| AppError::BadRequest("Subscription data must be an object".to_string()))?;
         data.entry("currency").or_insert_with(|| json!(currency));
-        data.entry("frequency").or_insert_with(|| json!("monthly"));
+        let find_logo = data.remove("find_logo").and_then(|value| value.as_bool()).unwrap_or(false);
+        let name = data.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        if find_logo
+            && data.get("logo_url").and_then(Value::as_str).is_none()
+            && let Some(logo) = find_logo_url(&name).await
+        {
+            data.insert("logo_url".to_string(), json!(logo));
+        }
+        if data.get("frequency").is_none() {
+            let annual = data.get("recurrence").and_then(|value| value.get("unit")).and_then(Value::as_str) == Some("year");
+            data.insert("frequency".to_string(), json!(if annual { "yearly" } else { "monthly" }));
+        }
         data.entry("start_date").or_insert_with(|| json!(Utc::now().date_naive().to_string()));
         let request: CreateSubscriptionRequest = serde_json::from_value(Value::Object(data))
             .map_err(|error| AppError::BadRequest(format!("Invalid subscription: {error}")))?;
@@ -270,8 +285,9 @@ impl SqlxAiService {
         action: &AiAction,
     ) -> AppResult<String> {
         let id = action_uuid(action)?;
+        let data = resolve_update_logo(&action.data).await;
         let request: UpdateSubscriptionRequest =
-            serde_json::from_value(action.data.clone())
+            serde_json::from_value(data)
                 .map_err(|error| AppError::BadRequest(format!("Invalid subscription update: {error}")))?;
         let subscription = SqlxSubscriptionService::new(self.pool.clone())
             .update(user_id, id, request)
@@ -294,6 +310,14 @@ impl SqlxAiService {
             .cloned()
             .ok_or_else(|| AppError::BadRequest("Transaction data must be an object".to_string()))?;
         data.entry("currency").or_insert_with(|| json!(currency));
+        let find_logo = data.remove("find_logo").and_then(|value| value.as_bool()).unwrap_or(false);
+        let name = data.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        if find_logo
+            && data.get("logo_url").and_then(Value::as_str).is_none()
+            && let Some(logo) = find_logo_url(&name).await
+        {
+            data.insert("logo_url".to_string(), json!(logo));
+        }
         data.entry("date").or_insert_with(|| json!(Utc::now().date_naive().to_string()));
         let request: CreateTransactionRequest = serde_json::from_value(Value::Object(data))
             .map_err(|error| AppError::BadRequest(format!("Invalid transaction: {error}")))?;
@@ -305,7 +329,8 @@ impl SqlxAiService {
 
     async fn update_transaction(&self, user_id: Uuid, action: &AiAction) -> AppResult<String> {
         let id = action_uuid(action)?;
-        let request: UpdateTransactionRequest = serde_json::from_value(action.data.clone())
+        let data = resolve_update_logo(&action.data).await;
+        let request: UpdateTransactionRequest = serde_json::from_value(data)
             .map_err(|error| AppError::BadRequest(format!("Invalid transaction update: {error}")))?;
         let transaction = SqlxTransactionService::new(self.pool.clone())
             .update(user_id, id, request)
@@ -329,6 +354,14 @@ impl SqlxAiService {
             .ok_or_else(|| AppError::BadRequest("Debt data must be an object".to_string()))?;
         data.entry("currency").or_insert_with(|| json!(currency));
         data.entry("debt_type").or_insert_with(|| json!("manual"));
+        let find_logo = data.remove("find_logo").and_then(|value| value.as_bool()).unwrap_or(false);
+        let name = data.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        if find_logo
+            && data.get("logo_url").and_then(Value::as_str).is_none()
+            && let Some(logo) = find_logo_url(&name).await
+        {
+            data.insert("logo_url".to_string(), json!(logo));
+        }
         let request: CreateDebtRequest = serde_json::from_value(Value::Object(data))
             .map_err(|error| AppError::BadRequest(format!("Invalid debt: {error}")))?;
         let debt = SqlxDebtService::new(self.pool.clone())
@@ -339,7 +372,8 @@ impl SqlxAiService {
 
     async fn update_debt(&self, user_id: Uuid, action: &AiAction) -> AppResult<String> {
         let id = action_uuid(action)?;
-        let request: UpdateDebtRequest = serde_json::from_value(action.data.clone())
+        let data = resolve_update_logo(&action.data).await;
+        let request: UpdateDebtRequest = serde_json::from_value(data)
             .map_err(|error| AppError::BadRequest(format!("Invalid debt update: {error}")))?;
         let debt = SqlxDebtService::new(self.pool.clone())
             .update(user_id, id, request)
@@ -468,6 +502,35 @@ impl AiServiceTrait for SqlxAiService {
         }
         Ok(AiChatResponse { reply, actions })
     }
+}
+
+async fn resolve_update_logo(data: &Value) -> Value {
+    let mut data = data.clone();
+    let Some(object) = data.as_object_mut() else {
+        return data;
+    };
+    let find_logo = object
+        .remove("find_logo")
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
+    if find_logo && object.get("logo_url").and_then(Value::as_str).is_none() {
+        let name = object.get("name").and_then(Value::as_str).unwrap_or_default();
+        if let Some(logo) = find_logo_url(name).await {
+            object.insert("logo_url".to_string(), json!(logo));
+        }
+    }
+    data
+}
+
+async fn find_logo_url(name: &str) -> Option<String> {
+    if name.trim().is_empty() {
+        return None;
+    }
+    crate::logos::service::search_logos(name)
+        .await
+        .ok()
+        .and_then(|results| results.into_iter().next())
+        .map(|result| result.url)
 }
 
 fn chat_endpoint(base_url: &str) -> String {
