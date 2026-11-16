@@ -6,6 +6,8 @@ const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page.rs"),
     include_str!("../admin_page.rs"),
     include_str!("../settings_page/ai_card.rs"),
+    include_str!("../settings_page/ai_page.rs"),
+    include_str!("../settings_page/voice_card.rs"),
     include_str!("../settings_page/profile_card.rs"),
     include_str!("../settings_page/preferences_card.rs"),
     include_str!("../settings_page/exchange_rates_card.rs"),
@@ -32,13 +34,17 @@ const SETTINGS_SOURCES: &str = concat!(
     }
 
     #[test]
-    fn ai_and_exchange_rates_live_in_general() {
-        assert!(SETTINGS_SOURCES.contains("AiSettingsCard"));
-        assert!(SETTINGS_SOURCES.contains("ExchangeRatesCard"));
+    fn ai_has_its_own_settings_section() {
+        assert!(SETTINGS_SOURCES.contains("SettingsAiPage"));
+        assert!(SETTINGS_SOURCES.contains("AiConnectionCard"));
+        assert!(SETTINGS_SOURCES.contains("AiVoiceCard"));
+        assert!(SETTINGS_SOURCES.contains("Refresh models"));
         let page = include_str!("../settings_page.rs");
         assert!(page.contains("PreferencesCard {}"));
-        assert!(page.contains("AiSettingsCard {}"));
+        assert!(!page.contains("AiSettingsCard {}"));
         assert!(page.contains("ExchangeRatesCard {}"));
+        let layout = include_str!("../../layout/settings_layout.rs");
+        assert!(layout.contains("Self::Ai => \"AI assistant\""));
     }
 
     #[test]
@@ -58,6 +64,16 @@ const SETTINGS_SOURCES: &str = concat!(
         assert!(SETTINGS_SOURCES.contains("delete_user"));
         assert!(SETTINGS_SOURCES.contains("set_admin"));
         assert!(SETTINGS_SOURCES.contains("registration_enabled"));
+    }
+
+    #[test]
+    fn ai_has_its_own_route_and_sidebar_entry() {
+        let layout = include_str!("../../layout/settings_layout.rs");
+        assert!(layout.contains("SettingsSection::Ai"));
+        assert!(layout.contains("crate::Route::SettingsAi {}"));
+        let router = include_str!("../../lib.rs");
+        assert!(router.contains("#[route(\"/settings/ai\")]"));
+        assert!(router.contains("SettingsAi {}"));
     }
 
     #[test]
@@ -689,7 +705,7 @@ fn about_page_has_version_changelog_and_star_prompt() {
 
 #[test]
 fn settings_expose_backup_import_and_download() {
-    let backup = include_str!("../settings_page/backup_card.rs");
+    let backup = include_str!("../../components/backup_restore_card.rs");
     assert!(backup.contains("Download backup"));
     assert!(backup.contains("ondrop"));
     assert!(backup.contains("Restore backup"));
@@ -710,7 +726,7 @@ fn backup_download_uses_native_download_bridge() {
 
 #[test]
 fn backup_download_button_is_right_on_desktop_and_centered_on_mobile() {
-    let src = include_str!("backup_card.rs");
+    let src = include_str!("../../components/backup_restore_card.rs");
     assert!(src.contains("sm:flex-row"));
     assert!(src.contains("sm:justify-between"));
     assert!(src.contains("sm:text-left"));
@@ -725,7 +741,7 @@ fn summary_card_offers_last_day_of_month() {
 
 #[test]
 fn android_backup_picker_uses_the_native_bridge() {
-    let src = include_str!("backup_card.rs");
+    let src = include_str!("../../components/backup_restore_card.rs");
     assert!(src.contains("RecurrencyFilePicker"));
     assert!(src.contains("__recurrencyBackupPicked"));
 }
@@ -744,7 +760,7 @@ fn local_sync_card_uses_android_folder_bridge() {
 
 #[test]
 fn backup_choose_file_has_a_pointer_cursor_on_desktop() {
-    let src = include_str!("backup_card.rs");
+    let src = include_str!("../../components/backup_restore_card.rs");
     assert!(src.contains("cursor: pointer;"));
     assert!(src.contains("cursor-pointer"));
 }

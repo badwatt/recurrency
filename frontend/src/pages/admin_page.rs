@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
-use lucide_dioxus::{Download, FileText, ShieldCheck, Trash, Upload};
+use lucide_dioxus::{ShieldCheck, Trash};
 
 use crate::api::admin::{self, AdminSettings, AdminUser};
+use crate::components::backup_restore_card::BackupRestoreCard;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::toast::TOAST;
@@ -9,7 +10,10 @@ use crate::state::auth::AUTH;
 
 const ADMIN_BACKUP_FILENAME: &str = "recurrency-admin-backup.json";
 const ADMIN_BACKUP_MIME: &str = "application/json";
-const ADMIN_BACKUP_ACCEPT: &str = "application/json,.json";
+const ADMIN_BACKUP_DETAIL: &str = "Every table, including users, accounts and server settings";
+const ADMIN_BACKUP_NOTE: &str = "Keep it private; it contains every server table.";
+const ADMIN_RESTORE_WARNING: &str =
+    "All current users, financial data and server settings will be replaced.";
 const ADMIN_DATE_FORMAT: &str = "%Y-%m-%d";
 const UNKNOWN_NAME: &str = "No name";
 
@@ -74,7 +78,7 @@ pub fn AdminPage() -> Element {
         });
     };
 
-    let download_backup = move |_| {
+    let download_backup = move |_: ()| {
         if backing_up() {
             return;
         }
@@ -102,20 +106,13 @@ pub fn AdminPage() -> Element {
         });
     };
 
-    let stage_restore = move |file: dioxus::html::FileData| {
-        spawn(async move {
-            match file.read_string().await {
-                Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-                    Ok(value) => restore_pending.set(Some(value)),
-                    Err(_) => TOAST
-                        .write()
-                        .error("That file is not a valid Recurrency full backup"),
-                },
-                Err(error) => TOAST
-                    .write()
-                    .error(format!("Could not read backup: {error}")),
-            }
-        });
+    let stage_restore = move |text: String| {
+        match serde_json::from_str::<serde_json::Value>(&text) {
+            Ok(value) => restore_pending.set(Some(value)),
+            Err(_) => TOAST
+                .write()
+                .error("That file is not a valid Recurrency full backup"),
+        }
     };
 
     let confirm_restore = move |_| {
@@ -293,80 +290,18 @@ pub fn AdminPage() -> Element {
                 }
             }
 
-            div { class: "rounded-xl border border-border/40 bg-card/80 overflow-hidden",
-                div { class: "flex items-start gap-3 border-b border-border p-6",
-                    span { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", Download { size: 20 } }
-                    div {
-                        h2 { class: "text-lg font-semibold", "Full installation backup" }
-                        p { class: "text-sm text-muted-foreground",
-                            "Download every table, including users, accounts, categories and settings."
-                        }
-                    }
-                    button {
-                        r#type: "button",
-                        class: "ml-auto inline-flex h-9 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
-                        disabled: backing_up(),
-                        onclick: download_backup,
-                        Download { size: 15 }
-                        if backing_up() { "Preparing…" } else { "Download" }
-                    }
-                }
-                div { class: "flex items-center gap-3 p-4 text-xs text-muted-foreground",
-                    FileText { size: 16 }
-                    span { "JSON snapshot, generated with the current app version." }
-                }
-            }
-
-            div { class: "rounded-xl border border-border/40 bg-card/80",
-                div { class: "flex items-start gap-3 border-b border-border p-6",
-                    span { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400", Upload { size: 20 } }
-                    div {
-                        h2 { class: "text-lg font-semibold", "Restore full backup" }
-                        p { class: "text-sm text-muted-foreground",
-                            "Replace every server table with a full backup file. This cannot be undone."
-                        }
-                    }
-                }
-                div { class: "space-y-4 p-6",
-                    label { class: "relative inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
-                        Upload { size: 15 }
-                        "Choose backup"
-                        input {
-                            r#type: "file",
-                            accept: ADMIN_BACKUP_ACCEPT,
-                            aria_label: "Choose full backup",
-                            class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
-                            onchange: move |event| {
-                                if let Some(file) = event.files().first().cloned() {
-                                    stage_restore(file);
-                                }
-                            },
-                        }
-                    }
-                    if let Some(_) = restore_pending() {
-                        div { class: "rounded-lg border border-destructive/40 bg-destructive/10 p-4",
-                            p { class: "text-sm font-medium text-destructive", "Restore this backup?" }
-                            p { class: "mt-1 text-xs text-muted-foreground",
-                                "All current users, financial data and server settings will be replaced."
-                            }
-                            div { class: "mt-3 flex flex-wrap gap-2",
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-8 items-center rounded-md bg-destructive px-3 text-xs font-medium text-white hover:bg-destructive/90 disabled:opacity-50",
-                                    disabled: restoring(),
-                                    onclick: confirm_restore,
-                                    if restoring() { "Restoring…" } else { "Restore backup" }
-                                }
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted",
-                                    onclick: move |_| restore_pending.set(None),
-                                    "Cancel"
-                                }
-                            }
-                        }
-                    }
-                }
+            BackupRestoreCard {
+                file_name: ADMIN_BACKUP_FILENAME,
+                file_detail: ADMIN_BACKUP_DETAIL,
+                export_note: ADMIN_BACKUP_NOTE,
+                import_warning: ADMIN_RESTORE_WARNING,
+                pending: restore_pending().is_some(),
+                exporting: backing_up(),
+                restoring: restoring(),
+                on_export: download_backup,
+                on_text: stage_restore,
+                on_confirm: confirm_restore,
+                on_cancel: move |_| restore_pending.set(None),
             }
 
             if let Some(target) = delete_target().and_then(|id| users().into_iter().find(|user| user.id == id)) {
@@ -494,5 +429,17 @@ fn UserRow(
                 }
             }
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn admin_backups_use_the_same_card_as_data_backup() {
+        let source = include_str!("admin_page.rs");
+        assert!(source.contains("BackupRestoreCard"));
+        assert!(source.contains("ADMIN_BACKUP_FILENAME"));
+        assert!(source.contains("ADMIN_RESTORE_WARNING"));
     }
 }

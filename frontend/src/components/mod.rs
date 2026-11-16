@@ -1,4 +1,5 @@
 pub mod account_fields;
+pub mod backup_restore_card;
 pub mod badge;
 pub mod button;
 pub mod card;
