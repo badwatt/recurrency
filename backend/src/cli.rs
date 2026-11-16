@@ -1,5 +1,7 @@
 //! Small command-line surface for the standalone all-in-one binary.
 
+use std::path::PathBuf;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     Serve,
@@ -15,6 +17,7 @@ pub struct Cli {
     pub command: Command,
     pub port: Option<u16>,
     pub database_url: Option<String>,
+    pub backup_dir: Option<PathBuf>,
     pub enable_web: Option<bool>,
 }
 
@@ -24,6 +27,7 @@ impl Default for Cli {
             command: Command::Serve,
             port: None,
             database_url: None,
+            backup_dir: None,
             enable_web: None,
         }
     }
@@ -61,6 +65,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                         .ok_or_else(|| "--database-url needs a value".to_string())?,
                 );
             }
+            "--backup-dir" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "--backup-dir needs a value".to_string())?;
+                cli.backup_dir = Some(PathBuf::from(value));
+            }
             "--no-web" => cli.enable_web = Some(false),
             "--enable-web" => cli.enable_web = Some(true),
             other => return Err(format!("unknown option: {other}")),
@@ -74,7 +84,7 @@ pub fn usage() -> &'static str {
      Usage:\n\
        recurrency [serve] [options]\n\
        recurrency migrate [--database-url URL]\n\
-       recurrency backup [--database-url URL]\n\
+       recurrency backup [--database-url URL] [--backup-dir DIR]\n\
        recurrency doctor\n\n\
      Options:\n\
        --port PORT             API port (default: APP_PORT or 8080)\n\
@@ -100,6 +110,7 @@ mod tests {
         assert_eq!(cli.command, Command::Serve);
         assert!(cli.port.is_none());
         assert!(cli.enable_web.is_none());
+        assert!(cli.backup_dir.is_none());
     }
 
     #[test]
@@ -117,6 +128,9 @@ mod tests {
         assert_eq!(cli.port, Some(9090));
         assert_eq!(cli.database_url.as_deref(), Some("postgres://db/app"));
         assert_eq!(cli.enable_web, Some(false));
+        let backup = parse(args(&["backup", "--backup-dir", "/tmp/backups"])).unwrap();
+        assert_eq!(backup.command, Command::Backup);
+        assert_eq!(backup.backup_dir.as_deref(), Some(std::path::Path::new("/tmp/backups")));
     }
 
     #[test]

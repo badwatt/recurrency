@@ -26,11 +26,11 @@ struct BackupConfig {
 }
 
 impl BackupConfig {
-    fn from_env() -> Self {
+    fn from_env(output_dir: Option<PathBuf>) -> Self {
         Self {
-            output_dir: std::env::var("BACKUP_DIR")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from(DEFAULT_BACKUP_DIR)),
+            output_dir: output_dir
+                .or_else(|| std::env::var("BACKUP_DIR").ok().map(PathBuf::from))
+                .unwrap_or_else(|| PathBuf::from(DEFAULT_BACKUP_DIR)),
             retention_days: parse_retention_days(
                 std::env::var("BACKUP_RETENTION_DAYS").ok().as_deref(),
             ),
@@ -206,8 +206,11 @@ fn prune_old_backups(
 }
 
 /// Create a dump, verify it, optionally restore it, and prune old backups.
-pub async fn run(database_url: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let config = BackupConfig::from_env();
+pub async fn run(
+    database_url: &str,
+    output_dir: Option<PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let config = BackupConfig::from_env(output_dir);
     std::fs::create_dir_all(&config.output_dir)?;
 
     let now = Utc::now();
