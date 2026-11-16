@@ -319,6 +319,8 @@ pub fn DebtsPage() -> Element {
         let order = match sort_value.as_str() {
             "remaining" => a.remaining_amount.cmp(&b.remaining_amount),
             "next" => a.next_payment_date.cmp(&b.next_payment_date),
+            "created_at" => a.created_at.cmp(&b.created_at),
+            "updated_at" => a.updated_at.cmp(&b.updated_at),
             _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
         };
         if sort_desc { order.reverse() } else { order }
@@ -398,6 +400,8 @@ pub fn DebtsPage() -> Element {
                         option { value: "name", "Name" }
                         option { value: "remaining", "Remaining" }
                         option { value: "next", "Next payment" }
+                        option { value: "created_at", "Created" }
+                        option { value: "updated_at", "Last modified" }
                     }
                     button {
                         r#type: "button",
@@ -1076,5 +1080,17 @@ mod bulk_tests {
         assert!(src.contains("Apply category"));
         assert!(src.contains("Select debt"));
         assert!(src.contains("Delete"));
+    }
+}
+
+
+#[cfg(test)]
+mod debt_sort_options_test {
+    #[test]
+    fn debt_sort_exposes_created_and_updated_options() {
+        let source = include_str!("debts_page.rs");
+        assert!(source.contains("created_at"));
+        assert!(source.contains("updated_at"));
+        assert!(source.contains("Last modified"));
     }
 }

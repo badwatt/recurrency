@@ -46,6 +46,8 @@ pub const SORT_OPTIONS: &[(&str, &str)] = &[
     ("name", "Name"),
     ("frequency", "Repeat"),
     ("start_date", "Start date"),
+    ("created_at", "Created"),
+    ("updated_at", "Last modified"),
 ];
 
 pub fn count_active_filters(f: &FilterConfig) -> usize {
@@ -186,6 +188,8 @@ pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
                     .timestamp_millis();
                 a_val.cmp(&b_val)
             }
+            "created_at" => a.created_at.cmp(&b.created_at),
+            "updated_at" => a.updated_at.cmp(&b.updated_at),
             _ => std::cmp::Ordering::Equal,
         };
         if sort.direction == "desc" {

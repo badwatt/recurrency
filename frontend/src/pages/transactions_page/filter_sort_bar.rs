@@ -137,6 +137,8 @@ pub fn FilterSortBar(
                         option { value: "date", "Date" }
                         option { value: "amount", "Price" }
                         option { value: "name", "Name" }
+                        option { value: "created_at", "Created" }
+                        option { value: "updated_at", "Last modified" }
                     }
                     button {
                         r#type: "button",

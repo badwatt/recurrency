@@ -1803,3 +1803,38 @@ fn transaction_cards_expose_colored_category_badge() {
     assert!(src.contains("category.color"));
     assert!(src.contains("Select transaction"));
 }
+
+
+#[test]
+fn sorts_transactions_by_created_and_updated_timestamps() {
+    let cat = Uuid::new_v4();
+    let mut first = make_txn(
+        "First",
+        dec!(10),
+        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        cat,
+    );
+    first.created_at = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    first.updated_at = first.created_at;
+    let mut second = make_txn(
+        "Second",
+        dec!(20),
+        NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
+        cat,
+    );
+    second.created_at = chrono::DateTime::parse_from_rfc3339("2026-02-01T00:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    second.updated_at = second.created_at;
+    let groups = filter_sort_group(
+        &[second, first],
+        &FilterConfig::default(),
+        &SortConfig {
+            field: "updated_at".into(),
+            direction: "desc".into(),
+        },
+    );
+    assert_eq!(groups[0].transactions[0].name, "Second");
+}

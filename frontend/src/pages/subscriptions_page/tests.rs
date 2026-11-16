@@ -821,7 +821,7 @@
 
     #[test]
     fn sort_options_count() {
-        assert_eq!(SORT_OPTIONS.len(), 5);
+        assert_eq!(SORT_OPTIONS.len(), 7);
     }
 
     #[test]
@@ -840,6 +840,8 @@
         assert!(keys.contains(&"name"));
         assert!(keys.contains(&"frequency"));
         assert!(keys.contains(&"start_date"));
+        assert!(keys.contains(&"created_at"));
+        assert!(keys.contains(&"updated_at"));
     }
 
     // ── Subscription model tests ──
@@ -1863,4 +1865,30 @@ fn subscriptions_support_bulk_category() {
 fn subscription_card_overlay_uses_an_inline_background() {
     let src = include_str!("cards.rs");
     assert!(src.contains("background-color: var(--card); opacity: 0.75;"));
+}
+
+
+#[test]
+fn sorts_subscriptions_by_created_and_updated_timestamps() {
+    let mut first = make_sub("First", dec!(10), "monthly", true, None, Uuid::new_v4());
+    first.created_at = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    first.updated_at = first.created_at;
+    let mut second = make_sub("Second", dec!(20), "monthly", true, None, Uuid::new_v4());
+    second.created_at = chrono::DateTime::parse_from_rfc3339("2026-02-01T00:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    second.updated_at = second.created_at;
+    let mut subs = vec![second, first];
+
+    sort_subscriptions(
+        &mut subs,
+        &SortConfig {
+            field: "created_at".into(),
+            direction: "asc".into(),
+        },
+    );
+    assert_eq!(subs[0].name, "First");
+    assert!(SORT_OPTIONS.iter().any(|(value, _)| *value == "updated_at"));
 }
