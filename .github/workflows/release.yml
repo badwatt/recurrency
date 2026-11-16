@@ -188,7 +188,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists."
           else
-            gh release create "$TAG" --title "Recurrency" --generate-notes
+            gh release create "$TAG" --title "Recurrency $TAG" --generate-notes
           fi
 
   # ── Build and push the all-in-one image ────────────────────
