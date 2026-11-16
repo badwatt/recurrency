@@ -113,14 +113,20 @@ pub fn AiChat() -> Element {
                     }
                 }
                 Err(error) => {
-                    TOAST
-                        .write()
-                        .error(format!("AI assistant error: {error}"));
+                    TOAST.write().error(format!("AI assistant error: {error}"));
                 }
             }
             sending.set(false);
         });
     });
+
+    let placeholder = if listening() {
+        "Listening… click the microphone to finish"
+    } else if transcribing() {
+        "Transcribing…"
+    } else {
+        "Ask for a subscription, transaction or debt…"
+    };
 
     rsx! {
         Dialog {
@@ -166,13 +172,7 @@ pub fn AiChat() -> Element {
                             }
                         },
                         rows: "2",
-                        placeholder: if listening() {
-                            "Listening… click the microphone to finish"
-                        } else if transcribing() {
-                            "Transcribing…"
-                        } else {
-                            "Ask for a subscription, transaction or debt…"
-                        },
+                        placeholder,
                         class: "min-h-11 flex-1 resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm",
                     }
                     button {
@@ -237,7 +237,6 @@ async fn refresh_changed_data() {
         DEBTS.write().set_data(data);
     }
 }
-
 
 #[cfg(test)]
 mod tests {
