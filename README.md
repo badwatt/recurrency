@@ -186,7 +186,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
-- **Admin panel** — review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups. The first real account becomes administrator.
+- **Admin panel** — server-mode administration: review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups. The first real account becomes administrator.
 
 ### Your data and the project
 
@@ -284,6 +284,10 @@ ENABLE_WEB=false ./target/bin/recurrency serve
 # Migrations and configuration check
 ./target/bin/recurrency migrate --database-url "$DATABASE_URL"
 ./target/bin/recurrency backup --database-url "$DATABASE_URL" --backup-dir ./backups
+./target/bin/recurrency admin list
+./target/bin/recurrency admin create --email admin@example.com --password "$PASSWORD" --name Admin --admin
+./target/bin/recurrency admin update admin@example.com --name "New name" --no-admin
+./target/bin/recurrency admin delete admin@example.com
 ./target/bin/recurrency doctor
 ```
 
@@ -309,6 +313,11 @@ domain module and would risk changing financial behaviour.
 
 `--no-web` is equivalent to `ENABLE_WEB=false`. `cargo build-api` builds the
 API-only binary without embedded assets or the local database.
+
+The administration panel is available in server mode. Native clients running
+in local/on-device mode have no server users to manage. The `recurrency admin`
+commands operate directly on a PostgreSQL database and provide the same user
+CRUD operations from a terminal.
 
 ### Database backups
 
@@ -463,8 +472,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1223 backend unit tests**, **59 backend integration tests**,
-**1792 frontend tests** and **10 tooling tests**.
+Current suite: **1226 backend unit tests**, **61 backend integration tests**,
+**1795 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 

@@ -1,4 +1,4 @@
-use crate::api::client::{api_post, ApiError};
+use crate::api::client::{api_get, api_post, ApiError};
 use crate::models::auth::*;
 
 /// Synchronous login using ureq (no tokio, supports TLS). Works on Android.
@@ -262,5 +262,35 @@ mod tests {
         let body = serde_json::json!({});
         assert!(body.is_object());
         assert_eq!(body.as_object().unwrap().len(), 0);
+    }
+}
+
+
+const REGISTRATION_STATUS_PATH: &str = "/api/auth/registration";
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq, Eq)]
+pub struct RegistrationStatus {
+    pub registration_enabled: bool,
+}
+
+pub async fn registration_enabled() -> Result<bool, ApiError> {
+    let status: RegistrationStatus = api_get(REGISTRATION_STATUS_PATH).await?;
+    Ok(status.registration_enabled)
+}
+
+#[cfg(test)]
+mod registration_status_tests {
+    use super::*;
+
+    #[test]
+    fn registration_status_path_is_public_auth_route() {
+        assert_eq!(REGISTRATION_STATUS_PATH, "/api/auth/registration");
+    }
+
+    #[test]
+    fn registration_status_parses_flag() {
+        let status: RegistrationStatus =
+            serde_json::from_str(r#"{"registration_enabled":false}"#).unwrap();
+        assert!(!status.registration_enabled);
     }
 }

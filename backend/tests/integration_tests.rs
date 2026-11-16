@@ -12,6 +12,7 @@ use uuid::Uuid;
 use axum::{Json, extract::State, http::{HeaderMap, header::AUTHORIZATION}};
 use recurrency_backend::accounts::models::{CreateAccountRequest, UpdateAccountRequest};
 use recurrency_backend::admin::service::{AdminServiceTrait, SqlxAdminService};
+use recurrency_backend::cli::{AdminAction, AdminArgs};
 use recurrency_backend::shared::app_state::AppState;
 use recurrency_backend::accounts::service::AccountService;
 use recurrency_backend::auth::models::{CreateUserRequest, LoginRequest, UpdateSettingsRequest};
@@ -1388,4 +1389,107 @@ async fn last_administrator_cannot_be_demoted(pool: PgPool) {
         service.set_admin(admin_id, admin_id, false).await,
         Err(AppError::Conflict(_))
     ));
+}
+
+
+#[sqlx::test]
+async fn registration_status_is_public_and_matches_the_admin_setting(pool: PgPool) {
+    let service = SqlxAdminService::new(pool.clone());
+    service.set_registration_enabled(false).await.unwrap();
+    let status = recurrency_backend::auth::handlers::registration_status(State(AppState::new(
+        pool.clone(),
+    )))
+    .await
+    .unwrap();
+    assert!(!status.0.registration_enabled);
+
+    service.set_registration_enabled(true).await.unwrap();
+    let status = recurrency_backend::auth::handlers::registration_status(State(AppState::new(
+        pool,
+    )))
+    .await
+    .unwrap();
+    assert!(status.0.registration_enabled);
+}
+
+
+#[sqlx::test]
+async fn cli_admin_can_create_update_and_delete_users(pool: PgPool) {
+    let email = format!("cli_{}@test.com", Uuid::new_v4());
+    let create = AdminArgs {
+        action: AdminAction::Create,
+        target: None,
+        email: Some(email.clone()),
+        new_email: None,
+        name: Some("CLI User".to_string()),
+        password: Some("testpassword123".to_string()),
+        is_admin: None,
+    };
+    recurrency_backend::admin::cli::run(&pool, &create).await.unwrap();
+    let user: Option<(Uuid, bool)> = sqlx::query_as("SELECT id, is_admin FROM users WHERE email = $1")
+        .bind(&email)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    let (user_id, is_admin) = user.unwrap();
+    assert!(is_admin);
+
+    let member_email = format!("cli_member_{}@test.com", Uuid::new_v4());
+    let create_member = AdminArgs {
+        action: AdminAction::Create,
+        target: None,
+        email: Some(member_email.clone()),
+        new_email: None,
+        name: Some("CLI Member".to_string()),
+        password: Some("testpassword123".to_string()),
+        is_admin: None,
+    };
+    recurrency_backend::admin::cli::run(&pool, &create_member)
+        .await
+        .unwrap();
+
+    let update = AdminArgs {
+        action: AdminAction::Update,
+        target: Some(email.clone()),
+        email: None,
+        new_email: None,
+        name: Some("CLI Renamed".to_string()),
+        password: None,
+        is_admin: Some(false),
+    };
+    // A normal update succeeds, while the CLI refuses to demote the only admin.
+    let rename = AdminArgs {
+        action: AdminAction::Update,
+        target: Some(email.clone()),
+        email: None,
+        new_email: None,
+        name: Some("CLI Renamed".to_string()),
+        password: None,
+        is_admin: None,
+    };
+    recurrency_backend::admin::cli::run(&pool, &rename).await.unwrap();
+    let name: String = sqlx::query_scalar("SELECT name FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(name, "CLI Renamed");
+    assert!(recurrency_backend::admin::cli::run(&pool, &update).await.is_err());
+
+    let delete = AdminArgs {
+        action: AdminAction::Delete,
+        target: Some(member_email.clone()),
+        email: None,
+        new_email: None,
+        name: None,
+        password: None,
+        is_admin: None,
+    };
+    recurrency_backend::admin::cli::run(&pool, &delete).await.unwrap();
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)")
+        .bind(member_email)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(!exists);
 }

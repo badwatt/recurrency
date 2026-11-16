@@ -31,6 +31,14 @@ pub async fn login(
     Ok(Json(response))
 }
 
+/// Public status used by the login page to hide the sign-up affordance when
+/// an administrator has closed registrations.
+pub async fn registration_status(
+    State(state): State<crate::shared::app_state::AppState>,
+) -> AppResult<Json<crate::admin::models::AdminSettings>> {
+    Ok(Json(state.admin_service.settings().await?))
+}
+
 /// GET /api/auth/verify - uses static JWT token (no State needed)
 pub async fn verify(Json(token): Json<String>) -> AppResult<Json<serde_json::Value>> {
     let claims = crate::auth::service::verify_token_internal(&token)?;

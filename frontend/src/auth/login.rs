@@ -50,6 +50,7 @@ pub fn LoginPage() -> Element {
     let mut loading = use_signal(|| false);
     let mut demo_loading = use_signal(|| false);
     let mut demo_enabled = use_signal(|| false);
+    let mut registration_enabled = use_signal(|| true);
     let _nav = navigator();
 
     let offline = APP_MODE().mode.is_offline();
@@ -81,6 +82,16 @@ pub fn LoginPage() -> Element {
                 eprintln!("[LoginPage] Failed to check demo status — server may not be ready");
                 demo_enabled.set(false);
             }
+        }
+    });
+
+    // Hide sign-up when the server administrator has closed registrations.
+    use_future(move || async move {
+        if APP_MODE().mode.is_offline() {
+            return;
+        }
+        if let Ok(enabled) = auth::registration_enabled().await {
+            registration_enabled.set(enabled);
         }
     });
 
@@ -411,13 +422,15 @@ pub fn LoginPage() -> Element {
                         }
                     }
 
-                    // Register link
-                    p { class: "text-center text-sm text-muted-foreground",
-                        if offline { "No account on this device? " } else { "Don't have an account? " }
-                        Link {
-                            to: Route::Register {},
-                            class: "text-primary hover:underline",
-                            if offline { "Create one" } else { "Sign up" }
+                    // Register link — hidden when the server closes registrations.
+                    if registration_enabled() {
+                        p { class: "text-center text-sm text-muted-foreground",
+                            if offline { "No account on this device? " } else { "Don't have an account? " }
+                            Link {
+                                to: Route::Register {},
+                                class: "text-primary hover:underline",
+                                if offline { "Create one" } else { "Sign up" }
+                            }
                         }
                     }
 
@@ -699,6 +712,13 @@ mod tests {
         let email_valid = email.contains('@');
         let password_valid = password.len() >= 8;
         assert!(email_valid && !password_valid); // Only password invalid
+    }
+
+    #[test]
+    fn sign_up_link_is_conditional_on_registration_status() {
+        let source = include_str!("login.rs");
+        assert!(source.contains("registration_enabled"));
+        assert!(source.contains("if registration_enabled()"));
     }
 
 }
