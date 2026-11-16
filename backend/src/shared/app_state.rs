@@ -6,7 +6,9 @@ use crate::categories::service::{CategoryServiceTrait, SqlxCategoryService};
 use crate::debts::service::{DebtServiceTrait, SqlxDebtService};
 use crate::demo::service::{DemoServiceTrait, SqlxDemoService};
 use crate::notifications::service::{NotificationServiceTrait, SqlxNotificationService};
-use crate::notifications::settings::{NotificationSettingsServiceTrait, SqlxNotificationSettingsService};
+use crate::notifications::settings::{
+    NotificationSettingsServiceTrait, SqlxNotificationSettingsService,
+};
 use crate::preferences::service::{PreferencesServiceTrait, SqlxPreferencesService};
 use crate::reports::service::{ReportServiceTrait, SqlxReportService};
 use crate::subscriptions::service::{SqlxSubscriptionService, SubscriptionServiceTrait};
@@ -46,7 +48,9 @@ impl AppState {
             demo_service: Arc::new(SqlxDemoService::new(pool.clone())),
             debt_service: Arc::new(SqlxDebtService::new(pool.clone())),
             notification_service: Arc::new(SqlxNotificationService::new(pool.clone())),
-            notification_settings_service: Arc::new(SqlxNotificationSettingsService::new(pool.clone())),
+            notification_settings_service: Arc::new(SqlxNotificationSettingsService::new(
+                pool.clone(),
+            )),
             report_service: Arc::new(SqlxReportService::new(pool.clone())),
             preferences_service: Arc::new(SqlxPreferencesService::new(pool.clone())),
             pool,
@@ -58,6 +62,7 @@ impl AppState {
     pub fn with_auth_service(pool: sqlx::PgPool, auth_service: Arc<dyn AuthServiceTrait>) -> Self {
         Self {
             auth_service,
+            admin_service: Arc::new(TestAdminService),
             ..Self::new(pool)
         }
     }
@@ -68,6 +73,51 @@ impl std::ops::Deref for AppState {
 
     fn deref(&self) -> &Self::Target {
         &self.pool
+    }
+}
+
+#[cfg(test)]
+struct TestAdminService;
+
+#[cfg(test)]
+#[async_trait::async_trait]
+impl AdminServiceTrait for TestAdminService {
+    async fn is_admin(&self, _user_id: uuid::Uuid) -> crate::shared::error::AppResult<bool> {
+        Ok(false)
+    }
+
+    async fn list_users(
+        &self,
+    ) -> crate::shared::error::AppResult<Vec<crate::admin::models::AdminUser>> {
+        Ok(Vec::new())
+    }
+
+    async fn settings(
+        &self,
+    ) -> crate::shared::error::AppResult<crate::admin::models::AdminSettings> {
+        Ok(crate::admin::models::AdminSettings {
+            registration_enabled: true,
+        })
+    }
+
+    async fn set_registration_enabled(
+        &self,
+        enabled: bool,
+    ) -> crate::shared::error::AppResult<crate::admin::models::AdminSettings> {
+        Ok(crate::admin::models::AdminSettings {
+            registration_enabled: enabled,
+        })
+    }
+
+    async fn full_backup(
+        &self,
+    ) -> crate::shared::error::AppResult<crate::admin::models::FullBackup> {
+        Ok(crate::admin::models::FullBackup {
+            format_version: crate::admin::models::FULL_BACKUP_FORMAT_VERSION,
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            exported_at: chrono::Utc::now(),
+            tables: std::collections::BTreeMap::new(),
+        })
     }
 }
 
