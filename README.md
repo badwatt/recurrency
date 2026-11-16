@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.52.0`.
+> `ghcr.io/badwatt/recurrency:0.53.0`.
 
 ### From source
 
@@ -186,6 +186,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Dark, light or system** — follows your preference.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories.
+- **AI assistant (BYOK)** — optional OpenAI-compatible chat that can create, update and delete subscriptions, transactions and debts. Configure the endpoint, model and encrypted API key in Settings → General. Desktop has a floating AI button; mobile opens the same agent from the + menu or by long-pressing +.
 - **Admin panel** — server-mode administration: review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups. The first real account becomes administrator.
 
 ### Your data and the project
@@ -472,8 +473,8 @@ cd backend && nix develop .. -c cargo llvm-cov test --lib
 cd frontend && nix develop .. -c cargo llvm-cov test
 ```
 
-Current suite: **1226 backend unit tests**, **61 backend integration tests**,
-**1795 frontend tests** and **10 tooling tests**.
+Current suite: **1238 backend unit tests**, **63 backend integration tests**,
+**1799 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 
