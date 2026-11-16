@@ -228,13 +228,28 @@ pub fn patch_manifest(content: &str) -> String {
             out.insert_str(position, scanner);
         }
     }
-    if !out.contains("android.permission.CAMERA")
+    if !out.contains("android.speech.RecognitionService")
         && let Some(pos) = out.find("<application")
     {
         out.insert_str(
             pos,
-            "    <uses-permission android:name=\"android.permission.CAMERA\" />\n    <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n",
+            "    <queries>\n        <intent>\n            <action android:name=\"android.speech.RecognitionService\" />\n        </intent>\n    </queries>\n",
         );
+    }
+    for permission in [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+    ] {
+        if !out.contains(permission)
+            && let Some(pos) = out.find("<application")
+        {
+            out.insert_str(
+                pos,
+                &format!("    <uses-permission android:name=\"{permission}\" />\n"),
+            );
+        }
     }
     if !out.contains("androidx.core.content.FileProvider") {
         let provider = r#"        <provider
@@ -378,6 +393,7 @@ fn inject_block() -> String {
             "        addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")\n",
             "        addJavascriptInterface(QrScannerBridge(this), \"RecurrencyQr\")\n",
             "        addJavascriptInterface(ApkUpdaterBridge(this), \"RecurrencyUpdater\")\n",
+            "        addJavascriptInterface(SpeechBridge(this), \"RecurrencySpeech\")\n",
             "        // Prevent FOUC: mocha background + themed native loader.\n",
             "        // setBackgroundColor paints mocha behind WebView — eliminates white flash.\n",
             "        // addDocumentStartJavaScript injects CSS + loader HTML before WASM loads.\n",
@@ -514,6 +530,20 @@ private class ApkUpdaterBridge(private val view: android.webkit.WebView) {
     }
 }
 
+private class SpeechBridge(private val view: android.webkit.WebView) {
+    @android.webkit.JavascriptInterface
+    fun start() {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.startSpeechForWebView(view) }
+    }
+
+    @android.webkit.JavascriptInterface
+    fun stop() {
+        val activity = view.context as? WryActivity ?: return
+        activity.runOnUiThread { activity.stopSpeechForWebView() }
+    }
+}
+
 private class DownloadBridge(private val view: android.webkit.WebView) {
     @android.webkit.JavascriptInterface
     fun saveFile(filename: String, mime: String, text: String) {
@@ -582,7 +612,7 @@ private class DownloadBridge(private val view: android.webkit.WebView) {
 "##;
 
 pub fn patch_wry_activity(content: &str) -> String {
-    let mut out = content.to_string();
+    let mut out = patch_speech_activity(content.to_string());
     if out.contains("// --- Recurrency image picker ---") {
         return patch_file_and_back(out);
     }
@@ -811,6 +841,144 @@ fn patch_qr_result(mut out: String) -> String {
     out
 }
 
+/// Adds the native Android SpeechRecognizer bridge. Kept separate from the
+/// image/file picker patches so re-patching an existing generated project is
+/// idempotent.
+fn patch_speech_activity(mut out: String) -> String {
+    let field = "    private lateinit var mWebView: RustWebView";
+    if !out.contains("recurrencySpeechWebView") && out.contains(field) {
+        out = out.replace(
+            field,
+            &format!("{field}\n    private var recurrencySpeechWebView: android.webkit.WebView? = null\n    private var recurrencySpeechRecognizer: android.speech.SpeechRecognizer? = null"),
+        );
+    }
+    let methods = r##"    // --- Recurrency speech recognition ---
+    fun startSpeechForWebView(view: android.webkit.WebView) {
+        recurrencySpeechWebView = view
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.RECORD_AUDIO,
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.RECORD_AUDIO),
+                RECURRENCY_SPEECH_PERMISSION,
+            )
+            return
+        }
+        beginSpeechRecognition(view)
+    }
+
+    private fun beginSpeechRecognition(view: android.webkit.WebView) {
+        recurrencySpeechRecognizer?.destroy()
+        if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
+            recurrencySpeechResult(view, "ERROR:unsupported")
+            return
+        }
+        val recognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(this)
+        recurrencySpeechRecognizer = recognizer
+        recognizer.setRecognitionListener(object : android.speech.RecognitionListener {
+            override fun onReadyForSpeech(params: android.os.Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onPartialResults(partialResults: android.os.Bundle?) {}
+            override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+
+            override fun onError(error: Int) {
+                val message = when (error) {
+                    android.speech.SpeechRecognizer.ERROR_NO_MATCH,
+                    android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR:no-speech"
+                    android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS,
+                    android.speech.SpeechRecognizer.ERROR_AUDIO -> "ERROR:microphone"
+                    android.speech.SpeechRecognizer.ERROR_NETWORK,
+                    android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR:network"
+                    else -> "ERROR:speech"
+                }
+                recurrencySpeechResult(view, message)
+                recurrencySpeechRecognizer?.destroy()
+                recurrencySpeechRecognizer = null
+            }
+
+            override fun onResults(results: android.os.Bundle?) {
+                val text = results
+                    ?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                    ?: ""
+                recurrencySpeechResult(view, if (text.isBlank()) "ERROR:no-speech" else "TEXT:" + text)
+                recurrencySpeechRecognizer?.destroy()
+                recurrencySpeechRecognizer = null
+            }
+        })
+        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault().toLanguageTag())
+            putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+        try {
+            recognizer.startListening(intent)
+        } catch (_: Exception) {
+            recurrencySpeechResult(view, "ERROR:speech")
+        }
+    }
+
+    fun stopSpeechForWebView() {
+        try {
+            recurrencySpeechRecognizer?.stopListening()
+        } catch (_: Exception) {}
+        recurrencySpeechRecognizer?.destroy()
+        recurrencySpeechRecognizer = null
+    }
+
+    private fun recurrencySpeechResult(view: android.webkit.WebView, value: String) {
+        val quoted = org.json.JSONObject.quote(value)
+        view.post {
+            view.evaluateJavascript(
+                "window.__recurrencySpeechResult && window.__recurrencySpeechResult(" + quoted + ")",
+                null,
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != RECURRENCY_SPEECH_PERMISSION) return
+        val view = recurrencySpeechWebView ?: return
+        if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            beginSpeechRecognition(view)
+        } else {
+            recurrencySpeechResult(view, "ERROR:microphone")
+        }
+    }
+
+"##;
+    if !out.contains("// --- Recurrency speech recognition ---")
+        && let Some(pos) = out.rfind("    companion object {")
+    {
+        out.insert_str(pos, methods);
+    }
+    if !out.contains("private const val RECURRENCY_SPEECH_PERMISSION")
+        && let Some(pos) = out.rfind("    companion object {")
+    {
+        let insert_at = pos + "    companion object {".len();
+        out.insert_str(
+            insert_at,
+            "\n        private const val RECURRENCY_SPEECH_PERMISSION = 4714",
+        );
+    }
+    out
+}
+
 fn patch_file_and_back(mut out: String) -> String {
     let field = "    private lateinit var mWebView: RustWebView";
     if !out.contains("recurrencyFileWebView") && out.contains(field) {
@@ -911,6 +1079,9 @@ pub fn patch_webview(content: &str) -> String {
             || line
                 .trim_start()
                 .starts_with("addJavascriptInterface(DownloadBridge(this), \"RecurrencyDownload\")")
+            || line
+                .trim_start()
+                .starts_with("addJavascriptInterface(SpeechBridge(this), \"RecurrencySpeech\")")
         {
             continue;
         }
@@ -1456,6 +1627,9 @@ mod tests {
         let patched = patch_manifest(manifest);
         assert!(patched.contains("android:label=\"Recurrency\""));
         assert!(patched.contains("android:allowBackup=\"false\""));
+        assert!(patched.contains("android.permission.RECORD_AUDIO"));
+        assert!(patched.contains("android.speech.RecognitionService"));
+        assert!(patched.contains("android.permission.MODIFY_AUDIO_SETTINGS"));
         assert_eq!(patch_manifest(&patched), patched);
     }
 
@@ -1508,6 +1682,10 @@ mod image_picker_tests {
         assert!(once.contains("RECURRENCY_QR_RESULT"));
         assert!(once.contains("parseActivityResult"));
         assert!(once.contains("import android.content.Intent"));
+        assert!(once.contains("Recurrency speech recognition"));
+        assert!(once.contains("startSpeechForWebView"));
+        assert!(once.contains("private const val RECURRENCY_SPEECH_PERMISSION = 4714"));
+        assert!(once.contains("onRequestPermissionsResult"));
         let twice = patch_wry_activity(&once);
         assert_eq!(once, twice);
     }
@@ -1522,6 +1700,8 @@ mod image_picker_tests {
         assert!(once.contains("RecurrencyImagePicker"));
         assert!(once.contains("DownloadBridge"));
         assert!(once.contains("RecurrencyDownload"));
+        assert!(once.contains("SpeechBridge"));
+        assert!(once.contains("RecurrencySpeech"));
         let twice = patch_webview(&once);
         assert_eq!(
             once.matches("addJavascriptInterface(ImagePickerBridge")
