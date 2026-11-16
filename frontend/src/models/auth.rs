@@ -16,6 +16,8 @@ pub struct UserResponse {
     pub name: Option<String>,
     pub currency: String,
     pub verified: bool,
+    #[serde(default)]
+    pub is_admin: bool,
 }
 
 /// Conservative client-side email check used before saving profile changes.
@@ -81,6 +83,7 @@ mod tests {
                 name: Some("Test".into()),
                 currency: "EUR".into(),
                 verified: true,
+                is_admin: false,
             },
             requires_verification: false,
         };
@@ -98,6 +101,7 @@ mod tests {
             name: None,
             currency: "EUR".into(),
             verified: false,
+            is_admin: false,
         };
         let json = serde_json::to_string(&user).unwrap();
         assert!(json.contains("null"));
@@ -137,6 +141,7 @@ mod tests {
                 name: Some("Test".into()),
                 currency: "USD".into(),
                 verified: true,
+                is_admin: false,
             },
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -193,6 +198,7 @@ mod tests {
                 name: None,
                 currency: "EUR".into(),
                 verified: false,
+                is_admin: false,
             },
             requires_verification: true,
         };
@@ -231,6 +237,7 @@ mod tests {
             name: None,
             currency: "GBP".into(),
             verified: true,
+            is_admin: false,
         };
         assert_eq!(user.currency, "GBP");
     }
@@ -259,6 +266,7 @@ mod tests {
                 name: Some("Name".into()),
                 currency: "CAD".into(),
                 verified: true,
+                is_admin: false,
             },
         };
         assert_eq!(resp.user.email, "x@y.z");

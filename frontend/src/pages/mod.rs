@@ -1,4 +1,5 @@
 pub mod accounts_page;
+pub mod admin_page;
 pub mod calendar_page;
 pub mod categories_page;
 pub mod dashboard;
@@ -9,6 +10,7 @@ pub mod subscriptions_page;
 pub mod transactions_page;
 
 pub use accounts_page::AccountsPage;
+pub use admin_page::AdminPage;
 pub use calendar_page::CalendarPage;
 pub use categories_page::CategoriesPage;
 pub use dashboard::Dashboard;
@@ -16,6 +18,6 @@ pub use debts_page::DebtsPage;
 pub use reports_page::ReportsPage;
 pub use settings_page::{
     SettingsAboutPage, SettingsDataPage, SettingsMoneyPage, SettingsNotificationsPage,
-    SettingsPreferencesPage, SettingsProfilePage, SettingsServerPage,
+    SettingsAdminPage, SettingsPreferencesPage, SettingsProfilePage, SettingsServerPage,
 };
 pub use transactions_page::TransactionsPage;

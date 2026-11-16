@@ -38,6 +38,7 @@ fn test_set_authenticated_writes_auth_files() {
         name: Some("TDD Test".into()),
         currency: "EUR".into(),
         verified: false,
+        is_admin: false,
     };
     state.set_authenticated("tdd-token".into(), user, false);
     state.persist_to_dir(&auth_dir).unwrap();

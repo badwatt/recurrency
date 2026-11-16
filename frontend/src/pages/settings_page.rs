@@ -186,5 +186,10 @@ pub fn SettingsAboutPage() -> Element {
     }
 }
 
+#[component]
+pub fn SettingsAdminPage() -> Element {
+    rsx! { crate::pages::AdminPage {} }
+}
+
 #[cfg(test)]
 mod tests;

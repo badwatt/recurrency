@@ -194,6 +194,7 @@ mod tests {
             name: Some("New User".into()),
             currency: "EUR".into(),
             verified,
+            is_admin: false,
         }
     }
 
@@ -269,6 +270,7 @@ mod tests {
             name: Some("New".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         state.set_authenticated("tok".into(), user, false);
         assert!(state.is_authenticated);
@@ -394,6 +396,7 @@ mod tests {
             name: None,
             currency: "USD".into(),
             verified: true,
+            is_admin: false,
         };
         assert!(user.name.is_none());
     }
@@ -408,6 +411,7 @@ mod tests {
                 name: Some("Test".into()),
                 currency: currency.into(),
                 verified: true,
+                is_admin: false,
             };
             assert_eq!(user.currency, currency);
         }

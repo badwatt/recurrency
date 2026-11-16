@@ -453,6 +453,7 @@ mod tests {
             name: Some("Test User".into()),
             currency: "EUR".into(),
             verified,
+            is_admin: false,
         }
     }
 
@@ -535,6 +536,7 @@ mod tests {
             name: Some("Demo".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         // Before: not authenticated
         assert!(!state.is_authenticated);
@@ -663,6 +665,7 @@ mod tests {
             name: None,
             currency: "USD".into(),
             verified: true,
+            is_admin: false,
         };
         assert!(user.name.is_none());
         let mut state = AuthState::default();

@@ -36,6 +36,7 @@ impl LocalAccount {
             name: Some(self.name.clone()),
             currency: self.currency.clone(),
             verified: true,
+            is_admin: false,
         }
     }
 }

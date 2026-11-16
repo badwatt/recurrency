@@ -92,6 +92,7 @@ mod tests {
             name: Some("Alice".into()),
             currency: "USD".into(),
             verified: true,
+            is_admin: false,
         };
 
         // UserResponse serializes WITHOUT wrapper
@@ -117,6 +118,7 @@ mod tests {
                 name: Some("Alice".into()),
                 currency: "USD".into(),
                 verified: true,
+                is_admin: false,
             },
         };
 
@@ -163,6 +165,7 @@ mod tests {
                 name: None,
                 currency: "GBP".into(),
                 verified: false,
+                is_admin: false,
             },
         };
         assert_eq!(response.user.email, "test@test.com");

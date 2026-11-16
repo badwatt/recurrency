@@ -175,6 +175,7 @@ mod tests {
             name: Some("John".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         assert_eq!(user.email, "test@test.com");
         assert_eq!(user.currency, "EUR");
@@ -191,6 +192,7 @@ mod tests {
             name: None,
             currency: "USD".into(),
             verified: false,
+            is_admin: false,
         };
         assert!(user.name.is_none());
         assert!(!user.verified);

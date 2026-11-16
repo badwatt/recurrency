@@ -13,6 +13,7 @@ enum SettingsSection {
     Data,
     Server,
     About,
+    Admin,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -45,13 +46,14 @@ impl SettingsGroup {
                 SettingsSection::Data,
                 SettingsSection::Server,
                 SettingsSection::About,
+                SettingsSection::Admin,
             ],
         }
     }
 }
 
 impl SettingsSection {
-    const ALL: [Self; 7] = [
+    const ALL: [Self; 8] = [
         Self::Account,
         Self::General,
         Self::Money,
@@ -59,6 +61,7 @@ impl SettingsSection {
         Self::Data,
         Self::Server,
         Self::About,
+        Self::Admin,
     ];
 
     fn label(self) -> &'static str {
@@ -70,6 +73,7 @@ impl SettingsSection {
             Self::Data => "Data & backup",
             Self::Server => "Server",
             Self::About => "About",
+            Self::Admin => "Administration",
         }
     }
 
@@ -82,6 +86,7 @@ impl SettingsSection {
             Self::Data => "Backups, restore and folder sync",
             Self::Server => "Server connection and device pairing",
             Self::About => "Version, release notes and Android app",
+            Self::Admin => "Users, registration and full backups",
         }
     }
 
@@ -94,6 +99,7 @@ impl SettingsSection {
             Self::Data => Icon::Reports,
             Self::Server => Icon::Monitor,
             Self::About => Icon::Info,
+            Self::Admin => Icon::Admin,
         }
     }
 
@@ -106,7 +112,12 @@ impl SettingsSection {
             Self::Data => crate::Route::SettingsData {},
             Self::Server => crate::Route::SettingsServer {},
             Self::About => crate::Route::SettingsAboutPage {},
+            Self::Admin => crate::Route::SettingsAdmin {},
         }
+    }
+
+    fn visible_to(self, is_admin: bool) -> bool {
+        self != Self::Admin || is_admin
     }
 
     fn is_active(self, route: &crate::Route) -> bool {
@@ -128,6 +139,7 @@ impl SettingsSection {
             Self::Data => matches!(route, crate::Route::SettingsData {}),
             Self::Server => matches!(route, crate::Route::SettingsServer {}),
             Self::About => matches!(route, crate::Route::SettingsAboutPage {}),
+            Self::Admin => matches!(route, crate::Route::SettingsAdmin {}),
         }
     }
 }
@@ -136,6 +148,7 @@ impl SettingsSection {
 pub fn SettingsLayout() -> Element {
     let current: crate::Route = use_route();
     let nav = navigator();
+    let is_admin = AUTH().user.as_ref().is_some_and(|user| user.is_admin);
 
     rsx! {
         div { class: "w-full px-4 lg:px-6 py-6 lg:py-8",
@@ -149,9 +162,11 @@ pub fn SettingsLayout() -> Element {
                                     {group.label()}
                                 }
                                 for section in group.sections() {
-                                    SettingsSidebarLink {
-                                        section: *section,
-                                        active: section.is_active(&current),
+                                    if section.visible_to(is_admin) {
+                                        SettingsSidebarLink {
+                                            section: *section,
+                                            active: section.is_active(&current),
+                                        }
                                     }
                                 }
                             }
@@ -181,9 +196,11 @@ pub fn SettingsLayout() -> Element {
                         aria_label: "Settings sections",
                         div { class: "flex gap-1 overflow-x-auto py-2",
                             for section in SettingsSection::ALL {
-                                SettingsMobileLink {
-                                    section,
-                                    active: section.is_active(&current),
+                                if section.visible_to(is_admin) {
+                                    SettingsMobileLink {
+                                        section,
+                                        active: section.is_active(&current),
+                                    }
                                 }
                             }
                         }

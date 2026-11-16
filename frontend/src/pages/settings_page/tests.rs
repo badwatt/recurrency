@@ -4,6 +4,7 @@ use crate::utils::constants::CURRENCIES;
 
 const SETTINGS_SOURCES: &str = concat!(
     include_str!("../settings_page.rs"),
+    include_str!("../admin_page.rs"),
     include_str!("../settings_page/profile_card.rs"),
     include_str!("../settings_page/preferences_card.rs"),
     include_str!("../settings_page/exchange_rates_card.rs"),
@@ -33,6 +34,14 @@ const SETTINGS_SOURCES: &str = concat!(
     fn exchange_rates_live_in_general() {
         assert!(SETTINGS_SOURCES.contains("ExchangeRatesCard"));
         assert!(include_str!("../settings_page.rs").contains("PreferencesCard {}\n            ExchangeRatesCard"));
+    }
+
+    #[test]
+    fn administration_is_available_to_admins() {
+        assert!(SETTINGS_SOURCES.contains("Administration"));
+        assert!(SETTINGS_SOURCES.contains("SettingsAdminPage"));
+        assert!(SETTINGS_SOURCES.contains("full_backup"));
+        assert!(SETTINGS_SOURCES.contains("registration_enabled"));
     }
 
     #[test]
@@ -352,6 +361,7 @@ const SETTINGS_SOURCES: &str = concat!(
             name: Some("Alice".into()),
             currency: "USD".into(),
             verified: true,
+            is_admin: false,
         };
 
         let response = SettingsResponse { user: updated_user };
@@ -385,6 +395,7 @@ const SETTINGS_SOURCES: &str = concat!(
                 name: None,
                 currency: "JPY".into(),
                 verified: true,
+                is_admin: false,
             },
         };
 
@@ -587,6 +598,7 @@ const SETTINGS_SOURCES: &str = concat!(
                 name: Some("Test".into()),
                 currency: "CHF".into(),
                 verified: true,
+                is_admin: false,
             },
         };
         assert_eq!(response.user.currency, "CHF");
@@ -606,6 +618,7 @@ const SETTINGS_SOURCES: &str = concat!(
                 name: Some("John Doe".into()),
                 currency: "EUR".into(),
                 verified: true,
+                is_admin: false,
             },
         };
         assert_eq!(response.user.name.as_deref(), Some("John Doe"));
@@ -624,6 +637,7 @@ const SETTINGS_SOURCES: &str = concat!(
                 name: None,
                 currency: "USD".into(),
                 verified: false,
+                is_admin: false,
             },
         };
         assert!(!response.user.verified);

@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod admin;
 pub mod currency;
 pub mod app;
 pub mod auth;

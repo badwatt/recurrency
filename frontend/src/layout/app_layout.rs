@@ -41,6 +41,7 @@ pub enum Icon {
     Categories,
     Reports,
     Settings,
+    Admin,
     Logout,
     Sun,
     Moon,
@@ -141,6 +142,7 @@ pub fn AppLayout() -> Element {
             | crate::Route::SettingsData {}
             | crate::Route::SettingsServer {}
             | crate::Route::SettingsAboutPage {}
+            | crate::Route::SettingsAdmin {}
             | crate::Route::SettingsAccounts {}
             | crate::Route::SettingsCategories {}
             | crate::Route::Accounts {}
@@ -619,6 +621,20 @@ pub(crate) fn svg_icon(icon: Icon, size: i32) -> Element {
                 line { x1: "16", y1: "13", x2: "8", y2: "13" }
                 line { x1: "16", y1: "17", x2: "8", y2: "17" }
                 polyline { points: "10 9 9 9 8 9" }
+            }
+        },
+        Icon::Admin => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                path { d: "M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Z" }
+                path { d: "m9 12 2 2 4-4" }
             }
         },
         Icon::Settings => rsx! {

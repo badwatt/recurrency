@@ -71,6 +71,8 @@ pub enum Route {
             SettingsServer {},
             #[route("/settings/about")]
             SettingsAboutPage {},
+            #[route("/settings/admin")]
+            SettingsAdmin {},
             #[route("/settings/accounts")]
             SettingsAccounts {},
             #[route("/settings/categories")]
@@ -428,6 +430,11 @@ fn SettingsServer() -> Element {
 #[component]
 fn SettingsAboutPage() -> Element {
     rsx! { crate::pages::SettingsAboutPage {} }
+}
+
+#[component]
+fn SettingsAdmin() -> Element {
+    rsx! { crate::pages::SettingsAdminPage {} }
 }
 
 #[component]

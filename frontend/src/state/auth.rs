@@ -264,6 +264,7 @@ mod tests {
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         }
     }
 
@@ -580,6 +581,7 @@ mod tests {
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         state.set_authenticated("test-token".into(), user, false);
         assert_eq!(state.token, Some("test-token".into()));
@@ -596,6 +598,7 @@ mod tests {
             name: Some("Test".into()),
             currency: "EUR".into(),
             verified: true,
+            is_admin: false,
         };
         state.set_authenticated("test-token".into(), user, false);
         state.logout();
@@ -743,6 +746,7 @@ mod tests {
                 name: Some("TDD Test".into()),
                 currency: "EUR".into(),
                 verified: false,
+                is_admin: false,
             };
             super::super::native::write_session(&dir, "tdd-token", &user).unwrap();
             assert!(!AuthState::default().hydrate_from_dir(&dir));

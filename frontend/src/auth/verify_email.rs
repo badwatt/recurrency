@@ -152,6 +152,7 @@ mod tests {
             name: Some("Verify User".into()),
             currency: "EUR".into(),
             verified,
+            is_admin: false,
         }
     }
 
