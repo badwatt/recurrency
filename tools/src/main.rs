@@ -671,12 +671,32 @@ fn do_build_desktop() -> i32 {
 }
 
 fn desktop_artifact_name(name: &str) -> Option<String> {
-    let suffix = name
-        .strip_prefix("recurrency-frontend")
+    // Rename CI/desktop outputs to `<app>-<arch>.<type>` and keep versions
+    // out of distributed filenames.
+    name.strip_prefix("recurrency-frontend")
         .or_else(|| name.strip_prefix("recurrency_frontend"))
         .or_else(|| name.strip_prefix("RecurrencyFrontend"))
         .or_else(|| name.strip_prefix("Recurrency"))?;
-    Some(format!("recurrency-desktop{suffix}"))
+    let arch = if name.contains("aarch64") || name.contains("arm64") {
+        "aarch64"
+    } else if name.contains("x86_64") || name.contains("amd64") {
+        "x86_64"
+    } else if name.contains("x64") {
+        "x64"
+    } else {
+        return None;
+    };
+    if name.ends_with(".AppImage") {
+        Some(format!("recurrency-{arch}.AppImage"))
+    } else if name.ends_with(".dmg") {
+        Some(format!("recurrency-{arch}.dmg"))
+    } else if name.ends_with("-setup.exe") {
+        Some(format!("recurrency-{arch}-setup.exe"))
+    } else if name.ends_with(".deb") {
+        Some(format!("recurrency-{arch}.deb"))
+    } else {
+        None
+    }
 }
 
 fn rename_desktop_artifacts(dir: &Path) -> std::io::Result<()> {
@@ -796,19 +816,19 @@ mod desktop_artifact_tests {
     fn desktop_artifacts_are_renamed_consistently() {
         assert_eq!(
             desktop_artifact_name("recurrency-frontend_0.48.0_amd64.deb").as_deref(),
-            Some("recurrency-desktop_0.48.0_amd64.deb")
+            Some("recurrency-x86_64.deb")
         );
         assert_eq!(
             desktop_artifact_name("RecurrencyFrontend_0.48.0_x64-setup.exe").as_deref(),
-            Some("recurrency-desktop_0.48.0_x64-setup.exe")
+            Some("recurrency-x64-setup.exe")
         );
         assert_eq!(
             desktop_artifact_name("recurrency_frontend_0.48.0_x86_64.AppImage").as_deref(),
-            Some("recurrency-desktop_0.48.0_x86_64.AppImage")
+            Some("recurrency-x86_64.AppImage")
         );
         assert_eq!(
             desktop_artifact_name("Recurrency_0.48.0_aarch64.dmg").as_deref(),
-            Some("recurrency-desktop_0.48.0_aarch64.dmg")
+            Some("recurrency-aarch64.dmg")
         );
         assert_eq!(desktop_artifact_name("other.deb"), None);
     }

@@ -148,6 +148,7 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         .route("/health", get(health_check))
         .route("/api/health", get(health_check))
         .route("/api/ready", get(readiness_check))
+        .route("/api/update/image", get(shared::update::image))
         .route("/api/info", get(app_info))
         .route("/api/currency/rates", get(currency::handlers::rates))
         .route("/api/currency/settings", get(currency::handlers::get_settings).put(currency::handlers::update_settings))

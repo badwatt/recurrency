@@ -188,7 +188,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists."
           else
-            gh release create "$TAG" --title "Recurrency $TAG" --generate-notes
+            gh release create "$TAG" --title "Recurrency" --generate-notes
           fi
 
   # ── Build and push the all-in-one image ────────────────────
@@ -369,14 +369,14 @@ jobs:
             exit 1
           fi
           mkdir -p target/bin/android
-          cp "$APK" target/bin/android/recurrency-latest-aarch64.apk
-          ls -lh target/bin/android/recurrency-latest-aarch64.apk
+          cp "$APK" target/bin/android/recurrency-aarch64.apk
+          ls -lh target/bin/android/recurrency-aarch64.apk
 
       - name: Upload APK to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: gh release upload "v${VERSION}" target/bin/android/recurrency-latest-aarch64.apk --clobber
+        run: gh release upload "v${VERSION}" target/bin/android/recurrency-aarch64.apk --clobber
 
   # ── Desktop bundles ─────────────────────────────────────────
   desktop:

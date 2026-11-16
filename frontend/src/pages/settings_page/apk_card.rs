@@ -2,7 +2,7 @@ use crate::pages::settings_page::APP_VERSION;
 use dioxus::prelude::*;
 
 const LATEST_APK_URL: &str =
-    "https://github.com/badwatt/recurrency/releases/latest/download/recurrency-latest-aarch64.apk";
+    "https://github.com/badwatt/recurrency/releases/latest/download/recurrency-aarch64.apk";
 
 #[component]
 pub fn ApkCard() -> Element {
@@ -36,7 +36,7 @@ pub fn ApkCard() -> Element {
                     }
                 }
                 div { class: "min-w-0 flex-1 space-y-3",
-                    p { class: "text-sm font-medium", "recurrency-latest-aarch64.apk" }
+                    p { class: "text-sm font-medium", "recurrency-aarch64.apk" }
                     p { class: "text-xs text-muted-foreground",
                         "This QR always points to the latest release. Installed version: v{APP_VERSION}."
                     }

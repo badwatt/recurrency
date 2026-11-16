@@ -75,6 +75,14 @@ pub fn UpdateBanner() -> Element {
         if let Some(info) = update::latest().await
             && is_newer_version(current_version(), &info.tag_name)
         {
+            let ready = if cfg!(target_arch = "wasm32") {
+                update::web_image_available(&info.tag_name).await
+            } else {
+                info.has_platform_asset()
+            };
+            if !ready {
+                return;
+            }
             if dismissed_version.as_deref() == Some(info.tag_name.as_str()) {
                 dismissed.set(true);
             } else {

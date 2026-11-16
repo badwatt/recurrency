@@ -12,6 +12,11 @@ pub struct ReleaseAsset {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct UpdateImageResponse {
+    pub image_available: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Release {
     pub tag_name: String,
     pub html_url: String,
@@ -20,6 +25,42 @@ pub struct Release {
 }
 
 impl Release {
+    fn has_asset_suffix(&self, suffix: &str) -> bool {
+        self.assets.iter().any(|asset| asset.name.ends_with(suffix))
+    }
+
+    /// All assets required by the current platform must be published before
+    /// the update banner is allowed to appear. GitHub creates the release
+    /// object before its builders upload the files.
+    pub fn has_platform_asset(&self) -> bool {
+        #[cfg(target_os = "android")]
+        {
+            self.has_asset_suffix("-aarch64.apk")
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.has_asset_suffix("-x86_64.AppImage")
+        }
+        #[cfg(target_os = "windows")]
+        {
+            self.has_asset_suffix("-x64-setup.exe")
+        }
+        #[cfg(target_os = "macos")]
+        {
+            self.has_asset_suffix("-aarch64.dmg")
+                && self.has_asset_suffix("-x86_64.dmg")
+        }
+        #[cfg(not(any(
+            target_os = "android",
+            target_os = "linux",
+            target_os = "windows",
+            target_os = "macos"
+        )))]
+        {
+            false
+        }
+    }
+
     /// Pick the installer for the current native platform.
     pub fn native_asset(&self) -> Option<&ReleaseAsset> {
         #[cfg(not(any(target_os = "android", target_os = "linux", target_os = "macos", target_os = "windows")))]
@@ -30,21 +71,41 @@ impl Release {
             #[cfg(target_os = "android")]
             let suffix = "-aarch64.apk";
             #[cfg(target_os = "linux")]
-            let suffix = "_x86_64.AppImage";
+            let suffix = "-x86_64.AppImage";
             #[cfg(target_os = "macos")]
             let suffix = if std::env::consts::ARCH == "aarch64" {
-                "_aarch64.dmg"
+                "-aarch64.dmg"
             } else {
-                "_x86_64.dmg"
+                "-x86_64.dmg"
             };
             #[cfg(target_os = "windows")]
-            let suffix = "_x64-setup.exe";
+            let suffix = "-x64-setup.exe";
 
             self.assets
                 .iter()
                 .find(|asset| asset.name.ends_with(suffix))
         }
     }
+}
+
+/// The web build is updated by pulling the matching GHCR image.
+#[cfg(target_arch = "wasm32")]
+pub async fn web_image_available(tag: &str) -> bool {
+    let tag = tag.trim().trim_start_matches('v');
+    if tag.is_empty() {
+        return false;
+    }
+    crate::api::client::api_get::<UpdateImageResponse>(&format!(
+        "/api/update/image?tag={tag}"
+    ))
+    .await
+    .map(|result| result.image_available)
+    .unwrap_or(false)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn web_image_available(_tag: &str) -> bool {
+    false
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -206,23 +267,23 @@ mod tests {
             html_url: "u".into(),
             assets: vec![
                 ReleaseAsset {
-                    name: "recurrency-desktop_1_x86_64.AppImage".into(),
+                    name: "recurrency-x86_64.AppImage".into(),
                     browser_download_url: "linux".into(),
                 },
                 ReleaseAsset {
-                    name: "recurrency-desktop_1_x86_64.dmg".into(),
+                    name: "recurrency-x86_64.dmg".into(),
                     browser_download_url: "mac-intel".into(),
                 },
                 ReleaseAsset {
-                    name: "recurrency-desktop_1_aarch64.dmg".into(),
+                    name: "recurrency-aarch64.dmg".into(),
                     browser_download_url: "mac-arm".into(),
                 },
                 ReleaseAsset {
-                    name: "recurrency-desktop_1_x64-setup.exe".into(),
+                    name: "recurrency-x64-setup.exe".into(),
                     browser_download_url: "windows".into(),
                 },
                 ReleaseAsset {
-                    name: "recurrency-latest-aarch64.apk".into(),
+                    name: "recurrency-aarch64.apk".into(),
                     browser_download_url: "android".into(),
                 },
             ],
@@ -233,6 +294,40 @@ mod tests {
         assert_eq!(release.native_asset().unwrap().browser_download_url, "windows");
         #[cfg(target_os = "android")]
         assert_eq!(release.native_asset().unwrap().browser_download_url, "android");
+    }
+
+    #[test]
+    fn platform_asset_requires_the_complete_upload() {
+        #[cfg(target_os = "linux")]
+        {
+            let incomplete = Release {
+                tag_name: "v1".into(),
+                html_url: "u".into(),
+                assets: vec![],
+            };
+            assert!(!incomplete.has_platform_asset());
+            let complete = Release {
+                tag_name: "v1".into(),
+                html_url: "u".into(),
+                assets: vec![ReleaseAsset {
+                    name: "recurrency-x86_64.AppImage".into(),
+                    browser_download_url: "linux".into(),
+                }],
+            };
+            assert!(complete.has_platform_asset());
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let one_dmg = Release {
+                tag_name: "v1".into(),
+                html_url: "u".into(),
+                assets: vec![ReleaseAsset {
+                    name: "recurrency-aarch64.dmg".into(),
+                    browser_download_url: "arm".into(),
+                }],
+            };
+            assert!(!one_dmg.has_platform_asset());
+        }
     }
 
     #[test]

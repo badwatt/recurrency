@@ -725,7 +725,7 @@ pub fn patch_wry_activity(content: &str) -> String {
                 connection.connect()
                 if (connection.responseCode !in 200..299) throw IllegalStateException("HTTP " + connection.responseCode)
                 val dir = java.io.File(cacheDir, "updates").apply { mkdirs() }
-                val file = java.io.File(dir, "recurrency-latest.apk")
+                val file = java.io.File(dir, "recurrency-update.apk")
                 connection.inputStream.use { input -> file.outputStream().use { output -> input.copyTo(output) } }
                 val uri = androidx.core.content.FileProvider.getUriForFile(
                     this,
@@ -1561,7 +1561,7 @@ pub fn build(root: &Path, out_dir: &Path) -> Result<(), String> {
     )?;
 
     fs::create_dir_all(out_dir).map_err(|err| err.to_string())?;
-    let destination = out_dir.join(format!("recurrency-{version}-aarch64.apk"));
+    let destination = out_dir.join("recurrency-aarch64.apk");
     fs::rename(&unsigned, &destination).map_err(|err| err.to_string())?;
     println!("--- Done: {} ---", destination.display());
     Ok(())
