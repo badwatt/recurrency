@@ -1283,7 +1283,9 @@ mod tests {
             *TEST_DATA_OWNER
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
-            let _ = std::fs::remove_dir_all(&self.dir);
+            // Keep the temporary directory: page effects spawned during other
+            // tests may still hold a path into it. CI reclaims /tmp itself.
+            let _ = &self.dir;
         }
     }
 

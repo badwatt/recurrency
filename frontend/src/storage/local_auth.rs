@@ -276,7 +276,7 @@ mod tests {
             *TEST_DIR_OWNER
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
-            let _ = std::fs::remove_dir_all(&self.dir);
+            let _ = &self.dir;
         }
     }
 
