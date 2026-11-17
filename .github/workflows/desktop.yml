@@ -97,6 +97,7 @@ jobs:
           hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT" >/dev/null
           test -d "$MOUNT/Recurrency.app"
           plutil -p "$MOUNT/Recurrency.app/Contents/Info.plist" | grep -q 'CFBundleName.*Recurrency'
+          plutil -p "$MOUNT/Recurrency.app/Contents/Info.plist" | grep -q 'NSMicrophoneUsageDescription'
           codesign --verify --deep --strict --verbose=2 "$MOUNT/Recurrency.app"
           echo "Verified $DMG"
 

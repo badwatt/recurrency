@@ -29,3 +29,5 @@ out_dir = "../target/bin/desktop"
 
 [web]
 out_dir = "dist"
+[permissions]
+microphone = { description = "Record voice input for the AI assistant" }

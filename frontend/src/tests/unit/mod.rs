@@ -11,3 +11,13 @@ pub mod layout_redesign_tests;
 pub mod privacy_tests;
 pub mod empty_states_tests;
 pub mod page_render_tests;
+#[cfg(test)]
+mod dioxus_config_tests {
+    #[test]
+    fn microphone_permission_is_declared_for_native_bundles() {
+        let config = include_str!("../../../Dioxus.toml");
+        assert!(config.contains("[permissions]"));
+        assert!(config.contains("microphone"));
+        assert!(config.contains("Record voice input"));
+    }
+}
