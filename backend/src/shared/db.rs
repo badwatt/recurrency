@@ -722,4 +722,12 @@ mod tests {
         let _ = Duration::from_secs(300);
         let _ = Duration::from_secs(0);
     }
+    #[test]
+    fn parse_max_connections_rejects_overflow() {
+        assert_eq!(
+            parse_max_connections(Some("999999999999")),
+            DEFAULT_MAX_CONNECTIONS
+        );
+    }
+
 }

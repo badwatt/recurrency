@@ -407,4 +407,12 @@ mod tests {
         let rates = rates("EUR", &[]);
         assert_eq!(convert(Decimal::from(10), "GBP", "EUR", &rates), Decimal::from(10));
     }
+    #[test]
+    fn conversion_rejects_zero_and_negative_rates() {
+        let zero = rates("EUR", &[("USD", Decimal::ZERO)]);
+        assert_eq!(convert(Decimal::from(10), "USD", "EUR", &zero), Decimal::from(10));
+        let negative = rates("EUR", &[("USD", Decimal::from(-1))]);
+        assert_eq!(convert(Decimal::from(10), "USD", "EUR", &negative), Decimal::from(10));
+    }
+
 }

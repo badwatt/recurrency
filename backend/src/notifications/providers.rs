@@ -744,4 +744,101 @@ mod tests {
         assert!(validate_url("https://example.com/hook", true).is_ok());
         assert!(validate_url("http://example.com/hook", true).is_err());
     }
+    fn local_server(status: &str) -> (String, std::thread::JoinHandle<()>) {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let address = listener.local_addr().expect("address");
+        let status = status.to_string();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut buffer = [0u8; 8192];
+            let _ = stream.read(&mut buffer);
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+            );
+            let _ = stream.write_all(response.as_bytes());
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    #[tokio::test]
+    async fn webhook_providers_post_to_configured_urls() {
+        let message = NotificationMessage {
+            title: "Title".into(),
+            body: "Body".into(),
+        };
+        let cases = [
+            (NotificationProvider::Ntfy, "ntfy"),
+            (NotificationProvider::Gotify, "gotify"),
+            (NotificationProvider::Webhook, "webhook"),
+            (NotificationProvider::Slack, "slack"),
+            (NotificationProvider::Mattermost, "mattermost"),
+            (NotificationProvider::Discord, "discord"),
+        ];
+        for (provider, name) in cases {
+            let (base, server) = local_server("200 OK");
+            let config = match provider {
+                NotificationProvider::Ntfy => json!({"server": base, "topic": "alerts"}),
+                NotificationProvider::Gotify => json!({"server_url": base, "token": "token"}),
+                NotificationProvider::Webhook => json!({"url": base}),
+                _ => json!({"webhook_url": base}),
+            };
+            send_message(provider, &config, "", &message)
+                .await
+                .unwrap_or_else(|error| panic!("{name} failed: {error}"));
+            server.join().unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn provider_http_errors_are_surfaced() {
+        let message = NotificationMessage {
+            title: "Title".into(),
+            body: "Body".into(),
+        };
+        let (base, server) = local_server("500 Internal Server Error");
+        let error = send_message(
+            NotificationProvider::Webhook,
+            &json!({"url": base}),
+            "",
+            &message,
+        )
+        .await
+        .unwrap_err();
+        server.join().unwrap();
+        assert!(error.to_string().contains("500"));
+    }
+
+    #[tokio::test]
+    async fn invalid_provider_configs_are_rejected_before_network_calls() {
+        let message = NotificationMessage {
+            title: "Title".into(),
+            body: "Body".into(),
+        };
+        for provider in [
+            NotificationProvider::Ntfy,
+            NotificationProvider::Gotify,
+            NotificationProvider::Webhook,
+            NotificationProvider::Slack,
+            NotificationProvider::Mattermost,
+            NotificationProvider::Discord,
+            NotificationProvider::Email,
+            NotificationProvider::Telegram,
+            NotificationProvider::Pushover,
+            NotificationProvider::PushPlus,
+            NotificationProvider::ServerChan,
+        ] {
+            let result = send_message(provider, &json!({"bad": true}), "", &message).await;
+            assert!(result.is_err(), "{provider:?}");
+        }
+    }
+
+    #[test]
+    fn config_encryption_returns_ciphertext() {
+        let encrypted = encrypt_config("secret", &json!({"token": "value"})).unwrap();
+        assert!(!encrypted.is_empty());
+        assert_ne!(encrypted, b"{\"token\":\"value\"}");
+    }
+
 }
