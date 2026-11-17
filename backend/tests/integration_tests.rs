@@ -2526,3 +2526,234 @@ async fn debt_service_rejects_invalid_requests_and_missing_records(pool: PgPool)
     assert!(DebtService::get_by_id(&pool, other_user, debt.id).await.is_err());
     assert!(DebtService::delete(&pool, other_user, debt.id).await.is_err());
 }
+
+#[sqlx::test]
+async fn category_handlers_cover_crud_and_defaults(pool: PgPool) {
+    use recurrency_backend::categories::{
+        handlers,
+        models::{SetDefaultRequest, UpdateCategoryRequest},
+    };
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+
+    let Json(categories) = handlers::list(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(categories.len(), 1);
+    let system_id = categories[0].id;
+
+    let Json(with_counts) = handlers::list_with_counts(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(with_counts.len(), 1);
+
+    let (status, Json(created)) = handlers::create(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(CreateCategoryRequest {
+            name: "Handler category".into(),
+            icon: Some("Tag".into()),
+            color: Some("#123456".into()),
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::CREATED);
+
+    let Json(found) = handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(found.id, created.id);
+
+    let Json(updated) = handlers::update(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+        Json(UpdateCategoryRequest {
+            name: Some("Renamed".into()),
+            icon: serde_json::json!("Folder"),
+            color: serde_json::json!("#abcdef"),
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.name, "Renamed");
+
+    let Json(default) = handlers::set_default(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(SetDefaultRequest { id: system_id }),
+    )
+    .await
+    .unwrap();
+    assert!(default.is_default);
+
+    assert!(
+        handlers::delete(
+            State(state.clone()),
+            OptionalQuery(None),
+            axum::extract::Path(system_id),
+            headers.clone(),
+        )
+        .await
+        .is_err()
+    );
+    let status = handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::NO_CONTENT);
+
+    assert!(
+        handlers::get(
+            State(state.clone()),
+            OptionalQuery(None),
+            axum::extract::Path(Uuid::new_v4()),
+            headers.clone(),
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        handlers::list(State(state), OptionalQuery(None), HeaderMap::new())
+            .await
+            .is_err()
+    );
+}
+
+#[sqlx::test]
+async fn transaction_handlers_cover_crud_and_date_range(pool: PgPool) {
+    use recurrency_backend::shared::OptionalQuery;
+    use recurrency_backend::transactions::{
+        handlers::DateRangeQuery,
+        models::UpdateTransactionRequest,
+    };
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+    let date = NaiveDate::from_ymd_opt(2026, 2, 1).unwrap();
+
+    let (status, Json(created)) = recurrency_backend::transactions::handlers::create(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(recurrency_backend::transactions::models::CreateTransactionRequest {
+            name: "Handler transaction".into(),
+            amount: Decimal::from(5),
+            currency: "EUR".into(),
+            date,
+            account_id: Uuid::nil(),
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::CREATED);
+
+    let Json(listed) = recurrency_backend::transactions::handlers::list(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(listed.len(), 1);
+
+    let Json(found) = recurrency_backend::transactions::handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(found.id, created.id);
+
+    let Json(updated) = recurrency_backend::transactions::handlers::update(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+        Json(UpdateTransactionRequest {
+            name: Some("Updated transaction".into()),
+            amount: None,
+            currency: None,
+            date: None,
+            account_id: None,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.name, "Updated transaction");
+
+    let Json(in_range) = recurrency_backend::transactions::handlers::by_date_range(
+        State(state.clone()),
+        OptionalQuery(Some(DateRangeQuery {
+            token: None,
+            from_date: Some("2026-01-01".into()),
+            to_date: Some("2026-03-01".into()),
+        })),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(in_range.len(), 1);
+
+    let status = recurrency_backend::transactions::handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::NO_CONTENT);
+    assert!(
+        recurrency_backend::transactions::handlers::get(
+            State(state.clone()),
+            OptionalQuery(None),
+            axum::extract::Path(created.id),
+            headers.clone(),
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        recurrency_backend::transactions::handlers::list(
+            State(state),
+            OptionalQuery(None),
+            HeaderMap::new(),
+        )
+        .await
+        .is_err()
+    );
+}
