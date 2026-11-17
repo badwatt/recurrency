@@ -228,6 +228,39 @@ pub fn is_available() -> bool {
     cfg!(not(target_arch = "wasm32")) && crate::state::app_mode::APP_MODE().mode.is_offline()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn sync_state_file() -> Option<std::path::PathBuf> {
+    crate::state::auth::get_app_data_dir().map(|dir| dir.join("recurrency").join("sync_last.txt"))
+}
+
+/// Last successful sync time, persisted across launches.
+pub fn last_sync() -> Option<String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let value = std::fs::read_to_string(sync_state_file()?).ok()?;
+        let value = value.trim().to_string();
+        if value.is_empty() { None } else { Some(value) }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        None
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn record_sync() {
+    let Some(path) = sync_state_file() else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(
+        path,
+        chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+    );
+}
+
 pub async fn status() -> (bool, String) {
     platform::status().await
 }
@@ -256,6 +289,7 @@ pub async fn sync_once() -> Result<(), String> {
             .await
             .map_err(|error| error.to_string())?;
         platform::write_file(&merged).await?;
+        record_sync();
         Ok(())
     }
     .await;

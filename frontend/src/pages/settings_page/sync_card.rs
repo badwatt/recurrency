@@ -9,7 +9,7 @@ pub fn SyncFolderCard() -> Element {
     let mut folder_name = use_signal(String::new);
     let mut busy = use_signal(|| false);
     let mut error = use_signal(String::new);
-    let mut last_sync = use_signal(String::new);
+    let mut last_sync = use_signal(|| folder_sync::last_sync().unwrap_or_default());
 
     use_future(move || async move {
         if !local_mode {
@@ -50,7 +50,7 @@ pub fn SyncFolderCard() -> Element {
             let result = folder_sync::sync_once().await;
             match result {
                 Ok(()) => {
-                    last_sync.set(chrono::Local::now().format("%H:%M").to_string());
+                    last_sync.set(folder_sync::last_sync().unwrap_or_default());
                     TOAST.write().success("Sync complete");
                 }
                 Err(err) => error.set(err.to_string()),
