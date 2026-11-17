@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.55.9`.
+> `ghcr.io/badwatt/recurrency:0.55.10`.
 
 ### From source
 
@@ -483,7 +483,7 @@ CI enforces at least **85% backend** (excluding the binary entry point) and
 only wires the runtime; all application modules remain in the report.
 
 Current suite: **1276 backend unit tests**, **86 backend integration tests**,
-**1940 frontend tests** and **10 tooling tests**.
+**1941 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 
