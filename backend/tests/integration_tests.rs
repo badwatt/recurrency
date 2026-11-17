@@ -3204,3 +3204,44 @@ async fn ai_settings_validate_base_urls_and_keys(pool: PgPool) {
             .is_err()
     );
 }
+
+#[sqlx::test]
+async fn subscription_service_rejects_invalid_or_missing_records(pool: PgPool) {
+    use recurrency_backend::subscriptions::models::UpdateSubscriptionRequest;
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let missing = Uuid::new_v4();
+    assert!(SubscriptionService::get_by_id(&pool, user_id, missing).await.is_err());
+    assert!(
+        SubscriptionService::update(&pool, user_id, missing, UpdateSubscriptionRequest::default())
+            .await
+            .is_err()
+    );
+    assert!(SubscriptionService::delete(&pool, user_id, missing).await.is_err());
+
+    let base = CreateSubscriptionRequest {
+        name: "Invalid".into(),
+        amount: Decimal::ZERO,
+        currency: "EUR".into(),
+        frequency: "monthly".into(),
+        schedule_day: None,
+        schedule_month: None,
+        recurrence: None,
+        is_active: None,
+        start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        end_date: None,
+        account_id: Uuid::nil(),
+        category_id: None,
+        notes: None,
+        logo_url: None,
+    };
+    let mut invalid = base.clone();
+    invalid.amount = Decimal::from(1);
+    invalid.account_id = Uuid::new_v4();
+    assert!(SubscriptionService::create(&pool, user_id, invalid).await.is_err());
+    let mut invalid = base.clone();
+    invalid.amount = Decimal::from(1);
+    invalid.category_id = Some(Uuid::new_v4());
+    assert!(SubscriptionService::create(&pool, user_id, invalid).await.is_err());
+    let _ = base;
+}
