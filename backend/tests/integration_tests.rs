@@ -2757,3 +2757,139 @@ async fn transaction_handlers_cover_crud_and_date_range(pool: PgPool) {
         .is_err()
     );
 }
+
+#[sqlx::test]
+async fn subscription_handlers_cover_crud_upcoming_and_calendar(pool: PgPool) {
+    use chrono::Datelike;
+    use recurrency_backend::shared::OptionalQuery;
+    use recurrency_backend::subscriptions::handlers::CalendarQuery;
+    use recurrency_backend::subscriptions::models::UpdateSubscriptionRequest;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+    let today = chrono::Utc::now().date_naive();
+
+    let (status, Json(created)) = recurrency_backend::subscriptions::handlers::create(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(CreateSubscriptionRequest {
+            name: "Handler subscription".into(),
+            amount: Decimal::from(9),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            schedule_day: Some(today.day() as i16),
+            schedule_month: None,
+            recurrence: None,
+            is_active: Some(true),
+            start_date: today,
+            end_date: None,
+            account_id: Uuid::nil(),
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::CREATED);
+
+    let Json(listed) = recurrency_backend::subscriptions::handlers::list(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(listed.len(), 1);
+
+    let Json(found) = recurrency_backend::subscriptions::handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(found.id, created.id);
+
+    let Json(updated) = recurrency_backend::subscriptions::handlers::update(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+        Json(UpdateSubscriptionRequest {
+            name: Some("Updated subscription".into()),
+            amount: None,
+            currency: None,
+            frequency: None,
+            schedule_day: None,
+            schedule_month: None,
+            recurrence: None,
+            start_date: None,
+            end_date: None,
+            clear_end_date: false,
+            next_billing_date: None,
+            account_id: None,
+            category_id: None,
+            is_active: None,
+            notes: None,
+            logo_url: None,
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.name, "Updated subscription");
+
+    let Json(upcoming) = recurrency_backend::subscriptions::handlers::upcoming(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(upcoming.len(), 1);
+
+    let Json(calendar) = recurrency_backend::subscriptions::handlers::calendar(
+        State(state.clone()),
+        OptionalQuery(Some(CalendarQuery {
+            token: None,
+            year: Some(today.year()),
+            month: Some(today.month()),
+        })),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(calendar.len(), 1);
+
+    let status = recurrency_backend::subscriptions::handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::NO_CONTENT);
+    assert!(
+        recurrency_backend::subscriptions::handlers::get(
+            State(state.clone()),
+            OptionalQuery(None),
+            axum::extract::Path(created.id),
+            headers.clone(),
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        recurrency_backend::subscriptions::handlers::list(
+            State(state),
+            OptionalQuery(None),
+            HeaderMap::new(),
+        )
+        .await
+        .is_err()
+    );
+}
