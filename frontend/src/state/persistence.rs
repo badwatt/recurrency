@@ -266,4 +266,27 @@ mod tests {
         write("theme.txt", "mocha");
         assert!(dir().join("theme.txt").is_file());
     }
+    #[test]
+    fn backup_path_falls_back_to_config_for_a_directory() {
+        assert_eq!(
+            backup_path(Path::new("/tmp/recurrency")),
+            PathBuf::from("/tmp/recurrency.bak")
+        );
+    }
+
+    #[test]
+    fn write_replaces_an_existing_backup_and_remove_is_idempotent() {
+        let _test = PersistenceTest::new();
+        write("view.txt", "grid");
+        write("view.txt", "list");
+        write("view.txt", "table");
+        assert_eq!(read("view.txt").as_deref(), Some("table"));
+        assert_eq!(
+            std::fs::read_to_string(dir().join("view.txt.bak")).unwrap(),
+            "list"
+        );
+        remove("missing.txt");
+        assert!(!exists("missing.txt"));
+    }
+
 }

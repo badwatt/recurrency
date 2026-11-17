@@ -30,4 +30,17 @@ mod tests {
         assert_eq!(info.status, "OK");
         assert!(!info.smtp_configured);
     }
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn app_info_is_fetched_from_health() {
+        let info: AppInfo = crate::api::test_support::with_server(
+            r#"{"status":"OK","smtp_configured":true}"#,
+            get_app_info(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(info.status, "OK");
+        assert!(info.smtp_configured);
+    }
+
 }

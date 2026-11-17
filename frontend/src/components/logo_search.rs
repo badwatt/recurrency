@@ -411,6 +411,24 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
 
 #[cfg(test)]
 mod tests {
+    use dioxus::prelude::*;
+
+    fn logo_search_wrapper() -> Element {
+        rsx! {
+            super::LogoSearch {
+                selected_url: String::new(),
+                default_query: "netflix".to_string(),
+                on_select: move |_: String| {},
+            }
+        }
+    }
+
+    #[test]
+    fn logo_search_renders() {
+        let mut dom = VirtualDom::new(logo_search_wrapper);
+        dom.rebuild_in_place();
+    }
+
     #[test]
     fn logo_picker_supports_upload_and_pasted_urls() {
         let src = include_str!("logo_search.rs");

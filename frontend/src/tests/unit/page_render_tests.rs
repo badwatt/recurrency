@@ -91,3 +91,23 @@ fn settings_layout_renders() {
 fn app_layout_renders() {
     render(|| rsx! { crate::layout::AppLayout {} });
 }
+
+#[test]
+fn admin_page_renders_for_an_administrator() {
+    use crate::models::auth::UserResponse;
+    use crate::state::auth::AUTH;
+    let user = UserResponse {
+        id: uuid::Uuid::new_v4(),
+        email: "admin@test.com".into(),
+        avatar: None,
+        name: Some("Admin".into()),
+        currency: "EUR".into(),
+        verified: true,
+        is_admin: true,
+    };
+    let mut dom = VirtualDom::new(AdminPage);
+    dom.in_runtime(|| {
+        AUTH.write().set_authenticated("token".into(), user, false);
+    });
+    dom.rebuild_in_place();
+}

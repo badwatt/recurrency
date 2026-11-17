@@ -20,6 +20,8 @@ pub async fn import(backup: &Value) -> Result<Value, ApiError> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn backup_dispatches_local_and_server() {
         let source = include_str!("backup.rs");
@@ -27,4 +29,24 @@ mod tests {
         assert!(source.contains("export_backup"));
         assert!(source.contains("import_backup"));
     }
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn server_backup_endpoints_exchange_json() {
+        let backup: serde_json::Value = crate::api::test_support::with_server(
+            r#"{"format_version":1,"accounts":[]}"#,
+            export(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(backup["format_version"], 1);
+
+        let counts: serde_json::Value = crate::api::test_support::with_server(
+            r#"{"accounts":1}"#,
+            import(&serde_json::json!({"format_version":1})),
+        )
+        .await
+        .unwrap();
+        assert_eq!(counts["accounts"], 1);
+    }
+
 }

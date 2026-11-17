@@ -782,4 +782,23 @@ mod tests {
         assert_eq!(logos[0].url, "a");
         assert_eq!(logos[1].url, "b");
     }
+    #[tokio::test]
+    async fn empty_queries_skip_the_network() {
+        let result = search("   ").await.unwrap();
+        assert!(result.results.is_empty());
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn server_results_are_returned_before_the_client_fallback() {
+        let result: LogoSearchResponse = crate::api::test_support::with_server(
+            r#"{"results":[{"url":"https://example.test/logo.png","thumbnail":"https://example.test/logo.png","width":null,"height":null}]}"#,
+            search("netflix"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.results.len(), 1);
+        assert_eq!(result.results[0].url, "https://example.test/logo.png");
+    }
+
 }

@@ -202,6 +202,15 @@ mod tests {
     }
 
     #[test]
+    fn version_comparison_handles_partial_and_invalid_values() {
+        assert!(is_newer_version("0.30", "0.30.1"));
+        assert!(!is_newer_version("0.30.1", "0.30"));
+        assert!(!is_newer_version("", ""));
+        assert!(is_newer_version("not-a-version", "1.0.0"));
+        assert!(!is_newer_version("1.0.0", "1.0.0-beta"));
+    }
+
+    #[test]
     fn release_parses_tag_and_url() {
         let release: Release = serde_json::from_str(
             r#"{"tag_name":"v0.31.0","html_url":"https://example.test/release"}"#,

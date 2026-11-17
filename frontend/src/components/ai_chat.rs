@@ -240,6 +240,39 @@ async fn refresh_changed_data() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn response_text_appends_failed_action_messages() {
+        let response = AiChatResponse {
+            reply: "Done".into(),
+            actions: vec![
+                crate::api::ai::AiActionResult {
+                    action: "create".into(),
+                    success: true,
+                    message: "ok".into(),
+                },
+                crate::api::ai::AiActionResult {
+                    action: "delete".into(),
+                    success: false,
+                    message: "not found".into(),
+                },
+            ],
+        };
+        let text = response_text(&response);
+        assert_eq!(text, "Done\n\n⚠ not found");
+
+        let empty = response_text(&AiChatResponse {
+            reply: String::new(),
+            actions: vec![crate::api::ai::AiActionResult {
+                action: "x".into(),
+                success: false,
+                message: "failed".into(),
+            }],
+        });
+        assert_eq!(empty, "⚠ failed");
+    }
+
     #[test]
     fn chat_exposes_voice_dictation_with_all_input_paths() {
         let source = include_str!("ai_chat.rs");

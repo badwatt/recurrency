@@ -153,4 +153,14 @@ mod tests {
         assert!(error.contains("Could not reach"));
     }
 
+    #[test]
+    fn qr_rejects_invalid_json_and_empty_values() {
+        assert!(parse_qr_payload("{not-json").is_err());
+        assert!(parse_qr_payload(r#"{"server":""}"#).is_err());
+        assert_eq!(
+            parse_qr_payload(r#"{"server":"https://r.example.com"}"#).unwrap(),
+            "https://r.example.com"
+        );
+    }
+
 }
