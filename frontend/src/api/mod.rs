@@ -20,3 +20,6 @@ pub mod settings;
 pub mod subscriptions;
 pub mod transactions;
 pub mod update;
+
+#[cfg(test)]
+pub(crate) mod test_support;

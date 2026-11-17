@@ -293,4 +293,59 @@ mod registration_status_tests {
             serde_json::from_str(r#"{"registration_enabled":false}"#).unwrap();
         assert!(!status.registration_enabled);
     }
+    use crate::api::test_support::serve_once;
+    use serial_test::serial;
+
+    const AUTH_RESPONSE: &str = r#"{"token":"token","user":{"id":"00000000-0000-0000-0000-000000000001","email":"a@b.c","avatar":null,"name":"A","currency":"EUR","verified":true,"is_admin":false},"requires_verification":false}"#;
+
+    #[tokio::test]
+    #[serial]
+    async fn login_register_and_verification_use_the_api() {
+        let (base, server) = serve_once("200 OK", AUTH_RESPONSE);
+        crate::api::client::set_base_url(&base);
+        let login_result = login("a@b.c".into(), "password".into())
+            .await
+            .unwrap();
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+        assert_eq!(login_result.token, "token");
+
+        let (base, server) = serve_once("200 OK", AUTH_RESPONSE);
+        crate::api::client::set_base_url(&base);
+        let register_result = register("a@b.c".into(), "password".into(), "A".into())
+            .await
+            .unwrap();
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+        assert!(!register_result.requires_verification);
+
+        let (base, server) = serve_once("200 OK", r#"{"verified":true}"#);
+        crate::api::client::set_base_url(&base);
+        let verified = verify_email("token", "123456").await.unwrap();
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+        assert_eq!(verified["verified"], true);
+
+        let (base, server) = serve_once("200 OK", r#"{"sent":true}"#);
+        crate::api::client::set_base_url(&base);
+        let resent = resend_verification("token").await.unwrap();
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+        assert_eq!(resent["sent"], true);
+    }
+
+    #[test]
+    #[serial]
+    fn blocking_login_reads_the_response_and_reports_http_errors() {
+        let (base, server) = serve_once("200 OK", AUTH_RESPONSE);
+        let response = blocking_login(&base, "a@b.c", "password").unwrap();
+        server.join().unwrap();
+        assert_eq!(response.user.email, "a@b.c");
+
+        let (base, server) = serve_once("401 Unauthorized", r#"{"error":"bad"}"#);
+        let error = blocking_login(&base, "a@b.c", "wrong").unwrap_err();
+        server.join().unwrap();
+        assert!(matches!(error, ApiError::Http(401, _)));
+    }
+
 }

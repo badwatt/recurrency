@@ -138,4 +138,74 @@ mod tests {
         assert!(json.contains("https://api.example.com/v1"));
         assert!(!json.contains("secret"));
     }
+    use crate::api::test_support::serve_once;
+    use serial_test::serial;
+
+    async fn with_server<F, T>(response: &'static str, call: F) -> T
+    where
+        F: std::future::Future<Output = T>,
+    {
+        let (base, server) = serve_once("200 OK", response);
+        crate::api::client::set_base_url(&base);
+        let result = call.await;
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+        result
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn settings_and_updates_use_the_api() {
+        let settings = with_server(
+            r#"{"enabled":true,"provider":"openai","base_url":"https://api.example.com/v1","model":"gpt","configured":true}"#,
+            settings(),
+        )
+        .await
+        .unwrap();
+        assert!(settings.configured);
+        assert_eq!(settings.provider, "openai");
+
+        let updated = with_server(
+            r#"{"enabled":false,"provider":"groq","base_url":"https://api.groq.com/openai/v1","model":"llama","configured":false}"#,
+            update_settings(&UpdateAiSettingsRequest {
+                enabled: false,
+                provider: Some("groq".into()),
+                base_url: None,
+                model: None,
+                api_key: None,
+                clear_api_key: false,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.provider, "groq");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn models_transcription_and_chat_parse_the_api() {
+        let models = with_server(r#"{"models":["a","b"]}"#, models(None))
+            .await
+            .unwrap();
+        assert_eq!(models, vec!["a".to_string(), "b".to_string()]);
+
+        let text = with_server(r#"{"text":"dictated"}"#, transcribe("AAAA", "audio/wav"))
+            .await
+            .unwrap();
+        assert_eq!(text, "dictated");
+
+        let chat = with_server(
+            r#"{"reply":"Done","actions":[{"action":"create_subscription","success":true,"message":"ok"}]}"#,
+            chat(&[AiMessage {
+                role: "user".into(),
+                content: "add one".into(),
+            }]),
+        )
+        .await
+        .unwrap();
+        assert_eq!(chat.reply, "Done");
+        assert_eq!(chat.actions.len(), 1);
+        assert!(chat.actions[0].success);
+    }
+
 }

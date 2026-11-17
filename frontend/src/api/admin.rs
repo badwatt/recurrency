@@ -105,4 +105,68 @@ mod tests {
         assert!(json.contains("registration_enabled"));
         assert!(json.contains("false"));
     }
+    use crate::api::test_support::serve_once;
+    use serial_test::serial;
+
+    async fn with_server<F, T>(response: &'static str, call: F) -> T
+    where
+        F: std::future::Future<Output = T>,
+    {
+        let (base, server) = serve_once("200 OK", response);
+        crate::api::client::set_base_url(&base);
+        let result = call.await;
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+        result
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn admin_endpoints_parse_their_responses() {
+        let id = uuid::Uuid::new_v4();
+        let user = format!(
+            r#"{{"id":"{id}","email":"a@b.c","name":"A","currency":"EUR","verified":true,"is_admin":false,"created_at":"2026-01-01T00:00:00Z"}}"#
+        );
+        let users_json: &'static str = Box::leak(format!("[{user}]").into_boxed_str());
+        let user: &'static str = Box::leak(user.into_boxed_str());
+        let users = with_server(users_json, users()).await.unwrap();
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id, id);
+
+        let settings = with_server(r#"{"registration_enabled":true}"#, settings())
+            .await
+            .unwrap();
+        assert!(settings.registration_enabled);
+
+        let updated = with_server(
+            r#"{"registration_enabled":false}"#,
+            set_registration_enabled(false),
+        )
+        .await
+        .unwrap();
+        assert!(!updated.registration_enabled);
+
+        let backup = with_server(r#"{"tables":{"users":[]}}"#, full_backup())
+            .await
+            .unwrap();
+        assert!(backup["tables"].is_object());
+
+        let restored = with_server(
+            r#"{"restored_tables":14}"#,
+            restore_backup(&serde_json::json!({"format_version": 1})),
+        )
+        .await
+        .unwrap();
+        assert_eq!(restored.restored_tables, 14);
+
+        let role = with_server(user, set_admin(id, true)).await.unwrap();
+        assert_eq!(role.id, id);
+
+        let (base, server) = serve_once("204 No Content", "");
+        crate::api::client::set_base_url(&base);
+        delete_user(id).await.unwrap();
+        crate::api::client::clear_base_url();
+        server.join().unwrap();
+    }
+
 }
