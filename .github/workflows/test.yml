@@ -132,7 +132,7 @@ jobs:
         run: |
           rustup component add llvm-tools-preview
           cd frontend
-          cargo llvm-cov test --lib --fail-under-lines 72
+          cargo llvm-cov test --lib --fail-under-lines 75
 
       - name: WASM check
         run: cd frontend && cargo check --target wasm32-unknown-unknown --features web
