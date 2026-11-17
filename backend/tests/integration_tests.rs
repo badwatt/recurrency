@@ -1800,3 +1800,466 @@ async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
     assert_eq!(logo.as_deref(), Some("https://example.test/logo.png"));
     assert!(recurrence.unwrap().contains("\"month\": 6"));
 }
+
+// ── HTTP handler coverage ─────────────────────────────────────────────────────
+
+fn auth_headers(token: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        format!("Bearer {token}").parse().unwrap(),
+    );
+    headers
+}
+
+#[sqlx::test]
+async fn debt_handlers_cover_the_full_api(pool: PgPool) {
+    use recurrency_backend::debts::{handlers, models::UpdateDebtRequest};
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool.clone());
+    let headers = auth_headers(&token);
+    let req = CreateDebtRequest {
+        name: "Handler debt".to_string(),
+        total_amount: Decimal::from(100),
+        currency: "EUR".to_string(),
+        account_id: Uuid::nil(),
+        category_id: None,
+        debt_type: "manual".to_string(),
+        monthly_payment: None,
+        payment_days: Vec::new(),
+        start_date: Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+        notes: None,
+        logo_url: None,
+    };
+    let (status, Json(created)) = handlers::create(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(req),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::CREATED);
+    assert_eq!(created.name, "Handler debt");
+
+    let Json(list) = handlers::list(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(list.len(), 1);
+
+    let Json(found) = handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(found.id, created.id);
+
+    let Json(updated) = handlers::update(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+        Json(UpdateDebtRequest {
+            name: Some("Renamed handler debt".to_string()),
+            ..Default::default()
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.name, "Renamed handler debt");
+
+    let Json(paid) = handlers::record_payment(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+        Json(RecordDebtPaymentRequest {
+            amount: Decimal::from(10),
+            paid_on: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            note: Some("handler payment".to_string()),
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(paid.remaining_amount, Decimal::from(90));
+
+    let Json(payments) = handlers::payments(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(payments.len(), 1);
+
+    let status = handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::NO_CONTENT);
+
+    let missing = handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(Uuid::new_v4()),
+        headers,
+    )
+    .await;
+    assert!(missing.is_err());
+    let unauthorized = handlers::list(State(state), OptionalQuery(None), HeaderMap::new()).await;
+    assert!(unauthorized.is_err());
+}
+
+#[sqlx::test]
+async fn account_handlers_cover_crud_and_defaults(pool: PgPool) {
+    use recurrency_backend::accounts::{handlers, models::SetDefaultAccountRequest};
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+
+    let Json(initial) = handlers::list(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(initial.len(), 1);
+    let original_id = initial[0].id;
+
+    let Json(with_counts) = handlers::list_with_counts(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(with_counts.len(), 1);
+
+    let Json(created) = handlers::create(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(CreateAccountRequest {
+            name: "Handler account".to_string(),
+            icon: Some("Wallet".to_string()),
+            color: Some("#123456".to_string()),
+        }),
+    )
+    .await
+    .unwrap()
+    .1;
+    assert_eq!(created.name, "Handler account");
+
+    let Json(found) = handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(found.id, created.id);
+
+    let Json(updated) = handlers::update(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+        Json(UpdateAccountRequest {
+            name: Some("Updated handler account".to_string()),
+            icon: serde_json::json!("PiggyBank"),
+            color: serde_json::json!("#abcdef"),
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.name, "Updated handler account");
+    assert_eq!(updated.icon.as_deref(), Some("PiggyBank"));
+
+    let Json(default) = handlers::set_default(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(SetDefaultAccountRequest { id: created.id }),
+    )
+    .await
+    .unwrap();
+    assert!(default.is_default);
+
+    let status = handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await;
+    assert!(status.is_err());
+
+    handlers::set_default(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(SetDefaultAccountRequest { id: original_id }),
+    )
+    .await
+    .unwrap();
+    let status = handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(created.id),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, axum::http::StatusCode::NO_CONTENT);
+
+    let missing = handlers::get(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(Uuid::new_v4()),
+        headers,
+    )
+    .await;
+    assert!(missing.is_err());
+    let unauthorized = handlers::list(State(state), OptionalQuery(None), HeaderMap::new()).await;
+    assert!(unauthorized.is_err());
+}
+
+#[sqlx::test]
+async fn notification_channel_handlers_cover_listing_updates_and_summary(pool: PgPool) {
+    use recurrency_backend::notifications::channel_handlers;
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+
+    let Json(channels) = channel_handlers::list_channels(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(channels.len(), NotificationProvider::ALL.len());
+
+    let Json(updated) = channel_handlers::update_channel(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path("ntfy".to_string()),
+        headers.clone(),
+        Json(UpdateNotificationChannelRequest {
+            enabled: true,
+            config: serde_json::json!({
+                "server": "https://ntfy.sh",
+                "topic": "handler-test",
+                "token": "secret"
+            }),
+        }),
+    )
+    .await
+    .unwrap();
+    assert!(updated.enabled);
+    assert_eq!(updated.config["token"], MASKED_VALUE);
+
+    let unknown = channel_handlers::update_channel(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path("unknown".to_string()),
+        headers.clone(),
+        Json(UpdateNotificationChannelRequest {
+            enabled: false,
+            config: serde_json::json!({}),
+        }),
+    )
+    .await;
+    assert!(unknown.is_err());
+
+    let unknown_test = channel_handlers::test_channel(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path("unknown".to_string()),
+        headers.clone(),
+        Json(channel_handlers::TestChannelRequest { config: None }),
+    )
+    .await;
+    assert!(unknown_test.is_err());
+
+    let Json(summary) = channel_handlers::get_summary(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(summary.timezone.is_empty() == false);
+
+    let Json(saved) = channel_handlers::update_summary(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(UpdateSummaryNotificationSettingsRequest {
+            enabled: true,
+            frequency: "weekly".to_string(),
+            weekday: Some(1),
+            day_of_month: None,
+            hour: 9,
+            minute: 30,
+            timezone: "UTC".to_string(),
+            period: "current".to_string(),
+        }),
+    )
+    .await
+    .unwrap();
+    assert!(saved.enabled);
+    assert_eq!(saved.frequency, "weekly");
+
+    let unauthorized =
+        channel_handlers::list_channels(State(state), OptionalQuery(None), HeaderMap::new()).await;
+    assert!(unauthorized.is_err());
+}
+
+#[sqlx::test]
+async fn currency_handlers_cover_settings(pool: PgPool) {
+    use recurrency_backend::currency::handlers::{self, SettingsQuery};
+    use recurrency_backend::currency::service::UpdateCurrencySettingsRequest;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+    let query = || SettingsQuery { token: None };
+
+    let Json(settings) = handlers::get_settings(
+        State(state.clone()),
+        axum::extract::Query(query()),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(!settings.provider.is_empty());
+
+    let Json(updated) = handlers::update_settings(
+        State(state.clone()),
+        axum::extract::Query(query()),
+        headers.clone(),
+        Json(UpdateCurrencySettingsRequest {
+            provider: Some("frankfurter".to_string()),
+            fixer_api_key: None,
+            clear_fixer_api_key: true,
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.provider, "frankfurter");
+
+    let unauthorized =
+        handlers::get_settings(State(state), axum::extract::Query(query()), HeaderMap::new()).await;
+    assert!(unauthorized.is_err());
+}
+
+
+#[sqlx::test]
+async fn admin_handlers_cover_settings_backups_roles_and_deletion(pool: PgPool) {
+    use recurrency_backend::admin::{
+        handlers,
+        models::{UpdateAdminRoleRequest, UpdateAdminSettingsRequest},
+    };
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (_, admin_token) = create_test_user(&pool).await;
+    let (member_id, _) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&admin_token);
+
+    let Json(initial) = handlers::get_settings(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(initial.registration_enabled);
+
+    let Json(disabled) = handlers::update_settings(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(UpdateAdminSettingsRequest {
+            registration_enabled: false,
+        }),
+    )
+    .await
+    .unwrap();
+    assert!(!disabled.registration_enabled);
+
+    let Json(backup) = handlers::full_backup(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(!backup.tables.is_empty());
+
+    let Json(promoted) = handlers::update_role(
+        State(state.clone()),
+        axum::extract::Path(member_id),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(UpdateAdminRoleRequest { is_admin: true }),
+    )
+    .await
+    .unwrap();
+    assert!(promoted.is_admin);
+
+    let Json(demoted) = handlers::update_role(
+        State(state.clone()),
+        axum::extract::Path(member_id),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(UpdateAdminRoleRequest { is_admin: false }),
+    )
+    .await
+    .unwrap();
+    assert!(!demoted.is_admin);
+
+    let Json(deleted) = handlers::delete_user(
+        State(state.clone()),
+        axum::extract::Path(member_id),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(deleted["deleted"], true);
+
+    let Json(restored) = handlers::restore_backup(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(backup),
+    )
+    .await
+    .unwrap();
+    assert_eq!(restored.restored_tables, 14);
+
+    let unauthorized = handlers::list_users(State(state), OptionalQuery(None), HeaderMap::new()).await;
+    assert!(unauthorized.is_err());
+}

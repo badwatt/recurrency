@@ -94,4 +94,115 @@ mod tests {
         assert!(request.enabled);
         assert_eq!(request.api_key.as_deref(), Some("key"));
     }
+
+    mod handler_tests {
+        use super::*;
+        use crate::ai::models::AiMessage;
+        use crate::shared::OptionalQuery;
+        use crate::shared::mocks::MockAuthService;
+        use axum::http::HeaderMap;
+        use std::sync::Arc;
+
+        fn headers() -> HeaderMap {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "Authorization",
+                "Bearer mock_token_00000000-0000-0000-0000-000000000001"
+                    .parse()
+                    .unwrap(),
+            );
+            headers
+        }
+
+        fn state() -> AppState {
+            let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
+            AppState::with_auth_service(pool, Arc::new(MockAuthService::success()))
+        }
+
+        #[tokio::test]
+        async fn handlers_delegate_to_the_service() {
+            let state = state();
+            let Json(settings) = get_settings(
+                State(state.clone()),
+                OptionalQuery(None),
+                headers(),
+            )
+            .await
+            .unwrap();
+            assert!(!settings.enabled);
+
+            let Json(updated) = update_settings(
+                State(state.clone()),
+                OptionalQuery(None),
+                headers(),
+                Json(UpdateAiSettingsRequest {
+                    enabled: true,
+                    provider: Some("openai".to_string()),
+                    base_url: None,
+                    model: None,
+                    api_key: None,
+                    clear_api_key: false,
+                }),
+            )
+            .await
+            .unwrap();
+            assert!(!updated.enabled);
+
+            let Json(chat) = chat(
+                State(state.clone()),
+                OptionalQuery(None),
+                headers(),
+                Json(AiChatRequest {
+                    messages: vec![AiMessage {
+                        role: "user".to_string(),
+                        content: "hello".to_string(),
+                    }],
+                }),
+            )
+            .await
+            .unwrap();
+            assert!(!chat.reply.is_empty());
+
+            let Json(models) = models(
+                State(state.clone()),
+                OptionalQuery(None),
+                headers(),
+                Json(AiModelsRequest { base_url: None }),
+            )
+            .await
+            .unwrap();
+            assert_eq!(models.models.len(), 1);
+
+            let Json(transcribed) = transcribe(
+                State(state.clone()),
+                OptionalQuery(None),
+                headers(),
+                Json(AiTranscriptionRequest {
+                    audio_base64: "AAAA".to_string(),
+                    mime_type: "audio/wav".to_string(),
+                }),
+            )
+            .await
+            .unwrap();
+            assert!(!transcribed.text.is_empty());
+
+            let unauthorized = get_settings(
+                State(state),
+                OptionalQuery(None),
+                HeaderMap::new(),
+            )
+            .await;
+            assert!(unauthorized.is_err());
+        }
+
+        #[tokio::test]
+        async fn query_tokens_are_accepted() {
+            let state = state();
+            let query = OptionalQuery(Some(AuthQuery {
+                token: Some("mock_token_00000000-0000-0000-0000-000000000002".to_string()),
+            }));
+            let result = get_settings(State(state), query, HeaderMap::new()).await;
+            assert!(result.is_ok());
+        }
+    }
 }
