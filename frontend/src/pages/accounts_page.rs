@@ -197,7 +197,7 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
     }
 
     rsx! {
-        div { class: if embedded { "flex flex-col gap-6" } else { "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in duration-300" },
+        div { class: if embedded { "flex flex-col gap-6" } else { "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in" },
             // Header
             div { class: if embedded { "flex justify-end" } else { "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3" },
                 if !embedded {

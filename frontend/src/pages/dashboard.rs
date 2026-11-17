@@ -515,7 +515,7 @@ pub fn Dashboard() -> Element {
     let nav = navigator();
 
     rsx! {
-        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 animate-in fade-in duration-300",
+        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 animate-in fade-in",
             // Header
             div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
                 div {

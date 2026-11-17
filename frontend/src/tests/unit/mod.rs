@@ -7,6 +7,7 @@ pub mod android_theme_tests;
 pub mod dashboard_redesign_tests;
 pub mod design_system_tests;
 pub mod index_html_tests;
+mod layout_animation_tests;
 pub mod layout_redesign_tests;
 pub mod privacy_tests;
 pub mod empty_states_tests;
