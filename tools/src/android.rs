@@ -315,6 +315,7 @@ fn style_items() -> String {
         "        <item name=\"android:windowBackground\">#1e1e2e</item>\n",
         "        <item name=\"android:windowDisablePreview\">true</item>\n",
         "        <item name=\"android:windowSplashScreenBackground\">#1e1e2e</item>\n",
+        "        <item name=\"android:windowSplashScreenAnimatedIcon\">@android:color/transparent</item>\n",
         "        <item name=\"android:windowSplashScreenIconBackgroundColor\">#1e1e2e</item>\n",
         "        <item name=\"android:windowSplashScreenAnimationDuration\">0</item>\n",
     )
@@ -1663,6 +1664,7 @@ mod tests {
         assert!(patched.contains("android:statusBarColor"));
         assert!(patched.contains("android:windowDisablePreview"));
         assert!(patched.contains("android:windowSplashScreenBackground"));
+        assert!(patched.contains("android:windowSplashScreenAnimatedIcon"));
         assert!(patched.contains("android:windowSplashScreenIconBackgroundColor"));
         assert!(patched.contains("android:windowSplashScreenAnimationDuration"));
         assert_eq!(patch_styles(&patched), patched);
