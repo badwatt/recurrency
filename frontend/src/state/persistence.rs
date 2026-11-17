@@ -11,8 +11,15 @@ const BACKUP_SUFFIX: &str = ".bak";
 const DATA_DIR_ENV: &str = "RECURRENCY_DATA_DIR";
 
 pub fn recurrency_dir() -> Option<PathBuf> {
+    #[cfg(test)]
+    if let Some(dir) = TEST_DIR.lock().ok().and_then(|dir| dir.clone()) {
+        return Some(dir);
+    }
     crate::state::auth::get_app_data_dir().map(|dir| dir.join("recurrency"))
 }
+
+#[cfg(test)]
+static TEST_DIR: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
 
 fn backup_path(path: &Path) -> PathBuf {
     path.with_file_name(format!(
@@ -24,6 +31,10 @@ fn backup_path(path: &Path) -> PathBuf {
 }
 
 fn candidate_dirs() -> Vec<PathBuf> {
+    #[cfg(test)]
+    if let Some(dir) = TEST_DIR.lock().ok().and_then(|dir| dir.clone()) {
+        return vec![dir];
+    }
     let mut dirs = Vec::new();
     if let Some(dir) = recurrency_dir() {
         dirs.push(dir);
@@ -124,6 +135,43 @@ pub fn remove(name: &str) {
 mod tests {
     use super::*;
 
+    static PERSISTENCE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    struct PersistenceTest {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        dir: PathBuf,
+    }
+
+    impl PersistenceTest {
+        fn new() -> Self {
+            let lock = PERSISTENCE_TEST_LOCK
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let dir = std::env::temp_dir().join(format!(
+                "recurrency-persistence-{}",
+                uuid::Uuid::new_v4()
+            ));
+            let _ = std::fs::remove_dir_all(&dir);
+            *TEST_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(dir.clone());
+            Self { _lock: lock, dir }
+        }
+    }
+
+    impl Drop for PersistenceTest {
+        fn drop(&mut self) {
+            *TEST_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    fn dir() -> PathBuf {
+        recurrency_dir().expect("test directory")
+    }
+
     #[test]
     fn backup_path_keeps_the_original_extension() {
         let path = Path::new("/tmp/recurrency/theme.txt");
@@ -146,5 +194,76 @@ mod tests {
     #[test]
     fn data_dir_environment_is_supported() {
         assert!(!DATA_DIR_ENV.is_empty());
+    }
+
+    #[test]
+    fn write_read_and_remove_keep_a_backup() {
+        let _test = PersistenceTest::new();
+        write("theme.txt", "dark");
+        assert_eq!(read("theme.txt").as_deref(), Some("dark"));
+        assert!(exists("theme.txt"));
+
+        write("theme.txt", "light");
+        let path = dir().join("theme.txt");
+        assert_eq!(read("theme.txt").as_deref(), Some("light"));
+        assert_eq!(
+            std::fs::read_to_string(path.with_extension("txt.bak")).unwrap(),
+            "dark"
+        );
+
+        remove("theme.txt");
+        assert!(!exists("theme.txt"));
+        assert!(read("theme.txt").is_none());
+        assert!(!path.with_extension("txt.bak").exists());
+    }
+
+    #[test]
+    fn read_prefers_the_active_value_and_falls_back_to_the_backup() {
+        let _test = PersistenceTest::new();
+        write("app_mode.txt", "offline");
+        write("app_mode.txt", "server\nhttps://example.test");
+        assert_eq!(
+            read("app_mode.txt").as_deref(),
+            Some("server\nhttps://example.test")
+        );
+
+        std::fs::remove_file(dir().join("app_mode.txt")).unwrap();
+        assert_eq!(read("app_mode.txt").as_deref(), Some("offline"));
+    }
+
+    #[test]
+    fn blank_active_values_use_the_backup() {
+        let _test = PersistenceTest::new();
+        write("server_url.txt", "https://first.test");
+        write("server_url.txt", "https://second.test");
+        std::fs::write(dir().join("server_url.txt"), "   \n").unwrap();
+        assert_eq!(
+            read("server_url.txt").as_deref(),
+            Some("https://first.test")
+        );
+    }
+
+    #[test]
+    fn missing_and_blank_values_are_not_returned() {
+        let _test = PersistenceTest::new();
+        assert!(read("missing.txt").is_none());
+        std::fs::create_dir_all(dir()).unwrap();
+        std::fs::write(dir().join("blank.txt"), " \n ").unwrap();
+        assert!(read("blank.txt").is_none());
+    }
+
+    #[test]
+    fn remove_missing_preferences_is_safe() {
+        let _test = PersistenceTest::new();
+        remove("never-written.txt");
+        assert!(!exists("never-written.txt"));
+    }
+
+    #[test]
+    fn writes_create_the_data_directory() {
+        let _test = PersistenceTest::new();
+        assert!(!dir().exists());
+        write("theme.txt", "mocha");
+        assert!(dir().join("theme.txt").is_file());
     }
 }

@@ -70,9 +70,16 @@ fn validate(email: &str, password: &str, name: &str) -> Result<(), String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn accounts_file() -> Option<std::path::PathBuf> {
+    #[cfg(test)]
+    if let Some(dir) = TEST_DIR.lock().ok().and_then(|dir| dir.clone()) {
+        return Some(dir.join(ACCOUNTS_FILE));
+    }
     crate::state::auth::get_app_data_dir()
         .map(|d| d.join("recurrency").join(ACCOUNTS_FILE))
 }
+
+#[cfg(test)]
+static TEST_DIR: std::sync::Mutex<Option<std::path::PathBuf>> = std::sync::Mutex::new(None);
 
 #[cfg(not(target_arch = "wasm32"))]
 fn legacy_accounts_file() -> Option<std::path::PathBuf> {
@@ -104,7 +111,8 @@ fn load_accounts() -> Vec<LocalAccount> {
         }
         // Older Android builds could resolve dirs::data_dir() differently.
         // Recover an account file from that path once and persist it in the
-        // canonical location.
+        // canonical location. Tests never inspect real user directories.
+        #[cfg(not(test))]
         if let Some(legacy) = legacy_accounts_file()
             && let Ok(json) = std::fs::read_to_string(&legacy)
             && let Ok(accounts) = serde_json::from_str::<Vec<LocalAccount>>(&json)
@@ -223,6 +231,39 @@ pub fn update_profile(
 mod tests {
     use super::*;
 
+    static AUTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    struct AuthTest {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        dir: std::path::PathBuf,
+    }
+
+    impl AuthTest {
+        fn new() -> Self {
+            let lock = AUTH_TEST_LOCK
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let dir = std::env::temp_dir().join(format!(
+                "recurrency-local-auth-{}",
+                Uuid::new_v4()
+            ));
+            let _ = std::fs::remove_dir_all(&dir);
+            *TEST_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(dir.clone());
+            Self { _lock: lock, dir }
+        }
+    }
+
+    impl Drop for AuthTest {
+        fn drop(&mut self) {
+            *TEST_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
     #[test]
     fn hash_is_deterministic_and_salt_dependent() {
         let a = hash_password("salt1", "password123");
@@ -269,5 +310,74 @@ mod tests {
         assert_eq!(user.email, "a@b.com");
         assert_eq!(user.name.as_deref(), Some("Alice"));
         assert!(user.verified);
+    }
+
+    #[test]
+    fn register_validates_and_normalizes_new_accounts() {
+        let _test = AuthTest::new();
+        assert!(!has_accounts());
+        assert!(register("invalid", "password123", "Alice").is_err());
+        assert!(register("alice@example.com", "short", "Alice").is_err());
+        assert!(register("alice@example.com", "password123", "  ").is_err());
+
+        let user = register("  Alice@Example.COM ", "password123", " Alice ").unwrap();
+        assert_eq!(user.email, "alice@example.com");
+        assert_eq!(user.name.as_deref(), Some("Alice"));
+        assert!(user.verified);
+        assert!(has_accounts());
+        assert!(register("ALICE@example.com", "password123", "Other").is_err());
+    }
+
+    #[test]
+    fn login_checks_password_and_normalizes_email() {
+        let _test = AuthTest::new();
+        register("alice@example.com", "password123", "Alice").unwrap();
+        assert!(login("unknown@example.com", "password123").is_err());
+        assert!(login("alice@example.com", "wrongpass").is_err());
+
+        let user = login(" ALICE@example.com ", "password123").unwrap();
+        assert_eq!(user.email, "alice@example.com");
+    }
+
+    #[test]
+    fn update_profile_validates_uniqueness_and_fields() {
+        let _test = AuthTest::new();
+        let first = register("alice@example.com", "password123", "Alice").unwrap();
+        let second = register("bob@example.com", "password123", "Bob").unwrap();
+
+        assert!(update_profile(first.id, "invalid", "Alice", None, None).is_err());
+        assert!(update_profile(first.id, "alice@example.com", "A", None, None).is_err());
+        assert!(update_profile(first.id, "bob@example.com", "Alice", None, None).is_err());
+        assert!(update_profile(Uuid::new_v4(), "alice@example.com", "Alice", None, None).is_err());
+
+        let updated = update_profile(
+            first.id,
+            "ALICE+new@example.com",
+            " Alice Updated ",
+            Some("avatar.png".into()),
+            Some("usd".into()),
+        )
+        .unwrap();
+        assert_eq!(updated.email, "alice+new@example.com");
+        assert_eq!(updated.name.as_deref(), Some("Alice Updated"));
+        assert_eq!(updated.avatar.as_deref(), Some("avatar.png"));
+        assert_eq!(updated.currency, "USD");
+        assert!(login("alice+new@example.com", "password123").is_ok());
+        assert_eq!(second.email, "bob@example.com");
+    }
+
+    #[test]
+    fn corrupt_account_file_is_ignored() {
+        let _test = AuthTest::new();
+        std::fs::create_dir_all(TEST_DIR.lock().unwrap().as_ref().unwrap()).unwrap();
+        std::fs::write(
+            TEST_DIR.lock().unwrap().as_ref().unwrap().join(ACCOUNTS_FILE),
+            "not json",
+        )
+        .unwrap();
+        assert!(!has_accounts());
+        assert!(load_accounts().is_empty());
+        assert!(register("recovered@example.com", "password123", "Recovered").is_ok());
+        assert!(has_accounts());
     }
 }
