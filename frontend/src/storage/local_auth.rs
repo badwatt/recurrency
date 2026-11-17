@@ -72,7 +72,11 @@ fn validate(email: &str, password: &str, name: &str) -> Result<(), String> {
 fn accounts_file() -> Option<std::path::PathBuf> {
     #[cfg(test)]
     if let Some(dir) = TEST_DIR.lock().ok().and_then(|dir| dir.clone()) {
-        return Some(dir.join(ACCOUNTS_FILE));
+        let owner = TEST_DIR_OWNER.lock().ok().and_then(|owner| *owner);
+        if owner == Some(std::thread::current().id()) {
+            return Some(dir.join(ACCOUNTS_FILE));
+        }
+        return None;
     }
     crate::state::auth::get_app_data_dir()
         .map(|d| d.join("recurrency").join(ACCOUNTS_FILE))
@@ -83,6 +87,10 @@ static TEST_DIR: std::sync::Mutex<Option<std::path::PathBuf>> = std::sync::Mutex
 
 #[cfg(test)]
 pub(crate) static AUTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+static TEST_DIR_OWNER: std::sync::Mutex<Option<std::thread::ThreadId>> =
+    std::sync::Mutex::new(None);
 
 #[cfg(not(target_arch = "wasm32"))]
 fn legacy_accounts_file() -> Option<std::path::PathBuf> {
@@ -252,6 +260,10 @@ mod tests {
             *TEST_DIR
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(dir.clone());
+            *TEST_DIR_OWNER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                Some(std::thread::current().id());
             Self { _lock: lock, dir }
         }
     }
@@ -259,6 +271,9 @@ mod tests {
     impl Drop for AuthTest {
         fn drop(&mut self) {
             *TEST_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+            *TEST_DIR_OWNER
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
             let _ = std::fs::remove_dir_all(&self.dir);
