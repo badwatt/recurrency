@@ -1892,3 +1892,13 @@ fn sorts_subscriptions_by_created_and_updated_timestamps() {
     assert_eq!(subs[0].name, "First");
     assert!(SORT_OPTIONS.iter().any(|(value, _)| *value == "updated_at"));
 }
+
+#[test]
+fn delete_subscription_dialog_renders() {
+    fn wrapper() -> Element {
+        let confirm_id = use_signal(|| Some(Uuid::new_v4()));
+        rsx! { DeleteSubscriptionDialog { confirm_id } }
+    }
+    let mut dom = VirtualDom::new(wrapper);
+    dom.rebuild_in_place();
+}

@@ -182,6 +182,14 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
 #[cfg(test)]
 mod local_mode_tests {
     #[test]
+    fn server_editor_renders() {
+        use super::ServerUrlEditor;
+        use dioxus::prelude::*;
+        let mut dom = VirtualDom::new(|| rsx! { ServerUrlEditor {} });
+        dom.rebuild_in_place();
+    }
+
+    #[test]
     fn native_server_editor_offers_local_mode() {
         let src = include_str!("server_url.rs");
         assert!(src.contains("Use this device"));

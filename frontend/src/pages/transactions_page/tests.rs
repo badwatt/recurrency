@@ -1838,3 +1838,14 @@ fn sorts_transactions_by_created_and_updated_timestamps() {
     );
     assert_eq!(groups[0].transactions[0].name, "Second");
 }
+
+#[test]
+fn transaction_dialog_renders() {
+    fn wrapper() -> Element {
+        let open = use_signal(|| true);
+        let editing_id = use_signal(|| None);
+        rsx! { TransactionDialog { open, editing_id } }
+    }
+    let mut dom = VirtualDom::new(wrapper);
+    dom.rebuild_in_place();
+}

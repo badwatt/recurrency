@@ -1284,3 +1284,49 @@ fn subscription_and_transaction_on_the_same_day_are_both_listed() {
     assert!(day.iter().any(|entry| entry.kind == CalendarEntryKind::Subscription));
     assert!(day.iter().any(|entry| entry.kind == CalendarEntryKind::Transaction));
 }
+
+#[test]
+fn calendar_page_renders_without_a_runtime_error() {
+    let mut dom = dioxus::prelude::VirtualDom::new(CalendarPage);
+    dom.rebuild_in_place();
+}
+
+#[test]
+fn calendar_dialogs_render() {
+    fn edit_wrapper() -> Element {
+        let open = use_signal(|| true);
+        let editing_id = use_signal(|| None);
+        let prefill_date = use_signal(|| None);
+        let calendar_items = use_signal(Vec::new);
+        let current_year = use_signal(|| 2026);
+        let current_month = use_signal(|| 1);
+        rsx! {
+            EditSubscriptionDialog {
+                open,
+                editing_id,
+                prefill_date,
+                calendar_items,
+                current_year,
+                current_month,
+            }
+        }
+    }
+    fn delete_wrapper() -> Element {
+        let confirm_id = use_signal(|| Some(Uuid::new_v4()));
+        let calendar_items = use_signal(Vec::new);
+        let current_year = use_signal(|| 2026);
+        let current_month = use_signal(|| 1);
+        rsx! {
+            DeleteSubscriptionDialog {
+                confirm_id,
+                calendar_items,
+                current_year,
+                current_month,
+            }
+        }
+    }
+    let mut edit = VirtualDom::new(edit_wrapper);
+    edit.rebuild_in_place();
+    let mut delete = VirtualDom::new(delete_wrapper);
+    delete.rebuild_in_place();
+}

@@ -10,3 +10,4 @@ pub mod index_html_tests;
 pub mod layout_redesign_tests;
 pub mod privacy_tests;
 pub mod empty_states_tests;
+pub mod page_render_tests;

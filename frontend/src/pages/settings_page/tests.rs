@@ -772,3 +772,25 @@ fn backup_download_shows_a_toast() {
     assert!(src.contains("Backup download started"));
     assert!(src.contains("TOAST.write().success"));
 }
+
+fn render_settings_component(component: fn() -> Element) {
+    let mut dom = VirtualDom::new(component);
+    dom.rebuild_in_place();
+}
+
+#[test]
+fn settings_cards_render() {
+    render_settings_component(|| rsx! { SummaryCard {} });
+    render_settings_component(|| rsx! { SyncFolderCard {} });
+    render_settings_component(|| rsx! { PreferencesCard {} });
+    render_settings_component(|| rsx! { ProfileCard {} });
+    render_settings_component(|| rsx! { BackupCard {} });
+    render_settings_component(|| rsx! { DeliveryCard {} });
+    render_settings_component(|| rsx! { ServerCard {} });
+    render_settings_component(|| rsx! { AiConnectionCard {} });
+    render_settings_component(|| rsx! { AiVoiceCard {} });
+    render_settings_component(|| rsx! { AboutPage {} });
+    render_settings_component(|| rsx! { ApkCard {} });
+    render_settings_component(|| rsx! { DeleteAccountCard {} });
+    render_settings_component(|| rsx! { ExchangeRatesCard {} });
+}
