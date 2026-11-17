@@ -12,8 +12,10 @@ use crate::pages::subscriptions_page::SubscriptionsPage;
 use crate::components::ai_chat::AiChat;
 
 fn render(component: fn() -> Element) {
+    crate::api::client::force_offline_for_tests();
     let mut dom = VirtualDom::new(component);
     dom.rebuild_in_place();
+    crate::api::client::reset_offline_for_tests();
 }
 
 #[test]

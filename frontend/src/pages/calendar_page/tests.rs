@@ -1330,3 +1330,76 @@ fn calendar_dialogs_render() {
     let mut delete = VirtualDom::new(delete_wrapper);
     delete.rebuild_in_place();
 }
+
+#[test]
+fn calendar_display_helpers_cover_empty_and_overflow_cells() {
+    assert_eq!(payment_count_label(0), "0 payments");
+    assert_eq!(payment_count_label(1), "1 payment");
+    assert_eq!(payment_count_label(2), "2 payments");
+    assert_eq!(format_frequency("weekly"), "Weekly");
+    assert_eq!(format_frequency("one-time"), "One-time");
+    assert_eq!(format_frequency("custom"), "custom");
+
+    let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+    let item = make_calendar_item("Netflix", dec!(10), date);
+    let display = item_display(&item, "EUR");
+    assert!(display.amount_str.contains("10"));
+    assert!(display.title_str.contains("Netflix"));
+
+    let empty = day_cell_info(&[], 2024, 6, 15, "EUR");
+    assert!(day_cell_is_empty(&empty));
+    let four = vec![
+        make_calendar_item("A", dec!(1), date),
+        make_calendar_item("B", dec!(2), date),
+        make_calendar_item("C", dec!(3), date),
+        make_calendar_item("D", dec!(4), date),
+    ];
+    let full = day_cell_info(&four, 2024, 6, 15, "EUR");
+    assert!(!day_cell_is_empty(&full));
+    assert_eq!(full.items.len(), 3);
+    assert_eq!(full.extra_count, 1);
+}
+
+#[test]
+fn calendar_entries_merge_subscriptions_and_transactions() {
+    let subscription = make_calendar_item(
+        "Netflix",
+        dec!(10),
+        NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+    );
+    let transaction = crate::models::transaction::Transaction {
+        account_id: Uuid::nil(),
+        id: Uuid::new_v4(),
+        user_id: Uuid::nil(),
+        category_id: Uuid::nil(),
+        name: "Lunch".into(),
+        amount: dec!(5),
+        currency: "EUR".into(),
+        date: NaiveDate::from_ymd_opt(2024, 6, 20).unwrap(),
+        notes: None,
+        logo_url: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    let unrelated = crate::models::transaction::Transaction {
+        date: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
+        ..transaction.clone()
+    };
+    let entries = calendar_entries(
+        &[subscription],
+        &[transaction.clone(), unrelated],
+        2024,
+        6,
+    );
+    assert_eq!(entries.len(), 2);
+    assert_eq!(calendar_month_total(&entries), dec!(15));
+    assert_eq!(entries_for_day(&entries, 2024, 6, 15).len(), 1);
+    assert_eq!(entries_for_day(&entries, 2024, 6, 16).len(), 0);
+    let display = entry_display(&entries[0], "EUR");
+    assert!(display.title_str.contains("Netflix"));
+
+    let cell = calendar_day_cell_info(&entries, 2024, 6, 15, "EUR");
+    assert!(!calendar_day_cell_is_empty(&cell));
+    let empty = calendar_day_cell_info(&entries, 2024, 6, 16, "EUR");
+    assert!(calendar_day_cell_is_empty(&empty));
+}

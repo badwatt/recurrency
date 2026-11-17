@@ -1902,3 +1902,56 @@ fn delete_subscription_dialog_renders() {
     let mut dom = VirtualDom::new(wrapper);
     dom.rebuild_in_place();
 }
+
+fn subscription_cards_wrapper() -> Element {
+    let sub = make_sub(
+        "Netflix",
+        dec!(10),
+        "monthly",
+        true,
+        Some(NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()),
+        Uuid::new_v4(),
+    );
+    let on_id = Callback::new(|_: Uuid| {});
+    let on_sub = Callback::new(|_: Subscription| {});
+    rsx! {
+        div {
+            {super::cards::render_grid_card(&sub, 0, false, false, on_id, on_sub, on_id, on_sub, on_sub, on_sub)}
+            {super::cards::render_list_card(&sub, false, false, on_id, on_sub, on_id, on_sub, on_sub, on_sub)}
+        }
+    }
+}
+
+#[test]
+fn subscription_cards_render() {
+    let mut dom = VirtualDom::new(subscription_cards_wrapper);
+    dom.rebuild_in_place();
+}
+
+fn inactive_cards_wrapper() -> Element {
+    let mut sub = make_sub(
+        "Archived",
+        dec!(25),
+        "yearly",
+        false,
+        None,
+        Uuid::new_v4(),
+    );
+    sub.end_date = Some(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap());
+    sub.notes = Some("Archived plan".into());
+    sub.logo_url = Some("https://example.test/logo.png".into());
+    let on_id = Callback::new(|_: Uuid| {});
+    let on_sub = Callback::new(|_: Subscription| {});
+    rsx! {
+        div {
+            {super::cards::render_grid_card(&sub, 1, true, true, on_id, on_sub, on_id, on_sub, on_sub, on_sub)}
+            {super::cards::render_list_card(&sub, true, true, on_id, on_sub, on_id, on_sub, on_sub, on_sub)}
+        }
+    }
+}
+
+#[test]
+fn inactive_subscription_cards_render() {
+    let mut dom = VirtualDom::new(inactive_cards_wrapper);
+    dom.rebuild_in_place();
+}
