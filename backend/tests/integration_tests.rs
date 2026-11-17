@@ -2391,3 +2391,56 @@ async fn ai_transcription_validates_audio_and_provider_errors(pool: PgPool) {
         .is_err());
     server.join().unwrap();
 }
+
+#[sqlx::test]
+async fn demo_service_creates_and_resets_a_populated_user(pool: PgPool) {
+    use recurrency_backend::demo::service::DemoService;
+
+    let email = format!("demo_{}@test.com", Uuid::new_v4());
+    DemoService::create_demo_user(&pool, &email, "hash").await.unwrap();
+    DemoService::create_demo_user(&pool, &email, "hash2").await.unwrap();
+
+    let demo_id: Uuid = sqlx::query_scalar("SELECT id FROM users WHERE email = $1")
+        .bind(&email)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    DemoService::reset_demo_data(&pool, demo_id).await.unwrap();
+
+    let subscriptions: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM subscriptions WHERE user_id = $1")
+            .bind(demo_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let transactions: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM transactions WHERE user_id = $1")
+            .bind(demo_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let accounts: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM accounts WHERE user_id = $1")
+        .bind(demo_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let categories: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM categories WHERE user_id = $1")
+            .bind(demo_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(subscriptions, 5);
+    assert!(transactions > 0);
+    assert_eq!(accounts, 1);
+    assert_eq!(categories, 1);
+
+    DemoService::reset_demo_data(&pool, demo_id).await.unwrap();
+    let subscriptions: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM subscriptions WHERE user_id = $1")
+            .bind(demo_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(subscriptions, 5);
+}
