@@ -268,3 +268,13 @@ fn theme_bootstrap_is_simple_and_has_no_system_theme() {
     assert!(!script.contains("theme === 'system'"));
     assert!(script.contains("themes[stored]"));
 }
+
+#[test]
+fn loader_reserves_the_scrollbar_gutter() {
+    let html = include_str!("../../../index.html");
+    let css = include_str!("../../../assets/styles/tailwind.css");
+    assert!(html.contains("scrollbar-gutter: stable"));
+    assert!(html.contains("overflow-y: scroll"));
+    assert!(css.contains("scrollbar-gutter:stable"));
+    assert!(css.contains("overflow-y:scroll"));
+}

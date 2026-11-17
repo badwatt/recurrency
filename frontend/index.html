@@ -34,7 +34,16 @@
   <style>
     /* Critical pre-WASM styles. Keep this tiny and self-contained: it must
        paint correctly before Tailwind or the WASM bundle exists. */
-    html { background-color: #1e1e2e; color: #cdd6f4; }
+    html {
+      background-color: #1e1e2e;
+      color: #cdd6f4;
+      /* Reserve the scrollbar before the app paints so removing the loader
+         cannot shift the layout sideways. */
+      scrollbar-gutter: stable;
+    }
+    @supports not (scrollbar-gutter: stable) {
+      html { overflow-y: scroll; }
+    }
     html.light { background-color: #FAF9F2; color: #212121; }
     html.dark { background-color: #0d0d11; color: #ededed; }
     html.mocha { background-color: #1e1e2e; color: #cdd6f4; }

@@ -100,6 +100,19 @@
 }
 
 @layer base {
+  html {
+    /* Keep the viewport width stable when the app becomes scrollable after
+       the loader is removed. Without a reserved gutter the whole layout
+       shifts horizontally as soon as the first scrollbar appears. */
+    scrollbar-gutter: stable;
+  }
+
+  @supports not (scrollbar-gutter: stable) {
+    html {
+      overflow-y: scroll;
+    }
+  }
+
   * {
     @apply border-border;
   }
