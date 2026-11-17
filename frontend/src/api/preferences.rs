@@ -12,6 +12,7 @@ pub async fn update(req: &UpdatePreferencesRequest) -> Result<PreferencesRespons
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::preferences::*;
 
     #[test]
@@ -91,4 +92,32 @@ mod tests {
         assert!(json.contains("grid"));
         assert!(json.contains("monday"));
     }
+    use crate::api::test_support::with_server;
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn preferences_get_and_update_round_trip() {
+        let prefs: PreferencesResponse = with_server(
+            r#"{"theme":"dark","subscriptions_view":"list","first_day_of_week":"sunday","date_format":"DD/MM/YYYY"}"#,
+            get(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(prefs.theme, "dark");
+
+        let updated: PreferencesResponse = with_server(
+            r#"{"theme":"light","subscriptions_view":"grid","first_day_of_week":"monday","date_format":"YYYY-MM-DD"}"#,
+            update(&UpdatePreferencesRequest {
+                theme: Some("light".into()),
+                subscriptions_view: None,
+                first_day_of_week: None,
+                date_format: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.theme, "light");
+    }
+
 }

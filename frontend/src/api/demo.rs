@@ -121,4 +121,47 @@ mod tests {
         let path = "/api/demo/reset";
         assert!(path.starts_with("/api/demo"));
     }
+    use crate::api::test_support::with_server;
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn demo_endpoints_exchange_json() {
+        let status: DemoStatus = with_server(
+            r#"{"enabled":true,"email":"demo@test.com"}"#,
+            get_status(),
+        )
+        .await
+        .unwrap();
+        assert!(status.enabled);
+
+        let init: DemoInitResponse = with_server(
+            r#"{"email":"demo@test.com","password":"secret"}"#,
+            init(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(init.email, "demo@test.com");
+
+        let reset: DemoResetResponse = with_server(
+            r#"{"success":true,"message":"reset"}"#,
+            reset(),
+        )
+        .await
+        .unwrap();
+        assert!(reset.success);
+    }
+
+    #[test]
+    #[serial]
+    fn blocking_demo_init_reads_the_response() {
+        let (base, server) = crate::api::test_support::serve_once(
+            "200 OK",
+            r#"{"email":"demo@test.com","password":"secret"}"#,
+        );
+        let result = blocking_init(&base).unwrap();
+        server.join().unwrap();
+        assert_eq!(result.email, "demo@test.com");
+    }
+
 }

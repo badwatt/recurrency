@@ -11,6 +11,7 @@ pub async fn get_summary(year: i32, month: u32) -> Result<ReportResponse, ApiErr
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::report::*;
     use rust_decimal_macros::dec;
     use uuid::Uuid;
@@ -174,4 +175,20 @@ mod tests {
             assert!(path.contains(&format!("month={}", m)));
         }
     }
+    use crate::api::test_support::with_server;
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn report_summary_is_fetched_and_parsed() {
+        let report: ReportResponse = with_server(
+            r#"{"monthly_summary":{"year":2024,"month":6,"subscriptions_total":"100","transactions_total":"50","overall_total":"150","subscriptions_count":1,"transactions_count":1},"category_breakdown":[],"recent_trends":[]}"#,
+            get_summary(2024, 6),
+        )
+        .await
+        .unwrap();
+        assert_eq!(report.monthly_summary.overall_total, dec!(150));
+        assert_eq!(report.monthly_summary.year, 2024);
+    }
+
 }

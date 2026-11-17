@@ -74,4 +74,77 @@ mod tests {
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("chat_id"));
     }
+    use crate::api::test_support::with_server;
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn notification_channel_endpoints_work() {
+        let channel = NotificationChannel {
+            provider: "ntfy".into(),
+            enabled: true,
+            configured: true,
+            config: serde_json::json!({"topic": "alerts"}),
+        };
+        let listed: Vec<NotificationChannel> =
+            with_server(format!("[{}]", serde_json::to_string(&channel).unwrap()), list())
+                .await
+                .unwrap();
+        assert_eq!(listed.len(), 1);
+
+        let updated: NotificationChannel = with_server(
+            serde_json::to_string(&channel).unwrap(),
+            update("ntfy", &UpdateNotificationChannelRequest {
+                enabled: true,
+                config: serde_json::json!({"topic": "alerts"}),
+            }),
+        )
+        .await
+        .unwrap();
+        assert!(updated.enabled);
+
+        with_server("{}", test("ntfy", serde_json::json!({"topic": "alerts"})))
+            .await
+            .unwrap();
+        with_server("{}", send_summary_now()).await.unwrap();
+
+        let summary = SummaryNotificationSettings {
+            enabled: true,
+            frequency: "daily".into(),
+            weekday: None,
+            day_of_month: None,
+            hour: 9,
+            minute: 0,
+            timezone: "UTC".into(),
+            period: "current".into(),
+            next_run_at: None,
+            last_sent_at: None,
+            last_error: None,
+        };
+        let fetched: SummaryNotificationSettings = with_server(
+            serde_json::to_string(&summary).unwrap(),
+            get_summary(),
+        )
+        .await
+        .unwrap();
+        assert!(fetched.enabled);
+
+        let saved: SummaryNotificationSettings = with_server(
+            serde_json::to_string(&summary).unwrap(),
+            update_summary(&UpdateSummaryNotificationSettingsRequest {
+                enabled: true,
+                frequency: "daily".into(),
+                weekday: None,
+                day_of_month: None,
+                hour: 9,
+                minute: 0,
+                timezone: "UTC".into(),
+                period: "current".into(),
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(saved.frequency, "daily");
+    }
+
 }

@@ -23,6 +23,7 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::notification::*;
     use chrono::DateTime;
     use uuid::Uuid;
@@ -193,4 +194,35 @@ mod tests {
         let ids: std::collections::HashSet<_> = (0..100).map(|_| Uuid::new_v4()).collect();
         assert_eq!(ids.len(), 100);
     }
+    use crate::api::test_support::{with_response, with_server};
+    use serial_test::serial;
+    use chrono::Utc;
+
+    #[tokio::test]
+    #[serial]
+    async fn notification_endpoints_work() {
+        let notification = Notification {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            notification_type: "reminder".into(),
+            title: "Due".into(),
+            message: None,
+            is_read: false,
+            created_at: Utc::now(),
+        };
+        let listed: NotificationListResponse = with_server(
+            serde_json::json!({ "notifications": [notification], "unread_count": 1 }).to_string(),
+            list(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(listed.unread_count, 1);
+
+        with_server("null", mark_as_read(&notification.id)).await.unwrap();
+        with_server("null", mark_all_as_read()).await.unwrap();
+        with_response("204 No Content", "", delete(&notification.id))
+            .await
+            .unwrap();
+    }
+
 }

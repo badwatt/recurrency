@@ -27,6 +27,7 @@ pub async fn delete(id: &uuid::Uuid) -> Result<(), ApiError> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::transaction::*;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
@@ -204,4 +205,66 @@ mod tests {
         let ids: std::collections::HashSet<_> = (0..100).map(|_| Uuid::new_v4()).collect();
         assert_eq!(ids.len(), 100);
     }
+    use crate::api::test_support::{with_response, with_server};
+    use serial_test::serial;
+
+    fn sample_transaction() -> Transaction {
+        Transaction {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            account_id: Uuid::nil(),
+            category_id: Uuid::nil(),
+            name: "Coffee".into(),
+            amount: dec!(4.5),
+            currency: "EUR".into(),
+            date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+            notes: None,
+            logo_url: None,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn transaction_endpoints_exchange_json() {
+        let transaction = sample_transaction();
+        let json = serde_json::to_string(&transaction).unwrap();
+        let listed: Vec<Transaction> =
+            with_server(format!("[{json}]"), list()).await.unwrap();
+        assert_eq!(listed.len(), 1);
+
+        let fetched: Transaction = with_server(json.clone(), get(&transaction.id)).await.unwrap();
+        assert_eq!(fetched.name, "Coffee");
+
+        let created: Transaction = with_server(
+            json.clone(),
+            create(&CreateTransactionRequest {
+                name: "Coffee".into(),
+                amount: dec!(4.5),
+                currency: "EUR".into(),
+                date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+                account_id: Uuid::nil(),
+                category_id: None,
+                notes: None,
+                logo_url: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.id, transaction.id);
+
+        let updated: Transaction = with_server(
+            json.clone(),
+            update(&transaction.id, &UpdateTransactionRequest::default()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.name, "Coffee");
+
+        with_response("204 No Content", "", delete(&transaction.id))
+            .await
+            .unwrap();
+    }
+
 }

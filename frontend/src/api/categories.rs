@@ -23,6 +23,7 @@ pub async fn set_default(id: &uuid::Uuid) -> Result<(), ApiError> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::category::*;
     use chrono::DateTime;
     use uuid::Uuid;
@@ -401,4 +402,63 @@ mod tests {
             assert!(path.len() == "/api/categories/".len() + 36); // UUID has 36 chars
         }
     }
+    use crate::api::test_support::{with_response, with_server};
+    use serial_test::serial;
+    use chrono::Utc;
+
+    fn sample_category() -> Category {
+        Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            name: "Food".into(),
+            icon: None,
+            color: None,
+            is_system: false,
+            is_default: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn category_endpoints_exchange_json() {
+        let category = sample_category();
+        let json = serde_json::to_string(&category).unwrap();
+        let listed: Vec<Category> = with_server(format!("[{json}]"), list()).await.unwrap();
+        assert_eq!(listed.len(), 1);
+
+        let created: Category = with_server(
+            json.clone(),
+            create(&CreateCategoryRequest {
+                name: "Food".into(),
+                icon: None,
+                color: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.id, category.id);
+
+        let updated: Category = with_server(
+            json.clone(),
+            update(&category.id, &UpdateCategoryRequest {
+                name: Some("Dining".into()),
+                icon: None,
+                color: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.name, "Food");
+
+        with_server("null", set_default(&category.id))
+            .await
+            .unwrap();
+
+        with_response("204 No Content", "", delete(&category.id))
+            .await
+            .unwrap();
+    }
+
 }

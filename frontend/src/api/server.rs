@@ -122,4 +122,35 @@ mod tests {
         let info: ServerInfo = serde_json::from_str(r#"{"name":"recurrency"}"#).unwrap();
         assert_eq!(info.name, "recurrency");
     }
+    #[tokio::test]
+    async fn validate_server_accepts_a_recurrency_info_response() {
+        let (base, server) = crate::api::test_support::serve_once(
+            "200 OK",
+            r#"{"name":"recurrency"}"#,
+        );
+        let result = validate_server(&base).await.unwrap();
+        server.join().unwrap();
+        assert_eq!(result, base);
+    }
+
+    #[tokio::test]
+    async fn validate_server_rejects_other_servers() {
+        let (base, server) = crate::api::test_support::serve_once(
+            "200 OK",
+            r#"{"name":"not-recurrency"}"#,
+        );
+        let error = validate_server(&base).await.unwrap_err();
+        server.join().unwrap();
+        assert!(error.contains("not a Recurrency server"));
+    }
+
+    #[tokio::test]
+    async fn validate_server_reports_unreachable_addresses() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        let error = validate_server(&format!("http://{address}")).await.unwrap_err();
+        assert!(error.contains("Could not reach"));
+    }
+
 }

@@ -13,6 +13,7 @@ pub async fn update(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::notification::{
         Notification, NotificationListResponse, NotificationPreference,
         NotificationPreferencesResponse, UpdateNotificationPreferenceRequest,
@@ -136,4 +137,39 @@ mod tests {
         assert_eq!(resp.notifications.len(), 1);
         assert_eq!(resp.unread_count, 1);
     }
+    use crate::api::test_support::with_server;
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn notification_preferences_endpoints_work() {
+        let response = NotificationPreferencesResponse {
+            preferences: vec![NotificationPreference {
+                channel: "email".into(),
+                enabled: true,
+                reminder_days_before: 3,
+            }],
+        };
+        let listed: NotificationPreferencesResponse = with_server(
+            serde_json::to_string(&response).unwrap(),
+            get(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(listed.preferences.len(), 1);
+
+        let updated: NotificationPreferencesResponse = with_server(
+            serde_json::to_string(&response).unwrap(),
+            update(&UpdateNotificationPreferencesRequest {
+                preferences: vec![UpdateNotificationPreferenceRequest {
+                    channel: "email".into(),
+                    enabled: true,
+                }],
+            }),
+        )
+        .await
+        .unwrap();
+        assert!(updated.preferences[0].enabled);
+    }
+
 }

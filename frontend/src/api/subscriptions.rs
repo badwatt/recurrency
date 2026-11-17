@@ -40,6 +40,7 @@ pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, 
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::subscription::*;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
@@ -349,4 +350,94 @@ mod tests {
         let path = "/api/subscriptions/upcoming";
         assert!(path.contains("upcoming"));
     }
+    use crate::api::test_support::{with_response, with_server};
+    use serial_test::serial;
+
+    fn sample_subscription() -> Subscription {
+        Subscription {
+            account_id: Uuid::nil(),
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            category_id: Uuid::nil(),
+            name: "Netflix".into(),
+            amount: dec!(10),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            schedule_day: None,
+            schedule_month: None,
+            recurrence: Recurrence::default(),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            end_date: None,
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        }
+    }
+
+    fn sample_request() -> CreateSubscriptionRequest {
+        CreateSubscriptionRequest {
+            account_id: Uuid::nil(),
+            name: "Netflix".into(),
+            amount: dec!(10),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            schedule_day: None,
+            schedule_month: None,
+            recurrence: None,
+            is_active: Some(true),
+            start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            end_date: None,
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn subscription_endpoints_exchange_json() {
+        let sub = sample_subscription();
+        let json = serde_json::to_string(&sub).unwrap();
+        let listed: Vec<Subscription> =
+            with_server(format!("[{json}]"), list()).await.unwrap();
+        assert_eq!(listed.len(), 1);
+
+        let fetched: Subscription = with_server(json.clone(), get(&sub.id)).await.unwrap();
+        assert_eq!(fetched.id, sub.id);
+
+        let created: Subscription =
+            with_server(json.clone(), create(&sample_request())).await.unwrap();
+        assert_eq!(created.name, "Netflix");
+
+        let updated: Subscription = with_server(
+            json.clone(),
+            update(&sub.id, &UpdateSubscriptionRequest {
+                name: Some("Renamed".into()),
+                ..Default::default()
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.name, "Netflix");
+
+        let upcoming: Vec<Subscription> =
+            with_server(format!("[{json}]"), upcoming()).await.unwrap();
+        assert_eq!(upcoming.len(), 1);
+
+        let calendar: Vec<CalendarItem> = with_server(
+            "[]".to_string(),
+            calendar_month(2024, 1),
+        )
+        .await
+        .unwrap();
+        assert!(calendar.is_empty());
+
+        with_response("204 No Content", "", delete(&sub.id))
+            .await
+            .unwrap();
+    }
+
 }

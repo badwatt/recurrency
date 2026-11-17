@@ -48,6 +48,7 @@ pub async fn delete_account(req: &DeleteAccountRequest) -> Result<(), ApiError> 
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::auth::{SettingsResponse, UserResponse};
     use uuid::Uuid;
 
@@ -173,4 +174,53 @@ mod tests {
         assert!(response.user.name.is_none());
         assert!(!response.user.verified);
     }
+    use crate::api::test_support::with_server;
+    use serial_test::serial;
+
+    fn user_json() -> String {
+        serde_json::json!({
+            "id": Uuid::new_v4(),
+            "email": "user@test.com",
+            "avatar": null,
+            "name": "User",
+            "currency": "EUR",
+            "verified": true,
+            "is_admin": false
+        })
+        .to_string()
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn settings_endpoints_exchange_json() {
+        let wrapped = format!(r#"{{"user":{}}}"#, user_json());
+        let settings: SettingsResponse = with_server(wrapped.clone(), get()).await.unwrap();
+        assert_eq!(settings.user.email, "user@test.com");
+
+        let user: UserResponse = with_server(user_json(), get_user()).await.unwrap();
+        assert_eq!(user.email, "user@test.com");
+
+        let updated: SettingsResponse = with_server(
+            wrapped,
+            update(&UpdateSettingsRequest {
+                email: Some("user@test.com".into()),
+                avatar: None,
+                name: Some("User".into()),
+                currency: Some("USD".into()),
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.user.currency, "EUR");
+
+        with_server(
+            "null",
+            delete_account(&DeleteAccountRequest {
+                password: "secret".into(),
+            }),
+        )
+        .await
+        .unwrap();
+    }
+
 }

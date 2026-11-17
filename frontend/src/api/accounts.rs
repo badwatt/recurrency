@@ -53,4 +53,61 @@ mod tests {
         let back: CreateAccountRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(back, req);
     }
+    use crate::api::test_support::{with_response, with_server};
+    use serial_test::serial;
+    use chrono::Utc;
+
+    fn sample_account() -> Account {
+        Account {
+            id: uuid::Uuid::new_v4(),
+            user_id: uuid::Uuid::nil(),
+            name: "Main".into(),
+            icon: None,
+            color: None,
+            is_default: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn account_endpoints_exchange_json() {
+        let account = sample_account();
+        let json = serde_json::to_string(&account).unwrap();
+        let listed: Vec<Account> = with_server(format!("[{json}]"), list()).await.unwrap();
+        assert_eq!(listed.len(), 1);
+
+        let created: Account = with_server(
+            json.clone(),
+            create(&CreateAccountRequest {
+                name: "Main".into(),
+                icon: None,
+                color: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.id, account.id);
+
+        let updated: Account = with_server(
+            json,
+            update(&account.id, &UpdateAccountRequest {
+                name: Some("Renamed".into()),
+                icon: None,
+                color: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.name, "Main");
+
+        with_response("204 No Content", "", delete(&account.id))
+            .await
+            .unwrap();
+        with_server("null", set_default(&account.id))
+            .await
+            .unwrap();
+    }
+
 }
