@@ -611,10 +611,10 @@ mod tests {
     #[test]
     #[serial]
     fn get_base_url_default() {
-        // When env var is not set, default to localhost
+        set_base_url("http://localhost:8080");
         let url = get_base_url();
-        // It should be either the env var or the default
-        assert!(url.contains("localhost:8080") || url.starts_with("http"));
+        assert!(url.contains("localhost:8080"));
+        clear_base_url();
     }
 
     #[test]

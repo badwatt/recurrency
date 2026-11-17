@@ -50,13 +50,27 @@ fn default_categories() -> Vec<Category> {
 fn data_dir() -> Option<std::path::PathBuf> {
     #[cfg(test)]
     if let Some(dir) = TEST_DATA_DIR.lock().ok().and_then(|dir| dir.clone()) {
-        return Some(dir);
+        // Only the thread running the storage test may use its temporary
+        // directory. Page effects run on other threads and must not observe
+        // or remove test files.
+        let owner = TEST_DATA_OWNER
+            .lock()
+            .ok()
+            .and_then(|owner| *owner);
+        if owner == Some(std::thread::current().id()) {
+            return Some(dir);
+        }
+        return None;
     }
     crate::state::auth::get_app_data_dir().map(|d| d.join("recurrency"))
 }
 
 #[cfg(test)]
 static TEST_DATA_DIR: std::sync::Mutex<Option<std::path::PathBuf>> = std::sync::Mutex::new(None);
+
+#[cfg(test)]
+static TEST_DATA_OWNER: std::sync::Mutex<Option<std::thread::ThreadId>> =
+    std::sync::Mutex::new(None);
 
 #[cfg(not(target_arch = "wasm32"))]
 fn load_collection<T: serde::de::DeserializeOwned>(name: &str) -> Option<Vec<T>> {
@@ -1251,6 +1265,10 @@ mod tests {
             *TEST_DATA_DIR
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(dir.clone());
+            *TEST_DATA_OWNER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                Some(std::thread::current().id());
             reset_caches();
             Self { _lock: lock, dir }
         }
@@ -1260,6 +1278,9 @@ mod tests {
         fn drop(&mut self) {
             reset_caches();
             *TEST_DATA_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+            *TEST_DATA_OWNER
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
             let _ = std::fs::remove_dir_all(&self.dir);

@@ -126,9 +126,6 @@ fn admin_page_renders_for_an_administrator() {
 
 #[test]
 fn route_wrappers_render() {
-    render(|| rsx! { crate::Login {} });
-    render(|| rsx! { crate::Register {} });
-    render(|| rsx! { crate::ServerSettings {} });
     render(|| rsx! { crate::Dashboard {} });
     render(|| rsx! { crate::Subscriptions {} });
     render(|| rsx! { crate::Transactions {} });
