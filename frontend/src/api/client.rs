@@ -46,23 +46,24 @@ impl std::fmt::Display for ApiError {
 static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 
 #[cfg(test)]
-static FORCE_OFFLINE: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    static FORCE_OFFLINE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
 #[cfg(test)]
 pub(crate) fn force_offline_for_tests() {
-    FORCE_OFFLINE.store(true, std::sync::atomic::Ordering::SeqCst);
+    FORCE_OFFLINE.with(|value| value.set(true));
 }
 
 #[cfg(test)]
 pub(crate) fn reset_offline_for_tests() {
-    FORCE_OFFLINE.store(false, std::sync::atomic::Ordering::SeqCst);
+    FORCE_OFFLINE.with(|value| value.set(false));
 }
 
 /// Returns true if the app is in local on-device mode — no server needed.
 pub fn is_offline_mode() -> bool {
     #[cfg(test)]
-    if FORCE_OFFLINE.load(std::sync::atomic::Ordering::SeqCst) {
+    if FORCE_OFFLINE.with(std::cell::Cell::get) {
         return true;
     }
     // 1. Check BASE_URL_OVERRIDE — explicit URL override means server mode
