@@ -2444,3 +2444,85 @@ async fn demo_service_creates_and_resets_a_populated_user(pool: PgPool) {
             .unwrap();
     assert_eq!(subscriptions, 5);
 }
+
+#[sqlx::test]
+async fn debt_service_rejects_invalid_requests_and_missing_records(pool: PgPool) {
+    use recurrency_backend::debts::models::{UpdateDebtRequest, DEBT_TYPE_MANUAL};
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let base = CreateDebtRequest {
+        name: "Debt".into(),
+        total_amount: Decimal::from(100),
+        currency: "EUR".into(),
+        account_id: Uuid::nil(),
+        category_id: None,
+        debt_type: DEBT_TYPE_MANUAL.into(),
+        monthly_payment: None,
+        payment_days: Vec::new(),
+        start_date: None,
+        notes: None,
+        logo_url: None,
+    };
+
+    let mut invalid = base.clone();
+    invalid.debt_type = "credit".into();
+    assert!(DebtService::create(&pool, user_id, invalid).await.is_err());
+    invalid = base.clone();
+    invalid.total_amount = Decimal::ZERO;
+    assert!(DebtService::create(&pool, user_id, invalid).await.is_err());
+    invalid = base.clone();
+    invalid.name = " ".into();
+    assert!(DebtService::create(&pool, user_id, invalid).await.is_err());
+    invalid = base.clone();
+    invalid.account_id = Uuid::new_v4();
+    assert!(DebtService::create(&pool, user_id, invalid).await.is_err());
+    invalid = base.clone();
+    invalid.category_id = Some(Uuid::new_v4());
+    assert!(DebtService::create(&pool, user_id, invalid).await.is_err());
+
+    let missing = Uuid::new_v4();
+    assert!(DebtService::get_by_id(&pool, user_id, missing).await.is_err());
+    assert!(
+        DebtService::update(&pool, user_id, missing, UpdateDebtRequest::default())
+            .await
+            .is_err()
+    );
+    assert!(DebtService::delete(&pool, user_id, missing).await.is_err());
+    assert!(DebtService::payments(&pool, user_id, missing).await.is_err());
+    assert!(
+        DebtService::record_payment(
+            &pool,
+            user_id,
+            missing,
+            RecordDebtPaymentRequest {
+                amount: Decimal::from(1),
+                paid_on: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                note: None,
+            },
+        )
+        .await
+        .is_err()
+    );
+
+    let debt = DebtService::create(&pool, user_id, base).await.unwrap();
+    for amount in [Decimal::ZERO, Decimal::from(-1), Decimal::from(101)] {
+        assert!(
+            DebtService::record_payment(
+                &pool,
+                user_id,
+                debt.id,
+                RecordDebtPaymentRequest {
+                    amount,
+                    paid_on: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                    note: None,
+                },
+            )
+            .await
+            .is_err()
+        );
+    }
+
+    let (other_user, _) = create_test_user(&pool).await;
+    assert!(DebtService::get_by_id(&pool, other_user, debt.id).await.is_err());
+    assert!(DebtService::delete(&pool, other_user, debt.id).await.is_err());
+}
