@@ -79,7 +79,7 @@ jobs:
           rustup component add llvm-tools-preview
           cd backend
           cargo llvm-cov test --features integration-tests --lib --test integration_tests \
-            --ignore-filename-regex '(^|/)main\.rs$' --fail-under-lines 84
+            --ignore-filename-regex '(^|/)main\.rs$' --fail-under-lines 85
 
   frontend:
     runs-on: ubuntu-latest
@@ -132,7 +132,7 @@ jobs:
         run: |
           rustup component add llvm-tools-preview
           cd frontend
-          cargo llvm-cov test --lib --fail-under-lines 75
+          cargo llvm-cov test --lib --fail-under-lines 76
 
       - name: WASM check
         run: cd frontend && cargo check --target wasm32-unknown-unknown --features web

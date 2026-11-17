@@ -478,8 +478,8 @@ DATABASE_URL='postgres://recurrency:recurrency_test_password@localhost:5433/recu
 cd frontend && nix develop .. -c cargo llvm-cov test --lib
 ```
 
-CI enforces at least **84% backend** (excluding the binary entry point) and
-**75% frontend** line coverage. The binary entry point is excluded because it
+CI enforces at least **85% backend** (excluding the binary entry point) and
+**76% frontend** line coverage. The binary entry point is excluded because it
 only wires the runtime; all application modules remain in the report.
 
 Current suite: **1272 backend unit tests**, **75 backend integration tests**,
