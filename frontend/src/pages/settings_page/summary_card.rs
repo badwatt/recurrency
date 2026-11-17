@@ -23,6 +23,7 @@ pub fn SummaryCard() -> Element {
     let mut timezone = use_signal(|| "UTC".to_string());
     let mut period = use_signal(|| crate::utils::constants::SUMMARY_PERIOD_CURRENT.to_string());
     let mut next_run = use_signal(|| None::<String>);
+    let mut last_error = use_signal(|| None::<String>);
     let mut saving = use_signal(|| false);
     let mut sending = use_signal(|| false);
 
@@ -40,6 +41,7 @@ pub fn SummaryCard() -> Element {
                 timezone.set(summary.timezone);
                 period.set(summary.period);
                 next_run.set(summary.next_run_at.map(|value| value.to_rfc3339()));
+                last_error.set(summary.last_error);
             }
             Err(error) => TOAST.write().error(format!(
                 "Could not load summary schedule: {error} (API: {})",
@@ -82,6 +84,7 @@ pub fn SummaryCard() -> Element {
             match notification_channels::update_summary(&req).await {
                 Ok(summary) => {
                     next_run.set(summary.next_run_at.map(|value| value.to_rfc3339()));
+                    last_error.set(summary.last_error);
                     TOAST.write().success("Summary schedule saved");
                 }
                 Err(error) => TOAST.write().error(format!(
@@ -173,10 +176,15 @@ pub fn SummaryCard() -> Element {
                 }
             }
             div { class: "px-6 pb-6 flex flex-wrap items-center justify-between gap-3",
-                if let Some(next) = next_run() {
-                    p { class: "text-xs text-muted-foreground", "Next run: {next}" }
-                } else {
-                    p { class: "text-xs text-muted-foreground", "No run scheduled" }
+                div {
+                    if let Some(next) = next_run() {
+                        p { class: "text-xs text-muted-foreground", "Next run: {next}" }
+                    } else {
+                        p { class: "text-xs text-muted-foreground", "No run scheduled" }
+                    }
+                    if let Some(error) = last_error() {
+                        p { class: "text-xs text-destructive mt-1", "Last attempt failed: {error}" }
+                    }
                 }
                 div { class: "flex flex-wrap items-center gap-2",
                     button {
