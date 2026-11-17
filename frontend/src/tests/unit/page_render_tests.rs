@@ -12,6 +12,9 @@ use crate::pages::subscriptions_page::SubscriptionsPage;
 use crate::components::ai_chat::AiChat;
 
 fn render(component: fn() -> Element) {
+    let _guard = crate::storage::STORAGE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     crate::api::client::force_offline_for_tests();
     let mut dom = VirtualDom::new(component);
     dom.rebuild_in_place();
@@ -105,6 +108,9 @@ fn admin_page_renders_for_an_administrator() {
         verified: true,
         is_admin: true,
     };
+    let _guard = crate::storage::STORAGE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut dom = VirtualDom::new(AdminPage);
     dom.in_runtime(|| {
         AUTH.write().set_authenticated("token".into(), user, false);

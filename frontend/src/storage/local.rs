@@ -1233,8 +1233,6 @@ mod tests {
     use std::future::Future;
     use std::path::PathBuf;
 
-    static LOCAL_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     struct LocalTest {
         _lock: std::sync::MutexGuard<'static, ()>,
         dir: PathBuf,
@@ -1242,7 +1240,7 @@ mod tests {
 
     impl LocalTest {
         fn new() -> Self {
-            let lock = LOCAL_TEST_LOCK
+            let lock = crate::storage::STORAGE_TEST_LOCK
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
             let dir = std::env::temp_dir().join(format!(
