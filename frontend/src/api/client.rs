@@ -45,8 +45,26 @@ impl std::fmt::Display for ApiError {
 /// Uses RwLock for thread-safe mutability without Dioxus runtime dependency (works in tests).
 static BASE_URL_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
 
+#[cfg(test)]
+static FORCE_OFFLINE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(test)]
+pub(crate) fn force_offline_for_tests() {
+    FORCE_OFFLINE.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+#[cfg(test)]
+pub(crate) fn reset_offline_for_tests() {
+    FORCE_OFFLINE.store(false, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// Returns true if the app is in local on-device mode — no server needed.
 pub fn is_offline_mode() -> bool {
+    #[cfg(test)]
+    if FORCE_OFFLINE.load(std::sync::atomic::Ordering::SeqCst) {
+        return true;
+    }
     // 1. Check BASE_URL_OVERRIDE — explicit URL override means server mode
     if let Ok(lock) = BASE_URL_OVERRIDE.read()
         && lock.is_some()

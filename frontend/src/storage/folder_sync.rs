@@ -265,10 +265,34 @@ pub async fn sync_once() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn native_builds_expose_folder_sync() {
         let source = include_str!("folder_sync.rs");
         assert!(source.contains("AsyncFileDialog"));
         assert!(source.contains("cfg!(not(target_arch = \"wasm32\"))"));
     }
+    #[test]
+    fn non_desktop_platform_returns_safe_defaults() {
+        let result = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let status = status().await;
+                let selected = choose_folder().await;
+                disconnect().await;
+                let files = platform::read_all().await;
+                let write = platform::write_file("{}").await;
+                let sync = sync_once().await;
+                (status, selected, files, write, sync)
+            });
+        assert_eq!(result.0, (false, String::new()));
+        assert!(result.1.is_err());
+        assert!(result.2.unwrap().is_empty());
+        assert!(result.3.is_err());
+        assert!(result.4.is_ok());
+    }
+
 }

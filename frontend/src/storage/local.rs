@@ -2201,6 +2201,131 @@ mod tests {
         });
     }
 
+    #[test]
+    fn storage_facade_and_backup_api_use_the_offline_store() {
+        let _test = LocalTest::new();
+        crate::api::client::force_offline_for_tests();
+        run(async {
+            use crate::storage::Storage;
+
+            let categories = Storage::list_categories().await.unwrap();
+            let category = Storage::create_category(&CreateCategoryRequest {
+                name: "Facade category".into(),
+                icon: None,
+                color: None,
+            })
+            .await
+            .unwrap();
+            Storage::update_category(
+                &category.id,
+                &UpdateCategoryRequest {
+                    name: Some("Facade renamed".into()),
+                    icon: None,
+                    color: None,
+                },
+            )
+            .await
+            .unwrap();
+            Storage::set_default_category(&categories[0].id).await.unwrap();
+
+            let accounts = Storage::list_accounts().await.unwrap();
+            let account = Storage::create_account(&CreateAccountRequest {
+                name: "Facade account".into(),
+                icon: None,
+                color: None,
+            })
+            .await
+            .unwrap();
+            Storage::update_account(
+                &account.id,
+                &UpdateAccountRequest {
+                    name: Some("Facade account renamed".into()),
+                    icon: None,
+                    color: None,
+                },
+            )
+            .await
+            .unwrap();
+            Storage::set_default_account(&accounts[0].id).await.unwrap();
+
+            let subscription = Storage::create_subscription(&subscription_request(today()))
+                .await
+                .unwrap();
+            Storage::update_subscription(
+                &subscription.id,
+                &UpdateSubscriptionRequest {
+                    name: Some("Facade subscription".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(Storage::list_subscriptions().await.unwrap().len(), 1);
+            assert!(!Storage::calendar_month(today().year(), today().month())
+                .await
+                .unwrap()
+                .is_empty());
+
+            let transaction = Storage::create_transaction(&transaction_request(today()))
+                .await
+                .unwrap();
+            Storage::update_transaction(
+                &transaction.id,
+                &UpdateTransactionRequest {
+                    name: Some("Facade transaction".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(Storage::list_transactions().await.unwrap().len(), 1);
+
+            let debt = Storage::create_debt(&debt_request("manual")).await.unwrap();
+            Storage::update_debt(
+                &debt.id,
+                &UpdateDebtRequest {
+                    name: Some("Facade debt".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            Storage::record_debt_payment(
+                &debt.id,
+                &RecordDebtPaymentRequest {
+                    amount: dec!(10),
+                    paid_on: today(),
+                    note: None,
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(Storage::list_debts().await.unwrap().len(), 1);
+            assert_eq!(Storage::list_debt_payments(&debt.id).await.unwrap().len(), 1);
+            assert_eq!(
+                Storage::get_report_summary(today().year(), today().month())
+                    .await
+                    .unwrap()
+                    .monthly_summary
+                    .transactions_count,
+                1
+            );
+
+            Storage::delete_debt(&debt.id).await.unwrap();
+            Storage::delete_transaction(&transaction.id).await.unwrap();
+            Storage::delete_subscription(&subscription.id).await.unwrap();
+            Storage::delete_account(&account.id).await.unwrap();
+            Storage::delete_category(&category.id).await.unwrap();
+
+            let backup = crate::api::backup::export().await.unwrap();
+            assert_eq!(backup["format_version"], 1);
+            let counts = crate::api::backup::import(&backup).await.unwrap();
+            assert_eq!(counts["accounts"], 1);
+            assert_eq!(counts["categories"], 1);
+            crate::api::client::reset_offline_for_tests();
+        });
+    }
+
 }
 
 // ── Portable backup ─────────────────────────────────────────
