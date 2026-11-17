@@ -272,4 +272,10 @@ mod tests {
             assert!(logo.get("thumbnail").is_some());
         }
     }
+    #[tokio::test]
+    async fn empty_search_returns_no_results_without_network() {
+        let Json(response) = super::search(axum::extract::Query(super::SearchQuery { q: "   ".into() })).await;
+        assert!(response.results.is_empty());
+    }
+
 }

@@ -562,4 +562,27 @@ mod tests {
         assert!(occurrences_between(date(2024,2,1), &weekly, start, date(2024,1,31), None, Decimal::ONE).is_empty());
     }
 
+    #[test]
+    fn legacy_conversion_covers_each_unit() {
+        let start = date(2024, 3, 15);
+        let daily = recurrence_from_legacy("daily", start, None, None);
+        assert_eq!(legacy_from_recurrence(&daily), ("daily".to_string(), None, None));
+
+        let weekly = recurrence_from_legacy("weekly", start, Some(5), None);
+        assert_eq!(weekly.weekdays, vec![5]);
+        assert_eq!(legacy_from_recurrence(&weekly), ("weekly".to_string(), Some(5), None));
+
+        let monthly = recurrence_from_legacy("monthly", start, Some(31), None);
+        assert_eq!(monthly.days, vec![31]);
+        assert_eq!(legacy_from_recurrence(&monthly), ("monthly".to_string(), Some(31), None));
+
+        let yearly = recurrence_from_legacy("yearly", start, Some(10), Some(6));
+        assert_eq!(yearly.dates[0].month, 6);
+        assert_eq!(legacy_from_recurrence(&yearly), ("yearly".to_string(), Some(10), Some(6)));
+
+        let quarterly = recurrence_from_legacy("quarterly", start, Some(2), None);
+        assert_eq!(quarterly.interval, 3);
+        assert_eq!(legacy_from_recurrence(&quarterly), ("quarterly".to_string(), Some(2), None));
+    }
+
 }

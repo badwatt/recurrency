@@ -92,6 +92,27 @@ pub(crate) static AUTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new((
 static TEST_DIR_OWNER: std::sync::Mutex<Option<std::thread::ThreadId>> =
     std::sync::Mutex::new(None);
 
+
+#[cfg(test)]
+pub(crate) fn set_render_test_dir(dir: std::path::PathBuf) {
+    *TEST_DIR
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(dir);
+    *TEST_DIR_OWNER
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(std::thread::current().id());
+}
+
+#[cfg(test)]
+pub(crate) fn clear_render_test_dir() {
+    *TEST_DIR
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    *TEST_DIR_OWNER
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn legacy_accounts_file() -> Option<std::path::PathBuf> {
     dirs::data_dir()

@@ -19,9 +19,15 @@ fn render(component: fn() -> Element) {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     crate::api::client::force_offline_for_tests();
+    let dir = std::env::temp_dir().join(format!(
+        "recurrency-render-auth-{}",
+        uuid::Uuid::new_v4()
+    ));
+    crate::storage::local_auth::set_render_test_dir(dir);
     let mut dom = VirtualDom::new(component);
     dom.rebuild_in_place();
     crate::api::client::reset_offline_for_tests();
+    crate::storage::local_auth::clear_render_test_dir();
 }
 
 #[test]
@@ -117,6 +123,11 @@ fn admin_page_renders_for_an_administrator() {
     let _auth_guard = crate::storage::local_auth::AUTH_TEST_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let dir = std::env::temp_dir().join(format!(
+        "recurrency-render-auth-{}",
+        uuid::Uuid::new_v4()
+    ));
+    crate::storage::local_auth::set_render_test_dir(dir);
     let mut dom = VirtualDom::new(AdminPage);
     dom.in_runtime(|| {
         AUTH.write().set_authenticated("token".into(), user, false);
@@ -126,6 +137,9 @@ fn admin_page_renders_for_an_administrator() {
 
 #[test]
 fn route_wrappers_render() {
+    render(|| rsx! { crate::Login {} });
+    render(|| rsx! { crate::Register {} });
+    render(|| rsx! { crate::ServerSettings {} });
     render(|| rsx! { crate::Dashboard {} });
     render(|| rsx! { crate::Subscriptions {} });
     render(|| rsx! { crate::Transactions {} });
