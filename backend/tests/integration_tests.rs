@@ -3245,3 +3245,52 @@ async fn subscription_service_rejects_invalid_or_missing_records(pool: PgPool) {
     assert!(SubscriptionService::create(&pool, user_id, invalid).await.is_err());
     let _ = base;
 }
+
+#[sqlx::test]
+async fn auth_settings_verification_and_resend_flows(pool: PgPool) {
+    use recurrency_backend::auth::models::UpdateSettingsRequest;
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAuthService::new(pool.clone());
+
+    let settings = service.get_settings(user_id).await.unwrap();
+    assert_eq!(settings.email, service.get_user_by_id(user_id).await.unwrap().email);
+    assert!(service.get_user_by_id(Uuid::new_v4()).await.is_err());
+
+    let updated = service
+        .update_settings(
+            user_id,
+            UpdateSettingsRequest {
+                email: None,
+                avatar: None,
+                name: Some("New name".into()),
+                currency: Some("USD".into()),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(updated.name.as_deref(), Some("New name"));
+    assert_eq!(updated.currency, "USD");
+
+    sqlx::query("UPDATE users SET verified = false, verification_code = '123456' WHERE id = $1")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(
+        service
+            .verify_email(user_id, "000000".into())
+            .await
+            .is_err()
+    );
+    let verified = service.verify_email(user_id, "123456".into()).await.unwrap();
+    assert!(verified.verified);
+    let _ = service.resend_verification(user_id).await;
+
+    sqlx::query("UPDATE users SET verified = false WHERE id = $1")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let _ = service.resend_verification(user_id).await;
+}
