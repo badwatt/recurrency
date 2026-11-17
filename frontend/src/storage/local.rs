@@ -48,8 +48,15 @@ fn default_categories() -> Vec<Category> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn data_dir() -> Option<std::path::PathBuf> {
+    #[cfg(test)]
+    if let Some(dir) = TEST_DATA_DIR.lock().ok().and_then(|dir| dir.clone()) {
+        return Some(dir);
+    }
     crate::state::auth::get_app_data_dir().map(|d| d.join("recurrency"))
 }
+
+#[cfg(test)]
+static TEST_DATA_DIR: std::sync::Mutex<Option<std::path::PathBuf>> = std::sync::Mutex::new(None);
 
 #[cfg(not(target_arch = "wasm32"))]
 fn load_collection<T: serde::de::DeserializeOwned>(name: &str) -> Option<Vec<T>> {
@@ -141,109 +148,6 @@ pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
         *cache = Some(list.clone());
     }
     Ok(list)
-}
-
-fn days_in_month_local(year: i32, month: u32) -> u32 {
-    let (next_year, next_month) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
-    chrono::NaiveDate::from_ymd_opt(next_year, next_month, 1)
-        .and_then(|d| d.pred_opt())
-        .map(|d| d.day())
-        .unwrap_or(28)
-}
-
-fn add_months_local(date: chrono::NaiveDate, months: i32, day: i16) -> chrono::NaiveDate {
-    let total = date.year() * 12 + date.month() as i32 - 1 + months;
-    let year = total.div_euclid(12);
-    let month = (total.rem_euclid(12) + 1) as u32;
-    let day = (day.max(1) as u32).min(days_in_month_local(year, month));
-    chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
-}
-
-fn advance_scheduled_local(
-    date: chrono::NaiveDate,
-    frequency: &str,
-    schedule_day: Option<i16>,
-    schedule_month: Option<i16>,
-) -> chrono::NaiveDate {
-    match frequency {
-        "daily" => date + chrono::Duration::days(1),
-        "weekly" => date + chrono::Duration::weeks(1),
-        "monthly" => add_months_local(date, 1, schedule_day.unwrap_or(date.day() as i16)),
-        "quarterly" => add_months_local(date, 3, schedule_day.unwrap_or(date.day() as i16)),
-        "yearly" => {
-            let year = date.year() + 1;
-            let month = schedule_month.unwrap_or(date.month() as i16) as u32;
-            let day = (schedule_day.unwrap_or(date.day() as i16).max(1) as u32)
-                .min(days_in_month_local(year, month));
-            chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap_or(date)
-        }
-        _ => date + chrono::Duration::days(30),
-    }
-}
-
-fn first_scheduled_local(
-    start: chrono::NaiveDate,
-    frequency: &str,
-    schedule_day: Option<i16>,
-    schedule_month: Option<i16>,
-) -> chrono::NaiveDate {
-    match frequency {
-        "weekly" => {
-            let target = schedule_day.unwrap_or(start.weekday().number_from_monday() as i16);
-            let current = start.weekday().number_from_monday() as i16;
-            start + chrono::Duration::days((target - current).rem_euclid(7) as i64)
-        }
-        "monthly" | "quarterly" => {
-            let day = schedule_day.unwrap_or(start.day() as i16);
-            let day = (day.max(1) as u32).min(days_in_month_local(start.year(), start.month()));
-            let candidate = chrono::NaiveDate::from_ymd_opt(start.year(), start.month(), day)
-                .unwrap_or(start);
-            if candidate < start {
-                add_months_local(candidate, 1, day as i16)
-            } else {
-                candidate
-            }
-        }
-        "yearly" => {
-            let day = schedule_day.unwrap_or(start.day() as i16);
-            let month = schedule_month.unwrap_or(start.month() as i16) as u32;
-            let day = (day.max(1) as u32).min(days_in_month_local(start.year(), month));
-            let candidate =
-                chrono::NaiveDate::from_ymd_opt(start.year(), month, day).unwrap_or(start);
-            if candidate < start {
-                chrono::NaiveDate::from_ymd_opt(
-                    start.year() + 1,
-                    month,
-                    (day).min(days_in_month_local(start.year() + 1, month)),
-                )
-                .unwrap_or(start)
-            } else {
-                candidate
-            }
-        }
-        _ => start,
-    }
-}
-
-fn next_billing_local(
-    start: chrono::NaiveDate,
-    frequency: &str,
-    schedule_day: Option<i16>,
-    schedule_month: Option<i16>,
-    end_date: Option<chrono::NaiveDate>,
-) -> Option<chrono::NaiveDate> {
-    let today = chrono::Utc::now().date_naive();
-    let mut date = first_scheduled_local(start, frequency, schedule_day, schedule_month);
-    let mut guard = 0;
-    while date < today && guard < 10_000 {
-        date = advance_scheduled_local(date, frequency, schedule_day, schedule_month);
-        guard += 1;
-    }
-    if end_date.is_some_and(|end| date >= end) {
-        None
-    } else {
-        Some(date)
-    }
 }
 
 pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subscription, ApiError> {
@@ -1325,6 +1229,117 @@ pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::
 mod tests {
     use super::*;
     use chrono::TimeZone;
+    use rust_decimal_macros::dec;
+    use std::future::Future;
+    use std::path::PathBuf;
+
+    static LOCAL_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    struct LocalTest {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        dir: PathBuf,
+    }
+
+    impl LocalTest {
+        fn new() -> Self {
+            let lock = LOCAL_TEST_LOCK
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let dir = std::env::temp_dir().join(format!(
+                "recurrency-local-test-{}",
+                Uuid::new_v4()
+            ));
+            let _ = std::fs::remove_dir_all(&dir);
+            *TEST_DATA_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(dir.clone());
+            reset_caches();
+            Self { _lock: lock, dir }
+        }
+    }
+
+    impl Drop for LocalTest {
+        fn drop(&mut self) {
+            reset_caches();
+            *TEST_DATA_DIR
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    fn reset_caches() {
+        *SUBSCRIPTIONS.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *TRANSACTIONS.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *CATEGORIES.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *ACCOUNTS.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *DEBTS.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *DEBT_PAYMENTS.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    }
+
+    fn run<F: Future>(future: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("test runtime")
+            .block_on(future)
+    }
+
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    fn today() -> NaiveDate {
+        Utc::now().date_naive()
+    }
+
+    fn subscription_request(start: NaiveDate) -> CreateSubscriptionRequest {
+        CreateSubscriptionRequest {
+            name: "Streaming".into(),
+            amount: dec!(9.99),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            schedule_day: Some(start.day() as i16),
+            schedule_month: None,
+            recurrence: None,
+            is_active: Some(true),
+            start_date: start,
+            end_date: None,
+            account_id: Uuid::nil(),
+            category_id: None,
+            notes: Some("first".into()),
+            logo_url: None,
+        }
+    }
+
+    fn transaction_request(day: NaiveDate) -> CreateTransactionRequest {
+        CreateTransactionRequest {
+            name: "Coffee".into(),
+            amount: dec!(3.50),
+            currency: "EUR".into(),
+            date: day,
+            account_id: Uuid::nil(),
+            category_id: None,
+            notes: None,
+            logo_url: None,
+        }
+    }
+
+    fn debt_request(debt_type: &str) -> CreateDebtRequest {
+        CreateDebtRequest {
+            name: "Loan".into(),
+            total_amount: dec!(100),
+            currency: "eur".into(),
+            account_id: Uuid::nil(),
+            category_id: None,
+            debt_type: debt_type.into(),
+            monthly_payment: Some(dec!(10)),
+            payment_days: vec![today().day() as u8],
+            start_date: Some(date(2024, 1, 1)),
+            notes: None,
+            logo_url: None,
+        }
+    }
 
     #[derive(Clone)]
     struct MergeItem {
@@ -1469,10 +1484,723 @@ mod tests {
         assert_eq!(dates[0].0.day(), 29);
     }
 
-    #[test]
-    fn local_storage_module_compiles() {
-        assert!(true);
+    fn stored_subscription(category_id: Uuid, start: NaiveDate) -> Subscription {
+        Subscription {
+            account_id: Uuid::nil(),
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            category_id,
+            name: "Legacy plan".into(),
+            amount: dec!(5),
+            currency: "EUR".into(),
+            frequency: "monthly".into(),
+            schedule_day: Some(start.day() as i16),
+            schedule_month: None,
+            recurrence: Recurrence::default(),
+            start_date: start,
+            end_date: None,
+            next_billing_date: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
     }
+
+    fn stored_transaction(category_id: Uuid) -> Transaction {
+        Transaction {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            account_id: Uuid::nil(),
+            category_id,
+            name: "Legacy purchase".into(),
+            amount: dec!(4),
+            currency: "EUR".into(),
+            date: today(),
+            notes: None,
+            logo_url: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn stored_debt(category_id: Uuid) -> Debt {
+        Debt {
+            id: Uuid::new_v4(),
+            user_id: Uuid::nil(),
+            account_id: Uuid::nil(),
+            category_id,
+            name: "Legacy loan".into(),
+            currency: "EUR".into(),
+            total_amount: dec!(100),
+            remaining_amount: dec!(80),
+            paid_amount: dec!(20),
+            debt_type: "manual".into(),
+            monthly_payment: None,
+            payment_days: Vec::new(),
+            start_date: date(2024, 1, 1),
+            next_payment_date: None,
+            subscription_id: None,
+            is_active: true,
+            notes: None,
+            logo_url: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn local_subscription_crud_calendar_and_tombstone() {
+        let _test = LocalTest::new();
+        run(async {
+            assert!(list_subscriptions().await.unwrap().is_empty());
+
+            let start = today();
+            let subscription = create_subscription(&subscription_request(start)).await.unwrap();
+            assert!(!subscription.account_id.is_nil());
+            assert_eq!(subscription.next_billing_date, Some(start));
+            assert_eq!(list_subscriptions().await.unwrap().len(), 1);
+
+            let calendar = calendar_month(start.year(), start.month()).await.unwrap();
+            assert_eq!(calendar.len(), 1);
+            assert_eq!(calendar[0].subscription_id, subscription.id);
+
+            let updated = update_subscription(
+                &subscription.id,
+                &UpdateSubscriptionRequest {
+                    name: Some("Annual plan".into()),
+                    amount: Some(dec!(120)),
+                    currency: Some("USD".into()),
+                    frequency: Some("yearly".into()),
+                    schedule_day: Some(10),
+                    schedule_month: Some(6),
+                    start_date: Some(date(2024, 1, 1)),
+                    clear_end_date: true,
+                    notes: Some("   ".into()),
+                    is_active: Some(true),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(updated.name, "Annual plan");
+            assert_eq!(updated.amount, dec!(120));
+            assert_eq!(updated.currency, "USD");
+            assert_eq!(updated.recurrence.unit, "year");
+            assert_eq!(updated.recurrence.dates[0].day, 10);
+            assert!(updated.notes.is_none());
+            assert!(updated.is_active);
+
+            let june = calendar_month(2024, 6).await.unwrap();
+            assert_eq!(june.len(), 1);
+            assert_eq!(june[0].billing_date, date(2024, 6, 10));
+
+            delete_subscription(&subscription.id).await.unwrap();
+            assert!(list_subscriptions().await.unwrap().is_empty());
+            assert!(load_tombstones().iter().any(|item| item.kind == "subscription" && item.id == subscription.id));
+
+            assert!(update_subscription(&Uuid::new_v4(), &UpdateSubscriptionRequest::default()).await.is_err());
+        });
+    }
+
+    #[test]
+    fn local_legacy_records_are_upgraded_and_receive_accounts() {
+        let _test = LocalTest::new();
+        run(async {
+            let start = date(2024, 1, 15);
+            let subscription = stored_subscription(Uuid::nil(), start);
+            let transaction = stored_transaction(Uuid::nil());
+            save_collection("subscriptions", &vec![subscription.clone()]).unwrap();
+            save_collection("transactions", &vec![transaction.clone()]).unwrap();
+
+            let subscriptions = list_subscriptions().await.unwrap();
+            assert_eq!(subscriptions.len(), 1);
+            assert_eq!(subscriptions[0].recurrence.days, vec![15]);
+            assert!(subscriptions[0].next_billing_date.is_some());
+            assert!(!subscriptions[0].account_id.is_nil());
+
+            let transactions = list_transactions().await.unwrap();
+            assert_eq!(transactions.len(), 1);
+            assert!(!transactions[0].account_id.is_nil());
+        });
+    }
+
+    #[test]
+    fn local_missing_collections_return_errors() {
+        let _test = LocalTest::new();
+        run(async {
+            assert!(update_subscription(&Uuid::new_v4(), &UpdateSubscriptionRequest::default()).await.is_err());
+            assert!(delete_subscription(&Uuid::new_v4()).await.is_err());
+            assert!(update_transaction(&Uuid::new_v4(), &UpdateTransactionRequest::default()).await.is_err());
+            assert!(delete_transaction(&Uuid::new_v4()).await.is_err());
+            assert!(update_category(&Uuid::new_v4(), &UpdateCategoryRequest { name: None, icon: None, color: None }).await.is_err());
+            assert!(delete_category(&Uuid::new_v4()).await.is_err());
+            assert!(set_default_category(&Uuid::new_v4()).await.is_err());
+            assert!(update_debt(&Uuid::new_v4(), &UpdateDebtRequest::default()).await.is_err());
+            assert!(delete_debt(&Uuid::new_v4()).await.is_err());
+            assert!(record_debt_payment(&Uuid::new_v4(), &RecordDebtPaymentRequest {
+                amount: dec!(1),
+                paid_on: today(),
+                note: None,
+            }).await.is_err());
+            assert!(list_debt_payments(&Uuid::new_v4()).await.unwrap().is_empty());
+        });
+    }
+
+    #[test]
+    fn local_transaction_crud_lifecycle() {
+        let _test = LocalTest::new();
+        run(async {
+            assert!(list_transactions().await.unwrap().is_empty());
+            let transaction = create_transaction(&transaction_request(today())).await.unwrap();
+            assert!(!transaction.account_id.is_nil());
+
+            let updated = update_transaction(
+                &transaction.id,
+                &UpdateTransactionRequest {
+                    name: Some("Lunch".into()),
+                    amount: Some(dec!(12.25)),
+                    currency: Some("USD".into()),
+                    date: Some(date(2024, 3, 4)),
+                    account_id: Some(Uuid::new_v4()),
+                    category_id: Some(Uuid::new_v4()),
+                    notes: Some("  ".into()),
+                    logo_url: Some("https://example.test/logo.png".into()),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(updated.name, "Lunch");
+            assert_eq!(updated.amount, dec!(12.25));
+            assert_eq!(updated.date, date(2024, 3, 4));
+            assert!(updated.notes.is_none());
+            assert_eq!(updated.logo_url.as_deref(), Some("https://example.test/logo.png"));
+
+            assert_eq!(list_transactions().await.unwrap().len(), 1);
+            delete_transaction(&transaction.id).await.unwrap();
+            assert!(list_transactions().await.unwrap().is_empty());
+            assert!(update_transaction(&Uuid::new_v4(), &UpdateTransactionRequest::default()).await.is_err());
+        });
+    }
+
+    #[test]
+    fn local_accounts_are_seeded_and_manage_defaults() {
+        let _test = LocalTest::new();
+        run(async {
+            let accounts = list_accounts().await.unwrap();
+            assert_eq!(accounts.len(), 1);
+            assert!(accounts[0].is_default);
+            assert_eq!(accounts[0].name, "General");
+
+            let second = create_account(&CreateAccountRequest {
+                name: "Savings".into(),
+                icon: Some("PiggyBank".into()),
+                color: Some("#123456".into()),
+            })
+            .await
+            .unwrap();
+            assert!(!second.is_default);
+
+            let updated = update_account(
+                &second.id,
+                &UpdateAccountRequest {
+                    name: Some("Rainy day".into()),
+                    icon: Some("Umbrella".into()),
+                    color: Some("#abcdef".into()),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(updated.name, "Rainy day");
+            assert_eq!(updated.icon.as_deref(), Some("Umbrella"));
+            assert_eq!(updated.color.as_deref(), Some("#abcdef"));
+
+            set_default_account(&second.id).await.unwrap();
+            let accounts = list_accounts().await.unwrap();
+            assert!(accounts.iter().find(|account| account.id == second.id).unwrap().is_default);
+
+            let subscription = create_subscription(&CreateSubscriptionRequest {
+                account_id: second.id,
+                ..subscription_request(today())
+            })
+            .await
+            .unwrap();
+            let transaction = create_transaction(&CreateTransactionRequest {
+                account_id: second.id,
+                ..transaction_request(today())
+            })
+            .await
+            .unwrap();
+
+            assert!(delete_account(&second.id).await.is_err());
+            set_default_account(&accounts[0].id).await.unwrap();
+            delete_account(&second.id).await.unwrap();
+            assert_eq!(list_subscriptions().await.unwrap()[0].account_id, accounts[0].id);
+            assert_eq!(list_transactions().await.unwrap()[0].account_id, accounts[0].id);
+
+            assert!(update_account(&Uuid::new_v4(), &UpdateAccountRequest::default()).await.is_err());
+            assert!(delete_account(&Uuid::new_v4()).await.is_err());
+            assert!(set_default_account(&Uuid::new_v4()).await.is_err());
+            assert_eq!(subscription.id, list_subscriptions().await.unwrap()[0].id);
+            assert_eq!(transaction.id, list_transactions().await.unwrap()[0].id);
+        });
+    }
+
+    #[test]
+    fn local_accounts_repair_missing_defaults_and_ids() {
+        let _test = LocalTest::new();
+        run(async {
+            let first = Account {
+                id: Uuid::new_v4(),
+                user_id: Uuid::nil(),
+                name: "First".into(),
+                icon: None,
+                color: None,
+                is_default: false,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            let second = Account {
+                id: Uuid::new_v4(),
+                ..first.clone()
+            };
+            save_collection("accounts", &vec![first.clone(), second.clone()]).unwrap();
+
+            let subscription = stored_subscription(second.id, today());
+            let transaction = stored_transaction(Uuid::new_v4());
+            save_collection("subscriptions", &vec![subscription]).unwrap();
+            save_collection("transactions", &vec![transaction]).unwrap();
+
+            let accounts = list_accounts().await.unwrap();
+            assert!(accounts[0].is_default);
+            assert!(!accounts[1].is_default);
+            assert_eq!(list_subscriptions().await.unwrap()[0].account_id, second.id);
+            assert_eq!(list_transactions().await.unwrap()[0].account_id, first.id);
+        });
+    }
+
+    #[test]
+    fn local_categories_manage_system_default_and_crud() {
+        let _test = LocalTest::new();
+        run(async {
+            let categories = list_categories().await.unwrap();
+            assert_eq!(categories.len(), 1);
+            assert!(categories[0].is_system);
+            assert!(categories[0].is_default);
+            let system_id = categories[0].id;
+
+            let custom = create_category(&CreateCategoryRequest {
+                name: "Food".into(),
+                icon: Some("Utensils".into()),
+                color: Some("#f97316".into()),
+            })
+            .await
+            .unwrap();
+            assert!(!custom.is_system);
+            assert!(!custom.is_default);
+
+            let updated = update_category(
+                &custom.id,
+                &UpdateCategoryRequest {
+                    name: Some("Groceries".into()),
+                    icon: Some("ShoppingCart".into()),
+                    color: None,
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(updated.name, "Groceries");
+            assert_eq!(updated.icon.as_deref(), Some("ShoppingCart"));
+            assert_eq!(updated.color.as_deref(), Some("#f97316"));
+
+            assert!(update_category(&system_id, &UpdateCategoryRequest { name: Some("Nope".into()), icon: None, color: None }).await.is_err());
+            assert!(delete_category(&system_id).await.is_err());
+            assert!(set_default_category(&custom.id).await.is_err());
+            set_default_category(&system_id).await.unwrap();
+            assert!(list_categories().await.unwrap().iter().find(|category| category.id == custom.id).unwrap().is_default == false);
+
+            delete_category(&custom.id).await.unwrap();
+            assert_eq!(list_categories().await.unwrap().len(), 1);
+            assert!(update_category(&Uuid::new_v4(), &UpdateCategoryRequest { name: None, icon: None, color: None }).await.is_err());
+            assert!(delete_category(&Uuid::new_v4()).await.is_err());
+            assert!(set_default_category(&Uuid::new_v4()).await.is_err());
+        });
+    }
+
+    #[test]
+    fn local_legacy_categories_are_merged_into_the_system_default() {
+        let _test = LocalTest::new();
+        run(async {
+            let old_system = Category {
+                id: Uuid::new_v4(),
+                user_id: Uuid::nil(),
+                name: "Old system".into(),
+                icon: Some("Star".into()),
+                color: Some("#000000".into()),
+                is_system: true,
+                is_default: false,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            let custom = Category {
+                id: Uuid::new_v4(),
+                user_id: Uuid::nil(),
+                name: "Custom".into(),
+                icon: None,
+                color: None,
+                is_system: false,
+                is_default: true,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            save_collection("categories", &vec![old_system.clone(), custom.clone()]).unwrap();
+            save_collection("subscriptions", &vec![stored_subscription(old_system.id, today())]).unwrap();
+            save_collection("transactions", &vec![stored_transaction(old_system.id)]).unwrap();
+            save_collection("debts", &vec![stored_debt(old_system.id)]).unwrap();
+
+            let categories = list_categories().await.unwrap();
+            assert_eq!(categories.len(), 2);
+            let new_system = categories.iter().find(|category| category.is_system).unwrap();
+            assert_eq!(new_system.name, "Uncategorized");
+            assert!(new_system.is_default);
+            assert!(!categories.iter().find(|category| category.id == custom.id).unwrap().is_default);
+            assert_eq!(list_subscriptions().await.unwrap()[0].category_id, new_system.id);
+            assert_eq!(list_transactions().await.unwrap()[0].category_id, new_system.id);
+            assert_eq!(list_debts().await.unwrap()[0].category_id, new_system.id);
+            assert!(load_tombstones().iter().any(|item| item.kind == "category" && item.id == old_system.id));
+        });
+    }
+    #[test]
+    fn local_manual_debt_validates_and_tracks_payments() {
+        let _test = LocalTest::new();
+        run(async {
+            assert!(create_debt(&debt_request("invalid")).await.is_err());
+            let mut invalid = debt_request("manual");
+            invalid.total_amount = Decimal::ZERO;
+            assert!(create_debt(&invalid).await.is_err());
+            let mut unnamed = debt_request("manual");
+            unnamed.name = "  ".into();
+            assert!(create_debt(&unnamed).await.is_err());
+
+            let debt = create_debt(&debt_request("manual")).await.unwrap();
+            assert!(!debt.account_id.is_nil());
+            assert!(!debt.category_id.is_nil());
+            assert_eq!(debt.currency, "EUR");
+            assert_eq!(debt.paid_amount, Decimal::ZERO);
+
+            assert!(update_debt(&debt.id, &UpdateDebtRequest { debt_type: Some("bad".into()), ..Default::default() }).await.is_err());
+            assert!(update_debt(&debt.id, &UpdateDebtRequest { total_amount: Some(Decimal::ZERO), ..Default::default() }).await.is_err());
+
+            let updated = update_debt(
+                &debt.id,
+                &UpdateDebtRequest {
+                    name: Some("Renamed loan".into()),
+                    total_amount: Some(dec!(200)),
+                    currency: Some("usd".into()),
+                    notes: Some("tracked".into()),
+                    debt_type: Some("manual".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(updated.name, "Renamed loan");
+            assert_eq!(updated.total_amount, dec!(200));
+            assert_eq!(updated.currency, "USD");
+            assert_eq!(updated.notes.as_deref(), Some("tracked"));
+
+            assert!(record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: Decimal::ZERO,
+                paid_on: today(),
+                note: None,
+            }).await.is_err());
+            assert!(record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: dec!(201),
+                paid_on: today(),
+                note: None,
+            }).await.is_err());
+
+            let paid = record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: dec!(50),
+                paid_on: today(),
+                note: Some("first".into()),
+            }).await.unwrap();
+            assert_eq!(paid.remaining_amount, dec!(150));
+            assert_eq!(list_debt_payments(&debt.id).await.unwrap().len(), 1);
+
+            let reduced = update_debt(
+                &debt.id,
+                &UpdateDebtRequest {
+                    total_amount: Some(dec!(50)),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(reduced.remaining_amount, Decimal::ZERO);
+            assert!(!reduced.is_active);
+            assert!(record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: dec!(1),
+                paid_on: today(),
+                note: None,
+            }).await.is_err());
+
+            delete_debt(&debt.id).await.unwrap();
+            assert!(list_debt_payments(&debt.id).await.unwrap().is_empty());
+        });
+    }
+
+    #[test]
+    fn local_automatic_debt_creates_updates_and_closes_its_subscription() {
+        let _test = LocalTest::new();
+        run(async {
+            let mut invalid_day = debt_request("automatic");
+            invalid_day.payment_days = vec![32];
+            assert!(create_debt(&invalid_day).await.is_err());
+
+            let mut missing_monthly = debt_request("automatic");
+            missing_monthly.monthly_payment = None;
+            assert!(create_debt(&missing_monthly).await.is_err());
+
+            let mut zero_monthly = debt_request("automatic");
+            zero_monthly.monthly_payment = Some(Decimal::ZERO);
+            assert!(create_debt(&zero_monthly).await.is_err());
+
+            let debt = create_debt(&debt_request("automatic")).await.unwrap();
+            assert!(debt.subscription_id.is_some());
+            assert_eq!(debt.payment_days, vec![today().day() as u8]);
+            assert_eq!(list_subscriptions().await.unwrap().len(), 1);
+
+            let updated = update_debt(
+                &debt.id,
+                &UpdateDebtRequest {
+                    name: Some("Updated automatic".into()),
+                    total_amount: Some(dec!(120)),
+                    monthly_payment: Some(dec!(20)),
+                    payment_days: Some(vec![1]),
+                    debt_type: Some("automatic".into()),
+                    notes: Some("automatic".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(updated.monthly_payment, Some(dec!(20)));
+            assert_eq!(list_subscriptions().await.unwrap()[0].amount, dec!(20));
+
+            let manual = update_debt(
+                &debt.id,
+                &UpdateDebtRequest {
+                    debt_type: Some("manual".into()),
+                    clear_notes: true,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert!(manual.subscription_id.is_none());
+            assert!(manual.notes.is_none());
+            assert!(list_subscriptions().await.unwrap().is_empty());
+
+            let automatic = update_debt(
+                &debt.id,
+                &UpdateDebtRequest {
+                    debt_type: Some("automatic".into()),
+                    monthly_payment: Some(dec!(20)),
+                    payment_days: Some(vec![today().day() as u8]),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert!(automatic.subscription_id.is_some());
+
+            record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: dec!(60),
+                paid_on: today(),
+                note: None,
+            }).await.unwrap();
+            let closed = record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: dec!(60),
+                paid_on: today(),
+                note: None,
+            }).await.unwrap();
+            assert!(!closed.is_active);
+            assert_eq!(list_debt_payments(&debt.id).await.unwrap().len(), 2);
+            let subscription = list_subscriptions().await.unwrap();
+            assert_eq!(subscription.len(), 1);
+            assert!(!subscription[0].is_active);
+
+            delete_debt(&debt.id).await.unwrap();
+            assert!(list_debt_payments(&debt.id).await.unwrap().is_empty());
+        });
+    }
+
+    #[test]
+    fn local_backup_export_and_import_round_trip() {
+        let _test = LocalTest::new();
+        run(async {
+            let accounts = list_accounts().await.unwrap();
+            let categories = list_categories().await.unwrap();
+            let subscription = create_subscription(&subscription_request(today())).await.unwrap();
+            let transaction = create_transaction(&transaction_request(today())).await.unwrap();
+            let debt = create_debt(&debt_request("manual")).await.unwrap();
+            record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
+                amount: dec!(10),
+                paid_on: today(),
+                note: Some("backup payment".into()),
+            }).await.unwrap();
+
+            let backup = export_backup().await.unwrap();
+            assert_eq!(backup["format_version"], 1);
+            assert_eq!(backup["accounts"].as_array().unwrap().len(), accounts.len());
+            assert_eq!(backup["categories"].as_array().unwrap().len(), categories.len());
+            assert_eq!(backup["subscriptions"].as_array().unwrap().len(), 1);
+            assert_eq!(backup["transactions"].as_array().unwrap().len(), 1);
+            assert_eq!(backup["debts"].as_array().unwrap().len(), 1);
+            assert_eq!(backup["debt_payments"].as_array().unwrap().len(), 1);
+
+            let mut changed = backup.clone();
+            changed["accounts"][0]["user_id"] = serde_json::json!(Uuid::new_v4());
+            changed["categories"][0]["user_id"] = serde_json::json!(Uuid::new_v4());
+            changed["debts"][0]["user_id"] = serde_json::json!(Uuid::new_v4());
+            changed["debts"][0]["paid_amount"] = serde_json::json!(0);
+            let counts = import_backup(&changed).await.unwrap();
+            assert_eq!(counts["accounts"], accounts.len());
+            assert_eq!(counts["categories"], categories.len());
+            assert_eq!(counts["subscriptions"], 1);
+            assert_eq!(counts["transactions"], 1);
+            assert_eq!(counts["debts"], 1);
+            assert_eq!(counts["debt_payments"], 1);
+            assert_eq!(list_subscriptions().await.unwrap().len(), 1);
+            assert_eq!(list_transactions().await.unwrap().len(), 1);
+            assert_eq!(list_debts().await.unwrap()[0].paid_amount, dec!(10));
+            assert_eq!(list_accounts().await.unwrap()[0].user_id, Uuid::nil());
+
+            assert!(import_backup(&serde_json::json!({"format_version": 2})).await.is_err());
+            assert!(import_backup(&serde_json::json!({
+                "format_version": 1,
+                "accounts": [],
+                "categories": [],
+            })).await.is_err());
+            assert!(import_backup(&serde_json::json!({
+                "format_version": 1,
+                "accounts": "bad",
+                "categories": [],
+            })).await.is_err());
+
+            let _ = (subscription.id, transaction.id);
+        });
+    }
+
+    #[test]
+    fn local_report_summary_sums_subscriptions_and_transactions() {
+        let _test = LocalTest::new();
+        run(async {
+            let category = list_categories().await.unwrap()[0].clone();
+            let start = date(2024, 1, 1);
+            let subscription = create_subscription(&CreateSubscriptionRequest {
+                category_id: Some(category.id),
+                start_date: start,
+                schedule_day: Some(1),
+                ..subscription_request(start)
+            })
+            .await
+            .unwrap();
+            let transaction = create_transaction(&CreateTransactionRequest {
+                category_id: Some(category.id),
+                date: date(2024, 1, 15),
+                amount: dec!(5),
+                ..transaction_request(date(2024, 1, 15))
+            })
+            .await
+            .unwrap();
+
+            let report = get_report_summary(2024, 1).await.unwrap();
+            assert_eq!(report.monthly_summary.subscriptions_total, dec!(9.99));
+            assert_eq!(report.monthly_summary.transactions_total, dec!(5));
+            assert_eq!(report.monthly_summary.overall_total, dec!(14.99));
+            assert_eq!(report.monthly_summary.subscriptions_count, 1);
+            assert_eq!(report.monthly_summary.transactions_count, 1);
+            assert_eq!(report.category_breakdown.len(), 1);
+            assert_eq!(report.category_breakdown[0].category_name, "Uncategorized");
+            assert_eq!(report.category_breakdown[0].count, 1);
+
+            let empty = get_report_summary(2023, 2).await.unwrap();
+            assert_eq!(empty.monthly_summary.overall_total, Decimal::ZERO);
+            let _ = (subscription.id, transaction.id);
+        });
+    }
+
+    #[test]
+    fn local_sync_snapshot_and_merge_keep_the_newest_data() {
+        let _test = LocalTest::new();
+        run(async {
+            let account = list_accounts().await.unwrap()[0].clone();
+            let category = list_categories().await.unwrap()[0].clone();
+            let subscription = create_subscription(&subscription_request(today())).await.unwrap();
+            let transaction = create_transaction(&transaction_request(today())).await.unwrap();
+            let debt = create_debt(&debt_request("manual")).await.unwrap();
+
+            let snapshot = sync_snapshot().await.unwrap();
+            let document: SyncDocument = serde_json::from_str(&snapshot).unwrap();
+            assert!(!document.device_id.is_empty());
+            assert_eq!(document.subscriptions.len(), 1);
+            assert_eq!(document.transactions.len(), 1);
+            assert_eq!(document.debts.len(), 1);
+            let second = sync_snapshot().await.unwrap();
+            let second_document: SyncDocument = serde_json::from_str(&second).unwrap();
+            assert_eq!(document.device_id, second_document.device_id);
+
+            let mut newer = subscription.clone();
+            newer.name = "Remote newer".into();
+            newer.updated_at = subscription.updated_at + chrono::Duration::minutes(1);
+            let older = Transaction {
+                updated_at: transaction.updated_at - chrono::Duration::minutes(1),
+                name: "Remote older".into(),
+                ..transaction.clone()
+            };
+            let fresh = Transaction {
+                id: Uuid::new_v4(),
+                name: "Remote fresh".into(),
+                updated_at: transaction.updated_at + chrono::Duration::minutes(1),
+                ..transaction.clone()
+            };
+            let remote = SyncDocument {
+                format_version: 1,
+                device_id: "remote-device".into(),
+                subscriptions: vec![newer],
+                transactions: vec![older, fresh.clone()],
+                accounts: vec![account.clone()],
+                categories: vec![category.clone()],
+                debts: Vec::new(),
+                debt_payments: Vec::new(),
+                tombstones: vec![Tombstone {
+                    kind: "transaction".into(),
+                    id: transaction.id,
+                    deleted_at: Utc::now(),
+                }],
+            };
+            let merged = sync_merge(&[
+                "not json".into(),
+                serde_json::to_string(&remote).unwrap(),
+            ])
+            .await
+            .unwrap();
+            let merged: SyncDocument = serde_json::from_str(&merged).unwrap();
+            assert_eq!(merged.subscriptions.iter().find(|item| item.id == subscription.id).unwrap().name, "Remote newer");
+            assert!(merged.transactions.iter().all(|item| item.id != transaction.id));
+            assert!(merged.transactions.iter().any(|item| item.id == fresh.id));
+            assert_eq!(merged.debts.len(), 1);
+            assert_eq!(merged.debts[0].id, debt.id);
+
+            let empty_merge = sync_merge(&[]).await.unwrap();
+            let empty_merge: SyncDocument = serde_json::from_str(&empty_merge).unwrap();
+            assert_eq!(empty_merge.device_id, document.device_id);
+        });
+    }
+
 }
 
 // ── Portable backup ─────────────────────────────────────────
@@ -1618,9 +2346,7 @@ fn load_text(name: &str) -> Option<String> {
 fn save_text(name: &str, value: &str) -> Result<(), ApiError> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let dir = crate::state::auth::get_app_data_dir()
-            .map(|d| d.join("recurrency"))
-            .ok_or_else(|| ApiError::Network("No data directory".into()))?;
+        let dir = data_dir().ok_or_else(|| ApiError::Network("No data directory".into()))?;
         std::fs::create_dir_all(&dir).map_err(|e| ApiError::Network(e.to_string()))?;
         std::fs::write(dir.join(name), value).map_err(|e| ApiError::Network(e.to_string()))
     }
