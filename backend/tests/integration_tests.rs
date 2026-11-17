@@ -2263,3 +2263,131 @@ async fn admin_handlers_cover_settings_backups_roles_and_deletion(pool: PgPool) 
     let unauthorized = handlers::list_users(State(state), OptionalQuery(None), HeaderMap::new()).await;
     assert!(unauthorized.is_err());
 }
+
+fn ai_provider_server(status: &'static str, body: &'static str) -> (u16, std::thread::JoinHandle<()>) {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = Vec::new();
+        let mut chunk = [0u8; 4096];
+        while request.windows(4).all(|window| window != b"\r\n\r\n") {
+            let read = stream.read(&mut chunk).unwrap();
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
+        let response = format!(
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream.write_all(response.as_bytes()).unwrap();
+    });
+    (port, handle)
+}
+
+async fn configure_ai(pool: &PgPool, user_id: Uuid, base_url: String, enabled: bool) {
+    SqlxAiService::new(pool.clone())
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled,
+                provider: Some("openai".to_string()),
+                base_url: Some(base_url),
+                model: Some("a-model".to_string()),
+                api_key: Some("test-key".to_string()),
+                clear_api_key: false,
+            },
+        )
+        .await
+        .unwrap();
+}
+
+#[sqlx::test]
+async fn ai_rejects_unconfigured_and_disabled_users(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAiService::new(pool.clone());
+    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+
+    configure_ai(&pool, user_id, "https://example.test/v1".to_string(), false).await;
+    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+}
+
+#[sqlx::test]
+async fn ai_surfaces_provider_failures(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAiService::new(pool.clone());
+
+    let (port, server) = ai_provider_server("500 Internal Server Error", "{\"error\":\"boom\"}");
+    configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
+    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+    server.join().unwrap();
+
+    let (port, server) = ai_provider_server("200 OK", "not-json");
+    configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
+    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+    server.join().unwrap();
+}
+
+#[sqlx::test]
+async fn ai_transcription_validates_audio_and_provider_errors(pool: PgPool) {
+    use base64::Engine;
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAiService::new(pool.clone());
+    configure_ai(&pool, user_id, "https://example.test/v1".to_string(), true).await;
+
+    let valid_audio = base64::engine::general_purpose::STANDARD.encode([1_u8, 2, 3]);
+    for (audio, mime) in [
+        (valid_audio.clone(), "text/plain".to_string()),
+        ("not-base64".to_string(), "audio/webm".to_string()),
+        (String::new(), "audio/webm".to_string()),
+    ] {
+        assert!(matches!(
+            service
+                .transcribe(
+                    user_id,
+                    AiTranscriptionRequest {
+                        audio_base64: audio,
+                        mime_type: mime,
+                    },
+                )
+                .await,
+            Err(AppError::BadRequest(_))
+        ));
+    }
+
+    let (port, server) = ai_provider_server("404 Not Found", "{}");
+    configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
+    assert!(matches!(
+        service
+            .transcribe(
+                user_id,
+                AiTranscriptionRequest {
+                    audio_base64: valid_audio.clone(),
+                    mime_type: "audio/webm".to_string(),
+                },
+            )
+            .await,
+        Err(AppError::BadRequest(_))
+    ));
+    server.join().unwrap();
+
+    let (port, server) = ai_provider_server("500 Internal Server Error", "{\"error\":\"boom\"}");
+    configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
+    assert!(service
+        .transcribe(
+            user_id,
+            AiTranscriptionRequest {
+                audio_base64: valid_audio,
+                mime_type: "audio/webm".to_string(),
+            },
+        )
+        .await
+        .is_err());
+    server.join().unwrap();
+}

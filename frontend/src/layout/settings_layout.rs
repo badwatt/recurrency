@@ -275,3 +275,48 @@ fn SettingsMobileLink(section: SettingsSection, active: bool) -> Element {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sections_cover_all_groups_and_labels() {
+        assert_eq!(SettingsSection::ALL.len(), 9);
+        let mut sections = Vec::new();
+        for group in SettingsGroup::ALL {
+            assert!(!group.label().is_empty());
+            sections.extend_from_slice(group.sections());
+        }
+        for section in SettingsSection::ALL {
+            assert!(!section.label().is_empty());
+            assert!(!section.description().is_empty());
+            assert!(sections.contains(&section));
+            let _ = section.icon();
+        }
+    }
+
+    #[test]
+    fn admin_section_is_hidden_from_members() {
+        assert!(SettingsSection::Admin.visible_to(true));
+        assert!(!SettingsSection::Admin.visible_to(false));
+        for section in SettingsSection::ALL {
+            assert!(section.visible_to(true));
+        }
+    }
+
+    #[test]
+    fn routes_map_to_the_matching_section() {
+        assert!(SettingsSection::Account.is_active(&crate::Route::SettingsProfile {}));
+        assert!(SettingsSection::General.is_active(&crate::Route::SettingsPreferences {}));
+        assert!(SettingsSection::Ai.is_active(&crate::Route::SettingsAi {}));
+        assert!(SettingsSection::Money.is_active(&crate::Route::SettingsAccounts {}));
+        assert!(SettingsSection::Money.is_active(&crate::Route::SettingsCategories {}));
+        assert!(SettingsSection::Notifications.is_active(&crate::Route::SettingsNotifications {}));
+        assert!(SettingsSection::Data.is_active(&crate::Route::SettingsData {}));
+        assert!(SettingsSection::Server.is_active(&crate::Route::SettingsServer {}));
+        assert!(SettingsSection::About.is_active(&crate::Route::SettingsAboutPage {}));
+        assert!(SettingsSection::Admin.is_active(&crate::Route::SettingsAdmin {}));
+        assert!(!SettingsSection::General.is_active(&crate::Route::SettingsData {}));
+    }
+}
