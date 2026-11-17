@@ -247,6 +247,9 @@ pub fn last_sync() -> Option<String> {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+fn record_sync() {}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn record_sync() {
     let Some(path) = sync_state_file() else {
