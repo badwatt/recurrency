@@ -338,4 +338,59 @@ mod tests {
         .unwrap();
         assert_eq!(parsed.assets[0].name, "a-aarch64.apk");
     }
+
+    fn block_on<F: std::future::Future>(future: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(future)
+    }
+
+    #[test]
+    fn missing_platform_assets_do_not_offer_an_update() {
+        let empty = Release {
+            tag_name: "v1".into(),
+            html_url: "u".into(),
+            assets: vec![ReleaseAsset {
+                name: "recurrency-aarch64.apk".into(),
+                browser_download_url: "android".into(),
+            }],
+        };
+        #[cfg(target_os = "linux")]
+        {
+            assert!(empty.native_asset().is_none());
+            assert!(!empty.has_platform_asset());
+        }
+        #[cfg(target_os = "macos")]
+        assert!(!empty.has_platform_asset());
+        #[cfg(target_os = "windows")]
+        assert!(!empty.has_platform_asset());
+    }
+
+    #[test]
+    fn install_apk_reports_the_native_platform_error() {
+        assert!(block_on(install_apk("https://example.test/app.apk")).is_err());
+    }
+
+    #[test]
+    fn install_rejects_untrusted_urls_before_downloading() {
+        let error = block_on(install("https://evil.example/app.AppImage", "app.AppImage")).unwrap_err();
+        assert!(error.contains("not trusted"));
+    }
+
+    #[test]
+    fn install_rejects_empty_filenames() {
+        let error = block_on(install(
+            "https://github.com/badwatt/recurrency/releases/download/v1/app",
+            "",
+        ))
+        .unwrap_err();
+        assert!(error.contains("Invalid update filename"));
+    }
+
+    #[test]
+    fn native_web_image_check_is_disabled() {
+        assert!(!block_on(web_image_available("v1")));
+    }
 }
