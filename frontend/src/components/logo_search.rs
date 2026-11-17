@@ -769,4 +769,31 @@ mod tests {
             "LogoSearch results must be paginated"
         );
     }
+    #[test]
+    fn pagination_helpers_cover_empty_exact_and_partial_pages() {
+        assert_eq!(super::page_count(0), 0);
+        assert_eq!(super::page_count(8), 1);
+        assert_eq!(super::page_count(9), 2);
+        assert_eq!(super::page_bounds(0, 0), (0, 0));
+        assert_eq!(super::page_bounds(0, 9), (0, 8));
+        assert_eq!(super::page_bounds(1, 9), (8, 9));
+        assert_eq!(super::page_bounds(2, 9), (9, 9));
+    }
+
+    #[test]
+    fn candidate_urls_cover_names_domains_and_empty_inputs() {
+        assert!(super::logo_candidates("   ").is_empty());
+        assert!(super::logo_candidates("!!").is_empty());
+
+        let named = super::logo_candidates("Netflix");
+        assert_eq!(named.len(), 9);
+        assert!(named[0].url.contains("netflix.com"));
+        assert!(named.iter().any(|item| item.url.contains("netflix.io")));
+        assert!(named.iter().any(|item| item.url.contains("netflix.app")));
+
+        let domain = super::logo_candidates("example.co.uk");
+        assert_eq!(domain.len(), 3);
+        assert!(domain.iter().all(|item| item.url.contains("example.co.uk")));
+    }
+
 }

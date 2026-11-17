@@ -483,7 +483,7 @@ CI enforces at least **85% backend** (excluding the binary entry point) and
 only wires the runtime; all application modules remain in the report.
 
 Current suite: **1272 backend unit tests**, **75 backend integration tests**,
-**1934 frontend tests** and **10 tooling tests**.
+**1936 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 
