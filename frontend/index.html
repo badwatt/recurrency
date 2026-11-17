@@ -37,18 +37,33 @@
     html {
       background-color: #1e1e2e;
       color: #cdd6f4;
-      /* Reserve the scrollbar before the app paints so removing the loader
-         cannot shift the layout sideways. */
+      /* Reserve the root scrollbar from the first paint. */
+      overflow-y: scroll;
       scrollbar-gutter: stable;
-    }
-    @supports not (scrollbar-gutter: stable) {
-      html { overflow-y: scroll; }
     }
     html.light { background-color: #FAF9F2; color: #212121; }
     html.dark { background-color: #0d0d11; color: #ededed; }
     html.mocha { background-color: #1e1e2e; color: #cdd6f4; }
     body { margin: 0; background-color: inherit; color: inherit; }
     #main { visibility: hidden; }
+
+    /* Match the compiled Tailwind scrollbar width from the first paint.
+       Switching from the platform default to the custom 8px scrollbar would
+       otherwise narrow the viewport and shift centred content. */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(205, 214, 244, 0.35) transparent;
+    }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background: rgba(205, 214, 244, 0.35);
+      border-radius: 9999px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    html.light * { scrollbar-color: rgba(33, 33, 33, 0.35) transparent; }
+    html.light *::-webkit-scrollbar-thumb { background: rgba(33, 33, 33, 0.35); background-clip: padding-box; }
 
     .recurrency-loader {
       position: fixed;
