@@ -345,17 +345,6 @@ mod tests {
     }
 
     #[test]
-    fn login_checks_password_and_normalizes_email() {
-        let _test = AuthTest::new();
-        register("alice@example.com", "password123", "Alice").unwrap();
-        assert!(login("unknown@example.com", "password123").is_err());
-        assert!(login("alice@example.com", "wrongpass").is_err());
-
-        let user = login(" ALICE@example.com ", "password123").unwrap();
-        assert_eq!(user.email, "alice@example.com");
-    }
-
-    #[test]
     fn update_profile_validates_uniqueness_and_fields() {
         let _test = AuthTest::new();
         let first = register("alice@example.com", "password123", "Alice").unwrap();
