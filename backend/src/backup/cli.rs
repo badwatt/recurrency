@@ -335,4 +335,69 @@ mod tests {
         assert!(!is_backup_file(Path::new("notes.txt")));
         assert!(!is_backup_file(Path::new("recurrency.dump.tmp")));
     }
+    #[test]
+    fn invalid_database_urls_are_reported() {
+        assert!(database_url_with_name("not a url", "recurrency").is_err());
+        let (clean, password) =
+            database_url_without_password("postgres://user@localhost/recurrency").unwrap();
+        assert!(clean.contains("user@localhost"));
+        assert!(password.is_none());
+    }
+
+    #[test]
+    fn command_with_url_hides_the_password_and_passes_it_in_the_environment() {
+        let command = command_with_url(
+            "pg_dump",
+            "postgres://user:secret@localhost:5432/recurrency",
+            Some("secret"),
+        )
+        .unwrap();
+        assert_eq!(command.get_program(), "pg_dump");
+        let args: Vec<_> = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(args.len(), 1);
+        assert!(args[0].starts_with("--dbname=postgres://user@localhost"));
+        assert!(!args[0].contains("secret"));
+        let env: Vec<_> = command
+            .get_envs()
+            .map(|(key, value)| (key.to_string_lossy().into_owned(), value.map(|v| v.to_string_lossy().into_owned())))
+            .collect();
+        assert!(env.iter().any(|(key, value)| key == "PGPASSWORD" && value.as_deref() == Some("secret")));
+    }
+
+    #[test]
+    fn run_command_reports_exit_failures() {
+        let mut success = Command::new("true");
+        assert!(run_command(&mut success, "true").is_ok());
+        let mut failure = Command::new("false");
+        assert!(run_command(&mut failure, "false").is_err());
+        let mut missing = Command::new("recurrency-command-that-does-not-exist");
+        assert!(run_command(&mut missing, "missing").is_err());
+    }
+
+    #[test]
+    fn prune_removes_only_expired_recurrency_dumps() {
+        let directory = std::env::temp_dir().join(format!(
+            "recurrency-backup-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let dump = directory.join("recurrency-20260101-000000.dump");
+        let other = directory.join("notes.txt");
+        std::fs::write(&dump, "dump").unwrap();
+        std::fs::write(&other, "notes").unwrap();
+        let removed = prune_old_backups(
+            &directory,
+            0,
+            SystemTime::now() + Duration::from_secs(SECONDS_PER_DAY),
+        )
+        .unwrap();
+        assert_eq!(removed, 1);
+        assert!(!dump.exists());
+        assert!(other.exists());
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
 }

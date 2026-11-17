@@ -707,4 +707,73 @@ mod tests {
             "expected selfh.st or Dashboard Icons results for a known brand"
         );
     }
+    #[test]
+    fn brave_tiny_images_are_filtered_by_dimensions() {
+        assert!(brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:32:32:1:0/g:ce/a"));
+        assert!(brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:64:32:1:0/g:ce/a"));
+        assert!(!brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:500:0:1:0/g:ce/a"));
+        assert!(!brave_fit_is_tiny("https://imgs.search.brave.com/x/no-fit"));
+        assert!(!brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:::/g:ce/a"));
+    }
+
+    #[test]
+    fn brave_urls_skip_tiny_duplicates_and_trailing_markup() {
+        let html = r#"https://imgs.search.brave.com/A/rs:fit:500:0:1:0/g:ce/one
+            https://imgs.search.brave.com/A/rs:fit:500:0:1:0/g:ce/one
+            https://imgs.search.brave.com/B/rs:fit:16:16:1:0/g:ce/tiny
+            https://imgs.search.brave.com/C/rs:fit:500:0:1:0/g:ce/two"#;
+        let urls = extract_brave_image_urls(html);
+        assert_eq!(urls.len(), 2);
+        assert!(urls[0].ends_with("/one"));
+        assert!(urls[1].ends_with("/two"));
+    }
+
+    #[test]
+    fn dedupe_and_limit_keeps_the_first_urls() {
+        let make = |url: &str| LogoResult {
+            url: url.into(),
+            thumbnail: url.into(),
+            width: None,
+            height: None,
+        };
+        let results = dedupe_and_limit(
+            vec![make("a"), make("b"), make("a"), make("c")],
+            2,
+        );
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].url, "a");
+        assert_eq!(results[1].url, "b");
+    }
+
+    #[test]
+    fn index_cache_expires_and_round_trips() {
+        let cache: IndexCache<Vec<String>> = Mutex::new(None);
+        assert!(cached_index(&cache).is_none());
+        store_index(&cache, vec!["one".to_string()]);
+        assert_eq!(cached_index(&cache), Some(vec!["one".to_string()]));
+        *cache.lock().unwrap() = Some((Instant::now() - INDEX_TTL - Duration::from_secs(1), vec!["old".to_string()]));
+        assert!(cached_index(&cache).is_none());
+    }
+
+    #[test]
+    fn search_cache_round_trips_and_empty_queries_skip_the_network() {
+        let query = "cache-test-unique";
+        let results = vec![LogoResult {
+            url: "https://example.test/logo.png".into(),
+            thumbnail: "https://example.test/logo.png".into(),
+            width: None,
+            height: None,
+        }];
+        store_search(query.to_string(), results.clone());
+        let cached = cached_search(query).unwrap();
+        assert_eq!(cached.len(), 1);
+        assert_eq!(cached[0].url, results[0].url);
+        assert!(cached_search("cache-test-missing").is_none());
+
+        let empty = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(search_logos("   "));
+        assert!(empty.unwrap().is_empty());
+    }
+
 }

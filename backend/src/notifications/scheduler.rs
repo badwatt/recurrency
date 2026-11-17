@@ -421,4 +421,36 @@ mod tests {
         invalid.timezone = "Not/AZone".to_string();
         assert!(validate_schedule(&invalid).is_err());
     }
+    #[test]
+    fn schedule_validation_covers_time_and_frequency_bounds() {
+        let valid = spec("daily", None, None);
+        assert!(validate_schedule(&valid).is_ok());
+
+        let mut invalid = valid.clone();
+        invalid.hour = 24;
+        assert!(validate_schedule(&invalid).is_err());
+        invalid = valid.clone();
+        invalid.minute = 60;
+        assert!(validate_schedule(&invalid).is_err());
+        invalid = valid.clone();
+        invalid.frequency = "hourly".into();
+        assert!(validate_schedule(&invalid).is_err());
+        assert!(validate_schedule(&spec("weekly", Some(7), None)).is_ok());
+        assert!(validate_schedule(&spec("monthly", None, Some(0))).is_ok());
+    }
+
+    #[test]
+    fn next_run_handles_same_day_and_next_month_boundaries() {
+        let sunday = Utc.with_ymd_and_hms(2026, 11, 15, 8, 0, 0).unwrap();
+        let next = next_run_at(sunday, &spec("weekly", Some(7), None)).unwrap();
+        assert_eq!(next, Utc.with_ymd_and_hms(2026, 11, 15, 9, 0, 0).unwrap());
+
+        let december = Utc.with_ymd_and_hms(2026, 12, 31, 10, 0, 0).unwrap();
+        let next = next_run_at(december, &spec("monthly", None, Some(1))).unwrap();
+        assert_eq!(next, Utc.with_ymd_and_hms(2027, 1, 1, 9, 0, 0).unwrap());
+
+        let next = next_run_at(Utc.with_ymd_and_hms(2026, 11, 10, 8, 0, 0).unwrap(), &spec("monthly", None, Some(10))).unwrap();
+        assert_eq!(next, Utc.with_ymd_and_hms(2026, 11, 10, 9, 0, 0).unwrap());
+    }
+
 }
