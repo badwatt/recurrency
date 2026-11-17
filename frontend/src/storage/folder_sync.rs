@@ -273,6 +273,7 @@ mod tests {
         assert!(source.contains("AsyncFileDialog"));
         assert!(source.contains("cfg!(not(target_arch = \"wasm32\"))"));
     }
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), not(feature = "desktop")))]
     #[test]
     fn non_desktop_platform_returns_safe_defaults() {
         let result = tokio::runtime::Builder::new_current_thread()
