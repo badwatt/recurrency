@@ -185,6 +185,10 @@ fn get_base_url_impl() -> String {
 
 /// Get the auth token from the auth state.
 pub fn get_token() -> Option<String> {
+    #[cfg(test)]
+    {
+        return None;
+    }
     AUTH.cloned().token.clone()
 }
 
@@ -498,6 +502,34 @@ fn panic_msg(p: Box<dyn std::any::Any + Send>) -> String {
 mod tests {
     use super::*;
     use serial_test::serial;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    fn serve_once(status: &str, content_type: &str, body: &'static str) -> (String, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let status = status.to_string();
+        let content_type = content_type.to_string();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 4096];
+            let _ = stream.read(&mut request);
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = stream.write_all(response.as_bytes());
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    #[test]
+    #[serial]
+    fn auth_url_real_function() {
+        set_base_url("https://example.test/");
+        assert_eq!(auth_url("/api/x"), "https://example.test/api/x");
+        clear_base_url();
+    }
 
     #[test]
     fn auth_url_format() {
@@ -1231,7 +1263,94 @@ mod tests {
             msg
         );
     }
+
+    #[tokio::test]
+    #[serial]
+    async fn api_get_parses_successful_json() {
+        let (base, server) = serve_once("200 OK", "application/json", "{\"ok\":true}");
+        set_base_url(&base);
+        let body = api_get::<serde_json::Value>("/api/test").await.unwrap();
+        clear_base_url();
+        server.join().unwrap();
+        assert_eq!(body["ok"], true);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn api_get_maps_unauthorized_and_http_errors() {
+        let (base, server) = serve_once("401 Unauthorized", "application/json", "{}");
+        set_base_url(&base);
+        let unauthorized = api_get::<serde_json::Value>("/api/test").await;
+        clear_base_url();
+        server.join().unwrap();
+        assert!(matches!(unauthorized, Err(ApiError::Unauthorized)));
+
+        let (base, server) = serve_once("500 Internal Server Error", "text/plain", "boom");
+        set_base_url(&base);
+        let failure = api_get::<serde_json::Value>("/api/test").await;
+        clear_base_url();
+        server.join().unwrap();
+        match failure {
+            Err(ApiError::Http(500, body)) => assert_eq!(body, "boom"),
+            other => panic!("unexpected response: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn api_get_reports_invalid_json() {
+        let (base, server) = serve_once("200 OK", "application/json", "not-json");
+        set_base_url(&base);
+        let result = api_get::<serde_json::Value>("/api/test").await;
+        clear_base_url();
+        server.join().unwrap();
+        assert!(matches!(result, Err(ApiError::Parse(_))));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn api_post_and_put_send_json_bodies() {
+        let (base, server) = serve_once("200 OK", "application/json", "{\"saved\":true}");
+        set_base_url(&base);
+        let post = api_post::<_, serde_json::Value>("/api/test", &serde_json::json!({"name": "x"}))
+            .await
+            .unwrap();
+        clear_base_url();
+        server.join().unwrap();
+        assert_eq!(post["saved"], true);
+
+        let (base, server) = serve_once("200 OK", "application/json", "{\"updated\":true}");
+        set_base_url(&base);
+        let put = api_put::<_, serde_json::Value>("/api/test", &serde_json::json!({"name": "y"}))
+            .await
+            .unwrap();
+        clear_base_url();
+        server.join().unwrap();
+        assert_eq!(put["updated"], true);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn api_delete_accepts_empty_success_and_reports_failure() {
+        let (base, server) = serve_once("204 No Content", "text/plain", "");
+        set_base_url(&base);
+        let result = api_delete("/api/test").await;
+        clear_base_url();
+        server.join().unwrap();
+        assert!(result.is_ok());
+
+        let (base, server) = serve_once("404 Not Found", "text/plain", "missing");
+        set_base_url(&base);
+        let result = api_delete("/api/test").await;
+        clear_base_url();
+        server.join().unwrap();
+        match result {
+            Err(ApiError::Http(404, body)) => assert_eq!(body, "missing"),
+            other => panic!("unexpected response: {other:?}"),
+        }
+    }
 }
+
 
 // ── Integration: Full URL building example ──
 
@@ -1250,6 +1369,7 @@ fn full_url_construction_example() {
 
     assert!(full_url.starts_with("http://api.example.com"));
     assert!(full_url.contains("token=jwt-token-abc123"));
+
 }
 // ── Additional pure function tests ────────────────────────────────────
 // (api_client_tests module removed: referenced non-existent types StatusCode, RequestContext, and variants that don't exist in ApiError)

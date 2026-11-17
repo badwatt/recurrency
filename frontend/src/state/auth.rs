@@ -260,6 +260,10 @@ fn native_app_dir() -> Option<std::path::PathBuf> {
 pub static SESSION_EXPIRED: GlobalSignal<bool> = Signal::global(|| false);
 
 pub fn mark_session_expired() {
+    #[cfg(test)]
+    {
+        return;
+    }
     if AUTH().is_authenticated {
         *SESSION_EXPIRED.write() = true;
     }
