@@ -2893,3 +2893,157 @@ async fn subscription_handlers_cover_crud_upcoming_and_calendar(pool: PgPool) {
         .is_err()
     );
 }
+
+#[sqlx::test]
+async fn notification_and_preference_handlers_cover_the_user_flow(pool: PgPool) {
+    use recurrency_backend::notifications::handlers::{self, NotificationQuery};
+    use recurrency_backend::notifications::models::UpdateNotificationPreferencesRequest;
+    use recurrency_backend::preferences::handlers as preference_handlers;
+    use recurrency_backend::preferences::models::UpdatePreferencesRequest;
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (user_id, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool.clone());
+    let headers = auth_headers(&token);
+    let notification_id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO notifications (id, user_id, type, title, message, is_read) VALUES ($1, $2, 'reminder', 'Due soon', 'Message', false)",
+    )
+    .bind(notification_id)
+    .bind(user_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let Json(listed) = handlers::list(
+        State(state.clone()),
+        OptionalQuery(Some(NotificationQuery { token: None })),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(listed.unread_count, 1);
+
+    let Json(read) = handlers::mark_read(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(notification_id.to_string()),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(read["success"], true);
+
+    let Json(all) = handlers::mark_all_read(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(all["marked_count"].is_number());
+
+    let Json(deleted) = handlers::delete(
+        State(state.clone()),
+        OptionalQuery(None),
+        axum::extract::Path(notification_id.to_string()),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(deleted["success"], true);
+
+    assert!(
+        handlers::mark_read(
+            State(state.clone()),
+            OptionalQuery(None),
+            axum::extract::Path("not-a-uuid".to_string()),
+            headers.clone(),
+        )
+        .await
+        .is_err()
+    );
+
+    let Json(preferences) = preference_handlers::get_preferences(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(!preferences.theme.is_empty());
+
+    let Json(updated) = preference_handlers::update_preferences(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(UpdatePreferencesRequest {
+            theme: Some("dark".into()),
+            subscriptions_view: Some("list".into()),
+            first_day_of_week: None,
+            date_format: None,
+        }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.theme, "dark");
+
+    let Json(channel_preferences) = handlers::get_notification_preferences(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+    )
+    .await
+    .unwrap();
+    assert!(!channel_preferences.preferences.is_empty());
+
+    let Json(updated_channels) = handlers::update_notification_preferences(
+        State(state.clone()),
+        OptionalQuery(None),
+        headers.clone(),
+        Json(UpdateNotificationPreferencesRequest {
+            preferences: vec![recurrency_backend::notifications::models::UpdatePreferenceRequest {
+                channel: "email".into(),
+                enabled: true,
+                reminder_days_before: 2,
+            }],
+        }),
+    )
+    .await
+    .unwrap();
+    assert!(updated_channels.preferences.iter().any(|preference| preference.channel == "email"));
+
+    let unauthorized = handlers::list(State(state), OptionalQuery(None), HeaderMap::new()).await;
+    assert!(unauthorized.is_err());
+}
+
+#[sqlx::test]
+async fn report_handler_rejects_invalid_periods_and_auth(pool: PgPool) {
+    use recurrency_backend::reports::handlers::{self, ReportQuery};
+    use recurrency_backend::shared::OptionalQuery;
+
+    let (_, token) = create_test_user(&pool).await;
+    let state = AppState::new(pool);
+    let headers = auth_headers(&token);
+
+    for (year, month) in [(2024, 0), (2024, 13), (1969, 1), (9999, 12)] {
+        assert!(
+            handlers::get_report(
+                State(state.clone()),
+                OptionalQuery(Some(ReportQuery {
+                    token: None,
+                    year: Some(year),
+                    month: Some(month),
+                })),
+                headers.clone(),
+            )
+            .await
+            .is_err()
+        );
+    }
+    assert!(
+        handlers::get_report(State(state), OptionalQuery(None), HeaderMap::new())
+            .await
+            .is_err()
+    );
+}
