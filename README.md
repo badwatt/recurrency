@@ -479,11 +479,11 @@ cd frontend && nix develop .. -c cargo llvm-cov test --lib
 ```
 
 CI enforces at least **80% backend** (excluding the binary entry point) and
-**65% frontend** line coverage. The binary entry point is excluded because it
+**67% frontend** line coverage. The binary entry point is excluded because it
 only wires the runtime; all application modules remain in the report.
 
 Current suite: **1245 backend unit tests**, **65 backend integration tests**,
-**1849 frontend tests** and **10 tooling tests**.
+**1866 frontend tests** and **10 tooling tests**.
 
 ### Releasing
 
