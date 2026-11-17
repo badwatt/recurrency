@@ -106,4 +106,24 @@ mod tests {
             "https://ghcr.io/v2/badwatt/recurrency/manifests/0.55.4"
         );
     }
+
+    #[test]
+    fn tags_have_a_bounded_length_and_safe_characters() {
+        assert!(normalize_tag(&"a".repeat(MAX_TAG_CHARS)).is_some());
+        assert!(normalize_tag(&"a".repeat(MAX_TAG_CHARS + 1)).is_none());
+        assert!(normalize_tag("v1_2.3-rc_1").is_some());
+        assert!(normalize_tag("v1/2").is_none());
+        assert!(normalize_tag("v1:2").is_none());
+    }
+
+    #[tokio::test]
+    async fn image_route_rejects_missing_and_invalid_tags() {
+        let missing = image(Query(UpdateImageQuery { tag: None })).await;
+        assert!(matches!(missing, Err(AppError::BadRequest(_))));
+        let invalid = image(Query(UpdateImageQuery {
+            tag: Some("../latest".to_string()),
+        }))
+        .await;
+        assert!(matches!(invalid, Err(AppError::BadRequest(_))));
+    }
 }
