@@ -2006,3 +2006,104 @@ fn linked_subscription_cards_render() {
     let mut dom = VirtualDom::new(linked_cards_wrapper);
     dom.rebuild_in_place();
 }
+
+fn subscription_dialog_wrapper() -> Element {
+    let form = use_signal(DialogForm::default);
+    let recurrence = use_signal(Recurrence::default);
+    let active = use_signal(|| true);
+    let editing_id = use_signal(|| None);
+    let dialog_open = use_signal(|| true);
+    let name_error = use_signal(String::new);
+    let amount_error = use_signal(String::new);
+    let currency_error = use_signal(String::new);
+    let frequency_error = use_signal(String::new);
+    let start_date_error = use_signal(String::new);
+    let end_date_error = use_signal(String::new);
+    let account_error = use_signal(String::new);
+    let category_error = use_signal(String::new);
+    let form_account_id = use_signal(String::new);
+    rsx! {
+        div {
+            {super::dialog::render_dialog(
+                form,
+                recurrence,
+                active,
+                editing_id,
+                dialog_open,
+                name_error,
+                amount_error,
+                currency_error,
+                frequency_error,
+                start_date_error,
+                end_date_error,
+                account_error,
+                category_error,
+                form_account_id,
+                None,
+            )}
+        }
+    }
+}
+
+#[test]
+fn subscription_dialog_renders_in_create_mode() {
+    let mut dom = VirtualDom::new(subscription_dialog_wrapper);
+    dom.rebuild_in_place();
+}
+
+fn subscription_dialog_edit_wrapper() -> Element {
+    let mut form = use_signal(DialogForm::default);
+    form.set(DialogForm {
+        name: "Netflix".into(),
+        amount: "10".into(),
+        currency: "EUR".into(),
+        frequency: "monthly".into(),
+        schedule_day: Some(1),
+        schedule_month: None,
+        start_date: "2024-01-01".into(),
+        end_date: "2025-01-01".into(),
+        category_id: Uuid::new_v4().to_string(),
+        notes: "note".into(),
+        logo_url: "https://example.test/logo.png".into(),
+    });
+    let recurrence = use_signal(Recurrence::default);
+    let active = use_signal(|| false);
+    let editing_id = use_signal(|| Some(Uuid::new_v4()));
+    let dialog_open = use_signal(|| true);
+    let name_error = use_signal(|| "Name error".to_string());
+    let amount_error = use_signal(|| "Amount error".to_string());
+    let currency_error = use_signal(|| "Currency error".to_string());
+    let frequency_error = use_signal(|| "Frequency error".to_string());
+    let start_date_error = use_signal(|| "Start error".to_string());
+    let end_date_error = use_signal(|| "End error".to_string());
+    let account_error = use_signal(|| "Account error".to_string());
+    let category_error = use_signal(|| "Category error".to_string());
+    let form_account_id = use_signal(|| Uuid::new_v4().to_string());
+    rsx! {
+        div {
+            {super::dialog::render_dialog(
+                form,
+                recurrence,
+                active,
+                editing_id,
+                dialog_open,
+                name_error,
+                amount_error,
+                currency_error,
+                frequency_error,
+                start_date_error,
+                end_date_error,
+                account_error,
+                category_error,
+                form_account_id,
+                None,
+            )}
+        }
+    }
+}
+
+#[test]
+fn subscription_dialog_renders_in_edit_mode_with_errors() {
+    let mut dom = VirtualDom::new(subscription_dialog_edit_wrapper);
+    dom.rebuild_in_place();
+}
