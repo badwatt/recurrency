@@ -110,12 +110,12 @@ const APPLE_TOUCH_ICON: Asset = asset!("/assets/icons/clock-256.png");
 fn font_face_css() -> String {
     format!(
         r#"
-        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg400}) format('woff2'); font-weight: 400; font-display: swap; font-style: normal; }}
-        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg500}) format('woff2'); font-weight: 500; font-display: swap; font-style: normal; }}
-        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg700}) format('woff2'); font-weight: 600; font-display: swap; font-style: normal; }}
-        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg700}) format('woff2'); font-weight: 700; font-display: swap; font-style: normal; }}
-        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg800}) format('woff2'); font-weight: 800; font-display: swap; font-style: normal; }}
-        @font-face {{ font-family: 'JetBrains Mono'; src: url({jm}) format('woff2'); font-weight: 400 700; font-display: swap; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg400}) format('woff2'); font-weight: 400; font-display: block; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg500}) format('woff2'); font-weight: 500; font-display: block; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg700}) format('woff2'); font-weight: 600; font-display: block; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg700}) format('woff2'); font-weight: 700; font-display: block; font-style: normal; }}
+        @font-face {{ font-family: 'Cabinet Grotesk'; src: url({cg800}) format('woff2'); font-weight: 800; font-display: block; font-style: normal; }}
+        @font-face {{ font-family: 'JetBrains Mono'; src: url({jm}) format('woff2'); font-weight: 400 700; font-display: block; font-style: normal; }}
         "#,
         cg400 = CABINET_GROTESK_400,
         cg500 = CABINET_GROTESK_500,
@@ -311,9 +311,34 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
                         requestAnimationFrame(removeLoaders);
                     });
                 }
+                function loadFonts() {
+                    // Loading the weights explicitly avoids revealing the app
+                    // before a weight used only by the header has been fetched.
+                    // A late swap would reflow every text node after the loader
+                    // is gone.
+                    if (!document.fonts || !document.fonts.load) {
+                        return Promise.resolve();
+                    }
+                    var faces = [
+                        '400 1em "Cabinet Grotesk"',
+                        '500 1em "Cabinet Grotesk"',
+                        '600 1em "Cabinet Grotesk"',
+                        '700 1em "Cabinet Grotesk"',
+                        '800 1em "Cabinet Grotesk"',
+                        '400 1em "JetBrains Mono"'
+                    ];
+                    return Promise.all(faces.map(function (face) {
+                        return document.fonts.load(face).catch(function () {});
+                    })).then(function () {
+                        return document.fonts.ready;
+                    });
+                }
                 function afterWindowLoad() {
-                    var fonts = document.fonts && document.fonts.ready
-                        ? Promise.race([document.fonts.ready, new Promise(function (resolve) { setTimeout(resolve, 700); })])
+                    var fonts = document.fonts
+                        ? Promise.race([
+                            loadFonts(),
+                            new Promise(function (resolve) { setTimeout(resolve, 1500); })
+                          ])
                         : Promise.resolve();
                     fonts.then(function () {
                         requestAnimationFrame(function () {

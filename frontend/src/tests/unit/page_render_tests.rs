@@ -167,5 +167,7 @@ fn font_face_css_uses_bundled_assets() {
     let css = crate::font_face_css();
     assert!(css.contains("Cabinet Grotesk"));
     assert!(css.contains("JetBrains Mono"));
+    // Block avoids a late swap that reflows text after the loader is gone.
+    assert_eq!(css.matches("font-display: block").count(), 6);
     assert_eq!(css.matches("@font-face").count(), 6);
 }
