@@ -81,6 +81,9 @@ fn accounts_file() -> Option<std::path::PathBuf> {
 #[cfg(test)]
 static TEST_DIR: std::sync::Mutex<Option<std::path::PathBuf>> = std::sync::Mutex::new(None);
 
+#[cfg(test)]
+pub(crate) static AUTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(not(target_arch = "wasm32"))]
 fn legacy_accounts_file() -> Option<std::path::PathBuf> {
     dirs::data_dir()
@@ -231,8 +234,6 @@ pub fn update_profile(
 mod tests {
     use super::*;
 
-    static AUTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     struct AuthTest {
         _lock: std::sync::MutexGuard<'static, ()>,
         dir: std::path::PathBuf,
@@ -240,7 +241,7 @@ mod tests {
 
     impl AuthTest {
         fn new() -> Self {
-            let lock = AUTH_TEST_LOCK
+            let lock = crate::storage::local_auth::AUTH_TEST_LOCK
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
             let dir = std::env::temp_dir().join(format!(
