@@ -3047,3 +3047,85 @@ async fn report_handler_rejects_invalid_periods_and_auth(pool: PgPool) {
             .is_err()
     );
 }
+
+#[sqlx::test]
+async fn auth_service_rejects_invalid_credentials_and_profiles(pool: PgPool) {
+    use recurrency_backend::auth::models::{LoginRequest, UpdateSettingsRequest};
+
+    let (user_id, token) = create_test_user(&pool).await;
+    let service = SqlxAuthService::new(pool.clone());
+    let email: String = sqlx::query_scalar("SELECT email FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+    assert!(
+        service.login(
+            LoginRequest {
+                email: email.clone(),
+                password: "wrong".into(),
+            },
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        service.login(
+            LoginRequest {
+                email: "missing@test.com".into(),
+                password: "password".into(),
+            },
+        )
+        .await
+        .is_err()
+    );
+    assert!(service.verify_token("invalid").await.is_err());
+
+    let (other_id, _) = create_test_user(&pool).await;
+    let other_email: String = sqlx::query_scalar("SELECT email FROM users WHERE id = $1")
+        .bind(other_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(
+        service
+            .update_settings(
+                user_id,
+                UpdateSettingsRequest {
+                    email: Some(other_email),
+                    avatar: None,
+                    name: None,
+                    currency: None,
+                },
+            )
+            .await
+            .is_err()
+    );
+    assert!(
+        service
+            .delete_account(
+                user_id,
+                "wrong".to_string(),
+            )
+            .await
+            .is_err()
+    );
+    assert!(service.delete_account(Uuid::new_v4(), "password".to_string()).await.is_err());
+    let _ = token;
+}
+
+#[sqlx::test]
+async fn notification_service_handles_missing_notifications(pool: PgPool) {
+    use recurrency_backend::notifications::service::{NotificationServiceTrait, SqlxNotificationService};
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxNotificationService::new(pool);
+    let missing = Uuid::new_v4();
+    assert!(service.mark_read(user_id, missing).await.is_err());
+    assert!(service.delete(user_id, missing).await.is_err());
+    assert_eq!(service.mark_all_read(user_id).await.unwrap(), 0);
+    let list = service.list(user_id).await.unwrap();
+    assert_eq!(list.notifications.len(), 0);
+    assert_eq!(list.unread_count, 0);
+}

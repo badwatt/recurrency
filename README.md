@@ -482,7 +482,7 @@ CI enforces at least **85% backend** (excluding the binary entry point) and
 **76% frontend** line coverage. The binary entry point is excluded because it
 only wires the runtime; all application modules remain in the report.
 
-Current suite: **1272 backend unit tests**, **80 backend integration tests**,
+Current suite: **1272 backend unit tests**, **82 backend integration tests**,
 **1938 frontend tests** and **10 tooling tests**.
 
 ### Releasing
