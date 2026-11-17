@@ -3129,3 +3129,78 @@ async fn notification_service_handles_missing_notifications(pool: PgPool) {
     assert_eq!(list.notifications.len(), 0);
     assert_eq!(list.unread_count, 0);
 }
+
+#[sqlx::test]
+async fn ai_chat_surfaces_provider_errors(pool: PgPool) {
+    use recurrency_backend::ai::models::{AiChatRequest, AiMessage};
+
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAiService::new(pool.clone());
+
+    let (port, server) = ai_provider_server("500 Internal Server Error", "{\"error\":\"boom\"}");
+    configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
+    let request = AiChatRequest {
+        messages: vec![AiMessage {
+            role: "user".into(),
+            content: "hello".into(),
+        }],
+    };
+    assert!(service.chat(user_id, request.clone()).await.is_err());
+    server.join().unwrap();
+
+    let (port, server) = ai_provider_server("200 OK", "not-json");
+    configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
+    assert!(service.chat(user_id, request).await.is_err());
+    server.join().unwrap();
+}
+
+#[sqlx::test]
+async fn ai_settings_validate_base_urls_and_keys(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    let service = SqlxAiService::new(pool.clone());
+
+    assert!(
+        service
+            .update_settings(
+                user_id,
+                UpdateAiSettingsRequest {
+                    enabled: true,
+                    provider: Some("openai".to_string()),
+                    base_url: Some("not-a-url".to_string()),
+                    model: Some("model".to_string()),
+                    api_key: Some("key".to_string()),
+                    clear_api_key: false,
+                },
+            )
+            .await
+            .is_err()
+    );
+
+    let disabled = service
+        .update_settings(
+            user_id,
+            UpdateAiSettingsRequest {
+                enabled: true,
+                provider: Some("ollama".to_string()),
+                base_url: Some("http://localhost:11434/v1".to_string()),
+                model: Some("llama".to_string()),
+                api_key: None,
+                clear_api_key: true,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(!disabled.configured);
+
+    assert!(
+        service
+            .models(
+                user_id,
+                AiModelsRequest {
+                    base_url: Some("ftp://example.test".to_string()),
+                },
+            )
+            .await
+            .is_err()
+    );
+}
