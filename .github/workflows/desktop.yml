@@ -84,6 +84,33 @@ jobs:
       - name: Build desktop bundle
         run: cargo build-desktop
 
+      - name: Add the macOS microphone usage description
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          DMG=$(find target/bin/desktop -maxdepth 1 -name '*.dmg' | head -1)
+          test -n "$DMG"
+          MOUNT=$(mktemp -d)
+          APP=$(mktemp -d)/Recurrency.app
+          STAGING=$(mktemp -d)
+          cleanup() {
+            hdiutil detach "$MOUNT" >/dev/null 2>&1 || true
+            rm -rf "$(dirname "$APP")" "$STAGING"
+          }
+          trap cleanup EXIT
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT" >/dev/null
+          ditto "$MOUNT/Recurrency.app" "$APP"
+          hdiutil detach "$MOUNT" >/dev/null
+          PLIST="$APP/Contents/Info.plist"
+          plutil -replace NSMicrophoneUsageDescription -string "Record voice input for the AI assistant" "$PLIST" 2>/dev/null \
+            || plutil -insert NSMicrophoneUsageDescription -string "Record voice input for the AI assistant" "$PLIST"
+          codesign --force --deep --sign - "$APP"
+          cp -R "$APP" "$STAGING/Recurrency.app"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname Recurrency -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
+          codesign --force --sign - "$DMG"
+
       - name: Verify macOS bundle name and signature
         if: runner.os == 'macOS'
         shell: bash
