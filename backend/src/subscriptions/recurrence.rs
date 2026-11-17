@@ -495,4 +495,71 @@ mod tests {
         assert_eq!(day, Some(27));
         assert_eq!(month, None);
     }
+    #[test]
+    fn validate_recurrence_covers_every_unit_and_boundary() {
+        let mut recurrence = Recurrence {
+            interval: 1,
+            unit: "day".into(),
+            ..Default::default()
+        };
+        assert!(validate_recurrence(&recurrence).is_ok());
+        recurrence.interval = 0;
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.interval = MAX_INTERVAL + 1;
+        assert!(validate_recurrence(&recurrence).is_err());
+
+        recurrence = Recurrence {
+            interval: 1,
+            unit: "week".into(),
+            weekdays: Vec::new(),
+            ..Default::default()
+        };
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.weekdays = vec![0];
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.weekdays = vec![1, 7];
+        assert!(validate_recurrence(&recurrence).is_ok());
+
+        recurrence = Recurrence {
+            interval: 1,
+            unit: "month".into(),
+            days: Vec::new(),
+            ..Default::default()
+        };
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.days = vec![32];
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.days = vec![0, 31];
+        assert!(validate_recurrence(&recurrence).is_ok());
+
+        recurrence = Recurrence {
+            interval: 1,
+            unit: "year".into(),
+            ..Default::default()
+        };
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.dates = vec![AnnualDate { month: 0, day: 1, amount: None }];
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.dates = vec![AnnualDate { month: 1, day: 1, amount: None }, AnnualDate { month: 1, day: 1, amount: None }];
+        assert!(validate_recurrence(&recurrence).is_err());
+        recurrence.dates = vec![AnnualDate { month: 1, day: 31, amount: None }, AnnualDate { month: 6, day: 15, amount: Some(Decimal::from(5)) }];
+        assert!(validate_recurrence(&recurrence).is_ok());
+
+        recurrence.unit = "hour".into();
+        assert!(validate_recurrence(&recurrence).is_err());
+    }
+
+    #[test]
+    fn daily_and_weekly_occurrences_cover_skipped_and_empty_weekday_paths() {
+        let start = date(2024, 1, 1);
+        let daily = Recurrence { interval: 2, unit: "day".into(), ..Default::default() };
+        let dates = occurrences_between(start, &daily, date(2024, 1, 2), date(2024, 1, 7), None, Decimal::ONE);
+        assert_eq!(dates.iter().map(|(date, _)| *date).collect::<Vec<_>>(), vec![date(2024,1,3), date(2024,1,5), date(2024,1,7)]);
+
+        let weekly = Recurrence { interval: 1, unit: "week".into(), weekdays: Vec::new(), ..Default::default() };
+        let dates = occurrences_between(start, &weekly, start, date(2024, 1, 15), None, Decimal::ONE);
+        assert_eq!(dates.len(), 3);
+        assert!(occurrences_between(date(2024,2,1), &weekly, start, date(2024,1,31), None, Decimal::ONE).is_empty());
+    }
+
 }
