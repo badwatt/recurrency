@@ -117,3 +117,38 @@ fn admin_page_renders_for_an_administrator() {
     });
     dom.rebuild_in_place();
 }
+
+#[test]
+fn route_wrappers_render() {
+    render(|| rsx! { crate::Login {} });
+    render(|| rsx! { crate::Register {} });
+    render(|| rsx! { crate::ServerSettings {} });
+    render(|| rsx! { crate::Dashboard {} });
+    render(|| rsx! { crate::Subscriptions {} });
+    render(|| rsx! { crate::Transactions {} });
+    render(|| rsx! { crate::Debts {} });
+    render(|| rsx! { crate::Calendar {} });
+    render(|| rsx! { crate::Reports {} });
+    render(|| rsx! { crate::Accounts {} });
+    render(|| rsx! { crate::Categories {} });
+    render(|| rsx! { crate::Settings {} });
+    render(|| rsx! { crate::SettingsProfile {} });
+    render(|| rsx! { crate::SettingsPreferences {} });
+    render(|| rsx! { crate::SettingsAi {} });
+    render(|| rsx! { crate::SettingsMoney {} });
+    render(|| rsx! { crate::SettingsNotifications {} });
+    render(|| rsx! { crate::SettingsData {} });
+    render(|| rsx! { crate::SettingsServer {} });
+    render(|| rsx! { crate::SettingsAboutPage {} });
+    render(|| rsx! { crate::SettingsAdmin {} });
+    render(|| rsx! { crate::SettingsAccounts {} });
+    render(|| rsx! { crate::SettingsCategories {} });
+}
+
+#[test]
+fn font_face_css_uses_bundled_assets() {
+    let css = crate::font_face_css();
+    assert!(css.contains("Cabinet Grotesk"));
+    assert!(css.contains("JetBrains Mono"));
+    assert_eq!(css.matches("@font-face").count(), 6);
+}
