@@ -4,7 +4,7 @@
 //! Requires TEST_DATABASE_URL env var or .env.test file.
 //! Run with: TEST_DATABASE_URL=postgres://... cargo test --test integration_tests
 
-use chrono::{Datelike, NaiveDate};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -32,6 +32,7 @@ use recurrency_backend::notifications::channels::{
     MASKED_VALUE, NotificationProvider, UpdateNotificationChannelRequest,
     UpdateSummaryNotificationSettingsRequest,
 };
+use recurrency_backend::notifications::scheduler;
 use recurrency_backend::notifications::settings::{
     NotificationSettingsServiceTrait, SqlxNotificationSettingsService,
 };
@@ -441,6 +442,42 @@ async fn summary_notification_schedule_roundtrip(pool: PgPool) {
     assert_eq!(loaded.weekday, Some(1));
     assert_eq!(loaded.hour, 9);
     assert_eq!(loaded.minute, 30);
+}
+
+#[sqlx::test]
+async fn scheduler_processes_a_due_summary(pool: PgPool) {
+    let (user_id, _) = create_test_user(&pool).await;
+    sqlx::query(
+        "INSERT INTO summary_notification_settings
+         (user_id, enabled, frequency, day_of_month, hour, minute, timezone, period, next_run_at)
+         VALUES ($1, true, 'monthly', 17, 18, 46, 'Europe/Madrid', 'next', NOW() - INTERVAL '1 minute')",
+    )
+    .bind(user_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    scheduler::run_due(&pool).await.unwrap();
+
+    let (next_run_at, last_sent_at, last_error): (
+        Option<DateTime<Utc>>,
+        Option<DateTime<Utc>>,
+        Option<String>,
+    ) = sqlx::query_as(
+        "SELECT next_run_at, last_sent_at, last_error
+         FROM summary_notification_settings WHERE user_id = $1",
+    )
+    .bind(user_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    assert!(last_sent_at.is_some());
+    assert!(next_run_at.is_some_and(|next| next > Utc::now()));
+    assert_eq!(
+        last_error.as_deref(),
+        Some("No enabled notification channels")
+    );
 }
 
 #[sqlx::test]

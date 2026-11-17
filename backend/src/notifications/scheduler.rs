@@ -152,18 +152,20 @@ pub fn spawn(pool: PgPool) {
         let mut interval = tokio::time::interval(StdDuration::from_secs(60));
         loop {
             interval.tick().await;
-            if let Err(error) = tick(&pool).await {
+            if let Err(error) = run_due(&pool).await {
                 tracing::warn!("Notification scheduler tick failed: {error}");
             }
         }
     });
 }
 
-async fn tick(pool: &PgPool) -> Result<(), String> {
+/// Process every due summary. Exposed for integration tests and the
+/// background scheduler; safe to call concurrently.
+pub async fn run_due(pool: &PgPool) -> Result<(), String> {
     let due = sqlx::query_as::<_, SummaryNotificationSettings>(
         r#"
         SELECT user_id, enabled, frequency, weekday, day_of_month, hour, minute,
-               timezone, next_run_at, last_sent_at, last_error, created_at, updated_at
+               timezone, period, next_run_at, last_sent_at, last_error, created_at, updated_at
         FROM summary_notification_settings
         WHERE enabled = true AND (next_run_at IS NULL OR next_run_at <= NOW())
         ORDER BY next_run_at NULLS FIRST
