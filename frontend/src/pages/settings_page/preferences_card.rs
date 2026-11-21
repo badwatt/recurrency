@@ -61,7 +61,7 @@ pub fn PreferencesCard() -> Element {
                     label { r#for: "settings-currency", class: "text-sm font-medium", "Default Currency" }
                     select {
                         id: "settings-currency",
-                        value: cur.to_string(),
+                        value: cur,
                         onchange: move |e| handle_save_currency(e.value()),
                         disabled: saving_currency(),
                         class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",

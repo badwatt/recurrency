@@ -330,7 +330,7 @@ pub fn AiConnectionCard() -> Element {
                                     }
                                 },
                                 for option_value in models() {
-                                    option { value: option_value.clone(), {option_value.clone()} }
+                                    option { value: option_value, {option_value.clone()} }
                                 }
                                 option { value: CUSTOM_MODEL_VALUE, "Custom model…" }
                             }

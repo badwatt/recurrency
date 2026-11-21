@@ -127,7 +127,7 @@ impl EntryForm {
             schedule_day: self.schedule_day,
             schedule_month: self.schedule_month,
             start_date: Some(self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
+                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
             )),
             end_date: self.parse_end_date(),
             clear_end_date: self.end_date.is_empty(),
@@ -156,7 +156,7 @@ impl EntryForm {
             recurrence: None,
             is_active: None,
             start_date: self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
+                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
             ),
             end_date: self.parse_end_date(),
             category_id: category,
@@ -178,7 +178,7 @@ impl EntryForm {
             amount: Some(amount),
             currency: Some(self.currency.clone()),
             date: Some(self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
+                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
             )),
             category_id: category,
             notes: Some(self.notes.clone()),
@@ -199,7 +199,7 @@ impl EntryForm {
             amount,
             currency: self.currency.clone(),
             date: self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).expect("valid date"),
+                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
             ),
             category_id: category,
             notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },

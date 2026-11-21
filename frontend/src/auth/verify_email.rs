@@ -1,5 +1,5 @@
-use crate::api::auth;
 use crate::Route;
+use crate::api::auth;
 use dioxus::prelude::*;
 
 #[component]
@@ -82,7 +82,7 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
                     p { class: "mt-2 text-sm text-muted-foreground",
                         "We sent a 6-digit code to"
                         br {}
-                        span { class: "font-medium text-foreground", {email.clone()} }
+                        span { class: "font-medium text-foreground", {email} }
                     }
                 }
 
@@ -148,7 +148,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "verify@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Verify User".into()),
             currency: "EUR".into(),
             verified,

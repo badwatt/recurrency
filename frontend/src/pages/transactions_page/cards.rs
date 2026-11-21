@@ -13,7 +13,9 @@ pub fn TransactionCard(
 ) -> Element {
     let accounts = ACCOUNTS();
     let account = accounts.get_by_id(&txn.account_id);
-    let account_name = account.map(|a| a.name.clone()).unwrap_or_else(|| "No account".into());
+    let account_name = account
+        .map(|a| a.name.clone())
+        .unwrap_or_else(|| "No account".into());
     let account_icon = account
         .and_then(|a| a.icon.clone())
         .unwrap_or_else(|| "Tag".into());
@@ -54,14 +56,14 @@ pub fn TransactionCard(
                             {icon_display(&account_icon)}
                             {account_name}
                         }
-                        if let Some(category) = category.clone().filter(|category| !category.is_system) {
+                        if let Some(category) = category.filter(|category| !category.is_system) {
                             {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
                              let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
                              rsx! {
                                 span { class: "font-normal text-xs inline-flex items-center gap-1 rounded-full px-2 py-0.5",
                                     style: "color: {color}; background-color: {color}15;",
                                     {icon_display(&icon)}
-                                    {category.name.clone()}
+                                    {category.name}
                                 }
                              }}
                         }
@@ -110,7 +112,9 @@ pub fn TransactionGridCard(
 ) -> Element {
     let accounts = ACCOUNTS();
     let account = accounts.get_by_id(&txn.account_id);
-    let account_name = account.map(|a| a.name.clone()).unwrap_or_else(|| "No account".into());
+    let account_name = account
+        .map(|a| a.name.clone())
+        .unwrap_or_else(|| "No account".into());
     let account_icon = account
         .and_then(|a| a.icon.clone())
         .unwrap_or_else(|| "Tag".into());
@@ -149,14 +153,14 @@ pub fn TransactionGridCard(
                             {icon_display(&account_icon)}
                             span { class: "truncate", {account_name} }
                         }
-                        if let Some(category) = category.clone().filter(|category| !category.is_system) {
+                        if let Some(category) = category.filter(|category| !category.is_system) {
                             {let color = category.color.clone().unwrap_or_else(|| "#6b7280".into());
                              let icon = category.icon.clone().unwrap_or_else(|| "Tag".into());
                              rsx! {
                                 span { class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
                                     style: "color: {color}; background-color: {color}15;",
                                     {icon_display(&icon)}
-                                    {category.name.clone()}
+                                    {category.name}
                                 }
                              }}
                         }

@@ -49,12 +49,12 @@ pub static TOAST: GlobalSignal<ToastState> = Signal::global(ToastState::default)
 
 #[component]
 pub fn ToastContainer() -> Element {
-    let items = TOAST().items.clone();
+    let items = TOAST().items;
 
     rsx! {
         div { class: "fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm",
             for item in items {
-                ToastEntry { key: "{item.id}", item: item.clone() }
+                ToastEntry { key: "{item.id}", item: item }
             }
         }
     }
@@ -83,7 +83,7 @@ fn ToastEntry(item: ToastItem) -> Element {
 
     rsx! {
         div { class: "flex items-center gap-2 {bg} {text_color} px-4 py-3 rounded-md shadow-lg text-sm",
-            span { class: "flex-1", {item.message.clone()} }
+            span { class: "flex-1", {item.message} }
             button {
                 r#type: "button",
                 class: "text-white/70 hover:text-white",

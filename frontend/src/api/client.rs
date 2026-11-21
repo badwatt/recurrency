@@ -17,7 +17,7 @@ pub fn get_client() -> &'static reqwest::Client {
                 .connect_timeout(std::time::Duration::from_secs(10))
                 .timeout(std::time::Duration::from_secs(30));
         }
-        builder.build().expect("Failed to create reqwest client")
+        builder.build().unwrap_or_default()
     })
 }
 
@@ -208,7 +208,7 @@ pub fn get_token() -> Option<String> {
     {
         return None;
     }
-    AUTH.cloned().token.clone()
+    AUTH.cloned().token
 }
 
 /// Clear the runtime base URL override (used when switching to offline mode).

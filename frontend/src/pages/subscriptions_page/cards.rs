@@ -53,7 +53,11 @@ pub fn render_grid_card(
                 a.name.clone(),
             )
         } else {
-            ("#6b7280".to_string(), "Tag".to_string(), "No account".to_string())
+            (
+                "#6b7280".to_string(),
+                "Tag".to_string(),
+                "No account".to_string(),
+            )
         }
     };
 
@@ -150,8 +154,8 @@ pub fn render_grid_card(
 
                 // Name + next billing + optional end date
                 div { class: "min-w-0",
-                    p { class: "font-semibold truncate text-sm leading-tight", {name.to_string()} }
-                    p { class: "text-xs text-muted-foreground mt-1", {next_text.to_string()} }
+                    p { class: "font-semibold truncate text-sm leading-tight", {name} }
+                    p { class: "text-xs text-muted-foreground mt-1", {next_text} }
                     if let Some(end) = end_text {
                         p { class: "text-[11px] text-muted-foreground/80 mt-0.5", {end} }
                     }
@@ -173,7 +177,7 @@ pub fn render_grid_card(
                         class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
                         style: "color: {color}; background-color: {color}15; border: 1px solid {color}25;",
                         {icon_display(&account_icon)}
-                        {account_name.to_string()}
+                        {account_name}
                     }
                     if let Some(cat) = category.filter(|c| !c.is_system) {
                         {let cat_color = cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
@@ -183,7 +187,7 @@ pub fn render_grid_card(
                                 class: "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium w-fit",
                                 style: "color: {cat_color}; background-color: {cat_color}15; border: 1px solid {cat_color}25;",
                                 {icon_display(&cat_icon)}
-                                {cat.name.to_string()}
+                                {cat.name}
                             }
                          }}
                     }
@@ -293,11 +297,7 @@ pub fn render_list_card(
     } else {
         "Active"
     };
-    let card_border = if finalized {
-        "border-amber-500/25"
-    } else {
-        ""
-    };
+    let card_border = if finalized { "border-amber-500/25" } else { "" };
     let status_class = if is_active && !finalized {
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-500"
     } else if finalized {
@@ -328,13 +328,13 @@ pub fn render_list_card(
 
                     div { class: "flex-1 min-w-0",
                         div { class: "flex items-center gap-2 min-w-0",
-                            p { class: "font-medium truncate text-sm sm:text-base", {name.to_string()} }
+                            p { class: "font-medium truncate text-sm sm:text-base", {name} }
                             if is_debt {
                                 span { class: "shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary", "Debt" }
                             }
                             span { class: status_class, {status_label} }
                         }
-                        p { class: "text-xs text-muted-foreground truncate", {next_text.to_string()} }
+                        p { class: "text-xs text-muted-foreground truncate", {next_text} }
                         if let Some(end) = end_text {
                             p { class: "text-[11px] text-muted-foreground/80 truncate", {end} }
                         }
@@ -348,7 +348,7 @@ pub fn render_list_card(
                                 class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-normal",
                                 style: "color: {color}; background-color: {color}15;",
                                 {icon_display(&account_icon)}
-                                {account_name.to_string()}
+                                {account_name}
                             }
                             if let Some(cat) = category.filter(|c| !c.is_system) {
                                 {let cat_color = cat.color.clone().unwrap_or_else(|| "#6b7280".to_string());
@@ -358,7 +358,7 @@ pub fn render_list_card(
                                         class: "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-normal",
                                         style: "color: {cat_color}; background-color: {cat_color}15;",
                                         {icon_display(&cat_icon)}
-                                        {cat.name.to_string()}
+                                        {cat.name}
                                     }
                                  }}
                             }
@@ -432,4 +432,3 @@ fn render_list_actions(
         }
     }
 }
-

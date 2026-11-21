@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use std::env;
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -71,8 +73,8 @@ fn main() -> ExitCode {
 fn root() -> PathBuf {
     PathBuf::from(MANIFEST)
         .parent()
-        .expect("tools must live inside the workspace")
-        .to_path_buf()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 fn has_command(name: &str) -> bool {
@@ -533,7 +535,12 @@ fn do_build_app() -> i32 {
     let backend = run(
         &root().join("backend"),
         "cargo",
-        &["build", "--release", "--features", "embedded-web,embedded-db"],
+        &[
+            "build",
+            "--release",
+            "--features",
+            "embedded-web,embedded-db",
+        ],
     );
     if backend != 0 {
         return backend;

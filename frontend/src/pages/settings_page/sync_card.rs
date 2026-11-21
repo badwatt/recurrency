@@ -53,7 +53,7 @@ pub fn SyncFolderCard() -> Element {
                     last_sync.set(folder_sync::last_sync().unwrap_or_default());
                     TOAST.write().success("Sync complete");
                 }
-                Err(err) => error.set(err.to_string()),
+                Err(err) => error.set(err),
             }
             busy.set(false);
         });

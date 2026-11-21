@@ -336,12 +336,7 @@ pub fn CalendarPage() -> Element {
                     let account_name = entry_account_name(entry);
                     let account_icon = entry_account_icon(entry);
                     let account_color = entry_account_color(entry);
-                    (
-                        (*entry).clone(),
-                        account_name,
-                        account_icon,
-                        account_color,
-                    )
+                    ((*entry).clone(), account_name, account_icon, account_color)
                 })
                 .collect::<Vec<_>>()
         })
@@ -380,11 +375,11 @@ pub fn CalendarPage() -> Element {
             div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2",
                 div { class: "rounded-xl border border-border/60 bg-card p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Transfer this month" }
-                    p { class: "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums", {month_budget_display.to_string()} }
+                    p { class: "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums", {month_budget_display} }
                 }
                 div { class: "rounded-xl border border-border/60 bg-card p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", {pending_label.to_string()} }
-                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums" } else { "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, {month_pending_display.to_string()} }
+                    p { class: if month_pending > rust_decimal::Decimal::ZERO { "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums" } else { "amount-sensitive mt-2 font-mono text-2xl font-bold tabular-nums text-muted-foreground" }, {month_pending_display} }
                 }
             }
 
@@ -403,7 +398,7 @@ pub fn CalendarPage() -> Element {
                         {icon_calendar()}
                         "Payments this month"
                     }
-                    p { class: "amount-sensitive text-lg font-bold", {total_display.to_string()} }
+                    p { class: "amount-sensitive text-lg font-bold", {total_display} }
                 }
 
                 {if is_loading() {
@@ -492,7 +487,7 @@ pub fn CalendarPage() -> Element {
                 // Navigation header
                 div { class: "border-b border-border p-4",
                     CalendarNavigation {
-                        month_label: month_label.clone(),
+                        month_label: month_label,
                         on_prev: go_prev,
                         on_next: go_next,
                         on_today: go_today,
@@ -633,7 +628,7 @@ pub fn CalendarPage() -> Element {
             Dialog {
                 open: selected_day().is_some(),
                 on_close: move |_| selected_day.set(None),
-                title: selected_day_label.clone(),
+                title: selected_day_label,
                 {rsx! {
                     if selected_day_items.is_empty() {
                         p { class: "text-muted-foreground text-center py-4", "No payments scheduled" }

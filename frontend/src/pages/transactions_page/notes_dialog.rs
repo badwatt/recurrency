@@ -48,7 +48,7 @@ pub fn NotesDialog(open: Signal<bool>, txn_id: Signal<Option<Uuid>>) -> Element 
                         class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
                         disabled: notes_saving(),
                         onclick: move |_| {
-                            let id = txn_id().unwrap();
+                            let Some(id) = txn_id() else { return };
                             let notes = notes_dialog_value();
                             notes_saving.set(true);
                             spawn(async move {

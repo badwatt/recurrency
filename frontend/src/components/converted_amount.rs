@@ -9,7 +9,7 @@ use crate::state::rates::RATES;
 pub fn ConvertedAmount(amount: Decimal, currency: String) -> Element {
     let (main, original) = RATES().display_amount_parts(amount, &currency);
     rsx! {
-        span { class: "amount-sensitive", {main.to_string()} }
+        span { class: "amount-sensitive", {main} }
         if let Some(original) = original {
             span { class: "amount-sensitive font-light text-muted-foreground/70", " ({original})" }
         }

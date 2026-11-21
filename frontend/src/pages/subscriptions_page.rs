@@ -6,36 +6,36 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::api;
-use crate::storage::Storage;
-use crate::components::dialog::Dialog;
 use crate::components::ConvertedAmount;
-use crate::components::logo_image_with_fallback;
-use crate::components::page_header::PageHeader;
 use crate::components::ListToolbar;
-use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};
-use crate::components::tooltip::Tooltip;
-use crate::components::logo_search::LogoSearch;
-use crate::components::subscription_form::SubscriptionForm;
+use crate::components::dialog::Dialog;
 #[allow(unused_imports)]
 use crate::components::entry_form::{ValidationResult, validate_subscription_form};
+use crate::components::logo_image_with_fallback;
+use crate::components::logo_search::LogoSearch;
+use crate::components::page_header::PageHeader;
+use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};
+use crate::components::subscription_form::SubscriptionForm;
+use crate::components::tooltip::Tooltip;
 use crate::models::subscription::{
     CreateSubscriptionRequest, Recurrence, Subscription, UpdateSubscriptionRequest,
 };
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
-use crate::state::debts::DEBTS;
 use crate::state::create_intent::{CREATE_INTENT, CreateIntent};
+use crate::state::debts::DEBTS;
 use crate::state::preferences::PREFERENCES;
 use crate::state::subscriptions::SUBSCRIPTIONS;
+use crate::storage::Storage;
 use crate::utils::constants::{CURRENCIES, RECURRENCE_UNITS};
 use crate::utils::icons::icon_display;
 
 mod delete_dialog;
 mod logic;
 mod notes_dialog;
-pub use logic::*;
 use delete_dialog::{BulkDeleteSubscriptionsDialog, DeleteSubscriptionDialog};
+pub use logic::*;
 use notes_dialog::NotesSubscriptionDialog;
 mod cards;
 pub(crate) mod dialog;
@@ -131,7 +131,10 @@ pub fn SubscriptionsPage() -> Element {
         if DEBTS().debts.is_empty() {
             spawn(async move {
                 if let Ok(debts) = crate::storage::Storage::list_debts().await {
-                    let ids = debts.iter().filter_map(|debt| debt.subscription_id).collect();
+                    let ids = debts
+                        .iter()
+                        .filter_map(|debt| debt.subscription_id)
+                        .collect();
                     DEBTS.write().set_data(debts);
                     filters.write().debt_subscription_ids = ids;
                 }
@@ -306,7 +309,6 @@ pub fn SubscriptionsPage() -> Element {
         }
     });
 
-
     let handle_duplicate: Callback<Subscription> = use_callback(move |sub: Subscription| {
         editing_id.set(None);
         form_account_id.set(sub.account_id.to_string());
@@ -343,7 +345,7 @@ pub fn SubscriptionsPage() -> Element {
     });
 
     let clear_filters: Callback<()> = use_callback(move |_| {
-        let debt_ids = filters().debt_subscription_ids.clone();
+        let debt_ids = filters().debt_subscription_ids;
         filters.set(FilterConfig {
             debt_subscription_ids: debt_ids,
             ..FilterConfig::default()
@@ -351,7 +353,7 @@ pub fn SubscriptionsPage() -> Element {
     });
 
     let toggle_sort_direction: Callback<()> = use_callback(move |_| {
-        let dir = sort().direction.clone();
+        let dir = sort().direction;
         sort.write().direction = if dir == "asc" {
             "desc".into()
         } else {
@@ -590,7 +592,7 @@ pub fn SubscriptionsPage() -> Element {
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
                     select {
                         class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                        value: sort_val.field.to_string(),
+                        value: sort_val.field,
                         onchange: move |e: Event<FormData>| sort.write().field = e.value(),
                         for (val, label) in SORT_OPTIONS {
                             option { value: val.to_string(), {label.to_string()} }
@@ -860,7 +862,7 @@ pub fn SubscriptionsPage() -> Element {
                             {render_subscription_section(
                                 "Finalized".to_string(),
                                 &finalized_subs,
-                                view_mode.clone(),
+                                view_mode,
                                 &selected_ids,
                                 selection_mode(),
                                 toggle_selected,

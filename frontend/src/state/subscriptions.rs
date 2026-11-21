@@ -29,7 +29,7 @@ impl SubscriptionsState {
     pub fn due_this_week(&self) -> Vec<&Subscription> {
         use chrono::{Days, Utc};
         let now = Utc::now().date_naive();
-        let week = now.checked_add_days(Days::new(7)).unwrap();
+        let week = now.checked_add_days(Days::new(7)).unwrap_or(now);
         self.active()
             .into_iter()
             .filter(|s| {

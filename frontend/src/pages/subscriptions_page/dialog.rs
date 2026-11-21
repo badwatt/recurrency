@@ -1,13 +1,23 @@
 use super::*;
-use chrono::Datelike;
 use crate::components::AccountCombobox;
+use chrono::Datelike;
 
 const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_INTERVAL: u16 = 100;
 const MAX_MONTH_DAY: u8 = 31;
 const MONTHS: [&str; 12] = [
-    "January", "February", "March", "April", "May", "June", "July", "August", "September",
-    "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ];
 
 // ── Dialog ───────────────────────────────────────────────────────────
@@ -74,13 +84,21 @@ pub(crate) fn render_dialog(
         .parse::<chrono::NaiveDate>()
         .unwrap_or(today);
     let first_charge = crate::utils::recurrence::first_occurrence_on_or_after(preview_start, &rec)
-        .map(|date| {
-            crate::utils::dates::format_date(&date, &PREFERENCES().date_format())
-        });
+        .map(|date| crate::utils::dates::format_date(&date, &PREFERENCES().date_format()));
     let unit_options: [(&str, &str); 4] = if rec_interval == 1 {
-        [("day", "day"), ("week", "week"), ("month", "month"), ("year", "year")]
+        [
+            ("day", "day"),
+            ("week", "week"),
+            ("month", "month"),
+            ("year", "year"),
+        ]
     } else {
-        [("day", "days"), ("week", "weeks"), ("month", "months"), ("year", "years")]
+        [
+            ("day", "days"),
+            ("week", "weeks"),
+            ("month", "months"),
+            ("year", "years"),
+        ]
     };
     let start_date_err = start_date_error();
     let end_date_err = end_date_error();
@@ -222,7 +240,7 @@ pub(crate) fn render_dialog(
                                     frequency: Some(rec.legacy_frequency()),
                                     schedule_day: rec.legacy_day(),
                                     schedule_month: rec.legacy_month(),
-                                    recurrence: Some(rec.clone()),
+                                    recurrence: Some(rec),
                                     is_active: Some(active()),
                                     start_date: Some(f.start_date.parse().unwrap_or_else(|_| chrono::Utc::now().date_naive())),
                                     end_date,
@@ -251,7 +269,7 @@ pub(crate) fn render_dialog(
                                     frequency: rec.legacy_frequency(),
                                     schedule_day: rec.legacy_day(),
                                     schedule_month: rec.legacy_month(),
-                                    recurrence: Some(rec.clone()),
+                                    recurrence: Some(rec),
                                     is_active: Some(active()),
                                     start_date: f.start_date.parse().unwrap_or_else(|_| chrono::Utc::now().date_naive()),
                                     end_date,
@@ -284,7 +302,7 @@ pub(crate) fn render_dialog(
                     input {
                         class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                         placeholder: "Netflix, Spotify, etc.",
-                        value: form_name.to_string(),
+                        value: form_name,
                         oninput: move |e: Event<FormData>| {
                             form.write().name = e.value();
                             name_error.set(String::new());
@@ -305,7 +323,7 @@ pub(crate) fn render_dialog(
                             min: "0",
                             class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
                             placeholder: "9.99",
-                            value: form_amount.to_string(),
+                            value: form_amount,
                             oninput: move |e: Event<FormData>| {
                                 form.write().amount = e.value();
                                 amount_error.set(String::new());
@@ -319,7 +337,7 @@ pub(crate) fn render_dialog(
                         label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
                         select {
                             class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
-                            value: form_currency.to_string(),
+                            value: form_currency,
                             onchange: move |e: Event<FormData>| {
                                 form.write().currency = e.value();
                                 currency_error.set(String::new());
@@ -363,7 +381,7 @@ pub(crate) fn render_dialog(
                         }
                         select {
                             class: "h-9 rounded-md border border-border/60 bg-background px-2 text-sm",
-                            value: rec_unit.clone(),
+                            value: rec_unit,
                             onchange: move |e: Event<FormData>| {
                                 let unit = e.value();
                                 let start = form().start_date.parse::<chrono::NaiveDate>().ok().unwrap_or(today);
@@ -590,7 +608,7 @@ pub(crate) fn render_dialog(
                     }
 
                     if !frequency_err.is_empty() {
-                        p { class: "text-xs text-red-500", {frequency_err.to_string()} }
+                        p { class: "text-xs text-red-500", {frequency_err} }
                     }
                 }
 
@@ -603,7 +621,7 @@ pub(crate) fn render_dialog(
                         input {
                             r#type: "date",
                             class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                            value: form_start_date.to_string(),
+                            value: form_start_date,
                             oninput: move |e: Event<FormData>| {
                                 form.write().start_date = e.value();
                                 start_date_error.set(String::new());
@@ -622,7 +640,7 @@ pub(crate) fn render_dialog(
                             input {
                                 r#type: "date",
                                 class: if end_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                                value: form_end_date.to_string(),
+                                value: form_end_date,
                                 oninput: move |e: Event<FormData>| {
                                     form.write().end_date = e.value();
                                     end_date_error.set(String::new());
@@ -651,12 +669,12 @@ pub(crate) fn render_dialog(
                 div { class: "space-y-1.5",
                     label { class: "text-sm font-medium", "Account " span { class: "text-destructive", "*" } }
                     AccountCombobox {
-                        selected_id: selected_account.clone(),
+                        selected_id: selected_account,
                         on_change: move |id: String| {
                             form_account_id.set(id);
                             account_error.set(String::new());
                         },
-                        error: if account_err.is_empty() { None } else { Some(account_err.to_string()) },
+                        error: if account_err.is_empty() { None } else { Some(account_err) },
                     }
                 }
 
@@ -679,7 +697,7 @@ pub(crate) fn render_dialog(
                 div { class: "space-y-1.5",
                     label { class: "text-sm font-medium", "Logo" }
                     LogoSearch {
-                        selected_url: form_logo_url.clone(),
+                        selected_url: form_logo_url,
                         default_query: form_name.clone(),
                         on_select: move |url: String| form.write().logo_url = url,
                     }
@@ -691,7 +709,7 @@ pub(crate) fn render_dialog(
                     textarea {
                         class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
                         placeholder: "Additional notes...",
-                        value: form_notes.to_string(),
+                        value: form_notes,
                         oninput: move |e: Event<FormData>| form.write().notes = e.value(),
                     }
                 }
@@ -700,8 +718,6 @@ pub(crate) fn render_dialog(
         }
     }
 }
-
-
 
 fn recurrence_hint(recurrence: &Recurrence) -> String {
     let every = recurrence.interval;

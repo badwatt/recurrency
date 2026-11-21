@@ -29,10 +29,10 @@ pub fn logo_image_with_fallback(
             let _wrapper_id_clone = wrapper_id.clone();
             rsx! {
                 div {
-                    id: wrapper_id.to_string(),
+                    id: wrapper_id,
                     class: "flex items-center justify-center rounded-md overflow-hidden",
                     img {
-                        id: img_id.to_string(),
+                        id: img_id,
                         src: url_str.to_string(),
                         alt: name.to_string(),
                         class: img_class.to_string(),
@@ -45,10 +45,10 @@ pub fn logo_image_with_fallback(
                         },
                     }
                     span {
-                        id: fb_id.to_string(),
+                        id: fb_id,
                         class: "flex h-full w-full items-center justify-center font-semibold text-muted-foreground",
                         style: "display:none;",
-                        {first_letter.to_string()}                    }
+                        {first_letter}                    }
                 }
             }
         }
@@ -234,7 +234,10 @@ mod tests {
         let src = include_str!("logo_image.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         assert!(prod.contains("div {"), "logo must be wrapped in a div");
-        assert!(!prod.contains("bg-primary"), "logo wrapper must stay transparent");
+        assert!(
+            !prod.contains("bg-primary"),
+            "logo wrapper must stay transparent"
+        );
         assert!(prod.contains("overflow-hidden"));
     }
 
@@ -244,9 +247,15 @@ mod tests {
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         // img and span should appear after div wrapper opens in Some(url) branch
         let some_branch = prod.split("match url").nth(1).unwrap_or("");
-        assert!(some_branch.contains("div {"), "wrapper div must be inside Some branch");
+        assert!(
+            some_branch.contains("div {"),
+            "wrapper div must be inside Some branch"
+        );
         assert!(some_branch.contains("img {"), "img must be inside wrapper");
-        assert!(some_branch.contains("span {"), "fallback span must be inside wrapper");
+        assert!(
+            some_branch.contains("span {"),
+            "fallback span must be inside wrapper"
+        );
     }
 
     #[test]
@@ -278,9 +287,15 @@ mod tests {
             img_id
         );
         assert!(js.contains("getElementById"), "JS must get element by ID");
-        assert!(js.contains("getContext('2d')"), "JS must create canvas context");
+        assert!(
+            js.contains("getContext('2d')"),
+            "JS must create canvas context"
+        );
         assert!(js.contains("getImageData"), "JS must get image data");
         assert!(js.contains("hasTransparency"), "JS must check transparency");
-        assert!(js.contains("var(--primary)"), "JS must set solid primary color when transparent");
+        assert!(
+            js.contains("var(--primary)"),
+            "JS must set solid primary color when transparent"
+        );
     }
 }

@@ -415,7 +415,7 @@ fn dialog_submits_schedule_and_end_date() {
     let src = include_str!("dialog.rs");
     assert!(src.contains("schedule_day: rec.legacy_day()"));
     assert!(src.contains("schedule_month: rec.legacy_month()"));
-    assert!(src.contains("recurrence: Some(rec.clone())"));
+    assert!(src.contains("recurrence: Some(rec)"));
     assert!(src.contains("clear_end_date: f.end_date.is_empty()"));
     assert!(!src.contains("recurrence: None"));
 }

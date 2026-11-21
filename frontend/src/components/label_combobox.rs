@@ -82,7 +82,7 @@ pub fn LabelCombobox(
     };
 
     let error = error.unwrap_or_default();
-    let sel_id = selected_id.clone();
+    let sel_id = selected_id;
     let selected = items.iter().find(|item| item.id == sel_id);
     let display_text = selected.map(|item| item.name.clone()).unwrap_or_default();
     let display_color = selected
@@ -145,7 +145,7 @@ pub fn LabelCombobox(
                             class: "inline-block h-3 w-3 rounded-full shrink-0",
                             style: "background-color: {display_color}",
                         }
-                        span { class: "truncate", {display_text.to_string()} }
+                        span { class: "truncate", {display_text} }
                     }
                 }
                 div { class: "flex items-center gap-1 shrink-0 ml-2",
@@ -265,7 +265,7 @@ pub fn LabelCombobox(
                                     let item_color = item.color.clone();
                                     let is_selected = item_id == sel_id;
                                     let on_change_cb = on_change;
-                                    let item_id_for_click = item_id.clone();
+                                    let item_id_for_click = item_id;
                                     rsx! {
                                         button {
                                             class: if is_selected {
@@ -284,7 +284,7 @@ pub fn LabelCombobox(
                                                 style: "background-color: {item_color}",
                                             }
                                             {crate::utils::icons::icon_display(&item_icon)}
-                                            {item_name.to_string()}
+                                            {item_name}
                                             if is_selected {
                                                 svg {
                                                     class: "h-4 w-4 shrink-0 text-primary",

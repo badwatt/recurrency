@@ -11,10 +11,10 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
     } else {
         NaiveDate::from_ymd_opt(year, month + 1, 1)
     }
-    .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).expect("valid month"));
+    .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default());
     first_next
         .pred_opt()
-        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).expect("valid month"))
+        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default())
         .day()
 }
 
@@ -25,7 +25,7 @@ fn date_for_day(year: i32, month: u32, day: u8) -> NaiveDate {
     } else {
         (day as u32).min(max).max(1)
     };
-    NaiveDate::from_ymd_opt(year, month, day).expect("clamped date is valid")
+    NaiveDate::from_ymd_opt(year, month, day).unwrap_or_default()
 }
 
 fn month_index(year: i32, month: u32) -> i32 {
@@ -117,7 +117,7 @@ pub fn occurrences_between(
             let mut index = month_index(start.year(), start.month());
             while guard < 100_000 {
                 let (year, month) = year_month(index);
-                let block_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month");
+                let block_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
                 if block_start > to {
                     break;
                 }
@@ -133,7 +133,7 @@ pub fn occurrences_between(
             dates.sort_by_key(|date| (date.month, date.day));
             let mut year = start.year();
             while guard < 10_000 {
-                let block_start = NaiveDate::from_ymd_opt(year, 1, 1).expect("valid year");
+                let block_start = NaiveDate::from_ymd_opt(year, 1, 1).unwrap_or_default();
                 if block_start > to {
                     break;
                 }
@@ -236,9 +236,9 @@ pub fn occurrences_in_month(
     month: u32,
     base_amount: Decimal,
 ) -> Vec<(NaiveDate, Decimal)> {
-    let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
     let month_end =
-        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).expect("valid month end");
+        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).unwrap_or_default();
     occurrences_between(
         start,
         recurrence,

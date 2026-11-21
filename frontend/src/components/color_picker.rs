@@ -61,7 +61,7 @@ pub fn ColorField(
                 }
                 input {
                     r#type: "color",
-                    value: hex.clone(),
+                    value: hex,
                     aria_label: label.clone(),
                     title: label,
                     oninput: move |event| value.set(event.value().to_ascii_lowercase()),

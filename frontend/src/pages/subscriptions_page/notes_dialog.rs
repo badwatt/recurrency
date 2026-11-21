@@ -45,7 +45,7 @@ pub fn NotesSubscriptionDialog(
                         class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
                         disabled: saving(),
                         onclick: move |_| {
-                            let id = sub_id().unwrap();
+                            let Some(id) = sub_id() else { return };
                             let notes = value();
                             saving.set(true);
                             spawn(async move {

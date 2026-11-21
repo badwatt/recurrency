@@ -254,7 +254,13 @@ impl Pdf {
         self.right_text_at("Report period", CONTENT_TOP + 1.0, 9.75, false, MUTED);
         let period = self.period.clone();
         self.right_text_at(&period, CONTENT_TOP + 18.0, 13.5, true, INK);
-        self.line_at(MARGIN, HEADER_BOTTOM, PAGE_WIDTH - MARGIN, HEADER_BOTTOM, RULE);
+        self.line_at(
+            MARGIN,
+            HEADER_BOTTOM,
+            PAGE_WIDTH - MARGIN,
+            HEADER_BOTTOM,
+            RULE,
+        );
     }
 
     fn finish_page(&mut self) {
@@ -348,10 +354,7 @@ impl Pdf {
             self.ensure_space(58.0);
             let color = category_color(categories, &category.category_name);
             let amount = format_currency(category.total, currency);
-            let label_width = PAGE_WIDTH
-                - 2.0 * MARGIN
-                - estimate_text_width(&amount, 9.75)
-                - 28.0;
+            let label_width = PAGE_WIDTH - 2.0 * MARGIN - estimate_text_width(&amount, 9.75) - 28.0;
             let label = truncate_to_width(&category.category_name, label_width, 9.75);
             self.circle_at(MARGIN, self.y + 2.0, 3.4, color_f32(color));
             self.text_at(MARGIN + 12.0, self.y, 9.75, false, INK, &label);
@@ -630,7 +633,7 @@ fn category_color(categories: &[Category], name: &str) -> (u8, u8, u8) {
         .and_then(|category| category.color.as_deref())
         .and_then(rgb)
         .or_else(|| rgb(FALLBACK_COLOR))
-        .expect("fallback color is a valid hex color")
+        .unwrap_or((255, 255, 255))
 }
 
 fn color_f32(color: (u8, u8, u8)) -> (f32, f32, f32) {

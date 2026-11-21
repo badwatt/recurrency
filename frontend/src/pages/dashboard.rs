@@ -41,10 +41,10 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
     } else {
         NaiveDate::from_ymd_opt(year, month + 1, 1)
     }
-    .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).expect("valid month"));
+    .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default());
     first_next
         .pred_opt()
-        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).expect("valid month"))
+        .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default())
         .day()
 }
 
@@ -75,9 +75,9 @@ pub fn billing_dates_in_month(
     year: i32,
     month: u32,
 ) -> Vec<NaiveDate> {
-    let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
     let month_end =
-        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).expect("valid month end");
+        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).unwrap_or_default();
 
     let mut date = next_billing_date.unwrap_or(start_date);
     let mut guard = 0;
@@ -198,9 +198,9 @@ pub fn billing_dates_in_month_scheduled(
     year: i32,
     month: u32,
 ) -> Vec<NaiveDate> {
-    let month_start = NaiveDate::from_ymd_opt(year, month, 1).expect("valid month start");
+    let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
     let month_end =
-        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).expect("valid month end");
+        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).unwrap_or_default();
 
     let Some(mut date) = next_billing_date else {
         return Vec::new();
@@ -773,7 +773,7 @@ pub fn Dashboard() -> Element {
                                         div { class: "text-right",
                                             p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
                                             p { class: format!("amount-sensitive {pending_class}"),
-                                                {format_currency(account.pending, &currency).to_string()}
+                                                {format_currency(account.pending, &currency)}
                                             }
                                             p { class: "text-[11px] text-muted-foreground",
                                                 {if account.pending_count == 0 {
@@ -833,8 +833,8 @@ pub fn Dashboard() -> Element {
                     } else {
                         div { class: "px-5 md:px-6 pb-4 space-y-1",
                             for sub in upcoming_top5 {
-                                {
-                                    let next_date = sub.next_billing_date.unwrap();
+                                if let Some(next_date) = sub.next_billing_date {
+                                    {
                                     let today_flag = is_today_fn(next_date);
                                     let date_str = format_date_short_fn(next_date);
                                     let days_label = next_billing_days_text(Some(next_date));
@@ -864,13 +864,14 @@ pub fn Dashboard() -> Element {
                                                 if let Some(label) = days_label {
                                                     p {
                                                         class: if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
-                                                        {label.to_string()}
+                                                        {label}
                                                     }
                                                 }
                                             }
                                         }
                                             }
                                         }
+                                    }
                                     }
                                 }
                             }

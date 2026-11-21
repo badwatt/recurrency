@@ -27,7 +27,7 @@ fn logo_candidates(query: &str) -> Vec<LogoResult> {
         return Vec::new();
     }
     let domains: Vec<String> = if q.contains('.') {
-        vec![q.clone()]
+        vec![q]
     } else {
         let slug: String = q.chars().filter(|c| c.is_alphanumeric()).collect();
         if slug.is_empty() {
@@ -61,7 +61,8 @@ fn logo_candidates(query: &str) -> Vec<LogoResult> {
 /// Resize a browser-selected logo to a compact transparent PNG. Android's
 /// native picker already returns a small JPEG.
 async fn resize_logo(data_url: String) -> Option<String> {
-    let mut eval = document::eval(r#"
+    let mut eval = document::eval(
+        r#"
         const source = await dioxus.recv();
         try {
             const image = new Image();
@@ -83,7 +84,8 @@ async fn resize_logo(data_url: String) -> Option<String> {
         } catch (_) {
             dioxus.send('');
         }
-    "#);
+    "#,
+    );
     eval.send(data_url).ok()?;
     eval.recv::<String>()
         .await
@@ -92,7 +94,11 @@ async fn resize_logo(data_url: String) -> Option<String> {
 }
 
 #[component]
-pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventHandler<String>) -> Element {
+pub fn LogoSearch(
+    selected_url: String,
+    default_query: String,
+    on_select: EventHandler<String>,
+) -> Element {
     let mut dialog_open = use_signal(|| false);
     let mut query = use_signal(|| default_query.clone());
     let mut results = use_signal(Vec::<LogoResult>::new);
@@ -178,9 +184,8 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                             url_input.set(value.clone());
                             on_select.call(value);
                         }
-                        None => upload_error.set(
-                            "Could not process that image. Try a smaller logo.".to_string(),
-                        ),
+                        None => upload_error
+                            .set("Could not process that image. Try a smaller logo.".to_string()),
                     }
                 }
                 Err(_) => upload_error.set("Could not read the selected image".to_string()),
@@ -392,7 +397,7 @@ pub fn LogoSearch(selected_url: String, default_query: String, on_select: EventH
                                     onclick: move |_| page.set(current_page.saturating_sub(1)),
                                     "‹ Prev"
                                 }
-                                span { class: "text-xs text-muted-foreground", {page_label.clone()} }
+                                span { class: "text-xs text-muted-foreground", {page_label} }
                                 button {
                                     r#type: "button",
                                     class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:opacity-50",
@@ -438,7 +443,6 @@ mod tests {
         assert!(src.contains("resize_logo"));
         assert!(src.contains("RecurrencyImagePicker"));
     }
-
 
     use super::*;
     use crate::models::logo::LogoResult;
@@ -606,7 +610,10 @@ mod tests {
         };
         let selected = Some(logo);
         assert!(selected.is_some());
-        assert_eq!(selected.as_ref().unwrap().url, "https://logo.clearbit.com/netflix.com");
+        assert_eq!(
+            selected.as_ref().unwrap().url,
+            "https://logo.clearbit.com/netflix.com"
+        );
     }
 
     #[test]
@@ -660,17 +667,24 @@ mod tests {
     fn logo_search_has_remove_button() {
         let src = include_str!("logo_search.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("Remove"), "LogoSearch must have a Remove button");
-        assert!(prod.contains(r#"if !selected_url.is_empty()"#),
-            "Remove button must be conditional on selected_url");
+        assert!(
+            prod.contains("Remove"),
+            "LogoSearch must have a Remove button"
+        );
+        assert!(
+            prod.contains(r#"if !selected_url.is_empty()"#),
+            "Remove button must be conditional on selected_url"
+        );
     }
 
     #[test]
     fn logo_search_remove_calls_empty_string() {
         let src = include_str!("logo_search.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("on_select.call(\"\".to_string())"),
-            "Remove button must clear logo via on_select with empty string");
+        assert!(
+            prod.contains("on_select.call(\"\".to_string())"),
+            "Remove button must clear logo via on_select with empty string"
+        );
     }
 
     #[test]
@@ -678,16 +692,20 @@ mod tests {
         let src = include_str!("logo_search.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         // Old auto-search pattern: use_effect + dialog_open() + !query().is_empty() + results().is_empty()
-        assert!(!prod.contains("results().is_empty() && error_msg().is_empty()"),
-            "LogoSearch must not auto-search when dialog opens");
+        assert!(
+            !prod.contains("results().is_empty() && error_msg().is_empty()"),
+            "LogoSearch must not auto-search when dialog opens"
+        );
     }
 
     #[test]
     fn logo_search_enter_key_triggers_search() {
         let src = include_str!("logo_search.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("onkeydown"),
-            "LogoSearch input must support Enter key to trigger search");
+        assert!(
+            prod.contains("onkeydown"),
+            "LogoSearch input must support Enter key to trigger search"
+        );
     }
 
     // ── Pagination ──
@@ -795,5 +813,4 @@ mod tests {
         assert_eq!(domain.len(), 3);
         assert!(domain.iter().all(|item| item.url.contains("example.co.uk")));
     }
-
 }

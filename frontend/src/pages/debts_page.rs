@@ -5,16 +5,14 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::components::dialog::Dialog;
 use crate::components::ConvertedAmount;
+use crate::components::ListToolbar;
+use crate::components::dialog::Dialog;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::DebtCardSkeleton;
-use crate::components::ListToolbar;
 use crate::components::{AccountCombobox, CategoryCombobox};
-use crate::models::debt::{
-    CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest,
-};
+use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest};
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
 use crate::state::categories::CATEGORIES;
@@ -185,10 +183,12 @@ pub fn DebtsPage() -> Element {
         } else {
             None
         };
-        let start = start_date()
-            .parse::<chrono::NaiveDate>()
-            .ok();
-        let note_value = if notes().trim().is_empty() { None } else { Some(notes()) };
+        let start = start_date().parse::<chrono::NaiveDate>().ok();
+        let note_value = if notes().trim().is_empty() {
+            None
+        } else {
+            Some(notes())
+        };
         let logo_value = if logo_url().trim().is_empty() {
             None
         } else {
@@ -357,7 +357,7 @@ pub fn DebtsPage() -> Element {
                     label { class: "text-xs font-medium text-muted-foreground", "Type" }
                     select {
                         class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                        value: filter_value.clone().unwrap_or_default(),
+                        value: filter_value.unwrap_or_default(),
                         onchange: move |e| {
                             let value = e.value();
                             type_filter.set(if value.is_empty() { None } else { Some(value) });
@@ -813,7 +813,7 @@ pub fn DebtsPage() -> Element {
                     if let Some(debt) = pay_debt() {
                         p { class: "text-sm text-muted-foreground",
                             "Remaining: "
-                            ConvertedAmount { amount: debt.remaining_amount, currency: debt.currency.clone() }
+                            ConvertedAmount { amount: debt.remaining_amount, currency: debt.currency }
                         }
                     }
                     div { class: "space-y-1.5",
@@ -1082,7 +1082,6 @@ mod bulk_tests {
         assert!(src.contains("Delete"));
     }
 }
-
 
 #[cfg(test)]
 mod debt_sort_options_test {

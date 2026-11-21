@@ -1,7 +1,13 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Dialog(open: bool, on_close: EventHandler<()>, title: String, footer: Option<Element>, children: Element) -> Element {
+pub fn Dialog(
+    open: bool,
+    on_close: EventHandler<()>,
+    title: String,
+    footer: Option<Element>,
+    children: Element,
+) -> Element {
     // Escape key handler via eval
     use_future(move || async move {
         if open {
@@ -45,7 +51,7 @@ pub fn Dialog(open: bool, on_close: EventHandler<()>, title: String, footer: Opt
 
                 // Header
                 div { class: "flex items-center justify-between p-4 sm:p-6 border-b border-border shrink-0",
-                    h2 { class: "text-lg font-semibold text-foreground", {title.clone()} }
+                    h2 { class: "text-lg font-semibold text-foreground", {title} }
                     button {
                         r#type: "button",
                         class: "text-muted-foreground hover:text-foreground p-2 sm:p-0",
@@ -256,41 +262,65 @@ mod tests {
     fn dialog_accepts_footer_prop() {
         let src = include_str!("dialog.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("footer: Option<Element>"), "Dialog must accept footer: Option<Element> prop");
+        assert!(
+            prod.contains("footer: Option<Element>"),
+            "Dialog must accept footer: Option<Element> prop"
+        );
     }
 
     #[test]
     fn dialog_header_has_shrink_0() {
         let src = include_str!("dialog.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("shrink-0"), "Header must have shrink-0 so it never collapses when content overflows");
+        assert!(
+            prod.contains("shrink-0"),
+            "Header must have shrink-0 so it never collapses when content overflows"
+        );
     }
 
     #[test]
     fn dialog_content_has_min_h_0() {
         let src = include_str!("dialog.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("min-h-0"), "Content must have min-h-0 so flex-1 overflow works correctly in flex column");
+        assert!(
+            prod.contains("min-h-0"),
+            "Content must have min-h-0 so flex-1 overflow works correctly in flex column"
+        );
     }
 
     #[test]
     fn dialog_footer_has_shrink_0() {
         let src = include_str!("dialog.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("shrink-0") && prod.contains("border-t"), "Footer must have shrink-0 and border-t so it stays fixed and separated from scrollable content");
+        assert!(
+            prod.contains("shrink-0") && prod.contains("border-t"),
+            "Footer must have shrink-0 and border-t so it stays fixed and separated from scrollable content"
+        );
     }
 
     #[test]
     fn subscription_edit_dialog_uses_dialog_component() {
         let src = include_str!("../pages/subscriptions_page/dialog.rs");
-        assert!(src.contains("Dialog {"), "subscription edit dialog must use Dialog component");
-        assert!(src.contains("footer:"), "subscription edit dialog must use footer prop");
+        assert!(
+            src.contains("Dialog {"),
+            "subscription edit dialog must use Dialog component"
+        );
+        assert!(
+            src.contains("footer:"),
+            "subscription edit dialog must use footer prop"
+        );
     }
 
     #[test]
     fn transaction_edit_dialog_uses_dialog_component() {
         let src = include_str!("../pages/transactions_page/dialog.rs");
-        assert!(src.contains("Dialog {"), "transaction edit dialog must use Dialog component");
-        assert!(src.contains("footer:"), "transaction edit dialog must use footer prop");
+        assert!(
+            src.contains("Dialog {"),
+            "transaction edit dialog must use Dialog component"
+        );
+        assert!(
+            src.contains("footer:"),
+            "transaction edit dialog must use footer prop"
+        );
     }
 }

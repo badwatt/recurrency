@@ -105,9 +105,10 @@ pub fn filter_sort_group(
 
     out.into_iter()
         .map(|(key, txns)| {
-            let (year, month) = key.split_once('-').unwrap();
-            let y: i32 = year.parse().unwrap();
-            let m: u32 = month.parse().unwrap();
+            let (y, m) = key
+                .split_once('-')
+                .and_then(|(year, month)| Some((year.parse().ok()?, month.parse().ok()?)))
+                .unwrap_or_default();
             let label = format_month(y, m);
             let total: Decimal = txns.iter().map(|t| t.amount).sum();
             MonthGroup {

@@ -1,9 +1,9 @@
 #![allow(clippy::suspicious_else_formatting)]
-use crate::components::ai_chat::{AiChat, AI_CHAT_OPEN};
+use crate::components::ai_chat::{AI_CHAT_OPEN, AiChat};
 use crate::components::privacy_toggle::PrivacyToggle;
-use crate::state::ai::{AI_SETTINGS, is_configured};
 use crate::components::toast::{TOAST, ToastContainer};
 use crate::components::update_banner::UpdateBanner;
+use crate::state::ai::{AI_SETTINGS, is_configured};
 use crate::state::preferences::PREFERENCES;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 use crate::state::window;
@@ -485,7 +485,7 @@ fn AiFab() -> Element {
         "hidden md:flex fixed bottom-6 right-6 z-40"
     };
     rsx! {
-        div { class, 
+        div { class,
             button {
                 r#type: "button",
                 aria_label: "Open AI assistant",
@@ -512,7 +512,7 @@ fn TopNavLink(to: crate::Route, label: String, active: bool, icon: Icon) -> Elem
             },
             class: navlink_class(active),
             {svg_icon(icon, 18)}
-            span { class: "hidden lg:inline", {label.to_string()} }
+            span { class: "hidden lg:inline", {label} }
         }
     }
 }
@@ -535,7 +535,7 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
                 "flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground"
             },
             {svg_icon(icon, 22)}
-            span { class: "text-[10px] font-medium", {label.to_string()} }
+            span { class: "text-[10px] font-medium", {label} }
         }
     }
 }
@@ -624,7 +624,7 @@ pub fn avatar_color(seed: &str) -> &'static str {
 
 #[component]
 fn UserAvatar() -> Element {
-    let user = AUTH().user.clone();
+    let user = AUTH().user;
     let email = user.as_ref().map(|u| u.email.as_str()).unwrap_or("");
     let name = user.as_ref().and_then(|u| u.name.as_deref());
     let avatar = user

@@ -32,7 +32,7 @@ pub fn BarChart(data: Vec<BarData>, height: String) -> Element {
         svg {
             view_box: "0 0 {chart_width} {svg_height}",
             width: "100%",
-            height: height.to_string(),
+            height: height,
             xmlns: "http://www.w3.org/2000/svg",
 
             for (i, item) in data.iter().enumerate() {
@@ -71,7 +71,7 @@ pub fn BarChart(data: Vec<BarData>, height: String) -> Element {
                             y: "{y + 4.0}",
                             width: bar_w.to_string(),
                             height: "{bar_height - 8.0}",
-                            fill: color.to_string(),
+                            fill: color,
                             rx: "4",
                         }
                         // Value
@@ -177,7 +177,7 @@ pub fn LineChart(
         svg {
             view_box: "0 0 {view_width} {view_height}",
             width: "100%",
-            height: height.to_string(),
+            height: height,
             xmlns: "http://www.w3.org/2000/svg",
             class: "overflow-visible",
 
@@ -222,15 +222,15 @@ pub fn LineChart(
 
             // Area fill
             path {
-                d: area_path.to_string(),
+                d: area_path,
                 fill: "url(#{grad_id})",
             }
 
             // Line
             path {
-                d: line_path.to_string(),
+                d: line_path,
                 fill: "none",
-                stroke: color.to_string(),
+                stroke: color,
                 stroke_width: "2.5",
                 stroke_linecap: "round",
                 stroke_linejoin: "round",
@@ -275,7 +275,13 @@ pub struct DonutData {
 }
 
 #[component]
-pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hovered_index: Option<usize>, on_hover: EventHandler<Option<usize>>) -> Element {
+pub fn DonutChart(
+    data: Vec<DonutData>,
+    size: String,
+    stroke_width: String,
+    hovered_index: Option<usize>,
+    on_hover: EventHandler<Option<usize>>,
+) -> Element {
     if data.is_empty() {
         return rsx! {
             div { class: "text-sm text-muted-foreground text-center py-8", "No data" }
@@ -305,7 +311,7 @@ pub fn DonutChart(data: Vec<DonutData>, size: String, stroke_width: String, hove
             svg {
                 view_box: "0 0 {center*2.0} {center*2.0}",
                 width: size.to_string(),
-                height: size.to_string(),
+                height: size,
                 xmlns: "http://www.w3.org/2000/svg",
                 class: "transform -rotate-90",
 
@@ -413,7 +419,11 @@ fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f64, f64, f64) {
         return (0.0, 0.0, l);
     }
     let d = max - min;
-    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+    let s = if l > 0.5 {
+        d / (2.0 - max - min)
+    } else {
+        d / (max + min)
+    };
     let h = match max {
         x if x == r => 60.0 * ((g - b) / d % 6.0),
         x if x == g => 60.0 * ((b - r) / d + 2.0),
@@ -688,8 +698,16 @@ mod tests {
     #[test]
     fn deduplicate_colors_no_duplicates() {
         let data = vec![
-            DonutData { label: "A".into(), value: 50.0, color: "#ef4444".into() },
-            DonutData { label: "B".into(), value: 30.0, color: "#3b82f6".into() },
+            DonutData {
+                label: "A".into(),
+                value: 50.0,
+                color: "#ef4444".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 30.0,
+                color: "#3b82f6".into(),
+            },
         ];
         let result = deduplicate_colors(data);
         assert_eq!(result[0].color, "#ef4444");
@@ -699,8 +717,16 @@ mod tests {
     #[test]
     fn deduplicate_colors_same_color_shifted() {
         let data = vec![
-            DonutData { label: "A".into(), value: 50.0, color: "#ef4444".into() },
-            DonutData { label: "B".into(), value: 30.0, color: "#ef4444".into() },
+            DonutData {
+                label: "A".into(),
+                value: 50.0,
+                color: "#ef4444".into(),
+            },
+            DonutData {
+                label: "B".into(),
+                value: 30.0,
+                color: "#ef4444".into(),
+            },
         ];
         let result = deduplicate_colors(data);
         assert_eq!(result[0].color, "#ef4444");

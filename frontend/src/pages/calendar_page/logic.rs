@@ -45,8 +45,7 @@ pub const MONTH_NAMES: &[&str] = &[
 
 /// Compute calendar grid days (with null padding for leading empty cells).
 pub fn calendar_days(year: i32, month: u32, first_day_of_week: &str) -> Vec<Option<u32>> {
-    let first_day = NaiveDate::from_ymd_opt(year, month, 1)
-        .unwrap_or_else(|| NaiveDate::from_ymd_opt(2024, 1, 1).unwrap());
+    let first_day = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
     let start_padding = if first_day_of_week == "sunday" {
         first_day.weekday().num_days_from_sunday()
     } else {
@@ -62,7 +61,7 @@ pub fn calendar_days(year: i32, month: u32, first_day_of_week: &str) -> Vec<Opti
 
 /// Number of days in a given month.
 pub fn days_in_month(year: i32, month: u32) -> u32 {
-    let default_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let default_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default();
     NaiveDate::from_ymd_opt(year, month + 1, 1)
         .unwrap_or_else(|| NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap_or(default_date))
         .pred_opt()
@@ -196,7 +195,10 @@ pub fn category_color_for_item(item: &CalendarItem) -> String {
     {
         let accounts = ACCOUNTS();
         if let Some(account) = accounts.get_by_id(&sub.account_id) {
-            return account.color.clone().unwrap_or_else(|| "#6b7280".to_string());
+            return account
+                .color
+                .clone()
+                .unwrap_or_else(|| "#6b7280".to_string());
         }
     }
     "#6b7280".to_string()
@@ -229,7 +231,6 @@ pub fn format_frequency(freq: &str) -> &str {
         _ => freq,
     }
 }
-
 
 // ── Unified calendar entries (subscriptions + one-time transactions) ──
 
@@ -421,18 +422,18 @@ fn account_for_entry(entry: &CalendarEntry) -> Option<crate::models::account::Ac
 
 pub fn entry_account_name(entry: &CalendarEntry) -> String {
     account_for_entry(entry)
-        .map(|account| account.name.clone())
+        .map(|account| account.name)
         .unwrap_or_else(|| "No account".to_string())
 }
 
 pub fn entry_account_color(entry: &CalendarEntry) -> String {
     account_for_entry(entry)
-        .and_then(|account| account.color.clone())
+        .and_then(|account| account.color)
         .unwrap_or_else(|| "#6b7280".to_string())
 }
 
 pub fn entry_account_icon(entry: &CalendarEntry) -> String {
     account_for_entry(entry)
-        .and_then(|account| account.icon.clone())
+        .and_then(|account| account.icon)
         .unwrap_or_else(|| "Tag".to_string())
 }

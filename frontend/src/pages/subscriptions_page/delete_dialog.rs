@@ -37,7 +37,8 @@ pub fn DeleteSubscriptionDialog(confirm_id: Signal<Option<Uuid>>) -> Element {
                                 return;
                             }
                             deleting.set(true);
-                            let id = confirm_id().unwrap();
+                            let Some(id) = confirm_id() else { return };
+
                             spawn(async move {
                                 let _ = Storage::delete_subscription(&id).await;
                                 match Storage::list_subscriptions().await {
@@ -60,10 +61,7 @@ pub fn DeleteSubscriptionDialog(confirm_id: Signal<Option<Uuid>>) -> Element {
 
 /// Bulk-delete confirmation. The dialog stays mounted while `ids` is non-empty.
 #[component]
-pub fn BulkDeleteSubscriptionsDialog(
-    ids: Signal<Vec<Uuid>>,
-    on_done: EventHandler<()>,
-) -> Element {
+pub fn BulkDeleteSubscriptionsDialog(ids: Signal<Vec<Uuid>>, on_done: EventHandler<()>) -> Element {
     let mut deleting = use_signal(|| false);
     let count = ids().len();
     rsx! {
