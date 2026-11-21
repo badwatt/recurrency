@@ -28,11 +28,13 @@
 ## Reglas Absolutas
 
 - ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix` para añadir dependencias en la shell.
-- ⛔ **NUNCA** usar `unsafe`, `Box` (como smart pointer), `Box::leak`, punteros raw, `transmute`, `mem::forget`, `ManuallyDrop`, `MaybeUninit` ni ninguna construcción insegura. Cero tolerancia.
-- ✅ Para propiedad compartida usar **`Arc` explícito**. Es preferible a `Box`, `Rc`, leaks o estado global, y debe verse claramente en el código (`Arc<dyn Trait>` en `AppState`, callbacks nativos, etc.).
+- ⛔ **NUNCA** usar `unsafe`, punteros raw, `transmute`, `mem::forget`, `ManuallyDrop`, `MaybeUninit`, `Box::leak` ni ninguna construcción insegura. Cero tolerancia.
+- ✅ **Ownership explícito, sin dogmas.** Usar `Box<T>` para propiedad única (incluido `Box<dyn Error>` en `main`/CLI cuando una API lo impone o el límite del binario lo justifica) y `Arc<T>`/`Arc<dyn Trait>` para propiedad compartida real entre hilos. No sustituir uno por otro solo para cumplir una regla.
+- ✅ **`Arc` claro y explícito:** en `AppState` y callbacks compartidos debe verse el `Arc<dyn Trait>`, sin aliases que oculten la propiedad compartida. Evitar `Arc` innecesario: su contador atómico tiene coste; en rutas calientes preferir préstamos (`&T`, `&str`, `&[T]`) y mover valores.
+- ⛔ **NUNCA** `Rc` para estado compartido entre hilos; usar `Arc`.
 - ⛔ **NUNCA** `.unwrap()` ni `.expect()` en código de producción. Usar `?`, `match` o un fallback explícito.
 - ⛔ **NUNCA** `.clone()` para callar al borrow checker. Clonar solo datos pequeños, inmutables o cuando el ownership lo exija (callbacks `move`, señales Dioxus, handles `PgPool`), dejando el motivo claro cuando no sea obvio.
-- ⛔ En tests: prohibido `unsafe` y `Box` como smart pointer; `unwrap()` solo para fixtures y con un mensaje que explique qué se esperaba. Los helpers no deben ocultar fallos.
+- ⛔ En tests: prohibido `unsafe` y mutar variables de entorno globales; usar configuración inyectada u overrides thread-local. `unwrap()` solo para fixtures y con un mensaje que explique qué se esperaba; los helpers no deben ocultar fallos.
 - ⛔ **SIEMPRE** mantener dependencias lo más actualizadas posible.
 - ⛔ **SIEMPRE** 100% coverage en tests. Sin excepciones.
 - ⛔ **SIEMPRE** TDD. Red-Green-Refactor. Test primero, código después.
@@ -387,8 +389,9 @@ git add -A && git commit -m "feat(scope): description"
 - **Dead code elimination**: Eliminar siempre código no usado
 - No dejar código comentado u obsoleto
 - ⛔ **NINGÚN error ni warning**. Incluye `cargo clippy`. Cero tolerancia.
+- ✅ **Optimización basada en medición:** evitar asignaciones y clones en rutas calientes, preferir préstamos, slices, iteradores y capacidad reservada; no microoptimizar sin un benchmark o perfil que lo justifique.
 - `cargo fmt` antes de commit
-- ⛔ **NUNCA** `unsafe` ni `Box` como smart pointer. Usar `Arc` explícito para propiedad compartida y refactorizar cualquier construcción insegura.
+- ⛔ **NUNCA** `unsafe`, punteros raw, `Box::leak` ni construcciones inseguras. `Box` para ownership único, `Arc` explícito para ownership compartido; no confundir sus semánticas.
 - ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix`.
 - ⛔ **NUNCA** bump de `VERSION` sin consultar al usuario.
 - ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions.
