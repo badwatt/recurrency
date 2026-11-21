@@ -672,6 +672,16 @@ pub fn Dashboard() -> Element {
     );
     let category_total: Decimal = category_plan.iter().map(|category| category.amount).sum();
     let category_pending_total: Decimal = category_plan.iter().map(|category| category.pending).sum();
+    let account_pending_label = if accounts_with_pending == 1 {
+        "1 account with pending payments".to_string()
+    } else {
+        format!("{accounts_with_pending} accounts with pending payments")
+    };
+    let account_count_label = if visible.len() == 1 {
+        "1 account".to_string()
+    } else {
+        format!("{} accounts", visible.len())
+    };
     let category_activity_label = if category_plan.len() == 1 {
         "1 category with activity".to_string()
     } else {
@@ -965,7 +975,7 @@ pub fn Dashboard() -> Element {
                         }
                         p { class: "text-xs text-muted-foreground",
                             {if ledger_view() == LedgerView::Accounts {
-                                format!("{accounts_with_pending} accounts with pending payments")
+                                account_pending_label.clone()
                             } else {
                                 category_activity_label.clone()
                             }}
@@ -1087,7 +1097,7 @@ pub fn Dashboard() -> Element {
                             div {
                                 p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Month total" }
                                 p { class: "text-xs text-muted-foreground",
-                                    {format!("{} accounts", visible.len())}
+                                    {account_count_label.clone()}
                                 }
                             }
                             div { class: "flex items-center gap-8 sm:gap-12",
