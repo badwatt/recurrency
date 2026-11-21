@@ -1,5 +1,6 @@
 use super::*;
 use crate::components::AccountCombobox;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use chrono::Datelike;
 
 const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -335,16 +336,15 @@ pub(crate) fn render_dialog(
                     }
                     div { class: "space-y-1.5",
                         label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
-                        select {
-                            class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                        SelectMenu {
                             value: form_currency,
-                            onchange: move |e: Event<FormData>| {
-                                form.write().currency = e.value();
+                            options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| {
+                                form.write().currency = value;
                                 currency_error.set(String::new());
                             },
-                            for (val, label) in CURRENCIES {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            searchable: true,
+                            placeholder: if currency_err.is_empty() { "Select currency..." } else { "Currency is required" },
                         }
                         if !currency_err.is_empty() {
                             p { class: "text-xs text-red-500", {currency_err.to_string()} }
@@ -379,11 +379,10 @@ pub(crate) fn render_dialog(
                             },
                             class: "h-9 w-20 rounded-md border border-border/60 bg-background px-2 text-sm",
                         }
-                        select {
-                            class: "h-9 rounded-md border border-border/60 bg-background px-2 text-sm",
-                            value: rec_unit,
-                            onchange: move |e: Event<FormData>| {
-                                let unit = e.value();
+                        SelectMenu {
+                            value: rec_unit.clone(),
+                            options: unit_options.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |unit: String| {
                                 let start = form().start_date.parse::<chrono::NaiveDate>().ok().unwrap_or(today);
                                 let mut next = recurrence();
                                 next.unit = unit.clone();
@@ -406,9 +405,8 @@ pub(crate) fn render_dialog(
                                 recurrence.set(next);
                                 frequency_error.set(String::new());
                             },
-                            for (value, label) in unit_options {
-                                option { value: value.to_string(), selected: rec_unit == value, {label} }
-                            }
+                            searchable: false,
+                            class: "w-28",
                         }
                     }
 
@@ -525,34 +523,37 @@ pub(crate) fn render_dialog(
                                     let amount_value = entry.amount.map(|value| value.to_string()).unwrap_or_default();
                                     rsx! {
                                         div { class: "flex flex-wrap items-center gap-2 rounded-md border border-border/50 p-2",
-                                            select {
-                                                class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                            SelectMenu {
                                                 value: entry.month.to_string(),
-                                                onchange: move |e: Event<FormData>| {
-                                                    if let Ok(month) = e.value().parse::<u8>() {
+                                                options: MONTHS.iter().enumerate().map(|(month_idx, month)| SelectOption::new((month_idx + 1).to_string(), *month)).collect::<Vec<_>>(),
+                                                on_change: move |value: String| {
+                                                    if let Ok(month) = value.parse::<u8>() {
                                                         let mut next = recurrence();
                                                         if let Some(date) = next.dates.get_mut(idx) { date.month = month; }
                                                         recurrence.set(next);
                                                     }
                                                 },
-                                                for (month_idx, month) in MONTHS.iter().enumerate() {
-                                                    option { value: (month_idx + 1).to_string(), selected: entry.month as usize == month_idx + 1, {month.to_string()} }
-                                                }
+                                                searchable: false,
+                                                class: "w-28",
                                             }
-                                            select {
-                                                class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                            SelectMenu {
                                                 value: day_value,
-                                                onchange: move |e: Event<FormData>| {
-                                                    if let Ok(day) = e.value().parse::<u8>() {
+                                                options: {
+                                                    let mut options: Vec<SelectOption> = (1..=MAX_MONTH_DAY)
+                                                        .map(|day| SelectOption::new(day.to_string(), format!("Day {day}")))
+                                                        .collect();
+                                                    options.push(SelectOption::new("0", "Last day"));
+                                                    options
+                                                },
+                                                on_change: move |value: String| {
+                                                    if let Ok(day) = value.parse::<u8>() {
                                                         let mut next = recurrence();
                                                         if let Some(date) = next.dates.get_mut(idx) { date.day = day; }
                                                         recurrence.set(next);
                                                     }
                                                 },
-                                                for day in 1..=MAX_MONTH_DAY {
-                                                    option { value: day.to_string(), selected: entry.day == day, "Day {day}" }
-                                                }
-                                                option { value: "0", selected: entry.day == 0, "Last day" }
+                                                searchable: false,
+                                                class: "w-24",
                                             }
                                             input {
                                                 r#type: "number",

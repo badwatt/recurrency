@@ -39,6 +39,16 @@ pub fn LabelCombobox(
     let mut create_name = use_signal(String::new);
     let mut creating_loading = use_signal(|| false);
     let mut create_error = use_signal(String::new);
+    let filter_id = use_signal(|| format!("label-filter-{}", Uuid::new_v4()));
+
+    use_effect(move || {
+        if open() && !creating() {
+            let id = filter_id();
+            let _ = dioxus::document::eval(&format!(
+                "requestAnimationFrame(function(){{var e=document.getElementById('{id}'); if(e) e.focus();}});"
+            ));
+        }
+    });
 
     let items = match kind {
         LabelKind::Category => CATEGORIES()
@@ -235,10 +245,12 @@ pub fn LabelCombobox(
                     } else {
                         div { class: "flex items-center border-b px-3",
                             input {
+                                id: filter_id(),
                                 class: "w-full h-9 border-0 bg-transparent text-sm focus:outline-none focus:ring-0",
                                 r#type: "text",
                                 placeholder: search_placeholder.to_string(),
                                 value: search_val.to_string(),
+                                autofocus: true,
                                 oninput: move |e: Event<FormData>| {
                                     search.set(e.value());
                                 },

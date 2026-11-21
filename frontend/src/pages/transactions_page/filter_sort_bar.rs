@@ -1,5 +1,6 @@
 use super::{FilterConfig, SortConfig};
 use crate::components::ListToolbar;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::state::categories::CATEGORIES;
 use dioxus::prelude::*;
 use lucide_dioxus::ArrowUpDown;
@@ -62,19 +63,20 @@ pub fn FilterSortBar(
                     }
                     div { class: "space-y-1.5",
                         label { class: "text-xs font-medium text-muted-foreground", "Category" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                        SelectMenu {
                             value: filters().category_id.map(|id| id.to_string()).unwrap_or_default(),
-                            onchange: move |e| {
-                                let value = e.value();
+                            options: {
+                                let mut options = vec![SelectOption::new("", "All categories")];
+                                options.extend(cats.categories.iter().map(|cat| SelectOption::new(cat.id.to_string(), cat.name.clone())));
+                                options
+                            },
+                            on_change: move |value: String| {
                                 let mut next = filters();
                                 next.category_id = if value.is_empty() { None } else { Uuid::parse_str(&value).ok() };
                                 filters.set(next);
                             },
-                            option { value: "", "All categories" }
-                            for cat in &cats.categories {
-                                option { value: cat.id.to_string(), {cat.name.clone()} }
-                            }
+                            searchable: true,
+                            placeholder: "All categories",
                         }
                     }
                     div { class: "grid grid-cols-2 gap-2",
@@ -126,19 +128,21 @@ pub fn FilterSortBar(
                     class: "absolute left-0 top-full z-50 mt-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2 sm:left-auto sm:right-0",
                     onclick: move |e| e.stop_propagation(),
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
-                    select {
-                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                        value: "{sort_cfg().field}",
-                        onchange: move |e| {
+                    SelectMenu {
+                        value: sort_cfg().field,
+                        options: vec![
+                            SelectOption::new("date", "Date"),
+                            SelectOption::new("amount", "Price"),
+                            SelectOption::new("name", "Name"),
+                            SelectOption::new("created_at", "Created"),
+                            SelectOption::new("updated_at", "Last modified"),
+                        ],
+                        on_change: move |value: String| {
                             let mut next = sort_cfg();
-                            next.field = e.value();
+                            next.field = value;
                             sort_cfg.set(next);
                         },
-                        option { value: "date", "Date" }
-                        option { value: "amount", "Price" }
-                        option { value: "name", "Name" }
-                        option { value: "created_at", "Created" }
-                        option { value: "updated_at", "Last modified" }
+                        searchable: false,
                     }
                     button {
                         r#type: "button",

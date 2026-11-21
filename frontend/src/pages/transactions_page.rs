@@ -1,6 +1,7 @@
 use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::TransactionRowSkeleton;
 use crate::components::tooltip::Tooltip;
 use crate::models::transaction::*;
@@ -339,14 +340,17 @@ pub fn TransactionsPage() -> Element {
                         },
                         "Select all"
                     }
-                    select {
-                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                    SelectMenu {
                         value: bulk_category(),
-                        onchange: move |event| bulk_category.set(event.value()),
-                        option { value: "", "Set category…" }
-                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
-                            option { value: category.id.to_string(), {category.name.clone()} }
-                        }
+                        options: {
+                            let mut options = vec![SelectOption::new("", "Set category…")];
+                            options.extend(CATEGORIES().categories.iter().filter(|category| !category.is_system).map(|category| SelectOption::new(category.id.to_string(), category.name.clone())));
+                            options
+                        },
+                        on_change: move |value: String| bulk_category.set(value),
+                        searchable: true,
+                        placeholder: "Set category…",
+                        class: "w-44",
                     }
                     button {
                         r#type: "button",

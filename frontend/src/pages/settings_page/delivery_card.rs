@@ -1,4 +1,5 @@
 use crate::api::notification_channels;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::toast::TOAST;
 use crate::models::notification::{
     NotificationChannel, UpdateNotificationChannelRequest,
@@ -317,11 +318,18 @@ pub fn DeliveryCard() -> Element {
                             label { class: "space-y-1 text-sm", "SMTP port"
                                 input { r#type: "number", value: form().email_port, oninput: move |e| form.write().email_port = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
                             }
-                            label { class: "space-y-1 text-sm", "Encryption"
-                                select { value: form().email_encryption, onchange: move |e| form.write().email_encryption = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
-                                    option { value: "tls", "TLS / STARTTLS" }
-                                    option { value: "ssl", "SSL" }
-                                    option { value: "none", "None" }
+                            div { class: "space-y-1 text-sm",
+                                p { class: "font-medium", "Encryption" }
+                                SelectMenu {
+                                    value: form().email_encryption.clone(),
+                                    options: vec![
+                                        SelectOption::new("tls", "TLS / STARTTLS"),
+                                        SelectOption::new("ssl", "SSL"),
+                                        SelectOption::new("none", "None"),
+                                    ],
+                                    on_change: move |value: String| form.write().email_encryption = value,
+                                    searchable: false,
+                                    class: "mt-1",
                                 }
                             }
                             label { class: "space-y-1 text-sm", "From email"

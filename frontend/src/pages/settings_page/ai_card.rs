@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use lucide_dioxus::{Bot, CircleCheck, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles};
 
 use crate::api::ai::{self, AiSettings, UpdateAiSettingsRequest};
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::toast::TOAST;
 use crate::state::ai::AI_SETTINGS;
 
@@ -248,13 +249,19 @@ pub fn AiConnectionCard() -> Element {
                     div { class: "grid gap-4 md:grid-cols-2",
                         div { class: "space-y-2",
                             label { r#for: "ai-provider", class: "text-sm font-medium", "Provider" }
-                            select {
-                                id: "ai-provider",
+                            SelectMenu {
                                 value: provider(),
+                                options: {
+                                    let mut options = vec![];
+                                    if preset_for(&provider()).is_none() {
+                                        options.push(SelectOption::new(provider(), provider()));
+                                    }
+                                    options.extend(PROVIDER_PRESETS.iter().map(|preset| SelectOption::new(preset.id, preset.label)));
+                                    options
+                                },
                                 disabled: loading() || saving(),
-                                class: "flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm",
-                                onchange: move |event| {
-                                    let next = event.value();
+                                searchable: false,
+                                on_change: move |next: String| {
                                     if let Some(preset) = preset_for(&next)
                                         && !preset.base_url.is_empty()
                                     {
@@ -265,12 +272,6 @@ pub fn AiConnectionCard() -> Element {
                                     custom_model.set(true);
                                     models_error.set(String::new());
                                 },
-                                if preset_for(&provider()).is_none() {
-                                    option { value: provider(), {provider()} }
-                                }
-                                for preset in PROVIDER_PRESETS {
-                                    option { value: preset.id, {preset.label} }
-                                }
                             }
                             p { class: "text-xs text-muted-foreground",
                                 {preset_for(&provider()).map(|preset| preset.hint).unwrap_or("Choose a preset or use your own endpoint.")}
@@ -315,13 +316,19 @@ pub fn AiConnectionCard() -> Element {
                                 class: "flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm",
                             }
                         } else {
-                            select {
-                                id: "ai-model-select",
+                            SelectMenu {
                                 value: model_select_value,
+                                options: {
+                                    let mut options = models()
+                                        .iter()
+                                        .map(|value| SelectOption::new(value.clone(), value.clone()))
+                                        .collect::<Vec<_>>();
+                                    options.push(SelectOption::new(CUSTOM_MODEL_VALUE, "Custom model…"));
+                                    options
+                                },
                                 disabled: loading() || saving(),
-                                class: "flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm",
-                                onchange: move |event| {
-                                    let value = event.value();
+                                searchable: true,
+                                on_change: move |value: String| {
                                     if value == CUSTOM_MODEL_VALUE {
                                         custom_model.set(true);
                                     } else {
@@ -329,10 +336,6 @@ pub fn AiConnectionCard() -> Element {
                                         model.set(value);
                                     }
                                 },
-                                for option_value in models() {
-                                    option { value: option_value, {option_value.clone()} }
-                                }
-                                option { value: CUSTOM_MODEL_VALUE, "Custom model…" }
                             }
                             if custom_model() {
                                 input {

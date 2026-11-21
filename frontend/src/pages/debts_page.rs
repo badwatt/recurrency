@@ -10,6 +10,7 @@ use crate::components::ListToolbar;
 use crate::components::dialog::Dialog;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::DebtCardSkeleton;
 use crate::components::{AccountCombobox, CategoryCombobox};
 use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest};
@@ -355,16 +356,18 @@ pub fn DebtsPage() -> Element {
                     class: "absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2",
                     onclick: move |e| e.stop_propagation(),
                     label { class: "text-xs font-medium text-muted-foreground", "Type" }
-                    select {
-                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                    SelectMenu {
                         value: filter_value.unwrap_or_default(),
-                        onchange: move |e| {
-                            let value = e.value();
+                        options: vec![
+                            SelectOption::new("", "All debts"),
+                            SelectOption::new(crate::utils::constants::DEBT_TYPE_MANUAL, "Manual"),
+                            SelectOption::new(crate::utils::constants::DEBT_TYPE_AUTOMATIC, "Automatic"),
+                        ],
+                        on_change: move |value: String| {
                             type_filter.set(if value.is_empty() { None } else { Some(value) });
                         },
-                        option { value: "", "All debts" }
-                        option { value: crate::utils::constants::DEBT_TYPE_MANUAL, "Manual" }
-                        option { value: crate::utils::constants::DEBT_TYPE_AUTOMATIC, "Automatic" }
+                        searchable: false,
+                        placeholder: "All debts",
                     }
                     if filter_count > 0 {
                         button {
@@ -393,15 +396,17 @@ pub fn DebtsPage() -> Element {
                     class: "absolute left-0 top-full z-50 mt-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2 sm:left-auto sm:right-0",
                     onclick: move |e| e.stop_propagation(),
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
-                    select {
-                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                    SelectMenu {
                         value: sort_field(),
-                        onchange: move |e| sort_field.set(e.value()),
-                        option { value: "name", "Name" }
-                        option { value: "remaining", "Remaining" }
-                        option { value: "next", "Next payment" }
-                        option { value: "created_at", "Created" }
-                        option { value: "updated_at", "Last modified" }
+                        options: vec![
+                            SelectOption::new("name", "Name"),
+                            SelectOption::new("remaining", "Remaining"),
+                            SelectOption::new("next", "Next payment"),
+                            SelectOption::new("created_at", "Created"),
+                            SelectOption::new("updated_at", "Last modified"),
+                        ],
+                        on_change: move |value: String| sort_field.set(value),
+                        searchable: false,
                     }
                     button {
                         r#type: "button",
@@ -498,14 +503,17 @@ pub fn DebtsPage() -> Element {
                         },
                         "Select all"
                     }
-                    select {
-                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                    SelectMenu {
                         value: bulk_category(),
-                        onchange: move |event| bulk_category.set(event.value()),
-                        option { value: "", "Set category…" }
-                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
-                            option { value: category.id.to_string(), {category.name.clone()} }
-                        }
+                        options: {
+                            let mut options = vec![SelectOption::new("", "Set category…")];
+                            options.extend(CATEGORIES().categories.iter().filter(|category| !category.is_system).map(|category| SelectOption::new(category.id.to_string(), category.name.clone())));
+                            options
+                        },
+                        on_change: move |value: String| bulk_category.set(value),
+                        searchable: true,
+                        placeholder: "Set category…",
+                        class: "w-44",
                     }
                     button {
                         r#type: "button",
@@ -631,23 +639,23 @@ pub fn DebtsPage() -> Element {
                         }
                         div { class: "space-y-1.5",
                             label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
-                            select {
-                                class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
+                            SelectMenu {
                                 value: currency(),
-                                onchange: move |e| currency.set(e.value()),
-                                for (code, label) in CURRENCIES {
-                                    option { value: code.to_string(), {label.to_string()} }
-                                }
+                                options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                                on_change: move |value: String| currency.set(value),
+                                searchable: true,
                             }
                         }
                     }
                     div { class: "space-y-1.5",
                         label { class: "text-sm font-medium", "Type" }
-                        select {
-                            class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
+                        SelectMenu {
                             value: debt_type(),
-                            onchange: move |e| {
-                                let value = e.value();
+                            options: vec![
+                                SelectOption::new(crate::utils::constants::DEBT_TYPE_MANUAL, "Manual — I record each payment"),
+                                SelectOption::new(crate::utils::constants::DEBT_TYPE_AUTOMATIC, "Automatic — paid month by month"),
+                            ],
+                            on_change: move |value: String| {
                                 if value == crate::utils::constants::DEBT_TYPE_AUTOMATIC
                                     && payment_days().is_empty()
                                 {
@@ -658,16 +666,7 @@ pub fn DebtsPage() -> Element {
                                 }
                                 debt_type.set(value);
                             },
-                            option {
-                                value: crate::utils::constants::DEBT_TYPE_MANUAL,
-                                selected: debt_type() == crate::utils::constants::DEBT_TYPE_MANUAL,
-                                "Manual — I record each payment"
-                            }
-                            option {
-                                value: crate::utils::constants::DEBT_TYPE_AUTOMATIC,
-                                selected: debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC,
-                                "Automatic — paid month by month"
-                            }
+                            searchable: false,
                         }
                     }
                     if debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC {

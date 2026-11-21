@@ -1,4 +1,5 @@
 use crate::api::notification_channels;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::timezone_select::TimezoneSelect;
 use crate::components::toast::TOAST;
 use crate::models::notification::UpdateSummaryNotificationSettingsRequest;
@@ -116,47 +117,60 @@ pub fn SummaryCard() -> Element {
                 }
             }
             div { class: "p-6 grid gap-3 sm:grid-cols-2",
-                label { class: "space-y-1 text-sm", "Frequency"
-                    select {
+                div { class: "space-y-1 text-sm",
+                    p { class: "font-medium", "Frequency" }
+                    SelectMenu {
                         value: frequency(),
-                        onchange: move |e| frequency.set(e.value()),
-                        class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
-                        option { value: "daily", "Daily" }
-                        option { value: "weekly", "Weekly" }
-                        option { value: "monthly", "Monthly" }
+                        options: vec![
+                            SelectOption::new("daily", "Daily"),
+                            SelectOption::new("weekly", "Weekly"),
+                            SelectOption::new("monthly", "Monthly"),
+                        ],
+                        on_change: move |value| frequency.set(value),
+                        searchable: false,
+                        class: "mt-1",
                     }
                 }
                 if frequency() == "weekly" {
-                    label { class: "space-y-1 text-sm", "Weekday"
-                        select {
+                    div { class: "space-y-1 text-sm",
+                        p { class: "font-medium", "Weekday" }
+                        SelectMenu {
                             value: weekday().to_string(),
-                            onchange: move |e| weekday.set(e.value().parse().unwrap_or(1)),
-                            class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
-                            for (value, label) in WEEKDAYS {
-                                option { value: value.to_string(), {label.to_string()} }
-                            }
+                            options: WEEKDAYS.iter().map(|(value, label)| SelectOption::new(value.to_string(), *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| weekday.set(value.parse().unwrap_or(1)),
+                            searchable: false,
+                            class: "mt-1",
                         }
                     }
                 } else if frequency() == "monthly" {
-                    label { class: "space-y-1 text-sm", "Day of month"
-                        select {
+                    div { class: "space-y-1 text-sm",
+                        p { class: "font-medium", "Day of month" }
+                        SelectMenu {
                             value: day().to_string(),
-                            onchange: move |e| day.set(e.value().parse().unwrap_or(1)),
-                            class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
-                            for value in 1..=crate::utils::constants::MAX_MONTH_DAY {
-                                option { value: value.to_string(), "{value}" }
-                            }
-                            option { value: "0", "Last day" }
+                            options: {
+                                let mut values: Vec<SelectOption> = (1..=crate::utils::constants::MAX_MONTH_DAY)
+                                    .map(|value| SelectOption::new(value.to_string(), value.to_string()))
+                                    .collect();
+                                values.push(SelectOption::new("0", "Last day"));
+                                values
+                            },
+                            on_change: move |value: String| day.set(value.parse().unwrap_or(1)),
+                            searchable: false,
+                            class: "mt-1",
                         }
                     }
                 }
-                label { class: "space-y-1 text-sm", "Report period"
-                    select {
+                div { class: "space-y-1 text-sm",
+                    p { class: "font-medium", "Report period" }
+                    SelectMenu {
                         value: period(),
-                        onchange: move |e| period.set(e.value()),
-                        class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
-                        option { value: crate::utils::constants::SUMMARY_PERIOD_CURRENT, "Current month" }
-                        option { value: crate::utils::constants::SUMMARY_PERIOD_NEXT, "Next month" }
+                        options: vec![
+                            SelectOption::new(crate::utils::constants::SUMMARY_PERIOD_CURRENT, "Current month"),
+                            SelectOption::new(crate::utils::constants::SUMMARY_PERIOD_NEXT, "Next month"),
+                        ],
+                        on_change: move |value| period.set(value),
+                        searchable: false,
+                        class: "mt-1",
                     }
                 }
                 label { class: "space-y-1 text-sm", "Time"

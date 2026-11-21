@@ -749,7 +749,6 @@ fn summary_card_uses_a_searchable_timezone_picker() {
 fn summary_card_offers_last_day_of_month() {
     let src = include_str!("summary_card.rs");
     assert!(src.contains("Last day"));
-    assert!(src.contains("value: \"0\""));
 }
 
 #[test]

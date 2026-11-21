@@ -1,4 +1,5 @@
 use crate::api::currency;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::toast::TOAST;
 use crate::models::currency::UpdateCurrencySettingsRequest;
 use crate::state::auth::AUTH;
@@ -69,14 +70,15 @@ pub fn ExchangeRatesCard() -> Element {
             div { class: "p-6 space-y-4",
                 div { class: "space-y-2",
                     label { r#for: "settings-provider", class: "text-sm font-medium", "Provider" }
-                    select {
-                        id: "settings-provider",
+                    SelectMenu {
                         value: provider(),
-                        onchange: move |e| provider.set(e.value()),
+                        options: vec![
+                            SelectOption::new("frankfurter", "Frankfurter — free, no API key"),
+                            SelectOption::new("fixer", "Fixer — requires an API key"),
+                        ],
+                        on_change: move |value: String| provider.set(value),
+                        searchable: false,
                         disabled: saving(),
-                        class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm",
-                        option { value: "frankfurter", "Frankfurter — free, no API key" }
-                        option { value: "fixer", "Fixer — requires an API key" }
                     }
                 }
                 if provider() == "fixer" {

@@ -14,6 +14,7 @@ use crate::components::entry_form::{ValidationResult, validate_subscription_form
 use crate::components::logo_image_with_fallback;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};
 use crate::components::subscription_form::SubscriptionForm;
 use crate::components::tooltip::Tooltip;
@@ -497,46 +498,43 @@ pub fn SubscriptionsPage() -> Element {
                     }
                     div { class: "space-y-1.5",
                         label { class: "text-xs font-medium text-muted-foreground", "Status" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                            value: filters_val.status.as_deref().unwrap_or("all"),
-                            onchange: move |e: Event<FormData>| {
-                                let value = e.value();
+                        SelectMenu {
+                            value: filters_val.status.clone().unwrap_or_else(|| "all".to_string()),
+                            options: STATUS_OPTIONS.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| {
                                 filters.write().status = if value == "all" { None } else { Some(value) };
                             },
-                            for (val, label) in STATUS_OPTIONS {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            searchable: false,
                         }
                     }
                     div { class: "space-y-1.5",
                         label { class: "text-xs font-medium text-muted-foreground", "Repeats every" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                            value: filters_val.frequency.as_deref().unwrap_or("all"),
-                            onchange: move |e: Event<FormData>| {
-                                let value = e.value();
+                        SelectMenu {
+                            value: filters_val.frequency.clone().unwrap_or_else(|| "all".to_string()),
+                            options: {
+                                let mut options = vec![SelectOption::new("all", "All units")];
+                                options.extend(RECURRENCE_UNITS.iter().map(|(value, label)| SelectOption::new(*value, *label)));
+                                options
+                            },
+                            on_change: move |value: String| {
                                 filters.write().frequency = if value == "all" { None } else { Some(value) };
                             },
-                            option { value: "all", "All units" }
-                            for (val, label) in RECURRENCE_UNITS {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            searchable: false,
                         }
                     }
                     div { class: "space-y-1.5",
                         label { class: "text-xs font-medium text-muted-foreground", "Category" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                            value: filters_val.category_id.as_deref().unwrap_or("all"),
-                            onchange: move |e: Event<FormData>| {
-                                let value = e.value();
+                        SelectMenu {
+                            value: filters_val.category_id.clone().unwrap_or_else(|| "all".to_string()),
+                            options: {
+                                let mut options = vec![SelectOption::new("all", "All categories")];
+                                options.extend(category_options.iter().map(|(id, name)| SelectOption::new(id.as_str(), name.as_str())));
+                                options
+                            },
+                            on_change: move |value: String| {
                                 filters.write().category_id = if value == "all" { None } else { Some(value) };
                             },
-                            option { value: "all", "All categories" }
-                            for (id, name) in category_options.iter() {
-                                option { value: id.to_string(), {name.to_string()} }
-                            }
+                            searchable: true,
                         }
                     }
                     div { class: "flex items-center gap-2",
@@ -594,13 +592,11 @@ pub fn SubscriptionsPage() -> Element {
                     class: "absolute left-0 top-full z-50 mt-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2 sm:left-auto sm:right-0",
                     onclick: move |e| e.stop_propagation(),
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
-                    select {
-                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                        value: sort_val.field,
-                        onchange: move |e: Event<FormData>| sort.write().field = e.value(),
-                        for (val, label) in SORT_OPTIONS {
-                            option { value: val.to_string(), {label.to_string()} }
-                        }
+                    SelectMenu {
+                        value: sort_val.field.clone(),
+                        options: SORT_OPTIONS.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                        on_change: move |value: String| sort.write().field = value,
+                        searchable: false,
                     }
                     button {
                         r#type: "button",
@@ -693,14 +689,17 @@ pub fn SubscriptionsPage() -> Element {
                         onclick: toggle_all_selected,
                         if all_filtered_selected { "Clear selection" } else { "Select all" }
                     }
-                    select {
-                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                    SelectMenu {
                         value: bulk_category(),
-                        onchange: move |event| bulk_category.set(event.value()),
-                        option { value: "", "Set category…" }
-                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
-                            option { value: category.id.to_string(), {category.name.clone()} }
-                        }
+                        options: {
+                            let mut options = vec![SelectOption::new("", "Set category…")];
+                            options.extend(CATEGORIES().categories.iter().filter(|category| !category.is_system).map(|category| SelectOption::new(category.id.to_string(), category.name.clone())));
+                            options
+                        },
+                        on_change: move |value: String| bulk_category.set(value),
+                        searchable: true,
+                        placeholder: "Set category…",
+                        class: "w-44",
                     }
                     button {
                         r#type: "button",

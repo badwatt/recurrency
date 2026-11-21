@@ -2,6 +2,7 @@ use crate::components::AccountCombobox;
 use crate::components::dialog::Dialog;
 use crate::components::logo_search::LogoSearch;
 use crate::components::CategoryCombobox;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::models::transaction::{CreateTransactionRequest, UpdateTransactionRequest};
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -290,16 +291,15 @@ pub fn TransactionDialog(
                     }
                     div { class: "space-y-2",
                         label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
-                        select {
+                        SelectMenu {
                             value: form_currency.to_string(),
-                            onchange: move |e| {
-                                form_currency.set(e.value());
+                            options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| {
+                                form_currency.set(value);
                                 currency_error.set(String::new());
                             },
-                            class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                            for (val, label) in CURRENCIES {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            searchable: true,
+                            placeholder: if currency_error().is_empty() { "Select currency..." } else { "Currency is required" },
                         }
                         if !currency_error().is_empty() {
                             p { class: "text-xs text-red-500", "{currency_error()}" }

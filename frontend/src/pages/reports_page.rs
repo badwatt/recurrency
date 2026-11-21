@@ -1,5 +1,6 @@
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
 use crate::components::toast::TOAST;
 use crate::models::report::*;
@@ -424,21 +425,19 @@ pub fn ReportsPage() -> Element {
                 PageHeader { title: "Reports", subtitle: "Analyze your spending patterns" }
                 div { class: "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3",
                     div { class: "flex items-center gap-2",
-                        select {
+                        SelectMenu {
                             value: selected_month.to_string(),
-                            onchange: move |e| selected_month.set(e.value()),
-                            class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm",
-                            for (val, label) in MONTH_OPTIONS {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            options: MONTH_OPTIONS.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| selected_month.set(value),
+                            searchable: false,
+                            class: "w-36",
                         }
-                        select {
+                        SelectMenu {
                             value: selected_year.to_string(),
-                            onchange: move |e| selected_year.set(e.value()),
-                            class: "flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm",
-                            for y in &years {
-                                option { value: y.to_string(), {y.to_string()} }
-                            }
+                            options: years.iter().map(|year| SelectOption::new(year.to_string(), year.to_string())).collect::<Vec<_>>(),
+                            on_change: move |value: String| selected_year.set(value),
+                            searchable: false,
+                            class: "w-24",
                         }
                     }
                     div { class: "relative shrink-0 self-start sm:self-auto",
