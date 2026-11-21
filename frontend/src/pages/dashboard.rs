@@ -1,5 +1,8 @@
 use chrono::{Datelike, Local, NaiveDate};
 use dioxus::prelude::*;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::card::Card;
+use crate::components::segmented::{SegmentOption, SegmentedControl};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -870,8 +873,9 @@ pub fn Dashboard() -> Element {
                             {
                                 let nav4 = nav;
                                 rsx! {
-                                    button {
-                                        class: "text-xs font-medium text-primary hover:underline",
+                                    Button {
+                                        variant: ButtonVariant::Link,
+                                        size: ButtonSize::Xs,
                                         onclick: move |_| { nav4.push(crate::Route::Calendar {}); },
                                         "View calendar"
                                     }
@@ -954,23 +958,19 @@ pub fn Dashboard() -> Element {
                 }
 
                 // Account ledger, pinned to the right on desktop and kept first on mobile.
-                div { class: "order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2",
+                Card { class: "order-1 min-w-0 overflow-hidden lg:order-2",
                     div { class: "p-5 md:p-6 pb-3 flex flex-col gap-2.5",
-                        div { class: "flex w-full rounded-lg border border-border/60 bg-muted/30 p-1", role: "tablist", aria_label: "Transfer ledger view",
-                            for (view, label) in [(LedgerView::Accounts, "Accounts"), (LedgerView::Categories, "Categories")] {
-                                button {
-                                    r#type: "button",
-                                    role: "tab",
-                                    aria_selected: if ledger_view() == view { "true" } else { "false" },
-                                    class: if ledger_view() == view {
-                                        "flex-1 rounded-md bg-background px-3 py-2 text-sm font-semibold text-foreground shadow-sm"
-                                    } else {
-                                        "flex-1 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                                    },
-                                    onclick: move |_| ledger_view.set(view),
-                                    {label}
-                                }
-                            }
+                        SegmentedControl {
+                            value: (if ledger_view() == LedgerView::Accounts { "accounts" } else { "categories" }).to_string(),
+                            aria_label: "Transfer ledger view".to_string(),
+                            class: "w-full".to_string(),
+                            options: vec![
+                                SegmentOption::new("accounts", "Accounts"),
+                                SegmentOption::new("categories", "Categories"),
+                            ],
+                            on_change: move |value| {
+                                ledger_view.set(if value == "accounts" { LedgerView::Accounts } else { LedgerView::Categories });
+                            },
                         }
                         p { class: "text-sm text-muted-foreground",
                             {if ledger_view() == LedgerView::Accounts {
@@ -1007,8 +1007,8 @@ pub fn Dashboard() -> Element {
                             {
                                 let nav3 = nav;
                                 rsx! {
-                                    button {
-                                        class: "hidden md:inline-flex mt-2 items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                                    Button {
+                                        class: "mt-2 hidden md:inline-flex",
                                         onclick: move |_| {
                                             *crate::state::create_intent::CREATE_INTENT.write() =
                                                 Some(crate::state::create_intent::CreateIntent::Subscription);

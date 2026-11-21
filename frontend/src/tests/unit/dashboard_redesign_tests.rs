@@ -87,9 +87,7 @@ fn dashboard_places_payments_left_and_accounts_right() {
         "the lower dashboard must use a payments/account two-column grid"
     );
     assert!(
-        production.contains(
-            "order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2"
-        ),
+        production.contains("Card { class: \"order-1 min-w-0 overflow-hidden lg:order-2\","),
         "the account ledger must be first on mobile and right on desktop"
     );
     assert!(

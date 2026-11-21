@@ -1714,15 +1714,15 @@ use chrono::NaiveDate;
 
     #[test]
     fn transaction_filter_sort_bar_responsive() {
-        let prod = include_str!("../transactions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
-        assert!(prod.contains("flex-col sm:flex-row"),
-            "Transaction filter/sort bar must stack vertically on mobile");
+        let prod = include_str!("../transactions_page/filter_sort_bar.rs");
+        assert!(prod.contains("ListToolbar"),
+            "Transaction filter/sort bar must use the shared responsive toolbar");
     }
 
     #[test]
     fn transaction_sort_uses_icon_toolbar() {
         let prod = include_str!("../transactions_page/filter_sort_bar.rs");
-        assert!(prod.contains("aria_label: \"Sort\""), "sort must be an icon button");
+        assert!(prod.contains("aria_label: Some(\"Sort\".to_string())"), "sort must be an icon button");
         assert!(prod.contains("ListToolbar"), "transactions must use the shared list toolbar");
     }
 
@@ -1785,8 +1785,8 @@ fn transactions_toolbar_has_search_grid_and_list() {
 fn transaction_toolbar_uses_icon_controls() {
     let src = include_str!("filter_sort_bar.rs");
     assert!(src.contains("ListToolbar"));
-    assert!(src.contains("aria_label: \"Sort\""));
-    assert!(src.contains("aria_label: \"Filters\""));
+    assert!(src.contains("aria_label: Some(\"Sort\".to_string())"));
+    assert!(src.contains("aria_label: Some(\"Filters\".to_string())"));
 }
 
 #[test]

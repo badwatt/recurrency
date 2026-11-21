@@ -1,3 +1,4 @@
+use crate::components::button::{Button, ButtonAlign, ButtonVariant};
 use crate::layout::app_layout::{Icon, svg_icon};
 use crate::pages::settings_page::APP_VERSION;
 use crate::state::auth::AUTH;
@@ -188,9 +189,11 @@ pub fn SettingsLayout() -> Element {
                         }
                     }
                     div { class: "mt-8 border-t border-border/50 pt-4",
-                        button {
-                            r#type: "button",
-                            class: "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors",
+                        Button {
+                            variant: ButtonVariant::Ghost,
+                            full_width: true,
+                            align: ButtonAlign::Start,
+                            class: "px-3 text-muted-foreground hover:bg-destructive/10 hover:text-destructive".to_string(),
                             onclick: move |_| {
                                 AUTH.write().logout();
                                 AUTH.write().persist_to_storage();

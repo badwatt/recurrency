@@ -519,7 +519,7 @@ const SETTINGS_SOURCES: &str = concat!(
     fn settings_page_has_name_input() {
         let src = SETTINGS_SOURCES;
         assert!(
-            src.contains("name") && src.contains("oninput"),
+            src.contains("settings-name") && src.contains("on_input"),
             "Should have name input"
         );
     }

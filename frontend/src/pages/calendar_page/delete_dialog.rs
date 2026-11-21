@@ -1,3 +1,4 @@
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::models::subscription::CalendarItem;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::storage::Storage;
@@ -47,8 +48,9 @@ pub fn DeleteSubscriptionDialog(
                     "This action cannot be undone."
                 }
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
-                        class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: deleting(),
                         onclick: move |_| {
                             if !deleting() {
@@ -57,8 +59,9 @@ pub fn DeleteSubscriptionDialog(
                         },
                         "Cancel"
                     }
-                    button {
-                        class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Destructive,
+                        size: ButtonSize::Sm,
                         disabled: deleting(),
                         onclick: handle_delete_confirm,
                         if deleting() { "Deleting..." } else { "Delete" }

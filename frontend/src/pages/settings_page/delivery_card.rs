@@ -5,6 +5,11 @@ use crate::models::notification::{
     NotificationChannel, UpdateNotificationChannelRequest,
 };
 use dioxus::prelude::*;
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::card::SectionCard;
+use crate::components::field::Field;
+use crate::components::input::{Input, InputSize};
+use crate::components::toggle::Toggle;
 use lucide_dioxus::{Bell, Gamepad2, Hash, Mail, BotMessageSquare, Plus, Send, Server, Smartphone, Webhook};
 use serde_json::{Value, json};
 
@@ -247,11 +252,10 @@ pub fn DeliveryCard() -> Element {
         .unwrap_or("Delivery");
 
     rsx! {
-        div { class: "rounded-xl bg-card/80 border border-border/40",
-            div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Delivery channels" }
-                p { class: "text-sm text-muted-foreground", "One summary, several destinations. Secrets stay encrypted." }
-            }
+        SectionCard {
+            title: "Delivery channels",
+            description: "One summary, several destinations. Secrets stay encrypted.",
+            content_class: "p-0",
             div { class: "p-4 sm:p-6 grid gap-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-6",
                 div {
                     class: "flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:border-r lg:border-border/40 lg:pr-4",
@@ -297,27 +301,32 @@ pub fn DeliveryCard() -> Element {
                             h3 { class: "text-sm font-semibold", {label} }
                             p { class: "text-xs text-muted-foreground", "Configure this delivery channel" }
                         }
-                        button {
-                            r#type: "button",
-                            aria_label: if enabled() { "Disable {label}" } else { "Enable {label}" },
-                            aria_pressed: if enabled() { "true" } else { "false" },
-                            class: if enabled() { "relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors" } else { "relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors" },
-                            onclick: move |_| enabled.toggle(),
-                            span {
-                                class: if enabled() { "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" } else { "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" }
-                            }
+                        Toggle {
+                            checked: enabled(),
+                            label: if enabled() { format!("Disable {label}") } else { format!("Enable {label}") },
+                            on_change: move |value| enabled.set(value),
                         }
                     }
 
                     if selected() == "email" {
                         p { class: "text-sm text-muted-foreground", "Leave the SMTP fields empty to use the server-wide SMTP configuration." }
                         div { class: "grid gap-3 sm:grid-cols-2",
-                            label { class: "space-y-1 text-sm", "SMTP host"
-                                input { value: form().email_host, oninput: move |e| form.write().email_host = e.value(), placeholder: "smtp.example.com", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "SMTP port"
-                                input { r#type: "number", value: form().email_port, oninput: move |e| form.write().email_port = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
+                            Field { label: "SMTP host", class: "text-sm",
+Input {
+value: form().email_host,
+on_input: move |value| form.write().email_host = value,
+placeholder: "smtp.example.com",
+size: InputSize::Sm,
+}
+}
+                            Field { label: "SMTP port", class: "text-sm",
+Input {
+r#type: "number",
+value: form().email_port,
+on_input: move |value| form.write().email_port = value,
+size: InputSize::Sm,
+}
+}
                             div { class: "space-y-1 text-sm",
                                 p { class: "font-medium", "Encryption" }
                                 SelectMenu {
@@ -332,89 +341,167 @@ pub fn DeliveryCard() -> Element {
                                     class: "mt-1",
                                 }
                             }
-                            label { class: "space-y-1 text-sm", "From email"
-                                input { value: form().email_from, oninput: move |e| form.write().email_from = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "SMTP username"
-                                input { value: form().email_username, oninput: move |e| form.write().email_username = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "SMTP password"
-                                input { r#type: "password", value: form().email_password, oninput: move |e| form.write().email_password = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
+                            Field { label: "From email", class: "text-sm",
+Input {
+value: form().email_from,
+on_input: move |value| form.write().email_from = value,
+size: InputSize::Sm,
+}
+}
+                            Field { label: "SMTP username", class: "text-sm",
+Input {
+value: form().email_username,
+on_input: move |value| form.write().email_username = value,
+size: InputSize::Sm,
+}
+}
+                            Field { label: "SMTP password", class: "text-sm",
+Input {
+r#type: "password",
+value: form().email_password,
+on_input: move |value| form.write().email_password = value,
+size: InputSize::Sm,
+}
+}
                         }
                     } else if selected() == "ntfy" {
                         div { class: "grid gap-3 sm:grid-cols-2",
-                            label { class: "space-y-1 text-sm", "Server"
-                                input { value: form().server, oninput: move |e| form.write().server = e.value(), placeholder: "https://ntfy.sh", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "Topic"
-                                input { value: form().topic, oninput: move |e| form.write().topic = e.value(), placeholder: "recurrency", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
+                            Field { label: "Server", class: "text-sm",
+Input {
+value: form().server,
+on_input: move |value| form.write().server = value,
+placeholder: "https://ntfy.sh",
+size: InputSize::Sm,
+}
+}
+                            Field { label: "Topic", class: "text-sm",
+Input {
+value: form().topic,
+on_input: move |value| form.write().topic = value,
+placeholder: "recurrency",
+size: InputSize::Sm,
+}
+}
                         }
-                        label { class: "space-y-1 text-sm block", "Access token (optional)"
-                            input { r#type: "password", value: form().token, oninput: move |e| form.write().token = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                        }
+                        Field { label: "Access token (optional)", class: "text-sm",
+Input {
+r#type: "password",
+value: form().token,
+on_input: move |value| form.write().token = value,
+size: InputSize::Sm,
+}
+}
                     } else if selected() == "telegram" {
                         div { class: "grid gap-3 sm:grid-cols-2",
-                            label { class: "space-y-1 text-sm", "Bot token"
-                                input { r#type: "password", value: form().bot_token, oninput: move |e| form.write().bot_token = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "Chat ID"
-                                input { value: form().chat_id, oninput: move |e| form.write().chat_id = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
+                            Field { label: "Bot token", class: "text-sm",
+Input {
+r#type: "password",
+value: form().bot_token,
+on_input: move |value| form.write().bot_token = value,
+size: InputSize::Sm,
+}
+}
+                            Field { label: "Chat ID", class: "text-sm",
+Input {
+value: form().chat_id,
+on_input: move |value| form.write().chat_id = value,
+size: InputSize::Sm,
+}
+}
                         }
                     } else if selected() == "discord" {
-                        label { class: "space-y-1 text-sm block", "Webhook URL"
-                            input { r#type: "password", value: form().webhook_url, oninput: move |e| form.write().webhook_url = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                        }
+                        Field { label: "Webhook URL", class: "text-sm",
+Input {
+r#type: "password",
+value: form().webhook_url,
+on_input: move |value| form.write().webhook_url = value,
+size: InputSize::Sm,
+}
+}
                     } else if selected() == "gotify" {
                         div { class: "grid gap-3 sm:grid-cols-2",
-                            label { class: "space-y-1 text-sm", "Server URL"
-                                input { value: form().gotify_server, oninput: move |e| form.write().gotify_server = e.value(), placeholder: "https://gotify.example.com", class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "App token"
-                                input { r#type: "password", value: form().gotify_token, oninput: move |e| form.write().gotify_token = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
+                            Field { label: "Server URL", class: "text-sm",
+Input {
+value: form().gotify_server,
+on_input: move |value| form.write().gotify_server = value,
+placeholder: "https://gotify.example.com",
+size: InputSize::Sm,
+}
+}
+                            Field { label: "App token", class: "text-sm",
+Input {
+r#type: "password",
+value: form().gotify_token,
+on_input: move |value| form.write().gotify_token = value,
+size: InputSize::Sm,
+}
+}
                         }
                     } else if selected() == "webhook" {
-                        label { class: "space-y-1 text-sm block", "Webhook URL"
-                            input { r#type: "password", value: form().webhook_url, oninput: move |e| form.write().webhook_url = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                        }
+                        Field { label: "Webhook URL", class: "text-sm",
+Input {
+r#type: "password",
+value: form().webhook_url,
+on_input: move |value| form.write().webhook_url = value,
+size: InputSize::Sm,
+}
+}
                         p { class: "text-xs text-muted-foreground", "The webhook receives a JSON body with title and message." }
                     } else if selected() == "slack" || selected() == "mattermost" {
-                        label { class: "space-y-1 text-sm block", "Incoming webhook URL"
-                            input { r#type: "password", value: form().webhook_url, oninput: move |e| form.write().webhook_url = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                        }
+                        Field { label: "Incoming webhook URL", class: "text-sm",
+Input {
+r#type: "password",
+value: form().webhook_url,
+on_input: move |value| form.write().webhook_url = value,
+size: InputSize::Sm,
+}
+}
                     } else if selected() == "pushover" {
                         div { class: "grid gap-3 sm:grid-cols-2",
-                            label { class: "space-y-1 text-sm", "Application token"
-                                input { r#type: "password", value: form().token, oninput: move |e| form.write().token = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
-                            label { class: "space-y-1 text-sm", "User key"
-                                input { value: form().pushover_user, oninput: move |e| form.write().pushover_user = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                            }
+                            Field { label: "Application token", class: "text-sm",
+Input {
+r#type: "password",
+value: form().token,
+on_input: move |value| form.write().token = value,
+size: InputSize::Sm,
+}
+}
+                            Field { label: "User key", class: "text-sm",
+Input {
+value: form().pushover_user,
+on_input: move |value| form.write().pushover_user = value,
+size: InputSize::Sm,
+}
+}
                         }
                     } else if selected() == "pushplus" {
-                        label { class: "space-y-1 text-sm block", "PushPlus token"
-                            input { r#type: "password", value: form().token, oninput: move |e| form.write().token = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                        }
+                        Field { label: "PushPlus token", class: "text-sm",
+Input {
+r#type: "password",
+value: form().token,
+on_input: move |value| form.write().token = value,
+size: InputSize::Sm,
+}
+}
                     } else if selected() == "serverchan" {
-                        label { class: "space-y-1 text-sm block", "SendKey"
-                            input { r#type: "password", value: form().serverchan_key, oninput: move |e| form.write().serverchan_key = e.value(), class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" }
-                        }
+                        Field { label: "SendKey", class: "text-sm",
+Input {
+r#type: "password",
+value: form().serverchan_key,
+on_input: move |value| form.write().serverchan_key = value,
+size: InputSize::Sm,
+}
+}
                     }
 
                     div { class: "flex flex-wrap items-center gap-2 pt-1",
-                        button {
-                            r#type: "button",
-                            class: "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                        Button {
                             disabled: saving(),
                             onclick: save,
                             if saving() { "Saving..." } else { "Save {label}" }
                         }
-                        button {
-                            r#type: "button",
-                            class: "inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                        Button {
+                            variant: ButtonVariant::Outline,
                             disabled: testing(),
                             onclick: test,
                             if testing() { "Testing..." } else { "Send test" }

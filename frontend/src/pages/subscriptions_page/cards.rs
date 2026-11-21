@@ -1,4 +1,5 @@
 use super::*;
+use crate::components::button::{ButtonRadius, ButtonSize, IconButton};
 
 // ── Grid card ────────────────────────────────────────────────────────
 
@@ -197,32 +198,45 @@ pub fn render_grid_card(
                 // Action buttons
                 if !selection_mode {
                 div { class: "flex items-center gap-0.5 mt-auto pt-1",
-                    button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
-                        title: "Duplicate",
-                        aria_label: "Duplicate subscription",
+                    IconButton {
+                        label: "Duplicate subscription".to_string(),
+                        size: ButtonSize::IconSm,
+                        radius: ButtonRadius::Lg,
+                        class: "hover:bg-muted".to_string(),
                         onclick: move |_| on_duplicate.call(sub_for_duplicate.clone()),
                         Copy { size: 14 }
                     }
                     Tooltip { content: sub.notes.clone().unwrap_or_default(),
-                        button {
-                            class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200" } else { "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground opacity-40 transition-colors duration-200" },
+                        IconButton {
+                            label: "Subscription notes".to_string(),
+                            size: ButtonSize::IconSm,
+                            radius: ButtonRadius::Lg,
+                            class: (if has_notes { "text-muted-foreground hover:bg-muted" } else { "text-muted-foreground opacity-40 hover:bg-muted" }).to_string(),
                             onclick: move |_| on_notes.call(sub_for_notes.clone()),
                             FileText { size: 16 }
                         }
                     }
-                    button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
+                    IconButton {
+                        label: (if is_active { "Pause subscription" } else { "Activate subscription" }).to_string(),
+                        size: ButtonSize::IconSm,
+                        radius: ButtonRadius::Lg,
+                        class: "hover:bg-muted".to_string(),
                         onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
                         if is_active { Pause { size: 14 } } else { Play { size: 14 } }
                     }
-                    button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
+                    IconButton {
+                        label: "Edit subscription".to_string(),
+                        size: ButtonSize::IconSm,
+                        radius: ButtonRadius::Lg,
+                        class: "hover:bg-muted".to_string(),
                         onclick: move |_| on_edit.call(sub_for_edit.clone()),
                         Pencil { size: 14 }
                     }
-                    button {
-                        class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors duration-200",
+                    IconButton {
+                        label: "Delete subscription".to_string(),
+                        size: ButtonSize::IconSm,
+                        radius: ButtonRadius::Lg,
+                        class: "text-red-500 hover:bg-red-500/10".to_string(),
                         onclick: move |_| on_delete.call(id_for_delete),
                         Trash { size: 14 }
                     }
@@ -409,32 +423,40 @@ fn render_list_actions(
 
     rsx! {
         div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
-            button {
-                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
-                title: "Duplicate",
-                aria_label: "Duplicate subscription",
+            IconButton {
+                label: "Duplicate subscription".to_string(),
+                size: ButtonSize::IconSm,
+                class: "hover:bg-muted".to_string(),
                 onclick: move |_| on_duplicate.call(sub_for_duplicate.clone()),
                 Copy { size: 14 }
             }
             Tooltip { content: sub.notes.clone().unwrap_or_default(),
-                button {
-                    class: if has_notes { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" } else { "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-40" },
+                IconButton {
+                    label: "Subscription notes".to_string(),
+                    size: ButtonSize::IconSm,
+                    class: (if has_notes { "text-muted-foreground hover:bg-muted" } else { "text-muted-foreground opacity-40 hover:bg-muted" }).to_string(),
                     onclick: move |_| on_notes.call(sub_for_notes.clone()),
                     FileText { size: 16 }
                 }
             }
-            button {
-                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+            IconButton {
+                label: (if is_active { "Pause subscription" } else { "Activate subscription" }).to_string(),
+                size: ButtonSize::IconSm,
+                class: "hover:bg-muted".to_string(),
                 onclick: move |_| on_toggle.call(sub_for_toggle.clone()),
                 if is_active { Pause { size: 14 } } else { Play { size: 14 } }
             }
-            button {
-                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted",
+            IconButton {
+                label: "Edit subscription".to_string(),
+                size: ButtonSize::IconSm,
+                class: "hover:bg-muted".to_string(),
                 onclick: move |_| on_edit.call(sub_for_edit.clone()),
                 Pencil { size: 14 }
             }
-            button {
-                class: "h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-red-600",
+            IconButton {
+                label: "Delete subscription".to_string(),
+                size: ButtonSize::IconSm,
+                class: "text-red-600 hover:bg-muted".to_string(),
                 onclick: move |_| on_delete.call(id_for_delete),
                 Trash { size: 14 }
             }

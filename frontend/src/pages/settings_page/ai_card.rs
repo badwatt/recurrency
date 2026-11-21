@@ -2,6 +2,11 @@ use dioxus::prelude::*;
 use lucide_dioxus::{Bot, CircleCheck, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles};
 
 use crate::api::ai::{self, AiSettings, UpdateAiSettingsRequest};
+use crate::components::badge::{Badge, BadgeVariant};
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::checkbox::Checkbox;
+use crate::components::field::Field;
+use crate::components::input::Input;
 use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::toast::TOAST;
 use crate::state::ai::AI_SETTINGS;
@@ -215,12 +220,12 @@ pub fn AiConnectionCard() -> Element {
                     div { class: "flex flex-wrap items-center gap-2",
                         h2 { class: "text-lg font-semibold", "Model connection" }
                         if configured() {
-                            span { class: "inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300",
+                            Badge { variant: BadgeVariant::Success, class: "rounded-full",
                                 CircleCheck { size: 11 }
                                 "Connected"
                             }
                         } else {
-                            span { class: "rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground",
+                            Badge { variant: BadgeVariant::Muted, class: "rounded-full",
                                 "Not configured"
                             }
                         }
@@ -230,12 +235,10 @@ pub fn AiConnectionCard() -> Element {
                     }
                 }
                 label { class: "flex cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-xs font-medium",
-                    input {
-                        r#type: "checkbox",
+                    Checkbox {
                         checked: enabled(),
                         disabled: loading() || saving(),
-                        onchange: move |event| enabled.set(event.checked()),
-                        class: "h-4 w-4 accent-primary",
+                        on_change: move |checked| enabled.set(checked),
                     }
                     "Enabled"
                 }
@@ -247,9 +250,9 @@ pub fn AiConnectionCard() -> Element {
                     }
                 } else {
                     div { class: "grid gap-4 md:grid-cols-2",
-                        div { class: "space-y-2",
-                            label { r#for: "ai-provider", class: "text-sm font-medium", "Provider" }
+                        Field { label: "Provider", html_for: "ai-provider",
                             SelectMenu {
+                                id: "ai-provider",
                                 value: provider(),
                                 options: {
                                     let mut options = vec![];
@@ -277,43 +280,38 @@ pub fn AiConnectionCard() -> Element {
                                 {preset_for(&provider()).map(|preset| preset.hint).unwrap_or("Choose a preset or use your own endpoint.")}
                             }
                         }
-                        div { class: "space-y-2",
-                            label { r#for: "ai-base-url", class: "text-sm font-medium", "API base URL" }
-                            input {
+                        Field { label: "API base URL", html_for: "ai-base-url", hint: selected_provider,
+                            Input {
                                 id: "ai-base-url",
                                 r#type: "url",
                                 value: base_url(),
-                                oninput: move |event| base_url.set(event.value()),
+                                on_input: move |value| base_url.set(value),
                                 placeholder: "https://api.openai.com/v1",
                                 disabled: loading() || saving(),
-                                class: "flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm",
                             }
-                            p { class: "text-xs text-muted-foreground", {selected_provider} }
                         }
                     }
 
                     div { class: "space-y-2",
                         div { class: "flex flex-wrap items-center justify-between gap-2",
                             label { r#for: "ai-model-select", class: "text-sm font-medium", "Model" }
-                            button {
-                                r#type: "button",
-                                class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                size: ButtonSize::Sm,
                                 disabled: loading() || saving() || models_loading() || !configured(),
-                                title: if configured() { "Load models from the endpoint" } else { "Save an API key first" },
+                                title: (if configured() { "Load models from the endpoint" } else { "Save an API key first" }).to_string(),
                                 onclick: refresh_models,
                                 RefreshCw { size: 13, class: if models_loading() { "animate-spin" } else { "" } }
                                 if models_loading() { "Loading…" } else { "Refresh models" }
                             }
                         }
                         if models().is_empty() {
-                            input {
+                            Input {
                                 id: "ai-model",
-                                r#type: "text",
                                 value: model(),
-                                oninput: move |event| model.set(event.value()),
+                                on_input: move |value| model.set(value),
                                 placeholder: "gpt-4o-mini",
                                 disabled: loading() || saving(),
-                                class: "flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm",
                             }
                         } else {
                             SelectMenu {
@@ -338,14 +336,13 @@ pub fn AiConnectionCard() -> Element {
                                 },
                             }
                             if custom_model() {
-                                input {
+                                Input {
                                     id: "ai-model-custom",
-                                    r#type: "text",
                                     value: model(),
-                                    oninput: move |event| model.set(event.value()),
+                                    on_input: move |value| model.set(value),
                                     placeholder: "Type a model id",
                                     disabled: loading() || saving(),
-                                    class: "mt-2 flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm",
+                                    class: "mt-2",
                                 }
                             }
                         }
@@ -367,15 +364,14 @@ pub fn AiConnectionCard() -> Element {
                             KeyRound { size: 14 }
                             "API key"
                         }
-                        input {
+                        Input {
                             id: "ai-api-key",
                             r#type: "password",
                             value: api_key(),
-                            oninput: move |event| api_key.set(event.value()),
+                            on_input: move |value| api_key.set(value),
                             autocomplete: "off",
                             placeholder: if configured() { AI_KEY_PLACEHOLDER_CONFIGURED } else { AI_KEY_PLACEHOLDER_EMPTY },
                             disabled: loading() || saving(),
-                            class: "flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm",
                         }
                         p { class: "flex items-center gap-1.5 text-xs text-muted-foreground",
                             ShieldCheck { size: 13 }
@@ -386,17 +382,18 @@ pub fn AiConnectionCard() -> Element {
                     div { class: "flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-4",
                         div { class: "flex items-center gap-2",
                             if configured() && !clear_key() {
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-9 items-center rounded-lg border border-destructive/30 px-3 text-sm text-destructive transition-colors hover:bg-destructive/10",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
+                                    class: "border-destructive/30 text-destructive hover:bg-destructive/10",
                                     onclick: move |_| clear_key.set(true),
                                     "Remove key"
                                 }
                             }
                             if clear_key() {
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-9 items-center rounded-lg border border-border px-3 text-sm",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
                                     onclick: move |_| clear_key.set(false),
                                     "Keep key"
                                 }
@@ -406,9 +403,7 @@ pub fn AiConnectionCard() -> Element {
                                 if configured() { "Key stored" } else { "Key not configured" }
                             }
                         }
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50",
+                        Button {
                             disabled: loading() || saving(),
                             onclick: save,
                             Save { size: 15 }

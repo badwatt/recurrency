@@ -12,6 +12,8 @@ pub mod layout_redesign_tests;
 pub mod privacy_tests;
 pub mod empty_states_tests;
 pub mod page_render_tests;
+pub mod shared_page_render_tests;
+pub mod shared_ui_tests;
 #[cfg(test)]
 mod dioxus_config_tests {
     #[test]

@@ -393,8 +393,8 @@
     fn subscriptions_use_compact_icon_toolbar() {
         let prod = include_str!("../subscriptions_page.rs").split("#[cfg(test)]").next().unwrap_or("");
         assert!(prod.contains("ListToolbar"), "subscriptions must use the shared list toolbar");
-        assert!(prod.contains("aria_label: \"Sort\""), "sort must be an icon button");
-        assert!(prod.contains("aria_label: \"Filters\""), "filters must be an icon button");
+        assert!(prod.contains("aria_label: Some(\"Sort\".to_string())"), "sort must be an icon button");
+        assert!(prod.contains("aria_label: Some(\"Filters\".to_string())"), "filters must be an icon button");
     }
 
 #[test]

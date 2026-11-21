@@ -2,6 +2,8 @@ use crate::components::toast::TOAST;
 use crate::storage::folder_sync;
 use dioxus::prelude::*;
 
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::card::SectionCard;
 #[component]
 pub fn SyncFolderCard() -> Element {
     let local_mode = crate::storage::folder_sync::is_available();
@@ -73,13 +75,10 @@ pub fn SyncFolderCard() -> Element {
     }
 
     rsx! {
-        div { class: "rounded-xl bg-card/80 border border-border/40",
-            div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Cloud folder sync" }
-                p { class: "text-sm text-muted-foreground",
-                    "Keep local data in sync through a folder in Google Drive, OneDrive, Dropbox or another document provider."
-                }
-            }
+        SectionCard {
+            title: "Cloud folder sync",
+            description: "Keep local data in sync through a folder in Google Drive, OneDrive, Dropbox or another document provider.",
+            content_class: "p-0",
             div { class: "p-6 space-y-4",
                 div { class: "flex items-center gap-3 rounded-lg border border-border/60 bg-background/50 p-4",
                     div { class: "flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary", "☁" }
@@ -90,9 +89,10 @@ pub fn SyncFolderCard() -> Element {
                         }
                     }
                     if linked() {
-                        button {
-                            r#type: "button",
-                            class: "text-xs text-muted-foreground hover:text-foreground",
+                        Button {
+                            variant: ButtonVariant::Ghost,
+                            size: ButtonSize::Xs,
+                            class: "text-muted-foreground",
                             onclick: disconnect,
                             "Disconnect"
                         }
@@ -102,16 +102,15 @@ pub fn SyncFolderCard() -> Element {
                     p { class: "text-sm text-destructive", {error()} }
                 }
                 div { class: "flex flex-wrap items-center gap-2",
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: busy(),
                         onclick: choose,
                         if linked() { "Change folder" } else { "Choose folder" }
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                    Button {
+                        size: ButtonSize::Sm,
                         disabled: busy() || !linked(),
                         onclick: sync_now,
                         if busy() { "Syncing…" } else { "Sync now" }

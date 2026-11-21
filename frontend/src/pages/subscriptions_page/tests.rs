@@ -915,13 +915,9 @@
         // Bug: "absolute left-0 top-10" positions relative to parent container top.
         // Fix: use "top-full mt-2" to anchor below the button.
         let src = include_str!("../subscriptions_page.rs");
-        // Find the popover panel class line (contains bg-popover)
-        let has_correct_position = src
-            .lines()
-            .any(|l| l.contains("bg-popover") && l.contains("top-full"));
         assert!(
-            has_correct_position,
-            "Filters popover panel should use top-full mt-2 (below button), not top-10"
+            src.contains("Popover {") && src.contains("open: filters_popover()"),
+            "Filters popover should use the shared anchored popover"
         );
     }
 
@@ -1799,7 +1795,7 @@
 fn mobile_add_button_is_replaced_by_fab_intent() {
     let src = include_str!("../subscriptions_page.rs");
     assert!(src.contains("CREATE_INTENT"));
-    assert!(src.contains("hidden md:inline-flex items-center gap-2"));
+    assert!(src.contains("hidden md:inline-flex"));
 }
 
 #[test]

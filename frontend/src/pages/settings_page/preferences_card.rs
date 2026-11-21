@@ -8,6 +8,9 @@ use crate::utils::constants::CURRENCIES;
 use dioxus::prelude::*;
 
 /// General preferences: currency, first day of week, date format and updates.
+use crate::components::card::SectionCard;
+use crate::components::checkbox::Checkbox;
+use crate::components::field::Field;
 #[component]
 pub fn PreferencesCard() -> Element {
     let mut currency = use_signal(|| AUTH().currency().to_string());
@@ -52,15 +55,14 @@ pub fn PreferencesCard() -> Element {
     let cur = currency();
 
     rsx! {
-        div { class: "rounded-xl bg-card/80 border border-border/40",
-            div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Defaults" }
-                p { class: "text-sm text-muted-foreground", "Applied to new entries and reports" }
-            }
+        SectionCard {
+            title: "Defaults",
+            description: "Applied to new entries and reports",
+            content_class: "p-0",
             div { class: "p-6 space-y-4",
-                div { class: "space-y-2",
-                    label { r#for: "settings-currency", class: "text-sm font-medium", "Default Currency" }
+                Field { label: "Default Currency", html_for: "settings-currency",
                     SelectMenu {
+                        id: "settings-currency",
                         value: cur,
                         options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
                         on_change: move |value: String| handle_save_currency(value),
@@ -68,9 +70,9 @@ pub fn PreferencesCard() -> Element {
                         disabled: saving_currency(),
                     }
                 }
-                div { class: "space-y-2",
-                    label { r#for: "settings-first-day", class: "text-sm font-medium", "First Day of Week" }
+                Field { label: "First Day of Week", html_for: "settings-first-day",
                     SelectMenu {
+                        id: "settings-first-day",
                         value: PREFERENCES().first_day_of_week().to_string(),
                         options: vec![
                             SelectOption::new("monday", "Monday"),
@@ -98,9 +100,9 @@ pub fn PreferencesCard() -> Element {
                         searchable: false,
                     }
                 }
-                div { class: "space-y-2",
-                    label { r#for: "settings-date-format", class: "text-sm font-medium", "Date format" }
+                Field { label: "Date format", html_for: "settings-date-format",
                     SelectMenu {
+                        id: "settings-date-format",
                         value: PREFERENCES().date_format(),
                         options: vec![
                             SelectOption::new("DD/MM/YYYY", "DD/MM/YYYY"),
@@ -130,14 +132,11 @@ pub fn PreferencesCard() -> Element {
                     }
                 }
                 div { class: "flex items-start gap-3 rounded-lg border border-border/40 p-3",
-                    input {
-                        r#type: "checkbox",
+                    Checkbox {
                         id: "settings-show-updates",
                         checked: PREFERENCES().show_updates(),
-                        onchange: move |e| {
-                            PREFERENCES.write().set_show_updates(e.checked());
-                        },
-                        class: "mt-0.5 h-4 w-4 accent-primary",
+                        on_change: move |checked| PREFERENCES.write().set_show_updates(checked),
+                        class: "mt-0.5",
                     }
                     div { class: "space-y-0.5",
                         label { r#for: "settings-show-updates", class: "text-sm font-medium", "Show update notices" }

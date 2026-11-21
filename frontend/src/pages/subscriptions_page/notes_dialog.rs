@@ -1,4 +1,6 @@
+use crate::components::button::{Button, ButtonVariant};
 use crate::components::dialog::Dialog;
+use crate::components::textarea::Textarea;
 use crate::models::subscription::UpdateSubscriptionRequest;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::storage::Storage;
@@ -36,13 +38,12 @@ pub fn NotesSubscriptionDialog(
             title: title,
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
-                        class: "border border-border/60 px-4 py-2 rounded-lg text-sm hover:bg-muted transition-colors duration-200",
+                    Button {
+                        variant: ButtonVariant::Outline,
                         onclick: move |_| open.set(false),
                         "Cancel"
                     }
-                    button {
-                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                    Button {
                         disabled: saving(),
                         onclick: move |_| {
                             let Some(id) = sub_id() else { return };
@@ -67,11 +68,11 @@ pub fn NotesSubscriptionDialog(
                     }
                 }
             },
-            textarea {
-                class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+            Textarea {
+                class: "min-h-[120px] resize-none",
                 placeholder: "Add notes...",
                 value: value.to_string(),
-                oninput: move |e: Event<FormData>| value.set(e.value()),
+                on_input: move |next: String| value.set(next),
             }
         }
     }

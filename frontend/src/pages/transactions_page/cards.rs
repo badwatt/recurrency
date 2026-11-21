@@ -1,4 +1,5 @@
 use super::*;
+use crate::components::button::{ButtonSize, IconButton};
 
 /// One transaction row/card, shared by the list and grid views.
 #[component]
@@ -74,22 +75,24 @@ pub fn TransactionCard(
                 if !selection_mode {
                 div { class: "flex items-center gap-0.5 sm:gap-1 shrink-0",
                     Tooltip { content: txn.notes.clone().unwrap_or_default(),
-                        button {
-                            class: if has_notes { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground" } else { "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground opacity-40" },
-                            aria_label: "Notes",
+                        IconButton {
+                            label: "Notes".to_string(),
+                            size: ButtonSize::Icon,
+                            class: (if has_notes { "text-muted-foreground" } else { "text-muted-foreground opacity-40" }).to_string(),
                             onclick: move |_| on_notes.call(id),
                             FileText { size: 16 }
                         }
                     }
-                    button {
-                        class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                        aria_label: "Edit transaction",
+                    IconButton {
+                        label: "Edit transaction".to_string(),
+                        size: ButtonSize::Icon,
                         onclick: move |_| on_edit.call(id),
                         Pencil { size: 16 }
                     }
-                    button {
-                        class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
-                        aria_label: "Delete transaction",
+                    IconButton {
+                        label: "Delete transaction".to_string(),
+                        size: ButtonSize::Icon,
+                        class: "text-destructive".to_string(),
                         onclick: move |_| on_delete.call(id),
                         Trash { size: 16 }
                     }
@@ -173,22 +176,24 @@ pub fn TransactionGridCard(
             if !selection_mode {
             div { class: "flex items-center justify-end gap-1 border-t border-border/40 pt-2",
                 Tooltip { content: txn.notes.clone().unwrap_or_default(),
-                    button {
-                        class: if has_notes { "inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent text-muted-foreground" } else { "inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent text-muted-foreground opacity-40" },
-                        aria_label: "Notes",
+                    IconButton {
+                        label: "Notes".to_string(),
+                        size: ButtonSize::IconSm,
+                        class: (if has_notes { "text-muted-foreground" } else { "text-muted-foreground opacity-40" }).to_string(),
                         onclick: move |_| on_notes.call(id),
                         FileText { size: 15 }
                     }
                 }
-                button {
-                    class: "inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent",
-                    aria_label: "Edit transaction",
+                IconButton {
+                    label: "Edit transaction".to_string(),
+                    size: ButtonSize::IconSm,
                     onclick: move |_| on_edit.call(id),
                     Pencil { size: 15 }
                 }
-                button {
-                    class: "inline-flex h-8 w-8 items-center justify-center rounded-md text-destructive hover:bg-accent",
-                    aria_label: "Delete transaction",
+                IconButton {
+                    label: "Delete transaction".to_string(),
+                    size: ButtonSize::IconSm,
+                    class: "text-destructive".to_string(),
                     onclick: move |_| on_delete.call(id),
                     Trash { size: 15 }
                 }

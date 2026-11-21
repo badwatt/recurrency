@@ -1,6 +1,9 @@
 #[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
 use crate::api::{auth, demo, client::ApiError};
 use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE};
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::field::Field;
+use crate::components::input::Input;
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
@@ -345,68 +348,52 @@ pub fn LoginPage() -> Element {
                         }
                     }
 
-                    // Email
-                    div { class: "space-y-2",
-                        label {
-                            r#for: "login-email",
-                            class: "text-sm font-medium text-foreground",
-                            "Email"
-                        }
-                        input {
+                    Field { label: "Email", required: true, html_for: "login-email",
+                        Input {
                             id: "login-email",
                             r#type: "email",
                             inputmode: "email",
                             autocomplete: "email",
                             placeholder: "email@example.com",
                             value: email.to_string(),
-                            oninput: move |e| {
-                                let value = e.value();
+                            on_input: move |value: String| {
                                 email.set(value.clone());
                                 set_draft_email(&value);
                             },
                             required: true,
-                            class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
                         }
                     }
 
-                    // Password
-                    div { class: "space-y-2",
-                        label {
-                            r#for: "login-password",
-                            class: "text-sm font-medium text-foreground",
-                            "Password"
-                        }
-                        input {
+                    Field { label: "Password", required: true, html_for: "login-password",
+                        Input {
                             id: "login-password",
                             r#type: "password",
                             autocomplete: "current-password",
                             value: auth_field.to_string(),
-                            oninput: move |e| {
-                                let value = e.value();
+                            on_input: move |value: String| {
                                 auth_field.set(value.clone());
                                 set_draft_password(&value);
                             },
                             required: true,
-                            minlength: 8,
-                            class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+                            minlength: "8",
                         }
                     }
 
                     // Submit
-                    button {
-                        r#type: "submit",
+                    Button {
+                        full_width: true,
+                        button_type: "submit".to_string(),
                         disabled: loading(),
-                        class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50",
                         if loading() { "Signing in..." } else { "Sign in" }
                     }
 
                     // Demo button (server mode only)
                     if demo_enabled() && !offline {
-                        button {
-                            r#type: "button",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            full_width: true,
                             disabled: demo_loading(),
                             onclick: handle_demo,
-                            class: "inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50",
                             if demo_loading() { "Loading..." } else { "Demo account" }
                         }
                     }

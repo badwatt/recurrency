@@ -7,7 +7,13 @@ use uuid::Uuid;
 
 use crate::components::ConvertedAmount;
 use crate::components::ListToolbar;
+use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton};
 use crate::components::dialog::Dialog;
+use crate::components::date_picker::DatePicker;
+use crate::components::field::Field;
+use crate::components::popover::{Popover, PopoverAlign};
+use crate::components::input::Input;
+use crate::components::textarea::Textarea;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
 use crate::components::select_menu::{SelectMenu, SelectOption};
@@ -330,13 +336,16 @@ pub fn DebtsPage() -> Element {
     let visible_ids: Vec<Uuid> = visible_debts.iter().map(|debt| debt.id).collect();
     let filter_count = usize::from(filter_value.is_some());
     let toolbar_actions = rsx! {
-        div { class: "relative",
-            button {
-                r#type: "button",
-                aria_label: "Filters",
-                title: "Filters",
-                aria_expanded: if filters_popover() { "true" } else { "false" },
-                class: if filter_count > 0 { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+        div { class: "static sm:relative",
+            Button {
+                variant: ButtonVariant::Unstyled,
+                size: ButtonSize::IconLg,
+                radius: ButtonRadius::Lg,
+                align: ButtonAlign::Center,
+                aria_label: Some("Filters".to_string()),
+                title: Some("Filters".to_string()),
+                aria_expanded: Some((if filters_popover() { "true" } else { "false" }).to_string()),
+                class: (if filter_count > 0 { "relative inline-flex items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "relative inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" }).to_string(),
                 onclick: move |_| filters_popover.set(!filters_popover()),
                 svg {
                     view_box: "0 0 24 24",
@@ -351,11 +360,12 @@ pub fn DebtsPage() -> Element {
                     span { class: "absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground", "{filter_count}" }
                 }
             }
-            if filters_popover() {
-                div {
-                    class: "absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2",
-                    onclick: move |e| e.stop_propagation(),
-                    label { class: "text-xs font-medium text-muted-foreground", "Type" }
+            Popover {
+                open: filters_popover(),
+                on_close: move |_| filters_popover.set(false),
+                align: PopoverAlign::CenterSm,
+                class: "w-[min(18rem,calc(100vw-2rem))] space-y-2 p-3".to_string(),
+                    Field { label: "Type", label_class: "text-xs text-muted-foreground".to_string(),
                     SelectMenu {
                         value: filter_value.unwrap_or_default(),
                         options: vec![
@@ -369,32 +379,36 @@ pub fn DebtsPage() -> Element {
                         searchable: false,
                         placeholder: "All debts",
                     }
+                    }
                     if filter_count > 0 {
-                        button {
-                            r#type: "button",
-                            class: "text-xs text-muted-foreground hover:text-foreground",
+                        Button {
+                            variant: ButtonVariant::Ghost,
+                            size: ButtonSize::Xs,
+                            class: "text-muted-foreground".to_string(),
                             onclick: move |_| type_filter.set(None),
                             "Clear filter"
                         }
                     }
-                }
-                div { class: "fixed inset-0 z-40", onclick: move |_| filters_popover.set(false) }
             }
         }
-        div { class: "relative",
-            button {
-                r#type: "button",
-                aria_label: "Sort",
-                title: "Sort",
-                aria_expanded: if sort_popover() { "true" } else { "false" },
-                class: "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+        div { class: "static sm:relative",
+            Button {
+                variant: ButtonVariant::Unstyled,
+                size: ButtonSize::IconLg,
+                radius: ButtonRadius::Lg,
+                align: ButtonAlign::Center,
+                aria_label: Some("Sort".to_string()),
+                title: Some("Sort".to_string()),
+                aria_expanded: Some((if sort_popover() { "true" } else { "false" }).to_string()),
+                class: "inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground".to_string(),
                 onclick: move |_| sort_popover.set(!sort_popover()),
                 ArrowUpDown { size: 16 }
             }
-            if sort_popover() {
-                div {
-                    class: "absolute left-0 top-full z-50 mt-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2 sm:left-auto sm:right-0",
-                    onclick: move |e| e.stop_propagation(),
+            Popover {
+                open: sort_popover(),
+                on_close: move |_| sort_popover.set(false),
+                align: PopoverAlign::CenterSm,
+                class: "w-[min(13rem,calc(100vw-2rem))] space-y-2 p-3".to_string(),
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
                     SelectMenu {
                         value: sort_field(),
@@ -408,22 +422,25 @@ pub fn DebtsPage() -> Element {
                         on_change: move |value: String| sort_field.set(value),
                         searchable: false,
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 w-full items-center justify-between rounded-md border bg-background px-2 text-sm",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        full_width: true,
+                        align: ButtonAlign::Between,
                         onclick: move |_| sort_direction.set(if sort_direction() == "asc" { "desc".into() } else { "asc".into() }),
                         span { if sort_direction() == "asc" { "Ascending" } else { "Descending" } }
                         span { if sort_direction() == "asc" { "↑" } else { "↓" } }
                     }
-                }
-                div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }
             }
         }
-        button {
-            r#type: "button",
-            aria_label: if selection_mode() { "Exit selection mode" } else { "Enter selection mode" },
-            aria_pressed: if selection_mode() { "true" } else { "false" },
-            class: if selection_mode() { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+        Button {
+            variant: ButtonVariant::Unstyled,
+            size: ButtonSize::IconLg,
+            radius: ButtonRadius::Lg,
+            align: ButtonAlign::Center,
+            aria_label: Some((if selection_mode() { "Exit selection mode" } else { "Enter selection mode" }).to_string()),
+            aria_pressed: Some((if selection_mode() { "true" } else { "false" }).to_string()),
+            class: (if selection_mode() { "inline-flex items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary" } else { "inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" }).to_string(),
             onclick: move |_| selection_mode.toggle(),
             svg {
                 view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2",
@@ -468,14 +485,17 @@ pub fn DebtsPage() -> Element {
 
     rsx! {
         div { class: "p-4 md:p-6 flex flex-col gap-6 page-enter",
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
-                PageHeader { title: "Debts", subtitle: "Money you owe, manual or paid automatically" }
-                button {
-                    class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                    onclick: move |_| open_create.call(()),
-                    Plus { size: 16 }
-                    "Add Debt"
-                }
+            PageHeader {
+                title: "Debts",
+                subtitle: "Money you owe, manual or paid automatically",
+                actions: rsx! {
+                    Button {
+                        class: "hidden md:inline-flex",
+                        onclick: move |_| open_create.call(()),
+                        Plus { size: 16 }
+                        "Add Debt"
+                    }
+                },
             }
 
             if !DEBTS().debts.is_empty() {
@@ -494,9 +514,9 @@ pub fn DebtsPage() -> Element {
                     span { class: "text-sm font-medium",
                         if selected().is_empty() { "Select debts" } else { "{selected().len()} selected" }
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         onclick: move |_| {
                             if selected().len() == visible_ids.len() { selected.write().clear(); }
                             else { for id in &visible_ids { selected.write().insert(*id); } }
@@ -515,9 +535,9 @@ pub fn DebtsPage() -> Element {
                         placeholder: "Set category…",
                         class: "w-44",
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: bulk_busy() || selected().is_empty() || bulk_category().is_empty(),
                         onclick: move |_| {
                             if bulk_busy() || bulk_category().is_empty() { return; }
@@ -538,17 +558,19 @@ pub fn DebtsPage() -> Element {
                         },
                         "Apply category"
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        class: "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15",
                         disabled: bulk_busy() || selected().is_empty(),
                         onclick: move |_| bulk_delete.call(()),
                         Trash { size: 13 }
                         "Delete"
                     }
-                    button {
-                        r#type: "button",
-                        class: "ml-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                    Button {
+                        variant: ButtonVariant::Ghost,
+                        size: ButtonSize::Sm,
+                        class: "ml-auto text-muted-foreground",
                         onclick: move |_| { selected.write().clear(); selection_mode.set(false); },
                         "Clear"
                     }
@@ -570,9 +592,8 @@ pub fn DebtsPage() -> Element {
                             "Add a manual debt or let an automatic debt pay itself month by month."
                         }
                     }
-                    button {
-                        r#type: "button",
-                        class: "hidden md:inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                    Button {
+                        class: "hidden md:inline-flex",
                         onclick: move |_| open_create.call(()),
                         Plus { size: 16 }
                         "Add Debt"
@@ -582,9 +603,9 @@ pub fn DebtsPage() -> Element {
                 div { class: "rounded-xl border border-border/40 bg-card/80 p-8 flex flex-col items-center gap-3",
                     Wallet { size: 36 }
                     p { class: "text-lg font-medium", "No debts match your search" }
-                    button {
-                        r#type: "button",
-                        class: "text-sm text-primary hover:underline",
+                    Button {
+                        variant: ButtonVariant::Link,
+                        size: ButtonSize::Sm,
                         onclick: move |_| {
                             query.set(String::new());
                             type_filter.set(None);
@@ -617,28 +638,23 @@ pub fn DebtsPage() -> Element {
                 on_close: move |_| dialog_open.set(false),
                 title: if editing_id().is_some() { "Edit Debt".to_string() } else { "Add Debt".to_string() },
                 div { class: "space-y-4",
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Name " span { class: "text-destructive", "*" } }
-                        input {
-                            class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
+                    Field { label: "Name", required: true,
+                        Input {
                             value: name(),
-                            oninput: move |e| name.set(e.value()),
+                            on_input: move |value| name.set(value),
                             placeholder: "Mortgage, car loan…",
                         }
                     }
                     div { class: "grid grid-cols-2 gap-3",
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Total owed " span { class: "text-destructive", "*" } }
-                            input {
+                        Field { label: "Total owed", required: true,
+                            Input {
                                 r#type: "number",
                                 step: "0.01",
-                                class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
                                 value: total(),
-                                oninput: move |e| total.set(e.value()),
+                                on_input: move |value| total.set(value),
                             }
                         }
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
+                        Field { label: "Currency", required: true,
                             SelectMenu {
                                 value: currency(),
                                 options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
@@ -647,8 +663,7 @@ pub fn DebtsPage() -> Element {
                             }
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Type" }
+                    Field { label: "Type",
                         SelectMenu {
                             value: debt_type(),
                             options: vec![
@@ -671,40 +686,31 @@ pub fn DebtsPage() -> Element {
                     }
                     if debt_type() == crate::utils::constants::DEBT_TYPE_AUTOMATIC {
                         div { class: "grid grid-cols-2 gap-3",
-                            div { class: "space-y-1.5",
-                                label { class: "text-sm font-medium", "Monthly payment " span { class: "text-destructive", "*" } }
-                                input {
+                            Field { label: "Monthly payment", required: true,
+                                Input {
                                     r#type: "number",
                                     step: "0.01",
-                                    class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
                                     value: monthly_payment(),
-                                    oninput: move |e| monthly_payment.set(e.value()),
+                                    on_input: move |value| monthly_payment.set(value),
                                 }
                             }
-                            div { class: "space-y-1.5",
-                                label { class: "text-sm font-medium", "First payment" }
-                                input {
-                                    r#type: "date",
-                                    class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
+                            Field { label: "First payment",
+                                DatePicker {
                                     value: start_date(),
-                                    oninput: move |e| start_date.set(e.value()),
+                                    on_input: move |value| start_date.set(value),
                                 }
                             }
                         }
-                        div { class: "space-y-1.5",
-                            label { class: "text-sm font-medium", "Charge days" }
+                    Field { label: "Charge days",
                             div { class: "flex flex-wrap gap-1",
                                 for day in 1..=31u8 {
                                     {
                                         let selected = payment_days().contains(&day);
                                         rsx! {
-                                            button {
-                                                r#type: "button",
-                                                class: if selected {
-                                                    "h-8 w-8 rounded-md bg-primary text-xs font-semibold text-primary-foreground"
-                                                } else {
-                                                    "h-8 w-8 rounded-md border border-border/60 text-xs font-medium text-muted-foreground hover:bg-accent"
-                                                },
+                                            Button {
+                                                variant: ButtonVariant::Unstyled,
+                                                size: ButtonSize::Unstyled,
+                                                class: (if selected { "h-8 w-8 rounded-md bg-primary text-xs font-semibold text-primary-foreground" } else { "h-8 w-8 rounded-md border border-border/60 text-xs font-medium text-muted-foreground hover:bg-accent" }).to_string(),
                                                 onclick: move |_| {
                                                     let mut days = payment_days();
                                                     if days.contains(&day) {
@@ -723,13 +729,14 @@ pub fn DebtsPage() -> Element {
                                 if payment_days().iter().any(|day| *day >= 29)
                                     || payment_days().contains(&0)
                                 {
-                                    button {
-                                        r#type: "button",
-                                        class: if payment_days().contains(&0) {
+                                    Button {
+                                        variant: ButtonVariant::Unstyled,
+                                        size: ButtonSize::Unstyled,
+                                        class: (if payment_days().contains(&0) {
                                             "h-8 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground"
                                         } else {
                                             "h-8 rounded-md border border-border/60 px-2 text-xs font-medium text-muted-foreground hover:bg-accent"
-                                        },
+                                        }).to_string(),
                                         onclick: move |_| {
                                             let mut days = payment_days();
                                             if days.contains(&0) {
@@ -753,32 +760,27 @@ pub fn DebtsPage() -> Element {
                             "This also creates a monthly subscription for the payment."
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Account " span { class: "text-destructive", "*" } }
+                    Field { label: "Account", required: true,
                         AccountCombobox {
                             selected_id: account_id(),
                             on_change: move |id| account_id.set(id),
                             error: None,
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Category" }
+                    Field { label: "Category",
                         CategoryCombobox {
                             selected_id: category_id(),
                             on_change: move |id| category_id.set(id),
                             error: None,
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Notes" }
-                        textarea {
-                            class: "flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                    Field { label: "Notes",
+                        Textarea {
                             value: notes(),
-                            oninput: move |e| notes.set(e.value()),
+                            on_input: move |value| notes.set(value),
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Logo" }
+                    Field { label: "Logo",
                         LogoSearch {
                             selected_url: logo_url(),
                             default_query: name(),
@@ -789,13 +791,12 @@ pub fn DebtsPage() -> Element {
                         p { class: "text-sm text-destructive", {error()} }
                     }
                     div { class: "flex justify-end gap-2 pt-2",
-                        button {
-                            class: "h-10 px-4 rounded-md border text-sm",
+                        Button {
+                            variant: ButtonVariant::Outline,
                             onclick: move |_| dialog_open.set(false),
                             "Cancel"
                         }
-                        button {
-                            class: "h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm disabled:opacity-50",
+                        Button {
                             disabled: saving(),
                             onclick: save,
                             if saving() { "Saving…" } else if editing_id().is_some() { "Save changes" } else { "Add Debt" }
@@ -816,43 +817,41 @@ pub fn DebtsPage() -> Element {
                         }
                     }
                     div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Amount" }
-                        input {
-                            r#type: "number",
-                            step: "0.01",
-                            class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
-                            value: pay_amount(),
-                            oninput: move |e| pay_amount.set(e.value()),
+                        Field { label: "Amount",
+                            Input {
+                                r#type: "number",
+                                step: "0.01",
+                                value: pay_amount(),
+                                on_input: move |value| pay_amount.set(value),
+                            }
                         }
                     }
                     div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Date" }
-                        input {
-                            r#type: "date",
-                            class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
-                            value: pay_date(),
-                            oninput: move |e| pay_date.set(e.value()),
+                        Field { label: "Date",
+                            DatePicker {
+                                value: pay_date(),
+                                on_input: move |value| pay_date.set(value),
+                            }
                         }
                     }
                     div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Note" }
-                        input {
-                            class: "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm",
-                            value: pay_note(),
-                            oninput: move |e| pay_note.set(e.value()),
+                        Field { label: "Note",
+                            Input {
+                                value: pay_note(),
+                                on_input: move |value| pay_note.set(value),
+                            }
                         }
                     }
                     if !pay_error().is_empty() {
                         p { class: "text-sm text-destructive", {pay_error()} }
                     }
                     div { class: "flex justify-end gap-2",
-                        button {
-                            class: "h-10 px-4 rounded-md border text-sm",
+                        Button {
+                            variant: ButtonVariant::Outline,
                             onclick: move |_| pay_open.set(false),
                             "Cancel"
                         }
-                        button {
-                            class: "h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm",
+                        Button {
                             onclick: submit_payment,
                             "Record payment"
                         }
@@ -903,13 +902,13 @@ pub fn DebtsPage() -> Element {
                         }
                     }
                     div { class: "flex justify-end gap-2",
-                        button {
-                            class: "h-10 px-4 rounded-md border text-sm",
+                        Button {
+                            variant: ButtonVariant::Outline,
                             onclick: move |_| delete_open.set(false),
                             "Cancel"
                         }
-                        button {
-                            class: "h-10 px-4 rounded-md bg-destructive text-destructive-foreground text-sm",
+                        Button {
+                            variant: ButtonVariant::Destructive,
                             onclick: move |_| {
                                 let Some(debt) = delete_debt() else { return };
                                 spawn(async move {
@@ -1023,25 +1022,29 @@ fn DebtCard(
             if !selection_mode {
             div { class: "flex items-center justify-end gap-1 border-t border-border/40 pt-2",
                 if debt.is_active {
-                    button {
-                        class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         onclick: move |_| on_pay.call(debt_for_pay.clone()),
                         "Pay"
                     }
                 }
-                button {
-                    class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Sm,
                     onclick: move |_| on_edit.call(debt_for_edit.clone()),
                     "Edit"
                 }
-                button {
-                    class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Sm,
                     onclick: move |_| on_history.call(debt_for_history.clone()),
                     "History"
                 }
-                button {
-                    class: "h-8 w-8 rounded-md text-destructive hover:bg-destructive/10 flex items-center justify-center",
-                    aria_label: "Delete debt",
+                IconButton {
+                    label: "Delete debt".to_string(),
+                    size: ButtonSize::IconSm,
+                    class: "text-destructive".to_string(),
                     onclick: move |_| on_delete.call(debt_for_delete.clone()),
                     Trash { size: 14 }
                 }
@@ -1057,8 +1060,8 @@ mod tests {
     fn debts_toolbar_has_search_filters_and_sort_but_no_view_toggle() {
         let src = include_str!("debts_page.rs");
         assert!(src.contains("ListToolbar"));
-        assert!(src.contains("aria_label: \"Filters\""));
-        assert!(src.contains("aria_label: \"Sort\""));
+        assert!(src.contains("aria_label: Some(\"Filters\".to_string())"));
+        assert!(src.contains("aria_label: Some(\"Sort\".to_string())"));
         assert!(src.contains("show_view: false"));
         assert!(src.contains("visible_debts"));
     }

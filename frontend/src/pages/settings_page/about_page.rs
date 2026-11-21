@@ -1,3 +1,4 @@
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::page_header::PageHeader;
 use crate::pages::settings_page::APP_VERSION;
 use dioxus::prelude::*;
@@ -126,16 +127,17 @@ pub fn AboutPage() -> Element {
                     p { class: "text-sm font-semibold", "What's new" }
                     p { class: "mt-1 text-xs text-muted-foreground", "Release notes for v{displayed_version}" }
                     div { class: "mt-4 flex flex-wrap gap-2",
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            size: ButtonSize::Sm,
                             onclick: move |_| show_notes.toggle(),
                             if show_notes() { "Hide notes" } else { "Show changelog" }
                         }
                         if latest_version != APP_VERSION {
-                            button {
-                                r#type: "button",
-                                class: "inline-flex h-9 items-center rounded-md border border-primary/30 px-3 text-sm font-medium text-primary hover:bg-primary/10",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                size: ButtonSize::Sm,
+                                class: "border-primary/30 text-primary hover:bg-primary/10",
                                 onclick: move |_| {
                                     show_latest.toggle();
                                     show_notes.set(true);
