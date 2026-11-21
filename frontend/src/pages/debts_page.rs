@@ -946,20 +946,18 @@ fn DebtCard(
     let debt_for_history = debt.clone();
     let debt_for_delete = debt.clone();
     let debt_for_edit = debt.clone();
-    let debt_for_checkbox_id = debt.id;
+    let debt_id = debt.id;
+    let selection = crate::components::selection::selection_card_class(selection_mode, selected);
 
     rsx! {
-        div { class: "rounded-xl border border-border/50 bg-card p-4 flex flex-col gap-3",
-            div { class: "flex items-start gap-3",
+        div {
+            class: "rounded-xl border border-border/50 bg-card p-4 flex flex-col gap-3 {selection}",
+            onclick: move |_| {
                 if selection_mode {
-                    input {
-                        r#type: "checkbox",
-                        checked: selected,
-                        aria_label: "Select debt",
-                        class: "mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary",
-                        onchange: move |_| on_select.call(debt_for_checkbox_id),
-                    }
+                    on_select.call(debt_id);
                 }
+            },
+            div { class: "flex items-start gap-3",
                 div { class: "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl overflow-hidden",
                     if let Some(logo) = debt.logo_url.clone() {
                         img { src: logo, alt: debt.name.clone(), class: "h-11 w-11 object-contain" }
@@ -1023,6 +1021,7 @@ fn DebtCard(
                      }}
                 }
             }
+            if !selection_mode {
             div { class: "flex items-center justify-end gap-1 border-t border-border/40 pt-2",
                 if debt.is_active {
                     button {
@@ -1047,6 +1046,7 @@ fn DebtCard(
                     onclick: move |_| on_delete.call(debt_for_delete.clone()),
                     Trash { size: 14 }
                 }
+            }
             }
         }
     }
@@ -1078,7 +1078,8 @@ mod bulk_tests {
         let src = include_str!("debts_page.rs");
         assert!(src.contains("Set category"));
         assert!(src.contains("Apply category"));
-        assert!(src.contains("Select debt"));
+        assert!(src.contains("selection_card_class"));
+        assert!(!src.contains("aria_label: \"Select debt\""));
         assert!(src.contains("Delete"));
     }
 }

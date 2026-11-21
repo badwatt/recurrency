@@ -1794,14 +1794,15 @@ fn transactions_support_bulk_category_and_selection() {
     let src = include_str!("../transactions_page.rs");
     assert!(src.contains("Set category"));
     assert!(src.contains("Apply category"));
-    assert!(src.contains("Select transaction"));
+    assert!(src.contains("selected"));
 }
 
 #[test]
 fn transaction_cards_expose_colored_category_badge() {
     let src = include_str!("cards.rs");
     assert!(src.contains("category.color"));
-    assert!(src.contains("Select transaction"));
+    assert!(src.contains("selection_card_class"));
+    assert!(!src.contains("aria_label: \"Select transaction\""));
 }
 
 

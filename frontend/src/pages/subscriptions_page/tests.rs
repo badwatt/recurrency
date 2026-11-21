@@ -1839,17 +1839,19 @@ fn subscriptions_toolbar_has_search_and_bulk_selection() {
 }
 
 #[test]
-fn subscription_cards_expose_selection_checkbox() {
+fn subscription_cards_use_selection_state_without_checkboxes() {
     let src = include_str!("cards.rs");
-    assert!(src.contains("aria_label: \"Select subscription\""));
+    assert!(src.contains("selection_card_class"));
     assert!(src.contains("on_select.call"));
+    assert!(!src.contains("aria_label: \"Select subscription\""));
 }
 
 #[test]
-fn selection_checkboxes_only_appear_in_selection_mode() {
+fn selection_mode_dims_cards_and_keeps_the_selection_toolbar() {
     let cards = include_str!("cards.rs");
     let page = include_str!("../subscriptions_page.rs");
-    assert!(cards.contains("if selection_mode"));
+    assert!(cards.contains("selection_card_class"));
+    assert!(cards.contains("if !selection_mode"));
     assert!(page.contains("selection_mode.set(true)"));
     assert!(page.contains("selection_mode.set(false)"));
 }

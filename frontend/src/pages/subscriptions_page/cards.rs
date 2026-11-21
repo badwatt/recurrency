@@ -17,7 +17,12 @@ pub fn render_grid_card(
 ) -> Element {
     let today = chrono::Utc::now().date_naive();
     let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
-    let opacity = subscription_card_opacity(sub.is_active, finalized);
+    let base_opacity = if selection_mode {
+        ""
+    } else {
+        subscription_card_opacity(sub.is_active, finalized)
+    };
+    let selection = crate::components::selection::selection_card_class(selection_mode, selected);
     let date_format = PREFERENCES().date_format();
     let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
     if finalized {
@@ -95,8 +100,13 @@ pub fn render_grid_card(
 
     rsx! {
         div {
-            class: "group relative overflow-hidden rounded-xl border {card_border} bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {opacity}",
+            class: "group relative overflow-hidden rounded-xl border {card_border} bg-card/80 hover:bg-card hover:scale-[1.02] transition-all duration-300 {base_opacity} {selection}",
             style: "animation: fadeSlideIn 0.5s ease-out both; animation-delay: {stagger_delay}ms;",
+            onclick: move |_| {
+                if selection_mode {
+                    on_select.call(id_for_select);
+                }
+            },
 
             // Logo-derived ambient color wash. Inline styles are intentional:
             // Android WebView must apply the opacity/blur even when arbitrary
@@ -127,15 +137,6 @@ pub fn render_grid_card(
                 // Top row: logo + status badge
                 div { class: "flex items-start justify-between gap-2",
                     div { class: "flex items-center gap-2",
-                        if selection_mode {
-                            input {
-                                r#type: "checkbox",
-                                checked: selected,
-                                aria_label: "Select subscription",
-                                class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
-                                onchange: move |_| on_select.call(id_for_select),
-                            }
-                        }
                         div { class: "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden",
                             {logo_image_with_fallback(&format!("card-{}", sub.id), logo_url.as_deref(), &name, "h-12 w-12 object-contain")}
                             if logo_url.is_none() {
@@ -194,6 +195,7 @@ pub fn render_grid_card(
                 }
 
                 // Action buttons
+                if !selection_mode {
                 div { class: "flex items-center gap-0.5 mt-auto pt-1",
                     button {
                         class: "h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors duration-200",
@@ -225,6 +227,7 @@ pub fn render_grid_card(
                         Trash { size: 14 }
                     }
                 }
+                }
             }
         }
     }
@@ -246,7 +249,12 @@ pub fn render_list_card(
 ) -> Element {
     let today = chrono::Utc::now().date_naive();
     let finalized = subscription_is_finalized(sub.is_active, sub.end_date, today);
-    let opacity = subscription_card_opacity(sub.is_active, finalized);
+    let base_opacity = if selection_mode {
+        ""
+    } else {
+        subscription_card_opacity(sub.is_active, finalized)
+    };
+    let selection = crate::components::selection::selection_card_class(selection_mode, selected);
     let date_format = PREFERENCES().date_format();
     let mut next_text = subscription_next_text(sub.is_active, sub.next_billing_date, &date_format);
     if finalized {
@@ -307,18 +315,15 @@ pub fn render_list_card(
     };
 
     rsx! {
-        div { class: "rounded-lg border {card_border} bg-card {opacity} min-w-0",
+        div {
+            class: "rounded-lg border {card_border} bg-card {base_opacity} {selection} min-w-0",
+            onclick: move |_| {
+                if selection_mode {
+                    on_select.call(id_for_select);
+                }
+            },
             div { class: "p-3 sm:p-4",
                 div { class: "flex items-center gap-2 sm:gap-4",
-                    if selection_mode {
-                        input {
-                            r#type: "checkbox",
-                            checked: selected,
-                            aria_label: "Select subscription",
-                            class: "h-4 w-4 shrink-0 cursor-pointer accent-primary",
-                            onchange: move |_| on_select.call(id_for_select),
-                        }
-                    }
                     div { class: "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full overflow-hidden",
                         {logo_image_with_fallback(&format!("list-{}", sub.id), logo_url.as_deref(), &name, "h-9 w-9 sm:h-10 sm:w-10 object-contain")}
                         if logo_url.is_none() {
@@ -367,14 +372,18 @@ pub fn render_list_card(
 
                     div { class: "hidden sm:flex items-center gap-4 shrink-0",
                         p { class: "font-medium text-base", ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() } }
-                        {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                        if !selection_mode {
+                            {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                        }
                     }
                 }
 
                 // Mobile: actions get their own row so the name has the full width.
                 div { class: "mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-2 sm:hidden",
                     p { class: "font-semibold text-base", ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() } }
-                    {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                    if !selection_mode {
+                        {render_list_actions(sub, on_edit, on_delete, on_toggle, on_notes, on_duplicate)}
+                    }
                 }
             }
         }

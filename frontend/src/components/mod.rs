@@ -15,6 +15,7 @@ pub use list_toolbar::ListToolbar;
 pub mod logo_image;
 pub mod logo_search;
 pub mod select;
+pub mod selection;
 pub mod server_url;
 pub mod theme_picker;
 pub mod toast;
