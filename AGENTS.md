@@ -29,6 +29,10 @@
 
 - ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix` para añadir dependencias en la shell.
 - ⛔ **NUNCA** usar `unsafe`. Cero tolerancia.
+- ⛔ **NUNCA** `.unwrap()` ni `.expect()` en código de producción. Usar `?`, `match` o un fallback explícito.
+- ⛔ **NUNCA** `.clone()` para callar al borrow checker. Clonar solo datos pequeños, inmutables o cuando el ownership lo exija (callbacks `move`, señales Dioxus, handles `PgPool`), dejando el motivo claro cuando no sea obvio.
+- ⛔ **NUNCA** `Arc`/`Rc` en firmas públicas. Usarlos solo para propiedad compartida real, encapsulados (`AppState`, callbacks nativos).
+- ⛔ En tests: prohibido `unsafe`; `unwrap()` solo para fixtures y con un mensaje que explique qué se esperaba. Los helpers no deben ocultar fallos.
 - ⛔ **SIEMPRE** mantener dependencias lo más actualizadas posible.
 - ⛔ **SIEMPRE** 100% coverage en tests. Sin excepciones.
 - ⛔ **SIEMPRE** TDD. Red-Green-Refactor. Test primero, código después.
@@ -210,13 +214,13 @@ impl SubscriptionServiceTrait for SqlxSubscriptionService {
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
-    pub auth_service: Arc<dyn AuthServiceTrait>,
-    pub subscription_service: Arc<dyn SubscriptionServiceTrait>,
-    pub transaction_service: Arc<dyn TransactionServiceTrait>,
-    pub category_service: Arc<dyn CategoryServiceTrait>,
-    pub notification_service: Arc<dyn NotificationServiceTrait>,
-    pub report_service: Arc<dyn ReportServiceTrait>,
-    pub preferences_service: Arc<dyn PreferencesServiceTrait>,
+    pub(crate) auth_service: Arc<dyn AuthServiceTrait>,
+    pub(crate) subscription_service: Arc<dyn SubscriptionServiceTrait>,
+    pub(crate) transaction_service: Arc<dyn TransactionServiceTrait>,
+    pub(crate) category_service: Arc<dyn CategoryServiceTrait>,
+    pub(crate) notification_service: Arc<dyn NotificationServiceTrait>,
+    pub(crate) report_service: Arc<dyn ReportServiceTrait>,
+    pub(crate) preferences_service: Arc<dyn PreferencesServiceTrait>,
 }
 ```
 
@@ -235,7 +239,10 @@ impl SubscriptionServiceTrait for MockSubscriptionService {
             return Err(AppError::Internal("mock error".into()));
         }
         let sub = Subscription { /* ... */ };
-        self.mock_subscriptions.lock().unwrap().push(sub.clone());
+        self.mock_subscriptions
+            .lock()
+            .expect("mock state lock")
+            .push(sub.clone()); // fixture copy returned to the test
         Ok(sub.into())
     }
     // ...
