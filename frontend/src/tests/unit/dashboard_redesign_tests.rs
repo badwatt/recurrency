@@ -35,7 +35,7 @@ fn dashboard_has_staggered_animation_classes() {
     let has_anim = dashboard.contains("animate")
         || dashboard.contains("opacity-0")
         || dashboard.contains("translate-y")
-        || dashboard.contains("fade-in")
+        || dashboard.contains("page-enter")
         || dashboard.contains("stagger");
     assert!(
         has_anim,
@@ -131,5 +131,23 @@ fn dashboard_has_one_upcoming_list_and_no_manual_panel() {
     assert!(
         production.contains("One-time"),
         "one-time transactions must be identifiable in the upcoming list"
+    );
+}
+
+#[test]
+fn dashboard_ledger_switches_between_accounts_and_categories() {
+    let dashboard = include_str!("../../pages/dashboard.rs");
+    let production = dashboard.split("#[cfg(test)]").next().unwrap_or(dashboard);
+    assert!(
+        production.contains("LedgerView::Accounts"),
+        "the ledger must default to the accounts view"
+    );
+    assert!(
+        production.contains("LedgerView::Categories"),
+        "the ledger must offer a categories view"
+    );
+    assert!(
+        production.contains("This month's charges grouped by category."),
+        "the categories view must explain what it shows"
     );
 }

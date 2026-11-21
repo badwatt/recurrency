@@ -8,9 +8,11 @@ use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
 use crate::models::account::Account;
+use crate::models::category::Category;
 use crate::models::subscription::Subscription;
 use crate::models::transaction::Transaction;
 use crate::state::accounts::ACCOUNTS;
+use crate::state::categories::CATEGORIES;
 use crate::state::auth::AUTH;
 use crate::state::rates::RatesState;
 use crate::state::subscriptions::SUBSCRIPTIONS;
@@ -388,6 +390,91 @@ pub fn total_pending(plan: &[AccountBudget]) -> Decimal {
     plan.iter().map(|b| b.pending).sum()
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct CategoryBudget {
+    pub category_id: Uuid,
+    pub name: String,
+    pub color: String,
+    pub icon: String,
+    pub amount: Decimal,
+    pub pending: Decimal,
+    pub charge_count: usize,
+}
+
+/// Build the current month's charges grouped by category.
+pub fn build_category_budgets(
+    categories: &[Category],
+    subscriptions: &[Subscription],
+    transactions: &[Transaction],
+    year: i32,
+    month: u32,
+    pending_from: Option<NaiveDate>,
+    rates: &RatesState,
+) -> Vec<CategoryBudget> {
+    let mut plan: HashMap<Uuid, CategoryBudget> = HashMap::new();
+
+    let mut add = |category_id: Uuid, amount: Decimal, pending: bool| {
+        let category = categories.iter().find(|category| category.id == category_id);
+        let entry = plan.entry(category_id).or_insert_with(|| CategoryBudget {
+            category_id,
+            name: category
+                .map(|category| category.name.clone())
+                .unwrap_or_else(|| "Uncategorized".to_string()),
+            color: category
+                .and_then(|category| category.color.clone())
+                .unwrap_or_else(|| "#6b7280".to_string()),
+            icon: category
+                .and_then(|category| category.icon.clone())
+                .unwrap_or_else(|| "Tag".to_string()),
+            amount: Decimal::ZERO,
+            pending: Decimal::ZERO,
+            charge_count: 0,
+        });
+        entry.amount += amount;
+        entry.charge_count += 1;
+        if pending {
+            entry.pending += amount;
+        }
+    };
+
+    for subscription in subscriptions.iter().filter(|subscription| subscription.is_active) {
+        let occurrences = crate::utils::recurrence::occurrences_in_month(
+            subscription.start_date,
+            &subscription.recurrence,
+            subscription.end_date,
+            year,
+            month,
+            subscription.amount,
+        );
+        for (date, amount) in occurrences {
+            add(
+                subscription.category_id,
+                rates.convert(amount, &subscription.currency),
+                pending_from.is_some_and(|cutoff| date >= cutoff),
+            );
+        }
+    }
+
+    for transaction in transactions
+        .iter()
+        .filter(|transaction| transaction.date.year() == year && transaction.date.month() == month)
+    {
+        add(
+            transaction.category_id,
+            rates.convert(transaction.amount, &transaction.currency),
+            pending_from.is_some_and(|cutoff| transaction.date > cutoff),
+        );
+    }
+
+    let mut result: Vec<CategoryBudget> = plan.into_values().collect();
+    result.sort_by(|a, b| {
+        b.amount
+            .cmp(&a.amount)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    result
+}
+
 /// Share of the fixed budget that is still pending from today, capped at 100.
 pub fn pending_ratio(budget: Decimal, pending: Decimal) -> f64 {
     if budget <= Decimal::ZERO {
@@ -437,6 +524,12 @@ pub struct UpcomingPayment {
     pub date: NaiveDate,
     pub logo_url: Option<String>,
     pub is_transaction: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LedgerView {
+    Accounts,
+    Categories,
 }
 
 /// Merge active subscriptions and future one-time transactions into one
@@ -502,6 +595,9 @@ pub fn Dashboard() -> Element {
             if TRANSACTIONS().transactions.is_empty() {
                 TRANSACTIONS.write().set_loading();
             }
+            if CATEGORIES().categories.is_empty() {
+                CATEGORIES.write().set_loading();
+            }
 
             match Storage::list_accounts().await {
                 Ok(data) => ACCOUNTS.write().set_data(data),
@@ -515,12 +611,17 @@ pub fn Dashboard() -> Element {
                 Ok(data) => TRANSACTIONS.write().set_data(data),
                 Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
             }
+            match Storage::list_categories().await {
+                Ok(data) => CATEGORIES.write().set_data(data),
+                Err(e) => CATEGORIES.write().set_error(e.to_string()),
+            }
         });
     });
 
     let accounts_state = ACCOUNTS();
     let sub_state = SUBSCRIPTIONS();
     let txns_state = TRANSACTIONS();
+    let categories_state = CATEGORIES();
     let auth_state = AUTH();
 
     let today = Local::now().date_naive();
@@ -559,15 +660,38 @@ pub fn Dashboard() -> Element {
     let upcoming_top5: Vec<_> = upcoming.iter().take(5).collect();
 
     let mut hovered_account = use_signal(|| None::<Uuid>);
+    let mut ledger_view = use_signal(|| LedgerView::Accounts);
+    let category_plan = build_category_budgets(
+        &categories_state.categories,
+        &sub_state.subscriptions,
+        &txns_state.transactions,
+        today.year(),
+        today.month(),
+        Some(today),
+        &crate::state::rates::RATES(),
+    );
+    let category_total: Decimal = category_plan.iter().map(|category| category.amount).sum();
+    let category_pending_total: Decimal = category_plan.iter().map(|category| category.pending).sum();
+    let category_activity_label = if category_plan.len() == 1 {
+        "1 category with activity".to_string()
+    } else {
+        format!("{} categories with activity", category_plan.len())
+    };
+    let category_count_label = if category_plan.len() == 1 {
+        "1 category".to_string()
+    } else {
+        format!("{} categories", category_plan.len())
+    };
 
     let is_loading = (sub_state.is_loading && sub_state.subscriptions.is_empty())
         || (accounts_state.is_loading && accounts_state.accounts.is_empty())
-        || (txns_state.is_loading && txns_state.transactions.is_empty());
+        || (txns_state.is_loading && txns_state.transactions.is_empty())
+        || (categories_state.is_loading && categories_state.categories.is_empty());
 
     let nav = navigator();
 
     rsx! {
-        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 page-enter",
             // Header
             div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
                 div {
@@ -808,17 +932,43 @@ pub fn Dashboard() -> Element {
 
                 // Account ledger, pinned to the right on desktop and kept first on mobile.
                 div { class: "order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2",
-                    div { class: "p-5 md:p-6 pb-3 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2",
-                        div {
-                            h2 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]",
-                                "Transfer by account"
+                    div { class: "p-5 md:p-6 pb-3 flex flex-col gap-3",
+                        div { class: "flex items-start justify-between gap-3",
+                            div {
+                                h2 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]",
+                                    {if ledger_view() == LedgerView::Accounts { "Transfer by account" } else { "Categories" }}
+                                }
+                                p { class: "text-sm text-muted-foreground mt-1",
+                                    {if ledger_view() == LedgerView::Accounts {
+                                        "Actual charges this month and pending from today."
+                                    } else {
+                                        "This month's charges grouped by category."
+                                    }}
+                                }
                             }
-                            p { class: "text-sm text-muted-foreground mt-1",
-                                "Actual charges this month and pending from today."
+                            div { class: "inline-flex shrink-0 rounded-md border border-border/60 bg-muted/30 p-0.5", role: "tablist", aria_label: "Transfer view",
+                                for (view, label) in [(LedgerView::Accounts, "Accounts"), (LedgerView::Categories, "Categories")] {
+                                    button {
+                                        r#type: "button",
+                                        role: "tab",
+                                        aria_selected: if ledger_view() == view { "true" } else { "false" },
+                                        class: if ledger_view() == view {
+                                            "rounded px-2 py-1 text-[10px] font-semibold text-foreground bg-background shadow-sm"
+                                        } else {
+                                            "rounded px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                                        },
+                                        onclick: move |_| ledger_view.set(view),
+                                        {label}
+                                    }
+                                }
                             }
                         }
                         p { class: "text-xs text-muted-foreground",
-                            "{accounts_with_pending} accounts with pending payments"
+                            {if ledger_view() == LedgerView::Accounts {
+                                format!("{accounts_with_pending} accounts with pending payments")
+                            } else {
+                                category_activity_label.clone()
+                            }}
                         }
                     }
 
@@ -828,8 +978,9 @@ pub fn Dashboard() -> Element {
                                 DashboardRowSkeleton {}
                             }
                         }
-                    } else if visible.is_empty() {
-                        div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
+                    } else if ledger_view() == LedgerView::Accounts {
+                        if visible.is_empty() {
+                            div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
                             div { class: "h-12 w-12 rounded-full bg-muted flex items-center justify-center",
                                 {icon_display("Wallet")}
                             }
@@ -947,6 +1098,83 @@ pub fn Dashboard() -> Element {
                                 div { class: "text-right",
                                     p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
                                     p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(pending_total, &currency)}" }
+                                }
+                            }
+                        }
+                    }
+                    } else if category_plan.is_empty() {
+                        div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
+                            div { class: "h-12 w-12 rounded-full bg-muted flex items-center justify-center",
+                                {icon_display("Tag")}
+                            }
+                            p { class: "text-base font-medium", "No charges this month" }
+                            p { class: "text-sm text-muted-foreground max-w-md",
+                                "Subscriptions and one-time payments will appear grouped by category here."
+                            }
+                        }
+                    } else {
+                        div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_6rem_6rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Category" }
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Amount" }
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Pending" }
+                        }
+                        div { class: "divide-y divide-border/50",
+                            for category in category_plan.iter() {
+                                {
+                                    let pending_class = if category.pending > Decimal::ZERO {
+                                        "text-sm font-semibold font-mono tabular-nums text-foreground"
+                                    } else {
+                                        "text-sm font-semibold font-mono tabular-nums text-muted-foreground"
+                                    };
+                                    rsx! {
+                                        div {
+                                            key: "{category.category_id}",
+                                            class: "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 transition-colors",
+                                            div { class: "col-span-2 sm:col-span-1 flex items-center gap-3 min-w-0",
+                                                div {
+                                                    class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                                                    style: "background-color: {category.color}20; color: {category.color};",
+                                                    {icon_display(&category.icon)}
+                                                }
+                                                div { class: "min-w-0",
+                                                    p { class: "text-sm font-semibold text-foreground truncate", {category.name.clone()} }
+                                                    p { class: "text-xs text-muted-foreground truncate",
+                                                        {format!("{} charges", category.charge_count)}
+                                                    }
+                                                }
+                                            }
+                                            div { class: "text-left sm:text-right",
+                                                p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Amount" }
+                                                p { class: "amount-sensitive text-sm font-semibold font-mono tabular-nums text-foreground",
+                                                    {format_currency(category.amount, &currency)}
+                                                }
+                                            }
+                                            div { class: "text-right",
+                                                p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                                p { class: format!("amount-sensitive {pending_class}"),
+                                                    {format_currency(category.pending, &currency)}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        div { class: "px-5 md:px-6 py-4 bg-muted/30 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+                            div {
+                                p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "This month" }
+                                p { class: "text-xs text-muted-foreground",
+                                    {category_count_label.clone()}
+                                }
+                            }
+                            div { class: "flex items-center gap-8 sm:gap-12",
+                                div { class: "text-left sm:text-right",
+                                    p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Amount" }
+                                    p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(category_total, &currency)}" }
+                                }
+                                div { class: "text-right",
+                                    p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                    p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(category_pending_total, &currency)}" }
                                 }
                             }
                         }
@@ -1278,6 +1506,51 @@ mod tests {
         assert_eq!(payments[2].date, date(2026, 11, 25));
         assert!(!payments[2].is_transaction);
         assert_eq!(payments[2].amount, dec!(10));
+    }
+
+    #[test]
+    fn category_budgets_group_charges_and_pending() {
+        let main = account("Main");
+        let main_id = main.id;
+        let food = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Food".into(),
+            icon: Some("Utensils".into()),
+            color: Some("#ef4444".into()),
+            is_system: false,
+            is_default: false,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        };
+        let food_id = food.id;
+        let today = date(2026, 11, 21);
+        let mut sub = subscription(
+            main_id,
+            dec!(10),
+            "monthly",
+            date(2026, 11, 25),
+            Some(date(2026, 11, 25)),
+            true,
+        );
+        sub.category_id = food_id;
+        let mut txn = transaction(main_id, dec!(4), date(2026, 11, 22));
+        txn.category_id = food_id;
+
+        let plan = build_category_budgets(
+            std::slice::from_ref(&food),
+            &[sub],
+            &[txn],
+            2026,
+            11,
+            Some(today),
+            &RatesState::default(),
+        );
+        assert_eq!(plan.len(), 1);
+        assert_eq!(plan[0].name, "Food");
+        assert_eq!(plan[0].amount, dec!(14));
+        assert_eq!(plan[0].pending, dec!(14));
+        assert_eq!(plan[0].charge_count, 2);
     }
 
     #[test]
