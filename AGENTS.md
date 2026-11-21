@@ -28,11 +28,11 @@
 ## Reglas Absolutas
 
 - ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix` para añadir dependencias en la shell.
-- ⛔ **NUNCA** usar `unsafe`. Cero tolerancia.
+- ⛔ **NUNCA** usar `unsafe`, `Box` (como smart pointer), `Box::leak`, punteros raw, `transmute`, `mem::forget`, `ManuallyDrop`, `MaybeUninit` ni ninguna construcción insegura. Cero tolerancia.
+- ✅ Para propiedad compartida usar **`Arc` explícito**. Es preferible a `Box`, `Rc`, leaks o estado global, y debe verse claramente en el código (`Arc<dyn Trait>` en `AppState`, callbacks nativos, etc.).
 - ⛔ **NUNCA** `.unwrap()` ni `.expect()` en código de producción. Usar `?`, `match` o un fallback explícito.
 - ⛔ **NUNCA** `.clone()` para callar al borrow checker. Clonar solo datos pequeños, inmutables o cuando el ownership lo exija (callbacks `move`, señales Dioxus, handles `PgPool`), dejando el motivo claro cuando no sea obvio.
-- ⛔ **NUNCA** `Arc`/`Rc` en firmas públicas. Usarlos solo para propiedad compartida real, encapsulados (`AppState`, callbacks nativos).
-- ⛔ En tests: prohibido `unsafe`; `unwrap()` solo para fixtures y con un mensaje que explique qué se esperaba. Los helpers no deben ocultar fallos.
+- ⛔ En tests: prohibido `unsafe` y `Box` como smart pointer; `unwrap()` solo para fixtures y con un mensaje que explique qué se esperaba. Los helpers no deben ocultar fallos.
 - ⛔ **SIEMPRE** mantener dependencias lo más actualizadas posible.
 - ⛔ **SIEMPRE** 100% coverage en tests. Sin excepciones.
 - ⛔ **SIEMPRE** TDD. Red-Green-Refactor. Test primero, código después.
@@ -388,7 +388,7 @@ git add -A && git commit -m "feat(scope): description"
 - No dejar código comentado u obsoleto
 - ⛔ **NINGÚN error ni warning**. Incluye `cargo clippy`. Cero tolerancia.
 - `cargo fmt` antes de commit
-- ⛔ **NUNCA** `unsafe`. Refactorizar para evitarlo.
+- ⛔ **NUNCA** `unsafe` ni `Box` como smart pointer. Usar `Arc` explícito para propiedad compartida y refactorizar cualquier construcción insegura.
 - ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix`.
 - ⛔ **NUNCA** bump de `VERSION` sin consultar al usuario.
 - ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions.
