@@ -298,8 +298,9 @@ pub fn TransactionDialog(
                     }
                 }
                 // Date
-                Field  { label: "Date", required: true, error: date_error(),
+                Field  { label: "Date", html_for: "transaction-date", required: true, error: date_error(),
                     DatePicker {
+                        id: "transaction-date",
                         value: form_date.to_string(),
                         on_input: move |value| {
                             form_date.set(value);

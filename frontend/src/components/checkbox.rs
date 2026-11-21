@@ -11,10 +11,14 @@ pub fn Checkbox(
     #[props(default)] disabled: bool,
     #[props(default)] class: String,
 ) -> Element {
+    let generated_id = use_hook(|| format!("checkbox-{}", uuid::Uuid::new_v4()));
+    let field_id = if id.is_empty() { generated_id } else { id };
+    let field_name = field_id.clone();
     let input = rsx! {
         input {
             r#type: "checkbox",
-            id: id.clone(),
+            id: field_id.clone(),
+            name: field_name,
             checked,
             disabled,
             class: "h-4 w-4 rounded border-border accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 {class}",
@@ -25,7 +29,7 @@ pub fn Checkbox(
         input
     } else {
         rsx! {
-            label { r#for: id, class: "inline-flex cursor-pointer items-center gap-2 text-sm font-medium",
+            label { r#for: field_id, class: "inline-flex cursor-pointer items-center gap-2 text-sm font-medium",
                 {input}
                 {label}
             }

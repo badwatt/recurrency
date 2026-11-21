@@ -694,8 +694,9 @@ pub fn DebtsPage() -> Element {
                                     on_input: move |value| monthly_payment.set(value),
                                 }
                             }
-                            Field { label: "First payment",
+                            Field { label: "First payment", html_for: "debt-first-payment",
                                 DatePicker {
+                                    id: "debt-first-payment",
                                     value: start_date(),
                                     on_input: move |value| start_date.set(value),
                                 }
@@ -827,8 +828,9 @@ pub fn DebtsPage() -> Element {
                         }
                     }
                     div { class: "space-y-1.5",
-                        Field { label: "Date",
+                        Field { label: "Date", html_for: "debt-payment-date",
                             DatePicker {
+                                id: "debt-payment-date",
                                 value: pay_date(),
                                 on_input: move |value| pay_date.set(value),
                             }

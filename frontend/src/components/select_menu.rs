@@ -35,7 +35,8 @@ pub fn SelectMenu(
     let placeholder = placeholder.unwrap_or_else(|| "Select...".to_string());
     let disabled = disabled.unwrap_or(false);
     let extra_class = class.unwrap_or_default();
-    let button_id = id.unwrap_or_default();
+    let generated_id = use_hook(|| format!("select-menu-{}", uuid::Uuid::new_v4()));
+    let button_id = id.unwrap_or(generated_id);
     let mut open = use_signal(|| false);
     let mut query = use_signal(String::new);
     let filter_id = use_signal(|| format!("select-filter-{}", uuid::Uuid::new_v4()));

@@ -261,6 +261,9 @@ pub fn LogoSearch(
                         "Upload image"
                         input {
                             r#type: "file",
+                            id: "logo-file",
+                            name: "logo",
+                            autocomplete: "off",
                             accept: "image/*",
                             aria_label: "Upload logo image",
                             class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",

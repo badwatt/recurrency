@@ -146,6 +146,9 @@ pub fn BackupRestoreCard(
                                 "Choose file"
                                 input {
                                     r#type: "file",
+                                    id: "backup-file",
+                                    name: "backup",
+                                    autocomplete: "off",
                                     accept: "application/json,.json",
                                     aria_label: "Choose backup file",
                                     class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",

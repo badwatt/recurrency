@@ -236,6 +236,8 @@ pub fn ProfileCard() -> Element {
                                 "Change photo"
                                 input {
                                     id: "avatar-file",
+                                    name: "avatar",
+                                    autocomplete: "off",
                                     r#type: "file",
                                     accept: "image/*",
                                     aria_label: "Change profile photo",

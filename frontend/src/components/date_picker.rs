@@ -15,11 +15,8 @@ pub fn DatePicker(
     #[props(default)] disabled: bool,
     #[props(default)] class: String,
 ) -> Element {
-    let input_id = if id.is_empty() {
-        format!("date-picker-{}", uuid::Uuid::new_v4())
-    } else {
-        id
-    };
+    let generated_id = use_hook(|| format!("date-picker-{}", uuid::Uuid::new_v4()));
+    let input_id = if id.is_empty() { generated_id } else { id };
     let picker_id = input_id.clone();
     let open_picker = move |_| {
         let _ = document::eval(&format!(

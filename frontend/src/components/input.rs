@@ -38,11 +38,12 @@ pub fn Input(
     #[props(default)] class: String,
     #[props(default)] size: InputSize,
     #[props(default)] variant: InputVariant,
+    #[props(default = true)] full_width: bool,
     #[props(default)] disabled: bool,
     #[props(default)] required: bool,
     #[props(default)] readonly: bool,
     #[props(default)] autofocus: bool,
-    #[props(default)] autocomplete: String,
+    #[props(default = "off".to_string())] autocomplete: String,
     #[props(default)] autocapitalize: String,
     #[props(default)] autocorrect: String,
     #[props(default)] spellcheck: String,
@@ -63,7 +64,20 @@ pub fn Input(
     } else {
         r#type
     };
+    let generated_id = use_hook(|| format!("input-{}", uuid::Uuid::new_v4()));
+    let field_id = if id.is_empty() { generated_id } else { id };
+    let field_name = if name.is_empty() {
+        field_id.clone()
+    } else {
+        name
+    };
+    let accessible_label = if aria_label.is_empty() {
+        placeholder.clone()
+    } else {
+        aria_label
+    };
     let size_class = size.class();
+    let width_class = if full_width { "w-full" } else { "" };
     let surface_class = match variant {
         InputVariant::Default => "rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/40",
         InputVariant::Bare => "bg-transparent text-foreground placeholder:text-muted-foreground outline-none",
@@ -72,11 +86,11 @@ pub fn Input(
     rsx! {
         input {
             r#type: input_type,
-            id,
-            name,
+            id: field_id,
+            name: field_name,
             value,
             placeholder,
-            class: "w-full {surface_class} disabled:cursor-not-allowed disabled:opacity-50 {size_class} {class}",
+            class: "{width_class} {surface_class} disabled:cursor-not-allowed disabled:opacity-50 {size_class} {class}",
             disabled,
             required,
             readonly,
@@ -86,7 +100,7 @@ pub fn Input(
             autocorrect,
             spellcheck,
             inputmode,
-            aria_label,
+            aria_label: accessible_label,
             min,
             max,
             step,

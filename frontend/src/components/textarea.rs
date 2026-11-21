@@ -9,10 +9,24 @@ pub fn Textarea(
     #[props(default)] rows: Option<u32>,
     #[props(default)] disabled: bool,
     #[props(default)] required: bool,
+    #[props(default)] id: String,
+    #[props(default)] name: String,
+    #[props(default)] aria_label: String,
     on_keydown: Option<EventHandler<KeyboardEvent>>,
 ) -> Element {
+    let generated_id = use_hook(|| format!("textarea-{}", uuid::Uuid::new_v4()));
+    let field_id = if id.is_empty() { generated_id } else { id };
+    let accessible_label = if aria_label.is_empty() { placeholder.clone() } else { aria_label };
+    let field_name = if name.is_empty() {
+        field_id.clone()
+    } else {
+        name
+    };
     rsx! {
         textarea {
+            id: field_id,
+            name: field_name,
+            aria_label: accessible_label,
             value,
             placeholder,
             rows: rows.unwrap_or(3),

@@ -294,7 +294,11 @@ pub fn AiConnectionCard() -> Element {
 
                     div { class: "space-y-2",
                         div { class: "flex flex-wrap items-center justify-between gap-2",
-                            label { r#for: "ai-model-select", class: "text-sm font-medium", "Model" }
+                            label {
+                                r#for: if models().is_empty() { "ai-model" } else { "ai-model-select" },
+                                class: "text-sm font-medium",
+                                "Model"
+                            }
                             Button {
                                 variant: ButtonVariant::Outline,
                                 size: ButtonSize::Sm,
@@ -315,6 +319,7 @@ pub fn AiConnectionCard() -> Element {
                             }
                         } else {
                             SelectMenu {
+                                id: "ai-model-select",
                                 value: model_select_value,
                                 options: {
                                     let mut options = models()

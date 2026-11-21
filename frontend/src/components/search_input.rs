@@ -14,6 +14,7 @@ pub fn SearchInput(
     } else {
         aria_label
     };
+    let field_id = use_hook(|| format!("search-{}", uuid::Uuid::new_v4()));
     rsx! {
         div { class: "relative min-w-0 {class}",
             span { class: "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground",
@@ -21,6 +22,8 @@ pub fn SearchInput(
             }
             input {
                 r#type: "text",
+                id: field_id,
+                name: "search",
                 value,
                 placeholder,
                 aria_label: label,

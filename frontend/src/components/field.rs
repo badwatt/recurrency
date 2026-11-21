@@ -15,10 +15,19 @@ pub fn Field(
 ) -> Element {
     rsx! {
         div { class: "space-y-1.5 {class}",
-            label { r#for: html_for, class: "flex items-center gap-1 text-sm font-medium text-foreground {label_class}",
-                {label}
-                if required {
-                    span { class: "text-destructive", "*" }
+            if html_for.is_empty() {
+                label { class: "flex items-center gap-1 text-sm font-medium text-foreground {label_class}",
+                    {label}
+                    if required {
+                        span { class: "text-destructive", "*" }
+                    }
+                }
+            } else {
+                label { r#for: html_for, class: "flex items-center gap-1 text-sm font-medium text-foreground {label_class}",
+                    {label}
+                    if required {
+                        span { class: "text-destructive", "*" }
+                    }
                 }
             }
             {children}

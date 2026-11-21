@@ -363,6 +363,7 @@ pub(crate) fn render_dialog(
                         Input {
                             r#type: "number",
                             size: InputSize::Sm,
+                            full_width: false,
                             min: "1",
                             max: MAX_INTERVAL.to_string(),
                             value: rec_interval.to_string(),
@@ -615,8 +616,9 @@ pub(crate) fn render_dialog(
 
                 // Start and optional end date
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
-                    Field { label: "Start date", error: start_date_err.to_string(), hint: "Leave empty to start from today.",
+                    Field { label: "Start date", html_for: "subscription-start-date", error: start_date_err.to_string(), hint: "Leave empty to start from today.",
                         DatePicker {
+                            id: "subscription-start-date",
                             value: form_start_date,
                             class: if start_date_err.is_empty() { "" } else { "border-red-500" },
                             on_input: move |value| {
@@ -625,9 +627,10 @@ pub(crate) fn render_dialog(
                             },
                         }
                     }
-                    Field { label: "End date", error: end_date_err.to_string(), hint: "Last billing date (inclusive).",
+                    Field { label: "End date", html_for: "subscription-end-date", error: end_date_err.to_string(), hint: "Last billing date (inclusive).",
                         div { class: "flex gap-2",
                             DatePicker {
+                                id: "subscription-end-date",
                                 value: form_end_date.clone(),
                                 class: if end_date_err.is_empty() { "" } else { "border-red-500" },
                                 on_input: move |value| {
