@@ -333,7 +333,7 @@ async fn embedded_url() -> Result<String, sqlx::Error> {
 
     let embedded = EMBEDDED
         .get_or_try_init(|| async {
-            let root = std::env::var("RECURRENCY_DATA_DIR")
+            let root = crate::shared::test_env::var("RECURRENCY_DATA_DIR")
                 .unwrap_or_else(|_| DEFAULT_EMBEDDED_DATA_DIR.to_string());
             let root = std::path::PathBuf::from(root);
             std::fs::create_dir_all(&root).map_err(|error| {
@@ -416,7 +416,7 @@ pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
 
 pub async fn create_pool_with_url(database_url: Option<&str>) -> Result<PgPool, sqlx::Error> {
     let explicit_url = database_url.map(str::to_string).or_else(|| {
-        std::env::var("DATABASE_URL")
+        crate::shared::test_env::var("DATABASE_URL")
             .ok()
             .filter(|url| !url.trim().is_empty())
     });
@@ -429,7 +429,7 @@ pub async fn create_pool_with_url(database_url: Option<&str>) -> Result<PgPool, 
                 ));
             }
             let max_connections =
-                parse_max_connections(std::env::var("DATABASE_MAX_CONNECTIONS").ok().as_deref());
+                parse_max_connections(crate::shared::test_env::var("DATABASE_MAX_CONNECTIONS").ok().as_deref());
             (url, max_connections)
         }
         None => {
@@ -667,7 +667,7 @@ mod tests {
     async fn run_migrations_with_invalid_pool() {
         // This test documents that run_migrations needs a valid pool
         // We skip if DATABASE_URL is not set
-        let database_url = match std::env::var("DATABASE_URL") {
+        let database_url = match crate::shared::test_env::var("DATABASE_URL") {
             Ok(url) => url,
             Err(_) => return, // Skip test if no database URL
         };
