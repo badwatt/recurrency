@@ -23,6 +23,10 @@ Reference captures (current UI):
 | --- | --- |
 | ![Calendar](assets/calendar.png) | ![Reports](assets/reports.png) |
 
+| Categories view | Payment hover → account |
+| --- | --- |
+| ![Categories](design/dashboard-categories.png) | ![Hover](design/dashboard-hover.png) |
+
 ---
 
 ## 1. Principles
@@ -47,8 +51,9 @@ Reference captures (current UI):
 ## 2. Themes
 
 Themes are persisted in `localStorage` under `recurrency-theme` and in
-`theme.txt` on native builds. There is no automatic system-theme mode. The
-default is `mocha`.
+`theme.txt` on native builds. In server mode the chosen theme is also stored in
+the user's server preferences and synchronised across devices. There is no
+automatic system-theme mode. The default is `mocha`.
 
 The theme picker is available in two places:
 
@@ -56,8 +61,10 @@ The theme picker is available in two places:
 - **Top-bar theme button**: compact popover for quick switching.
 
 Both use the catalogue in `frontend/src/theme/catalog.rs`; selecting a theme
-applies it immediately and saves it on this device. Theme switching never
-changes the data or the route.
+applies it immediately, saves it on this device and writes it to the server
+preferences. The shell polls the server theme on mount and every 60 seconds, so
+a change made on web appears on desktop/mobile and vice versa. Offline mode keeps
+the choice local. Theme switching never changes the data or the route.
 
 ### Catalogue
 
@@ -200,8 +207,8 @@ from a CDN. The loader waits for the critical faces before revealing the app.
 - Primary navigation is icon-only between `md` and `lg`; labels appear at `lg`.
 - Page content: `max-w-7xl`, page padding `p-4` on mobile and `md:p-8` on
   desktop. List/detail pages generally add `pb-24` to clear the mobile bar.
-- Dashboard uses a wider reading rhythm: a two-column monthly plan, then a
-  full-width account ledger, then upcoming/manual payment panels.
+- Dashboard uses a wider reading rhythm: a two-column monthly plan, then
+  upcoming payments on the left and the transfer ledger on the right.
 
 ### Mobile
 
@@ -263,10 +270,13 @@ from a CDN. The loader waits for the critical faces before revealing the app.
 2. **Monthly plan** — dominant surface, split into:
    - transfer this month (largest number);
    - pending from today, payment count, days left, progress bar.
-3. **Account ledger** — budget and pending per account, aligned in columns,
-   with a month-total footer.
-4. **Upcoming payments** — the next five subscriptions with billing dates.
-5. **Manual payments** — the latest one-off transactions for this month.
+3. **Upcoming payments** — the next five subscriptions and future one-time
+   transactions, merged into one chronological list on the left.
+4. **Transfer ledger** — on the right, switchable between **Accounts** (default)
+   and **Categories**. Accounts show budget and pending per account; categories
+   show this month's charges and pending grouped by category. Both use a
+   month-total footer. Hovering a payment highlights its account row, and
+   hovering an account highlights its payments.
 
 The per-account row is the core unit. It shows account identity, subscription
 and manual counts, budget, recurring share and pending state. Amounts stay in a
@@ -330,7 +340,8 @@ fixed right-aligned column with tabular numerals.
   catalogue label and a short description.
 - The selected option uses a primary border, a subtle primary wash and a check
   mark; it is never indicated by colour alone.
-- Themes apply instantly, persist on the device and never require a reload.
+- Themes apply instantly, persist on the device, sync through server preferences
+  and never require a reload. Offline mode keeps the choice local.
 - Keep the pre-WASM loader in sync with the selected theme.
 
 ### Feedback
@@ -406,12 +417,14 @@ The loader is part of the product surface. The same markup and colours exist in
 
 - Controls: 150–200ms colour/transform transitions.
 - Cards: up to 300ms for hover scale/translate.
-- Page entry: `animate-in fade-in` with no long entrance choreography.
+- Page entry: opacity-only `page-enter` over 160ms. Never animate a transform on
+  the page root: it creates a containing block and makes fixed dialogs jump.
+- Dialogs: backdrop fades in over 150ms; the card fades/translates/scales in over
+  190ms. The animation lives on the fixed card, not on the page root.
 - Buttons: `active:scale-[0.97]`.
 - Progress bars: width transition only.
 - No parallax, no bouncing, no decorative looping motion.
-- The current codebase does not implement `prefers-reduced-motion`. A future
-  pass must add it before increasing motion.
+- `prefers-reduced-motion: reduce` disables page and dialog entry animations.
 
 ---
 
@@ -422,6 +435,8 @@ Present today:
 - Skip link to `#main-content`.
 - Semantic `header`, `nav`, `main`, `aside` and heading levels.
 - `aria-label` on icon-only controls and navigation regions.
+- The browser's default focus-visible outline is suppressed globally; the app
+  supplies rings and surface changes where focus needs to be visible.
 - Visible focus rings on form controls.
 - Backdrop dismissal for dialogs.
 - Loader uses `role="status"` and `aria-live="polite"`.
@@ -433,7 +448,6 @@ Known gaps for v2:
 - Not every icon-only button has a bespoke `focus-visible` style.
 - Dialogs do not implement a full focus trap.
 - The Escape key listener is not wired back to the dialog close callback.
-- Motion does not yet respect reduced-motion preferences.
 - Some contrast pairs should be rechecked after any palette change; do not
   assume a token rename preserves AA contrast.
 
@@ -465,7 +479,7 @@ except inside explicitly scrollable tab strips.
 - Actions use sentence case: `Add subscription`, `Save changes`, `View all`.
 - Micro labels may be uppercase with tracking.
 - Prefer concrete nouns: `Transfer this month`, `Pending from today`,
-  `Upcoming payments`, `Manual payments`.
+  `Upcoming payments`, `Transfer by account`, `Pending from today`.
 - Empty states explain what will appear and how to create it.
 - Errors are short and generic. Never mention a specific browser, internal URL,
   raw SQL error or stack trace.
@@ -481,6 +495,8 @@ except inside explicitly scrollable tab strips.
 | Tailwind theme scale | `frontend/tailwind.config.js` |
 | Theme names/native colours | `frontend/src/theme/hooks.rs` |
 | Theme catalogue and labels | `frontend/src/theme/catalog.rs` |
+| Theme server sync | `frontend/src/layout/app_layout.rs`, `frontend/src/components/theme_picker.rs` |
+| Server preference payload | `backend/src/preferences/models.rs`, `backend/src/preferences/service.rs` |
 | Theme picker UI | `frontend/src/components/theme_picker.rs` |
 | Appearance settings card | `frontend/src/pages/settings_page/appearance_card.rs` |
 | Fonts and reveal sequence | `frontend/src/lib.rs` |
@@ -514,11 +530,10 @@ for the redesign:
    stops at 36px; both are valid but the hierarchy is not documented in code.
 5. **Mixed label case.** Uppercase micro labels coexist with sentence-case
    section titles.
-6. **No reduced-motion branch.**
-7. **No formal spacing token layer.** The 4px Tailwind scale is the only rhythm.
-8. **Top navigation density.** Six primary items plus utilities compete for
+6. **No formal spacing token layer.** The 4px Tailwind scale is the only rhythm.
+7. **Top navigation density.** Six primary items plus utilities compete for
    space between `md` and `lg`.
-9. **Auth surface is generic.** The centered card has no brand element beyond
+8. **Auth surface is generic.** The centered card has no brand element beyond
     the browser title and the pre-WASM loader.
 
 ---
