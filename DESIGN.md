@@ -272,11 +272,11 @@ from a CDN. The loader waits for the critical faces before revealing the app.
    - pending from today, payment count, days left, progress bar.
 3. **Upcoming payments** — the next five subscriptions and future one-time
    transactions, merged into one chronological list on the left.
-4. **Transfer ledger** — on the right, switchable between **Accounts** (default)
-   and **Categories**. Accounts show budget and pending per account; categories
-   show this month's charges and pending grouped by category. Both use a
-   month-total footer. Hovering a payment highlights its account row, and
-   hovering an account highlights its payments.
+4. **Transfer ledger** — on the right, with the large **Accounts** / **Categories**
+   segmented control acting as the section title. Accounts is the default;
+   categories show this month's charges and pending grouped by category. Both
+   use the same table language and a month-total footer. Hovering a payment
+   highlights its account row, and hovering an account highlights its payments.
 
 The per-account row is the core unit. It shows account identity, subscription
 and manual counts, budget, recurring share and pending state. Amounts stay in a
@@ -479,7 +479,7 @@ except inside explicitly scrollable tab strips.
 - Actions use sentence case: `Add subscription`, `Save changes`, `View all`.
 - Micro labels may be uppercase with tracking.
 - Prefer concrete nouns: `Transfer this month`, `Pending from today`,
-  `Upcoming payments`, `Transfer by account`, `Pending from today`.
+  `Upcoming payments`, `Accounts / Categories`, `Pending from today`.
 - Empty states explain what will appear and how to create it.
 - Errors are short and generic. Never mention a specific browser, internal URL,
   raw SQL error or stack trace.
