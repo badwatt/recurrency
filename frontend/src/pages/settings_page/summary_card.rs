@@ -1,4 +1,5 @@
 use crate::api::notification_channels;
+use crate::components::timezone_select::TimezoneSelect;
 use crate::components::toast::TOAST;
 use crate::models::notification::UpdateSummaryNotificationSettingsRequest;
 use dioxus::prelude::*;
@@ -166,13 +167,9 @@ pub fn SummaryCard() -> Element {
                         class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
                     }
                 }
-                label { class: "space-y-1 text-sm", "Timezone"
-                    input {
-                        value: timezone(),
-                        oninput: move |e| timezone.set(e.value()),
-                        placeholder: "Europe/Madrid",
-                        class: "mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
-                    }
+                div { class: "space-y-1 text-sm",
+                    p { class: "font-medium", "Timezone" }
+                    TimezoneSelect { value: timezone }
                 }
             }
             div { class: "px-6 pb-6 flex flex-wrap items-center justify-between gap-3",

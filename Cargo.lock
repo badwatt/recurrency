@@ -5823,6 +5823,7 @@ version = "0.55.16"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "chrono-tz",
  "cpal",
  "dioxus",
  "dirs 7.0.0",
