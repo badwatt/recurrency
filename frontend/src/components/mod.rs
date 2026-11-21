@@ -16,6 +16,7 @@ pub mod logo_image;
 pub mod logo_search;
 pub mod select;
 pub mod server_url;
+pub mod theme_picker;
 pub mod toast;
 pub mod tooltip;
 pub mod update_banner;

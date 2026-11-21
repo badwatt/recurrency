@@ -1,13 +1,15 @@
 #![allow(clippy::suspicious_else_formatting)]
 use crate::components::ai_chat::{AI_CHAT_OPEN, AiChat};
 use crate::components::privacy_toggle::PrivacyToggle;
+use crate::components::theme_picker::ThemeMenu;
 use crate::components::toast::{TOAST, ToastContainer};
 use crate::components::update_banner::UpdateBanner;
 use crate::state::ai::{AI_SETTINGS, is_configured};
 use crate::state::preferences::PREFERENCES;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 use crate::state::window;
-use crate::theme::hooks::{apply_theme_class, toggle_theme};
+use crate::theme::catalog::{THEMES, theme_by_id};
+use crate::theme::hooks::apply_theme_class;
 use crate::utils::scroll::scroll_to_top;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 use dioxus::desktop::use_muda_event_handler;
@@ -179,6 +181,7 @@ pub fn AppLayout() -> Element {
 
     let nav = navigator();
     let fab_open = use_signal(|| false);
+    let mut theme_menu_open = use_signal(|| false);
     let in_settings = matches!(
         current_route,
         crate::Route::Settings {}
@@ -265,7 +268,7 @@ pub fn AppLayout() -> Element {
                     div { class: "flex items-center gap-1",
                         AiTopButton {}
                         PrivacyToggle {}
-                        ThemeToggleButton {}
+                        ThemeToggleButton { open: theme_menu_open }
                         a {
                             href: "/settings",
                             aria_label: "Profile and settings",
@@ -335,6 +338,10 @@ pub fn AppLayout() -> Element {
         if !in_settings {
             MobileCreateFab { open: fab_open }
             AiFab {}
+        }
+
+        if theme_menu_open() {
+            ThemeMenu { on_close: move |_| theme_menu_open.set(false) }
         }
 
         AiChat {}
@@ -540,25 +547,33 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
     }
 }
 
-// ── Theme toggle button ──
+// ── Theme picker button ──
 #[component]
-fn ThemeToggleButton() -> Element {
+fn ThemeToggleButton(open: Signal<bool>) -> Element {
     let theme_signal = PREFERENCES();
+    let mut open = open;
+    let current = theme_signal.theme().to_string();
+    let theme = theme_by_id(&current).unwrap_or(&THEMES[0]);
+    let icon = if !theme.is_dark {
+        Icon::Sun
+    } else if theme.id == "mocha" || theme.id == "mocha-bloom" {
+        Icon::Coffee
+    } else {
+        Icon::Moon
+    };
+
     rsx! {
-        button {
-            r#type: "button",
-            class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-            onclick: move |_| toggle_theme(),
-            title: "Toggle theme",
-            {{
-                let theme = theme_signal.theme().to_string();
-                let icon = match theme.as_str() {
-                    "dark" => Icon::Moon,
-                    "mocha" => Icon::Coffee,
-                    _ => Icon::Sun,
-                };
-                rsx! { {svg_icon(icon, 20)} }
-            }}
+        div { class: "relative",
+            button {
+                r#type: "button",
+                class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                aria_label: "Choose color theme",
+                aria_haspopup: "true",
+                aria_expanded: if open() { "true" } else { "false" },
+                onclick: move |_| open.toggle(),
+                title: "Choose color theme",
+                {svg_icon(icon, 20)}
+            }
         }
     }
 }
