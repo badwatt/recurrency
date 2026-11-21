@@ -521,6 +521,7 @@ pub struct UpcomingPayment {
     pub amount: Decimal,
     pub currency: String,
     pub account_id: Uuid,
+    pub category_id: Uuid,
     pub date: NaiveDate,
     pub logo_url: Option<String>,
     pub is_transaction: bool,
@@ -553,6 +554,7 @@ pub fn upcoming_payments(
                 amount: subscription.amount,
                 currency: subscription.currency.clone(),
                 account_id: subscription.account_id,
+                category_id: subscription.category_id,
                 date,
                 logo_url: subscription.logo_url.clone(),
                 is_transaction: false,
@@ -570,6 +572,7 @@ pub fn upcoming_payments(
             amount: transaction.amount,
             currency: transaction.currency.clone(),
             account_id: transaction.account_id,
+            category_id: transaction.category_id,
             date: transaction.date,
             logo_url: transaction.logo_url.clone(),
             is_transaction: true,
@@ -660,6 +663,7 @@ pub fn Dashboard() -> Element {
     let upcoming_top5: Vec<_> = upcoming.iter().take(5).collect();
 
     let mut hovered_account = use_signal(|| None::<Uuid>);
+    let mut hovered_category = use_signal(|| None::<Uuid>);
     let mut ledger_view = use_signal(|| LedgerView::Accounts);
     let category_plan = build_category_budgets(
         &categories_state.categories,
@@ -881,6 +885,7 @@ pub fn Dashboard() -> Element {
                                 for payment in upcoming_top5 {
                                     {
                                         let account_id = payment.account_id;
+                                        let category_id = payment.category_id;
                                         let account_name = ACCOUNTS().name_for(&account_id);
                                         let account_color = ACCOUNTS()
                                             .accounts
@@ -892,7 +897,9 @@ pub fn Dashboard() -> Element {
                                         let days_label = next_billing_days_text(Some(payment.date));
                                         let today_flag = is_today_fn(payment.date);
                                         let logo_url = payment.logo_url.clone();
-                                        let linked = hovered_account() == Some(account_id);
+                                        let linked = hovered_account() == Some(account_id)
+                                            || (ledger_view() == LedgerView::Categories
+                                                && hovered_category() == Some(category_id));
                                         let row_class = if linked {
                                             "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors"
                                         } else {
@@ -902,8 +909,14 @@ pub fn Dashboard() -> Element {
                                             div {
                                                 key: "{payment.id}",
                                                 class: row_class.to_string(),
-                                                onmouseenter: move |_| hovered_account.set(Some(account_id)),
-                                                onmouseleave: move |_| hovered_account.set(None),
+                                                onmouseenter: move |_| {
+                                                    hovered_account.set(Some(account_id));
+                                                    hovered_category.set(Some(category_id));
+                                                },
+                                                onmouseleave: move |_| {
+                                                    hovered_account.set(None);
+                                                    hovered_category.set(None);
+                                                },
                                                 div { class: "flex items-center gap-3 min-w-0",
                                                     div {
                                                         class: "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg",
@@ -1129,10 +1142,22 @@ pub fn Dashboard() -> Element {
                                     } else {
                                         "text-sm font-semibold font-mono tabular-nums text-muted-foreground"
                                     };
+                                    let category_id = category.category_id;
+                                    let linked = hovered_category() == Some(category_id);
+                                    let row_class = if linked {
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center bg-primary/5 ring-1 ring-inset ring-primary/20 transition-colors"
+                                    } else {
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors"
+                                    };
                                     rsx! {
                                         div {
                                             key: "{category.category_id}",
-                                            class: "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 transition-colors",
+                                            class: row_class.to_string(),
+                                            tabindex: "0",
+                                            onmouseenter: move |_| hovered_category.set(Some(category_id)),
+                                            onmouseleave: move |_| hovered_category.set(None),
+                                            onfocus: move |_| hovered_category.set(Some(category_id)),
+                                            onblur: move |_| hovered_category.set(None),
                                             div { class: "col-span-2 sm:col-span-1 flex items-center gap-3 min-w-0",
                                                 div {
                                                     class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",

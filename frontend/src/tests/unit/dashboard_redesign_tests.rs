@@ -151,3 +151,25 @@ fn dashboard_ledger_switches_between_accounts_and_categories() {
         "the categories view must explain what it shows"
     );
 }
+
+#[test]
+fn category_hover_links_the_ledger_and_upcoming_payments() {
+    let dashboard = include_str!("../../pages/dashboard.rs");
+    let production = dashboard.split("#[cfg(test)]").next().unwrap_or(dashboard);
+    assert!(
+        production.contains("hovered_category"),
+        "the dashboard must track a hovered category"
+    );
+    assert!(
+        production.contains("hovered_category() == Some(category_id)"),
+        "category rows must read the hovered category"
+    );
+    assert!(
+        production.contains("hovered_category() == Some(category_id)"),
+        "upcoming rows must read the hovered category"
+    );
+    assert!(
+        production.contains("hovered_category.set(Some(category_id))"),
+        "both upcoming and category rows must publish the category"
+    );
+}
