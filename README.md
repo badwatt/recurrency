@@ -162,7 +162,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 
 ### Currency without surprises
 
-- **One main currency** — set it once in Settings.
+- **One main currency** — all 178 active ISO 4217 codes, including CLP, MXN and the other regional currencies, selectable in Settings.
 - **Original currency preserved** — converted values show the source amount in parentheses.
 - **Automatic rates** — Frankfurter works without a key; choose Fixer and save an encrypted per-user API key from Settings.
 - **Graceful fallback** — unknown rates keep the original amount instead of breaking reports.
