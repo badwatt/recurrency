@@ -492,7 +492,8 @@ Current suite: **1276 backend unit tests**, **87 backend integration tests**,
 3. The Release workflow runs only when that version increases. It builds and
    pushes the all-in-one image, signs the latest APK, builds the standalone
    `recurrency` binary, builds Linux/macOS/Windows desktop bundles, and creates
-   one GitHub release with every artifact.
+   one GitHub release with every artifact. Release notes list every commit since
+   the previous tag, followed by the compare link.
 
 A manual `workflow_dispatch` releases the current version.
 
