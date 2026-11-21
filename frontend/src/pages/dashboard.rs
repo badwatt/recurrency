@@ -942,36 +942,29 @@ pub fn Dashboard() -> Element {
 
                 // Account ledger, pinned to the right on desktop and kept first on mobile.
                 div { class: "order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2",
-                    div { class: "p-5 md:p-6 pb-3 flex flex-col gap-3",
-                        div { class: "flex items-start justify-between gap-3",
-                            div {
-                                h2 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]",
-                                    {if ledger_view() == LedgerView::Accounts { "Transfer by account" } else { "Categories" }}
-                                }
-                                p { class: "text-sm text-muted-foreground mt-1",
-                                    {if ledger_view() == LedgerView::Accounts {
-                                        "Actual charges this month and pending from today."
+                    div { class: "p-5 md:p-6 pb-3 flex flex-col gap-2.5",
+                        div { class: "flex w-full rounded-lg border border-border/60 bg-muted/30 p-1", role: "tablist", aria_label: "Transfer ledger view",
+                            for (view, label) in [(LedgerView::Accounts, "Accounts"), (LedgerView::Categories, "Categories")] {
+                                button {
+                                    r#type: "button",
+                                    role: "tab",
+                                    aria_selected: if ledger_view() == view { "true" } else { "false" },
+                                    class: if ledger_view() == view {
+                                        "flex-1 rounded-md bg-background px-3 py-2 text-sm font-semibold text-foreground shadow-sm"
                                     } else {
-                                        "This month's charges grouped by category."
-                                    }}
+                                        "flex-1 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                                    },
+                                    onclick: move |_| ledger_view.set(view),
+                                    {label}
                                 }
                             }
-                            div { class: "inline-flex shrink-0 rounded-md border border-border/60 bg-muted/30 p-0.5", role: "tablist", aria_label: "Transfer view",
-                                for (view, label) in [(LedgerView::Accounts, "Accounts"), (LedgerView::Categories, "Categories")] {
-                                    button {
-                                        r#type: "button",
-                                        role: "tab",
-                                        aria_selected: if ledger_view() == view { "true" } else { "false" },
-                                        class: if ledger_view() == view {
-                                            "rounded px-2 py-1 text-[10px] font-semibold text-foreground bg-background shadow-sm"
-                                        } else {
-                                            "rounded px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-                                        },
-                                        onclick: move |_| ledger_view.set(view),
-                                        {label}
-                                    }
-                                }
-                            }
+                        }
+                        p { class: "text-sm text-muted-foreground",
+                            {if ledger_view() == LedgerView::Accounts {
+                                "Actual charges this month and pending from today."
+                            } else {
+                                "This month's charges grouped by category."
+                            }}
                         }
                         p { class: "text-xs text-muted-foreground",
                             {if ledger_view() == LedgerView::Accounts {
