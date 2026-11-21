@@ -1,4 +1,5 @@
 use crate::state::preferences::PREFERENCES;
+use crate::components::button::{Button, ButtonRadius, ButtonSize, ButtonVariant};
 use crate::theme::catalog::{APPEARANCE_GROUPS, THEMES, ThemeDefinition, theme_by_id};
 use crate::theme::hooks::apply_theme_class;
 use dioxus::prelude::*;
@@ -29,14 +30,16 @@ fn ThemeSwatch(theme: ThemeDefinition) -> Element {
 fn ThemeOption(theme: ThemeDefinition, selected: bool) -> Element {
     let select = move |_| apply_theme(theme.id);
     rsx! {
-        button {
-            r#type: "button",
-            class: if selected {
+        Button {
+            variant: ButtonVariant::Unstyled,
+            size: ButtonSize::Unstyled,
+            radius: ButtonRadius::None,
+            class: (if selected {
                 "group relative flex flex-col gap-2 rounded-lg border border-primary bg-primary/5 p-3 text-left transition-colors"
             } else {
                 "group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-background/30 p-3 text-left transition-colors hover:border-border hover:bg-accent/40"
-            },
-            aria_pressed: if selected { "true" } else { "false" },
+            }).to_string(),
+            aria_pressed: Some((if selected { "true" } else { "false" }).to_string()),
             onclick: select,
             ThemeSwatch { theme }
             div { class: "flex items-start justify-between gap-2",
@@ -120,11 +123,11 @@ pub fn ThemeMenu(on_close: EventHandler<()>) -> Element {
                                 let selected = current == theme.id;
                                 let id = theme.id;
                                 rsx! {
-                                    button {
+                                    Button {
                                         key: "{theme.id}",
-                                        r#type: "button",
-                                        role: "menuitemradio",
-                                        aria_checked: if selected { "true" } else { "false" },
+                                        variant: ButtonVariant::Unstyled,
+                                        size: ButtonSize::Unstyled,
+                                        role: Some("menuitemradio".to_string()),
                                         onclick: move |_| {
                                             apply_theme(id);
                                             on_close.call(());

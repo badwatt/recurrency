@@ -5826,6 +5826,7 @@ dependencies = [
  "chrono-tz",
  "cpal",
  "dioxus",
+ "dioxus-ssr",
  "dirs 7.0.0",
  "futures-util",
  "gloo-timers 0.4.0",

@@ -1,3 +1,6 @@
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::field::Field;
+use crate::components::input::Input;
 use crate::components::toast::TOAST;
 use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, last_server_url, normalize_server_url};
 use crate::state::auth::AUTH;
@@ -100,46 +103,42 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
     let local_mode = APP_MODE().mode.is_offline();
     rsx! {
         div { class: "space-y-3",
-            label {
-                r#for: "settings-server-url",
-                class: "text-sm font-medium",
-                "Server URL"
-            }
-            div { class: "flex flex-col gap-2 sm:flex-row",
-                input {
-                    id: "settings-server-url",
-                    r#type: "url",
-                    inputmode: "url",
-                    autocapitalize: "off",
-                    autocorrect: "off",
-                    spellcheck: "false",
-                    placeholder: "https://recurrency.example.com",
-                    value: value,
-                    onkeydown: move |event: KeyboardEvent| {
-                        if event.key() == Key::Enter {
-                            save.call(());
-                        }
-                    },
-                    oninput: move |e| {
-                        value.set(e.value());
-                        error.set(String::new());
-                        saved.set(String::new());
-                    },
-                    class: "flex h-10 min-w-0 flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring",
-                }
-                button {
-                    r#type: "button",
-                    disabled: loading(),
-                    class: "inline-flex h-10 w-full shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto",
-                    onclick: move |_| save.call(()),
-                    if loading() { "Checking…" } else { "Save server" }
+            Field { label: "Server URL", html_for: "settings-server-url",
+                div { class: "flex flex-col gap-2 sm:flex-row",
+                    Input {
+                        id: "settings-server-url",
+                        r#type: "url",
+                        inputmode: "url",
+                        autocapitalize: "off",
+                        autocorrect: "off",
+                        spellcheck: "false",
+                        placeholder: "https://recurrency.example.com",
+                        value: value,
+                        class: "min-w-0 flex-1",
+                        on_keydown: move |event: KeyboardEvent| {
+                            if event.key() == Key::Enter {
+                                save.call(());
+                            }
+                        },
+                        on_input: move |next| {
+                            value.set(next);
+                            error.set(String::new());
+                            saved.set(String::new());
+                        },
+                    }
+                    Button {
+                        disabled: loading(),
+                        class: "w-full shrink-0 sm:w-auto",
+                        onclick: move |_| save.call(()),
+                        if loading() { "Checking…" } else { "Save server" }
+                    }
                 }
             }
             if crate::utils::qr::scanner_available() {
-                button {
-                    r#type: "button",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    full_width: true,
                     disabled: scanning(),
-                    class: "inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-accent disabled:opacity-50",
                     onclick: scan,
                     if scanning() { "Scanning…" } else { "Scan QR" }
                 }
@@ -166,9 +165,9 @@ pub fn ServerUrlEditor(#[props(default = false)] logout_on_change: bool) -> Elem
                         }
                     }
                     if !local_mode {
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            class: "shrink-0",
                             onclick: use_local,
                             "Use this device"
                         }

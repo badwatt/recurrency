@@ -1,5 +1,6 @@
 use crate::api::update::{self, Release};
 use crate::components::toast::TOAST;
+use crate::components::button::{Button, ButtonSize, ButtonVariant, IconButton};
 use dioxus::prelude::*;
 
 const DISMISSED_FILE: &str = "update_dismissed.txt";
@@ -147,11 +148,11 @@ pub fn UpdateBanner() -> Element {
                 }
             }
             if !cfg!(target_arch = "wasm32") && native.is_some() {
-                button {
-                    r#type: "button",
+                Button {
+                    size: ButtonSize::Sm,
+                    class: "shrink-0",
                     disabled: updating(),
                     onclick: update,
-                    class: "inline-flex h-8 shrink-0 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
                     if updating() { "Starting…" } else { "Update" }
                 }
             }
@@ -164,10 +165,11 @@ pub fn UpdateBanner() -> Element {
                     "View release"
                 }
             }
-            button {
-                r#type: "button",
-                aria_label: "Dismiss update notice",
-                class: "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground",
+            IconButton {
+                label: "Dismiss update notice".to_string(),
+                variant: ButtonVariant::Ghost,
+                size: ButtonSize::IconSm,
+                class: "shrink-0 text-muted-foreground".to_string(),
                 onclick: move |_| {
                     store_dismissed(&info.tag_name);
                     dismissed.set(true);

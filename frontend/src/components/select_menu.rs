@@ -1,4 +1,7 @@
+use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant};
+use crate::components::input::{Input, InputSize, InputVariant};
 use dioxus::prelude::*;
+use lucide_dioxus::{Check, ChevronDown};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectOption {
@@ -26,11 +29,13 @@ pub fn SelectMenu(
     placeholder: Option<String>,
     disabled: Option<bool>,
     class: Option<String>,
+    id: Option<String>,
 ) -> Element {
     let searchable = searchable.unwrap_or(false);
     let placeholder = placeholder.unwrap_or_else(|| "Select...".to_string());
     let disabled = disabled.unwrap_or(false);
     let extra_class = class.unwrap_or_default();
+    let button_id = id.unwrap_or_default();
     let mut open = use_signal(|| false);
     let mut query = use_signal(String::new);
     let filter_id = use_signal(|| format!("select-filter-{}", uuid::Uuid::new_v4()));
@@ -59,13 +64,16 @@ pub fn SelectMenu(
 
     rsx! {
         div { class: "relative {extra_class}",
-            button {
-                r#type: "button",
-                class: "h-9 w-full rounded-md border border-border bg-background px-2 text-sm flex items-center justify-between text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
+            Button {
+                variant: ButtonVariant::Unstyled,
+                size: ButtonSize::Unstyled,
+                id: button_id,
+                align: ButtonAlign::Between,
+                class: "flex h-9 w-full items-center rounded-md border border-border bg-background px-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50".to_string(),
                 disabled: disabled,
-                aria_label: placeholder.clone(),
-                aria_haspopup: "listbox",
-                aria_expanded: if open() { "true" } else { "false" },
+                aria_label: Some(placeholder.clone()),
+                aria_haspopup: Some("listbox".to_string()),
+                aria_expanded: Some((if open() { "true" } else { "false" }).to_string()),
                 onclick: move |_| {
                     if open() {
                         open.set(false);
@@ -77,17 +85,8 @@ pub fn SelectMenu(
                 span { class: if value.is_empty() { "truncate text-muted-foreground" } else { "truncate" },
                     {if selected_label.is_empty() { placeholder.clone() } else { selected_label.clone() }}
                 }
-                div { class: "flex items-center gap-1 shrink-0 ml-2",
-                    svg {
-                        class: "h-4 w-4 opacity-50",
-                        view_box: "0 0 24 24",
-                        fill: "none",
-                        stroke: "currentColor",
-                        stroke_width: "2",
-                        stroke_linecap: "round",
-                        stroke_linejoin: "round",
-                        polyline { points: "6 9 12 15 18 9" }
-                    }
+                div { class: "ml-2 flex shrink-0 items-center gap-1",
+                    ChevronDown { size: 16, class: "opacity-50" }
                 }
             }
 
@@ -105,15 +104,16 @@ pub fn SelectMenu(
                     onclick: move |event| event.stop_propagation(),
                     if searchable {
                         div { class: "flex items-center border-b px-3",
-                            input {
+                            Input {
                                 id: filter_id(),
-                                class: "w-full h-9 border-0 bg-transparent text-sm focus:outline-none focus:ring-0",
-                                r#type: "text",
-                                placeholder: "Search...",
+                                size: InputSize::Sm,
+                                variant: InputVariant::Bare,
+                                class: String::new(),
+                                placeholder: "Search...".to_string(),
                                 value: query(),
                                 autofocus: true,
-                                oninput: move |event| query.set(event.value()),
-                                onkeydown: move |event| {
+                                on_input: move |value: String| query.set(value),
+                                on_keydown: move |event: KeyboardEvent| {
                                     if event.key() == Key::Escape {
                                         open.set(false);
                                         query.set(String::new());
@@ -132,16 +132,18 @@ pub fn SelectMenu(
                                     let option_value = option.value.clone();
                                     let label = option.label.clone();
                                     rsx! {
-                                        button {
+                                        Button {
                                             key: "{option.value}",
-                                            r#type: "button",
-                                            role: "option",
-                                            aria_selected: if selected { "true" } else { "false" },
-                                            class: if selected {
-                                                "relative flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent bg-accent"
+                                            variant: ButtonVariant::Unstyled,
+                                            size: ButtonSize::Unstyled,
+                                            radius: ButtonRadius::None,
+                                            role: Some("option".to_string()),
+                                            aria_selected: Some((if selected { "true" } else { "false" }).to_string()),
+                                            class: (if selected {
+                                                "relative flex w-full items-center justify-start gap-2 bg-accent px-3 py-2 text-left text-sm hover:bg-accent"
                                             } else {
-                                                "relative flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
-                                            },
+                                                "relative flex w-full items-center justify-start gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                                            }).to_string(),
                                             onclick: move |_| {
                                                 on_change.call(option_value.clone());
                                                 query.set(String::new());
@@ -149,16 +151,7 @@ pub fn SelectMenu(
                                             },
                                             span { class: "truncate", {label} }
                                             if selected {
-                                                svg {
-                                                    class: "ml-auto h-4 w-4 shrink-0 text-primary",
-                                                    view_box: "0 0 24 24",
-                                                    fill: "none",
-                                                    stroke: "currentColor",
-                                                    stroke_width: "2",
-                                                    stroke_linecap: "round",
-                                                    stroke_linejoin: "round",
-                                                    polyline { points: "20 6 9 17 4 12" }
-                                                }
+                                                Check { size: 16, class: "ml-auto shrink-0 text-primary" }
                                             }
                                         }
                                     }

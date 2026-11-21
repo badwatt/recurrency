@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* The shared DatePicker paints its own calendar affordance. */
+  .date-input::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    cursor: pointer;
+  }
+}
+
 @layer base {
   :root {
     color-scheme: dark;

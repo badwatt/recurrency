@@ -1,4 +1,5 @@
 use dioxus::html::HasFileData;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use dioxus::prelude::*;
 use lucide_dioxus::{Download, FileText, ShieldCheck, Upload};
 
@@ -96,9 +97,9 @@ pub fn BackupRestoreCard(
                     }
                     div { class: "mt-4 flex flex-1 flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left",
                         p { class: "text-xs text-muted-foreground", {export_note} }
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-9 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                        Button {
+                            size: ButtonSize::Sm,
+                            class: "shrink-0",
                             disabled: exporting,
                             onclick: move |_| on_export.call(()),
                             Download { size: 15 }
@@ -132,9 +133,9 @@ pub fn BackupRestoreCard(
                         p { class: "text-sm font-medium", "Drop a backup here" }
                         p { class: "text-xs text-muted-foreground", "or choose a .json file" }
                         if cfg!(target_os = "android") {
-                            button {
-                                r#type: "button",
-                                class: "mt-1 inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-accent",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                class: "mt-1",
                                 onclick: open_android_backup,
                                 "Choose file"
                             }
@@ -167,16 +168,16 @@ pub fn BackupRestoreCard(
                             }
                             p { class: "mt-1 text-xs text-muted-foreground", {import_warning} }
                             div { class: "mt-3 flex flex-wrap gap-2",
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-8 items-center rounded-md bg-destructive px-3 text-xs font-medium text-white hover:bg-destructive/90 disabled:opacity-50",
+                                Button {
+                                    variant: ButtonVariant::Destructive,
+                                    size: ButtonSize::Sm,
                                     disabled: restoring,
                                     onclick: move |_| on_confirm.call(()),
                                     if restoring { "Restoring…" } else { "Restore backup" }
                                 }
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
                                     onclick: move |_| on_cancel.call(()),
                                     "Cancel"
                                 }

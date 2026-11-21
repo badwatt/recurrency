@@ -2,7 +2,9 @@ use dioxus::prelude::*;
 use lucide_dioxus::{Bot, Mic, Send, Sparkles};
 
 use crate::api::ai::{self, AiChatResponse, AiMessage};
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::dialog::Dialog;
+use crate::components::textarea::Textarea;
 use crate::components::toast::TOAST;
 use crate::state::debts::DEBTS;
 use crate::state::subscriptions::SUBSCRIPTIONS;
@@ -162,30 +164,31 @@ pub fn AiChat() -> Element {
                         send.call(());
                     },
                     class: "flex items-end gap-2 border-t border-border/60 pt-3",
-                    textarea {
+                    Textarea {
                         value: input(),
-                        oninput: move |event| input.set(event.value()),
-                        onkeydown: move |event| {
+                        on_input: move |value| input.set(value),
+                        on_keydown: move |event: KeyboardEvent| {
                             if event.key() == Key::Enter && !event.modifiers().shift() {
                                 event.prevent_default();
                                 send.call(());
                             }
                         },
-                        rows: "2",
+                        rows: Some(2),
                         placeholder,
-                        class: "min-h-11 flex-1 resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm",
+                        class: "min-h-11 flex-1 resize-none",
                     }
-                    button {
-                        r#type: "button",
+                    Button {
+                        variant: ButtonVariant::Unstyled,
+                        size: ButtonSize::Unstyled,
                         disabled: sending() || transcribing(),
-                        aria_label: if listening() { "Stop dictation" } else { "Dictate message" },
-                        aria_pressed: if listening() { "true" } else { "false" },
-                        title: if listening() { "Stop dictation" } else { "Dictate with your voice" },
-                        class: if listening() {
+                        aria_label: Some((if listening() { "Stop dictation" } else { "Dictate message" }).to_string()),
+                        aria_pressed: Some((if listening() { "true" } else { "false" }).to_string()),
+                        title: Some((if listening() { "Stop dictation" } else { "Dictate with your voice" }).to_string()),
+                        class: (if listening() {
                             "relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-destructive/40 bg-destructive/10 text-destructive"
                         } else {
                             "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                        },
+                        }).to_string(),
                         onclick: dictate,
                         if listening() {
                             span { class: "absolute inset-0 animate-ping rounded-md border border-destructive/30" }
@@ -196,11 +199,13 @@ pub fn AiChat() -> Element {
                             Mic { size: 17 }
                         }
                     }
-                    button {
-                        r#type: "submit",
+                    Button {
+                        variant: ButtonVariant::Unstyled,
+                        size: ButtonSize::Unstyled,
+                        button_type: "submit".to_string(),
                         disabled: sending() || listening() || transcribing(),
-                        class: "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
-                        aria_label: "Send message",
+                        aria_label: Some("Send message".to_string()),
+                        class: "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50".to_string(),
                         Send { size: 17 }
                     }
                 }

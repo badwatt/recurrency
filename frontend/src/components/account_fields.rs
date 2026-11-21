@@ -1,4 +1,7 @@
+use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant};
 use crate::components::color_picker::ColorField;
+use crate::components::field::Field;
+use crate::components::input::{Input, InputSize};
 use crate::utils::icons::{ICON_NAMES, icon_display};
 use dioxus::prelude::*;
 
@@ -18,19 +21,14 @@ pub fn AccountFields(
     rsx! {
         div { class: "space-y-4",
             // Name
-            div { class: "space-y-2",
-                label { class: "text-sm font-medium", "Name" }
-                input {
-                    r#type: "text",
+            Field { label: "Name", error: name_error(),
+                Input {
                     value: name(),
-                    oninput: move |e| {
-                        name.set(e.value());
+                    on_input: move |value| {
+                        name.set(value);
                         name_error.set(String::new());
                     },
-                    class: if name_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                }
-                if !name_error().is_empty() {
-                    p { class: "text-xs text-red-500", "{name_error()}" }
+                    class: if name_error().is_empty() { "" } else { "border-red-500" },
                 }
             }
 
@@ -38,10 +36,10 @@ pub fn AccountFields(
             div { class: "space-y-2",
                 div { class: "flex items-center justify-between",
                     label { class: "text-sm font-medium", "Icon" }
-                    button {
-                        r#type: "button",
+                    Button {
+                        variant: ButtonVariant::Link,
+                        size: ButtonSize::Xs,
                         onclick: move |_| show_icon_picker.toggle(),
-                        class: "text-sm text-primary hover:underline",
                         if show_icon_picker() { "Hide icons" } else { "Choose icon" }
                     }
                 }
@@ -51,21 +49,25 @@ pub fn AccountFields(
                     span { style: "color: {color()}", {icon_display(&icon())} }
                 }
                 if show_icon_picker() {
-                    input {
+                    Input {
                         r#type: "search",
+                        size: InputSize::Sm,
                         placeholder: "Search icons…",
                         value: icon_search(),
-                        oninput: move |e| icon_search.set(e.value()),
-                        class: "mb-2 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm",
+                        on_input: move |value| icon_search.set(value),
+                        class: "mb-2",
                     }
                     div { class: "grid grid-cols-8 gap-1 p-2 border border-border rounded-md max-h-48 overflow-y-auto",
                         for icon_name in ICON_NAMES.iter().filter(|name| name.to_lowercase().contains(&icon_search().to_lowercase())) {
                             {let is_selected = *icon_name == icon();
                              rsx! {
-                                button {
-                                    r#type: "button",
+                                Button {
                                     key: "{icon_name}",
-                                    class: if is_selected { "h-8 w-8 flex items-center justify-center rounded border-2 border-primary text-sm" } else { "h-8 w-8 flex items-center justify-center rounded border border-border hover:bg-accent text-sm" },
+                                    variant: ButtonVariant::Unstyled,
+                                    size: ButtonSize::Unstyled,
+                                    radius: ButtonRadius::None,
+                                    align: ButtonAlign::Center,
+                                    class: if is_selected { "inline-flex h-8 w-8 items-center justify-center rounded border-2 border-primary text-sm" } else { "inline-flex h-8 w-8 items-center justify-center rounded border border-border text-sm hover:bg-accent" },
                                     onclick: move |_| icon.set(icon_name.to_string()),
                                     {icon_display(icon_name)}
                                 }
