@@ -460,6 +460,13 @@
   * {
     @apply border-border;
   }
+
+  /* Focus is communicated by the app's rings and surfaces. Do not let the
+     browser paint its default focus-visible outline over the UI. */
+  :focus-visible {
+    outline: none;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -497,6 +504,39 @@
   }
 }
 
+
+/* Opacity-only page entry. A transform on the page root would create a
+   containing block and make fixed dialogs jump to the centre after it ends. */
+.page-enter {
+  animation: recurrency-page-enter 160ms cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes recurrency-page-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog-backdrop {
+  animation: recurrency-dialog-backdrop 150ms ease-out;
+}
+.dialog-card {
+  animation: recurrency-dialog-card 190ms cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes recurrency-dialog-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes recurrency-dialog-card {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .dialog-backdrop,
+  .dialog-card {
+    animation: none;
+  }
+}
 
 /* Canonical pre-WASM/app loader. Keep the same markup in index.html,
    the Android bootstrap and AppLoader. */

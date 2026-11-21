@@ -78,7 +78,7 @@ fn MobileSessionCard() -> Element {
 #[component]
 pub fn SettingsProfilePage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Account", subtitle: "Your profile, session and account" }
             ProfileCard {}
             MobileSessionCard {}
@@ -90,7 +90,7 @@ pub fn SettingsProfilePage() -> Element {
 #[component]
 pub fn SettingsPreferencesPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "General", subtitle: "Defaults, locale, exchange rates and app updates" }
             PreferencesCard {}
             ExchangeRatesCard {}
@@ -103,7 +103,7 @@ pub use ai_page::SettingsAiPage;
 #[component]
 pub fn SettingsAppearancePage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Appearance", subtitle: "Color theme and palette" }
             AppearanceCard {}
         }
@@ -114,7 +114,7 @@ pub fn SettingsAppearancePage() -> Element {
 pub fn SettingsMoneyPage() -> Element {
     let mut tab = use_signal(|| MoneyTab::Accounts);
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Accounts & categories", subtitle: "Accounts and categories that organize your money" }
 
             div { class: "flex items-center gap-1 border-b border-border/50", role: "tablist", aria_label: "Accounts and categories sections",
@@ -156,7 +156,7 @@ pub fn SettingsMoneyPage() -> Element {
 #[component]
 pub fn SettingsDataPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Data & backup", subtitle: "Keep a copy of your data and sync devices" }
             BackupCard {}
             SyncFolderCard {}
@@ -167,7 +167,7 @@ pub fn SettingsDataPage() -> Element {
 #[component]
 pub fn SettingsServerPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Server", subtitle: "Connection and device pairing" }
             ServerCard {}
         }
@@ -178,7 +178,7 @@ pub fn SettingsServerPage() -> Element {
 pub fn SettingsNotificationsPage() -> Element {
     let offline = crate::api::client::is_offline_mode();
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Notifications", subtitle: "Choose where your summary lands and when it leaves" }
             if offline {
                 div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
@@ -198,7 +198,7 @@ pub fn SettingsNotificationsPage() -> Element {
 #[component]
 pub fn SettingsAboutPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             AboutPage {}
             ApkCard {}
         }

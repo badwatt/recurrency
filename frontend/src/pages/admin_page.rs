@@ -236,7 +236,7 @@ pub fn AdminPage() -> Element {
     let admin_count = users().iter().filter(|user| user.is_admin).count();
 
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader {
                 title: "Administration",
                 subtitle: "Users, registration and full installation backups",

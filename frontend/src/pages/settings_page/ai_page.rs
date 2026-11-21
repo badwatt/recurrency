@@ -15,7 +15,7 @@ pub fn SettingsAiPage() -> Element {
     let voice_mode = *voice::VOICE_MODE.read();
 
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             div { class: "relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-card/80 to-sky-500/5 p-6 sm:p-8",
                 div { class: "pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" }
                 div { class: "pointer-events-none absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" }

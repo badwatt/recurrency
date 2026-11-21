@@ -304,7 +304,7 @@ pub fn TransactionsPage() -> Element {
     }
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 page-enter",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Transactions", subtitle: "Track your one-time expenses" }

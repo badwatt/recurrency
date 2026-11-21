@@ -98,7 +98,7 @@ pub fn AboutPage() -> Element {
         .unwrap_or_else(|| format!("{REPO_URL}/releases"));
 
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "About", subtitle: "Recurrency, the people behind it, and what changed" }
 
             div { class: "relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card to-card p-6 md:p-8",

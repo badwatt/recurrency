@@ -36,7 +36,7 @@ pub fn Dialog(
     rsx! {
         // Backdrop overlay
         div {
-            class: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center",
+            class: "dialog-backdrop fixed inset-0 z-50 bg-black/50 flex items-center justify-center",
             onclick: move |e| {
                 // Close only on backdrop click, not on card click
                 if e.client_coordinates().x > 0.0 {
@@ -46,7 +46,7 @@ pub fn Dialog(
 
             // Dialog card
             div {
-                class: "bg-card border border-border rounded-none sm:rounded-lg shadow-lg w-full sm:max-w-lg mx-0 sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden",
+                class: "dialog-card bg-card border border-border rounded-none sm:rounded-lg shadow-lg w-full sm:max-w-lg mx-0 sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden",
                 onclick: move |e| e.stop_propagation(),
 
                 // Header
