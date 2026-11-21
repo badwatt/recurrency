@@ -339,7 +339,7 @@ pub async fn api_get<T: DeserializeOwned + Send + 'static>(path: &str) -> Result
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
-                Err(p) => Err(ApiError::Network(panic_msg(p))),
+                Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
         return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
@@ -386,7 +386,7 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
-                Err(p) => Err(ApiError::Network(panic_msg(p))),
+                Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
         return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
@@ -433,7 +433,7 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
-                Err(p) => Err(ApiError::Network(panic_msg(p))),
+                Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
         return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
@@ -485,7 +485,7 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
-                Err(p) => Err(ApiError::Network(panic_msg(p))),
+                Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
         return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
@@ -511,7 +511,7 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
     }
 }
 
-fn panic_msg(p: Box<dyn std::any::Any + Send>) -> String {
+fn panic_msg(p: &(dyn std::any::Any + Send)) -> String {
     if let Some(s) = p.downcast_ref::<&str>() { s.to_string() }
     else if let Some(s) = p.downcast_ref::<String>() { s.clone() }
     else { "Unknown panic".to_string() }

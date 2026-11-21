@@ -108,7 +108,7 @@ mod tests {
     use crate::api::test_support::serve_once;
     use serial_test::serial;
 
-    async fn with_server<F, T>(response: &'static str, call: F) -> T
+    async fn with_server<F, T>(response: impl Into<String>, call: F) -> T
     where
         F: std::future::Future<Output = T>,
     {
@@ -127,8 +127,7 @@ mod tests {
         let user = format!(
             r#"{{"id":"{id}","email":"a@b.c","name":"A","currency":"EUR","verified":true,"is_admin":false,"created_at":"2026-01-01T00:00:00Z"}}"#
         );
-        let users_json: &'static str = Box::leak(format!("[{user}]").into_boxed_str());
-        let user: &'static str = Box::leak(user.into_boxed_str());
+        let users_json = format!("[{user}]");
         let users = with_server(users_json, users()).await.unwrap();
         assert_eq!(users.len(), 1);
         assert_eq!(users[0].id, id);
