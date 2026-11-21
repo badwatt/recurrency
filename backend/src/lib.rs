@@ -1,12 +1,13 @@
 //! Recurrency API Library
 //!
 //! This module exposes internal components for testing.
+#![forbid(unsafe_code)]
 
 pub mod accounts;
 pub mod admin;
 pub mod ai;
-pub mod backup;
 pub mod auth;
+pub mod backup;
 pub mod cli;
 #[cfg(feature = "embedded-web")]
 pub mod embedded_web;

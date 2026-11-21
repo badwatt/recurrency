@@ -1,13 +1,13 @@
 use chrono::Utc;
-use std::str::FromStr;
 use serde_json::{Value, json};
 use sqlx::PgPool;
+use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::notifications::channels::{
     DEFAULT_TIMEZONE, NotificationChannelRecord, NotificationChannelResponse, NotificationProvider,
-    SummaryNotificationSettings, SummaryNotificationSettingsResponse, UpdateNotificationChannelRequest,
-    UpdateSummaryNotificationSettingsRequest, default_channel,
+    SummaryNotificationSettings, SummaryNotificationSettingsResponse,
+    UpdateNotificationChannelRequest, UpdateSummaryNotificationSettingsRequest, default_channel,
 };
 use crate::notifications::crypto::{decrypt_with_secret, encrypt_with_secret};
 use crate::notifications::providers::{
@@ -32,8 +32,7 @@ pub trait NotificationSettingsServiceTrait: Send + Sync {
         provider: NotificationProvider,
         config: Option<Value>,
     ) -> AppResult<()>;
-    async fn get_summary(&self, user_id: Uuid)
-    -> AppResult<SummaryNotificationSettingsResponse>;
+    async fn get_summary(&self, user_id: Uuid) -> AppResult<SummaryNotificationSettingsResponse>;
     async fn update_summary(
         &self,
         user_id: Uuid,
@@ -101,8 +100,7 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         let existing = self.load_config(user_id, provider, &secret).await?;
         let merged = merge_config(provider, &existing, &req.config);
         let config = if req.enabled || !merged.as_object().is_none_or(|object| object.is_empty()) {
-            validate_config(provider, &merged)
-                .map_err(|error| AppError::BadRequest(error.to_string()))?
+            validate_config(provider, &merged).map_err(AppError::BadRequest)?
         } else {
             json!({})
         };
@@ -144,8 +142,7 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         let existing = self.load_config(user_id, provider, &secret).await?;
         let incoming = config.unwrap_or(json!({}));
         let merged = merge_config(provider, &existing, &incoming);
-        let config = validate_config(provider, &merged)
-            .map_err(|error| AppError::BadRequest(error.to_string()))?;
+        let config = validate_config(provider, &merged).map_err(AppError::BadRequest)?;
         let email: (String,) = sqlx::query_as("SELECT email FROM users WHERE id = $1")
             .bind(user_id)
             .fetch_one(&self.pool)
@@ -162,10 +159,7 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         .await
     }
 
-    async fn get_summary(
-        &self,
-        user_id: Uuid,
-    ) -> AppResult<SummaryNotificationSettingsResponse> {
+    async fn get_summary(&self, user_id: Uuid) -> AppResult<SummaryNotificationSettingsResponse> {
         let row = sqlx::query_as::<_, SummaryNotificationSettings>(
             r#"
             SELECT user_id, enabled, frequency, weekday, day_of_month, hour, minute,
@@ -176,9 +170,7 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
         .bind(user_id)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row
-            .map(Into::into)
-            .unwrap_or_else(default_summary))
+        Ok(row.map(Into::into).unwrap_or_else(default_summary))
     }
 
     async fn update_summary(
@@ -194,13 +186,9 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
             minute: req.minute,
             timezone: req.timezone.clone(),
         };
-        validate_schedule(&spec)
-            .map_err(|error| AppError::BadRequest(error.to_string()))?;
+        validate_schedule(&spec).map_err(AppError::BadRequest)?;
         let next = if req.enabled {
-            Some(
-                next_run_at(Utc::now(), &spec)
-                    .map_err(|error| AppError::BadRequest(error.to_string()))?,
-            )
+            Some(next_run_at(Utc::now(), &spec).map_err(AppError::BadRequest)?)
         } else {
             None
         };
@@ -241,12 +229,11 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
 
     async fn send_summary_now(&self, user_id: Uuid) -> AppResult<()> {
         let secret = notification_secret()?;
-        let user: (String, String) = sqlx::query_as(
-            "SELECT email, currency FROM users WHERE id = $1",
-        )
-        .bind(user_id)
-        .fetch_one(&self.pool)
-        .await?;
+        let user: (String, String) =
+            sqlx::query_as("SELECT email, currency FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&self.pool)
+                .await?;
         let summary = self.get_summary(user_id).await.ok();
         let timezone = summary
             .as_ref()
@@ -260,14 +247,10 @@ impl NotificationSettingsServiceTrait for SqlxNotificationSettingsService {
             Utc::now().with_timezone(&timezone).date_naive(),
             period,
         );
-        let message = crate::notifications::scheduler::build_summary(
-            &self.pool,
-            user_id,
-            &user.1,
-            today,
-        )
-        .await
-        .map_err(AppError::Internal)?;
+        let message =
+            crate::notifications::scheduler::build_summary(&self.pool, user_id, &user.1, today)
+                .await
+                .map_err(AppError::Internal)?;
         let channels = sqlx::query_as::<_, (String, Vec<u8>)>(
             "SELECT provider, config FROM notification_channels WHERE user_id = $1 AND enabled = true",
         )

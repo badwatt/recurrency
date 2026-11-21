@@ -20,20 +20,20 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct AppState {
     pub pool: sqlx::PgPool,
-    pub auth_service: Arc<dyn AuthServiceTrait>,
-    pub admin_service: Arc<dyn AdminServiceTrait>,
-    pub ai_service: Arc<dyn AiServiceTrait>,
-    pub subscription_service: Arc<dyn SubscriptionServiceTrait>,
-    pub transaction_service: Arc<dyn TransactionServiceTrait>,
-    pub account_service: Arc<dyn AccountServiceTrait>,
-    pub backup_service: Arc<dyn BackupServiceTrait>,
-    pub category_service: Arc<dyn CategoryServiceTrait>,
-    pub demo_service: Arc<dyn DemoServiceTrait>,
-    pub debt_service: Arc<dyn DebtServiceTrait>,
-    pub notification_service: Arc<dyn NotificationServiceTrait>,
-    pub notification_settings_service: Arc<dyn NotificationSettingsServiceTrait>,
-    pub report_service: Arc<dyn ReportServiceTrait>,
-    pub preferences_service: Arc<dyn PreferencesServiceTrait>,
+    pub(crate) auth_service: Arc<dyn AuthServiceTrait>,
+    pub(crate) admin_service: Arc<dyn AdminServiceTrait>,
+    pub(crate) ai_service: Arc<dyn AiServiceTrait>,
+    pub(crate) subscription_service: Arc<dyn SubscriptionServiceTrait>,
+    pub(crate) transaction_service: Arc<dyn TransactionServiceTrait>,
+    pub(crate) account_service: Arc<dyn AccountServiceTrait>,
+    pub(crate) backup_service: Arc<dyn BackupServiceTrait>,
+    pub(crate) category_service: Arc<dyn CategoryServiceTrait>,
+    pub(crate) demo_service: Arc<dyn DemoServiceTrait>,
+    pub(crate) debt_service: Arc<dyn DebtServiceTrait>,
+    pub(crate) notification_service: Arc<dyn NotificationServiceTrait>,
+    pub(crate) notification_settings_service: Arc<dyn NotificationSettingsServiceTrait>,
+    pub(crate) report_service: Arc<dyn ReportServiceTrait>,
+    pub(crate) preferences_service: Arc<dyn PreferencesServiceTrait>,
 }
 
 impl AppState {
@@ -62,7 +62,10 @@ impl AppState {
 
     /// Test wiring: production adapters plus an injectable auth port.
     #[cfg(test)]
-    pub fn with_auth_service(pool: sqlx::PgPool, auth_service: Arc<dyn AuthServiceTrait>) -> Self {
+    pub(crate) fn with_auth_service(
+        pool: sqlx::PgPool,
+        auth_service: Arc<dyn AuthServiceTrait>,
+    ) -> Self {
         Self {
             auth_service,
             admin_service: Arc::new(TestAdminService),

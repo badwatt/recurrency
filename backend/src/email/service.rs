@@ -15,28 +15,35 @@ pub struct SmtpConfig {
 }
 
 pub fn is_configured() -> bool {
-    std::env::var("SMTP_HOST").is_ok()
-        && std::env::var("SMTP_USER").is_ok()
-        && std::env::var("SMTP_PASSWORD").is_ok()
+    get_config().is_some()
 }
 
 pub fn get_config() -> Option<SmtpConfig> {
-    if !is_configured() {
-        return None;
-    }
-    let port = std::env::var("SMTP_PORT")
-        .unwrap_or_else(|_| "587".to_string())
-        .parse()
+    let host = crate::shared::test_env::var("SMTP_HOST").ok()?;
+    let user = crate::shared::test_env::var("SMTP_USER").ok()?;
+    let password = crate::shared::test_env::var("SMTP_PASSWORD").ok()?;
+    let port = crate::shared::test_env::var("SMTP_PORT")
+        .ok()
+        .and_then(|value| value.parse().ok())
         .unwrap_or(587);
-    let encryption = std::env::var("SMTP_ENCRYPTION")
-        .unwrap_or_else(|_| if port == 465 { "ssl" } else { "tls" }.to_string());
+    let encryption = crate::shared::test_env::var("SMTP_ENCRYPTION").unwrap_or_else(|_| {
+        if port == 465 {
+            "ssl".to_string()
+        } else {
+            "tls".to_string()
+        }
+    });
+    let from = crate::shared::test_env::var("SMTP_FROM")
+        .unwrap_or_else(|_| "noreply@localhost".to_string());
+    let app_name =
+        crate::shared::test_env::var("APP_NAME").unwrap_or_else(|_| "Recurrency".to_string());
     Some(SmtpConfig {
-        host: std::env::var("SMTP_HOST").unwrap(),
+        host,
         port,
-        user: std::env::var("SMTP_USER").unwrap(),
-        password: std::env::var("SMTP_PASSWORD").unwrap(),
-        from: std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
-        app_name: std::env::var("APP_NAME").unwrap_or_else(|_| "Recurrency".to_string()),
+        user,
+        password,
+        from,
+        app_name,
         encryption,
     })
 }

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use recurrency_backend::{
     accounts, admin, ai, auth, backup, categories, currency, debts, demo, logos, notifications,
     preferences, reports, shared, subscriptions, transactions,
@@ -302,8 +304,13 @@ fn resolve_cors_origin(value: Option<&str>) -> Result<Option<HeaderValue>, Strin
 }
 
 fn cors_layer() -> CorsLayer {
-    let origin = resolve_cors_origin(std::env::var("CORS_ALLOWED_ORIGIN").ok().as_deref())
-        .expect("CORS_ALLOWED_ORIGIN must be a valid HTTP header value");
+    let origin = match resolve_cors_origin(std::env::var("CORS_ALLOWED_ORIGIN").ok().as_deref()) {
+        Ok(origin) => origin,
+        Err(error) => {
+            tracing::error!("{error}; CORS will allow any origin");
+            None
+        }
+    };
 
     match origin {
         Some(value) => CorsLayer::new()

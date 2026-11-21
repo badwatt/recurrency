@@ -218,7 +218,9 @@ impl SubscriptionService {
 
         for subscription in subscriptions.iter_mut() {
             if !subscription.is_active
-                || subscription.next_billing_date.is_some_and(|date| date >= today)
+                || subscription
+                    .next_billing_date
+                    .is_some_and(|date| date >= today)
             {
                 continue;
             }
@@ -324,12 +326,7 @@ impl SubscriptionService {
                 Some(next)
             }
         } else if schedule_changed {
-            next_occurrence_on_or_after(
-                start_date,
-                &recurrence,
-                Utc::now().date_naive(),
-                end_date,
-            )
+            next_occurrence_on_or_after(start_date, &recurrence, Utc::now().date_naive(), end_date)
         } else {
             existing.next_billing_date
         };
@@ -407,9 +404,11 @@ impl SubscriptionService {
                 && subscription
                     .next_billing_date
                     .is_some_and(|date| date >= from_date && date <= to_date)
-                && subscription
-                    .end_date
-                    .is_none_or(|end| subscription.next_billing_date.is_some_and(|date| date <= end))
+                && subscription.end_date.is_none_or(|end| {
+                    subscription
+                        .next_billing_date
+                        .is_some_and(|date| date <= end)
+                })
         });
         Ok(subscriptions)
     }
@@ -429,12 +428,13 @@ impl SubscriptionService {
         .await?;
 
         // Calculate billing dates for the given month
-        let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
-        let month_end = if month == 12 {
-            NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap() - chrono::Duration::days(1)
-        } else {
-            NaiveDate::from_ymd_opt(year, month + 1, 1).unwrap() - chrono::Duration::days(1)
-        };
+        let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
+        let next_month = if month == 12 { 1 } else { month + 1 };
+        let next_year = if month == 12 { year + 1 } else { year };
+        let month_end = NaiveDate::from_ymd_opt(next_year, next_month, 1)
+            .unwrap_or_default()
+            .pred_opt()
+            .unwrap_or(month_start);
 
         let mut calendar_items: Vec<CalendarItem> = Vec::new();
 
@@ -1587,7 +1587,10 @@ mod schedule_tests {
     #[test]
     fn normalize_daily_has_no_extra_fields() {
         let start = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
-        assert_eq!(normalize_schedule(start, "daily", Some(3), Some(6)).unwrap(), (None, None));
+        assert_eq!(
+            normalize_schedule(start, "daily", Some(3), Some(6)).unwrap(),
+            (None, None)
+        );
     }
 
     #[test]

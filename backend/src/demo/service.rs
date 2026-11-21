@@ -227,8 +227,7 @@ pub(crate) fn calc_start_date(
     let new_month = ((total_months % 12) + 1) as u32;
     let max_day = days_in_month(new_year, new_month);
     let new_day = day.min(max_day);
-    chrono::NaiveDate::from_ymd_opt(new_year, new_month, new_day)
-        .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap())
+    chrono::NaiveDate::from_ymd_opt(new_year, new_month, new_day).unwrap_or_default()
 }
 
 /// Calculate next billing date from current date and billing day.
@@ -250,7 +249,7 @@ pub(crate) fn calc_next_date(
     };
     let max_day = days_in_month(next_year, next_month_normalized);
     let final_day = billing_day.min(max_day);
-    chrono::NaiveDate::from_ymd_opt(next_year, next_month_normalized, final_day).unwrap()
+    chrono::NaiveDate::from_ymd_opt(next_year, next_month_normalized, final_day).unwrap_or_default()
 }
 
 #[cfg(test)]

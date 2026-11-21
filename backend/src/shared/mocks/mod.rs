@@ -36,9 +36,9 @@ use crate::transactions::models::{
 /// Configuration for mock behavior
 #[derive(Clone, Debug)]
 pub struct MockConfig {
-    pub should_fail: bool,
-    pub error_message: String,
-    pub delay_ms: u64,
+    pub(crate) should_fail: bool,
+    pub(crate) error_message: String,
+    pub(crate) delay_ms: u64,
 }
 
 impl Default for MockConfig {
@@ -83,10 +83,10 @@ impl MockConfig {
 
 #[derive(Clone)]
 pub struct MockAuthService {
-    pub config: MockConfig,
-    pub registered_users: Arc<std::sync::Mutex<Vec<User>>>,
-    pub login_calls: Arc<std::sync::Mutex<Vec<LoginRequest>>>,
-    pub register_calls: Arc<std::sync::Mutex<Vec<CreateUserRequest>>>,
+    pub(crate) config: MockConfig,
+    pub(crate) registered_users: Arc<std::sync::Mutex<Vec<User>>>,
+    pub(crate) login_calls: Arc<std::sync::Mutex<Vec<LoginRequest>>>,
+    pub(crate) register_calls: Arc<std::sync::Mutex<Vec<CreateUserRequest>>>,
 }
 
 impl Default for MockAuthService {
@@ -378,11 +378,11 @@ impl crate::auth::service::AuthServiceTrait for MockAuthService {
 // ============================================================================
 
 pub struct MockCategoryService {
-    pub config: MockConfig,
-    pub categories: Arc<std::sync::Mutex<Vec<Category>>>,
-    pub create_calls: Arc<std::sync::Mutex<Vec<(Uuid, CreateCategoryRequest)>>>,
-    pub update_calls: Arc<std::sync::Mutex<Vec<(Uuid, Uuid, UpdateCategoryRequest)>>>,
-    pub delete_calls: Arc<std::sync::Mutex<Vec<(Uuid, Uuid)>>>,
+    pub(crate) config: MockConfig,
+    pub(crate) categories: Arc<std::sync::Mutex<Vec<Category>>>,
+    pub(crate) create_calls: Arc<std::sync::Mutex<Vec<(Uuid, CreateCategoryRequest)>>>,
+    pub(crate) update_calls: Arc<std::sync::Mutex<Vec<(Uuid, Uuid, UpdateCategoryRequest)>>>,
+    pub(crate) delete_calls: Arc<std::sync::Mutex<Vec<(Uuid, Uuid)>>>,
 }
 
 impl Default for MockCategoryService {
@@ -633,9 +633,9 @@ impl MockCategoryService {
 // ============================================================================
 
 pub struct MockSubscriptionService {
-    pub config: MockConfig,
-    pub subscriptions: Arc<std::sync::Mutex<Vec<Subscription>>>,
-    pub create_calls: Arc<std::sync::Mutex<Vec<(Uuid, CreateSubscriptionRequest)>>>,
+    pub(crate) config: MockConfig,
+    pub(crate) subscriptions: Arc<std::sync::Mutex<Vec<Subscription>>>,
+    pub(crate) create_calls: Arc<std::sync::Mutex<Vec<(Uuid, CreateSubscriptionRequest)>>>,
 }
 
 impl Default for MockSubscriptionService {
@@ -845,9 +845,9 @@ impl MockSubscriptionService {
 // ============================================================================
 
 pub struct MockTransactionService {
-    pub config: MockConfig,
-    pub transactions: Arc<std::sync::Mutex<Vec<Transaction>>>,
-    pub create_calls: Arc<std::sync::Mutex<Vec<(Uuid, CreateTransactionRequest)>>>,
+    pub(crate) config: MockConfig,
+    pub(crate) transactions: Arc<std::sync::Mutex<Vec<Transaction>>>,
+    pub(crate) create_calls: Arc<std::sync::Mutex<Vec<(Uuid, CreateTransactionRequest)>>>,
 }
 
 impl Default for MockTransactionService {
@@ -1010,9 +1010,9 @@ impl MockTransactionService {
 // ============================================================================
 
 pub struct MockNotificationService {
-    pub config: MockConfig,
-    pub notifications: Arc<std::sync::Mutex<Vec<Notification>>>,
-    pub preferences: Arc<std::sync::Mutex<Vec<NotificationPreferenceResponse>>>,
+    pub(crate) config: MockConfig,
+    pub(crate) notifications: Arc<std::sync::Mutex<Vec<Notification>>>,
+    pub(crate) preferences: Arc<std::sync::Mutex<Vec<NotificationPreferenceResponse>>>,
 }
 
 impl Default for MockNotificationService {
@@ -1167,7 +1167,7 @@ impl MockNotificationService {
 // ============================================================================
 
 pub struct MockReportService {
-    pub config: MockConfig,
+    pub(crate) config: MockConfig,
 }
 
 impl Default for MockReportService {
@@ -1296,8 +1296,8 @@ impl MockReportService {
 // ============================================================================
 
 pub struct MockPreferencesService {
-    pub config: MockConfig,
-    pub preferences: Arc<std::sync::Mutex<std::collections::HashMap<Uuid, PreferencesResponse>>>,
+    pub(crate) config: MockConfig,
+    pub(crate) preferences: Arc<std::sync::Mutex<std::collections::HashMap<Uuid, PreferencesResponse>>>,
 }
 
 impl Default for MockPreferencesService {

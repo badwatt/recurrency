@@ -1,24 +1,22 @@
-use std::env;
-
-use axum::{extract::State, http::HeaderMap, Json};
+use axum::{Json, extract::State, http::HeaderMap};
 use uuid::Uuid;
 
+use crate::shared::OptionalQuery;
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::password_utils::hash_password;
-use crate::shared::OptionalQuery;
 
 /// Check if demo mode is enabled via environment variable.
 fn is_demo_enabled() -> bool {
-    env::var("ENABLE_DEMO")
+    crate::shared::test_env::var("ENABLE_DEMO")
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false)
 }
 
 /// Get demo email from env or generate random one.
 fn demo_email() -> String {
-    env::var("DEMO_EMAIL").unwrap_or_else(|_| {
+    crate::shared::test_env::var("DEMO_EMAIL").unwrap_or_else(|_| {
         if is_demo_enabled() {
             // Generate random email when enabled but not configured
             format!("demo_{}@recurrency.local", &Uuid::new_v4().to_string()[..8])
@@ -30,13 +28,13 @@ fn demo_email() -> String {
 
 /// Get demo password from env or generate random one.
 fn demo_password() -> String {
-    env::var("DEMO_PASSWORD")
+    crate::shared::test_env::var("DEMO_PASSWORD")
         .unwrap_or_else(|_| Uuid::new_v4().to_string().replace("-", "")[..16].to_string())
 }
 
 /// Get demo password hash. Only needed when creating the user.
 fn demo_password_hash(password: &str) -> Result<String, AppError> {
-    if let Ok(hash) = env::var("DEMO_PASSWORD_HASH") {
+    if let Ok(hash) = crate::shared::test_env::var("DEMO_PASSWORD_HASH") {
         return Ok(hash);
     }
 
@@ -90,18 +88,23 @@ pub async fn reset(
         return Err(AppError::BadRequest("Demo mode is not enabled".to_string()));
     }
 
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     match state.demo_service.reset_demo_data(claims.sub).await {
         Ok(()) => Ok(Json(serde_json::json!({
             "success": true,
             "message": "Demo data has been reset successfully"
         }))),
-        Err(e) => Err(AppError::Internal(format!("Failed to reset demo data: {}", e))),
+        Err(e) => Err(AppError::Internal(format!(
+            "Failed to reset demo data: {}",
+            e
+        ))),
     }
 }
 

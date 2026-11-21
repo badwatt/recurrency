@@ -5,10 +5,10 @@ use sqlx::types::Json;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+use crate::currency::service::convert;
 use crate::reports::models::{CategoryBreakdown, MonthlySummary, ReportResponse, SpendingTrend};
 use crate::shared::date_utils::days_in_month;
 use crate::shared::error::AppResult;
-use crate::currency::service::convert;
 use crate::subscriptions::models::Recurrence;
 
 /// Trend chart shows six previous months, the current month and three future months.
@@ -96,12 +96,13 @@ impl ReportServiceTrait for SqlxReportService {
 
 /// Calculate the first and last date of a given year/month.
 pub(crate) fn month_date_range(year: i32, month: u32) -> (chrono::NaiveDate, chrono::NaiveDate) {
-    let from_date = chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap();
-    let to_date = if month == 12 {
-        chrono::NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap() - chrono::Duration::days(1)
-    } else {
-        chrono::NaiveDate::from_ymd_opt(year, month + 1, 1).unwrap() - chrono::Duration::days(1)
-    };
+    let from_date = chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
+    let next_month = if month == 12 { 1 } else { month + 1 };
+    let next_year = if month == 12 { year + 1 } else { year };
+    let to_date = chrono::NaiveDate::from_ymd_opt(next_year, next_month, 1)
+        .unwrap_or_default()
+        .pred_opt()
+        .unwrap_or(from_date);
     (from_date, to_date)
 }
 
@@ -286,7 +287,9 @@ impl ReportService {
             if total.is_zero() {
                 continue;
             }
-            let entry = subs_by_cat_map.entry(name).or_insert((cat_id, Decimal::ZERO));
+            let entry = subs_by_cat_map
+                .entry(name)
+                .or_insert((cat_id, Decimal::ZERO));
             entry.1 += total;
         }
         let _ = (from_date, to_date);
@@ -362,16 +365,12 @@ impl ReportService {
         .fetch_all(pool)
         .await?;
 
-        let earliest = months
-            .iter()
-            .map(|m| m.2)
-            .min()
-            .expect("months is non-empty");
-        let latest = months
-            .iter()
-            .map(|m| m.3)
-            .max()
-            .expect("months is non-empty");
+        let Some(earliest) = months.iter().map(|month| month.2).min() else {
+            return Ok(Vec::new());
+        };
+        let Some(latest) = months.iter().map(|month| month.3).max() else {
+            return Ok(Vec::new());
+        };
 
         let by_month: Vec<(i32, i32, Decimal, String)> = sqlx::query_as(
             r#"
