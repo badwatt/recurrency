@@ -721,7 +721,7 @@ pub fn Dashboard() -> Element {
             }
 
             // Payments on the left; the transfer plan on the right.
-            div { class: "grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px] items-start",
+            div { class: "grid gap-4 lg:grid-cols-[minmax(0,1fr)_460px] items-start",
                 div { class: "order-2 flex min-w-0 flex-col gap-4 lg:order-1",
                     div { class: "rounded-xl bg-card border border-border/60",
                         div { class: "p-5 md:p-6 pb-2 flex items-center justify-between",
@@ -853,7 +853,7 @@ pub fn Dashboard() -> Element {
                             }
                         }
                     } else {
-                        div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
+                        div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_6rem_6rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
                             span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Account" }
                             span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Budget" }
                             span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Pending" }
@@ -880,9 +880,9 @@ pub fn Dashboard() -> Element {
                                     };
                                     let linked = hovered_account() == Some(account_id);
                                     let row_class = if linked {
-                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_5rem_5rem] gap-x-4 gap-y-3 items-center bg-primary/5 ring-1 ring-inset ring-primary/20 transition-colors"
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center bg-primary/5 ring-1 ring-inset ring-primary/20 transition-colors"
                                     } else {
-                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_5rem_5rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors"
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors"
                                     };
                                     rsx! {
                                         div {

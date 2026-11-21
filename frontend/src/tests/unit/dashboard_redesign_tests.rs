@@ -21,7 +21,9 @@ fn dashboard_has_large_monthly_total() {
     let dashboard = include_str!("../../pages/dashboard.rs");
     // Monthly total must use large typography (text-3xl or bigger)
     assert!(
-        dashboard.contains("text-4xl") || dashboard.contains("text-5xl") || dashboard.contains("text-6xl"),
+        dashboard.contains("text-4xl")
+            || dashboard.contains("text-5xl")
+            || dashboard.contains("text-6xl"),
         "Dashboard monthly total must use large display typography (text-4xl+)"
     );
 }
@@ -30,9 +32,11 @@ fn dashboard_has_large_monthly_total() {
 fn dashboard_has_staggered_animation_classes() {
     let dashboard = include_str!("../../pages/dashboard.rs").to_lowercase();
     // Must have animation/transition related patterns for staggered entry
-    let has_anim = dashboard.contains("animate") || dashboard.contains("opacity-0") ||
-        dashboard.contains("translate-y") || dashboard.contains("fade-in") ||
-        dashboard.contains("stagger");
+    let has_anim = dashboard.contains("animate")
+        || dashboard.contains("opacity-0")
+        || dashboard.contains("translate-y")
+        || dashboard.contains("fade-in")
+        || dashboard.contains("stagger");
     assert!(
         has_anim,
         "Dashboard must include staggered animation classes for card entries"
@@ -44,7 +48,9 @@ fn dashboard_cards_vary_in_size() {
     let dashboard = include_str!("../../pages/dashboard.rs");
     // Cards must use different col-span values (bento grid)
     assert!(
-        dashboard.contains("col-span") || dashboard.contains("col-span-2") || dashboard.contains("row-span"),
+        dashboard.contains("col-span")
+            || dashboard.contains("col-span-2")
+            || dashboard.contains("row-span"),
         "Dashboard cards must use varied col-span/row-span for bento grid"
     );
 }
@@ -54,9 +60,12 @@ fn dashboard_has_quick_add_section() {
     let dashboard = include_str!("../../pages/dashboard.rs");
     // Must have quick-add subscription/transaction button
     assert!(
-        dashboard.contains("New subscription") || dashboard.contains("New transaction") ||
-        dashboard.contains("Add subscription") || dashboard.contains("Add transaction") ||
-        dashboard.contains("Quick add") || dashboard.contains("Create"),
+        dashboard.contains("New subscription")
+            || dashboard.contains("New transaction")
+            || dashboard.contains("Add subscription")
+            || dashboard.contains("Add transaction")
+            || dashboard.contains("Quick add")
+            || dashboard.contains("Create"),
         "Dashboard must have quick-add subscription/transaction buttons"
     );
 }
@@ -74,11 +83,13 @@ fn dashboard_places_payments_left_and_accounts_right() {
     let dashboard = include_str!("../../pages/dashboard.rs");
     let production = dashboard.split("#[cfg(test)]").next().unwrap_or(dashboard);
     assert!(
-        production.contains("lg:grid-cols-[minmax(0,1fr)_420px]"),
+        production.contains("lg:grid-cols-[minmax(0,1fr)_460px]"),
         "the lower dashboard must use a payments/account two-column grid"
     );
     assert!(
-        production.contains("order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2"),
+        production.contains(
+            "order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2"
+        ),
         "the account ledger must be first on mobile and right on desktop"
     );
     assert!(
