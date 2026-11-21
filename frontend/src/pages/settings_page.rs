@@ -114,7 +114,7 @@ pub fn SettingsAppearancePage() -> Element {
 pub fn SettingsMoneyPage() -> Element {
     let mut tab = use_signal(|| MoneyTab::Accounts);
     rsx! {
-        div { class: "flex flex-col gap-6 page-enter",
+        div { class: "relative flex flex-col gap-6 page-enter",
             PageHeader { title: "Accounts & categories", subtitle: "Accounts and categories that organize your money" }
 
             div { class: "flex items-center gap-1 border-b border-border/50", role: "tablist", aria_label: "Accounts and categories sections",
