@@ -58,7 +58,7 @@ jobs:
           cache-all-crates: true
 
       - name: Clippy
-        run: cd backend && cargo clippy --lib --features integration-tests -- -D warnings
+        run: cd backend && cargo clippy --lib --bins --features integration-tests -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
 
       - name: Test (unit + integration)
         env:
@@ -118,7 +118,7 @@ jobs:
           cache-all-crates: true
 
       - name: Clippy
-        run: cd frontend && cargo clippy --lib -- -D warnings
+        run: cd frontend && cargo clippy --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
 
       - name: Test
         run: cd frontend && cargo test --lib

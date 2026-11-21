@@ -118,7 +118,7 @@ jobs:
           CARGO_BUILD_JOBS: 4
         run: |
           cd backend
-          cargo clippy --lib --jobs 4 -- -D warnings
+          cargo clippy --lib --bins --jobs 4 -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
           cargo test --lib --jobs 4
 
   # ── Frontend: lint + test ──────────────────────────────────
@@ -166,7 +166,7 @@ jobs:
           CARGO_BUILD_JOBS: 4
         run: |
           cd frontend
-          cargo clippy --lib --jobs 4 -- -D warnings
+          cargo clippy --lib --bins --jobs 4 -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
           cargo test --lib --jobs 4
 
   # ── Create the release early so builders upload directly ───
