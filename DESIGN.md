@@ -1,9 +1,10 @@
 # Recurrency — Current Design System
 
-> **Baseline:** `main` at v0.55.16.
-> This document describes the interface that ships today. It is not a redesign
-> proposal and it does not describe the Aurora exploration. Any v2 branch starts
-> by preserving the behaviour documented here.
+> **Baseline:** `main` at v0.55.16, plus the theme catalogue on
+> `redesign/ui-v2`.
+> This document describes the interface that ships on this branch. It is not a
+> redesign proposal and it does not describe the Aurora exploration. Any v2
+> branch starts by preserving the behaviour documented here.
 
 Recurrency is a self-hosted subscription, expense and debt tracker. The product
 is built around one question: **what do I need to transfer this month, and what
@@ -45,17 +46,48 @@ Reference captures (current UI):
 
 ## 2. Themes
 
-Themes are persisted in `localStorage` under `recurrency-theme`. There is no
-automatic system-theme mode. The default is `mocha`; the toggle cycles
-`light → dark → mocha → light`.
+Themes are persisted in `localStorage` under `recurrency-theme` and in
+`theme.txt` on native builds. There is no automatic system-theme mode. The
+default is `mocha`.
 
-| Theme | Character | Background | Card | Primary | Foreground |
-| --- | --- | --- | --- | --- | --- |
-| `mocha` (default) | soft lavender night | `#1E1E2E` | `#181825` | `#B4BEFE` | `#CDD6F4` |
-| `dark` | near-black with amber | `#0C0B0F` | `#131117` | `#E9900C` | `#EDEDED` |
-| `light` | warm paper with ink primary | `#F9F8F0` | `#FFFFFF` | `#212121` | `#212121` |
+The theme picker is available in two places:
 
-Secondary theme roles:
+- **Settings → General → Appearance**: full grid, grouped by family.
+- **Top-bar theme button**: compact popover for quick switching.
+
+Both use the catalogue in `frontend/src/theme/catalog.rs`; selecting a theme
+applies it immediately and saves it on this device. Theme switching never
+changes the data or the route.
+
+### Catalogue
+
+| Theme | Family | Character | Background | Card | Primary | Foreground |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mocha` (default) | Catppuccin | Soft lavender night | `#1E1E2E` | `#181825` | `#B4BEFE` | `#CDD6F4` |
+| `mocha-bloom` | Catppuccin | Catppuccin with louder accents | `#221A2E` | `#2B213A` | `#F5A9E6` | `#F4ECFF` |
+| `latte` | Catppuccin | Pastel daylight | `#EFF1F5` | `#FFFFFF` | `#8839EF` | `#4C4F69` |
+| `dracula` | Popular | Purple night, pink accents | `#282A36` | `#21222C` | `#BD93F9` | `#F8F8F2` |
+| `nord` | Popular | Arctic blue | `#2E3440` | `#3B4252` | `#88C0D0` | `#ECEFF4` |
+| `tokyo-night` | Popular | Deep blue city | `#1A1B26` | `#16161E` | `#7AA2F7` | `#C0CAF5` |
+| `gruvbox` | Popular | Warm retro | `#282828` | `#32302F` | `#FABD2F` | `#EBDBB2` |
+| `rose-pine` | Popular | Muted rose | `#191724` | `#1F1D2E` | `#C4A7E7` | `#E0DEF4` |
+| `one-dark` | Popular | Editor classic | `#282C34` | `#21252B` | `#61AFEF` | `#ABB2BF` |
+| `solarized-light` | Popular | Low-contrast daylight | `#FDF6E3` | `#FFFBF0` | `#268BD2` | `#586E75` |
+| `dark` | Classic | Near-black with amber | `#0D0D11` | `#131117` | `#E9900C` | `#EDEDED` |
+| `light` | Classic | Warm paper with ink primary | `#FAF9F2` | `#FFFFFF` | `#212121` | `#212121` |
+
+**Mocha Bloom** is the colourful Catppuccin Mocha variant: the same dark
+rhythm, but with a plum ground, a pink primary and a warmer destructive tone.
+It is intentionally not a new layout or a second accent system.
+
+| Theme menu | Appearance settings |
+| --- | --- |
+| ![Theme menu](design/themes/theme-menu.png) | ![Theme picker](design/themes/theme-picker.png) |
+
+![Mocha Bloom](design/themes/mocha-bloom.png)
+
+Secondary roles for the original three themes (each catalogue theme defines
+its own values in CSS):
 
 | Role | Mocha | Dark | Light |
 | --- | --- | --- | --- |
@@ -73,21 +105,34 @@ truth.** Components consume them through Tailwind (`bg-background`, `text-muted-
 Theme classes applied to `<html>`:
 
 ```text
-light  → class="light"
-dark   → class="dark"
-mocha  → class="mocha dark"
+mocha           → class="mocha dark"
+mocha-bloom     → class="mocha-bloom dark"
+latte           → class="latte light"
+dracula         → class="dracula dark"
+nord            → class="nord dark"
+tokyo-night     → class="tokyo-night dark"
+gruvbox         → class="gruvbox dark"
+rose-pine       → class="rose-pine dark"
+one-dark        → class="one-dark dark"
+solarized-light → class="solarized-light light"
+dark            → class="dark"
+light           → class="light"
 ```
 
-The class list matters: `mocha` supplies the Catppuccin-like variables, while
-`dark` keeps Tailwind's dark variants active. Do not rename or collapse these
-keys without migrating stored preferences.
+The specific palette class is paired with the generic `dark` or `light` class
+for Tailwind variants and the loader. CSS order keeps the specific palette
+above the generic one. Do not rename or collapse these keys without migrating
+stored preferences.
 
 Theme side effects:
 
 - `<meta name="theme-color">` is updated.
 - The native window background follows the theme.
 - Android system bars are updated through the `RecurrencyAndroid` bridge.
-- The pre-WASM loader uses the same background as the active theme.
+- The pre-WASM loader uses the same background and foreground as the active
+  theme.
+- The inline `<html>` background/foreground is updated as well, so the page
+  does not flash the previous palette while the CSS swaps.
 
 ---
 
@@ -260,6 +305,17 @@ fixed right-aligned column with tabular numerals.
 - Form validation is shown near the affected field or at the top of the form
   for submit-time errors.
 
+### Theme picker
+
+- Full picker: grouped grid in Settings → General → Appearance.
+- Compact picker: popover from the top-bar theme button.
+- Each option shows a four-colour swatch (background, card, primary,
+  foreground), its catalogue label and a short description.
+- The selected option uses a primary border, a subtle primary wash and a check
+  mark; it is never indicated by colour alone.
+- Themes apply instantly, persist on the device and never require a reload.
+- Keep the pre-WASM loader in sync with the selected theme.
+
 ### Feedback
 
 - **Loading:** skeletons mirror the final layout (dashboard rows, report cards,
@@ -406,7 +462,10 @@ except inside explicitly scrollable tab strips.
 | --- | --- |
 | Colour tokens, loader, privacy | `frontend/assets/styles/tailwind.src.css` |
 | Tailwind theme scale | `frontend/tailwind.config.js` |
-| Theme names/cycle/native colours | `frontend/src/theme/hooks.rs` |
+| Theme names/native colours | `frontend/src/theme/hooks.rs` |
+| Theme catalogue and labels | `frontend/src/theme/catalog.rs` |
+| Theme picker UI | `frontend/src/components/theme_picker.rs` |
+| Appearance settings card | `frontend/src/pages/settings_page/appearance_card.rs` |
 | Fonts and reveal sequence | `frontend/src/lib.rs` |
 | Desktop/mobile shell | `frontend/src/layout/app_layout.rs` |
 | Settings shell | `frontend/src/layout/settings_layout.rs` |
@@ -432,19 +491,17 @@ for the redesign:
 2. **Hardcoded status and chart colours.** Emerald, amber and red Tailwind
    classes exist outside the semantic tokens; the chart palette is a separate
    constant.
-3. **Light-theme background mismatch.** The CSS background is `#F9F8F0` while
-   the native/meta colour is `#FAF9F2`.
-4. **Repeated summary patterns.** Dashboard, calendar and reports each render
+3. **Repeated summary patterns.** Dashboard, calendar and reports each render
    their own variation of budget/pending cards.
-5. **Title scale drift.** `PageHeader` reaches 48px while the dashboard title
+4. **Title scale drift.** `PageHeader` reaches 48px while the dashboard title
    stops at 36px; both are valid but the hierarchy is not documented in code.
-6. **Mixed label case.** Uppercase micro labels coexist with sentence-case
+5. **Mixed label case.** Uppercase micro labels coexist with sentence-case
    section titles.
-7. **No reduced-motion branch.**
-8. **No formal spacing token layer.** The 4px Tailwind scale is the only rhythm.
-9. **Top navigation density.** Six primary items plus utilities compete for
+6. **No reduced-motion branch.**
+7. **No formal spacing token layer.** The 4px Tailwind scale is the only rhythm.
+8. **Top navigation density.** Six primary items plus utilities compete for
    space between `md` and `lg`.
-10. **Auth surface is generic.** The centered card has no brand element beyond
+9. **Auth surface is generic.** The centered card has no brand element beyond
     the browser title and the pre-WASM loader.
 
 ---
@@ -454,7 +511,8 @@ for the redesign:
 A redesign may change the visual language, but it must keep:
 
 - every existing route, action, form field, API call and keyboard path;
-- the three stored theme keys: `light`, `dark`, `mocha`;
+- every stored theme key in the catalogue, including `light`, `dark`, `mocha`,
+  `mocha-bloom`, `latte` and the popular palettes;
 - the privacy contract: every amount keeps an `amount-sensitive` hook;
 - `#main-content` for the skip link;
 - the mobile bottom bar and create FAB;
