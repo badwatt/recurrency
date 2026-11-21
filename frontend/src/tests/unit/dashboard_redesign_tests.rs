@@ -68,3 +68,57 @@ fn dashboard_quick_add_opens_each_form_directly() {
     assert!(dashboard.contains("CreateIntent::Transaction"));
     assert!(dashboard.contains("CreateIntent::Debt"));
 }
+
+#[test]
+fn dashboard_places_payments_left_and_accounts_right() {
+    let dashboard = include_str!("../../pages/dashboard.rs");
+    let production = dashboard.split("#[cfg(test)]").next().unwrap_or(dashboard);
+    assert!(
+        production.contains("lg:grid-cols-[minmax(0,1fr)_420px]"),
+        "the lower dashboard must use a payments/account two-column grid"
+    );
+    assert!(
+        production.contains("order-1 min-w-0 rounded-xl border border-border/60 bg-card overflow-hidden lg:order-2"),
+        "the account ledger must be first on mobile and right on desktop"
+    );
+    assert!(
+        production.contains("order-2 flex min-w-0 flex-col gap-4 lg:order-1"),
+        "payments must stack left on desktop"
+    );
+}
+
+#[test]
+fn hovering_a_payment_targets_its_account_row() {
+    let dashboard = include_str!("../../pages/dashboard.rs");
+    let production = dashboard.split("#[cfg(test)]").next().unwrap_or(dashboard);
+    assert!(
+        production.contains("onmouseenter: move |_| hovered_account.set(Some(account_id))"),
+        "payment rows must publish their account on hover"
+    );
+    assert!(
+        production.contains("let linked = hovered_account() == Some(account_id);"),
+        "account rows must read the hovered account"
+    );
+    assert!(
+        production.contains("bg-primary/5 ring-1 ring-inset ring-primary/20"),
+        "the linked account row must use a visible highlight"
+    );
+}
+
+#[test]
+fn dashboard_has_one_upcoming_list_and_no_manual_panel() {
+    let dashboard = include_str!("../../pages/dashboard.rs");
+    let production = dashboard.split("#[cfg(test)]").next().unwrap_or(dashboard);
+    assert!(
+        !production.contains("\"Manual payments\""),
+        "the separate manual payments panel must be gone"
+    );
+    assert!(
+        production.contains("Subscriptions and one-time payments."),
+        "upcoming payments must describe both payment kinds"
+    );
+    assert!(
+        production.contains("One-time"),
+        "one-time transactions must be identifiable in the upcoming list"
+    );
+}
