@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreferencesResponse {
     pub theme: String,
+    /// True when the user has explicitly saved a theme on the server.
+    /// Defaults to false so older servers and untouched accounts remain
+    /// distinguishable from an explicit choice of the default theme.
+    #[serde(default)]
+    pub theme_is_set: bool,
     pub subscriptions_view: String,
     pub first_day_of_week: String,
     pub date_format: String,
@@ -20,6 +25,7 @@ impl Default for PreferencesResponse {
     fn default() -> Self {
         Self {
             theme: "mocha".to_string(),
+            theme_is_set: false,
             subscriptions_view: "grid".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -35,6 +41,7 @@ mod tests {
     fn default_preferences() {
         let prefs = PreferencesResponse::default();
         assert_eq!(prefs.theme, "mocha");
+        assert!(!prefs.theme_is_set);
         assert_eq!(prefs.subscriptions_view, "grid");
         assert_eq!(prefs.first_day_of_week, "monday");
         assert_eq!(prefs.date_format, "DD-MM-YYYY");
@@ -72,6 +79,7 @@ mod tests {
     fn preferences_response_serde_roundtrip() {
         let prefs = PreferencesResponse {
             theme: "dark".to_string(),
+            theme_is_set: true,
             subscriptions_view: "list".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -89,6 +97,7 @@ mod tests {
         let prefs = PreferencesResponse::default();
         let json = serde_json::to_value(&prefs).unwrap();
         assert!(json.get("theme").is_some());
+        assert!(json.get("theme_is_set").is_some());
         assert!(json.get("subscriptions_view").is_some());
         assert!(json.get("first_day_of_week").is_some());
         assert!(json.get("date_format").is_some());
@@ -99,6 +108,7 @@ mod tests {
         for day in ["monday", "sunday"] {
             let prefs = PreferencesResponse {
                 theme: "mocha".to_string(),
+            theme_is_set: true,
                 subscriptions_view: "grid".to_string(),
                 first_day_of_week: day.to_string(),
                 date_format: "DD-MM-YYYY".to_string(),
@@ -112,6 +122,7 @@ mod tests {
         for fmt in ["DD-MM-YYYY", "YYYY-MM-DD"] {
             let prefs = PreferencesResponse {
                 theme: "mocha".to_string(),
+            theme_is_set: true,
                 subscriptions_view: "grid".to_string(),
                 first_day_of_week: "monday".to_string(),
                 date_format: fmt.to_string(),

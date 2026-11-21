@@ -91,6 +91,11 @@ pub fn ThemeGrid() -> Element {
 #[component]
 pub fn ThemeMenu(on_close: EventHandler<()>) -> Element {
     let current = PREFERENCES().theme().to_string();
+    let persistence_label = if crate::api::client::is_offline_mode() {
+        "Saved on this device"
+    } else {
+        "Synced across devices"
+    };
     rsx! {
         div {
             class: "fixed inset-0 z-40",
@@ -102,7 +107,7 @@ pub fn ThemeMenu(on_close: EventHandler<()>) -> Element {
             aria_label: "Color theme",
             div { class: "flex items-center justify-between px-2 py-1.5",
                 p { class: "text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70", "Theme" }
-                p { class: "text-[10px] text-muted-foreground/60", "Saved on this device" }
+                p { class: "text-[10px] text-muted-foreground/60", {persistence_label} }
             }
             div { class: "space-y-1",
                 for (label, is_dark) in APPEARANCE_GROUPS {

@@ -147,7 +147,54 @@ pub fn AppLayout() -> Element {
     });
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
+        let dirty = PREFERENCES().theme_dirty();
         apply_theme_class(&theme);
+
+        // The effect lives in the stable shell, not in the menu that closes
+        // immediately after selection, so the request survives the click.
+        if dirty && !crate::api::client::is_offline_mode() {
+            spawn(async move {
+                let req = crate::models::preferences::UpdatePreferencesRequest {
+                    theme: Some(theme),
+                    subscriptions_view: None,
+                    first_day_of_week: None,
+                    date_format: None,
+                };
+                if crate::api::preferences::update(&req).await.is_ok() {
+                    PREFERENCES.write().mark_theme_synced();
+                }
+            });
+        }
+    });
+
+    // Keep the server theme in sync across devices. The first request runs at
+    // mount; later requests pick up a theme changed from another device.
+    use_future(move || async move {
+        loop {
+            let offline = crate::state::app_mode::APP_MODE().mode.is_offline();
+            if !offline
+                && AUTH().is_authenticated
+                && let Ok(server) = crate::api::preferences::get().await
+            {
+                let theme_to_push = PREFERENCES.write().apply_server_theme(&server);
+                if let Some(theme) = theme_to_push {
+                    let req = crate::models::preferences::UpdatePreferencesRequest {
+                        theme: Some(theme),
+                        subscriptions_view: None,
+                        first_day_of_week: None,
+                        date_format: None,
+                    };
+                    if crate::api::preferences::update(&req).await.is_ok() {
+                        PREFERENCES.write().mark_theme_synced();
+                    }
+                }
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            gloo_timers::future::TimeoutFuture::new(60_000).await;
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
     });
 
     // Mobile bottom bar: hide on scroll down, show on scroll up

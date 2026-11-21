@@ -10,7 +10,7 @@ pub fn AppearanceCard() -> Element {
             div { class: "p-6 border-b border-border",
                 h2 { class: "text-lg font-semibold", "Color themes" }
                 p { class: "text-sm text-muted-foreground",
-                    "Choose a palette. It applies immediately and is saved on this device."
+                    "Choose a palette. It applies immediately and syncs across devices when connected."
                 }
             }
             div { class: "p-6",

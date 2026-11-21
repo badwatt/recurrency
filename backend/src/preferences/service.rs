@@ -16,7 +16,10 @@ impl SqlxPreferencesService {
     /// Apply a key-value preference to the response object.
     pub(crate) fn apply_preference(response: &mut PreferencesResponse, key: &str, value: &str) {
         match key {
-            "theme" => response.theme = value.to_string(),
+            "theme" => {
+                response.theme = value.to_string();
+                response.theme_is_set = true;
+            }
             "subscriptions_view" => response.subscriptions_view = value.to_string(),
             "first_day_of_week" => response.first_day_of_week = value.to_string(),
             "date_format" => response.date_format = value.to_string(),
@@ -118,6 +121,7 @@ mod tests {
         let mut response = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut response, "theme", "dark");
         assert_eq!(response.theme, "dark");
+        assert!(response.theme_is_set);
         assert_eq!(response.subscriptions_view, "grid"); // unchanged
     }
 
@@ -167,6 +171,7 @@ mod tests {
     fn preferences_response_serialize() {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
+            theme_is_set: true,
             subscriptions_view: "list".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -237,6 +242,7 @@ mod tests {
         let mut response = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut response, "Theme", "dark"); // Wrong case
         assert_eq!(response.theme, "mocha"); // Should not change
+        assert!(!response.theme_is_set);
     }
 
     #[test]
@@ -277,6 +283,7 @@ mod tests {
     fn preferences_response_with_empty_strings() {
         let resp = PreferencesResponse {
             theme: "".to_string(),
+            theme_is_set: true,
             subscriptions_view: "".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -289,6 +296,7 @@ mod tests {
     fn preferences_response_with_unicode() {
         let resp = PreferencesResponse {
             theme: "テーマ".to_string(),
+            theme_is_set: true,
             subscriptions_view: "列表".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -301,6 +309,7 @@ mod tests {
     fn preferences_response_roundtrip() {
         let resp = PreferencesResponse {
             theme: "midnight".to_string(),
+            theme_is_set: true,
             subscriptions_view: "compact".to_string(),
             first_day_of_week: "sunday".to_string(),
             date_format: "YYYY-MM-DD".to_string(),
@@ -360,6 +369,7 @@ mod tests {
         let mut prefs = PreferencesResponse::default();
         SqlxPreferencesService::apply_preference(&mut prefs, "theme", "dark");
         assert_eq!(prefs.theme, "dark");
+        assert!(prefs.theme_is_set);
         assert_eq!(prefs.subscriptions_view, "grid"); // unchanged
         assert_eq!(prefs.first_day_of_week, "monday"); // unchanged
     }
@@ -391,6 +401,7 @@ mod tests {
     fn apply_preference_both_fields() {
         let mut prefs = PreferencesResponse {
             theme: "light".to_string(),
+            theme_is_set: true,
             subscriptions_view: "grid".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -405,6 +416,7 @@ mod tests {
     fn apply_preference_no_fields() {
         let prefs = PreferencesResponse {
             theme: "light".to_string(),
+            theme_is_set: true,
             subscriptions_view: "grid".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),

@@ -168,17 +168,21 @@ pub fn SubscriptionsPage() -> Element {
             }
             match api::preferences::get().await {
                 Ok(p) => {
-                    // Preserve local UI preferences; a view mode persisted on
-                    // this device must win over the server value.
-                    let saved_theme = PREFERENCES().theme().to_string();
-                    let local_theme = PREFERENCES().has_local_theme();
+                    // Theme: an explicit server choice wins on every device.
+                    // If the server has no theme yet, migrate the local choice.
                     let saved_view = PREFERENCES().subscriptions_view().to_string();
                     let local_view = PREFERENCES().has_local_view();
-                    PREFERENCES.write().set_data(p);
-                    if local_theme {
-                        // A theme chosen on this device always wins and must
-                        // never be overwritten by a transient server default.
-                        PREFERENCES.write().set_theme(saved_theme);
+                    let theme_to_push = PREFERENCES.write().apply_server_preferences(p);
+                    if let Some(theme) = theme_to_push {
+                        let req = crate::models::preferences::UpdatePreferencesRequest {
+                            theme: Some(theme),
+                            subscriptions_view: None,
+                            first_day_of_week: None,
+                            date_format: None,
+                        };
+                        if api::preferences::update(&req).await.is_ok() {
+                            PREFERENCES.write().mark_theme_synced();
+                        }
                     }
                     // Adopt the server view when nothing was stored locally, and
                     // persist the effective value so the next launch hydrates it
@@ -649,7 +653,7 @@ pub fn SubscriptionsPage() -> Element {
     }
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 page-enter",
 
             // ── Header ──
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",

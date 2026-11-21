@@ -408,6 +408,7 @@ mod preferences_model_tests {
     fn preferences_response_serialization() {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
+            theme_is_set: true,
             subscriptions_view: "list".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
@@ -421,6 +422,7 @@ mod preferences_model_tests {
     fn preferences_response_roundtrip() {
         let resp = PreferencesResponse {
             theme: "dark".to_string(),
+            theme_is_set: true,
             subscriptions_view: "list".to_string(),
             first_day_of_week: "monday".to_string(),
             date_format: "DD-MM-YYYY".to_string(),
