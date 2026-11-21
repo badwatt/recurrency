@@ -12,11 +12,11 @@ const VIEW_FILE: &str = "subscriptions_view.txt";
 const TRANSACTIONS_VIEW_FILE: &str = "transactions_view.txt";
 const UPDATES_FILE: &str = "show_updates.txt";
 
-/// Themes the user can pick in settings.
-const SETTABLE_THEMES: [&str; 3] = ["light", "dark", "mocha"];
-/// Values accepted when rehydrating from local storage.
-const STORED_THEMES: [&str; 3] = ["light", "dark", "mocha"];
 const VALID_VIEWS: [&str; 2] = ["grid", "list"];
+
+fn is_valid_theme(theme: &str) -> bool {
+    crate::theme::catalog::theme_by_id(theme.trim()).is_some()
+}
 
 /// Persist a preference value to localStorage (WASM) or a file (native).
 fn persist_local(key: &str, file_name: &str, value: &str) {
@@ -170,8 +170,8 @@ impl PreferencesState {
     }
 
     pub fn set_theme(&mut self, theme: String) {
-        // Only accept valid themes; reject unknown values
-        if SETTABLE_THEMES.contains(&theme.as_str()) {
+        // Only accept themes from the catalogue; reject unknown values.
+        if is_valid_theme(&theme) {
             self.preferences.theme = theme.clone();
             self.theme_from_local = true;
             persist_local(THEME_KEY, THEME_FILE, &theme);
@@ -210,7 +210,7 @@ impl PreferencesState {
             return;
         }
         if let Some(theme) = read_local(THEME_KEY, THEME_FILE).as_deref().map(str::trim)
-            && STORED_THEMES.contains(&theme)
+            && is_valid_theme(theme)
         {
             self.preferences.theme = theme.to_string();
             self.theme_from_local = true;
@@ -234,7 +234,7 @@ impl PreferencesState {
         subscriptions_view: Option<&str>,
     ) {
         if let Some(theme) = theme.map(str::trim)
-            && STORED_THEMES.contains(&theme)
+            && is_valid_theme(theme)
         {
             self.preferences.theme = theme.to_string();
             self.theme_from_local = true;
@@ -292,6 +292,26 @@ mod tests {
         let mut state = PreferencesState::default();
         state.set_theme("dark".into());
         assert_eq!(state.theme(), "dark");
+    }
+
+    #[test]
+    fn set_theme_accepts_catalogue_themes() {
+        let mut state = PreferencesState::default();
+        state.set_theme("mocha-bloom".into());
+        assert_eq!(state.theme(), "mocha-bloom");
+        state.set_theme("tokyo-night".into());
+        assert_eq!(state.theme(), "tokyo-night");
+        state.set_theme("solarized-light".into());
+        assert_eq!(state.theme(), "solarized-light");
+    }
+
+    #[test]
+    fn set_theme_accepts_every_catalogue_theme() {
+        for theme in crate::theme::catalog::THEMES {
+            let mut state = PreferencesState::default();
+            state.set_theme(theme.id.to_string());
+            assert_eq!(state.theme(), theme.id);
+        }
     }
 
     #[test]
@@ -602,5 +622,4 @@ mod tests {
         });
         assert_eq!(state.theme(), "light");
     }
-
 }

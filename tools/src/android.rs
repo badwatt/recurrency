@@ -373,10 +373,26 @@ const LOADER_SCRIPT: &str = r##"(function(){
 var S=document.createElement('style');
 S.textContent='html{background:#1e1e2e;color:#cdd6f4}html.light{background:#FAF9F2;color:#212121}html.dark{background:#0d0d11;color:#ededed}html.mocha{background:#1e1e2e;color:#cdd6f4}body{margin:0;background:inherit;color:inherit}#main{visibility:hidden}.recurrency-loader{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:inherit;color:inherit;font-family:system-ui,sans-serif}.recurrency-spinner{position:relative;width:48px;height:48px}.recurrency-spinner:before,.recurrency-spinner:after{content:"";position:absolute;inset:0;border:3px solid rgba(205,214,244,.16);border-top-color:#6366f1;border-radius:50%;animation:recurrency-spin .9s linear infinite}.recurrency-spinner:after{inset:7px;border-top-color:transparent;border-bottom-color:#818cf8;animation-duration:1.4s;animation-direction:reverse}html.light .recurrency-spinner:before,html.light .recurrency-spinner:after{border-color:rgba(33,33,33,.14);border-top-color:#6366f1}html.light .recurrency-spinner:after{border-top-color:transparent;border-bottom-color:#818cf8}.recurrency-brand{margin-top:24px;font-size:20px;font-weight:700;letter-spacing:-.02em}.recurrency-tagline{margin-top:6px;font-size:13px;opacity:.7}.recurrency-dots span{animation:recurrency-dot 1.2s infinite;opacity:0}.recurrency-dots span:nth-child(2){animation-delay:.2s}.recurrency-dots span:nth-child(3){animation-delay:.4s}@keyframes recurrency-spin{to{transform:rotate(360deg)}}@keyframes recurrency-dot{0%,60%,100%{opacity:0}30%{opacity:1}}';
 document.documentElement.appendChild(S);
+var T={
+mocha:['mocha dark','#1e1e2e','#cdd6f4'],
+'mocha-bloom':['mocha-bloom dark','#221a2e','#f4ecff'],
+latte:['latte light','#eff1f5','#4c4f69'],
+dracula:['dracula dark','#282a36','#f8f8f2'],
+nord:['nord dark','#2e3440','#eceff4'],
+'tokyo-night':['tokyo-night dark','#1a1b26','#c0caf5'],
+gruvbox:['gruvbox dark','#282828','#ebdbb2'],
+'rose-pine':['rose-pine dark','#191724','#e0def4'],
+'one-dark':['one-dark dark','#282c34','#abb2bf'],
+'solarized-light':['solarized-light light','#fdf6e3','#586e75'],
+dark:['dark','#0d0d11','#ededed'],
+light:['light','#FAF9F2','#212121']
+};
 var t='mocha';
-try{var s=localStorage.getItem('recurrency-theme');if(s&&['light','dark','mocha','system'].indexOf(s)>=0)t=s;}catch(e){}
-if(t==='system'){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)t='mocha';else t='light';}catch(e){t='mocha';}}
-document.documentElement.className=t==='light'?'light':t+' dark';
+try{var s=localStorage.getItem('recurrency-theme');if(T[s])t=s;}catch(e){}
+var c=T[t];
+document.documentElement.className=c[0];
+document.documentElement.style.backgroundColor=c[1];
+document.documentElement.style.color=c[2];
 function ensureLoader(){
 if(document.getElementById('recurrency-loader'))return;
 var D=document.createElement('div');
@@ -1655,6 +1671,19 @@ mod tests {
         assert!(LOADER_SCRIPT.contains("recurrency-spinner"));
         assert!(LOADER_SCRIPT.contains("recurrency-brand"));
         assert!(!LOADER_SCRIPT.contains("dxloader"));
+        for theme in [
+            "mocha-bloom",
+            "latte",
+            "dracula",
+            "nord",
+            "tokyo-night",
+            "gruvbox",
+            "rose-pine",
+            "one-dark",
+            "solarized-light",
+        ] {
+            assert!(LOADER_SCRIPT.contains(theme), "Android loader must know {theme}");
+        }
     }
 
     #[test]

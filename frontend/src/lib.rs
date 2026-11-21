@@ -137,9 +137,12 @@ pub fn launch() {
             crate::state::window::stored(),
             std::sync::atomic::Ordering::Relaxed,
         );
+        let stored_theme = crate::state::persistence::read("theme.txt")
+            .unwrap_or_else(|| "mocha".to_string());
+        let (red, green, blue) = crate::theme::hooks::theme_rgb(stored_theme.trim());
         let mut window = WindowBuilder::new()
             .with_title("Recurrency")
-            .with_background_color((30, 30, 46, 255));
+            .with_background_color((red, green, blue, 255));
         if crate::state::window::enabled() {
             window = window.with_decorations(false);
         }
@@ -147,7 +150,7 @@ pub fn launch() {
             .with_cfg(
                 Config::new()
                     .with_window(window)
-                    .with_background_color((30, 30, 46, 255)),
+                    .with_background_color((red, green, blue, 255)),
             )
             .launch(App);
         return;

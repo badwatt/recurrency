@@ -7,7 +7,8 @@ fn index_html_body_bgmap_matches_css_variables() {
     // index.html still needs the inline script that adds .dark/.mocha class.
     let html = include_str!("../../../index.html");
     assert!(
-        html.contains("document.documentElement.className") || html.contains("document.documentElement.classList"),
+        html.contains("document.documentElement.className")
+            || html.contains("document.documentElement.classList"),
         "index.html must contain theme classList script"
     );
     for selector in [":root", ".dark", ".mocha"] {
@@ -35,7 +36,8 @@ fn index_html_sets_body_background_on_theme() {
     // The theme script adds .dark/.mocha class to <html> before body renders
     let html = include_str!("../../../index.html");
     assert!(
-        html.contains("document.documentElement.className") || html.contains("document.documentElement.classList"),
+        html.contains("document.documentElement.className")
+            || html.contains("document.documentElement.classList"),
         "index.html must add theme class to <html> element"
     );
 }
@@ -106,13 +108,32 @@ fn index_html_forwards_theme_to_android_system_bars() {
 fn tailwind_src_has_theme_and_loader_css() {
     let css = include_str!("../../../assets/styles/tailwind.src.css");
     for selector in [":root", ".dark", ".mocha"] {
-        assert!(css.contains(selector), "tailwind.src.css must define {}", selector);
+        assert!(
+            css.contains(selector),
+            "tailwind.src.css must define {}",
+            selector
+        );
     }
-    assert!(css.contains(".recurrency-loader"), "must style the canonical loader");
-    assert!(css.contains(".recurrency-spinner"), "must style the canonical spinner");
-    assert!(css.contains("@keyframes recurrency-spin"), "must define the canonical spin keyframe");
-    assert!(!css.contains("#pre-wasm-loader"), "legacy pre-wasm loader must be gone");
-    assert!(!css.contains("--loader-bg"), "legacy loader variables must be gone");
+    assert!(
+        css.contains(".recurrency-loader"),
+        "must style the canonical loader"
+    );
+    assert!(
+        css.contains(".recurrency-spinner"),
+        "must style the canonical spinner"
+    );
+    assert!(
+        css.contains("@keyframes recurrency-spin"),
+        "must define the canonical spin keyframe"
+    );
+    assert!(
+        !css.contains("#pre-wasm-loader"),
+        "legacy pre-wasm loader must be gone"
+    );
+    assert!(
+        !css.contains("--loader-bg"),
+        "legacy loader variables must be gone"
+    );
 }
 
 #[test]
@@ -168,7 +189,13 @@ fn index_html_body_must_not_have_hidden_class() {
     // Tailwind .hidden sets display: none, which would make the entire page
     // invisible forever since no JS removes the class after the 0d8bb26 fix.
     let html = include_str!("../../../index.html");
-    let body_tag = html.split("\x3cbody").nth(1).unwrap_or("").split('\x3e').next().unwrap_or("");
+    let body_tag = html
+        .split("\x3cbody")
+        .nth(1)
+        .unwrap_or("")
+        .split('\x3e')
+        .next()
+        .unwrap_or("");
     assert!(
         !body_tag.contains("hidden"),
         "<body> must NOT have class='hidden' — Tailwind display:none hides page permanently"
@@ -178,7 +205,13 @@ fn index_html_body_must_not_have_hidden_class() {
 #[test]
 fn index_html_hides_main_until_wasm_renders() {
     let html = include_str!("../../../index.html");
-    let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
+    let style_section = html
+        .split("\x3cstyle\x3e")
+        .nth(1)
+        .unwrap_or("")
+        .split("\x3c/style\x3e")
+        .next()
+        .unwrap_or("");
     assert!(style_section.contains("#main { visibility: hidden; }"));
     assert!(!style_section.contains("body { visibility: hidden; }"));
 }
@@ -187,7 +220,9 @@ fn index_html_hides_main_until_wasm_renders() {
 fn index_html_pre_wasm_loader_is_sibling_of_main() {
     let html = include_str!("../../../index.html");
     let body_section = html.split("\x3cbody").nth(1).unwrap_or("");
-    let loader = body_section.find("id=\"recurrency-loader\"").unwrap_or(usize::MAX);
+    let loader = body_section
+        .find("id=\"recurrency-loader\"")
+        .unwrap_or(usize::MAX);
     let main = body_section.find("id=\"main\"").unwrap_or(usize::MAX);
     assert!(loader < main, "loader must exist before the app root");
     assert!(body_section.contains("recurrency-spinner"));
@@ -196,7 +231,13 @@ fn index_html_pre_wasm_loader_is_sibling_of_main() {
 #[test]
 fn index_html_critical_theming_prevents_android_fouc() {
     let html = include_str!("../../../index.html");
-    let style_section = html.split("\x3cstyle\x3e").nth(1).unwrap_or("").split("\x3c/style\x3e").next().unwrap_or("");
+    let style_section = html
+        .split("\x3cstyle\x3e")
+        .nth(1)
+        .unwrap_or("")
+        .split("\x3c/style\x3e")
+        .next()
+        .unwrap_or("");
     assert!(style_section.contains("html.light { background-color: #FAF9F2;"));
     assert!(style_section.contains("html.dark { background-color: #0d0d11;"));
     assert!(style_section.contains("html.mocha { background-color: #1e1e2e;"));
@@ -220,7 +261,10 @@ fn loading_favicon_is_the_same_png_as_the_loaded_clock() {
 #[test]
 fn web_title_is_not_duplicated() {
     let html = include_str!("../../../index.html");
-    assert!(html.contains("<title></title>"), "Dioxus appends the app title; the template must be empty");
+    assert!(
+        html.contains("<title></title>"),
+        "Dioxus appends the app title; the template must be empty"
+    );
     assert!(!html.contains("<title>Recurrency</title>"));
     let config = include_str!("../../../Dioxus.toml");
     assert!(config.contains("title = \"Recurrency\""));
@@ -277,4 +321,24 @@ fn loader_reserves_the_scrollbar_gutter() {
     assert!(html.contains("overflow-y: scroll"));
     assert!(css.contains("scrollbar-gutter:stable"));
     assert!(css.contains("overflow-y:scroll"));
+}
+
+#[test]
+fn theme_bootstrap_contains_every_catalogue_theme() {
+    let html = include_str!("../../../index.html");
+    for theme in crate::theme::catalog::THEMES {
+        assert!(
+            html.contains(&format!("{}: [", theme.id))
+                || html.contains(&format!("'{}': [", theme.id)),
+            "index.html theme map must contain {}",
+            theme.id
+        );
+    }
+}
+
+#[test]
+fn theme_bootstrap_sets_inline_loader_colors() {
+    let html = include_str!("../../../index.html");
+    assert!(html.contains("style.backgroundColor = color"));
+    assert!(html.contains("style.color = text"));
 }

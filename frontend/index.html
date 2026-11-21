@@ -11,22 +11,34 @@
   <meta name="twitter:card" content="summary" />
   <meta name="theme-color" content="#1e1e2e" />
   <script>
-    // Set the theme class before the first paint. No system theme: the
-    // preference is always light, dark or mocha (mocha is the default).
+    // Set the theme class before the first paint. No system theme: the stored
+    // preference wins and mocha is the fallback. Keep the loader and native
+    // system bars on the same background as the theme.
     (() => {
       try {
         const themes = {
-          light: ['light', '#FAF9F2'],
-          dark: ['dark', '#0d0d11'],
-          mocha: ['mocha dark', '#1e1e2e'],
+          light: ['light', '#FAF9F2', '#212121'],
+          dark: ['dark', '#0d0d11', '#ededed'],
+          mocha: ['mocha dark', '#1e1e2e', '#cdd6f4'],
+          'mocha-bloom': ['mocha-bloom dark', '#221a2e', '#f4ecff'],
+          latte: ['latte light', '#eff1f5', '#4c4f69'],
+          dracula: ['dracula dark', '#282a36', '#f8f8f2'],
+          nord: ['nord dark', '#2e3440', '#eceff4'],
+          'tokyo-night': ['tokyo-night dark', '#1a1b26', '#c0caf5'],
+          gruvbox: ['gruvbox dark', '#282828', '#ebdbb2'],
+          'rose-pine': ['rose-pine dark', '#191724', '#e0def4'],
+          'one-dark': ['one-dark dark', '#282c34', '#abb2bf'],
+          'solarized-light': ['solarized-light light', '#fdf6e3', '#586e75'],
         };
         const stored = localStorage.getItem('recurrency-theme');
         const name = themes[stored] ? stored : 'mocha';
-        const [className, color] = themes[name];
+        const [className, color, text] = themes[name];
         document.documentElement.className = className;
+        document.documentElement.style.backgroundColor = color;
+        document.documentElement.style.color = text;
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
         try {
-          window.RecurrencyAndroid?.setSystemBars?.(color, name === 'light');
+          window.RecurrencyAndroid?.setSystemBars?.(color, name === 'light' || name === 'latte' || name === 'solarized-light');
         } catch (_) {}
       } catch (_) {}
     })();
