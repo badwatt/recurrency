@@ -183,7 +183,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **QR server setup** — scan a server QR instead of typing its address.
 - **In-app Android update** — download the latest APK and hand it to the installer.
 - **APK download QR** — settings shows a code for the latest Android build.
-- **12 color themes** — Catppuccin Mocha, Mocha Bloom, Latte, Dracula, Nord, Tokyo Night, Gruvbox, Rosé Pine, One Dark, Solarized Light, Midnight Amber and Paper. Pick one from Settings → General → Appearance or the top-bar theme menu.
+- **18 color themes** — Catppuccin Mocha, Frappé, Macchiato, Latte and Mocha Bloom, plus Dracula, Nord, Tokyo Night, Gruvbox, Rosé Pine, One Dark, Kanagawa, Everforest, GitHub Dark/Light, Solarized Light, Midnight Amber and Paper. Pick one from Settings → Appearance or the top-bar theme menu; dark and light palettes are listed separately.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories. Subscriptions, transactions and debts sort by created date and last-modified date.
 - **AI assistant (BYOK)** — optional OpenAI-compatible chat that can create, update and delete subscriptions, transactions and debts, including logos and multiple annual billing dates. Settings → AI assistant has provider presets, an endpoint-backed model list with refresh and custom model entry, and an encrypted API key. Desktop has a floating AI button; mobile opens the same agent from the + menu or by long-pressing +.

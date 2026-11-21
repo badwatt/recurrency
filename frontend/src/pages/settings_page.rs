@@ -91,8 +91,7 @@ pub fn SettingsProfilePage() -> Element {
 pub fn SettingsPreferencesPage() -> Element {
     rsx! {
         div { class: "flex flex-col gap-6 animate-in fade-in",
-            PageHeader { title: "General", subtitle: "Appearance, defaults, locale and app updates" }
-            AppearanceCard {}
+            PageHeader { title: "General", subtitle: "Defaults, locale, exchange rates and app updates" }
             PreferencesCard {}
             ExchangeRatesCard {}
         }
@@ -100,6 +99,16 @@ pub fn SettingsPreferencesPage() -> Element {
 }
 
 pub use ai_page::SettingsAiPage;
+
+#[component]
+pub fn SettingsAppearancePage() -> Element {
+    rsx! {
+        div { class: "flex flex-col gap-6 animate-in fade-in",
+            PageHeader { title: "Appearance", subtitle: "Color theme and palette" }
+            AppearanceCard {}
+        }
+    }
+}
 
 #[component]
 pub fn SettingsMoneyPage() -> Element {

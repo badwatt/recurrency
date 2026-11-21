@@ -52,7 +52,7 @@ default is `mocha`.
 
 The theme picker is available in two places:
 
-- **Settings → General → Appearance**: full grid, grouped by family.
+- **Settings → Appearance**: full grid, grouped into Dark and Light.
 - **Top-bar theme button**: compact popover for quick switching.
 
 Both use the catalogue in `frontend/src/theme/catalog.rs`; selecting a theme
@@ -61,20 +61,29 @@ changes the data or the route.
 
 ### Catalogue
 
-| Theme | Family | Character | Background | Card | Primary | Foreground |
+Both pickers group the catalogue into **Dark** and **Light**; the two lists are
+never mixed. The default is Catppuccin Mocha.
+
+| Theme | Mode | Character | Background | Card | Primary | Foreground |
 | --- | --- | --- | --- | --- | --- | --- |
-| `mocha` (default) | Catppuccin | Soft lavender night | `#1E1E2E` | `#181825` | `#B4BEFE` | `#CDD6F4` |
-| `mocha-bloom` | Catppuccin | Catppuccin with louder accents | `#221A2E` | `#2B213A` | `#F5A9E6` | `#F4ECFF` |
-| `latte` | Catppuccin | Pastel daylight | `#EFF1F5` | `#FFFFFF` | `#8839EF` | `#4C4F69` |
-| `dracula` | Popular | Purple night, pink accents | `#282A36` | `#21222C` | `#BD93F9` | `#F8F8F2` |
-| `nord` | Popular | Arctic blue | `#2E3440` | `#3B4252` | `#88C0D0` | `#ECEFF4` |
-| `tokyo-night` | Popular | Deep blue city | `#1A1B26` | `#16161E` | `#7AA2F7` | `#C0CAF5` |
-| `gruvbox` | Popular | Warm retro | `#282828` | `#32302F` | `#FABD2F` | `#EBDBB2` |
-| `rose-pine` | Popular | Muted rose | `#191724` | `#1F1D2E` | `#C4A7E7` | `#E0DEF4` |
-| `one-dark` | Popular | Editor classic | `#282C34` | `#21252B` | `#61AFEF` | `#ABB2BF` |
-| `solarized-light` | Popular | Low-contrast daylight | `#FDF6E3` | `#FFFBF0` | `#268BD2` | `#586E75` |
-| `dark` | Classic | Near-black with amber | `#0D0D11` | `#131117` | `#E9900C` | `#EDEDED` |
-| `light` | Classic | Warm paper with ink primary | `#FAF9F2` | `#FFFFFF` | `#212121` | `#212121` |
+| `mocha` (default) | Dark | Soft lavender night | `#1E1E2E` | `#181825` | `#B4BEFE` | `#CDD6F4` |
+| `frappe` | Dark | Muted winter blue | `#303446` | `#292C3C` | `#CA9EE6` | `#C6D0F5` |
+| `macchiato` | Dark | Deep violet dusk | `#24273A` | `#1E2030` | `#C6A0F6` | `#CAD3F5` |
+| `mocha-bloom` | Dark | Catppuccin with louder accents | `#221A2E` | `#2B213A` | `#F5A9E6` | `#F4ECFF` |
+| `dracula` | Dark | Purple night, pink accents | `#282A36` | `#21222C` | `#BD93F9` | `#F8F8F2` |
+| `nord` | Dark | Arctic blue | `#2E3440` | `#3B4252` | `#88C0D0` | `#ECEFF4` |
+| `tokyo-night` | Dark | Deep blue city | `#1A1B26` | `#16161E` | `#7AA2F7` | `#C0CAF5` |
+| `gruvbox` | Dark | Warm retro | `#282828` | `#32302F` | `#FABD2F` | `#EBDBB2` |
+| `rose-pine` | Dark | Muted rose | `#191724` | `#1F1D2E` | `#C4A7E7` | `#E0DEF4` |
+| `one-dark` | Dark | Editor classic | `#282C34` | `#21252B` | `#61AFEF` | `#ABB2BF` |
+| `kanagawa` | Dark | Ink and wave blue | `#1F1F28` | `#16161D` | `#7E9CD8` | `#DCD7BA` |
+| `everforest` | Dark | Mossy green night | `#2D353B` | `#272E33` | `#A7C080` | `#D3C6AA` |
+| `github-dark` | Dark | GitHub's dark canvas | `#0D1117` | `#161B22` | `#58A6FF` | `#E6EDF3` |
+| `dark` | Dark | Near-black with amber | `#0D0D11` | `#131117` | `#E9900C` | `#EDEDED` |
+| `latte` | Light | Pastel daylight | `#EFF1F5` | `#FFFFFF` | `#8839EF` | `#4C4F69` |
+| `solarized-light` | Light | Low-contrast daylight | `#FDF6E3` | `#FFFBF0` | `#268BD2` | `#586E75` |
+| `github-light` | Light | GitHub's paper canvas | `#FFFFFF` | `#F6F8FA` | `#0969DA` | `#1F2328` |
+| `light` | Light | Warm paper with ink primary | `#FAF9F2` | `#FFFFFF` | `#212121` | `#212121` |
 
 **Mocha Bloom** is the colourful Catppuccin Mocha variant: the same dark
 rhythm, but with a plum ground, a pink primary and a warmer destructive tone.
@@ -106,6 +115,8 @@ Theme classes applied to `<html>`:
 
 ```text
 mocha           → class="mocha dark"
+frappe          → class="frappe dark"
+macchiato       → class="macchiato dark"
 mocha-bloom     → class="mocha-bloom dark"
 latte           → class="latte light"
 dracula         → class="dracula dark"
@@ -114,7 +125,11 @@ tokyo-night     → class="tokyo-night dark"
 gruvbox         → class="gruvbox dark"
 rose-pine       → class="rose-pine dark"
 one-dark        → class="one-dark dark"
+kanagawa        → class="kanagawa dark"
+everforest      → class="everforest dark"
+github-dark     → class="github-dark dark"
 solarized-light → class="solarized-light light"
+github-light    → class="github-light light"
 dark            → class="dark"
 light           → class="light"
 ```
@@ -203,6 +218,8 @@ from a CDN. The loader waits for the critical faces before revealing the app.
 
 - Desktop: a 208px settings sidebar sticky at `top-20`, grouped into
   **Personal / Configuration / System**, plus log out and version.
+- Appearance is its own section under **Personal**, next to Account; it is not
+  part of General.
 - Mobile: a horizontally scrollable tab strip sticky at `top-14`.
 - Settings content sits in the remaining column, capped by the `max-w-7xl`
   shell.
@@ -307,10 +324,10 @@ fixed right-aligned column with tabular numerals.
 
 ### Theme picker
 
-- Full picker: grouped grid in Settings → General → Appearance.
+- Full picker: grouped grid in Settings → Appearance.
 - Compact picker: popover from the top-bar theme button.
-- Each option shows a four-colour swatch (background, card, primary,
-  foreground), its catalogue label and a short description.
+- Each option shows a three-colour swatch (background, card, primary), its
+  catalogue label and a short description.
 - The selected option uses a primary border, a subtle primary wash and a check
   mark; it is never indicated by colour alone.
 - Themes apply instantly, persist on the device and never require a reload.

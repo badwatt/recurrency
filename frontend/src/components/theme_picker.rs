@@ -1,5 +1,5 @@
 use crate::state::preferences::PREFERENCES;
-use crate::theme::catalog::{THEME_GROUPS, THEMES, ThemeDefinition, theme_by_id};
+use crate::theme::catalog::{APPEARANCE_GROUPS, THEMES, ThemeDefinition, theme_by_id};
 use crate::theme::hooks::apply_theme_class;
 use dioxus::prelude::*;
 
@@ -67,13 +67,13 @@ pub fn ThemeGrid() -> Element {
     let current = PREFERENCES().theme().to_string();
     rsx! {
         div { class: "space-y-5",
-            for group in THEME_GROUPS {
-                section { aria_label: "{group} themes",
+            for (label, is_dark) in APPEARANCE_GROUPS {
+                section { aria_label: "{label} themes",
                     h3 { class: "mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60",
-                        {group}
+                        {label}
                     }
                     div { class: "grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
-                        for theme in THEMES.iter().filter(|theme| theme.group == group) {
+                        for theme in THEMES.iter().filter(|theme| theme.is_dark == is_dark) {
                             ThemeOption {
                                 key: "{theme.id}",
                                 theme: *theme,
@@ -104,34 +104,41 @@ pub fn ThemeMenu(on_close: EventHandler<()>) -> Element {
                 p { class: "text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70", "Theme" }
                 p { class: "text-[10px] text-muted-foreground/60", "Saved on this device" }
             }
-            div { class: "grid grid-cols-2 gap-1",
-                for theme in THEMES {
-                    {
-                        let selected = current == theme.id;
-                        let id = theme.id;
-                        rsx! {
-                            button {
-                                key: "{theme.id}",
-                                r#type: "button",
-                                role: "menuitemradio",
-                                aria_checked: if selected { "true" } else { "false" },
-                                onclick: move |_| {
-                                    apply_theme(id);
-                                    on_close.call(());
-                                },
-                                class: if selected {
-                                    "flex items-center gap-2 rounded-md bg-primary/10 px-2 py-2 text-left ring-1 ring-primary/40"
-                                } else {
-                                    "flex items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-accent"
-                                },
-                                span {
-                                    class: "flex h-5 w-8 shrink-0 overflow-hidden rounded border border-black/10 dark:border-white/10",
-                                    aria_hidden: "true",
-                                    span { class: "flex-1", style: "background-color: {theme.background};" }
-                                    span { class: "flex-1", style: "background-color: {theme.card};" }
-                                    span { class: "w-2", style: "background-color: {theme.primary};" }
+            div { class: "space-y-1",
+                for (label, is_dark) in APPEARANCE_GROUPS {
+                    p { class: "px-2 pt-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60",
+                        {label}
+                    }
+                    div { class: "grid grid-cols-2 gap-1",
+                        for theme in THEMES.iter().filter(|theme| theme.is_dark == is_dark) {
+                            {
+                                let selected = current == theme.id;
+                                let id = theme.id;
+                                rsx! {
+                                    button {
+                                        key: "{theme.id}",
+                                        r#type: "button",
+                                        role: "menuitemradio",
+                                        aria_checked: if selected { "true" } else { "false" },
+                                        onclick: move |_| {
+                                            apply_theme(id);
+                                            on_close.call(());
+                                        },
+                                        class: if selected {
+                                            "flex items-center gap-2 rounded-md bg-primary/10 px-2 py-2 text-left ring-1 ring-primary/40"
+                                        } else {
+                                            "flex items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-accent"
+                                        },
+                                        span {
+                                            class: "flex h-5 w-8 shrink-0 overflow-hidden rounded border border-black/10 dark:border-white/10",
+                                            aria_hidden: "true",
+                                            span { class: "flex-1", style: "background-color: {theme.background};" }
+                                            span { class: "flex-1", style: "background-color: {theme.card};" }
+                                            span { class: "w-2", style: "background-color: {theme.primary};" }
+                                        }
+                                        span { class: "truncate text-xs font-medium", {theme.label} }
+                                    }
                                 }
-                                span { class: "truncate text-xs font-medium", {theme.label} }
                             }
                         }
                     }

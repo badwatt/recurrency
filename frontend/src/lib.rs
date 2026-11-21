@@ -60,6 +60,8 @@ pub enum Route {
             Settings {},
             #[route("/settings/profile")]
             SettingsProfile {},
+            #[route("/settings/appearance")]
+            SettingsAppearance {},
             #[route("/settings/preferences")]
             SettingsPreferences {},
             #[route("/settings/ai")]
@@ -448,6 +450,11 @@ fn Settings() -> Element {
 #[component]
 fn SettingsProfile() -> Element {
     rsx! { crate::pages::SettingsProfilePage {} }
+}
+
+#[component]
+fn SettingsAppearance() -> Element {
+    rsx! { crate::pages::SettingsAppearancePage {} }
 }
 
 #[component]

@@ -376,6 +376,8 @@ document.documentElement.appendChild(S);
 var T={
 mocha:['mocha dark','#1e1e2e','#cdd6f4'],
 'mocha-bloom':['mocha-bloom dark','#221a2e','#f4ecff'],
+frappe:['frappe dark','#303446','#c6d0f5'],
+macchiato:['macchiato dark','#24273a','#cad3f5'],
 latte:['latte light','#eff1f5','#4c4f69'],
 dracula:['dracula dark','#282a36','#f8f8f2'],
 nord:['nord dark','#2e3440','#eceff4'],
@@ -383,7 +385,11 @@ nord:['nord dark','#2e3440','#eceff4'],
 gruvbox:['gruvbox dark','#282828','#ebdbb2'],
 'rose-pine':['rose-pine dark','#191724','#e0def4'],
 'one-dark':['one-dark dark','#282c34','#abb2bf'],
+kanagawa:['kanagawa dark','#1f1f28','#dcd7ba'],
+everforest:['everforest dark','#2d353b','#d3c6aa'],
+'github-dark':['github-dark dark','#0d1117','#e6edf3'],
 'solarized-light':['solarized-light light','#fdf6e3','#586e75'],
+'github-light':['github-light light','#ffffff','#1f2328'],
 dark:['dark','#0d0d11','#ededed'],
 light:['light','#FAF9F2','#212121']
 };
@@ -1672,6 +1678,8 @@ mod tests {
         assert!(LOADER_SCRIPT.contains("recurrency-brand"));
         assert!(!LOADER_SCRIPT.contains("dxloader"));
         for theme in [
+            "frappe",
+            "macchiato",
             "mocha-bloom",
             "latte",
             "dracula",
@@ -1680,6 +1688,10 @@ mod tests {
             "gruvbox",
             "rose-pine",
             "one-dark",
+            "kanagawa",
+            "everforest",
+            "github-dark",
+            "github-light",
             "solarized-light",
         ] {
             assert!(LOADER_SCRIPT.contains(theme), "Android loader must know {theme}");

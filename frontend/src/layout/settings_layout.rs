@@ -7,6 +7,7 @@ use dioxus::prelude::*;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SettingsSection {
     Account,
+    Appearance,
     General,
     Ai,
     Money,
@@ -37,7 +38,7 @@ impl SettingsGroup {
 
     fn sections(self) -> &'static [SettingsSection] {
         match self {
-            Self::Personal => &[SettingsSection::Account],
+            Self::Personal => &[SettingsSection::Account, SettingsSection::Appearance],
             Self::Configuration => &[
                 SettingsSection::General,
                 SettingsSection::Ai,
@@ -55,8 +56,9 @@ impl SettingsGroup {
 }
 
 impl SettingsSection {
-    const ALL: [Self; 9] = [
+    const ALL: [Self; 10] = [
         Self::Account,
+        Self::Appearance,
         Self::General,
         Self::Ai,
         Self::Money,
@@ -70,6 +72,7 @@ impl SettingsSection {
     fn label(self) -> &'static str {
         match self {
             Self::Account => "Account",
+            Self::Appearance => "Appearance",
             Self::General => "General",
             Self::Ai => "AI assistant",
             Self::Money => "Accounts & categories",
@@ -84,6 +87,7 @@ impl SettingsSection {
     fn description(self) -> &'static str {
         match self {
             Self::Account => "Profile, session and account removal",
+            Self::Appearance => "Color themes and palette",
             Self::General => "Currency, exchange rates, week start and dates",
             Self::Ai => "Model, voice input and privacy",
             Self::Money => "Accounts and categories",
@@ -98,6 +102,7 @@ impl SettingsSection {
     fn icon(self) -> Icon {
         match self {
             Self::Account => Icon::Settings,
+            Self::Appearance => Icon::Paintbrush,
             Self::General => Icon::Sun,
             Self::Ai => Icon::Ai,
             Self::Money => Icon::Categories,
@@ -112,6 +117,7 @@ impl SettingsSection {
     fn route(self) -> crate::Route {
         match self {
             Self::Account => crate::Route::SettingsProfile {},
+            Self::Appearance => crate::Route::SettingsAppearance {},
             Self::General => crate::Route::SettingsPreferences {},
             Self::Ai => crate::Route::SettingsAi {},
             Self::Money => crate::Route::SettingsMoney {},
@@ -133,6 +139,7 @@ impl SettingsSection {
                 route,
                 crate::Route::Settings {} | crate::Route::SettingsProfile {}
             ),
+            Self::Appearance => matches!(route, crate::Route::SettingsAppearance {}),
             Self::General => matches!(route, crate::Route::SettingsPreferences {}),
             Self::Ai => matches!(route, crate::Route::SettingsAi {}),
             Self::Money => matches!(
@@ -282,7 +289,7 @@ mod tests {
 
     #[test]
     fn sections_cover_all_groups_and_labels() {
-        assert_eq!(SettingsSection::ALL.len(), 9);
+        assert_eq!(SettingsSection::ALL.len(), 10);
         let mut sections = Vec::new();
         for group in SettingsGroup::ALL {
             assert!(!group.label().is_empty());
@@ -308,6 +315,7 @@ mod tests {
     #[test]
     fn routes_map_to_the_matching_section() {
         assert!(SettingsSection::Account.is_active(&crate::Route::SettingsProfile {}));
+        assert!(SettingsSection::Appearance.is_active(&crate::Route::SettingsAppearance {}));
         assert!(SettingsSection::General.is_active(&crate::Route::SettingsPreferences {}));
         assert!(SettingsSection::Ai.is_active(&crate::Route::SettingsAi {}));
         assert!(SettingsSection::Money.is_active(&crate::Route::SettingsAccounts {}));

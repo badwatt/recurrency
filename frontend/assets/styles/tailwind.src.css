@@ -307,6 +307,144 @@
     --input: 45 24% 80%;
     --ring: 205 69% 49%;
   }
+
+  html.frappe {
+    color-scheme: dark;
+    --background: 229 19% 23%;
+    --foreground: 227 70% 87%;
+    --card: 231 19% 20%;
+    --card-foreground: 227 70% 87%;
+    --popover: 231 19% 20%;
+    --popover-foreground: 227 70% 87%;
+    --primary: 277 59% 76%;
+    --primary-foreground: 231 19% 20%;
+    --secondary: 230 16% 30%;
+    --secondary-foreground: 227 70% 87%;
+    --muted: 230 16% 30%;
+    --muted-foreground: 227 44% 80%;
+    --accent: 227 15% 37%;
+    --accent-foreground: 227 70% 87%;
+    --destructive: 359 68% 71%;
+    --destructive-foreground: 229 19% 23%;
+    --border: 230 16% 30%;
+    --input: 230 16% 30%;
+    --ring: 277 59% 76%;
+  }
+
+  html.macchiato {
+    color-scheme: dark;
+    --background: 232 23% 18%;
+    --foreground: 227 68% 88%;
+    --card: 233 23% 15%;
+    --card-foreground: 227 68% 88%;
+    --popover: 233 23% 15%;
+    --popover-foreground: 227 68% 88%;
+    --primary: 267 83% 80%;
+    --primary-foreground: 233 23% 15%;
+    --secondary: 230 19% 26%;
+    --secondary-foreground: 227 68% 88%;
+    --muted: 230 19% 26%;
+    --muted-foreground: 228 39% 80%;
+    --accent: 231 16% 34%;
+    --accent-foreground: 227 68% 88%;
+    --destructive: 351 74% 73%;
+    --destructive-foreground: 232 23% 18%;
+    --border: 230 19% 26%;
+    --input: 230 19% 26%;
+    --ring: 267 83% 80%;
+  }
+
+  html.kanagawa {
+    color-scheme: dark;
+    --background: 240 13% 14%;
+    --foreground: 51 33% 80%;
+    --card: 240 14% 10%;
+    --card-foreground: 51 33% 80%;
+    --popover: 240 14% 10%;
+    --popover-foreground: 51 33% 80%;
+    --primary: 220 54% 67%;
+    --primary-foreground: 240 14% 10%;
+    --secondary: 240 13% 19%;
+    --secondary-foreground: 51 33% 80%;
+    --muted: 240 13% 19%;
+    --muted-foreground: 51 33% 68%;
+    --accent: 240 13% 24%;
+    --accent-foreground: 51 33% 80%;
+    --destructive: 353 70% 65%;
+    --destructive-foreground: 240 14% 10%;
+    --border: 240 13% 24%;
+    --input: 240 13% 24%;
+    --ring: 220 54% 67%;
+  }
+
+  html.everforest {
+    color-scheme: dark;
+    --background: 206 13% 20%;
+    --foreground: 41 32% 75%;
+    --card: 205 13% 18%;
+    --card-foreground: 41 32% 75%;
+    --popover: 205 13% 18%;
+    --popover-foreground: 41 32% 75%;
+    --primary: 83 34% 63%;
+    --primary-foreground: 205 13% 18%;
+    --secondary: 199 13% 24%;
+    --secondary-foreground: 41 32% 75%;
+    --muted: 199 13% 24%;
+    --muted-foreground: 138 6% 55%;
+    --accent: 199 12% 27%;
+    --accent-foreground: 41 32% 75%;
+    --destructive: 359 68% 70%;
+    --destructive-foreground: 205 13% 18%;
+    --border: 199 12% 27%;
+    --input: 199 12% 27%;
+    --ring: 83 34% 63%;
+  }
+
+  html.github-dark {
+    color-scheme: dark;
+    --background: 216 28% 7%;
+    --foreground: 208 35% 93%;
+    --card: 215 21% 11%;
+    --card-foreground: 208 35% 93%;
+    --popover: 215 21% 11%;
+    --popover-foreground: 208 35% 93%;
+    --primary: 212 100% 67%;
+    --primary-foreground: 216 28% 7%;
+    --secondary: 215 15% 15%;
+    --secondary-foreground: 208 35% 93%;
+    --muted: 215 15% 15%;
+    --muted-foreground: 212 9% 58%;
+    --accent: 212 12% 21%;
+    --accent-foreground: 208 35% 93%;
+    --destructive: 3 93% 63%;
+    --destructive-foreground: 216 28% 7%;
+    --border: 212 12% 21%;
+    --input: 212 12% 21%;
+    --ring: 212 100% 67%;
+  }
+
+  html.github-light {
+    color-scheme: light;
+    --background: 0 0% 100%;
+    --foreground: 213 13% 14%;
+    --card: 210 29% 97%;
+    --card-foreground: 213 13% 14%;
+    --popover: 210 29% 97%;
+    --popover-foreground: 213 13% 14%;
+    --primary: 212 92% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 24% 93%;
+    --secondary-foreground: 213 13% 14%;
+    --muted: 210 29% 97%;
+    --muted-foreground: 212 8% 43%;
+    --accent: 210 24% 93%;
+    --accent-foreground: 213 13% 14%;
+    --destructive: 356 72% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 18% 84%;
+    --input: 210 18% 84%;
+    --ring: 212 92% 45%;
+  }
 }
 
 @layer base {
