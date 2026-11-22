@@ -25,7 +25,7 @@ Reference captures (current UI):
 
 | Categories view | Payment hover → account |
 | --- | --- |
-| ![Categories](docs/design/dashboard-categories.png) | ![Hover](docs/design/dashboard-hover.png) |
+| ![Categories](design/dashboard-categories.png) | ![Hover](design/dashboard-hover.png) |
 
 ---
 
@@ -98,9 +98,9 @@ It is intentionally not a new layout or a second accent system.
 
 | Theme menu | Appearance settings |
 | --- | --- |
-| ![Theme menu](docs/design/themes/theme-menu.png) | ![Theme picker](docs/design/themes/theme-picker.png) |
+| ![Theme menu](design/themes/theme-menu.png) | ![Theme picker](design/themes/theme-picker.png) |
 
-![Mocha Bloom](docs/design/themes/mocha-bloom.png)
+![Mocha Bloom](design/themes/mocha-bloom.png)
 
 Secondary roles for the original three themes (each catalogue theme defines
 its own values in CSS):
