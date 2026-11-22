@@ -33,7 +33,8 @@ from <https://nsh.dev/docs/installation>.
 - [x] Reports summary, category split, spending trends and CSV export.
 - [x] Settings account, appearance, general, notifications, AI, backup, server and about.
 - [x] Registration, login, top-bar account access, logout, CSV export and server backups.
-- [ ] Modal shell, mobile layout, Money/Admin settings, PDF export.
+- [x] Read-only accounts/categories and admin user lists in Settings.
+- [ ] Modal shell, mobile layout, PDF export and full settings CRUD.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 

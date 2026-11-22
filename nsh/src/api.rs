@@ -7,7 +7,7 @@ use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
     DashboardData, UpcomingPayment,
 };
-use crate::models::{Account, AiSettings, CalendarItem, Category, Debt, DebtPayment, NotificationPreferences, Rates, ReportResponse, Subscription, Transaction};
+use crate::models::{Account, AccountWithCounts, AdminUser, AiSettings, CalendarItem, Category, CategoryWithCounts, Debt, DebtPayment, NotificationPreferences, Rates, ReportResponse, Subscription, Transaction};
 use crate::settings::{SettingsResponse, UpdateSettingsRequest};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
@@ -286,6 +286,20 @@ pub async fn update_ai_settings<B: Serialize>(
     request: &B,
 ) -> Result<AiSettings, String> {
     Client::new(server, token).put("/api/ai/settings", request).await
+}
+
+pub async fn load_money_counts(
+    server: String,
+    token: String,
+) -> Result<(Vec<AccountWithCounts>, Vec<CategoryWithCounts>), String> {
+    let api = Client::new(server, token);
+    let accounts: Vec<AccountWithCounts> = api.get("/api/accounts/with-counts").await?;
+    let categories: Vec<CategoryWithCounts> = api.get("/api/categories/with-counts").await?;
+    Ok((accounts, categories))
+}
+
+pub async fn load_admin_users(server: String, token: String) -> Result<Vec<AdminUser>, String> {
+    Client::new(server, token).get("/api/admin/users").await
 }
 
 pub async fn export_backup(server: String, token: String) -> Result<String, String> {

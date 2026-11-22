@@ -29,20 +29,24 @@ enum Section {
     General,
     Notifications,
     Ai,
+    Money,
     Data,
     Server,
+    Admin,
     About,
 }
 
 impl Section {
-    const ALL: [Section; 8] = [
+    const ALL: [Section; 10] = [
         Section::Account,
         Section::Appearance,
         Section::General,
         Section::Notifications,
         Section::Ai,
+        Section::Money,
         Section::Data,
         Section::Server,
+        Section::Admin,
         Section::About,
     ];
 
@@ -53,8 +57,10 @@ impl Section {
             Section::General => "General",
             Section::Notifications => "Notifications",
             Section::Ai => "AI assistant",
+            Section::Money => "Accounts & categories",
             Section::Data => "Data & backup",
             Section::Server => "Server",
+            Section::Admin => "Administration",
             Section::About => "About",
         }
     }
@@ -66,8 +72,10 @@ impl Section {
             Section::General => "Currency and defaults",
             Section::Notifications => "Delivery channels",
             Section::Ai => "Provider and model",
+            Section::Money => "Accounts and categories",
             Section::Data => "Backups and restore",
             Section::Server => "Connection and device pairing",
+            Section::Admin => "Users and registration",
             Section::About => "Version and release notes",
         }
     }
@@ -143,7 +151,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         .text_color(move || theme().muted_foreground)
                         .mb(px(8.0)),
                 )
-                .children(Section::ALL.iter().map(|item| {
+                .children(Section::ALL.iter().filter(|item| **item != Section::Admin || is_admin).map(|item| {
                     let item = *item;
                     let active = move || section.get() == item;
                     button()
@@ -217,6 +225,18 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .child(
                     when(move || section.get() == Section::Ai, move || {
                         ai_card(data_server.get(), data_token.get())
+                    })
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .child(
+                    when(move || section.get() == Section::Money, move || {
+                        money_card(data_server.get(), data_token.get())
+                    })
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .child(
+                    when(move || section.get() == Section::Admin, move || {
+                        admin_card(data_server.get(), data_token.get())
                     })
                     .otherwise(|| view().h(px(0.0))),
                 )
@@ -807,6 +827,183 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 ),
+        )
+}
+
+fn money_card(server: String, token: String) -> impl IntoElement {
+    let data = resource(
+        || Some(()),
+        {
+            let server = server.clone();
+            let token = token.clone();
+            move |(), _| {
+                let server = server.clone();
+                let token = token.clone();
+                async move { crate::api::load_money_counts(server, token).await }
+            }
+        },
+    );
+    view()
+        .w(px(680.0))
+        .flex_col()
+        .gap(px(12.0))
+        .child(
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(16.0))
+                .child(
+                    text("Accounts")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(each(
+                            move || {
+                                data.get()
+                                    .map_or_else(Vec::new, |(accounts, _)| accounts)
+                            },
+                            |item| item.account.id,
+                            move |item, _| {
+                                let item = item.get();
+                                view()
+                                    .w_full()
+                                    .flex_row()
+                                    .items_center()
+                                    .justify_between()
+                                    .py(px(7.0))
+                                    .border_b(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .child(
+                                        text(item.account.name)
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(format!(
+                                            "{} subscriptions · {} transactions",
+                                            item.subscription_count, item.transaction_count
+                                        ))
+                                        .text_size(px(10.0))
+                                        .text_color(move || theme().muted_foreground),
+                                    )
+                            },
+                        )),
+                )
+                .child(
+                    text("Categories")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(each(
+                            move || {
+                                data.get()
+                                    .map_or_else(Vec::new, |(_, categories)| categories)
+                            },
+                            |item| item.category.id,
+                            move |item, _| {
+                                let item = item.get();
+                                view()
+                                    .w_full()
+                                    .flex_row()
+                                    .items_center()
+                                    .justify_between()
+                                    .py(px(7.0))
+                                    .border_b(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .child(
+                                        text(item.category.name)
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(format!(
+                                            "{} subscriptions · {} transactions",
+                                            item.subscription_count, item.transaction_count
+                                        ))
+                                        .text_size(px(10.0))
+                                        .text_color(move || theme().muted_foreground),
+                                    )
+                            },
+                        )),
+                ),
+        )
+}
+
+fn admin_card(server: String, token: String) -> impl IntoElement {
+    let data = resource(
+        || Some(()),
+        {
+            let server = server.clone();
+            let token = token.clone();
+            move |(), _| {
+                let server = server.clone();
+                let token = token.clone();
+                async move { crate::api::load_admin_users(server, token).await }
+            }
+        },
+    );
+    ui::surface()
+        .w(px(680.0))
+        .p(px(24.0))
+        .gap(px(10.0))
+        .child(
+            text("Administration")
+                .text_size(px(18.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text("Users registered on this server.")
+                .text_size(px(12.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            view()
+                .flex_col()
+                .gap(px(6.0))
+                .child(each(
+                    move || data.get().unwrap_or_default(),
+                    |user| user.id,
+                    move |user, _| {
+                        let user = user.get();
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .py(px(7.0))
+                            .border_b(px(1.0))
+                            .border_color(move || theme().border)
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .child(
+                                        text(user.name.unwrap_or_else(|| user.email.clone()))
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(user.email)
+                                            .text_size(px(10.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
+                            )
+                            .child(
+                                text(if user.is_admin { "Admin" } else { "User" })
+                                    .text_size(px(10.0))
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                    },
+                )),
         )
 }
 

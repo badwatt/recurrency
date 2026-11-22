@@ -200,3 +200,27 @@ pub struct AiSettings {
     #[serde(default)]
     pub configured: bool,
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct AccountWithCounts {
+    pub account: Account,
+    pub subscription_count: i64,
+    pub transaction_count: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct CategoryWithCounts {
+    pub category: Category,
+    pub subscription_count: i64,
+    pub transaction_count: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct AdminUser {
+    pub id: Uuid,
+    pub email: String,
+    pub name: Option<String>,
+    pub currency: String,
+    pub verified: bool,
+    pub is_admin: bool,
+}
