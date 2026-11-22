@@ -1,4 +1,6 @@
+use crate::components::button::{ButtonSize, ButtonVariant, IconButton};
 use dioxus::prelude::*;
+use lucide_dioxus::X;
 
 #[component]
 pub fn Dialog(
@@ -36,7 +38,7 @@ pub fn Dialog(
     rsx! {
         // Backdrop overlay
         div {
-            class: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center",
+            class: "dialog-backdrop fixed inset-0 z-50 bg-black/50 flex items-center justify-center",
             onclick: move |e| {
                 // Close only on backdrop click, not on card click
                 if e.client_coordinates().x > 0.0 {
@@ -46,17 +48,19 @@ pub fn Dialog(
 
             // Dialog card
             div {
-                class: "bg-card border border-border rounded-none sm:rounded-lg shadow-lg w-full sm:max-w-lg mx-0 sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden",
+                class: "dialog-card bg-card border border-border rounded-none sm:rounded-lg shadow-lg w-full sm:max-w-lg mx-0 sm:mx-4 h-dvh sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden",
                 onclick: move |e| e.stop_propagation(),
 
                 // Header
                 div { class: "flex items-center justify-between p-4 sm:p-6 border-b border-border shrink-0",
                     h2 { class: "text-lg font-semibold text-foreground", {title} }
-                    button {
-                        r#type: "button",
-                        class: "text-muted-foreground hover:text-foreground p-2 sm:p-0",
+                    IconButton {
+                        label: "Close dialog".to_string(),
+                        variant: ButtonVariant::Ghost,
+                        size: ButtonSize::Sm,
+                        class: "text-muted-foreground",
                         onclick: move |_| on_close.call(()),
-                        "✕"
+                        X { size: 18 }
                     }
                 }
 
@@ -152,8 +156,8 @@ mod tests {
         // This test checks pages that render modal footer buttons.
         // Dialog component itself doesn't render buttons, so we check
         // subscription/transaction dialog code.
-        let sub_src = include_str!("../pages/subscriptions_page.rs");
-        let tx_src = include_str!("../pages/transactions_page.rs");
+        let sub_src = include_str!("../pages/subscriptions_page/dialog.rs");
+        let tx_src = include_str!("../pages/transactions_page/dialog.rs");
         // Both render_dialog functions must use flex-col sm:flex-row for footer
         let sub_footer = sub_src.contains("flex-col sm:flex-row")
             || sub_src.contains("flex-col-reverse sm:flex-row");
@@ -246,16 +250,15 @@ mod tests {
 
     #[test]
     fn close_button_class() {
-        let cls = "text-muted-foreground hover:text-foreground p-2 sm:p-0";
+        let cls = "text-muted-foreground";
         assert!(cls.contains("text-muted-foreground"));
-        assert!(cls.contains("hover:text-foreground"));
-        assert!(cls.contains("p-2 sm:p-0")); // Larger touch target on mobile
+        assert!(include_str!("dialog.rs").contains("Close dialog"));
     }
 
     #[test]
-    fn close_button_symbol() {
-        let symbol = "✕";
-        assert_eq!(symbol, "✕");
+    fn close_button_uses_the_shared_icon_button() {
+        assert!(include_str!("dialog.rs").contains("IconButton {"));
+        assert!(include_str!("dialog.rs").contains("X { size: 18 }"));
     }
 
     #[test]

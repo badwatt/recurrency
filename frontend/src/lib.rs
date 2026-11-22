@@ -60,6 +60,8 @@ pub enum Route {
             Settings {},
             #[route("/settings/profile")]
             SettingsProfile {},
+            #[route("/settings/appearance")]
+            SettingsAppearance {},
             #[route("/settings/preferences")]
             SettingsPreferences {},
             #[route("/settings/ai")]
@@ -137,9 +139,12 @@ pub fn launch() {
             crate::state::window::stored(),
             std::sync::atomic::Ordering::Relaxed,
         );
+        let stored_theme = crate::state::persistence::read("theme.txt")
+            .unwrap_or_else(|| "mocha".to_string());
+        let (red, green, blue) = crate::theme::hooks::theme_rgb(stored_theme.trim());
         let mut window = WindowBuilder::new()
             .with_title("Recurrency")
-            .with_background_color((30, 30, 46, 255));
+            .with_background_color((red, green, blue, 255));
         if crate::state::window::enabled() {
             window = window.with_decorations(false);
         }
@@ -147,7 +152,7 @@ pub fn launch() {
             .with_cfg(
                 Config::new()
                     .with_window(window)
-                    .with_background_color((30, 30, 46, 255)),
+                    .with_background_color((red, green, blue, 255)),
             )
             .launch(App);
         return;
@@ -360,8 +365,10 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
     });
 
     rsx! {
-        // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK
-        document::Style { {font_face_css()} }
+        // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK.
+        // A plain style element avoids document::Style's "props changed" diagnostic
+        // when the app re-renders.
+        style { dangerous_inner_html: font_face_css() }
         document::Link { rel: "icon", r#type: "image/png", href: FAVICON.to_string() }
         document::Link { rel: "apple-touch-icon", href: APPLE_TOUCH_ICON.to_string() }
         // Load CSS without blocking the first paint. The inline loader in
@@ -445,6 +452,11 @@ fn Settings() -> Element {
 #[component]
 fn SettingsProfile() -> Element {
     rsx! { crate::pages::SettingsProfilePage {} }
+}
+
+#[component]
+fn SettingsAppearance() -> Element {
+    rsx! { crate::pages::SettingsAppearancePage {} }
 }
 
 #[component]

@@ -1,25 +1,30 @@
 #![allow(clippy::suspicious_else_formatting)]
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::card::SectionCard;
 use crate::components::page_header::PageHeader;
+use crate::components::segmented::{SegmentOption, SegmentVariant, SegmentedControl};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
-mod about_page;
+pub(crate) mod about_page;
 mod ai_card;
 mod ai_page;
+mod appearance_card;
 mod voice_card;
-mod apk_card;
+pub(crate) mod apk_card;
 mod backup_card;
 mod delete_account_card;
-mod delivery_card;
-mod exchange_rates_card;
-mod preferences_card;
+pub(crate) mod delivery_card;
+pub(crate) mod exchange_rates_card;
+pub(crate) mod preferences_card;
 mod profile_card;
 mod server_card;
-mod summary_card;
-mod sync_card;
+pub(crate) mod summary_card;
+pub(crate) mod sync_card;
 
 use about_page::AboutPage;
 use ai_card::AiConnectionCard;
+use appearance_card::AppearanceCard;
 use voice_card::AiVoiceCard;
 use apk_card::ApkCard;
 use backup_card::BackupCard;
@@ -51,16 +56,15 @@ fn MobileSessionCard() -> Element {
         .unwrap_or_default();
 
     rsx! {
-        div { class: "lg:hidden rounded-xl bg-card/80 border border-border/40",
-            div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Session" }
-                p { class: "text-sm text-muted-foreground", "Sign out of this device" }
-            }
-            div { class: "p-6 flex items-center justify-between gap-4",
-                p { class: "text-sm truncate", {email} }
-                button {
-                    r#type: "button",
-                    class: "inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+        div { class: "lg:hidden",
+            SectionCard {
+                title: "Session",
+                description: "Sign out of this device",
+                content_class: "flex items-center justify-between gap-4",
+                p { class: "truncate text-sm", {email} }
+                Button {
+                    variant: ButtonVariant::Outline,
+                    class: "shrink-0",
                     onclick: move |_| {
                         AUTH.write().logout();
                         AUTH.write().persist_to_storage();
@@ -76,7 +80,7 @@ fn MobileSessionCard() -> Element {
 #[component]
 pub fn SettingsProfilePage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Account", subtitle: "Your profile, session and account" }
             ProfileCard {}
             MobileSessionCard {}
@@ -88,7 +92,7 @@ pub fn SettingsProfilePage() -> Element {
 #[component]
 pub fn SettingsPreferencesPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "General", subtitle: "Defaults, locale, exchange rates and app updates" }
             PreferencesCard {}
             ExchangeRatesCard {}
@@ -99,37 +103,32 @@ pub fn SettingsPreferencesPage() -> Element {
 pub use ai_page::SettingsAiPage;
 
 #[component]
+pub fn SettingsAppearancePage() -> Element {
+    rsx! {
+        div { class: "flex flex-col gap-6 page-enter",
+            PageHeader { title: "Appearance", subtitle: "Color theme and palette" }
+            AppearanceCard {}
+        }
+    }
+}
+
+#[component]
 pub fn SettingsMoneyPage() -> Element {
     let mut tab = use_signal(|| MoneyTab::Accounts);
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "relative flex flex-col gap-6 page-enter",
             PageHeader { title: "Accounts & categories", subtitle: "Accounts and categories that organize your money" }
 
-            div { class: "flex items-center gap-1 border-b border-border/50", role: "tablist", aria_label: "Accounts and categories sections",
-                button {
-                    r#type: "button",
-                    role: "tab",
-                    aria_selected: if tab() == MoneyTab::Accounts { "true" } else { "false" },
-                    class: if tab() == MoneyTab::Accounts {
-                        "inline-flex items-center gap-2 border-b-2 border-primary px-3 py-2 text-sm font-semibold text-foreground"
-                    } else {
-                        "inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    },
-                    onclick: move |_| tab.set(MoneyTab::Accounts),
-                    "Accounts"
-                }
-                button {
-                    r#type: "button",
-                    role: "tab",
-                    aria_selected: if tab() == MoneyTab::Categories { "true" } else { "false" },
-                    class: if tab() == MoneyTab::Categories {
-                        "inline-flex items-center gap-2 border-b-2 border-primary px-3 py-2 text-sm font-semibold text-foreground"
-                    } else {
-                        "inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    },
-                    onclick: move |_| tab.set(MoneyTab::Categories),
-                    "Categories"
-                }
+            SegmentedControl {
+                value: (if tab() == MoneyTab::Accounts { "accounts" } else { "categories" }).to_string(),
+                aria_label: "Accounts and categories sections".to_string(),
+                class: "w-fit".to_string(),
+                variant: SegmentVariant::Underline,
+                options: vec![
+                    SegmentOption::new("accounts", "Accounts"),
+                    SegmentOption::new("categories", "Categories"),
+                ],
+                on_change: move |value| tab.set(if value == "accounts" { MoneyTab::Accounts } else { MoneyTab::Categories }),
             }
 
             if tab() == MoneyTab::Accounts {
@@ -144,7 +143,7 @@ pub fn SettingsMoneyPage() -> Element {
 #[component]
 pub fn SettingsDataPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Data & backup", subtitle: "Keep a copy of your data and sync devices" }
             BackupCard {}
             SyncFolderCard {}
@@ -155,7 +154,7 @@ pub fn SettingsDataPage() -> Element {
 #[component]
 pub fn SettingsServerPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Server", subtitle: "Connection and device pairing" }
             ServerCard {}
         }
@@ -166,7 +165,7 @@ pub fn SettingsServerPage() -> Element {
 pub fn SettingsNotificationsPage() -> Element {
     let offline = crate::api::client::is_offline_mode();
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "Notifications", subtitle: "Choose where your summary lands and when it leaves" }
             if offline {
                 div { class: "rounded-xl bg-card/80 border border-border/40 p-6",
@@ -186,7 +185,7 @@ pub fn SettingsNotificationsPage() -> Element {
 #[component]
 pub fn SettingsAboutPage() -> Element {
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             AboutPage {}
             ApkCard {}
         }

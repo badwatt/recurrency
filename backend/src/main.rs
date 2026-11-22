@@ -6,6 +6,7 @@ use recurrency_backend::{
 };
 
 use axum::extract::{DefaultBodyLimit, State};
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, ORIGIN};
 use axum::http::{HeaderValue, StatusCode};
 use axum::{
     extract::Json,
@@ -312,21 +313,32 @@ fn cors_layer() -> CorsLayer {
         }
     };
 
+    // Keep this list explicit: `Access-Control-Allow-Headers: *` no longer
+    // covers Authorization and is being deprecated by browsers.
+    let headers = [AUTHORIZATION, CONTENT_TYPE, ACCEPT, ORIGIN];
     match origin {
         Some(value) => CorsLayer::new()
             .allow_origin(value)
             .allow_methods(Any)
-            .allow_headers(Any),
+            .allow_headers(headers),
         None => CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
-            .allow_headers(Any),
+            .allow_headers(headers),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cors_headers_are_explicit() {
+        let source = include_str!("main.rs");
+        let production = source.split("#[cfg(test)]").next().unwrap_or(source);
+        assert!(!production.contains(".allow_headers(Any)"));
+        assert!(production.contains("allow_headers(headers)"));
+    }
 
     #[tokio::test]
     async fn app_info_identifies_recurrency() {

@@ -1,5 +1,8 @@
 #![allow(clippy::suspicious_else_formatting)]
+use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton};
+use crate::components::input::{Input, InputSize, InputVariant};
 use dioxus::prelude::*;
+use lucide_dioxus::X;
 use uuid::Uuid;
 
 use crate::models::account::CreateAccountRequest;
@@ -39,6 +42,18 @@ pub fn LabelCombobox(
     let mut create_name = use_signal(String::new);
     let mut creating_loading = use_signal(|| false);
     let mut create_error = use_signal(String::new);
+    let mut drop_up = use_signal(|| false);
+    let filter_id = use_signal(|| format!("label-filter-{}", Uuid::new_v4()));
+    let trigger_id = use_hook(|| format!("label-combo-{}", Uuid::new_v4()));
+
+    use_effect(move || {
+        if open() && !creating() {
+            let id = filter_id();
+            let _ = dioxus::document::eval(&format!(
+                "requestAnimationFrame(function(){{var e=document.getElementById('{id}'); if(e) e.focus();}});"
+            ));
+        }
+    });
 
     let items = match kind {
         LabelKind::Category => CATEGORIES()
@@ -129,14 +144,34 @@ pub fn LabelCombobox(
 
     rsx! {
         div { class: "relative",
-            button {
-                class: if error.is_empty() {
-                    "w-full h-9 rounded-md border bg-background px-2 text-sm flex items-center justify-between text-left hover:bg-muted"
+            Button {
+                variant: ButtonVariant::Unstyled,
+                size: ButtonSize::Unstyled,
+                class: (if error.is_empty() {
+                    "flex h-9 w-full items-center rounded-md border bg-background px-2 text-left text-sm hover:bg-muted"
                 } else {
-                    "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm flex items-center justify-between text-left hover:bg-muted"
+                    "flex h-9 w-full items-center rounded-md border border-red-500 bg-background px-2 text-left text-sm hover:bg-muted"
+                }).to_string(),
+                id: trigger_id.clone(),
+                align: ButtonAlign::Between,
+                aria_expanded: Some((if open() { "true" } else { "false" }).to_string()),
+                aria_haspopup: Some("listbox".to_string()),
+                onclick: move |_| {
+                    if open() {
+                        open.set(false);
+                    } else {
+                        open.set(true);
+                        let id = trigger_id.clone();
+                        spawn(async move {
+                            let mut eval = document::eval(&format!(
+                                "(()=>{{const e=document.getElementById('{id}');if(!e)return false;let bottom=window.innerHeight;for(let p=e.parentElement;p;p=p.parentElement){{const s=getComputedStyle(p);if(/(auto|scroll|hidden)/.test(s.overflowY))bottom=Math.min(bottom,p.getBoundingClientRect().bottom);}}dioxus.send(bottom-e.getBoundingClientRect().bottom<240);}})()"
+                            ));
+                            if let Ok(up) = eval.recv::<bool>().await {
+                                drop_up.set(up);
+                            }
+                        });
+                    }
                 },
-                r#type: "button",
-                onclick: move |_| open.toggle(),
                 if sel_id.is_empty() {
                     span { class: "text-muted-foreground truncate", {placeholder.to_string()} }
                 } else {
@@ -150,14 +185,16 @@ pub fn LabelCombobox(
                 }
                 div { class: "flex items-center gap-1 shrink-0 ml-2",
                     if !sel_id.is_empty() {
-                        button {
-                            class: "h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground",
-                            r#type: "button",
-                            onclick: move |e: Event<MouseData>| {
-                                e.stop_propagation();
+                        IconButton {
+                            label: "Clear selection".to_string(),
+                            variant: ButtonVariant::Ghost,
+                            size: ButtonSize::Unstyled,
+                            class: "h-5 w-5 text-muted-foreground".to_string(),
+                            onclick: move |event: MouseEvent| {
+                                event.stop_propagation();
                                 on_change.call(String::new());
                             },
-                            "✕"
+                            X { size: 12 }
                         }
                     }
                     svg {
@@ -186,23 +223,26 @@ pub fn LabelCombobox(
 
             if open() {
                 div {
-                    class: "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md",
+                    class: if drop_up() {
+                        "absolute left-0 right-0 bottom-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+                    } else {
+                        "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+                    },
                     onclick: move |e| e.stop_propagation(),
 
                     if creating() {
                         div { class: "p-3 space-y-3",
                             div { class: "text-sm font-medium", {create_title.to_string()} },
-                            input {
-                                class: "w-full h-9 rounded-md border bg-background px-3 text-sm",
-                                r#type: "text",
+                            Input {
+                                size: InputSize::Sm,
                                 placeholder: input_placeholder.to_string(),
                                 value: create_name.to_string(),
                                 autofocus: true,
-                                oninput: move |e: Event<FormData>| {
-                                    create_name.set(e.value());
+                                on_input: move |value: String| {
+                                    create_name.set(value);
                                     create_error.set(String::new());
                                 },
-                                onkeydown: move |e: KeyboardEvent| {
+                                on_keydown: move |e: KeyboardEvent| {
                                     if e.key() == Key::Enter {
                                         do_create.call(());
                                     }
@@ -212,9 +252,9 @@ pub fn LabelCombobox(
                                 p { class: "text-xs text-red-500", "{create_error()}" }
                             }
                             div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                                button {
-                                    class: "px-3 py-1.5 text-sm rounded-md border hover:bg-muted",
-                                    r#type: "button",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
                                     disabled: creating_loading(),
                                     onclick: move |_| {
                                         creating.set(false);
@@ -223,9 +263,8 @@ pub fn LabelCombobox(
                                     },
                                     "Cancel"
                                 }
-                                button {
-                                    class: "px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
-                                    r#type: "button",
+                                Button {
+                                    size: ButtonSize::Sm,
                                     disabled: creating_loading() || create_name().trim().is_empty(),
                                     onclick: move |_| do_create.call(()),
                                     if creating_loading() { "Creating..." } else { "Create" }
@@ -234,15 +273,18 @@ pub fn LabelCombobox(
                         }
                     } else {
                         div { class: "flex items-center border-b px-3",
-                            input {
-                                class: "w-full h-9 border-0 bg-transparent text-sm focus:outline-none focus:ring-0",
-                                r#type: "text",
+                            Input {
+                                id: filter_id(),
+                                size: InputSize::Sm,
+                                variant: InputVariant::Bare,
+                                class: String::new(),
                                 placeholder: search_placeholder.to_string(),
                                 value: search_val.to_string(),
-                                oninput: move |e: Event<FormData>| {
-                                    search.set(e.value());
+                                autofocus: true,
+                                on_input: move |value: String| {
+                                    search.set(value);
                                 },
-                                onkeydown: move |e: KeyboardEvent| {
+                                on_keydown: move |e: KeyboardEvent| {
                                     if e.key() == Key::Escape {
                                         open.set(false);
                                         search.set(String::new());
@@ -267,13 +309,15 @@ pub fn LabelCombobox(
                                     let on_change_cb = on_change;
                                     let item_id_for_click = item_id;
                                     rsx! {
-                                        button {
-                                            class: if is_selected {
-                                                "relative flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent bg-accent"
+                                        Button {
+                                            variant: ButtonVariant::Unstyled,
+                                            size: ButtonSize::Unstyled,
+                                            radius: ButtonRadius::None,
+                                            class: (if is_selected {
+                                                "relative flex w-full items-center justify-start gap-2 bg-accent px-3 py-2 text-left text-sm hover:bg-accent"
                                             } else {
-                                                "relative flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
-                                            },
-                                            r#type: "button",
+                                                "relative flex w-full items-center justify-start gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                                            }).to_string(),
                                             onclick: move |_| {
                                                 on_change_cb.call(item_id_for_click.clone());
                                                 search.set(String::new());
@@ -304,12 +348,15 @@ pub fn LabelCombobox(
                             if show_create {
                                 {
                                     let search_for_create = search_val.clone();
+                                    let search_for_create_click = search_for_create.clone();
                                     rsx! {
-                                        button {
-                                            class: "relative flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-primary",
-                                            r#type: "button",
+                                        Button {
+                                            variant: ButtonVariant::Unstyled,
+                                            size: ButtonSize::Unstyled,
+                                            radius: ButtonRadius::None,
+                                            class: "relative flex w-full items-center justify-start gap-2 px-3 py-2 text-left text-sm text-primary hover:bg-accent".to_string(),
                                             onclick: move |_| {
-                                                create_name.set(search_for_create.clone());
+                                                create_name.set(search_for_create_click.clone());
                                                 creating.set(true);
                                                 create_error.set(String::new());
                                             },
@@ -435,6 +482,13 @@ pub fn should_show_create(items: &[LabelItem], search: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn combobox_flips_up_near_the_viewport_bottom() {
+        let source = include_str!("label_combobox.rs");
+        assert!(source.contains("bottom-[calc(100%+4px)]"));
+        assert!(source.contains("Math.min(bottom,p.getBoundingClientRect().bottom)"));
+    }
+
     use super::*;
 
     fn item(name: &str) -> LabelItem {

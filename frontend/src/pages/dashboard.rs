@@ -1,5 +1,8 @@
 use chrono::{Datelike, Local, NaiveDate};
 use dioxus::prelude::*;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::card::Card;
+use crate::components::segmented::{SegmentOption, SegmentedControl};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -8,9 +11,11 @@ use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
 use crate::components::skeleton::DashboardRowSkeleton;
 use crate::models::account::Account;
+use crate::models::category::Category;
 use crate::models::subscription::Subscription;
 use crate::models::transaction::Transaction;
 use crate::state::accounts::ACCOUNTS;
+use crate::state::categories::CATEGORIES;
 use crate::state::auth::AUTH;
 use crate::state::rates::RatesState;
 use crate::state::subscriptions::SUBSCRIPTIONS;
@@ -388,6 +393,91 @@ pub fn total_pending(plan: &[AccountBudget]) -> Decimal {
     plan.iter().map(|b| b.pending).sum()
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct CategoryBudget {
+    pub category_id: Uuid,
+    pub name: String,
+    pub color: String,
+    pub icon: String,
+    pub amount: Decimal,
+    pub pending: Decimal,
+    pub charge_count: usize,
+}
+
+/// Build the current month's charges grouped by category.
+pub fn build_category_budgets(
+    categories: &[Category],
+    subscriptions: &[Subscription],
+    transactions: &[Transaction],
+    year: i32,
+    month: u32,
+    pending_from: Option<NaiveDate>,
+    rates: &RatesState,
+) -> Vec<CategoryBudget> {
+    let mut plan: HashMap<Uuid, CategoryBudget> = HashMap::new();
+
+    let mut add = |category_id: Uuid, amount: Decimal, pending: bool| {
+        let category = categories.iter().find(|category| category.id == category_id);
+        let entry = plan.entry(category_id).or_insert_with(|| CategoryBudget {
+            category_id,
+            name: category
+                .map(|category| category.name.clone())
+                .unwrap_or_else(|| "Uncategorized".to_string()),
+            color: category
+                .and_then(|category| category.color.clone())
+                .unwrap_or_else(|| "#6b7280".to_string()),
+            icon: category
+                .and_then(|category| category.icon.clone())
+                .unwrap_or_else(|| "Tag".to_string()),
+            amount: Decimal::ZERO,
+            pending: Decimal::ZERO,
+            charge_count: 0,
+        });
+        entry.amount += amount;
+        entry.charge_count += 1;
+        if pending {
+            entry.pending += amount;
+        }
+    };
+
+    for subscription in subscriptions.iter().filter(|subscription| subscription.is_active) {
+        let occurrences = crate::utils::recurrence::occurrences_in_month(
+            subscription.start_date,
+            &subscription.recurrence,
+            subscription.end_date,
+            year,
+            month,
+            subscription.amount,
+        );
+        for (date, amount) in occurrences {
+            add(
+                subscription.category_id,
+                rates.convert(amount, &subscription.currency),
+                pending_from.is_some_and(|cutoff| date >= cutoff),
+            );
+        }
+    }
+
+    for transaction in transactions
+        .iter()
+        .filter(|transaction| transaction.date.year() == year && transaction.date.month() == month)
+    {
+        add(
+            transaction.category_id,
+            rates.convert(transaction.amount, &transaction.currency),
+            pending_from.is_some_and(|cutoff| transaction.date > cutoff),
+        );
+    }
+
+    let mut result: Vec<CategoryBudget> = plan.into_values().collect();
+    result.sort_by(|a, b| {
+        b.amount
+            .cmp(&a.amount)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    result
+}
+
 /// Share of the fixed budget that is still pending from today, capped at 100.
 pub fn pending_ratio(budget: Decimal, pending: Decimal) -> f64 {
     if budget <= Decimal::ZERO {
@@ -426,6 +516,76 @@ pub fn is_today_fn(d: NaiveDate) -> bool {
     d == Local::now().date_naive()
 }
 
+/// A subscription or one-time transaction shown in the upcoming list.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UpcomingPayment {
+    pub id: Uuid,
+    pub name: String,
+    pub amount: Decimal,
+    pub currency: String,
+    pub account_id: Uuid,
+    pub category_id: Uuid,
+    pub date: NaiveDate,
+    pub logo_url: Option<String>,
+    pub is_transaction: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LedgerView {
+    Accounts,
+    Categories,
+}
+
+/// Merge active subscriptions and future one-time transactions into one
+/// chronological list. Past transactions are intentionally excluded: the
+/// upcoming panel is a plan, not a history.
+pub fn upcoming_payments(
+    subscriptions: &[Subscription],
+    transactions: &[Transaction],
+    today: NaiveDate,
+) -> Vec<UpcomingPayment> {
+    let mut items = Vec::new();
+
+    for subscription in subscriptions
+        .iter()
+        .filter(|subscription| subscription.is_active)
+    {
+        if let Some(date) = subscription.next_billing_date {
+            items.push(UpcomingPayment {
+                id: subscription.id,
+                name: subscription.name.clone(),
+                amount: subscription.amount,
+                currency: subscription.currency.clone(),
+                account_id: subscription.account_id,
+                category_id: subscription.category_id,
+                date,
+                logo_url: subscription.logo_url.clone(),
+                is_transaction: false,
+            });
+        }
+    }
+
+    for transaction in transactions
+        .iter()
+        .filter(|transaction| transaction.date >= today)
+    {
+        items.push(UpcomingPayment {
+            id: transaction.id,
+            name: transaction.name.clone(),
+            amount: transaction.amount,
+            currency: transaction.currency.clone(),
+            account_id: transaction.account_id,
+            category_id: transaction.category_id,
+            date: transaction.date,
+            logo_url: transaction.logo_url.clone(),
+            is_transaction: true,
+        });
+    }
+
+    items.sort_by(|a, b| a.date.cmp(&b.date).then_with(|| a.name.cmp(&b.name)));
+    items
+}
+
 // ── Dashboard Component ──────────────────────────────────────────────────────
 
 #[component]
@@ -441,6 +601,9 @@ pub fn Dashboard() -> Element {
             if TRANSACTIONS().transactions.is_empty() {
                 TRANSACTIONS.write().set_loading();
             }
+            if CATEGORIES().categories.is_empty() {
+                CATEGORIES.write().set_loading();
+            }
 
             match Storage::list_accounts().await {
                 Ok(data) => ACCOUNTS.write().set_data(data),
@@ -454,12 +617,17 @@ pub fn Dashboard() -> Element {
                 Ok(data) => TRANSACTIONS.write().set_data(data),
                 Err(e) => TRANSACTIONS.write().set_error(e.to_string()),
             }
+            match Storage::list_categories().await {
+                Ok(data) => CATEGORIES.write().set_data(data),
+                Err(e) => CATEGORIES.write().set_error(e.to_string()),
+            }
         });
     });
 
     let accounts_state = ACCOUNTS();
     let sub_state = SUBSCRIPTIONS();
     let txns_state = TRANSACTIONS();
+    let categories_state = CATEGORIES();
     let auth_state = AUTH();
 
     let today = Local::now().date_naive();
@@ -490,32 +658,57 @@ pub fn Dashboard() -> Element {
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "there".to_string());
 
-    let mut upcoming: Vec<_> = sub_state
-        .active()
-        .into_iter()
-        .filter(|s| s.next_billing_date.is_some())
-        .collect();
-    upcoming.sort_by_key(|s| s.next_billing_date);
+    let upcoming = upcoming_payments(
+        &sub_state.subscriptions,
+        &txns_state.transactions,
+        today,
+    );
     let upcoming_top5: Vec<_> = upcoming.iter().take(5).collect();
 
     let mut hovered_account = use_signal(|| None::<Uuid>);
-
-    let mut manual_payments: Vec<_> = txns_state
-        .transactions
-        .iter()
-        .filter(|t| t.date.year() == today.year() && t.date.month() == today.month())
-        .collect();
-    manual_payments.sort_by_key(|t| std::cmp::Reverse(t.date));
-    let manual_top4: Vec<_> = manual_payments.iter().take(4).collect();
+    let mut hovered_category = use_signal(|| None::<Uuid>);
+    let mut ledger_view = use_signal(|| LedgerView::Accounts);
+    let category_plan = build_category_budgets(
+        &categories_state.categories,
+        &sub_state.subscriptions,
+        &txns_state.transactions,
+        today.year(),
+        today.month(),
+        Some(today),
+        &crate::state::rates::RATES(),
+    );
+    let category_total: Decimal = category_plan.iter().map(|category| category.amount).sum();
+    let category_pending_total: Decimal = category_plan.iter().map(|category| category.pending).sum();
+    let account_pending_label = if accounts_with_pending == 1 {
+        "1 account with pending payments".to_string()
+    } else {
+        format!("{accounts_with_pending} accounts with pending payments")
+    };
+    let account_count_label = if visible.len() == 1 {
+        "1 account".to_string()
+    } else {
+        format!("{} accounts", visible.len())
+    };
+    let category_activity_label = if category_plan.len() == 1 {
+        "1 category with activity".to_string()
+    } else {
+        format!("{} categories with activity", category_plan.len())
+    };
+    let category_count_label = if category_plan.len() == 1 {
+        "1 category".to_string()
+    } else {
+        format!("{} categories", category_plan.len())
+    };
 
     let is_loading = (sub_state.is_loading && sub_state.subscriptions.is_empty())
         || (accounts_state.is_loading && accounts_state.accounts.is_empty())
-        || (txns_state.is_loading && txns_state.transactions.is_empty());
+        || (txns_state.is_loading && txns_state.transactions.is_empty())
+        || (categories_state.is_loading && categories_state.categories.is_empty());
 
     let nav = navigator();
 
     rsx! {
-        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-8 pb-24 lg:pb-8 flex flex-col gap-6 page-enter",
             // Header
             div { class: "flex flex-col md:flex-row md:items-end md:justify-between gap-4",
                 div {
@@ -668,119 +861,93 @@ pub fn Dashboard() -> Element {
                 }
             }
 
-            // Account ledger
-            div { class: "rounded-xl border border-border/60 bg-card overflow-hidden",
-                div { class: "p-5 md:p-6 pb-3 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2",
-                    div {
-                        h2 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]",
-                            "Transfer by account"
-                        }
-                        p { class: "text-sm text-muted-foreground mt-1",
-                            "Actual charges this month and pending from today."
-                        }
-                    }
-                    p { class: "text-xs text-muted-foreground",
-                        "{accounts_with_pending} accounts with pending payments"
-                    }
-                }
-
-                if is_loading {
-                    div { class: "space-y-3 p-5 md:p-6 pt-2",
-                        for _ in 0..4 {
-                            DashboardRowSkeleton {}
-                        }
-                    }
-                } else if visible.is_empty() {
-                    div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
-                        div { class: "h-12 w-12 rounded-full bg-muted flex items-center justify-center",
-                            {icon_display("Wallet")}
-                        }
-                        p { class: "text-base font-medium", "No movements this month" }
-                        p { class: "text-sm text-muted-foreground max-w-md",
-                            "Add a subscription or manual payment and the per-account plan will appear here."
-                        }
-                        {
-                            let nav3 = nav;
-                            rsx! {
-                                button {
-                                    class: "hidden md:inline-flex mt-2 items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                                    onclick: move |_| {
-                                        *crate::state::create_intent::CREATE_INTENT.write() =
-                                            Some(crate::state::create_intent::CreateIntent::Subscription);
-                                        nav3.push(crate::Route::Subscriptions {});
-                                    },
-                                    "Add subscription"
+            // Payments on the left; the transfer plan on the right.
+            div { class: "grid gap-4 lg:grid-cols-[minmax(0,1fr)_460px] items-start",
+                div { class: "order-2 flex min-w-0 flex-col gap-4 lg:order-1",
+                    div { class: "rounded-xl bg-card border border-border/60",
+                        div { class: "p-5 md:p-6 pb-2 flex items-center justify-between",
+                            div {
+                                h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]", "Upcoming payments" }
+                                p { class: "text-xs text-muted-foreground mt-1", "Subscriptions and one-time payments." }
+                            }
+                            {
+                                let nav4 = nav;
+                                rsx! {
+                                    Button {
+                                        variant: ButtonVariant::Link,
+                                        size: ButtonSize::Xs,
+                                        onclick: move |_| { nav4.push(crate::Route::Calendar {}); },
+                                        "View calendar"
+                                    }
                                 }
                             }
                         }
-                    }
-                } else {
-                    div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_9rem_9rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
-                        span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Account" }
-                        span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Budget" }
-                        span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Pending" }
-                    }
-                    div { class: "divide-y divide-border/50",
-                        for account in visible.iter() {
-                            {
-                                let color = account.color.clone();
-                                let icon = account.icon.clone();
-                                let name = account.name.clone();
-                                let account_id = account.account_id;
-                                let pending_class = if account.pending > Decimal::ZERO {
-                                    "text-sm font-semibold font-mono tabular-nums text-foreground"
-                                } else {
-                                    "text-sm font-semibold font-mono tabular-nums text-muted-foreground"
-                                };
-                                let breakdown = if account.manual > Decimal::ZERO {
-                                    format!(
-                                        "{} subscriptions · {} manual",
-                                        account.subscription_count, account.manual_count
-                                    )
-                                } else {
-                                    format!("{} subscriptions", account.subscription_count)
-                                };
-                                rsx! {
-                                    div {
-                                        key: "{account.account_id}",
-                                        class: "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_9rem_9rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors",
-                                        tabindex: "0",
-                                        onmouseenter: move |_| hovered_account.set(Some(account_id)),
-                                        onmouseleave: move |_| hovered_account.set(None),
-                                        onfocus: move |_| hovered_account.set(Some(account_id)),
-                                        onblur: move |_| hovered_account.set(None),
-                                        div { class: "col-span-2 sm:col-span-1 flex items-center gap-3 min-w-0",
+                        if upcoming_top5.is_empty() {
+                            p { class: "p-6 pt-2 text-sm text-muted-foreground", "No upcoming payments or future transactions." }
+                        } else {
+                            div { class: "px-5 md:px-6 pb-4 space-y-1",
+                                for payment in upcoming_top5 {
+                                    {
+                                        let account_id = payment.account_id;
+                                        let category_id = payment.category_id;
+                                        let account_name = ACCOUNTS().name_for(&account_id);
+                                        let account_color = ACCOUNTS()
+                                            .accounts
+                                            .iter()
+                                            .find(|account| account.id == account_id)
+                                            .and_then(|account| account.color.clone())
+                                            .unwrap_or_else(|| "#6b7280".to_string());
+                                        let date_str = format_date_short_fn(payment.date);
+                                        let days_label = next_billing_days_text(Some(payment.date));
+                                        let today_flag = is_today_fn(payment.date);
+                                        let logo_url = payment.logo_url.clone();
+                                        let linked = hovered_account() == Some(account_id)
+                                            || (ledger_view() == LedgerView::Categories
+                                                && hovered_category() == Some(category_id));
+                                        let row_class = if linked {
+                                            "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors"
+                                        } else {
+                                            "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg transition-colors"
+                                        };
+                                        rsx! {
                                             div {
-                                                class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                                                style: "background-color: {color}20; color: {color}",
-                                                {icon_display(&icon)}
-                                            }
-                                            div { class: "min-w-0",
-                                                p { class: "text-sm font-semibold text-foreground truncate", {name} }
-                                                p { class: "text-xs text-muted-foreground truncate", {breakdown} }
-                                            }
-                                        }
-                                        div { class: "text-left sm:text-right",
-                                            p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
-                                            p { class: "amount-sensitive text-sm font-semibold font-mono tabular-nums text-foreground",
-                                                "{format_currency(account.budget, &currency)}"
-                                            }
-                                            p { class: "text-[11px] text-muted-foreground",
-                                                span { class: "amount-sensitive", "{format_currency(account.subscriptions, &currency)}" }
-                                                " recurring"
-                                            }
-                                        }
-                                        div { class: "text-right",
-                                            p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
-                                            p { class: format!("amount-sensitive {pending_class}"),
-                                                {format_currency(account.pending, &currency)}
-                                            }
-                                            p { class: "text-[11px] text-muted-foreground",
-                                                {if account.pending_count == 0 {
-                                                    "Up to date".to_string()
-                                                } else {
-                                                    format!("{} payments", account.pending_count)
-                                                }}
+                                                key: "{payment.id}",
+                                                class: row_class.to_string(),
+                                                onmouseenter: move |_| {
+                                                    hovered_account.set(Some(account_id));
+                                                    hovered_category.set(Some(category_id));
+                                                },
+                                                onmouseleave: move |_| {
+                                                    hovered_account.set(None);
+                                                    hovered_category.set(None);
+                                                },
+                                                div { class: "flex items-center gap-3 min-w-0",
+                                                    div {
+                                                        class: "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+                                                        style: "background-color: {account_color}20; color: {account_color};",
+                                                        {logo_image_with_fallback(&format!("upcoming-{}", payment.id), logo_url.as_deref(), &payment.name, "h-9 w-9 object-contain")}
+                                                    }
+                                                    div { class: "min-w-0",
+                                                        p { class: "text-sm font-medium text-foreground truncate", {payment.name.clone()} }
+                                                        div { class: "flex items-center gap-1.5 text-xs text-muted-foreground",
+                                                            span { "{account_name} · {date_str}" }
+                                                            if payment.is_transaction {
+                                                                span { class: "rounded bg-muted px-1 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground", "One-time" }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                div { class: "text-right shrink-0 ml-4",
+                                                    p { class: "text-sm font-semibold font-mono tabular-nums text-foreground",
+                                                        ConvertedAmount { amount: payment.amount, currency: payment.currency.clone() }
+                                                    }
+                                                    if let Some(label) = days_label {
+                                                        p {
+                                                            class: if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
+                                                            {label}
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -788,145 +955,260 @@ pub fn Dashboard() -> Element {
                             }
                         }
                     }
-                    div { class: "px-5 md:px-6 py-4 bg-muted/30 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
-                        div {
-                            p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Month total" }
-                            p { class: "text-xs text-muted-foreground",
-                                {format!("{} accounts", visible.len())}
-                            }
+                }
+
+                // Account ledger, pinned to the right on desktop and kept first on mobile.
+                Card { class: "order-1 min-w-0 overflow-hidden lg:order-2",
+                    div { class: "p-5 md:p-6 pb-3 flex flex-col gap-2.5",
+                        SegmentedControl {
+                            value: (if ledger_view() == LedgerView::Accounts { "accounts" } else { "categories" }).to_string(),
+                            aria_label: "Transfer ledger view".to_string(),
+                            class: "w-full".to_string(),
+                            options: vec![
+                                SegmentOption::new("accounts", "Accounts"),
+                                SegmentOption::new("categories", "Categories"),
+                            ],
+                            on_change: move |value| {
+                                ledger_view.set(if value == "accounts" { LedgerView::Accounts } else { LedgerView::Categories });
+                            },
                         }
-                        div { class: "flex items-center gap-8 sm:gap-12",
-                            div { class: "text-left sm:text-right",
-                                p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
-                                p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(budget_total, &currency)}" }
-                            }
-                            div { class: "text-right",
-                                p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
-                                p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(pending_total, &currency)}" }
-                            }
+                        p { class: "text-sm text-muted-foreground",
+                            {if ledger_view() == LedgerView::Accounts {
+                                "Actual charges this month and pending from today."
+                            } else {
+                                "This month's charges grouped by category."
+                            }}
+                        }
+                        p { class: "text-xs text-muted-foreground",
+                            {if ledger_view() == LedgerView::Accounts {
+                                account_pending_label.clone()
+                            } else {
+                                category_activity_label.clone()
+                            }}
                         }
                     }
-                }
-            }
 
-            // Secondary: upcoming payments + manual payments
-            div { class: "grid gap-4 lg:grid-cols-3 items-start",
-                div { class: "lg:col-span-2 rounded-xl bg-card border border-border/60",
-                    div { class: "p-5 md:p-6 pb-2 flex items-center justify-between",
-                        div {
-                            h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]", "Upcoming payments" }
-                            p { class: "text-xs text-muted-foreground mt-1", "Subscriptions with a billing date." }
+                    if is_loading {
+                        div { class: "space-y-3 p-5 md:p-6 pt-2",
+                            for _ in 0..4 {
+                                DashboardRowSkeleton {}
+                            }
                         }
-                        {
-                            let nav4 = nav;
-                            rsx! {
-                                button {
-                                    class: "text-xs font-medium text-primary hover:underline",
-                                    onclick: move |_| { nav4.push(crate::Route::Calendar {}); },
-                                    "View calendar"
+                    } else if ledger_view() == LedgerView::Accounts {
+                        if visible.is_empty() {
+                            div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
+                            div { class: "h-12 w-12 rounded-full bg-muted flex items-center justify-center",
+                                {icon_display("Wallet")}
+                            }
+                            p { class: "text-base font-medium", "No movements this month" }
+                            p { class: "text-sm text-muted-foreground max-w-md",
+                                "Add a subscription or manual payment and the per-account plan will appear here."
+                            }
+                            {
+                                let nav3 = nav;
+                                rsx! {
+                                    Button {
+                                        class: "mt-2 hidden md:inline-flex",
+                                        onclick: move |_| {
+                                            *crate::state::create_intent::CREATE_INTENT.write() =
+                                                Some(crate::state::create_intent::CreateIntent::Subscription);
+                                            nav3.push(crate::Route::Subscriptions {});
+                                        },
+                                        "Add subscription"
+                                    }
                                 }
                             }
                         }
-                    }
-                    if upcoming_top5.is_empty() {
-                        p { class: "p-6 pt-2 text-sm text-muted-foreground", "No upcoming payments." }
                     } else {
-                        div { class: "px-5 md:px-6 pb-4 space-y-1",
-                            for sub in upcoming_top5 {
-                                if let Some(next_date) = sub.next_billing_date {
-                                    {
-                                    let today_flag = is_today_fn(next_date);
-                                    let date_str = format_date_short_fn(next_date);
-                                    let days_label = next_billing_days_text(Some(next_date));
-                                    let logo_url = sub.logo_url.clone();
-                                    let account_name = ACCOUNTS().name_for(&sub.account_id);
+                        div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_6rem_6rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Account" }
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Budget" }
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Pending" }
+                        }
+                        div { class: "divide-y divide-border/50",
+                            for account in visible.iter() {
+                                {
+                                    let color = account.color.clone();
+                                    let icon = account.icon.clone();
+                                    let name = account.name.clone();
+                                    let account_id = account.account_id;
+                                    let pending_class = if account.pending > Decimal::ZERO {
+                                        "text-sm font-semibold font-mono tabular-nums text-foreground"
+                                    } else {
+                                        "text-sm font-semibold font-mono tabular-nums text-muted-foreground"
+                                    };
+                                    let breakdown = if account.manual > Decimal::ZERO {
+                                        format!(
+                                            "{} subscriptions · {} manual",
+                                            account.subscription_count, account.manual_count
+                                        )
+                                    } else {
+                                        format!("{} subscriptions", account.subscription_count)
+                                    };
+                                    let linked = hovered_account() == Some(account_id);
+                                    let row_class = if linked {
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center bg-primary/5 ring-1 ring-inset ring-primary/20 transition-colors"
+                                    } else {
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors"
+                                    };
                                     rsx! {
-                                        {
-                                            let linked = hovered_account() == Some(sub.account_id);
-                                            let row_class = if linked { "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors" } else { "flex items-center justify-between py-2.5 -mx-2 px-2 rounded-lg transition-colors" };
-                                            rsx! {
-                                        div { key: "{sub.id}", class: row_class.to_string(),
-                                            div { class: "flex items-center gap-3 min-w-0",
-                                                div { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-secondary",
-                                                    {logo_image_with_fallback(&format!("upcoming-{}", sub.id), logo_url.as_deref(), &sub.name, "h-9 w-9 object-contain")}
+                                        div {
+                                            key: "{account.account_id}",
+                                            class: row_class.to_string(),
+                                            tabindex: "0",
+                                            onmouseenter: move |_| hovered_account.set(Some(account_id)),
+                                            onmouseleave: move |_| hovered_account.set(None),
+                                            onfocus: move |_| hovered_account.set(Some(account_id)),
+                                            onblur: move |_| hovered_account.set(None),
+                                            div { class: "col-span-2 sm:col-span-1 flex items-center gap-3 min-w-0",
+                                                div {
+                                                    class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                                                    style: "background-color: {color}20; color: {color}",
+                                                    {icon_display(&icon)}
                                                 }
                                                 div { class: "min-w-0",
-                                                    p { class: "text-sm font-medium text-foreground truncate", {sub.name.to_string()} }
+                                                    p { class: "text-sm font-semibold text-foreground truncate", {name} }
+                                                    p { class: "text-xs text-muted-foreground truncate", {breakdown} }
+                                                }
+                                            }
+                                            div { class: "text-left sm:text-right",
+                                                p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
+                                                p { class: "amount-sensitive text-sm font-semibold font-mono tabular-nums text-foreground",
+                                                    "{format_currency(account.budget, &currency)}"
+                                                }
+                                                p { class: "text-[11px] text-muted-foreground",
+                                                    span { class: "amount-sensitive", "{format_currency(account.subscriptions, &currency)}" }
+                                                    " recurring"
+                                                }
+                                            }
+                                            div { class: "text-right",
+                                                p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                                p { class: format!("amount-sensitive {pending_class}"),
+                                                    {format_currency(account.pending, &currency)}
+                                                }
+                                                p { class: "text-[11px] text-muted-foreground",
+                                                    {if account.pending_count == 0 {
+                                                        "Up to date".to_string()
+                                                    } else {
+                                                        format!("{} payments", account.pending_count)
+                                                    }}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        div { class: "px-5 md:px-6 py-4 bg-muted/30 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+                            div {
+                                p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Month total" }
+                                p { class: "text-xs text-muted-foreground",
+                                    {account_count_label.clone()}
+                                }
+                            }
+                            div { class: "flex items-center gap-8 sm:gap-12",
+                                div { class: "text-left sm:text-right",
+                                    p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Budget" }
+                                    p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(budget_total, &currency)}" }
+                                }
+                                div { class: "text-right",
+                                    p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                    p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(pending_total, &currency)}" }
+                                }
+                            }
+                        }
+                    }
+                    } else if category_plan.is_empty() {
+                        div { class: "p-8 flex flex-col items-center justify-center gap-3 text-center",
+                            div { class: "h-12 w-12 rounded-full bg-muted flex items-center justify-center",
+                                {icon_display("Tag")}
+                            }
+                            p { class: "text-base font-medium", "No charges this month" }
+                            p { class: "text-sm text-muted-foreground max-w-md",
+                                "Subscriptions and one-time payments will appear grouped by category here."
+                            }
+                        }
+                    } else {
+                        div { class: "hidden sm:grid grid-cols-[minmax(0,1fr)_6rem_6rem] gap-4 px-5 md:px-6 py-2 border-y border-border/50 bg-muted/20",
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold", "Category" }
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Amount" }
+                            span { class: "text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold text-right", "Pending" }
+                        }
+                        div { class: "divide-y divide-border/50",
+                            for category in category_plan.iter() {
+                                {
+                                    let pending_class = if category.pending > Decimal::ZERO {
+                                        "text-sm font-semibold font-mono tabular-nums text-foreground"
+                                    } else {
+                                        "text-sm font-semibold font-mono tabular-nums text-muted-foreground"
+                                    };
+                                    let category_id = category.category_id;
+                                    let linked = hovered_category() == Some(category_id);
+                                    let row_class = if linked {
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center bg-primary/5 ring-1 ring-inset ring-primary/20 transition-colors"
+                                    } else {
+                                        "px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] gap-x-4 gap-y-3 items-center hover:bg-muted/20 focus:bg-muted/20 focus:outline-none transition-colors"
+                                    };
+                                    rsx! {
+                                        div {
+                                            key: "{category.category_id}",
+                                            class: row_class.to_string(),
+                                            tabindex: "0",
+                                            onmouseenter: move |_| hovered_category.set(Some(category_id)),
+                                            onmouseleave: move |_| hovered_category.set(None),
+                                            onfocus: move |_| hovered_category.set(Some(category_id)),
+                                            onblur: move |_| hovered_category.set(None),
+                                            div { class: "col-span-2 sm:col-span-1 flex items-center gap-3 min-w-0",
+                                                div {
+                                                    class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                                                    style: "background-color: {category.color}20; color: {category.color};",
+                                                    {icon_display(&category.icon)}
+                                                }
+                                                div { class: "min-w-0",
+                                                    p { class: "text-sm font-semibold text-foreground truncate", {category.name.clone()} }
                                                     p { class: "text-xs text-muted-foreground truncate",
-                                                        "{account_name} · {date_str}"
+                                                        {format!("{} charges", category.charge_count)}
                                                     }
                                                 }
                                             }
-                                            div { class: "text-right shrink-0 ml-4",
-                                                p { class: "text-sm font-semibold font-mono tabular-nums text-foreground",
-                                                    ConvertedAmount { amount: sub.amount, currency: sub.currency.clone() }
+                                            div { class: "text-left sm:text-right",
+                                                p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Amount" }
+                                                p { class: "amount-sensitive text-sm font-semibold font-mono tabular-nums text-foreground",
+                                                    {format_currency(category.amount, &currency)}
                                                 }
-                                                if let Some(label) = days_label {
-                                                    p {
-                                                        class: if today_flag { "text-xs font-medium text-primary" } else { "text-xs text-muted-foreground" },
-                                                        {label}
-                                                    }
+                                            }
+                                            div { class: "text-right",
+                                                p { class: "sm:hidden text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                                p { class: format!("amount-sensitive {pending_class}"),
+                                                    {format_currency(category.pending, &currency)}
                                                 }
                                             }
                                         }
-                                            }
-                                        }
                                     }
-                                    }
+                                }
+                            }
+                        }
+                        div { class: "px-5 md:px-6 py-4 bg-muted/30 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+                            div {
+                                p { class: "text-xs uppercase tracking-[0.16em] text-muted-foreground font-semibold", "This month" }
+                                p { class: "text-xs text-muted-foreground",
+                                    {category_count_label.clone()}
+                                }
+                            }
+                            div { class: "flex items-center gap-8 sm:gap-12",
+                                div { class: "text-left sm:text-right",
+                                    p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Amount" }
+                                    p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(category_total, &currency)}" }
+                                }
+                                div { class: "text-right",
+                                    p { class: "text-[10px] uppercase tracking-wider text-muted-foreground", "Pending" }
+                                    p { class: "amount-sensitive text-base font-bold font-mono tabular-nums", "{format_currency(category_pending_total, &currency)}" }
                                 }
                             }
                         }
                     }
                 }
 
-                div { class: "rounded-xl bg-card border border-border/60",
-                    div { class: "p-5 md:p-6 pb-2 flex items-center justify-between",
-                        div {
-                            h3 { class: "text-sm font-semibold text-muted-foreground uppercase tracking-[0.16em]", "Manual payments" }
-                            p { class: "text-xs text-muted-foreground mt-1", "This month." }
-                        }
-                        {
-                            let nav5 = nav;
-                            rsx! {
-                                button {
-                                    class: "text-xs font-medium text-primary hover:underline",
-                                    onclick: move |_| { nav5.push(crate::Route::Transactions {}); },
-                                    "View all"
-                                }
-                            }
-                        }
-                    }
-                    if manual_top4.is_empty() {
-                        p { class: "p-6 pt-2 text-sm text-muted-foreground", "No manual payments this month." }
-                    } else {
-                        div { class: "px-5 md:px-6 pb-4 space-y-2",
-                            for txn in manual_top4 {
-                                {
-                                    let account_name = ACCOUNTS().name_for(&txn.account_id);
-                                    rsx! {
-                                        {
-                                            let linked = hovered_account() == Some(txn.account_id);
-                                            let row_class = if linked { "flex items-center justify-between gap-3 py-1.5 -mx-2 px-2 rounded-lg bg-primary/5 transition-colors" } else { "flex items-center justify-between gap-3 py-1.5 -mx-2 px-2 rounded-lg transition-colors" };
-                                            rsx! {
-                                        div { key: "{txn.id}", class: row_class.to_string(),
-                                            div { class: "min-w-0",
-                                                p { class: "text-sm text-foreground truncate", {txn.name.to_string()} }
-                                                p { class: "text-xs text-muted-foreground truncate",
-                                                    "{account_name} · {txn.date.format(\"%b %-d\")}"
-                                                }
-                                            }
-                                            p { class: "text-sm font-semibold font-mono tabular-nums shrink-0",
-                                                ConvertedAmount { amount: txn.amount, currency: txn.currency.clone() }
-                                            }
-                                        }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -1203,6 +1485,117 @@ mod tests {
         assert_eq!(savings_plan.subscriptions, dec!(120));
         assert_eq!(savings_plan.pending, dec!(0));
         assert_eq!(savings_plan.budget, dec!(120));
+    }
+
+    #[test]
+    fn upcoming_payments_merge_subscriptions_and_future_transactions() {
+        let main = account("Main");
+        let main_id = main.id;
+        let today = date(2026, 11, 21);
+
+        let subs = vec![
+            subscription(
+                main_id,
+                dec!(10),
+                "monthly",
+                date(2026, 11, 20),
+                Some(date(2026, 11, 25)),
+                true,
+            ),
+            subscription(
+                main_id,
+                dec!(99),
+                "monthly",
+                date(2026, 11, 20),
+                Some(date(2026, 11, 22)),
+                false,
+            ),
+            subscription(
+                main_id,
+                dec!(50),
+                "monthly",
+                date(2026, 11, 20),
+                None,
+                true,
+            ),
+        ];
+        let txns = vec![
+            transaction(main_id, dec!(4), date(2026, 11, 20)),
+            transaction(main_id, dec!(7), today),
+            transaction(main_id, dec!(8), date(2026, 11, 23)),
+        ];
+
+        let payments = upcoming_payments(&subs, &txns, today);
+        assert_eq!(payments.len(), 3);
+        assert_eq!(payments[0].date, today);
+        assert!(payments[0].is_transaction);
+        assert_eq!(payments[1].date, date(2026, 11, 23));
+        assert!(payments[1].is_transaction);
+        assert_eq!(payments[2].date, date(2026, 11, 25));
+        assert!(!payments[2].is_transaction);
+        assert_eq!(payments[2].amount, dec!(10));
+    }
+
+    #[test]
+    fn category_budgets_group_charges_and_pending() {
+        let main = account("Main");
+        let main_id = main.id;
+        let food = Category {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Food".into(),
+            icon: Some("Utensils".into()),
+            color: Some("#ef4444".into()),
+            is_system: false,
+            is_default: false,
+            created_at: chrono::DateTime::UNIX_EPOCH,
+            updated_at: chrono::DateTime::UNIX_EPOCH,
+        };
+        let food_id = food.id;
+        let today = date(2026, 11, 21);
+        let mut sub = subscription(
+            main_id,
+            dec!(10),
+            "monthly",
+            date(2026, 11, 25),
+            Some(date(2026, 11, 25)),
+            true,
+        );
+        sub.category_id = food_id;
+        let mut txn = transaction(main_id, dec!(4), date(2026, 11, 22));
+        txn.category_id = food_id;
+
+        let plan = build_category_budgets(
+            std::slice::from_ref(&food),
+            &[sub],
+            &[txn],
+            2026,
+            11,
+            Some(today),
+            &RatesState::default(),
+        );
+        assert_eq!(plan.len(), 1);
+        assert_eq!(plan[0].name, "Food");
+        assert_eq!(plan[0].amount, dec!(14));
+        assert_eq!(plan[0].pending, dec!(14));
+        assert_eq!(plan[0].charge_count, 2);
+    }
+
+    #[test]
+    fn upcoming_payments_excludes_past_transactions_and_inactive_subscriptions() {
+        let main = account("Main");
+        let main_id = main.id;
+        let today = date(2026, 11, 21);
+        let subs = vec![subscription(
+            main_id,
+            dec!(10),
+            "monthly",
+            date(2026, 11, 20),
+            Some(date(2026, 11, 25)),
+            false,
+        )];
+        let txns = vec![transaction(main_id, dec!(4), date(2026, 11, 20))];
+        assert!(upcoming_payments(&subs, &txns, today).is_empty());
     }
 
     #[test]

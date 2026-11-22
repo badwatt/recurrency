@@ -45,6 +45,7 @@ mod tests {
     fn preferences_response_serialization() {
         let prefs = PreferencesResponse {
             theme: "light".into(),
+            theme_is_set: true,
             subscriptions_view: "list".into(),
             first_day_of_week: "sunday".into(),
             date_format: "DD/MM/YYYY".into(),

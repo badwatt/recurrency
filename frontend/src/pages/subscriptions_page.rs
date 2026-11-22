@@ -7,6 +7,11 @@ use uuid::Uuid;
 
 use crate::api;
 use crate::components::ConvertedAmount;
+use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant};
+use crate::components::checkbox::Checkbox;
+use crate::components::field::Field;
+use crate::components::popover::{Popover, PopoverAlign};
+use crate::components::input::{Input, InputSize};
 use crate::components::ListToolbar;
 use crate::components::dialog::Dialog;
 #[allow(unused_imports)]
@@ -14,6 +19,7 @@ use crate::components::entry_form::{ValidationResult, validate_subscription_form
 use crate::components::logo_image_with_fallback;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::{SubscriptionCardSkeleton, SubscriptionListSkeleton};
 use crate::components::subscription_form::SubscriptionForm;
 use crate::components::tooltip::Tooltip;
@@ -31,13 +37,13 @@ use crate::storage::Storage;
 use crate::utils::constants::{CURRENCIES, RECURRENCE_UNITS};
 use crate::utils::icons::icon_display;
 
-mod delete_dialog;
+pub(crate) mod delete_dialog;
 mod logic;
-mod notes_dialog;
+pub(crate) mod notes_dialog;
 use delete_dialog::{BulkDeleteSubscriptionsDialog, DeleteSubscriptionDialog};
 pub use logic::*;
 use notes_dialog::NotesSubscriptionDialog;
-mod cards;
+pub(crate) mod cards;
 pub(crate) mod dialog;
 use cards::{render_grid_card, render_list_card};
 use dialog::render_dialog;
@@ -168,17 +174,21 @@ pub fn SubscriptionsPage() -> Element {
             }
             match api::preferences::get().await {
                 Ok(p) => {
-                    // Preserve local UI preferences; a view mode persisted on
-                    // this device must win over the server value.
-                    let saved_theme = PREFERENCES().theme().to_string();
-                    let local_theme = PREFERENCES().has_local_theme();
+                    // Theme: an explicit server choice wins on every device.
+                    // If the server has no theme yet, migrate the local choice.
                     let saved_view = PREFERENCES().subscriptions_view().to_string();
                     let local_view = PREFERENCES().has_local_view();
-                    PREFERENCES.write().set_data(p);
-                    if local_theme {
-                        // A theme chosen on this device always wins and must
-                        // never be overwritten by a transient server default.
-                        PREFERENCES.write().set_theme(saved_theme);
+                    let theme_to_push = PREFERENCES.write().apply_server_preferences(p);
+                    if let Some(theme) = theme_to_push {
+                        let req = crate::models::preferences::UpdatePreferencesRequest {
+                            theme: Some(theme),
+                            subscriptions_view: None,
+                            first_day_of_week: None,
+                            date_format: None,
+                        };
+                        if api::preferences::update(&req).await.is_ok() {
+                            PREFERENCES.write().mark_theme_synced();
+                        }
                     }
                     // Adopt the server view when nothing was stored locally, and
                     // persist the effective value so the next launch hydrates it
@@ -455,13 +465,16 @@ pub fn SubscriptionsPage() -> Element {
     };
 
     let toolbar_actions = rsx! {
-        div { class: "relative",
-            button {
-                r#type: "button",
-                aria_label: "Filters",
-                title: "Filters",
-                aria_expanded: if filters_popover() { "true" } else { "false" },
-                class: if active_filter_count > 0 { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+        div { class: "static sm:relative",
+            Button {
+                variant: ButtonVariant::Unstyled,
+                size: ButtonSize::IconLg,
+                radius: ButtonRadius::Lg,
+                align: ButtonAlign::Center,
+                aria_label: Some("Filters".to_string()),
+                title: Some("Filters".to_string()),
+                aria_expanded: Some((if filters_popover() { "true" } else { "false" }).to_string()),
+                class: (if active_filter_count > 0 { "relative inline-flex items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "relative inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" }).to_string(),
                 onclick: move |_| filters_popover.set(!filters_popover()),
                 svg {
                     view_box: "0 0 24 24",
@@ -476,145 +489,139 @@ pub fn SubscriptionsPage() -> Element {
                     span { class: "absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground", "{active_filter_count}" }
                 }
             }
-            if filters_popover() {
-                div {
-                    class: "absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-3",
-                    onclick: move |e| e.stop_propagation(),
+            Popover {
+                open: filters_popover(),
+                on_close: move |_| filters_popover.set(false),
+                align: PopoverAlign::CenterSm,
+                class: "w-[min(20rem,calc(100vw-2rem))] space-y-3 p-3".to_string(),
                     div { class: "flex items-center justify-between",
                         h4 { class: "text-sm font-medium", "Filters" }
                         if active_filter_count > 0 {
-                            button {
-                                r#type: "button",
-                                class: "px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground",
+                            Button {
+                                variant: ButtonVariant::Ghost,
+                                size: ButtonSize::Xs,
+                                class: "text-muted-foreground",
                                 onclick: move |_| clear_filters.call(()),
                                 "Clear all"
                             }
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-xs font-medium text-muted-foreground", "Status" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                            value: filters_val.status.as_deref().unwrap_or("all"),
-                            onchange: move |e: Event<FormData>| {
-                                let value = e.value();
+                    Field { label: "Status", label_class: "text-xs text-muted-foreground".to_string(),
+                        SelectMenu {
+                            value: filters_val.status.clone().unwrap_or_else(|| "all".to_string()),
+                            options: STATUS_OPTIONS.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| {
                                 filters.write().status = if value == "all" { None } else { Some(value) };
                             },
-                            for (val, label) in STATUS_OPTIONS {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            searchable: false,
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-xs font-medium text-muted-foreground", "Repeats every" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                            value: filters_val.frequency.as_deref().unwrap_or("all"),
-                            onchange: move |e: Event<FormData>| {
-                                let value = e.value();
+                    Field { label: "Repeats every", label_class: "text-xs text-muted-foreground".to_string(),
+                        SelectMenu {
+                            value: filters_val.frequency.clone().unwrap_or_else(|| "all".to_string()),
+                            options: {
+                                let mut options = vec![SelectOption::new("all", "All units")];
+                                options.extend(RECURRENCE_UNITS.iter().map(|(value, label)| SelectOption::new(*value, *label)));
+                                options
+                            },
+                            on_change: move |value: String| {
                                 filters.write().frequency = if value == "all" { None } else { Some(value) };
                             },
-                            option { value: "all", "All units" }
-                            for (val, label) in RECURRENCE_UNITS {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            searchable: false,
                         }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-xs font-medium text-muted-foreground", "Category" }
-                        select {
-                            class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                            value: filters_val.category_id.as_deref().unwrap_or("all"),
-                            onchange: move |e: Event<FormData>| {
-                                let value = e.value();
+                    Field { label: "Category", label_class: "text-xs text-muted-foreground".to_string(),
+                        SelectMenu {
+                            value: filters_val.category_id.clone().unwrap_or_else(|| "all".to_string()),
+                            options: {
+                                let mut options = vec![SelectOption::new("all", "All categories")];
+                                options.extend(category_options.iter().map(|(id, name)| SelectOption::new(id.as_str(), name.as_str())));
+                                options
+                            },
+                            on_change: move |value: String| {
                                 filters.write().category_id = if value == "all" { None } else { Some(value) };
                             },
-                            option { value: "all", "All categories" }
-                            for (id, name) in category_options.iter() {
-                                option { value: id.to_string(), {name.to_string()} }
-                            }
+                            searchable: true,
                         }
                     }
                     div { class: "flex items-center gap-2",
-                        input {
-                            r#type: "checkbox",
+                        Checkbox {
                             id: "filter-debts-only",
                             checked: filters_val.debts_only,
-                            onchange: move |e: Event<FormData>| filters.write().debts_only = e.checked(),
-                            class: "h-4 w-4 accent-primary",
+                            on_change: move |checked| filters.write().debts_only = checked,
                         }
                         label { r#for: "filter-debts-only", class: "text-xs font-medium text-muted-foreground", "Debt subscriptions only" }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-xs font-medium text-muted-foreground", "Price range" }
+                    Field { label: "Price range", label_class: "text-xs text-muted-foreground".to_string(),
                         div { class: "flex items-center gap-2",
-                            input {
+                            Input {
                                 r#type: "number",
-                                class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                                size: InputSize::Xs,
                                 placeholder: "Min",
                                 value: filters_val.price_min.as_deref().unwrap_or(""),
-                                oninput: move |e: Event<FormData>| {
-                                    let value = e.value();
+                                on_input: move |value: String| {
                                     filters.write().price_min = if value.is_empty() { None } else { Some(value) };
                                 }
                             }
                             span { class: "text-xs text-muted-foreground", "–" }
-                            input {
+                            Input {
                                 r#type: "number",
-                                class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
+                                size: InputSize::Xs,
                                 placeholder: "Max",
                                 value: filters_val.price_max.as_deref().unwrap_or(""),
-                                oninput: move |e: Event<FormData>| {
-                                    let value = e.value();
+                                on_input: move |value: String| {
                                     filters.write().price_max = if value.is_empty() { None } else { Some(value) };
                                 }
                             }
                         }
                     }
-                }
-                div { class: "fixed inset-0 z-40", onclick: move |_| filters_popover.set(false) }
             }
         }
-        div { class: "relative",
-            button {
-                r#type: "button",
-                aria_label: "Sort",
-                title: "Sort",
-                aria_expanded: if sort_popover() { "true" } else { "false" },
-                class: "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+        div { class: "static sm:relative",
+            Button {
+                variant: ButtonVariant::Unstyled,
+                size: ButtonSize::IconLg,
+                radius: ButtonRadius::Lg,
+                align: ButtonAlign::Center,
+                aria_label: Some("Sort".to_string()),
+                title: Some("Sort".to_string()),
+                aria_expanded: Some((if sort_popover() { "true" } else { "false" }).to_string()),
+                class: "inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground".to_string(),
                 onclick: move |_| sort_popover.set(!sort_popover()),
                 ArrowUpDown { size: 16 }
             }
-            if sort_popover() {
-                div {
-                    class: "absolute left-0 top-full z-50 mt-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-md space-y-2 sm:left-auto sm:right-0",
-                    onclick: move |e| e.stop_propagation(),
+            Popover {
+                open: sort_popover(),
+                on_close: move |_| sort_popover.set(false),
+                align: PopoverAlign::CenterSm,
+                class: "w-[min(13rem,calc(100vw-2rem))] space-y-2 p-3".to_string(),
                     label { class: "text-xs font-medium text-muted-foreground", "Sort by" }
-                    select {
-                        class: "h-8 w-full rounded-md border bg-background px-2 text-sm",
-                        value: sort_val.field,
-                        onchange: move |e: Event<FormData>| sort.write().field = e.value(),
-                        for (val, label) in SORT_OPTIONS {
-                            option { value: val.to_string(), {label.to_string()} }
-                        }
+                    SelectMenu {
+                        value: sort_val.field.clone(),
+                        options: SORT_OPTIONS.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                        on_change: move |value: String| sort.write().field = value,
+                        searchable: false,
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 w-full items-center justify-between rounded-md border bg-background px-2 text-sm",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        full_width: true,
+                        align: ButtonAlign::Between,
                         onclick: move |_| toggle_sort_direction.call(()),
                         span { if sort_val.direction == "asc" { "Ascending" } else { "Descending" } }
                         span { {sort_arrow.to_string()} }
                     }
-                }
-                div { class: "fixed inset-0 z-40", onclick: move |_| sort_popover.set(false) }
             }
         }
-        button {
-            r#type: "button",
-            aria_label: if selection_mode() { "Exit selection mode" } else { "Enter selection mode" },
-            title: if selection_mode() { "Exit selection mode" } else { "Select subscriptions" },
-            aria_pressed: if selection_mode() { "true" } else { "false" },
-            class: if selection_mode() { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" },
+        Button {
+            variant: ButtonVariant::Unstyled,
+            size: ButtonSize::IconLg,
+            radius: ButtonRadius::Lg,
+            align: ButtonAlign::Center,
+            aria_label: Some((if selection_mode() { "Exit selection mode" } else { "Enter selection mode" }).to_string()),
+            title: Some((if selection_mode() { "Exit selection mode" } else { "Select subscriptions" }).to_string()),
+            aria_pressed: Some((if selection_mode() { "true" } else { "false" }).to_string()),
+            class: (if selection_mode() { "inline-flex items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" }).to_string(),
             onclick: move |_| {
                 if selection_mode() {
                     selection_mode.set(false);
@@ -649,19 +656,20 @@ pub fn SubscriptionsPage() -> Element {
     }
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 page-enter",
 
             // ── Header ──
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
-                PageHeader { title: "Subscriptions", subtitle: "Track and manage recurring payments" }
-                div { class: "flex items-center gap-2 shrink-0",
-                    button {
-                        class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
+            PageHeader {
+                title: "Subscriptions",
+                subtitle: "Track and manage recurring payments",
+                actions: rsx! {
+                    Button {
+                        class: "hidden md:inline-flex",
                         onclick: move |_| handle_create.call(()),
                         Plus { size: 16 }
                         "Add Subscription"
                     }
-                }
+                },
             }
 
             if !state.subscriptions.is_empty() {
@@ -683,24 +691,27 @@ pub fn SubscriptionsPage() -> Element {
                     span { class: "text-sm font-medium",
                         if selected_count == 0 { "Select subscriptions" } else { "{selected_count} selected" }
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         onclick: toggle_all_selected,
                         if all_filtered_selected { "Clear selection" } else { "Select all" }
                     }
-                    select {
-                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                    SelectMenu {
                         value: bulk_category(),
-                        onchange: move |event| bulk_category.set(event.value()),
-                        option { value: "", "Set category…" }
-                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
-                            option { value: category.id.to_string(), {category.name.clone()} }
-                        }
+                        options: {
+                            let mut options = vec![SelectOption::new("", "Set category…")];
+                            options.extend(CATEGORIES().categories.iter().filter(|category| !category.is_system).map(|category| SelectOption::new(category.id.to_string(), category.name.clone())));
+                            options
+                        },
+                        on_change: move |value: String| bulk_category.set(value),
+                        searchable: true,
+                        placeholder: "Set category…",
+                        class: "w-44",
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: bulk_busy() || selected_count == 0 || bulk_category().is_empty(),
                         onclick: move |_| {
                             if bulk_busy() || bulk_category().is_empty() { return; }
@@ -723,25 +734,26 @@ pub fn SubscriptionsPage() -> Element {
                         },
                         "Apply category"
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: bulk_busy() || selected_count == 0,
                         onclick: move |_| bulk_set_active.call(true),
                         Play { size: 13 }
                         "Activate"
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: bulk_busy() || selected_count == 0,
                         onclick: move |_| bulk_set_active.call(false),
                         Pause { size: 13 }
                         "Pause"
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        class: "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15",
                         disabled: bulk_busy() || selected_count == 0,
                         onclick: move |_| {
                             let ids = selected_ids_vec.clone();
@@ -752,9 +764,10 @@ pub fn SubscriptionsPage() -> Element {
                         Trash { size: 13 }
                         "Delete"
                     }
-                    button {
-                        r#type: "button",
-                        class: "ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                    Button {
+                        variant: ButtonVariant::Ghost,
+                        size: ButtonSize::Sm,
+                        class: "ml-auto text-muted-foreground",
                         onclick: move |_| {
                             selected.write().clear();
                             selection_mode.set(false);
@@ -796,8 +809,8 @@ pub fn SubscriptionsPage() -> Element {
                             p { class: "text-lg font-medium", "No subscriptions yet" }
                             p { class: "text-sm text-muted-foreground", "Add your first recurring expense" }
                         }
-                        button {
-                            class: "hidden md:inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
+                        Button {
+                            class: "hidden md:inline-flex",
                             onclick: move |_| handle_create.call(()),
                             Plus { size: 16 }
                             "Add Subscription"
@@ -808,8 +821,9 @@ pub fn SubscriptionsPage() -> Element {
                 rsx! {
                     div { class: "rounded-xl border border-border/40 bg-card/80 p-6 flex h-40 flex-col items-center justify-center gap-2",
                         p { class: "text-sm text-muted-foreground", "No subscriptions match your search or filters" }
-                        button {
-                            class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            size: ButtonSize::Sm,
                             onclick: move |_| {
                                 search.set(String::new());
                                 clear_filters.call(());

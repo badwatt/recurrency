@@ -1,3 +1,4 @@
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::dialog::Dialog;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::storage::Storage;
@@ -19,8 +20,9 @@ pub fn DeleteSubscriptionDialog(confirm_id: Signal<Option<Uuid>>) -> Element {
             title: "Delete subscription?".to_string(),
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
-                        class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: deleting(),
                         onclick: move |_| {
                             if !deleting() {
@@ -29,8 +31,9 @@ pub fn DeleteSubscriptionDialog(confirm_id: Signal<Option<Uuid>>) -> Element {
                         },
                         "Cancel"
                     }
-                    button {
-                        class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Destructive,
+                        size: ButtonSize::Sm,
                         disabled: deleting(),
                         onclick: move |_| {
                             if deleting() {
@@ -75,8 +78,9 @@ pub fn BulkDeleteSubscriptionsDialog(ids: Signal<Vec<Uuid>>, on_done: EventHandl
             title: format!("Delete {count} subscription{}?", if count == 1 { "" } else { "s" }),
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
-                        class: "border px-3 py-1.5 rounded-md text-sm hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: deleting(),
                         onclick: move |_| {
                             if !deleting() {
@@ -85,8 +89,9 @@ pub fn BulkDeleteSubscriptionsDialog(ids: Signal<Vec<Uuid>>, on_done: EventHandl
                         },
                         "Cancel"
                     }
-                    button {
-                        class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-red-700 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Destructive,
+                        size: ButtonSize::Sm,
                         disabled: deleting(),
                         onclick: move |_| {
                             if deleting() {

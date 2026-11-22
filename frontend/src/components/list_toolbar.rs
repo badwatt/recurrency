@@ -1,7 +1,8 @@
-//! Compact list toolbar: search plus icon-only filters, sort and view controls.
+//! Compact list toolbar: shared search plus icon-only view controls.
 
+use crate::components::button::{ButtonAlign, ButtonSize, ButtonVariant, IconButton};
+use crate::components::search_input::SearchInput;
 use dioxus::prelude::*;
-use lucide_dioxus::{Search, X};
 
 #[component]
 pub fn ListToolbar(
@@ -15,46 +16,22 @@ pub fn ListToolbar(
     let is_grid = view == "grid";
     rsx! {
         div { role: "search", class: "flex flex-col gap-2 sm:flex-row sm:items-center", aria_label: "Search and filters",
-            div { class: "relative min-w-0 flex-1",
-                span { class: "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground",
-                    Search { size: 16 }
-                }
-                input {
-                    r#type: "text",
-                    value: value,
-                    placeholder: "Search",
-                    aria_label: "Search",
-                    oninput: move |e| oninput.call(e.value()),
-                    autocomplete: "off",
-                    autocapitalize: "none",
-                    autocorrect: "off",
-                    spellcheck: "false",
-                    enterkeyhint: "search",
-                    class: "h-10 w-full rounded-lg border border-border/60 bg-background pl-9 pr-9 text-sm outline-none transition-colors focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                }
-                if !value.is_empty() {
-                    button {
-                        r#type: "button",
-                        aria_label: "Clear search",
-                        class: "absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground",
-                        onclick: move |_| oninput.call(String::new()),
-                        X { size: 14 }
-                    }
-                }
+            SearchInput {
+                class: "flex-1".to_string(),
+                value,
+                on_input: move |value| oninput.call(value),
             }
-            div { class: "flex flex-wrap items-center gap-2 sm:justify-end",
+            div { class: "relative flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end",
                 {actions}
                 if show_view {
-                    div {
-                        role: "group",
-                        aria_label: "View mode",
-                        class: "inline-flex h-10 items-center rounded-lg border border-border/60 bg-muted/40 p-0.5",
-                        button {
-                            r#type: "button",
-                            aria_label: "Grid view",
-                            title: "Grid view",
-                            aria_pressed: if is_grid { "true" } else { "false" },
-                            class: if is_grid { "inline-flex h-9 w-9 items-center justify-center rounded-md bg-background text-foreground shadow-sm" } else { "inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground" },
+                    div { role: "group", aria_label: "View mode", class: "inline-flex h-10 items-center rounded-lg border border-border/60 bg-muted/40 p-0.5",
+                        IconButton {
+                            label: "Grid view".to_string(),
+                            variant: ButtonVariant::Unstyled,
+                            size: ButtonSize::Icon,
+                            align: ButtonAlign::Center,
+                            aria_pressed: Some(if is_grid { "true" } else { "false" }.to_string()),
+                            class: (if is_grid { "inline-flex items-center justify-center bg-background text-foreground shadow-sm" } else { "inline-flex items-center justify-center text-muted-foreground hover:text-foreground" }).to_string(),
                             onclick: move |_| onview.call("grid".to_string()),
                             svg {
                                 view_box: "0 0 24 24",
@@ -69,12 +46,13 @@ pub fn ListToolbar(
                                 rect { x: "14", y: "14", width: "7", height: "7", rx: "1" }
                             }
                         }
-                        button {
-                            r#type: "button",
-                            aria_label: "List view",
-                            title: "List view",
-                            aria_pressed: if is_grid { "false" } else { "true" },
-                            class: if is_grid { "inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground" } else { "inline-flex h-9 w-9 items-center justify-center rounded-md bg-background text-foreground shadow-sm" },
+                        IconButton {
+                            label: "List view".to_string(),
+                            variant: ButtonVariant::Unstyled,
+                            size: ButtonSize::Icon,
+                            align: ButtonAlign::Center,
+                            aria_pressed: Some(if is_grid { "false" } else { "true" }.to_string()),
+                            class: (if is_grid { "inline-flex items-center justify-center text-muted-foreground hover:text-foreground" } else { "inline-flex items-center justify-center bg-background text-foreground shadow-sm" }).to_string(),
                             onclick: move |_| onview.call("list".to_string()),
                             svg {
                                 view_box: "0 0 24 24",
@@ -98,8 +76,9 @@ pub fn ListToolbar(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn search_uses_text_input_to_avoid_duplicate_native_clear_buttons() {
-        let src = include_str!("list_toolbar.rs");
-        assert!(src.contains("r#type: \"text\""));
+    fn toolbar_uses_the_shared_search_input() {
+        let source = include_str!("list_toolbar.rs");
+        assert!(source.contains("SearchInput {"));
+        assert!(source.contains("IconButton {"));
     }
 }

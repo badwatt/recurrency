@@ -1,7 +1,13 @@
 use crate::components::AccountCombobox;
+use crate::components::button::{Button, ButtonVariant};
 use crate::components::dialog::Dialog;
+use crate::components::date_picker::DatePicker;
+use crate::components::field::Field;
+use crate::components::input::Input;
+use crate::components::textarea::Textarea;
 use crate::components::logo_search::LogoSearch;
 use crate::components::CategoryCombobox;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::models::transaction::{CreateTransactionRequest, UpdateTransactionRequest};
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -235,96 +241,76 @@ pub fn TransactionDialog(
             title: if editing_id().is_some() { "Edit Transaction" } else { "Add Transaction" },
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        disabled: form_saving(),
                         onclick: move |_| {
                             if !form_saving() {
                                 open.set(false);
                             }
                         },
-                        disabled: form_saving(),
-                        class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent disabled:opacity-50",
                         "Cancel"
                     }
-                    button {
-                        onclick: handle_save,
+                    Button {
                         disabled: form_saving(),
-                        class: "h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
+                        onclick: handle_save,
                         if form_saving() { "Saving..." } else { "Save" }
                     }
                 }
             },
             div { class: "space-y-4",
                 // Name
-                div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Name " span { class: "text-destructive", "*" } }
-                    input {
-                        r#type: "text",
+                Field { label: "Name", required: true, error: name_error(),
+                    Input {
                         value: form_name.to_string(),
-                        oninput: move |e| {
-                            form_name.set(e.value());
+                        on_input: move |value| {
+                            form_name.set(value);
                             name_error.set(String::new());
                         },
-                        class: if name_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                    }
-                    if !name_error().is_empty() {
-                        p { class: "text-xs text-red-500", "{name_error()}" }
+                        class: if name_error().is_empty() { "" } else { "border-red-500" },
                     }
                 }
                 // Amount
                 div { class: "grid grid-cols-2 gap-4",
-                    div { class: "space-y-2",
-                        label { class: "text-sm font-medium", "Amount " span { class: "text-destructive", "*" } }
-                        input {
+                    Field { label: "Amount", required: true, error: amount_error(),
+                        Input {
                             r#type: "number",
                             step: "0.01",
                             value: form_amount.to_string(),
-                            oninput: move |e| {
-                                form_amount.set(e.value());
+                            on_input: move |value| {
+                                form_amount.set(value);
                                 amount_error.set(String::new());
                             },
-                            class: if amount_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                        }
-                        if !amount_error().is_empty() {
-                            p { class: "text-xs text-red-500", "{amount_error()}" }
+                            class: if amount_error().is_empty() { "" } else { "border-red-500" },
                         }
                     }
-                    div { class: "space-y-2",
-                        label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
-                        select {
+                    Field { label: "Currency", required: true, error: currency_error(),
+                        SelectMenu {
                             value: form_currency.to_string(),
-                            onchange: move |e| {
-                                form_currency.set(e.value());
+                            options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| {
+                                form_currency.set(value);
                                 currency_error.set(String::new());
                             },
-                            class: if currency_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                            for (val, label) in CURRENCIES {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
-                        }
-                        if !currency_error().is_empty() {
-                            p { class: "text-xs text-red-500", "{currency_error()}" }
+                            searchable: true,
+                            placeholder: if currency_error().is_empty() { "Select currency..." } else { "Currency is required" },
                         }
                     }
                 }
                 // Date
-                div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Date " span { class: "text-destructive", "*" } }
-                    input {
-                        r#type: "date",
+                Field  { label: "Date", html_for: "transaction-date", required: true, error: date_error(),
+                    DatePicker {
+                        id: "transaction-date",
                         value: form_date.to_string(),
-                        oninput: move |e| {
-                            form_date.set(e.value());
+                        on_input: move |value| {
+                            form_date.set(value);
                             date_error.set(String::new());
                         },
-                        class: if date_error().is_empty() { "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" } else { "flex h-10 w-full rounded-md border border-red-500 bg-background px-3 py-2 text-sm" },
-                    }
-                    if !date_error().is_empty() {
-                        p { class: "text-xs text-red-500", "{date_error()}" }
+                        class: if date_error().is_empty() { "" } else { "border-red-500" },
                     }
                 }
                 // Account (search or create, same combobox as categories)
-                div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Account " span { class: "text-destructive", "*" } }
+                Field { label: "Account", required: true,
                     AccountCombobox {
                         selected_id: form_account_id().to_string(),
                         on_change: move |id: String| {
@@ -335,8 +321,7 @@ pub fn TransactionDialog(
                     }
                 }
                 // Category (optional)
-                div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Category" }
+                Field { label: "Category",
                     {rsx! {
                         CategoryCombobox {
                             selected_id: form_category_id().map(|id| id.to_string()).unwrap_or_default(),
@@ -349,17 +334,15 @@ pub fn TransactionDialog(
                     }}
                 }
                 // Notes
-                div { class: "space-y-2",
-                    label { class: "text-sm font-medium", "Notes" }
-                    textarea {
+                Field { label: "Notes",
+                    Textarea {
                         value: form_notes.to_string(),
-                        oninput: move |e| form_notes.set(e.value()),
-                        class: "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]",
+                        on_input: move |value| form_notes.set(value),
+                        class: "min-h-[80px]",
                     }
                 }
                 // Logo
-                div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Logo" }
+                Field { label: "Logo",
                     LogoSearch {
                         selected_url: form_logo_url(),
                         default_query: form_name(),

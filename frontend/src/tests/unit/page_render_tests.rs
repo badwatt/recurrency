@@ -5,7 +5,8 @@ use dioxus::prelude::*;
 use crate::pages::{
     AccountsPage, AdminPage, CalendarPage, CategoriesPage, Dashboard, DebtsPage, ReportsPage,
     SettingsAboutPage, SettingsAdminPage, SettingsAiPage, SettingsDataPage, SettingsMoneyPage,
-    SettingsNotificationsPage, SettingsPreferencesPage, SettingsProfilePage, SettingsServerPage,
+    SettingsAppearancePage, SettingsNotificationsPage, SettingsPreferencesPage,
+    SettingsProfilePage, SettingsServerPage,
     TransactionsPage,
 };
 use crate::pages::subscriptions_page::SubscriptionsPage;
@@ -74,6 +75,7 @@ fn admin_page_renders() {
 #[test]
 fn settings_pages_render() {
     render(|| rsx! { SettingsProfilePage {} });
+    render(|| rsx! { SettingsAppearancePage {} });
     render(|| rsx! { SettingsPreferencesPage {} });
     render(|| rsx! { SettingsMoneyPage {} });
     render(|| rsx! { SettingsDataPage {} });
@@ -150,6 +152,7 @@ fn route_wrappers_render() {
     render(|| rsx! { crate::Categories {} });
     render(|| rsx! { crate::Settings {} });
     render(|| rsx! { crate::SettingsProfile {} });
+    render(|| rsx! { crate::SettingsAppearance {} });
     render(|| rsx! { crate::SettingsPreferences {} });
     render(|| rsx! { crate::SettingsAi {} });
     render(|| rsx! { crate::SettingsMoney {} });

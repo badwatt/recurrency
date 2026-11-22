@@ -1,4 +1,5 @@
 use crate::api::currency;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::toast::TOAST;
 use crate::models::currency::UpdateCurrencySettingsRequest;
 use crate::state::auth::AUTH;
@@ -6,6 +7,10 @@ use crate::state::rates::RATES;
 use dioxus::prelude::*;
 
 /// Exchange-rate provider used for converted amounts.
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::card::SectionCard;
+use crate::components::field::Field;
+use crate::components::input::{Input, InputSize};
 #[component]
 pub fn ExchangeRatesCard() -> Element {
     let mut provider = use_signal(|| "frankfurter".to_string());
@@ -59,46 +64,43 @@ pub fn ExchangeRatesCard() -> Element {
     });
 
     rsx! {
-        div { class: "rounded-xl bg-card/80 border border-border/40",
-            div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Exchange rates" }
-                p { class: "text-sm text-muted-foreground",
-                    "Choose where automatic currency conversion gets its daily rates."
-                }
-            }
+        SectionCard {
+            title: "Exchange rates",
+            description: "Choose where automatic currency conversion gets its daily rates.",
+            content_class: "p-0",
             div { class: "p-6 space-y-4",
-                div { class: "space-y-2",
-                    label { r#for: "settings-provider", class: "text-sm font-medium", "Provider" }
-                    select {
+                Field { label: "Provider", html_for: "settings-provider",
+                    SelectMenu {
                         id: "settings-provider",
                         value: provider(),
-                        onchange: move |e| provider.set(e.value()),
+                        options: vec![
+                            SelectOption::new("frankfurter", "Frankfurter — free, no API key"),
+                            SelectOption::new("fixer", "Fixer — requires an API key"),
+                        ],
+                        on_change: move |value: String| provider.set(value),
+                        searchable: false,
                         disabled: saving(),
-                        class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm",
-                        option { value: "frankfurter", "Frankfurter — free, no API key" }
-                        option { value: "fixer", "Fixer — requires an API key" }
                     }
                 }
                 if provider() == "fixer" {
-                    div { class: "space-y-2",
-                        label { r#for: "settings-fixer-key", class: "text-sm font-medium", "Fixer API key" }
-                        input {
+                    Field { label: "Fixer API key", html_for: "settings-fixer-key",
+                        Input {
                             id: "settings-fixer-key",
                             r#type: "password",
+                            size: InputSize::Sm,
                             value: fixer_key(),
-                            oninput: move |e| fixer_key.set(e.value()),
+                            on_input: move |value| fixer_key.set(value),
                             autocomplete: "off",
                             placeholder: if fixer_configured() { "Key saved — enter a new key to replace it" } else { "Paste your Fixer API key" },
-                            class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm",
                         }
                         div { class: "flex flex-wrap items-center justify-between gap-2",
                             p { class: "text-xs text-muted-foreground",
                                 if fixer_configured() { "A key is configured." } else { "The key is stored encrypted on your server." }
                             }
                             if fixer_configured() {
-                                button {
-                                    r#type: "button",
-                                    class: "text-xs text-muted-foreground hover:text-foreground",
+                                Button {
+                                    variant: ButtonVariant::Ghost,
+                                    size: ButtonSize::Xs,
                                     disabled: saving(),
                                     onclick: move |_| {
                                         provider.set("frankfurter".into());
@@ -112,9 +114,8 @@ pub fn ExchangeRatesCard() -> Element {
                 }
                 div { class: "flex items-center justify-between gap-3",
                     p { class: "text-xs text-muted-foreground", "Rates are cached for six hours." }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                    Button {
+                        size: ButtonSize::Sm,
                         disabled: saving(),
                         onclick: move |_| save.call(false),
                         if saving() { "Saving…" } else { "Save rates" }

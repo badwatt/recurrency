@@ -1,5 +1,9 @@
 use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
+use crate::components::button::{Button, ButtonAlign, ButtonSize, ButtonVariant};
+use crate::components::card::{Card, CardRadius};
 use crate::components::page_header::PageHeader;
+use crate::components::popover::{Popover, PopoverAlign};
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::{ReportCardSkeleton, ReportDonutSkeleton, ReportTableSkeleton};
 use crate::components::toast::TOAST;
 use crate::models::report::*;
@@ -17,7 +21,7 @@ use crate::utils::icons::icon_display;
 use crate::utils::pdf::build_report_pdf;
 use chrono::{Datelike, Utc};
 use dioxus::prelude::*;
-use lucide_dioxus::{ChevronDown, CreditCard, Download, Receipt, TrendingUp, Wallet};
+use lucide_dioxus::{ChevronDown, CreditCard, Download, FileSpreadsheet, FileText, Receipt, TrendingUp, Wallet};
 
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"),
@@ -418,53 +422,58 @@ pub fn ReportsPage() -> Element {
     };
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 overflow-x-hidden animate-in fade-in",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 overflow-x-hidden page-enter",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Reports", subtitle: "Analyze your spending patterns" }
                 div { class: "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3",
                     div { class: "flex items-center gap-2",
-                        select {
+                        SelectMenu {
                             value: selected_month.to_string(),
-                            onchange: move |e| selected_month.set(e.value()),
-                            class: "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm",
-                            for (val, label) in MONTH_OPTIONS {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
+                            options: MONTH_OPTIONS.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| selected_month.set(value),
+                            searchable: false,
+                            class: "w-36",
                         }
-                        select {
+                        SelectMenu {
                             value: selected_year.to_string(),
-                            onchange: move |e| selected_year.set(e.value()),
-                            class: "flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm",
-                            for y in &years {
-                                option { value: y.to_string(), {y.to_string()} }
-                            }
+                            options: years.iter().map(|year| SelectOption::new(year.to_string(), year.to_string())).collect::<Vec<_>>(),
+                            on_change: move |value: String| selected_year.set(value),
+                            searchable: false,
+                            class: "w-24",
                         }
                     }
                     div { class: "relative shrink-0 self-start sm:self-auto",
-                        button {
-                            r#type: "button",
-                            aria_expanded: if export_open() { "true" } else { "false" },
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            aria_expanded: Some((if export_open() { "true" } else { "false" }).to_string()),
                             onclick: move |_| export_open.toggle(),
-                            class: "flex items-center justify-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-accent",
                             Download { size: 16 }
                             "Export"
                             ChevronDown { size: 14 }
                         }
-                        if export_open() {
-                            div { class: "absolute left-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-md border border-border bg-popover shadow-md sm:left-auto sm:right-0",
-                                button {
-                                    r#type: "button",
-                                    class: "flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent",
-                                    onclick: export_csv,
-                                    "CSV"
-                                }
-                                button {
-                                    r#type: "button",
-                                    class: "flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent",
-                                    onclick: export_pdf,
-                                    "PDF"
-                                }
+                        Popover {
+                            open: export_open(),
+                            on_close: move |_| export_open.set(false),
+                            align: PopoverAlign::EndSm,
+                            class: "w-36 overflow-hidden p-0".to_string(),
+                            Button {
+                                variant: ButtonVariant::Ghost,
+                                size: ButtonSize::Sm,
+                                full_width: true,
+                                align: ButtonAlign::Start,
+                                onclick: export_csv,
+                                FileSpreadsheet { size: 14 }
+                                "CSV"
+                            }
+                            Button {
+                                variant: ButtonVariant::Ghost,
+                                size: ButtonSize::Sm,
+                                full_width: true,
+                                align: ButtonAlign::Start,
+                                onclick: export_pdf,
+                                FileText { size: 14 }
+                                "PDF"
                             }
                         }
                     }
@@ -493,7 +502,7 @@ pub fn ReportsPage() -> Element {
                         // ── Summary Cards ─────────────────────────────
                         div { class: "grid gap-4 md:grid-cols-4",
                             // Total Spending
-                            div { class: "rounded-lg border border-border bg-card p-6",
+                            Card { radius: CardRadius::Lg, class: "p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "Total Spending" }
                                     span { class: "text-muted-foreground", Wallet { size: 16 } }
@@ -507,7 +516,7 @@ pub fn ReportsPage() -> Element {
                                 }
                             }
                             // Subscriptions
-                            div { class: "rounded-lg border border-border bg-card p-6",
+                            Card { radius: CardRadius::Lg, class: "p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "Subscriptions" }
                                     span { class: "text-muted-foreground", CreditCard { size: 16 } }
@@ -522,7 +531,7 @@ pub fn ReportsPage() -> Element {
                                 }
                             }
                             // One-time
-                            div { class: "rounded-lg border border-border bg-card p-6",
+                            Card { radius: CardRadius::Lg, class: "p-6",
                                 div { class: "flex items-center justify-between pb-2",
                                     span { class: "text-sm font-medium text-muted-foreground", "One-time" }
                                     span { class: "text-muted-foreground", Receipt { size: 16 } }
@@ -543,7 +552,7 @@ pub fn ReportsPage() -> Element {
                                     sum / rust_decimal::Decimal::from(r.recent_trends.len() as i64)
                                 };
                                 rsx! {
-                                    div { class: "rounded-lg border border-border bg-card p-6",
+                                    Card { radius: CardRadius::Lg, class: "p-6",
                                         div { class: "flex items-center justify-between pb-2",
                                             span { class: "text-sm font-medium text-muted-foreground", "Avg / Month" }
                                             span { class: "text-muted-foreground", TrendingUp { size: 16 } }
@@ -562,7 +571,7 @@ pub fn ReportsPage() -> Element {
                         // ── Charts Row: Line + Donut ────────────────────
                         div { class: "grid gap-6 md:grid-cols-2",
                             // Spending Trends Line Chart
-                            div { class: "rounded-lg border border-border bg-card p-6",
+                            Card { radius: CardRadius::Lg, class: "p-6",
                                 h3 { class: "text-lg font-semibold mb-4", "Spending Trends" }
                                 if r.recent_trends.is_empty() {
                                     p { class: "text-muted-foreground text-center py-8", "No trend data available" }
@@ -596,7 +605,7 @@ pub fn ReportsPage() -> Element {
                             }
 
                             // Category Breakdown Donut Chart
-                            div { class: "rounded-lg border border-border bg-card p-6",
+                            Card { radius: CardRadius::Lg, class: "p-6",
                                 h3 { class: "text-lg font-semibold mb-4", "By Category" }
                                 if r.category_breakdown.is_empty() {
                                     p { class: "text-muted-foreground text-center py-8", "No category data available" }
@@ -654,7 +663,7 @@ pub fn ReportsPage() -> Element {
                         }
 
                         // ── Category Details Table ──────────────────────
-                        div { class: "rounded-lg border border-border bg-card p-6",
+                        Card { radius: CardRadius::Lg, class: "p-6",
                             h3 { class: "text-lg font-semibold mb-4", "Category Breakdown" }
                             if r.category_breakdown.is_empty() {
                                 p { class: "text-muted-foreground text-center py-8", "No category data available" }

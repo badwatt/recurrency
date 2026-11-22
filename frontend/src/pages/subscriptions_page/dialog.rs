@@ -1,5 +1,11 @@
 use super::*;
 use crate::components::AccountCombobox;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::date_picker::DatePicker;
+use crate::components::field::Field;
+use crate::components::input::{Input, InputSize};
+use crate::components::textarea::Textarea;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use chrono::Datelike;
 
 const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -111,13 +117,12 @@ pub(crate) fn render_dialog(
             title: title,
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
-                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
+                    Button {
+                        variant: ButtonVariant::Outline,
                         onclick: move |_| dialog_open.set(false),
                         "Cancel"
                     }
-                    button {
-                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                    Button {
                         onclick: move |_| {
                             let f = form();
                             let rec = recurrence();
@@ -297,57 +302,46 @@ pub(crate) fn render_dialog(
             p { class: "text-sm text-muted-foreground", {desc.to_string()} }
             div { class: "space-y-4",
                 // Name
-                div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Name " span { class: "text-destructive", "*" } }
-                    input {
-                        class: if name_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                Field { label: "Name", required: true, error: name_err.to_string(),
+                    Input {
+                        size: InputSize::Sm,
+                        class: if name_err.is_empty() { "" } else { "border-red-500" },
                         placeholder: "Netflix, Spotify, etc.",
-                        value: form_name,
-                        oninput: move |e: Event<FormData>| {
-                            form.write().name = e.value();
+                        value: form_name.clone(),
+                        on_input: move |value| {
+                            form.write().name = value;
                             name_error.set(String::new());
                         },
-                    }
-                    if !name_err.is_empty() {
-                        p { class: "text-xs text-red-500", {name_err.to_string()} }
                     }
                 }
 
                 // Amount + Currency
                 div { class: "grid grid-cols-2 gap-4",
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Amount " span { class: "text-destructive", "*" } }
-                        input {
+                    Field { label: "Amount", required: true, error: amount_err.to_string(),
+                        Input {
                             r#type: "number",
+                            size: InputSize::Sm,
                             step: "0.01",
                             min: "0",
-                            class: if amount_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                            class: if amount_err.is_empty() { "" } else { "border-red-500" },
                             placeholder: "9.99",
                             value: form_amount,
-                            oninput: move |e: Event<FormData>| {
-                                form.write().amount = e.value();
+                            on_input: move |value| {
+                                form.write().amount = value;
                                 amount_error.set(String::new());
                             },
                         }
-                        if !amount_err.is_empty() {
-                            p { class: "text-xs text-red-500", {amount_err.to_string()} }
-                        }
                     }
-                    div { class: "space-y-1.5",
-                        label { class: "text-sm font-medium", "Currency " span { class: "text-destructive", "*" } }
-                        select {
-                            class: if currency_err.is_empty() { "w-full h-9 rounded-md border bg-background px-2 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-2 text-sm" },
+                    Field { label: "Currency", required: true, error: currency_err.to_string(),
+                        SelectMenu {
                             value: form_currency,
-                            onchange: move |e: Event<FormData>| {
-                                form.write().currency = e.value();
+                            options: CURRENCIES.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |value: String| {
+                                form.write().currency = value;
                                 currency_error.set(String::new());
                             },
-                            for (val, label) in CURRENCIES {
-                                option { value: val.to_string(), {label.to_string()} }
-                            }
-                        }
-                        if !currency_err.is_empty() {
-                            p { class: "text-xs text-red-500", {currency_err.to_string()} }
+                            searchable: true,
+                            placeholder: if currency_err.is_empty() { "Select currency..." } else { "Currency is required" },
                         }
                     }
                 }
@@ -366,24 +360,25 @@ pub(crate) fn render_dialog(
 
                     div { class: "flex flex-wrap items-center gap-2",
                         span { class: "text-sm font-medium", "Every" }
-                        input {
+                        Input {
                             r#type: "number",
+                            size: InputSize::Sm,
+                            full_width: false,
                             min: "1",
                             max: MAX_INTERVAL.to_string(),
                             value: rec_interval.to_string(),
-                            oninput: move |e: Event<FormData>| {
-                                if let Ok(value) = e.value().parse::<u16>() {
+                            on_input: move |value: String| {
+                                if let Ok(value) = value.parse::<u16>() {
                                     recurrence.write().interval = value.clamp(1, 100);
                                     frequency_error.set(String::new());
                                 }
                             },
-                            class: "h-9 w-20 rounded-md border border-border/60 bg-background px-2 text-sm",
+                            class: "w-20",
                         }
-                        select {
-                            class: "h-9 rounded-md border border-border/60 bg-background px-2 text-sm",
-                            value: rec_unit,
-                            onchange: move |e: Event<FormData>| {
-                                let unit = e.value();
+                        SelectMenu {
+                            value: rec_unit.clone(),
+                            options: unit_options.iter().map(|(value, label)| SelectOption::new(*value, *label)).collect::<Vec<_>>(),
+                            on_change: move |unit: String| {
                                 let start = form().start_date.parse::<chrono::NaiveDate>().ok().unwrap_or(today);
                                 let mut next = recurrence();
                                 next.unit = unit.clone();
@@ -406,9 +401,8 @@ pub(crate) fn render_dialog(
                                 recurrence.set(next);
                                 frequency_error.set(String::new());
                             },
-                            for (value, label) in unit_options {
-                                option { value: value.to_string(), selected: rec_unit == value, {label} }
-                            }
+                            searchable: false,
+                            class: "w-28",
                         }
                     }
 
@@ -421,13 +415,14 @@ pub(crate) fn render_dialog(
                                         let value = (idx + 1) as u8;
                                         let active = rec_weekdays.contains(&value);
                                         rsx! {
-                                            button {
-                                                r#type: "button",
-                                                class: if active {
+                                            Button {
+                                                variant: ButtonVariant::Unstyled,
+                                                size: ButtonSize::Unstyled,
+                                                class: (if active {
                                                     "rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
                                                 } else {
                                                     "rounded-md border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent"
-                                                },
+                                                }).to_string(),
                                                 onclick: move |_| {
                                                     let mut next = recurrence();
                                                     if next.weekdays.contains(&value) {
@@ -450,11 +445,11 @@ pub(crate) fn render_dialog(
                             div { class: "flex items-center justify-between gap-2",
                                 label { class: "text-sm font-medium", "Charge on these days" }
                                 div { class: "flex gap-2 text-xs",
-                                    button { r#type: "button", class: "text-primary hover:underline",
+                                    Button { variant: ButtonVariant::Link, size: ButtonSize::Xs,
                                         onclick: move |_| { let mut next = recurrence(); next.days = (1..=MAX_MONTH_DAY).collect(); recurrence.set(next); frequency_error.set(String::new()); },
                                         "Select all"
                                     }
-                                    button { r#type: "button", class: "text-muted-foreground hover:underline",
+                                    Button { variant: ButtonVariant::Ghost, size: ButtonSize::Xs, class: "text-muted-foreground",
                                         onclick: move |_| { let mut next = recurrence(); next.days.clear(); recurrence.set(next); },
                                         "Clear"
                                     }
@@ -465,13 +460,14 @@ pub(crate) fn render_dialog(
                                     {
                                         let active = rec_days.contains(&day);
                                         rsx! {
-                                            button {
-                                                r#type: "button",
-                                                class: if active {
+                                            Button {
+                                                variant: ButtonVariant::Unstyled,
+                                                size: ButtonSize::Unstyled,
+                                                class: (if active {
                                                     "h-8 w-8 rounded-md bg-primary text-xs font-semibold text-primary-foreground"
                                                 } else {
                                                     "h-8 w-8 rounded-md border border-border/60 text-xs font-medium text-muted-foreground hover:bg-accent"
-                                                },
+                                                }).to_string(),
                                                 onclick: move |_| {
                                                     let mut next = recurrence();
                                                     if next.days.contains(&day) {
@@ -488,13 +484,14 @@ pub(crate) fn render_dialog(
                                     }
                                 }
                                 if rec_days.iter().any(|day| *day >= 29) || rec_days.contains(&0) {
-                                    button {
-                                        r#type: "button",
-                                        class: if rec_days.contains(&0) {
+                                    Button {
+                                        variant: ButtonVariant::Unstyled,
+                                        size: ButtonSize::Unstyled,
+                                        class: (if rec_days.contains(&0) {
                                             "h-8 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground"
                                         } else {
                                             "h-8 rounded-md border border-border/60 px-2 text-xs font-medium text-muted-foreground hover:bg-accent"
-                                        },
+                                        }).to_string(),
                                         onclick: move |_| {
                                             let mut next = recurrence();
                                             if next.days.contains(&0) {
@@ -525,52 +522,57 @@ pub(crate) fn render_dialog(
                                     let amount_value = entry.amount.map(|value| value.to_string()).unwrap_or_default();
                                     rsx! {
                                         div { class: "flex flex-wrap items-center gap-2 rounded-md border border-border/50 p-2",
-                                            select {
-                                                class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                            SelectMenu {
                                                 value: entry.month.to_string(),
-                                                onchange: move |e: Event<FormData>| {
-                                                    if let Ok(month) = e.value().parse::<u8>() {
+                                                options: MONTHS.iter().enumerate().map(|(month_idx, month)| SelectOption::new((month_idx + 1).to_string(), *month)).collect::<Vec<_>>(),
+                                                on_change: move |value: String| {
+                                                    if let Ok(month) = value.parse::<u8>() {
                                                         let mut next = recurrence();
                                                         if let Some(date) = next.dates.get_mut(idx) { date.month = month; }
                                                         recurrence.set(next);
                                                     }
                                                 },
-                                                for (month_idx, month) in MONTHS.iter().enumerate() {
-                                                    option { value: (month_idx + 1).to_string(), selected: entry.month as usize == month_idx + 1, {month.to_string()} }
-                                                }
+                                                searchable: false,
+                                                class: "w-28",
                                             }
-                                            select {
-                                                class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                            SelectMenu {
                                                 value: day_value,
-                                                onchange: move |e: Event<FormData>| {
-                                                    if let Ok(day) = e.value().parse::<u8>() {
+                                                options: {
+                                                    let mut options: Vec<SelectOption> = (1..=MAX_MONTH_DAY)
+                                                        .map(|day| SelectOption::new(day.to_string(), format!("Day {day}")))
+                                                        .collect();
+                                                    options.push(SelectOption::new("0", "Last day"));
+                                                    options
+                                                },
+                                                on_change: move |value: String| {
+                                                    if let Ok(day) = value.parse::<u8>() {
                                                         let mut next = recurrence();
                                                         if let Some(date) = next.dates.get_mut(idx) { date.day = day; }
                                                         recurrence.set(next);
                                                     }
                                                 },
-                                                for day in 1..=MAX_MONTH_DAY {
-                                                    option { value: day.to_string(), selected: entry.day == day, "Day {day}" }
-                                                }
-                                                option { value: "0", selected: entry.day == 0, "Last day" }
+                                                searchable: false,
+                                                class: "w-24",
                                             }
-                                            input {
+                                            Input {
                                                 r#type: "number",
+                                                size: InputSize::Xs,
                                                 step: "0.01",
                                                 min: "0",
                                                 placeholder: "Same amount",
                                                 value: amount_value,
-                                                oninput: move |e: Event<FormData>| {
-                                                    let amount = e.value().parse::<Decimal>().ok();
+                                                on_input: move |value: String| {
+                                                    let amount = value.parse::<Decimal>().ok();
                                                     let mut next = recurrence();
                                                     if let Some(date) = next.dates.get_mut(idx) { date.amount = amount; }
                                                     recurrence.set(next);
                                                 },
-                                                class: "h-8 w-32 rounded-md border border-border/60 bg-background px-2 text-xs",
+                                                class: "w-32",
                                             }
-                                            button {
-                                                r#type: "button",
-                                                class: "ml-auto h-8 rounded-md px-2 text-xs text-destructive hover:bg-destructive/10",
+                                            Button {
+                                                variant: ButtonVariant::Ghost,
+                                                size: ButtonSize::Sm,
+                                                class: "ml-auto text-destructive",
                                                 onclick: move |_| {
                                                     let mut next = recurrence();
                                                     if idx < next.dates.len() { next.dates.remove(idx); }
@@ -582,9 +584,9 @@ pub(crate) fn render_dialog(
                                     }
                                 }
                             }
-                            button {
-                                r#type: "button",
-                                class: "h-8 rounded-md border border-border/60 px-3 text-xs font-medium hover:bg-accent",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                size: ButtonSize::Sm,
                                 onclick: move |_| {
                                     let start = form().start_date.parse::<chrono::NaiveDate>().ok().unwrap_or(today);
                                     let mut next = recurrence();
@@ -614,60 +616,34 @@ pub(crate) fn render_dialog(
 
                 // Start and optional end date
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
-                    div { class: "space-y-1.5",
-                        div { class: "flex items-center justify-between gap-2",
-                            label { class: "text-sm font-medium", "Start date" }
-                        }
-                        input {
-                            r#type: "date",
-                            class: if start_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
+                    Field { label: "Start date", html_for: "subscription-start-date", error: start_date_err.to_string(), hint: "Leave empty to start from today.",
+                        DatePicker {
+                            id: "subscription-start-date",
+                            reserve_clear: true,
                             value: form_start_date,
-                            oninput: move |e: Event<FormData>| {
-                                form.write().start_date = e.value();
+                            class: if start_date_err.is_empty() { "" } else { "border-red-500" },
+                            on_input: move |value| {
+                                form.write().start_date = value;
                                 start_date_error.set(String::new());
                             },
                         }
-                        p { class: "text-[11px] text-muted-foreground", "Leave empty to start from today." }
-                        if !start_date_err.is_empty() {
-                            p { class: "text-xs text-red-500", {start_date_err.to_string()} }
-                        }
                     }
-                    div { class: "space-y-1.5",
-                        div { class: "flex items-center justify-between gap-2",
-                            label { class: "text-sm font-medium", "End date" }
-                        }
-                        div { class: "flex gap-2",
-                            input {
-                                r#type: "date",
-                                class: if end_date_err.is_empty() { "w-full h-9 rounded-md border bg-background px-3 text-sm" } else { "w-full h-9 rounded-md border border-red-500 bg-background px-3 text-sm" },
-                                value: form_end_date,
-                                oninput: move |e: Event<FormData>| {
-                                    form.write().end_date = e.value();
-                                    end_date_error.set(String::new());
-                                },
-                            }
-                            if !form_end_date.is_empty() {
-                                button {
-                                    r#type: "button",
-                                    class: "h-9 rounded-md border border-border px-2 text-xs text-muted-foreground hover:text-foreground",
-                                    onclick: move |_| {
-                                        form.write().end_date = String::new();
-                                        end_date_error.set(String::new());
-                                    },
-                                    "Clear"
-                                }
-                            }
-                        }
-                        p { class: "text-[11px] text-muted-foreground", "Last billing date (inclusive)." }
-                        if !end_date_err.is_empty() {
-                            p { class: "text-xs text-red-500", {end_date_err.to_string()} }
+                    Field { label: "End date", html_for: "subscription-end-date", error: end_date_err.to_string(), hint: "Last billing date (inclusive).",
+                        DatePicker {
+                            id: "subscription-end-date",
+                            reserve_clear: true,
+                            value: form_end_date.clone(),
+                            class: if end_date_err.is_empty() { "" } else { "border-red-500" },
+                            on_input: move |value| {
+                                form.write().end_date = value;
+                                end_date_error.set(String::new());
+                            },
                         }
                     }
                 }
 
                 // Account (search or create, same combobox as categories)
-                div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Account " span { class: "text-destructive", "*" } }
+                Field { label: "Account", required: true,
                     AccountCombobox {
                         selected_id: selected_account,
                         on_change: move |id: String| {
@@ -679,8 +655,7 @@ pub(crate) fn render_dialog(
                 }
 
                 // Category (optional)
-                div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Category" }
+                Field { label: "Category",
                     {rsx! {
                         crate::components::CategoryCombobox {
                             selected_id: form_category_id,
@@ -694,8 +669,7 @@ pub(crate) fn render_dialog(
                 }
 
                 // Logo
-                div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Logo" }
+                Field { label: "Logo",
                     LogoSearch {
                         selected_url: form_logo_url,
                         default_query: form_name.clone(),
@@ -704,13 +678,12 @@ pub(crate) fn render_dialog(
                 }
 
                 // Notes
-                div { class: "space-y-1.5",
-                    label { class: "text-sm font-medium", "Notes" }
-                    textarea {
-                        class: "w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+                Field { label: "Notes",
+                    Textarea {
+                        class: "min-h-[80px] resize-none",
                         placeholder: "Additional notes...",
                         value: form_notes,
-                        oninput: move |e: Event<FormData>| form.write().notes = e.value(),
+                        on_input: move |value: String| form.write().notes = value,
                     }
                 }
 

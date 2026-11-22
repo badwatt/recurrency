@@ -1,4 +1,7 @@
 use crate::api::server::{parse_qr_payload, validate_server};
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::field::Field;
+use crate::components::input::Input;
 use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, last_server_url, normalize_server_url};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
@@ -103,9 +106,9 @@ pub fn ServerSettingsPage() -> Element {
                     }
                 }
 
-                div { class: "mt-5 space-y-2",
-                    label { class: "text-sm font-medium", "Server URL" }
-                    input {
+                Field { label: "Server URL", html_for: "auth-server-url", hint: "Use the server root without /api. It is validated before saving.",
+                    Input {
+                        id: "auth-server-url",
                         r#type: "url",
                         inputmode: "url",
                         autocapitalize: "off",
@@ -113,20 +116,16 @@ pub fn ServerSettingsPage() -> Element {
                         spellcheck: "false",
                         placeholder: "https://recurrency.example.com",
                         value: value,
-                        onkeydown: move |event: KeyboardEvent| {
+                        on_keydown: move |event: KeyboardEvent| {
                             if event.key() == Key::Enter {
                                 save.call(());
                             }
                         },
-                        oninput: move |event| {
-                            value.set(event.value());
+                        on_input: move |next| {
+                            value.set(next);
                             error.set(String::new());
                             status.set(String::new());
                         },
-                        class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring",
-                    }
-                    p { class: "text-xs text-muted-foreground",
-                        "Use the server root without /api. It is validated before saving."
                     }
                 }
 
@@ -137,28 +136,28 @@ pub fn ServerSettingsPage() -> Element {
                 }
 
                 div { class: "mt-5 flex flex-col gap-2 sm:flex-row",
-                    button {
-                        r#type: "button",
+                    Button {
+                        class: "sm:flex-1",
                         disabled: loading(),
                         onclick: move |_| save.call(()),
-                        class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:flex-1",
                         if loading() { "Checking server…" } else { "Save server" }
                     }
                     if crate::utils::qr::scanner_available() {
-                        button {
-                            r#type: "button",
+                        Button {
+                            variant: ButtonVariant::Outline,
                             disabled: scanning(),
                             onclick: scan,
-                            class: "inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-accent disabled:opacity-50 sm:w-auto",
+                            class: "sm:w-auto",
                             if scanning() { "Scanning…" } else { "Scan QR" }
                         }
                     }
                 }
 
-                button {
-                    r#type: "button",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    full_width: true,
+                    class: "mt-3",
                     onclick: use_local,
-                    class: "mt-3 inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-accent",
                     "Use this device"
                 }
             }

@@ -1,6 +1,8 @@
 use crate::Route;
 use crate::api::auth;
 use dioxus::prelude::*;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::input::{Input, InputSize};
 
 #[component]
 pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<()>) -> Element {
@@ -50,9 +52,8 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
         });
     };
 
-    let on_code_input = move |e: FormEvent| {
-        let val = e
-            .value()
+    let on_code_input = move |value: String| {
+        let val = value
             .chars()
             .filter(|c| c.is_ascii_digit())
             .take(6)
@@ -99,20 +100,21 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
                             }
                         }
 
-                        input {
-                            r#type: "text",
+                        Input {
+                            size: InputSize::Lg,
                             placeholder: "Enter 6-digit code",
                             value: code.to_string(),
-                            oninput: on_code_input,
-                            maxlength: 6,
+                            on_input: on_code_input,
+                            maxlength: "6",
                             autofocus: true,
-                            class: "flex h-12 w-full rounded-md border border-border bg-background px-3 py-2 text-center text-2xl tracking-widest font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+                            aria_label: "Verification code".to_string(),
+                            class: "text-center text-2xl font-mono tracking-widest",
                         }
 
-                        button {
-                            r#type: "submit",
+                        Button {
+                            full_width: true,
+                            button_type: "submit".to_string(),
                             disabled: loading() || code().len() != 6,
-                            class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50",
                             if loading() { "Verifying..." } else { "Verify Email" }
                         }
                     }
@@ -124,11 +126,12 @@ pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<(
                             class: "flex items-center text-muted-foreground hover:text-foreground",
                             "← Back to login"
                         }
-                        button {
-                            r#type: "button",
+                        Button {
+                            variant: ButtonVariant::Ghost,
+                            size: ButtonSize::Sm,
+                            class: "text-muted-foreground".to_string(),
                             disabled: resending(),
                             onclick: handle_resend,
-                            class: "text-sm text-muted-foreground hover:text-foreground disabled:opacity-50",
                             if resending() { "Sending..." } else { "Resend code" }
                         }
                     }

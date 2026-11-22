@@ -1,6 +1,9 @@
 use crate::components::ConvertedAmount;
 use crate::components::logo_image_with_fallback;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::empty_state::EmptyState;
 use crate::components::page_header::PageHeader;
+use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::TransactionRowSkeleton;
 use crate::components::tooltip::Tooltip;
 use crate::models::transaction::*;
@@ -20,10 +23,10 @@ use lucide_dioxus::{FileText, Pencil, Plus, Receipt, Trash};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-mod cards;
-mod dialog;
+pub(crate) mod cards;
+pub(crate) mod dialog;
 mod filter_sort_bar;
-mod notes_dialog;
+pub(crate) mod notes_dialog;
 
 use cards::{TransactionCard, TransactionGridCard};
 use dialog::TransactionDialog;
@@ -304,19 +307,22 @@ pub fn TransactionsPage() -> Element {
     }
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 page-enter",
             // Header
-            div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
-                PageHeader { title: "Transactions", subtitle: "Track your one-time expenses" }
-                button {
-                    onclick: move |_| {
-                        editing_id.set(None);
-                        dialog_open.set(true);
-                    },
-                    class: "hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
-                    Plus { size: 16 }
-                    "Add Transaction"
-                }
+            PageHeader {
+                title: "Transactions",
+                subtitle: "Track your one-time expenses",
+                actions: rsx! {
+                    Button {
+                        class: "hidden md:inline-flex",
+                        onclick: move |_| {
+                            editing_id.set(None);
+                            dialog_open.set(true);
+                        },
+                        Plus { size: 16 }
+                        "Add Transaction"
+                    }
+                },
             }
 
             // Filter / Sort bar
@@ -329,9 +335,9 @@ pub fn TransactionsPage() -> Element {
                     span { class: "text-sm font-medium",
                         if selected().is_empty() { "Select transactions" } else { "{selected().len()} selected" }
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         onclick: move |_| {
                             let ids: Vec<Uuid> = visible_txn_ids.clone();
                             if selected().len() == ids.len() { selected.write().clear(); }
@@ -339,18 +345,21 @@ pub fn TransactionsPage() -> Element {
                         },
                         "Select all"
                     }
-                    select {
-                        class: "h-8 rounded-md border border-border/60 bg-background px-2 text-xs",
+                    SelectMenu {
                         value: bulk_category(),
-                        onchange: move |event| bulk_category.set(event.value()),
-                        option { value: "", "Set category…" }
-                        for category in CATEGORIES().categories.iter().filter(|category| !category.is_system) {
-                            option { value: category.id.to_string(), {category.name.clone()} }
-                        }
+                        options: {
+                            let mut options = vec![SelectOption::new("", "Set category…")];
+                            options.extend(CATEGORIES().categories.iter().filter(|category| !category.is_system).map(|category| SelectOption::new(category.id.to_string(), category.name.clone())));
+                            options
+                        },
+                        on_change: move |value: String| bulk_category.set(value),
+                        searchable: true,
+                        placeholder: "Set category…",
+                        class: "w-44",
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
                         disabled: bulk_busy() || selected().is_empty() || bulk_category().is_empty(),
                         onclick: move |_| {
                             if bulk_busy() || bulk_category().is_empty() { return; }
@@ -374,17 +383,19 @@ pub fn TransactionsPage() -> Element {
                         },
                         "Apply category"
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/15 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        class: "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15",
                         disabled: bulk_busy() || selected().is_empty(),
                         onclick: move |_| bulk_delete.call(()),
                         Trash { size: 13 }
                         "Delete"
                     }
-                    button {
-                        r#type: "button",
-                        class: "ml-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                    Button {
+                        variant: ButtonVariant::Ghost,
+                        size: ButtonSize::Sm,
+                        class: "ml-auto text-muted-foreground",
                         onclick: move |_| { selected.write().clear(); selection_mode.set(false); },
                         "Clear"
                     }
@@ -402,35 +413,34 @@ pub fn TransactionsPage() -> Element {
                 }
             } else if state.transactions.is_empty() {
                 rsx! {
-                    div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
-                        span { class: "text-muted-foreground",
-                            Receipt { size: 40 }
-                        }
-                        div { class: "text-center",
-                            p { class: "text-lg font-medium", "No transactions yet" }
-                            p { class: "text-sm text-muted-foreground", "Add your first one-time expense" }
-                        }
-                        button {
-                            onclick: move |_| {
-                                editing_id.set(None);
-                                dialog_open.set(true);
-                            },
-                            class: "hidden md:inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                            Plus { size: 16 }
-                            "Add Transaction"
-                        }
+                    EmptyState {
+                        title: "No transactions yet",
+                        description: "Add your first one-time expense",
+                        icon: rsx! { Receipt { size: 40 } },
+                        action: rsx! {
+                            Button {
+                                class: "hidden md:inline-flex",
+                                onclick: move |_| {
+                                    editing_id.set(None);
+                                    dialog_open.set(true);
+                                },
+                                Plus { size: 16 }
+                                "Add Transaction"
+                            }
+                        },
                     }
                 }
             } else if groups.is_empty() {
                 rsx! {
                     div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-2",
                         p { class: "text-sm text-muted-foreground", "No transactions match your search or filters" }
-                        button {
+                        Button {
+                            variant: ButtonVariant::Link,
+                            size: ButtonSize::Sm,
                             onclick: move |_| {
                                 query.set(String::new());
                                 filters.set(FilterConfig::default());
                             },
-                            class: "text-sm text-primary hover:underline",
                             "Clear search and filters"
                         }
                     }

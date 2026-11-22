@@ -519,7 +519,7 @@ const SETTINGS_SOURCES: &str = concat!(
     fn settings_page_has_name_input() {
         let src = SETTINGS_SOURCES;
         assert!(
-            src.contains("name") && src.contains("oninput"),
+            src.contains("settings-name") && src.contains("on_input"),
             "Should have name input"
         );
     }
@@ -739,10 +739,16 @@ fn summary_card_shows_the_last_delivery_error() {
 }
 
 #[test]
+fn summary_card_uses_a_searchable_timezone_picker() {
+    let src = include_str!("summary_card.rs");
+    assert!(src.contains("TimezoneSelect"));
+    assert!(!src.contains("placeholder: \"Europe/Madrid\""));
+}
+
+#[test]
 fn summary_card_offers_last_day_of_month() {
     let src = include_str!("summary_card.rs");
     assert!(src.contains("Last day"));
-    assert!(src.contains("value: \"0\""));
 }
 
 #[test]

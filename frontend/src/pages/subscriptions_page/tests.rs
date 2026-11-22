@@ -915,13 +915,9 @@
         // Bug: "absolute left-0 top-10" positions relative to parent container top.
         // Fix: use "top-full mt-2" to anchor below the button.
         let src = include_str!("../subscriptions_page.rs");
-        // Find the popover panel class line (contains bg-popover)
-        let has_correct_position = src
-            .lines()
-            .any(|l| l.contains("bg-popover") && l.contains("top-full"));
         assert!(
-            has_correct_position,
-            "Filters popover panel should use top-full mt-2 (below button), not top-10"
+            src.contains("Popover {") && src.contains("open: filters_popover()"),
+            "Filters popover should use the shared anchored popover"
         );
     }
 
@@ -1799,7 +1795,7 @@
 fn mobile_add_button_is_replaced_by_fab_intent() {
     let src = include_str!("../subscriptions_page.rs");
     assert!(src.contains("CREATE_INTENT"));
-    assert!(src.contains("hidden md:inline-flex items-center gap-2"));
+    assert!(src.contains("hidden md:inline-flex"));
 }
 
 #[test]
@@ -1839,17 +1835,19 @@ fn subscriptions_toolbar_has_search_and_bulk_selection() {
 }
 
 #[test]
-fn subscription_cards_expose_selection_checkbox() {
+fn subscription_cards_use_selection_state_without_checkboxes() {
     let src = include_str!("cards.rs");
-    assert!(src.contains("aria_label: \"Select subscription\""));
+    assert!(src.contains("selection_card_class"));
     assert!(src.contains("on_select.call"));
+    assert!(!src.contains("aria_label: \"Select subscription\""));
 }
 
 #[test]
-fn selection_checkboxes_only_appear_in_selection_mode() {
+fn selection_mode_dims_cards_and_keeps_the_selection_toolbar() {
     let cards = include_str!("cards.rs");
     let page = include_str!("../subscriptions_page.rs");
-    assert!(cards.contains("if selection_mode"));
+    assert!(cards.contains("selection_card_class"));
+    assert!(cards.contains("if !selection_mode"));
     assert!(page.contains("selection_mode.set(true)"));
     assert!(page.contains("selection_mode.set(false)"));
 }

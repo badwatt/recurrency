@@ -1,5 +1,7 @@
 use crate::api;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::dialog::Dialog;
+use crate::components::input::{Input, InputSize};
 use crate::components::logo_image::logo_image_with_fallback;
 use crate::models::logo::LogoResult;
 use crate::utils::image::data_url;
@@ -207,9 +209,8 @@ pub fn LogoSearch(
                 if !selected_url.is_empty() {
                     {logo_image_with_fallback("selected-logo", Some(selected_url.as_str()), "Logo", "h-10 w-10 rounded object-contain border border-border")}
                 }
-                button {
-                    r#type: "button",
-                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
+                Button {
+                    variant: ButtonVariant::Outline,
                     onclick: move |_| {
                         if !default_query.is_empty() {
                             query.set(default_query.clone());
@@ -222,9 +223,8 @@ pub fn LogoSearch(
                     if !selected_url.is_empty() { "Change" } else { "Add logo" }
                 }
                 if cfg!(target_os = "android") {
-                    button {
-                        r#type: "button",
-                        class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent",
+                    Button {
+                        variant: ButtonVariant::Outline,
                         onclick: move |_| {
                             let on_select = on_select;
                             spawn(async move {
@@ -261,6 +261,9 @@ pub fn LogoSearch(
                         "Upload image"
                         input {
                             r#type: "file",
+                            id: "logo-file",
+                            name: "logo",
+                            autocomplete: "off",
                             accept: "image/*",
                             aria_label: "Upload logo image",
                             class: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
@@ -273,9 +276,9 @@ pub fn LogoSearch(
                     }
                 }
                 if !selected_url.is_empty() {
-                    button {
-                        r#type: "button",
-                        class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        class: "text-red-600 hover:bg-red-50",
                         onclick: move |_| {
                             url_input.set(String::new());
                             on_select.call("".to_string())
@@ -285,22 +288,22 @@ pub fn LogoSearch(
                 }
             }
             div { class: "flex gap-2",
-                input {
-                    r#type: "text",
+                Input {
+                    size: InputSize::Sm,
                     inputmode: "url",
-                    value: "{url_input()}",
+                    value: url_input(),
                     placeholder: "Paste logo URL (https://…)",
-                    class: "flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-                    oninput: move |event: FormEvent| url_input.set(event.value()),
-                    onkeydown: move |event: KeyboardEvent| {
+                    on_input: move |value: String| url_input.set(value),
+                    on_keydown: move |event: KeyboardEvent| {
                         if event.key().to_string() == "Enter" {
                             apply_url();
                         }
                     },
                 }
-                button {
-                    r#type: "button",
-                    class: "inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Sm,
+                    class: "shrink-0",
                     disabled: url_input().trim().is_empty(),
                     onclick: move |_| apply_url(),
                     "Use URL"
@@ -319,24 +322,20 @@ pub fn LogoSearch(
 
             div { class: "space-y-4",
                 div { class: "flex gap-2",
-                    input {
-                        r#type: "text",
-                        value: "{query()}",
+                    Input {
+                        value: query(),
                         placeholder: "Enter company name or domain...",
-                        class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
-                        oninput: move |e: FormEvent| {
-                            query.set(e.value());
+                        on_input: move |value: String| {
+                            query.set(value);
                             error_msg.set(String::new());
                         },
-                        onkeydown: move |e: KeyboardEvent| {
-                            if e.key().to_string() == "Enter" {
+                        on_keydown: move |event: KeyboardEvent| {
+                            if event.key().to_string() == "Enter" {
                                 do_search();
                             }
                         },
                     }
-                    button {
-                        r#type: "button",
-                        class: "inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
+                    Button {
                         disabled: searching() || query().trim().is_empty(),
                         onclick: move |_| do_search(),
                         if searching() { "Searching…" } else { "Search" }
@@ -358,10 +357,11 @@ pub fn LogoSearch(
                     div { class: "space-y-3 mt-4",
                         div { class: "grid grid-cols-4 gap-3",
                             for logo in all_results[start..end].iter() {
-                                button {
-                                    r#type: "button",
-                                    class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 hover:bg-accent transition-colors",
-                                    title: logo.url.to_string(),
+                                Button {
+                                    variant: ButtonVariant::Unstyled,
+                                    size: ButtonSize::Unstyled,
+                                    class: "flex aspect-square items-center justify-center rounded-md border border-border p-2 transition-colors hover:bg-accent".to_string(),
+                                    title: Some(logo.url.to_string()),
                                     onclick: {
                                         // Prefer the thumbnail: search-engine
                                         // images often block hotlinking, while
@@ -390,17 +390,17 @@ pub fn LogoSearch(
 
                         if pages > 1 {
                             div { class: "flex items-center justify-between gap-2",
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
                                     disabled: current_page == 0,
                                     onclick: move |_| page.set(current_page.saturating_sub(1)),
                                     "‹ Prev"
                                 }
                                 span { class: "text-xs text-muted-foreground", {page_label} }
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:opacity-50",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
                                     disabled: current_page + 1 >= pages,
                                     onclick: move |_| page.set(current_page + 1),
                                     "Next ›"
@@ -703,7 +703,7 @@ mod tests {
         let src = include_str!("logo_search.rs");
         let prod = src.split("#[cfg(test)]").next().unwrap_or("");
         assert!(
-            prod.contains("onkeydown"),
+            prod.contains("on_keydown"),
             "LogoSearch input must support Enter key to trigger search"
         );
     }

@@ -1,4 +1,6 @@
 use crate::components::account_fields::AccountFields;
+use crate::components::button::{Button, ButtonSize, ButtonVariant, IconButton};
+use crate::components::empty_state::EmptyState;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::skeleton::CategoryCardSkeleton;
@@ -8,42 +10,8 @@ use crate::storage::Storage;
 use crate::utils::color::{DEFAULT_COLOR, FALLBACK_COLOR, is_valid_hex, with_alpha};
 use crate::utils::icons::icon_display;
 use dioxus::prelude::*;
+use lucide_dioxus::{Pencil, Plus, Star, Tag, Trash};
 use uuid::Uuid;
-
-fn icon_tag() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "32", height: "32", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        path { d: "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" }
-        line { x1: "7", y1: "7", x2: "7.01", y2: "7" }
-    }}
-}
-
-fn icon_star() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        polygon { points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" }
-    }}
-}
-
-fn icon_pencil() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        path { d: "M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }
-    }}
-}
-
-fn icon_trash_2() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        polyline { points: "3 6 5 6 21 6" }
-        path { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }
-        line { x1: "10", y1: "11", x2: "10", y2: "17" }
-        line { x1: "14", y1: "11", x2: "14", y2: "17" }
-    }}
-}
-
-fn icon_plus() -> Element {
-    rsx! { svg { view_box: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", stroke_width: "2", stroke_linecap: "round", stroke_linejoin: "round",
-        line { x1: "12", y1: "5", x2: "12", y2: "19" }
-        line { x1: "5", y1: "12", x2: "19", y2: "12" }
-    }}
-}
 
 #[component]
 pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
@@ -186,8 +154,10 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
                 div { class: "rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive space-y-3",
                     p { {err.clone()} }
                     p { class: "text-xs opacity-80", "API: {api_label}" }
-                    button {
-                        class: "h-9 px-3 rounded-md border border-destructive/50 text-sm font-medium hover:bg-destructive/10",
+                    Button {
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        class: "border-destructive/50 hover:bg-destructive/10",
                         onclick: reload_accounts,
                         "Retry"
                     }
@@ -197,16 +167,28 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
     }
 
     rsx! {
-        div { class: if embedded { "flex flex-col gap-6" } else { "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in" },
+        div { class: if embedded { "flex flex-col gap-6" } else { "p-4 md:p-6 flex flex-col gap-6 page-enter" },
             // Header
-            div { class: if embedded { "flex justify-end" } else { "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3" },
-                if !embedded {
-                    PageHeader { title: "Accounts", subtitle: "The accounts you move money into each month" }
+            if embedded {
+                div { class: "flex justify-end sm:absolute sm:right-0 sm:top-0 z-10",
+                    Button {
+                        class: "w-full sm:w-auto",
+                        onclick: open_create,
+                        Plus { size: 16 }
+                        "Add Account"
+                    }
                 }
-                button {
-                    onclick: open_create,
-                    class: "inline-flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 w-full sm:w-auto",
-                    {icon_plus()} "Add Account"
+            } else {
+                PageHeader {
+                    title: "Accounts",
+                    subtitle: "The accounts you move money into each month",
+                    actions: rsx! {
+                        Button {
+                            onclick: open_create,
+                            Plus { size: 16 }
+                            "Add Account"
+                        }
+                    },
                 }
             }
 
@@ -220,17 +202,17 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
                 }
             } else if state.accounts.is_empty() {
                 rsx! {
-                    div { class: "rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-4",
-                        {icon_tag()}
-                        div { class: "text-center",
-                            p { class: "text-lg font-medium", "No accounts yet" }
-                            p { class: "text-sm text-muted-foreground", "Create accounts to organize your subscriptions and transactions" }
-                        }
-                        button {
-                            onclick: open_create,
-                            class: "inline-flex items-center gap-2 h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90",
-                            {icon_plus()} "Add Account"
-                        }
+                    EmptyState {
+                        title: "No accounts yet",
+                        description: "Create accounts to organize your subscriptions and transactions",
+                        icon: rsx! { Tag { size: 32 } },
+                        action: rsx! {
+                            Button {
+                                onclick: open_create,
+                                Plus { size: 16 }
+                                "Add Account"
+                            }
+                        },
                     }
                 }
             } else {
@@ -270,29 +252,29 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
                                     // Actions on their own row so the name keeps the full width.
                                     div { class: "mt-3 flex justify-end gap-0.5 border-t border-border/40 pt-2 sm:gap-1",
                                         if !is_default {
-                                            button {
-                                                class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                                title: "Set as default",
-                                                aria_label: "Set account as default",
+                                            IconButton {
+                                                label: "Set account as default".to_string(),
+                                                size: ButtonSize::Md,
                                                 onclick: move |_| handle_set_default(cat_id),
-                                                {icon_star()}
+                                                Star { size: 16 }
                                             }
                                         }
-                                        button {
-                                            class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent",
-                                            aria_label: "Edit account",
+                                        IconButton {
+                                            label: "Edit account".to_string(),
+                                            size: ButtonSize::Md,
                                             onclick: {
                                                 let cat = cat.clone();
                                                 move |_| open_edit(&cat)
                                             },
-                                            {icon_pencil()}
+                                            Pencil { size: 16 }
                                         }
                                         if !is_default {
-                                            button {
-                                                class: "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-md hover:bg-accent text-destructive",
-                                                aria_label: "Delete account",
+                                            IconButton {
+                                                label: "Delete account".to_string(),
+                                                size: ButtonSize::Md,
+                                                class: "text-destructive".to_string(),
                                                 onclick: move |_| handle_delete(cat_id),
-                                                {icon_trash_2()}
+                                                Trash { size: 16 }
                                             }
                                         }
                                     }
@@ -317,15 +299,14 @@ pub fn AccountsPage(#[props(default = false)] embedded: bool) -> Element {
                     }
                     // Actions
                     div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2",
-                        button {
+                        Button {
+                            variant: ButtonVariant::Outline,
                             onclick: move |_| dialog_open.set(false),
-                            class: "h-10 px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent",
                             "Cancel"
                         }
-                        button {
+                        Button {
                             onclick: handle_save,
                             disabled: form_saving(),
-                            class: "h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50",
                             if form_saving() { "Saving..." } else { "Save" }
                         }
                     }

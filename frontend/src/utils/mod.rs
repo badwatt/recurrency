@@ -11,3 +11,4 @@ pub mod qr;
 pub mod recurrence;
 pub mod scroll;
 pub mod speech;
+pub mod timezones;

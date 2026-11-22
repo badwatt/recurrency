@@ -1,3 +1,4 @@
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::page_header::PageHeader;
 use crate::pages::settings_page::APP_VERSION;
 use dioxus::prelude::*;
@@ -98,7 +99,7 @@ pub fn AboutPage() -> Element {
         .unwrap_or_else(|| format!("{REPO_URL}/releases"));
 
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader { title: "About", subtitle: "Recurrency, the people behind it, and what changed" }
 
             div { class: "relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card to-card p-6 md:p-8",
@@ -126,16 +127,17 @@ pub fn AboutPage() -> Element {
                     p { class: "text-sm font-semibold", "What's new" }
                     p { class: "mt-1 text-xs text-muted-foreground", "Release notes for v{displayed_version}" }
                     div { class: "mt-4 flex flex-wrap gap-2",
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            size: ButtonSize::Sm,
                             onclick: move |_| show_notes.toggle(),
                             if show_notes() { "Hide notes" } else { "Show changelog" }
                         }
                         if latest_version != APP_VERSION {
-                            button {
-                                r#type: "button",
-                                class: "inline-flex h-9 items-center rounded-md border border-primary/30 px-3 text-sm font-medium text-primary hover:bg-primary/10",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                size: ButtonSize::Sm,
+                                class: "border-primary/30 text-primary hover:bg-primary/10",
                                 onclick: move |_| {
                                     show_latest.toggle();
                                     show_notes.set(true);

@@ -1,13 +1,14 @@
 #![allow(clippy::suspicious_else_formatting)]
 use crate::components::ai_chat::{AI_CHAT_OPEN, AiChat};
 use crate::components::privacy_toggle::PrivacyToggle;
+use crate::components::theme_picker::ThemeMenu;
 use crate::components::toast::{TOAST, ToastContainer};
 use crate::components::update_banner::UpdateBanner;
 use crate::state::ai::{AI_SETTINGS, is_configured};
 use crate::state::preferences::PREFERENCES;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 use crate::state::window;
-use crate::theme::hooks::{apply_theme_class, toggle_theme};
+use crate::theme::hooks::apply_theme_class;
 use crate::utils::scroll::scroll_to_top;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 use dioxus::desktop::use_muda_event_handler;
@@ -43,6 +44,7 @@ pub enum Icon {
     Settings,
     Admin,
     Ai,
+    Paintbrush,
     Logout,
     Sun,
     Moon,
@@ -145,7 +147,54 @@ pub fn AppLayout() -> Element {
     });
     use_effect(move || {
         let theme = PREFERENCES().theme().to_string();
+        let dirty = PREFERENCES().theme_dirty();
         apply_theme_class(&theme);
+
+        // The effect lives in the stable shell, not in the menu that closes
+        // immediately after selection, so the request survives the click.
+        if dirty && !crate::api::client::is_offline_mode() {
+            spawn(async move {
+                let req = crate::models::preferences::UpdatePreferencesRequest {
+                    theme: Some(theme),
+                    subscriptions_view: None,
+                    first_day_of_week: None,
+                    date_format: None,
+                };
+                if crate::api::preferences::update(&req).await.is_ok() {
+                    PREFERENCES.write().mark_theme_synced();
+                }
+            });
+        }
+    });
+
+    // Keep the server theme in sync across devices. The first request runs at
+    // mount; later requests pick up a theme changed from another device.
+    use_future(move || async move {
+        loop {
+            let offline = crate::state::app_mode::APP_MODE().mode.is_offline();
+            if !offline
+                && AUTH().is_authenticated
+                && let Ok(server) = crate::api::preferences::get().await
+            {
+                let theme_to_push = PREFERENCES.write().apply_server_theme(&server);
+                if let Some(theme) = theme_to_push {
+                    let req = crate::models::preferences::UpdatePreferencesRequest {
+                        theme: Some(theme),
+                        subscriptions_view: None,
+                        first_day_of_week: None,
+                        date_format: None,
+                    };
+                    if crate::api::preferences::update(&req).await.is_ok() {
+                        PREFERENCES.write().mark_theme_synced();
+                    }
+                }
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            gloo_timers::future::TimeoutFuture::new(60_000).await;
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
     });
 
     // Mobile bottom bar: hide on scroll down, show on scroll up
@@ -179,11 +228,13 @@ pub fn AppLayout() -> Element {
 
     let nav = navigator();
     let fab_open = use_signal(|| false);
+    let mut theme_menu_open = use_signal(|| false);
     let in_settings = matches!(
         current_route,
         crate::Route::Settings {}
             | crate::Route::SettingsProfile {}
             | crate::Route::SettingsPreferences {}
+            | crate::Route::SettingsAppearance {}
             | crate::Route::SettingsAi {}
             | crate::Route::SettingsMoney {}
             | crate::Route::SettingsNotifications {}
@@ -265,7 +316,7 @@ pub fn AppLayout() -> Element {
                     div { class: "flex items-center gap-1",
                         AiTopButton {}
                         PrivacyToggle {}
-                        ThemeToggleButton {}
+                        ThemeToggleButton { open: theme_menu_open }
                         a {
                             href: "/settings",
                             aria_label: "Profile and settings",
@@ -335,6 +386,10 @@ pub fn AppLayout() -> Element {
         if !in_settings {
             MobileCreateFab { open: fab_open }
             AiFab {}
+        }
+
+        if theme_menu_open() {
+            ThemeMenu { on_close: move |_| theme_menu_open.set(false) }
         }
 
         AiChat {}
@@ -540,25 +595,21 @@ fn MobileTab(to: crate::Route, label: String, active: bool, icon: Icon) -> Eleme
     }
 }
 
-// ── Theme toggle button ──
+// ── Theme picker button ──
 #[component]
-fn ThemeToggleButton() -> Element {
-    let theme_signal = PREFERENCES();
+fn ThemeToggleButton(open: Signal<bool>) -> Element {
+    let mut open = open;
+
     rsx! {
         button {
             r#type: "button",
             class: "inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-            onclick: move |_| toggle_theme(),
-            title: "Toggle theme",
-            {{
-                let theme = theme_signal.theme().to_string();
-                let icon = match theme.as_str() {
-                    "dark" => Icon::Moon,
-                    "mocha" => Icon::Coffee,
-                    _ => Icon::Sun,
-                };
-                rsx! { {svg_icon(icon, 20)} }
-            }}
+            aria_label: "Choose color theme",
+            aria_haspopup: "true",
+            aria_expanded: if open() { "true" } else { "false" },
+            onclick: move |_| open.toggle(),
+            title: "Choose color theme",
+            {svg_icon(Icon::Paintbrush, 20)}
         }
     }
 }
@@ -815,6 +866,21 @@ pub(crate) fn svg_icon(icon: Icon, size: i32) -> Element {
                 path { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" }
             }
         },
+        Icon::Paintbrush => rsx! {
+            svg {
+                view_box: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+                width: size.to_string(),
+                height: size.to_string(),
+                path { d: "m14.622 17.897-10.68-2.913" }
+                path { d: "M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z" }
+                path { d: "M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15" }
+            }
+        },
         Icon::Logout => rsx! {
             svg {
                 view_box: "0 0 24 24",
@@ -1015,6 +1081,7 @@ mod tests {
         let _ = Icon::Debts;
         let _ = Icon::Calendar;
         let _ = Icon::Categories;
+        let _ = Icon::Paintbrush;
         let _ = Icon::Reports;
         let _ = Icon::Settings;
         let _ = Icon::Logout;
@@ -1022,6 +1089,25 @@ mod tests {
         let _ = Icon::Moon;
         let _ = Icon::Coffee;
         let _ = Icon::Monitor;
+    }
+
+    #[test]
+    fn theme_button_uses_one_paintbrush_icon() {
+        let src = include_str!("app_layout.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap_or(src);
+        assert!(
+            production.contains("svg_icon(Icon::Paintbrush, 20)"),
+            "the theme button must always use the paintbrush icon"
+        );
+        let button = production
+            .split("// ── Theme picker button ──")
+            .nth(1)
+            .and_then(|rest| rest.split("fn LogoIcon").next())
+            .unwrap_or("");
+        assert!(
+            !button.contains("Icon::Coffee"),
+            "the theme button must not switch to the coffee icon"
+        );
     }
 
     #[test]
@@ -1038,6 +1124,7 @@ mod tests {
             Icon::Transactions,
             Icon::Calendar,
             Icon::Categories,
+            Icon::Paintbrush,
             Icon::Reports,
             Icon::Settings,
             Icon::Logout,

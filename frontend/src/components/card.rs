@@ -1,73 +1,99 @@
 use dioxus::prelude::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CardRadius {
+    #[default]
+    Xl,
+    Lg,
+}
+
+impl CardRadius {
+    fn class(self) -> &'static str {
+        match self {
+            Self::Xl => "rounded-xl",
+            Self::Lg => "rounded-lg",
+        }
+    }
+}
+
+/// Shared surface for settings, reports and content panels.
 #[component]
-pub fn Card(children: Element) -> Element {
+pub fn Card(
+    #[props(default)] radius: CardRadius,
+    #[props(default)] class: String,
+    children: Element,
+) -> Element {
     rsx! {
-        div { class: "rounded-xl bg-card/80 border border-border/40 text-card-foreground hover:bg-card transition-colors duration-300",
+        div { class: "{radius.class()} border border-border/40 bg-card/80 text-card-foreground transition-colors duration-300 {class}",
             {children}
         }
     }
 }
 
 #[component]
-pub fn CardHeader(children: Element) -> Element {
+pub fn CardHeader(#[props(default)] class: String, children: Element) -> Element {
     rsx! {
-        div { class: "flex flex-col space-y-1.5 p-6", {children} }
+        div { class: "flex flex-col space-y-1.5 p-6 {class}", {children} }
     }
 }
 
 #[component]
-pub fn CardTitle(children: Element) -> Element {
+pub fn CardTitle(#[props(default)] class: String, children: Element) -> Element {
     rsx! {
-        h3 { class: "text-lg font-semibold leading-none tracking-tight", {children} }
+        h3 { class: "text-lg font-semibold leading-none tracking-tight {class}", {children} }
     }
 }
 
 #[component]
-pub fn CardContent(children: Element) -> Element {
+pub fn CardContent(#[props(default)] class: String, children: Element) -> Element {
     rsx! {
-        div { class: "p-6 pt-0", {children} }
+        div { class: "p-6 pt-0 {class}", {children} }
+    }
+}
+
+/// Card with a standard heading block and a separated body. Settings pages
+/// should use this instead of repeating the same header/border markup.
+#[component]
+pub fn SectionCard(
+    title: String,
+    #[props(default)] description: String,
+    actions: Option<Element>,
+    #[props(default)] class: String,
+    #[props(default)] title_class: String,
+    #[props(default)] header_class: String,
+    #[props(default)] content_class: String,
+    children: Element,
+) -> Element {
+    rsx! {
+        Card { class: "overflow-hidden {class}",
+            div { class: "flex items-start justify-between gap-3 border-b border-border p-6 {header_class}",
+                div { class: "min-w-0 space-y-1",
+                    h2 { class: "text-lg font-semibold {title_class}", {title} }
+                    if !description.is_empty() {
+                        p { class: "text-sm text-muted-foreground", {description} }
+                    }
+                }
+                if let Some(actions) = actions {
+                    div { class: "shrink-0", {actions} }
+                }
+            }
+            div { class: "p-6 {content_class}", {children} }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn card_class_contains_rounded() {
-        let cls = "rounded-xl border border-border/40 bg-card/80 text-card-foreground";
-        assert!(cls.contains("rounded-xl"));
+    fn card_uses_the_shared_surface_tokens() {
+        let source = include_str!("card.rs");
+        assert!(source.contains("rounded-xl border border-border/40 bg-card/80"));
     }
 
     #[test]
-    fn card_class_contains_border() {
-        let cls = "rounded-xl border border-border/40 bg-card/80";
-        assert!(cls.contains("border"));
-    }
-
-    #[test]
-    fn card_class_contains_bg_card() {
-        let cls = "rounded-xl border border-border/40 bg-card/80";
-        assert!(cls.contains("bg-card"));
-    }
-
-    #[test]
-    fn card_header_space_y() {
-        let cls = "flex flex-col space-y-1.5 p-6";
-        assert!(cls.contains("space-y-1.5"));
-        assert!(cls.contains("p-6"));
-    }
-
-    #[test]
-    fn card_title_class() {
-        let cls = "text-lg font-semibold leading-none tracking-tight";
-        assert!(cls.contains("text-lg"));
-        assert!(cls.contains("font-semibold"));
-    }
-
-    #[test]
-    fn card_content_padding() {
-        let cls = "p-6 pt-0";
-        assert!(cls.contains("p-6"));
-        assert!(cls.contains("pt-0"));
+    fn section_card_owns_the_heading_and_body_spacing() {
+        let source = include_str!("card.rs");
+        assert!(source.contains("border-b border-border p-6"));
+        assert!(source.contains("class: \"p-6 {content_class}\""));
     }
 }

@@ -1,5 +1,8 @@
 use super::verify_email::VerifyEmailPage;
 use crate::api::auth;
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::field::Field;
+use crate::components::input::Input;
 use crate::state::auth::AUTH;
 use crate::Route;
 use dioxus::prelude::*;
@@ -94,73 +97,56 @@ pub fn RegisterPage() -> Element {
                         }
 
                         // Name
-                        div { class: "space-y-2",
-                            label {
-                                r#for: "reg-name",
-                                class: "text-sm font-medium text-foreground",
-                                "Name"
-                            }
-                            input {
+                        Field { label: "Name", required: true, html_for: "reg-name",
+                            Input {
                                 id: "reg-name",
-                                r#type: "text",
                                 placeholder: "John Doe",
                                 value: name.to_string(),
-                                oninput: move |e| name.set(e.value()),
+                                on_input: move |value| name.set(value),
                                 required: true,
-                                class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
                             }
                         }
 
                         // Email
-                        div { class: "space-y-2",
-                            label {
-                                r#for: "reg-email",
-                                class: "text-sm font-medium text-foreground",
-                                "Email"
-                            }
-                            input {
+                        Field { label: "Email", required: true, html_for: "reg-email",
+                            Input {
                                 id: "reg-email",
                                 r#type: "email",
                                 placeholder: "you@example.com",
                                 value: email.to_string(),
-                                oninput: move |e| email.set(e.value()),
+                                on_input: move |value| email.set(value),
                                 required: true,
-                                class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
                             }
                         }
 
                         // Password
-                        div { class: "space-y-2",
-                            label {
-                                r#for: "reg-password",
-                                class: "text-sm font-medium text-foreground",
-                                "Password"
-                            }
+                        Field { label: "Password", required: true, html_for: "reg-password",
                             div { class: "relative",
-                                input {
+                                Input {
                                     id: "reg-password",
-                                    r#type: if show_text_visible() { "text" } else { "password" },
+                                    r#type: (if show_text_visible() { "text" } else { "password" }).to_string(),
                                     placeholder: "••••••••",
                                     value: auth_field.to_string(),
-                                    oninput: move |e| auth_field.set(e.value()),
+                                    on_input: move |value| auth_field.set(value),
                                     required: true,
-                                    minlength: 8,
-                                    class: "flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+                                    minlength: "8",
+                                    class: "pr-16",
                                 }
-                                button {
-                                    r#type: "button",
+                                Button {
+                                    variant: ButtonVariant::Ghost,
+                                    size: ButtonSize::Xs,
+                                    class: "absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground",
                                     onclick: move |_| show_text_visible.toggle(),
-                                    class: "absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground",
                                     if show_text_visible() { "Hide" } else { "Show" }
                                 }
                             }
                         }
 
                         // Submit
-                        button {
-                            r#type: "submit",
+                        Button {
+                            full_width: true,
+                            button_type: "submit".to_string(),
                             disabled: loading(),
-                            class: "inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50",
                             if loading() { "Creating..." } else { "Create account" }
                         }
                     }

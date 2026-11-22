@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* The shared DatePicker paints its own calendar affordance. */
+  .date-input::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    cursor: pointer;
+  }
+}
+
 @layer base {
   :root {
     color-scheme: dark;
@@ -54,7 +62,7 @@
 
   html.dark {
     color-scheme: dark;
-    --background: 255 15% 5%;
+    --background: 240 13% 6%;
     --foreground: 0 0% 93%;
     --card: 255 15% 8%;
     --card-foreground: 0 0% 93%;
@@ -97,6 +105,354 @@
     --input: 234 13% 31%;
     --ring: 232 97% 85%;
   }
+
+  /* Additional palettes. Keep these after the legacy light/dark/mocha blocks:
+     a theme also carries the generic `light` or `dark` class for Tailwind,
+     so the specific palette must win the cascade. */
+  html.mocha-bloom {
+    color-scheme: dark;
+    --background: 264 28% 14%;
+    --foreground: 265 100% 96%;
+    --card: 264 27% 18%;
+    --card-foreground: 265 100% 96%;
+    --popover: 264 27% 18%;
+    --popover-foreground: 265 100% 96%;
+    --primary: 312 79% 81%;
+    --primary-foreground: 311 46% 12%;
+    --secondary: 265 26% 25%;
+    --secondary-foreground: 265 100% 96%;
+    --muted: 264 24% 22%;
+    --muted-foreground: 267 37% 80%;
+    --accent: 266 30% 26%;
+    --accent-foreground: 265 100% 96%;
+    --destructive: 349 100% 78%;
+    --destructive-foreground: 311 46% 12%;
+    --border: 266 26% 30%;
+    --input: 266 26% 30%;
+    --ring: 312 79% 81%;
+  }
+
+  html.latte {
+    color-scheme: light;
+    --background: 220 23% 95%;
+    --foreground: 234 16% 35%;
+    --card: 0 0% 100%;
+    --card-foreground: 234 16% 35%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 234 16% 35%;
+    --primary: 266 85% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 223 16% 83%;
+    --secondary-foreground: 234 16% 35%;
+    --muted: 220 22% 92%;
+    --muted-foreground: 233 10% 47%;
+    --accent: 220 21% 89%;
+    --accent-foreground: 234 16% 35%;
+    --destructive: 347 87% 44%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 223 16% 83%;
+    --input: 223 16% 83%;
+    --ring: 266 85% 58%;
+  }
+
+  html.dracula {
+    color-scheme: dark;
+    --background: 231 15% 18%;
+    --foreground: 60 30% 96%;
+    --card: 235 14% 15%;
+    --card-foreground: 60 30% 96%;
+    --popover: 235 14% 15%;
+    --popover-foreground: 60 30% 96%;
+    --primary: 265 89% 78%;
+    --primary-foreground: 231 15% 18%;
+    --secondary: 232 14% 31%;
+    --secondary-foreground: 60 30% 96%;
+    --muted: 232 14% 31%;
+    --muted-foreground: 236 13% 75%;
+    --accent: 232 14% 31%;
+    --accent-foreground: 60 30% 96%;
+    --destructive: 0 100% 67%;
+    --destructive-foreground: 231 15% 18%;
+    --border: 232 14% 31%;
+    --input: 232 14% 31%;
+    --ring: 265 89% 78%;
+  }
+
+  html.nord {
+    color-scheme: dark;
+    --background: 220 16% 22%;
+    --foreground: 218 27% 94%;
+    --card: 222 16% 28%;
+    --card-foreground: 218 27% 94%;
+    --popover: 222 16% 28%;
+    --popover-foreground: 218 27% 94%;
+    --primary: 193 43% 67%;
+    --primary-foreground: 220 16% 22%;
+    --secondary: 220 17% 32%;
+    --secondary-foreground: 218 27% 94%;
+    --muted: 220 17% 32%;
+    --muted-foreground: 219 28% 88%;
+    --accent: 220 17% 32%;
+    --accent-foreground: 218 27% 94%;
+    --destructive: 354 42% 56%;
+    --destructive-foreground: 218 27% 94%;
+    --border: 220 16% 36%;
+    --input: 220 16% 36%;
+    --ring: 193 43% 67%;
+  }
+
+  html.tokyo-night {
+    color-scheme: dark;
+    --background: 235 19% 13%;
+    --foreground: 229 73% 86%;
+    --card: 240 15% 10%;
+    --card-foreground: 229 73% 86%;
+    --popover: 240 15% 10%;
+    --popover-foreground: 229 73% 86%;
+    --primary: 221 89% 72%;
+    --primary-foreground: 235 19% 13%;
+    --secondary: 228 23% 21%;
+    --secondary-foreground: 229 73% 86%;
+    --muted: 230 24% 19%;
+    --muted-foreground: 229 35% 75%;
+    --accent: 228 23% 21%;
+    --accent-foreground: 229 73% 86%;
+    --destructive: 349 89% 72%;
+    --destructive-foreground: 235 19% 13%;
+    --border: 228 23% 21%;
+    --input: 228 23% 21%;
+    --ring: 221 89% 72%;
+  }
+
+  html.gruvbox {
+    color-scheme: dark;
+    --background: 0 0% 16%;
+    --foreground: 43 59% 81%;
+    --card: 20 3% 19%;
+    --card-foreground: 43 59% 81%;
+    --popover: 20 3% 19%;
+    --popover-foreground: 43 59% 81%;
+    --primary: 42 95% 58%;
+    --primary-foreground: 0 0% 16%;
+    --secondary: 20 5% 22%;
+    --secondary-foreground: 43 59% 81%;
+    --muted: 20 5% 22%;
+    --muted-foreground: 35 17% 59%;
+    --accent: 22 7% 29%;
+    --accent-foreground: 43 59% 81%;
+    --destructive: 6 96% 59%;
+    --destructive-foreground: 0 0% 16%;
+    --border: 22 7% 29%;
+    --input: 22 7% 29%;
+    --ring: 42 95% 58%;
+  }
+
+  html.rose-pine {
+    color-scheme: dark;
+    --background: 249 22% 12%;
+    --foreground: 245 50% 91%;
+    --card: 247 23% 15%;
+    --card-foreground: 245 50% 91%;
+    --popover: 247 23% 15%;
+    --popover-foreground: 245 50% 91%;
+    --primary: 267 57% 78%;
+    --primary-foreground: 249 22% 12%;
+    --secondary: 248 25% 18%;
+    --secondary-foreground: 245 50% 91%;
+    --muted: 248 25% 18%;
+    --muted-foreground: 248 15% 61%;
+    --accent: 249 15% 28%;
+    --accent-foreground: 245 50% 91%;
+    --destructive: 343 76% 68%;
+    --destructive-foreground: 249 22% 12%;
+    --border: 249 15% 28%;
+    --input: 249 15% 28%;
+    --ring: 267 57% 78%;
+  }
+
+  html.one-dark {
+    color-scheme: dark;
+    --background: 220 13% 18%;
+    --foreground: 219 14% 71%;
+    --card: 216 13% 15%;
+    --card-foreground: 219 14% 71%;
+    --popover: 216 13% 15%;
+    --popover-foreground: 219 14% 71%;
+    --primary: 207 82% 66%;
+    --primary-foreground: 216 13% 15%;
+    --secondary: 221 13% 28%;
+    --secondary-foreground: 219 14% 71%;
+    --muted: 219 13% 21%;
+    --muted-foreground: 219 13% 66%;
+    --accent: 221 13% 28%;
+    --accent-foreground: 219 14% 71%;
+    --destructive: 355 65% 65%;
+    --destructive-foreground: 216 13% 15%;
+    --border: 221 13% 28%;
+    --input: 221 13% 28%;
+    --ring: 207 82% 66%;
+  }
+
+  html.solarized-light {
+    color-scheme: light;
+    --background: 44 87% 94%;
+    --foreground: 194 14% 40%;
+    --card: 44 100% 97%;
+    --card-foreground: 194 14% 40%;
+    --popover: 44 100% 97%;
+    --popover-foreground: 194 14% 40%;
+    --primary: 205 69% 49%;
+    --primary-foreground: 44 87% 94%;
+    --secondary: 46 42% 88%;
+    --secondary-foreground: 194 14% 40%;
+    --muted: 46 42% 88%;
+    --muted-foreground: 196 13% 45%;
+    --accent: 46 42% 88%;
+    --accent-foreground: 194 14% 40%;
+    --destructive: 1 71% 52%;
+    --destructive-foreground: 44 87% 94%;
+    --border: 45 24% 80%;
+    --input: 45 24% 80%;
+    --ring: 205 69% 49%;
+  }
+
+  html.frappe {
+    color-scheme: dark;
+    --background: 229 19% 23%;
+    --foreground: 227 70% 87%;
+    --card: 231 19% 20%;
+    --card-foreground: 227 70% 87%;
+    --popover: 231 19% 20%;
+    --popover-foreground: 227 70% 87%;
+    --primary: 277 59% 76%;
+    --primary-foreground: 231 19% 20%;
+    --secondary: 230 16% 30%;
+    --secondary-foreground: 227 70% 87%;
+    --muted: 230 16% 30%;
+    --muted-foreground: 227 44% 80%;
+    --accent: 227 15% 37%;
+    --accent-foreground: 227 70% 87%;
+    --destructive: 359 68% 71%;
+    --destructive-foreground: 229 19% 23%;
+    --border: 230 16% 30%;
+    --input: 230 16% 30%;
+    --ring: 277 59% 76%;
+  }
+
+  html.macchiato {
+    color-scheme: dark;
+    --background: 232 23% 18%;
+    --foreground: 227 68% 88%;
+    --card: 233 23% 15%;
+    --card-foreground: 227 68% 88%;
+    --popover: 233 23% 15%;
+    --popover-foreground: 227 68% 88%;
+    --primary: 267 83% 80%;
+    --primary-foreground: 233 23% 15%;
+    --secondary: 230 19% 26%;
+    --secondary-foreground: 227 68% 88%;
+    --muted: 230 19% 26%;
+    --muted-foreground: 228 39% 80%;
+    --accent: 231 16% 34%;
+    --accent-foreground: 227 68% 88%;
+    --destructive: 351 74% 73%;
+    --destructive-foreground: 232 23% 18%;
+    --border: 230 19% 26%;
+    --input: 230 19% 26%;
+    --ring: 267 83% 80%;
+  }
+
+  html.kanagawa {
+    color-scheme: dark;
+    --background: 240 13% 14%;
+    --foreground: 51 33% 80%;
+    --card: 240 14% 10%;
+    --card-foreground: 51 33% 80%;
+    --popover: 240 14% 10%;
+    --popover-foreground: 51 33% 80%;
+    --primary: 220 54% 67%;
+    --primary-foreground: 240 14% 10%;
+    --secondary: 240 13% 19%;
+    --secondary-foreground: 51 33% 80%;
+    --muted: 240 13% 19%;
+    --muted-foreground: 51 33% 68%;
+    --accent: 240 13% 24%;
+    --accent-foreground: 51 33% 80%;
+    --destructive: 353 70% 65%;
+    --destructive-foreground: 240 14% 10%;
+    --border: 240 13% 24%;
+    --input: 240 13% 24%;
+    --ring: 220 54% 67%;
+  }
+
+  html.everforest {
+    color-scheme: dark;
+    --background: 206 13% 20%;
+    --foreground: 41 32% 75%;
+    --card: 205 13% 18%;
+    --card-foreground: 41 32% 75%;
+    --popover: 205 13% 18%;
+    --popover-foreground: 41 32% 75%;
+    --primary: 83 34% 63%;
+    --primary-foreground: 205 13% 18%;
+    --secondary: 199 13% 24%;
+    --secondary-foreground: 41 32% 75%;
+    --muted: 199 13% 24%;
+    --muted-foreground: 138 6% 55%;
+    --accent: 199 12% 27%;
+    --accent-foreground: 41 32% 75%;
+    --destructive: 359 68% 70%;
+    --destructive-foreground: 205 13% 18%;
+    --border: 199 12% 27%;
+    --input: 199 12% 27%;
+    --ring: 83 34% 63%;
+  }
+
+  html.github-dark {
+    color-scheme: dark;
+    --background: 216 28% 7%;
+    --foreground: 208 35% 93%;
+    --card: 215 21% 11%;
+    --card-foreground: 208 35% 93%;
+    --popover: 215 21% 11%;
+    --popover-foreground: 208 35% 93%;
+    --primary: 212 100% 67%;
+    --primary-foreground: 216 28% 7%;
+    --secondary: 215 15% 15%;
+    --secondary-foreground: 208 35% 93%;
+    --muted: 215 15% 15%;
+    --muted-foreground: 212 9% 58%;
+    --accent: 212 12% 21%;
+    --accent-foreground: 208 35% 93%;
+    --destructive: 3 93% 63%;
+    --destructive-foreground: 216 28% 7%;
+    --border: 212 12% 21%;
+    --input: 212 12% 21%;
+    --ring: 212 100% 67%;
+  }
+
+  html.github-light {
+    color-scheme: light;
+    --background: 0 0% 100%;
+    --foreground: 213 13% 14%;
+    --card: 210 29% 97%;
+    --card-foreground: 213 13% 14%;
+    --popover: 210 29% 97%;
+    --popover-foreground: 213 13% 14%;
+    --primary: 212 92% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 24% 93%;
+    --secondary-foreground: 213 13% 14%;
+    --muted: 210 29% 97%;
+    --muted-foreground: 212 8% 43%;
+    --accent: 210 24% 93%;
+    --accent-foreground: 213 13% 14%;
+    --destructive: 356 72% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 18% 84%;
+    --input: 210 18% 84%;
+    --ring: 212 92% 45%;
+  }
 }
 
 @layer base {
@@ -112,6 +468,13 @@
   * {
     @apply border-border;
   }
+
+  /* Focus is communicated by the app's rings and surfaces. Do not let the
+     browser paint its default focus-visible outline over the UI. */
+  :focus-visible {
+    outline: none;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -149,6 +512,39 @@
   }
 }
 
+
+/* Opacity-only page entry. A transform on the page root would create a
+   containing block and make fixed dialogs jump to the centre after it ends. */
+.page-enter {
+  animation: recurrency-page-enter 160ms cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes recurrency-page-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog-backdrop {
+  animation: recurrency-dialog-backdrop 150ms ease-out;
+}
+.dialog-card {
+  animation: recurrency-dialog-card 190ms cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes recurrency-dialog-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes recurrency-dialog-card {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .dialog-backdrop,
+  .dialog-card {
+    animation: none;
+  }
+}
 
 /* Canonical pre-WASM/app loader. Keep the same markup in index.html,
    the Android bootstrap and AppLoader. */

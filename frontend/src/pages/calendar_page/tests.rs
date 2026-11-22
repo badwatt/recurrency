@@ -1165,8 +1165,8 @@ fn calendar_shows_transfer_and_pending_summary() {
     fn calendar_mobile_has_month_navigation_and_today() {
         let src = include_str!("../calendar_page.rs");
         assert!(src.contains("CalendarNavigation"));
-        assert!(src.contains("aria_label: \"Previous month\""));
-        assert!(src.contains("aria_label: \"Next month\""));
+        assert!(src.contains("label: \"Previous month\""));
+        assert!(src.contains("label: \"Next month\""));
         assert!(src.contains("\"Today\""));
         assert!(src.contains("md:hidden"));
     }

@@ -73,7 +73,7 @@ changing the effective secret invalidates existing sessions.
 
 > [!TIP]
 > Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.55.16`.
+> `ghcr.io/badwatt/recurrency:0.56.0`.
 
 ### From source
 
@@ -137,7 +137,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **Real charges, not averages** — summaries use the charges that actually fall in the month.
 - **Current or next month** — switch the dashboard summary period from Settings.
 - **Calendar plan** — the same transfer/pending totals sit above the calendar on desktop and mobile.
-- **Upcoming and manual payments** — see what is coming and what is still one-off.
+- **Upcoming payments** — recurring charges and future one-time transactions in one chronological list. Hovering one highlights its account in the transfer ledger.
 
 ### Track everything that repeats
 
@@ -162,7 +162,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 
 ### Currency without surprises
 
-- **One main currency** — set it once in Settings.
+- **One main currency** — all 178 active ISO 4217 codes, including CLP, MXN and the other regional currencies, selectable in Settings.
 - **Original currency preserved** — converted values show the source amount in parentheses.
 - **Automatic rates** — Frankfurter works without a key; choose Fixer and save an encrypted per-user API key from Settings.
 - **Graceful fallback** — unknown rates keep the original amount instead of breaking reports.
@@ -183,7 +183,7 @@ timeline; reports turn the same data into trends and category breakdowns.
 - **QR server setup** — scan a server QR instead of typing its address.
 - **In-app Android update** — download the latest APK and hand it to the installer.
 - **APK download QR** — settings shows a code for the latest Android build.
-- **Dark, light or system** — follows your preference.
+- **18 color themes** — Catppuccin Mocha, Frappé, Macchiato, Latte and Mocha Bloom, plus Dracula, Nord, Tokyo Night, Gruvbox, Rosé Pine, One Dark, Kanagawa, Everforest, GitHub Dark/Light, Solarized Light, Midnight Amber and Paper. Pick one from Settings → Appearance or the top-bar theme menu; dark and light palettes are listed separately, and the choice syncs across devices when signed in.
 - **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
 - **Custom icons and colors** — searchable icon picker for accounts and categories. Subscriptions, transactions and debts sort by created date and last-modified date.
 - **AI assistant (BYOK)** — optional OpenAI-compatible chat that can create, update and delete subscriptions, transactions and debts, including logos and multiple annual billing dates. Settings → AI assistant has provider presets, an endpoint-backed model list with refresh and custom model entry, and an encrypted API key. Desktop has a floating AI button; mobile opens the same agent from the + menu or by long-pressing +.
@@ -492,7 +492,8 @@ Current suite: **1276 backend unit tests**, **87 backend integration tests**,
 3. The Release workflow runs only when that version increases. It builds and
    pushes the all-in-one image, signs the latest APK, builds the standalone
    `recurrency` binary, builds Linux/macOS/Windows desktop bundles, and creates
-   one GitHub release with every artifact.
+   one GitHub release with every artifact. Release notes list every commit since
+   the previous tag, followed by the compare link.
 
 A manual `workflow_dispatch` releases the current version.
 

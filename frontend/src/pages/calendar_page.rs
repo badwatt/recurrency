@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use lucide_dioxus::{ChevronLeft, ChevronRight, Pencil, Receipt, Trash};
 use uuid::Uuid;
 
+use crate::components::button::{Button, ButtonAlign, ButtonSize, ButtonVariant, IconButton};
 use crate::components::dialog::Dialog;
 use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
@@ -37,28 +38,28 @@ fn CalendarNavigation(
     rsx! {
         div { class: "flex items-center justify-between gap-2",
             div { class: "flex min-w-0 items-center gap-2",
-                button {
-                    r#type: "button",
-                    aria_label: "Previous month",
+                IconButton {
+                    label: "Previous month".to_string(),
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Icon,
                     onclick: move |event| on_prev.call(event),
-                    class: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border hover:bg-accent",
                     ChevronLeft { size: 16 }
                 }
                 h2 { class: "min-w-0 truncate text-center text-base font-semibold sm:min-w-[200px] sm:text-xl",
                     {month_label}
                 }
-                button {
-                    r#type: "button",
-                    aria_label: "Next month",
+                IconButton {
+                    label: "Next month".to_string(),
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Icon,
                     onclick: move |event| on_next.call(event),
-                    class: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border hover:bg-accent",
                     ChevronRight { size: 16 }
                 }
             }
-            button {
-                r#type: "button",
+            Button {
+                variant: ButtonVariant::Outline,
+                size: ButtonSize::Sm,
                 onclick: move |event| on_today.call(event),
-                class: "h-9 shrink-0 rounded-md border border-border px-3 text-sm hover:bg-accent",
                 "Today"
             }
         }
@@ -366,7 +367,7 @@ pub fn CalendarPage() -> Element {
     };
 
     rsx! {
-        div { class: "p-4 md:p-6 flex flex-col gap-6 animate-in fade-in",
+        div { class: "p-4 md:p-6 flex flex-col gap-6 page-enter",
             // Header
             div { class: "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3",
                 PageHeader { title: "Calendar", subtitle: "Upcoming payments" }
@@ -548,11 +549,13 @@ pub fn CalendarPage() -> Element {
                                                     // Day number
                                                     div { class: today_cls.to_string(), {d.to_string()} }
                                                     // Add subscription button (top-right, visible on hover)
-                                                    button {
-                                                        r#type: "button",
-                                                        class: "absolute top-1 right-1 h-6 w-6 hidden group-hover:flex group-hover:opacity-100 items-center justify-center rounded-md bg-primary text-primary-foreground opacity-0 hover:bg-primary/80 transition-opacity",
-                                                        title: "Add subscription for {formatted_date}",
-                                                        onclick: move |e| {
+                                                    Button {
+                                                        variant: ButtonVariant::Unstyled,
+                                                        size: ButtonSize::Unstyled,
+                                                        align: ButtonAlign::Center,
+                                                        class: "absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground opacity-0 transition-opacity hover:bg-primary/80 group-hover:flex group-hover:opacity-100".to_string(),
+                                                        title: Some(format!("Add subscription for {formatted_date}")),
+                                                        onclick: move |e: MouseEvent| {
                                                             e.stop_propagation();
                                                             prefill_date.set(Some(formatted_date.clone()));
                                                             editing_id.set(None);
@@ -661,8 +664,9 @@ pub fn CalendarPage() -> Element {
                                         }
                                         if item.kind == CalendarEntryKind::Subscription {
                                             div { class: "flex items-center gap-2 pt-1",
-                                                button {
-                                                    class: "text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1",
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    size: ButtonSize::Sm,
                                                     onclick: {
                                                         let sub_id = item.id;
                                                         move |_| handle_edit(sub_id)
@@ -670,8 +674,10 @@ pub fn CalendarPage() -> Element {
                                                     Pencil { size: 14 }
                                                     "Edit"
                                                 }
-                                                button {
-                                                    class: "text-xs px-3 py-1.5 rounded-md border border-border text-red-600 hover:bg-red-50 dark:hover:bg-red-950 inline-flex items-center gap-1",
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    size: ButtonSize::Sm,
+                                                    class: "text-red-600 hover:bg-red-50 dark:hover:bg-red-950",
                                                     onclick: {
                                                         let sub_id = item.id;
                                                         move |_| handle_delete_request(sub_id)

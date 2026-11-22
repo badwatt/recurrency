@@ -4,6 +4,10 @@ use crate::models::auth::DeleteAccountRequest;
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::card::SectionCard;
+use crate::components::field::Field;
+use crate::components::input::Input;
 #[component]
 pub fn DeleteAccountCard() -> Element {
     let nav = navigator();
@@ -41,19 +45,21 @@ pub fn DeleteAccountCard() -> Element {
     };
 
     rsx! {
-        div { class: "rounded-xl border border-destructive/30 bg-card/80",
-            div { class: "p-6 border-b border-destructive/20",
-                h2 { class: "text-lg font-semibold text-destructive", "Delete account" }
-                p { class: "text-sm text-muted-foreground", "Permanently erase your account and all of its data" }
-            }
+        SectionCard {
+            title: "Delete account",
+            description: "Permanently erase your account and all of its data",
+            class: "border-destructive/30",
+            title_class: "text-destructive",
+            header_class: "border-destructive/20",
+            content_class: "p-0",
             div { class: "p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
                 div { class: "min-w-0",
                     p { class: "text-sm font-medium truncate", {email} }
                     p { class: "text-xs text-muted-foreground", "This cannot be undone." }
                 }
-                button {
-                    r#type: "button",
-                    class: "inline-flex h-10 items-center justify-center rounded-md border border-destructive/40 px-4 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    class: "border-destructive/40 text-destructive hover:bg-destructive/10",
                     onclick: move |_| open.set(true),
                     "Delete account"
                 }
@@ -72,24 +78,21 @@ pub fn DeleteAccountCard() -> Element {
                 p { class: "text-sm text-muted-foreground",
                     "This permanently deletes your account, subscriptions, transactions, accounts, categories and notification settings."
                 }
-                div { class: "space-y-2",
-                    label { r#for: "delete-account-password", class: "text-sm font-medium", "Confirm with your password" }
-                    input {
+                Field { label: "Confirm with your password", html_for: "delete-account-password",
+                    Input {
                         id: "delete-account-password",
                         r#type: "password",
                         autocomplete: "current-password",
                         value: password.to_string(),
-                        oninput: move |e| password.set(e.value()),
-                        class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                        on_input: move |value| password.set(value),
                     }
                 }
                 if !error().is_empty() {
                     p { class: "text-sm text-destructive", role: "alert", {error()} }
                 }
                 div { class: "flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end",
-                    button {
-                        r#type: "button",
-                        class: "h-10 rounded-md border border-border px-4 text-sm font-medium hover:bg-accent",
+                    Button {
+                        variant: ButtonVariant::Outline,
                         onclick: move |_| {
                             open.set(false);
                             password.set(String::new());
@@ -97,9 +100,8 @@ pub fn DeleteAccountCard() -> Element {
                         },
                         "Cancel"
                     }
-                    button {
-                        r#type: "button",
-                        class: "h-10 rounded-md bg-destructive px-4 text-sm font-medium text-white hover:bg-destructive/90 disabled:opacity-50",
+                    Button {
+                        variant: ButtonVariant::Destructive,
                         disabled: busy(),
                         onclick: delete,
                         if busy() { "Deleting..." } else { "Delete account" }

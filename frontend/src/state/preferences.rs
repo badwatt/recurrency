@@ -12,11 +12,11 @@ const VIEW_FILE: &str = "subscriptions_view.txt";
 const TRANSACTIONS_VIEW_FILE: &str = "transactions_view.txt";
 const UPDATES_FILE: &str = "show_updates.txt";
 
-/// Themes the user can pick in settings.
-const SETTABLE_THEMES: [&str; 3] = ["light", "dark", "mocha"];
-/// Values accepted when rehydrating from local storage.
-const STORED_THEMES: [&str; 3] = ["light", "dark", "mocha"];
 const VALID_VIEWS: [&str; 2] = ["grid", "list"];
+
+fn is_valid_theme(theme: &str) -> bool {
+    crate::theme::catalog::theme_by_id(theme.trim()).is_some()
+}
 
 /// Persist a preference value to localStorage (WASM) or a file (native).
 fn persist_local(key: &str, file_name: &str, value: &str) {
@@ -83,6 +83,8 @@ pub struct PreferencesState {
     /// True when the theme was hydrated from disk or explicitly selected on
     /// this device. A server preferences response must not overwrite it.
     theme_from_local: bool,
+    /// True when the current theme still needs to be written to the server.
+    theme_dirty: bool,
 }
 
 impl Default for PreferencesState {
@@ -95,6 +97,7 @@ impl Default for PreferencesState {
             show_updates: true,
             view_from_local: false,
             theme_from_local: false,
+            theme_dirty: false,
         }
     }
 }
@@ -117,6 +120,15 @@ impl PreferencesState {
 
     pub fn show_updates(&self) -> bool {
         self.show_updates
+    }
+
+    pub fn theme_dirty(&self) -> bool {
+        self.theme_dirty
+    }
+
+    /// Mark the current theme as persisted on the server.
+    pub fn mark_theme_synced(&mut self) {
+        self.theme_dirty = false;
     }
 
     pub fn set_show_updates(&mut self, show: bool) {
@@ -169,11 +181,67 @@ impl PreferencesState {
         self.initialized = true;
     }
 
+    /// Apply only the theme from a server response, without touching the
+    /// page-level view/date state or the `initialized` flag. Used by the shell
+    /// poll so the theme syncs even before the subscriptions page loads.
+    pub fn apply_server_theme(&mut self, prefs: &PreferencesResponse) -> Option<String> {
+        if self.theme_dirty {
+            return Some(self.preferences.theme.clone());
+        }
+        if prefs.theme_is_set {
+            self.preferences.theme = prefs.theme.clone();
+            self.theme_from_local = false;
+            persist_local(THEME_KEY, THEME_FILE, &self.preferences.theme);
+            None
+        } else if self.theme_from_local {
+            Some(self.preferences.theme.clone())
+        } else {
+            None
+        }
+    }
+
+    /// Merge a server preferences response into the local state.
+    ///
+    /// An explicitly saved server theme wins on every device. When the server
+    /// has no theme row yet, keep an existing local choice and return it so the
+    /// caller can migrate it to the server; otherwise adopt the server default.
+    pub fn apply_server_preferences(&mut self, prefs: PreferencesResponse) -> Option<String> {
+        let local_theme = self.preferences.theme.clone();
+        let local_theme_was_set = self.theme_from_local;
+        let server_theme_is_set = prefs.theme_is_set;
+        let server_theme = prefs.theme.clone();
+
+        self.preferences = prefs;
+        self.is_loading = false;
+        self.initialized = true;
+
+        if self.theme_dirty {
+            self.preferences.theme = local_theme.clone();
+            self.theme_from_local = true;
+            return Some(local_theme);
+        }
+
+        if server_theme_is_set {
+            self.theme_from_local = false;
+            self.theme_dirty = false;
+            persist_local(THEME_KEY, THEME_FILE, &server_theme);
+            None
+        } else if local_theme_was_set {
+            self.preferences.theme = local_theme.clone();
+            self.theme_from_local = true;
+            Some(local_theme)
+        } else {
+            self.theme_from_local = false;
+            None
+        }
+    }
+
     pub fn set_theme(&mut self, theme: String) {
-        // Only accept valid themes; reject unknown values
-        if SETTABLE_THEMES.contains(&theme.as_str()) {
+        // Only accept themes from the catalogue; reject unknown values.
+        if is_valid_theme(&theme) {
             self.preferences.theme = theme.clone();
             self.theme_from_local = true;
+            self.theme_dirty = true;
             persist_local(THEME_KEY, THEME_FILE, &theme);
         }
     }
@@ -210,7 +278,7 @@ impl PreferencesState {
             return;
         }
         if let Some(theme) = read_local(THEME_KEY, THEME_FILE).as_deref().map(str::trim)
-            && STORED_THEMES.contains(&theme)
+            && is_valid_theme(theme)
         {
             self.preferences.theme = theme.to_string();
             self.theme_from_local = true;
@@ -234,7 +302,7 @@ impl PreferencesState {
         subscriptions_view: Option<&str>,
     ) {
         if let Some(theme) = theme.map(str::trim)
-            && STORED_THEMES.contains(&theme)
+            && is_valid_theme(theme)
         {
             self.preferences.theme = theme.to_string();
             self.theme_from_local = true;
@@ -295,6 +363,26 @@ mod tests {
     }
 
     #[test]
+    fn set_theme_accepts_catalogue_themes() {
+        let mut state = PreferencesState::default();
+        state.set_theme("mocha-bloom".into());
+        assert_eq!(state.theme(), "mocha-bloom");
+        state.set_theme("tokyo-night".into());
+        assert_eq!(state.theme(), "tokyo-night");
+        state.set_theme("solarized-light".into());
+        assert_eq!(state.theme(), "solarized-light");
+    }
+
+    #[test]
+    fn set_theme_accepts_every_catalogue_theme() {
+        for theme in crate::theme::catalog::THEMES {
+            let mut state = PreferencesState::default();
+            state.set_theme(theme.id.to_string());
+            assert_eq!(state.theme(), theme.id);
+        }
+    }
+
+    #[test]
     fn date_format_uses_user_preference_and_normalizes_hyphens() {
         let mut state = PreferencesState::default();
         state.preferences.date_format = "MM-DD-YYYY".into();
@@ -348,12 +436,87 @@ mod tests {
         let mut state = PreferencesState::default();
         state.set_data(PreferencesResponse {
             theme: "mocha".into(),
+            theme_is_set: true,
             subscriptions_view: "list".into(),
             first_day_of_week: "monday".into(),
             date_format: "DD-MM-YYYY".into(),
         });
         assert!(state.initialized);
         assert_eq!(state.theme(), "mocha");
+    }
+
+    #[test]
+    fn shell_theme_sync_does_not_claim_preferences_initialized() {
+        let mut state = PreferencesState::default();
+        state.set_theme("dark".into());
+        state.mark_theme_synced();
+        let push = state.apply_server_theme(&PreferencesResponse {
+            theme: "nord".into(),
+            theme_is_set: true,
+            subscriptions_view: "grid".into(),
+            first_day_of_week: "monday".into(),
+            date_format: "DD/MM/YYYY".into(),
+        });
+        assert_eq!(push, None);
+        assert_eq!(state.theme(), "nord");
+        assert!(!state.initialized);
+    }
+
+    #[test]
+    fn server_explicit_theme_wins_over_local_choice() {
+        let mut state = PreferencesState::default();
+        state.set_theme("dark".into());
+        state.mark_theme_synced();
+        let push = state.apply_server_preferences(PreferencesResponse {
+            theme: "latte".into(),
+            theme_is_set: true,
+            subscriptions_view: "grid".into(),
+            first_day_of_week: "monday".into(),
+            date_format: "DD/MM/YYYY".into(),
+        });
+        assert_eq!(push, None);
+        assert_eq!(state.theme(), "latte");
+        assert!(!state.has_local_theme());
+    }
+
+    #[test]
+    fn unsynced_local_theme_wins_until_the_server_has_it() {
+        let mut state = PreferencesState::default();
+        state.set_theme("dracula".into());
+        let server = PreferencesResponse {
+            theme: "latte".into(),
+            theme_is_set: true,
+            subscriptions_view: "grid".into(),
+            first_day_of_week: "monday".into(),
+            date_format: "DD/MM/YYYY".into(),
+        };
+        assert_eq!(
+            state.apply_server_theme(&server).as_deref(),
+            Some("dracula")
+        );
+        assert_eq!(state.theme(), "dracula");
+        assert!(state.theme_dirty());
+
+        state.mark_theme_synced();
+        assert_eq!(state.apply_server_theme(&server), None);
+        assert_eq!(state.theme(), "latte");
+        assert!(!state.theme_dirty());
+    }
+
+    #[test]
+    fn server_without_theme_keeps_and_returns_local_choice() {
+        let mut state = PreferencesState::default();
+        state.set_theme("dark".into());
+        let push = state.apply_server_preferences(PreferencesResponse {
+            theme: "mocha".into(),
+            theme_is_set: false,
+            subscriptions_view: "grid".into(),
+            first_day_of_week: "monday".into(),
+            date_format: "DD/MM/YYYY".into(),
+        });
+        assert_eq!(push.as_deref(), Some("dark"));
+        assert_eq!(state.theme(), "dark");
+        assert!(state.has_local_theme());
     }
 
     #[test]
@@ -426,6 +589,7 @@ mod tests {
         let mut state = PreferencesState::default();
         let resp = PreferencesResponse {
             theme: "catppuccin-mocha".into(),
+            theme_is_set: true,
             subscriptions_view: "table".into(),
             first_day_of_week: "sunday".into(),
             date_format: "YYYY-MM-DD".into(),
@@ -585,6 +749,7 @@ mod tests {
         assert!(state.has_local_theme());
         state.set_data(PreferencesResponse {
             theme: "light".into(),
+            theme_is_set: true,
             subscriptions_view: "list".into(),
             first_day_of_week: "monday".into(),
             date_format: "DD/MM/YYYY".into(),
@@ -602,5 +767,4 @@ mod tests {
         });
         assert_eq!(state.theme(), "light");
     }
-
 }

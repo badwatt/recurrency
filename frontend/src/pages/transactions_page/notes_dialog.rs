@@ -1,4 +1,6 @@
+use crate::components::button::{Button, ButtonVariant};
 use crate::components::dialog::Dialog;
+use crate::components::textarea::Textarea;
 use crate::models::transaction::UpdateTransactionRequest;
 use crate::state::transactions::TRANSACTIONS;
 use crate::storage::Storage;
@@ -39,13 +41,12 @@ pub fn NotesDialog(open: Signal<bool>, txn_id: Signal<Option<Uuid>>) -> Element 
             title: title,
             footer: rsx! {
                 div { class: "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-                    button {
-                        class: "border px-4 py-2 rounded-md text-sm hover:bg-muted",
+                    Button {
+                        variant: ButtonVariant::Outline,
                         onclick: move |_| open.set(false),
                         "Cancel"
                     }
-                    button {
-                        class: "bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:bg-primary/90",
+                    Button {
                         disabled: notes_saving(),
                         onclick: move |_| {
                             let Some(id) = txn_id() else { return };
@@ -70,11 +71,11 @@ pub fn NotesDialog(open: Signal<bool>, txn_id: Signal<Option<Uuid>>) -> Element 
                     }
                 }
             },
-            textarea {
-                class: "w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none",
+            Textarea {
+                class: "min-h-[120px] resize-none",
                 placeholder: "Add notes...",
                 value: notes_dialog_value.to_string(),
-                oninput: move |e: Event<FormData>| notes_dialog_value.set(e.value()),
+                on_input: move |value: String| notes_dialog_value.set(value),
             }
         }
     }

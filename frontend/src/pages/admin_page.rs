@@ -3,6 +3,10 @@ use lucide_dioxus::{ShieldCheck, Trash};
 
 use crate::api::admin::{self, AdminSettings, AdminUser};
 use crate::components::backup_restore_card::BackupRestoreCard;
+use crate::components::badge::{Badge, BadgeVariant};
+use crate::components::button::{Button, ButtonSize, ButtonVariant, IconButton};
+use crate::components::card::Card;
+use crate::components::checkbox::Checkbox;
 use crate::components::dialog::Dialog;
 use crate::components::page_header::PageHeader;
 use crate::components::toast::TOAST;
@@ -53,7 +57,7 @@ pub fn AdminPage() -> Element {
         loading.set(false);
     });
 
-    let mut save_registration = move |enabled: bool| {
+    let save_registration = move |enabled: bool| {
         if saving() {
             return;
         }
@@ -220,7 +224,7 @@ pub fn AdminPage() -> Element {
                     title: "Administration",
                     subtitle: "This area is restricted to administrators",
                 }
-                div { class: "rounded-xl border border-border/40 bg-card/80 p-6",
+                Card { class: "p-6",
                     p { class: "text-sm text-muted-foreground",
                         "Ask an existing administrator to grant this account access."
                     }
@@ -236,28 +240,28 @@ pub fn AdminPage() -> Element {
     let admin_count = users().iter().filter(|user| user.is_admin).count();
 
     rsx! {
-        div { class: "flex flex-col gap-6 animate-in fade-in",
+        div { class: "flex flex-col gap-6 page-enter",
             PageHeader {
                 title: "Administration",
                 subtitle: "Users, registration and full installation backups",
             }
 
             div { class: "grid gap-3 sm:grid-cols-3",
-                div { class: "rounded-xl border border-border/40 bg-card/80 p-4",
+                Card { class: "p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Users" }
                     p { class: "mt-2 font-mono text-2xl font-bold tabular-nums", "{user_count}" }
                 }
-                div { class: "rounded-xl border border-border/40 bg-card/80 p-4",
+                Card { class: "p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Administrators" }
                     p { class: "mt-2 font-mono text-2xl font-bold tabular-nums", "{admin_count}" }
                 }
-                div { class: "rounded-xl border border-border/40 bg-card/80 p-4",
+                Card { class: "p-4",
                     p { class: "text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", "Registration" }
                     p { class: "mt-2 text-sm font-semibold", if registration_enabled { "Open" } else { "Closed" } }
                 }
             }
 
-            div { class: "rounded-xl border border-border/40 bg-card/80",
+            Card {
                 div { class: "flex items-start gap-3 border-b border-border p-6",
                     span { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary", ShieldCheck { size: 20 } }
                     div {
@@ -268,14 +272,13 @@ pub fn AdminPage() -> Element {
                     }
                 }
                 div { class: "flex items-center justify-between gap-4 p-6",
-                    label { r#for: "admin-registration-enabled", class: "flex min-w-0 items-start gap-3",
-                        input {
-                            r#type: "checkbox",
+                    label { class: "flex min-w-0 items-start gap-3",
+                        Checkbox {
                             id: "admin-registration-enabled",
                             checked: registration_enabled,
                             disabled: saving(),
-                            onchange: move |event| save_registration(event.checked()),
-                            class: "mt-0.5 h-4 w-4 accent-primary",
+                            on_change: save_registration,
+                            class: "mt-0.5",
                         }
                         span {
                             span { class: "block text-sm font-medium", "Allow new registrations" }
@@ -313,16 +316,16 @@ pub fn AdminPage() -> Element {
                         "This permanently deletes the user and all of their accounts, categories, subscriptions, transactions, debts and settings."
                     }
                     div { class: "mt-4 flex flex-wrap gap-2",
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-9 items-center rounded-md bg-destructive px-3 text-sm font-medium text-white hover:bg-destructive/90 disabled:opacity-50",
+                        Button {
+                            variant: ButtonVariant::Destructive,
+                            size: ButtonSize::Sm,
                             disabled: deleting(),
                             onclick: confirm_delete,
                             if deleting() { "Deleting…" } else { "Delete user" }
                         }
-                        button {
-                            r#type: "button",
-                            class: "inline-flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            size: ButtonSize::Sm,
                             onclick: move |_| delete_target.set(None),
                             "Cancel"
                         }
@@ -395,17 +398,18 @@ fn UserRow(
                 }
             }
             if user.is_admin {
-                span { class: "rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary", "Admin" }
+                Badge { variant: BadgeVariant::Primary, class: "rounded-full uppercase tracking-wide", "Admin" }
             }
             if user.verified {
-                span { class: "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300", "Verified" }
+                Badge { variant: BadgeVariant::Success, class: "rounded-full uppercase tracking-wide", "Verified" }
             } else {
-                span { class: "rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground", "Unverified" }
+                Badge { variant: BadgeVariant::Muted, class: "rounded-full uppercase tracking-wide", "Unverified" }
             }
             if can_change_role {
-                button {
-                    r#type: "button",
-                    class: "inline-flex h-8 shrink-0 items-center rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50",
+                Button {
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Sm,
+                    class: "shrink-0 text-muted-foreground",
                     disabled: changing_role,
                     onclick: move |_| on_toggle_admin.call(user.id),
                     ShieldCheck { size: 14 }
@@ -419,11 +423,11 @@ fn UserRow(
                 }
             }
             if can_delete {
-                button {
-                    r#type: "button",
-                    aria_label: "Delete user",
-                    title: "Delete user",
-                    class: "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+                IconButton {
+                    label: "Delete user".to_string(),
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::IconSm,
+                    class: "shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive".to_string(),
                     onclick: move |_| on_delete.call(user.id),
                     Trash { size: 15 }
                 }

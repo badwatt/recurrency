@@ -6,6 +6,10 @@ use crate::state::auth::AUTH;
 use crate::utils::image::base64_encode;
 use dioxus::prelude::*;
 
+use crate::components::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::card::SectionCard;
+use crate::components::field::Field;
+use crate::components::input::Input;
 const MAX_AVATAR_BYTES: u64 = 15_000_000;
 
 /// Profile card: editable email and display name.
@@ -150,11 +154,10 @@ pub fn ProfileCard() -> Element {
     };
 
     rsx! {
-        div { class: "rounded-xl bg-card/80 border border-border/40",
-            div { class: "p-6 border-b border-border",
-                h2 { class: "text-lg font-semibold", "Personal information" }
-                p { class: "text-sm text-muted-foreground", "Your email identifies you; your name is how we greet you" }
-            }
+        SectionCard {
+            title: "Personal information",
+            description: "Your email identifies you; your name is how we greet you",
+            content_class: "p-0",
             div { class: "p-6 flex flex-col gap-4",
                 div { class: "flex items-center gap-4",
                     if avatar().is_empty() {
@@ -178,9 +181,9 @@ pub fn ProfileCard() -> Element {
                     }
                     div { class: "flex flex-col gap-2",
                         if cfg!(target_os = "android") {
-                            button {
-                                r#type: "button",
-                                class: "inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                size: ButtonSize::Sm,
                                 onclick: move |_| {
                                     spawn(async move {
                                         let mut eval = document::eval(r#"
@@ -211,9 +214,9 @@ pub fn ProfileCard() -> Element {
                                 "Change photo"
                             }
                         } else if cfg!(all(not(target_arch = "wasm32"), not(target_os = "android"))) {
-                            button {
-                                r#type: "button",
-                                class: "inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-accent",
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                size: ButtonSize::Sm,
                                 onclick: move |_| {
                                     spawn(async move {
                                         match pick_desktop_avatar().await {
@@ -233,6 +236,8 @@ pub fn ProfileCard() -> Element {
                                 "Change photo"
                                 input {
                                     id: "avatar-file",
+                                    name: "avatar",
+                                    autocomplete: "off",
                                     r#type: "file",
                                     accept: "image/*",
                                     aria_label: "Change profile photo",
@@ -283,44 +288,39 @@ pub fn ProfileCard() -> Element {
                             }
                         }
                         if !avatar().is_empty() {
-                            button {
-                                r#type: "button",
-                                class: "text-left text-xs text-muted-foreground hover:text-destructive",
+                            Button {
+                                variant: ButtonVariant::Ghost,
+                                size: ButtonSize::Xs,
+                                class: "text-muted-foreground hover:text-destructive",
                                 onclick: move |_| avatar.set(String::new()),
                                 "Remove photo"
                             }
                         }
                     }
                 }
-                div { class: "space-y-2",
-                    label { r#for: "settings-email", class: "text-sm font-medium", "Email" }
-                    input {
+                Field { label: "Email", html_for: "settings-email",
+                    Input {
                         id: "settings-email",
                         r#type: "email",
                         autocomplete: "email",
                         value: email.to_string(),
-                        oninput: move |e| email.set(e.value()),
-                        class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                        on_input: move |value| email.set(value),
                     }
                 }
-                div { class: "space-y-2",
-                    label { r#for: "settings-name", class: "text-sm font-medium", "Name" }
-                    input {
+                Field { label: "Name", html_for: "settings-name",
+                    Input {
                         id: "settings-name",
                         r#type: "text",
                         autocomplete: "name",
                         value: name.to_string(),
-                        oninput: move |e| name.set(e.value()),
-                        class: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                        on_input: move |value| name.set(value),
                     }
                 }
                 if !error().is_empty() {
                     p { class: "text-sm text-destructive", role: "alert", {error()} }
                 }
                 div { class: "flex justify-end",
-                    button {
-                        r#type: "button",
-                        class: "inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                    Button {
                         disabled: saving(),
                         onclick: save,
                         if saving() { "Saving..." } else { "Save changes" }

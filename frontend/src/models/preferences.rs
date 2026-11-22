@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PreferencesResponse {
     pub theme: String,
+    /// True when the server has an explicitly saved theme. Older servers send
+    /// no field, which deserializes to false.
+    #[serde(default)]
+    pub theme_is_set: bool,
     pub subscriptions_view: String,
     pub first_day_of_week: String,
     pub date_format: String, // Kept for API backward compat; derived from locale in UI
@@ -12,6 +16,7 @@ impl Default for PreferencesResponse {
     fn default() -> Self {
         Self {
             theme: "mocha".into(),
+            theme_is_set: false,
             subscriptions_view: "grid".into(),
             first_day_of_week: "monday".into(),
             date_format: "DD/MM/YYYY".into(),
@@ -36,6 +41,7 @@ mod tests {
     fn default_preferences() {
         let prefs = PreferencesResponse::default();
         assert_eq!(prefs.theme, "mocha");
+        assert!(!prefs.theme_is_set);
         assert_eq!(prefs.subscriptions_view, "grid");
         assert_eq!(prefs.first_day_of_week, "monday");
         assert_eq!(prefs.date_format, "DD/MM/YYYY");
@@ -45,6 +51,7 @@ mod tests {
     fn roundtrip() {
         let prefs = PreferencesResponse {
             theme: "dark".into(),
+            theme_is_set: true,
             subscriptions_view: "list".into(),
             first_day_of_week: "monday".into(),
             date_format: "YYYY/MM/DD".into(),
@@ -118,6 +125,7 @@ mod tests {
     fn preferences_custom_values() {
         let prefs = PreferencesResponse {
             theme: "catppuccin-mocha".into(),
+            theme_is_set: true,
             subscriptions_view: "table".into(),
             first_day_of_week: "sunday".into(),
             date_format: "YYYY/MM/DD".into(),

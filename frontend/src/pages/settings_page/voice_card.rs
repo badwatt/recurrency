@@ -3,6 +3,7 @@ use lucide_dioxus::{
     Cloud, Cpu, Download, Globe, HardDrive, Mic, ShieldCheck, Smartphone, Sparkles, Trash,
 };
 
+use crate::components::button::{Button, ButtonRadius, ButtonSize, ButtonVariant};
 use crate::components::toast::TOAST;
 use crate::state::ai::is_configured;
 use crate::state::voice::{self, VoiceMode};
@@ -131,17 +132,19 @@ pub fn AiVoiceCard() -> Element {
                             let hint = mode_hint(option);
                             let active = mode() == option;
                             rsx! {
-                                button {
-                                    r#type: "button",
+                                Button {
+                                    variant: ButtonVariant::Unstyled,
+                                    size: ButtonSize::Unstyled,
+                                    radius: ButtonRadius::None,
                                     disabled: !available,
-                                    aria_pressed: if active { "true" } else { "false" },
-                                    class: if active {
+                                    aria_pressed: Some((if active { "true" } else { "false" }).to_string()),
+                                    class: (if active {
                                         "group flex items-start gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3.5 text-left ring-1 ring-primary/20"
                                     } else if available {
                                         "group flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 p-3.5 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
                                     } else {
                                         "group flex items-start gap-3 rounded-xl border border-border/40 bg-background/20 p-3.5 text-left opacity-55"
-                                    },
+                                    }).to_string(),
                                     onclick: move |_| choose_mode(option),
                                     span { class: if active {
                                         "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
@@ -186,18 +189,18 @@ pub fn AiVoiceCard() -> Element {
                                 }
                             }
                             if !installed_selected {
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50",
+                                Button {
+                                    size: ButtonSize::Sm,
                                     disabled: downloading(),
                                     onclick: move |_| start_download(selected),
                                     Download { size: 13 }
                                     if downloading_this { "Downloading…" } else { "Download" }
                                 }
                             } else {
-                                button {
-                                    r#type: "button",
-                                    class: "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10",
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
+                                    class: "border-destructive/30 text-destructive hover:bg-destructive/10",
                                     onclick: move |_| {
                                         match local_speech::delete(selected) {
                                             Ok(()) => {
@@ -219,13 +222,15 @@ pub fn AiVoiceCard() -> Element {
                                     let is_recommended = recommended.id == model.id;
                                     let installed = model_is_installed(model);
                                     rsx! {
-                                        button {
-                                            r#type: "button",
-                                            class: if active {
+                                        Button {
+                                            variant: ButtonVariant::Unstyled,
+                                            size: ButtonSize::Unstyled,
+                                            radius: ButtonRadius::None,
+                                            class: (if active {
                                                 "rounded-lg border border-primary/40 bg-primary/5 p-3 text-left"
                                             } else {
                                                 "rounded-lg border border-border/50 bg-card/50 p-3 text-left transition-colors hover:border-primary/25 hover:bg-accent/30"
-                                            },
+                                            }).to_string(),
                                             onclick: move |_| {
                                                 voice::set_model(model.id);
                                                 selected_model.set(model.id.to_string());

@@ -61,6 +61,8 @@ pub fn ColorField(
                 }
                 input {
                     r#type: "color",
+                    id: "color-picker",
+                    name: "color",
                     value: hex,
                     aria_label: label.clone(),
                     title: label,
