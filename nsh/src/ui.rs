@@ -11,6 +11,7 @@ use nsh_core::prelude::*;
 thread_local! {
     static PRIVACY: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
     static SETTINGS_INTENT: RefCell<Option<Signal<Option<String>>>> = const { RefCell::new(None) };
+    static AI_CHAT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -24,6 +25,32 @@ pub fn init_privacy() {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
             *slot = Some(signal(None));
+        }
+    });
+    AI_CHAT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(false));
+        }
+    });
+}
+
+pub fn ai_chat_open() -> bool {
+    AI_CHAT.with(|slot| slot.borrow().map_or(false, |open| open.get()))
+}
+
+pub fn open_ai_chat() {
+    AI_CHAT.with(|slot| {
+        if let Some(open) = *slot.borrow() {
+            open.set(true);
+        }
+    });
+}
+
+pub fn close_ai_chat() {
+    AI_CHAT.with(|slot| {
+        if let Some(open) = *slot.borrow() {
+            open.set(false);
         }
     });
 }
@@ -106,7 +133,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(view().flex_1())
-                .child(icon_action(route, asset!("icons/sparkles.svg"), "ai"))
+                .child(ai_action(route, auth.clone()))
                 .child(privacy_action())
                 .child(icon_action(route, asset!("icons/palette.svg"), "appearance"))
                 .child(avatar(route, auth)),
@@ -126,6 +153,28 @@ fn icon_action(route: Signal<Route>, icon: ImageAsset, section: &'static str) ->
                 .size(px(17.0))
                 .tint_color(move || theme().muted_foreground),
         )
+}
+
+fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
+    let token = auth.token.clone();
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(30.0))
+        .w(px(30.0))
+        .rounded(px(6.0))
+        .accessibility_label("AI assistant")
+        .on_press(move || {
+            let server = crate::auth::stored_server();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::load_ai_settings(server, token).await {
+                    Ok(settings) if settings.enabled && settings.configured => open_ai_chat(),
+                    _ => request_settings(route, "ai"),
+                }
+            });
+        })
+        .child(image(asset!("icons/sparkles.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground))
 }
 
 fn privacy_action() -> impl IntoElement {

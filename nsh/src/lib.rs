@@ -4,6 +4,7 @@
 //! app while replacing the renderer. Screens are ported one at a time; this
 //! first slice owns the app frame and the dashboard's visual shell.
 
+mod ai_chat;
 mod api;
 mod auth;
 mod calendar;
@@ -134,6 +135,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
             }
         }
     });
+    let chat_auth = auth.clone();
     let auth_signal = signal(auth);
     let compact = signal(false);
     let modal = ui::ModalHost::new();
@@ -216,6 +218,10 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         )
         .child(
             when(move || modal.active(), move || ui::modal_overlay(modal))
+                .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(move || ui::ai_chat_open(), move || ai_chat::ai_chat(chat_auth.clone()))
                 .otherwise(|| view().h(px(0.0))),
         )
         .into_element()

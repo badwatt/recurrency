@@ -1220,6 +1220,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 )
+                .child(ui::action_button("Open assistant", false, move || crate::ui::open_ai_chat()))
                 .child(
                     view()
                         .flex_row()

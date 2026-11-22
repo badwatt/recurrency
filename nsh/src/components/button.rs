@@ -210,6 +210,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         .items_center()
         .justify_center()
         .flex_shrink_0()
+        .self_start()
         .h(px(height))
         .when(width > 0.0, |button| button.w(px(width)))
         .when(full_width, |button| button.w_full())

@@ -1,7 +1,7 @@
 //! Authenticated REST access for the native screens.
 
 use chrono::Local;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
@@ -354,6 +354,31 @@ pub async fn load_preferences(server: String, token: String) -> Result<Preferenc
 pub async fn save_theme(server: String, token: String, theme: &str) -> Result<Preferences, String> {
     Client::new(server, token)
         .put("/api/preferences", &ThemeBody { theme })
+        .await
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AiMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct AiChatResponse {
+    #[serde(default)]
+    pub reply: String,
+    #[serde(default)]
+    pub actions: Vec<serde_json::Value>,
+}
+
+#[derive(Serialize)]
+struct AiChatRequest<'a> {
+    messages: &'a [AiMessage],
+}
+
+pub async fn ai_chat(server: String, token: String, messages: &[AiMessage]) -> Result<AiChatResponse, String> {
+    Client::new(server, token)
+        .post("/api/ai/chat", &AiChatRequest { messages })
         .await
 }
 

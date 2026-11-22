@@ -51,3 +51,4 @@ toggles and the dialog host. New page code should add a primitive there first
 and reuse it, matching the Dioxus component boundaries.
 
 - [x] Privacy mode masks every amount from the top-bar eye control.
+- [x] In-app BYOK AI chat dialog with action results.

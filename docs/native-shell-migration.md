@@ -78,4 +78,5 @@ toolbar.
 | `theme_picker.rs` | `theme.rs` catalogue + Appearance grid | Ported + server sync |
 | `web_server_qr.rs` | `components/web_server_qr.rs` | Ported (canvas QR) |
 | `backup_restore_card.rs` | Settings data card | Ported |
+| `ai_chat.rs` | `ai_chat.rs` | Ported (text chat) |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |
