@@ -25,8 +25,9 @@ from <https://nsh.dev/docs/installation>.
 - [ ] Registration, logout and local mode.
 - [x] Dashboard data, upcoming payments and the account/category ledger.
 - [ ] Dashboard hover links and responsive/mobile layout.
-- [x] Subscriptions list with search and active/inactive groups.
-- [ ] Subscription create/edit forms, transactions, debts, calendar, reports.
+- [x] Subscriptions list, search and active/inactive groups.
+- [x] Inline create-subscription form with account/category chips and recurrence.
+- [ ] Subscription edit/delete, modal shell, transactions, debts, calendar, reports.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 

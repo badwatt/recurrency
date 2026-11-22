@@ -2,7 +2,7 @@
 
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -23,7 +23,7 @@ pub struct Category {
     pub color: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct AnnualDate {
     pub month: u8,
     pub day: u8,
@@ -31,7 +31,7 @@ pub struct AnnualDate {
     pub amount: Option<Decimal>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub struct Recurrence {
     pub interval: u16,
     /// "day", "week", "month" or "year".

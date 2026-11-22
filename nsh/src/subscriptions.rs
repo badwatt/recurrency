@@ -1,16 +1,33 @@
 //! Subscriptions list: searchable cards grouped by active state.
 
+use chrono::{Datelike, Local, NaiveDate};
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
+use rust_decimal::Decimal;
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, SubscriptionsData};
 use crate::auth::AuthSession;
 use crate::format::format_currency;
-use crate::models::Subscription;
+use crate::models::{AnnualDate, Recurrence, Subscription};
 use crate::theme as design;
 use crate::ui;
+
+#[derive(Serialize)]
+pub struct CreateSubscriptionRequest {
+    pub name: String,
+    pub amount: Decimal,
+    pub currency: String,
+    pub frequency: String,
+    pub start_date: NaiveDate,
+    pub account_id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<Uuid>,
+    pub recurrence: Recurrence,
+    pub is_active: bool,
+}
 
 const TITLE: &str = "Subscriptions";
 const SUBTITLE: &str = "Track and manage recurring payments";
@@ -24,25 +41,80 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
         auth.user.currency.clone()
     };
     let load_currency = currency.clone();
+    let resource_server = server.clone();
+    let resource_token = token.clone();
     let data = resource(
         || Some(()),
         move |(), _| {
-            let server = server.clone();
-            let token = token.clone();
+            let server = resource_server.clone();
+            let token = resource_token.clone();
             let currency = load_currency.clone();
             async move { api::load_subscriptions(server, token, currency).await }
         },
     );
     let search = signal(String::new());
-    let loading = move || data.loading() && data.get().is_none();
-    let has_error = move || data.error().is_some();
+    let form_open = signal(false);
+    let name = signal(String::new());
+    let amount = signal(String::new());
+    let start_date = signal(String::new());
+    let day = signal(String::new());
+    let unit = signal("month".to_string());
+    let account_id = signal(None::<Uuid>);
+    let category_id = signal(None::<Uuid>);
+    let form_error = signal(String::new());
+    let saving = signal(false);
+    let loading = move || data.loading() && data.get().is_none() && !form_open.get();
+    let has_error = move || data.error().is_some() && !form_open.get();
     let render_currency = currency.clone();
+
+    let open_form = move || {
+        let snapshot = data.get().unwrap_or_default();
+        let today = Local::now().date_naive();
+        name.set(String::new());
+        amount.set(String::new());
+        start_date.set(today.to_string());
+        day.set(today.day().to_string());
+        unit.set("month".to_string());
+        account_id.set(
+            snapshot
+                .accounts
+                .iter()
+                .find(|account| account.is_default)
+                .or_else(|| snapshot.accounts.first())
+                .map(|account| account.id),
+        );
+        category_id.set(snapshot.categories.first().map(|category| category.id));
+        form_error.set(String::new());
+        saving.set(false);
+        form_open.set(true);
+    };
 
     view()
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(ui::page_header(TITLE, SUBTITLE))
+        .child(header(open_form))
+        .child(
+            when(move || form_open.get(), move || {
+                form(
+                    data,
+                    name,
+                    amount,
+                    start_date,
+                    day,
+                    unit,
+                    account_id,
+                    category_id,
+                    form_error,
+                    saving,
+                    form_open,
+                    server.clone(),
+                    token.clone(),
+                    currency.clone(),
+                )
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
         .child(toolbar(data, search))
         .child(
             when(loading, || loading_card()).otherwise(move || {
@@ -54,6 +126,374 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
             }),
         )
         .into_element()
+}
+
+fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
+    view()
+        .w_full()
+        .flex_row()
+        .items_end()
+        .justify_between()
+        .gap(px(24.0))
+        .child(ui::page_header(TITLE, SUBTITLE))
+        .child(
+            button()
+                .h(px(40.0))
+                .px(px(16.0))
+                .rounded(px(8.0))
+                .bg(move || theme().primary)
+                .on_press(on_add)
+                .child(
+                    text("Add subscription")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().primary_foreground),
+                ),
+        )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn form(
+    data: Resource<SubscriptionsData, String>,
+    name: Signal<String>,
+    amount: Signal<String>,
+    start_date: Signal<String>,
+    day: Signal<String>,
+    unit: Signal<String>,
+    account_id: Signal<Option<Uuid>>,
+    category_id: Signal<Option<Uuid>>,
+    form_error: Signal<String>,
+    saving: Signal<bool>,
+    form_open: Signal<bool>,
+    server: String,
+    token: String,
+    currency: String,
+) -> impl IntoElement {
+    let save = {
+        let server = server;
+        let token = token;
+        let currency = currency.clone();
+        move || {
+            if saving.get() {
+                return;
+            }
+            let Some(account_id_value) = account_id.get() else {
+                form_error.set("Create an account first.".to_string());
+                return;
+            };
+            let name_value = name.get().trim().to_string();
+            if name_value.is_empty() {
+                form_error.set("Name is required.".to_string());
+                return;
+            }
+            let Ok(amount_value) = amount.get().trim().parse::<Decimal>() else {
+                form_error.set("Enter a valid amount.".to_string());
+                return;
+            };
+            if amount_value <= Decimal::ZERO {
+                form_error.set("Amount must be positive.".to_string());
+                return;
+            }
+            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d") else {
+                form_error.set("Use YYYY-MM-DD for the start date.".to_string());
+                return;
+            };
+            let Ok(day_value) = day.get().trim().parse::<u8>() else {
+                form_error.set("Enter a day between 1 and 31.".to_string());
+                return;
+            };
+            if !(1..=31).contains(&day_value) {
+                form_error.set("Enter a day between 1 and 31.".to_string());
+                return;
+            }
+            let unit_value = unit.get();
+            let request = CreateSubscriptionRequest {
+                name: name_value,
+                amount: amount_value,
+                currency: currency.clone(),
+                frequency: frequency_for(&unit_value).to_string(),
+                start_date: start_value,
+                account_id: account_id_value,
+                category_id: category_id.get(),
+                recurrence: recurrence_for(&unit_value, day_value, start_value),
+                is_active: true,
+            };
+            saving.set(true);
+            form_error.set(String::new());
+            let server_value = server.clone();
+            let token_value = token.clone();
+            spawn(async move {
+                match api::create_subscription(server_value, token_value, &request).await {
+                    Ok(_) => {
+                        form_open.set(false);
+                        data.refetch();
+                    }
+                    Err(message) => form_error.set(message),
+                }
+                saving.set(false);
+            });
+        }
+    };
+
+    view()
+        .w_full()
+        .max_w(px(760.0))
+        .rounded(px(16.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(24.0))
+        .gap(px(16.0))
+        .child(
+            view()
+                .flex_col()
+                .gap(px(2.0))
+                .child(
+                    text("New subscription")
+                        .text_size(px(20.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("Add a recurring payment. Choose an account and a schedule.")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .gap(px(12.0))
+                .child(field("Name", name, "Spotify Premium"))
+                .child(field("Amount", amount, "10.99")),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .gap(px(12.0))
+                .child(field("Start date", start_date, "2026-11-22"))
+                .child(field("Day", day, "23")),
+        )
+        .child(picker(
+            "Account",
+            data,
+            account_id,
+            true,
+        ))
+        .child(picker(
+            "Category",
+            data,
+            category_id,
+            false,
+        ))
+        .child(
+            view()
+                .flex_col()
+                .gap(px(6.0))
+                .child(label("Repeat"))
+                .child(
+                    view()
+                        .flex_row()
+                        .gap(px(6.0))
+                        .child(unit_chip("Monthly", "month", unit))
+                        .child(unit_chip("Yearly", "year", unit))
+                        .child(unit_chip("Weekly", "week", unit)),
+                ),
+        )
+        .child(
+            when(move || !form_error.get().is_empty(), move || {
+                text(move || form_error.get())
+                    .text_size(px(12.0))
+                    .text_color(move || theme().destructive)
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    button()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .bg(move || theme().primary)
+                        .disabled(move || saving.get())
+                        .disabled_style(|state| state.opacity(0.5))
+                        .on_press(move || save())
+                        .child(
+                            text(move || if saving.get() { "Saving..." } else { "Save subscription" })
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
+                        ),
+                )
+                .child(
+                    button()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().card)
+                        .on_press(move || form_open.set(false))
+                        .child(
+                            text("Cancel")
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        ),
+                ),
+        )
+}
+
+fn field(label_text: &'static str, value: Signal<String>, placeholder: &'static str) -> impl IntoElement {
+    view()
+        .flex_grow(1.0)
+        .flex_col()
+        .gap(px(6.0))
+        .min_w(px(0.0))
+        .child(label(label_text))
+        .child(
+            input()
+                .value(value)
+                .on_change(move |next: &str| value.set(next.to_string()))
+                .placeholder(placeholder)
+                .auto_fill(AutoFill::Off)
+                .h(px(38.0))
+                .px(px(10.0))
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || theme().input)
+                .bg(move || theme().card)
+                .text_size(px(13.0))
+                .text_color(move || theme().foreground),
+        )
+}
+
+fn label(text_value: &'static str) -> impl IntoElement {
+    text(text_value)
+        .text_size(px(12.0))
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(move || theme().muted_foreground)
+}
+
+fn picker(
+    label_text: &'static str,
+    data: Resource<SubscriptionsData, String>,
+    selected: Signal<Option<Uuid>>,
+    accounts: bool,
+) -> impl IntoElement {
+    let items = move || {
+        let snapshot = data.get().unwrap_or_default();
+        if accounts {
+            snapshot
+                .accounts
+                .into_iter()
+                .map(|account| (account.id, account.name))
+                .collect::<Vec<_>>()
+        } else {
+            snapshot
+                .categories
+                .into_iter()
+                .map(|category| (category.id, category.name))
+                .collect::<Vec<_>>()
+        }
+    };
+    view()
+        .flex_col()
+        .gap(px(6.0))
+        .child(label(label_text))
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .gap(px(6.0))
+                .child(each(
+                    items,
+                    |(id, _)| *id,
+                    move |entry, _| {
+                        let (id, name) = entry.get();
+                        let active = selected.get() == Some(id);
+                        button()
+                            .h(px(30.0))
+                            .px(px(10.0))
+                            .rounded(px(6.0))
+                            .border(px(1.0))
+                            .border_color(move || if active { theme().primary } else { theme().border })
+                            .bg(move || if active { theme().accent } else { theme().card })
+                            .on_press(move || selected.set(Some(id)))
+                            .child(
+                                text(name)
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || if active {
+                                        theme().foreground
+                                    } else {
+                                        theme().muted_foreground
+                                    }),
+                            )
+                    },
+                )),
+        )
+}
+
+fn unit_chip(label_text: &'static str, value: &'static str, unit: Signal<String>) -> impl IntoElement {
+    let active = move || unit.get() == value;
+    button()
+        .h(px(30.0))
+        .px(px(10.0))
+        .rounded(px(6.0))
+        .border(px(1.0))
+        .border_color(move || if active() { theme().primary } else { theme().border })
+        .bg(move || if active() { theme().accent } else { theme().card })
+        .on_press(move || unit.set(value.to_string()))
+        .child(
+            text(label_text)
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || if active() {
+                    theme().foreground
+                } else {
+                    theme().muted_foreground
+                }),
+        )
+}
+
+fn frequency_for(unit: &str) -> &'static str {
+    match unit {
+        "year" => "yearly",
+        "week" => "weekly",
+        "day" => "daily",
+        _ => "monthly",
+    }
+}
+
+fn recurrence_for(unit: &str, day: u8, start: NaiveDate) -> Recurrence {
+    let mut recurrence = Recurrence {
+        interval: 1,
+        unit: unit.to_string(),
+        ..Recurrence::default()
+    };
+    match unit {
+        "year" => {
+            recurrence.dates = vec![AnnualDate {
+                month: start.month() as u8,
+                day,
+                amount: None,
+            }];
+        }
+        "week" => {
+            recurrence.weekdays = vec![start.weekday().number_from_monday() as u8];
+        }
+        _ => {
+            recurrence.days = vec![day];
+        }
+    }
+    recurrence
 }
 
 fn toolbar(
@@ -471,6 +911,56 @@ mod tests {
         let filtered = filter_subscriptions(&items, "", &[]);
         assert_eq!(filtered[0].name, "Zebra");
         assert!(!filtered[1].is_active);
+    }
+
+    #[test]
+    fn monthly_recurrence_uses_the_chosen_day() {
+        let recurrence = recurrence_for("month", 15, date(2026, 11, 22));
+        assert_eq!(recurrence.unit, "month");
+        assert_eq!(recurrence.days, vec![15]);
+        assert!(recurrence.dates.is_empty());
+        assert_eq!(frequency_for("month"), "monthly");
+    }
+
+    #[test]
+    fn yearly_recurrence_uses_a_single_annual_date() {
+        let recurrence = recurrence_for("year", 5, date(2026, 11, 22));
+        assert_eq!(recurrence.unit, "year");
+        assert_eq!(
+            recurrence.dates,
+            vec![AnnualDate {
+                month: 11,
+                day: 5,
+                amount: None,
+            }]
+        );
+        assert_eq!(frequency_for("year"), "yearly");
+    }
+
+    #[test]
+    fn weekly_recurrence_uses_the_start_weekday() {
+        let recurrence = recurrence_for("week", 1, date(2026, 11, 22));
+        assert_eq!(recurrence.weekdays, vec![7]);
+        assert_eq!(frequency_for("week"), "weekly");
+    }
+
+    #[test]
+    fn create_request_serializes_the_recurrence_and_skips_no_category() {
+        let request = CreateSubscriptionRequest {
+            name: "Spotify".to_string(),
+            amount: Decimal::new(1099, 2),
+            currency: "EUR".to_string(),
+            frequency: "monthly".to_string(),
+            start_date: date(2026, 11, 22),
+            account_id: Uuid::new_v4(),
+            category_id: None,
+            recurrence: recurrence_for("month", 23, date(2026, 11, 22)),
+            is_active: true,
+        };
+        let json = serde_json::to_value(request).expect("request serializes");
+        assert_eq!(json["frequency"], "monthly");
+        assert_eq!(json["recurrence"]["days"][0], 23);
+        assert!(json.get("category_id").is_none());
     }
 
     #[test]
