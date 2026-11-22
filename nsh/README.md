@@ -32,7 +32,7 @@ from <https://nsh.dev/docs/installation>.
 - [x] Calendar month grid with scheduled and one-time payments.
 - [x] Reports summary, category split, spending trends and CSV export.
 - [x] Settings account, appearance, general, notifications, AI, backup, server and about.
-- [x] Registration, login, top-bar account access and logout.
+- [x] Registration, login, top-bar account access, logout, CSV export and server backups.
 - [ ] Modal shell, mobile layout, Money/Admin settings, PDF export.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
