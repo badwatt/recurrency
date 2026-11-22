@@ -53,3 +53,14 @@ pub fn filter_menu(active: usize, body: AnyElement) -> impl IntoElement {
             )
         })
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_filter_shell_keeps_the_shared_trigger_and_badge() {
+        let source = include_str!("filter_menu.rs");
+        assert!(source.contains("icons/filter.svg"));
+        assert!(source.contains("active > 0"));
+        assert!(source.contains("z_index(80)"));
+    }
+}

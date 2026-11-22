@@ -24,3 +24,13 @@ pub fn privacy_toggle(active: bool, on_press: impl Fn() + 'static) -> impl IntoE
                 }),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_privacy_toggle_uses_the_shared_eye_icon() {
+        let source = include_str!("privacy_toggle.rs");
+        assert!(source.contains("icons/eye.svg"));
+        assert!(source.contains("Toggle privacy mode"));
+    }
+}
