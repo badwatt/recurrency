@@ -29,6 +29,35 @@ pub struct CreateSubscriptionRequest {
     pub is_active: bool,
 }
 
+#[derive(Serialize)]
+struct ToggleSubscriptionRequest {
+    is_active: bool,
+}
+
+#[derive(Clone, Copy)]
+struct FormSignals {
+    open: Signal<bool>,
+    editing: Signal<Option<Uuid>>,
+    name: Signal<String>,
+    amount: Signal<String>,
+    start_date: Signal<String>,
+    day: Signal<String>,
+    unit: Signal<String>,
+    account_id: Signal<Option<Uuid>>,
+    category_id: Signal<Option<Uuid>>,
+    error: Signal<String>,
+    saving: Signal<bool>,
+    active: Signal<bool>,
+}
+
+#[derive(Clone, Copy)]
+struct ListActions {
+    form: FormSignals,
+    delete_confirm: Signal<Option<Uuid>>,
+    busy: Signal<Option<Uuid>>,
+    error: Signal<String>,
+}
+
 const TITLE: &str = "Subscriptions";
 const SUBTITLE: &str = "Track and manage recurring payments";
 
@@ -54,6 +83,8 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
     );
     let search = signal(String::new());
     let form_open = signal(false);
+    let editing = signal(None::<Uuid>);
+    let active = signal(true);
     let name = signal(String::new());
     let amount = signal(String::new());
     let start_date = signal(String::new());
@@ -63,6 +94,31 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
     let category_id = signal(None::<Uuid>);
     let form_error = signal(String::new());
     let saving = signal(false);
+    let delete_confirm = signal(None::<Uuid>);
+    let busy = signal(None::<Uuid>);
+    let action_error = signal(String::new());
+    let form_signals = FormSignals {
+        open: form_open,
+        editing,
+        name,
+        amount,
+        start_date,
+        day,
+        unit,
+        account_id,
+        category_id,
+        error: form_error,
+        saving,
+        active,
+    };
+    let actions = ListActions {
+        form: form_signals,
+        delete_confirm,
+        busy,
+        error: action_error,
+    };
+    let server_signal = signal(server.clone());
+    let token_signal = signal(token.clone());
     let loading = move || data.loading() && data.get().is_none() && !form_open.get();
     let has_error = move || data.error().is_some() && !form_open.get();
     let render_currency = currency.clone();
@@ -86,6 +142,8 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
         category_id.set(snapshot.categories.first().map(|category| category.id));
         form_error.set(String::new());
         saving.set(false);
+        editing.set(None);
+        active.set(true);
         form_open.set(true);
     };
 
@@ -98,18 +156,9 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
             when(move || form_open.get(), move || {
                 form(
                     data,
-                    name,
-                    amount,
-                    start_date,
-                    day,
-                    unit,
-                    account_id,
-                    category_id,
-                    form_error,
-                    saving,
-                    form_open,
-                    server.clone(),
-                    token.clone(),
+                    form_signals,
+                    server_signal,
+                    token_signal,
                     currency.clone(),
                 )
             })
@@ -117,12 +166,29 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
         )
         .child(toolbar(data, search))
         .child(
+            when(move || !actions.error.get().is_empty(), move || {
+                text(move || actions.error.get())
+                    .text_size(px(13.0))
+                    .text_color(move || theme().destructive)
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
             when(loading, || loading_card()).otherwise(move || {
                 let value = render_currency.clone();
                 when(has_error, move || {
                     error_card(&data.error().unwrap_or_default(), data)
                 })
-                .otherwise(move || content(data, search, value.clone()))
+                .otherwise(move || {
+                    content(
+                        data,
+                        search,
+                        value.clone(),
+                        actions,
+                        server_signal,
+                        token_signal,
+                    )
+                })
             }),
         )
         .into_element()
@@ -152,26 +218,28 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
         )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn form(
     data: Resource<SubscriptionsData, String>,
-    name: Signal<String>,
-    amount: Signal<String>,
-    start_date: Signal<String>,
-    day: Signal<String>,
-    unit: Signal<String>,
-    account_id: Signal<Option<Uuid>>,
-    category_id: Signal<Option<Uuid>>,
-    form_error: Signal<String>,
-    saving: Signal<bool>,
-    form_open: Signal<bool>,
-    server: String,
-    token: String,
+    form: FormSignals,
+    server: Signal<String>,
+    token: Signal<String>,
     currency: String,
 ) -> impl IntoElement {
+    let FormSignals {
+        open: form_open,
+        editing,
+        name,
+        amount,
+        start_date,
+        day,
+        unit,
+        account_id,
+        category_id,
+        error: form_error,
+        saving,
+        active,
+    } = form;
     let save = {
-        let server = server;
-        let token = token;
         let currency = currency.clone();
         move || {
             if saving.get() {
@@ -216,16 +284,23 @@ fn form(
                 account_id: account_id_value,
                 category_id: category_id.get(),
                 recurrence: recurrence_for(&unit_value, day_value, start_value),
-                is_active: true,
+                is_active: active.get(),
             };
             saving.set(true);
             form_error.set(String::new());
-            let server_value = server.clone();
-            let token_value = token.clone();
+            let server_value = server.get();
+            let token_value = token.get();
+            let editing_value = editing.get();
             spawn(async move {
-                match api::create_subscription(server_value, token_value, &request).await {
+                let result = if let Some(id) = editing_value {
+                    api::update_subscription(server_value, token_value, id, &request).await
+                } else {
+                    api::create_subscription(server_value, token_value, &request).await
+                };
+                match result {
                     Ok(_) => {
                         form_open.set(false);
+                        editing.set(None);
                         data.refetch();
                     }
                     Err(message) => form_error.set(message),
@@ -249,13 +324,17 @@ fn form(
                 .flex_col()
                 .gap(px(2.0))
                 .child(
-                    text("New subscription")
+                    text(move || if editing.get().is_some() { "Edit subscription" } else { "New subscription" })
                         .text_size(px(20.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
                 )
                 .child(
-                    text("Add a recurring payment. Choose an account and a schedule.")
+                    text(move || if editing.get().is_some() {
+                        "Update the payment, account or schedule."
+                    } else {
+                        "Add a recurring payment. Choose an account and a schedule."
+                    })
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 ),
@@ -339,7 +418,10 @@ fn form(
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
-                        .on_press(move || form_open.set(false))
+                        .on_press(move || {
+                            form_open.set(false);
+                            editing.set(None);
+                        })
                         .child(
                             text("Cancel")
                                 .text_size(px(13.0))
@@ -533,6 +615,9 @@ fn content(
     data: Resource<SubscriptionsData, String>,
     search: Signal<String>,
     currency: String,
+    actions: ListActions,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> AnyElement {
     let active = move || {
         filtered(data, search)
@@ -557,6 +642,9 @@ fn content(
             active,
             data,
             currency.clone(),
+            actions,
+            server,
+            token,
         ))
         .when(has_inactive, move |page| {
             page.child(section(
@@ -564,6 +652,9 @@ fn content(
                 inactive,
                 data,
                 currency.clone(),
+                actions,
+                server,
+                token,
             ))
         })
         .into_element()
@@ -574,6 +665,9 @@ fn section(
     items: impl Fn() -> Vec<Subscription> + Clone + 'static,
     data: Resource<SubscriptionsData, String>,
     currency: String,
+    actions: ListActions,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> impl IntoElement {
     let count_items = items.clone();
     let currency = currency.clone();
@@ -612,7 +706,16 @@ fn section(
                 .child(each(
                     items,
                     |subscription| subscription.id,
-                    move |subscription, _| card(subscription.get(), data, currency.clone()),
+                    move |subscription, _| {
+                        card(
+                            subscription.get(),
+                            data,
+                            currency.clone(),
+                            actions,
+                            server,
+                            token,
+                        )
+                    }
                 )),
         )
 }
@@ -658,10 +761,14 @@ fn card(
     subscription: Subscription,
     data: Resource<SubscriptionsData, String>,
     currency: String,
+    actions: ListActions,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> impl IntoElement {
     let color = account_color(data, subscription.account_id);
     let account = account_name(data, subscription.account_id);
     let badge_bg_color = color;
+    let action_subscription = subscription.clone();
     let name = subscription.name;
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
@@ -685,7 +792,7 @@ fn card(
 
     view()
         .w_full()
-        .h(px(240.0))
+        .h(px(280.0))
         .p(px(20.0))
         .rounded(px(12.0))
         .border(px(1.0))
@@ -777,6 +884,141 @@ fn card(
                                 .text_color(move || theme().muted_foreground),
                         ),
                 ),
+        )
+        .child(card_actions(action_subscription, active, actions, data, server, token))
+}
+
+fn card_actions(
+    subscription: Subscription,
+    active: bool,
+    actions: ListActions,
+    data: Resource<SubscriptionsData, String>,
+    server: Signal<String>,
+    token: Signal<String>,
+) -> AnyElement {
+    let id = subscription.id;
+    let form = actions.form;
+    let edit_subscription = subscription.clone();
+    let edit = move || {
+        let recurrence = &edit_subscription.recurrence;
+        let day = recurrence
+            .dates
+            .first()
+            .map(|date| date.day)
+            .or_else(|| recurrence.days.first().copied())
+            .unwrap_or_else(|| edit_subscription.start_date.day() as u8);
+        form.name.set(edit_subscription.name.clone());
+        form.amount.set(edit_subscription.amount.to_string());
+        form.start_date.set(edit_subscription.start_date.to_string());
+        form.day.set(day.to_string());
+        form.unit.set(recurrence.unit.clone());
+        form.account_id.set(Some(edit_subscription.account_id));
+        form.category_id.set(Some(edit_subscription.category_id));
+        form.active.set(edit_subscription.is_active);
+        form.error.set(String::new());
+        form.saving.set(false);
+        form.editing.set(Some(id));
+        form.open.set(true);
+    };
+    let toggle = {
+        move || {
+            if actions.busy.get().is_some() {
+                return;
+            }
+            actions.busy.set(Some(id));
+            actions.error.set(String::new());
+            let server_value = server.get();
+            let token_value = token.get();
+            let request = ToggleSubscriptionRequest { is_active: !active };
+            spawn(async move {
+                match api::update_subscription(server_value, token_value, id, &request).await {
+                    Ok(_) => data.refetch(),
+                    Err(message) => actions.error.set(message),
+                }
+                actions.busy.set(None);
+            });
+        }
+    };
+    let action_label = if active { "Pause" } else { "Resume" };
+    let confirm = actions.delete_confirm;
+    let delete = {
+        move || {
+            actions.delete_confirm.set(None);
+            actions.busy.set(Some(id));
+            actions.error.set(String::new());
+            let server_value = server.get();
+            let token_value = token.get();
+            spawn(async move {
+                match api::delete_subscription(server_value, token_value, id).await {
+                    Ok(()) => data.refetch(),
+                    Err(message) => actions.error.set(message),
+                }
+                actions.busy.set(None);
+            });
+        }
+    };
+
+    when(move || actions.delete_confirm.get() == Some(id), move || {
+        let delete = delete.clone();
+        view()
+            .w_full()
+            .flex_row()
+            .items_center()
+            .justify_between()
+            .gap(px(6.0))
+            .child(
+                text("Delete this subscription?")
+                    .text_size(px(11.0))
+                    .text_color(move || theme().muted_foreground),
+            )
+            .child(
+                view()
+                    .flex_row()
+                    .gap(px(4.0))
+                    .child(action_button("Delete", true, delete))
+                    .child(action_button("Cancel", false, move || {
+                        actions.delete_confirm.set(None)
+                    })),
+            )
+            .into_element()
+    })
+    .otherwise(move || {
+        let edit = edit.clone();
+        let toggle = toggle.clone();
+        view()
+            .w_full()
+            .flex_row()
+            .gap(px(4.0))
+            .child(action_button("Edit", false, edit))
+            .child(action_button(action_label, false, toggle))
+            .child(action_button("Delete", true, move || {
+                confirm.set(Some(id));
+            }))
+            .into_element()
+    })
+    .into_element()
+}
+
+fn action_button(
+    label: &'static str,
+    destructive: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .h(px(26.0))
+        .px(px(8.0))
+        .rounded(px(5.0))
+        .bg(move || theme().card)
+        .on_press(on_press)
+        .child(
+            text(label)
+                .text_size(px(11.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || if destructive {
+                    theme().destructive
+                } else {
+                    theme().muted_foreground
+                }),
         )
 }
 
@@ -942,6 +1184,14 @@ mod tests {
         let recurrence = recurrence_for("week", 1, date(2026, 11, 22));
         assert_eq!(recurrence.weekdays, vec![7]);
         assert_eq!(frequency_for("week"), "weekly");
+    }
+
+    #[test]
+    fn toggle_request_only_sends_the_active_flag() {
+        let json = serde_json::to_value(ToggleSubscriptionRequest { is_active: false })
+            .expect("toggle serializes");
+        assert_eq!(json["is_active"], false);
+        assert_eq!(json.as_object().expect("object").len(), 1);
     }
 
     #[test]

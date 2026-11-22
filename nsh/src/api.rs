@@ -45,6 +45,31 @@ impl Client {
             .map_err(|_| "The server returned an unexpected response".to_string())
     }
 
+    pub async fn put<T: DeserializeOwned, B: Serialize>(&self, path: &str, body: &B) -> Result<T, String> {
+        let json = serde_json::to_string(body).map_err(|error| error.to_string())?;
+        let request = HttpRequest::new("PUT", format!("{}{path}", self.server.trim_end_matches('/')))
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Content-Type", "application/json")
+            .body(json);
+        let response = fetch(request).await?;
+        if !response.ok() {
+            return Err(format!("The server answered {}", response.status()));
+        }
+        serde_json::from_str(&response.text())
+            .map_err(|_| "The server returned an unexpected response".to_string())
+    }
+
+    pub async fn delete(&self, path: &str) -> Result<(), String> {
+        let request = HttpRequest::new("DELETE", format!("{}{path}", self.server.trim_end_matches('/')))
+            .header("Authorization", format!("Bearer {}", self.token));
+        let response = fetch(request).await?;
+        if response.ok() {
+            Ok(())
+        } else {
+            Err(format!("The server answered {}", response.status()))
+        }
+    }
+
     async fn rates(&self, currency: &str) -> Rates {
         self.get(&format!("/api/currency/rates?base={currency}"))
             .await
@@ -110,5 +135,26 @@ pub async fn create_subscription(
 ) -> Result<Subscription, String> {
     Client::new(server, token)
         .post("/api/subscriptions", request)
+        .await
+}
+
+pub async fn update_subscription<B: Serialize>(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+    request: &B,
+) -> Result<Subscription, String> {
+    Client::new(server, token)
+        .put(&format!("/api/subscriptions/{id}"), request)
+        .await
+}
+
+pub async fn delete_subscription(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
+    Client::new(server, token)
+        .delete(&format!("/api/subscriptions/{id}"))
         .await
 }
