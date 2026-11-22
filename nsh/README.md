@@ -70,3 +70,6 @@ the Dioxus component boundaries.
 - [x] Release banner with platform download and the Android APK QR card.
 - [x] Per-device voice-engine preference and provider voice-note transcription.
 - [x] Shared QR card, avatar badge, FAB menu and dynamic-row input.
+- [x] Field-aware sort menus and transaction filters for category, price range and month.
+- [x] Status filtering for subscriptions (all/active/inactive).
+- [x] Shared filter-popover and sort-menu components reused by both list pages.
