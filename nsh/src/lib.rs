@@ -4,9 +4,14 @@
 //! app while replacing the renderer. Screens are ported one at a time; this
 //! first slice owns the app frame and the dashboard's visual shell.
 
+mod api;
 mod auth;
 mod dashboard;
+mod dashboard_data;
+mod format;
 mod login;
+mod models;
+mod recurrence;
 mod theme;
 mod ui;
 
@@ -105,7 +110,11 @@ fn loading_screen() -> AnyElement {
         .into_element()
 }
 
-fn app_shell(route: Signal<Route>, _session: Signal<Session>) -> AnyElement {
+fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
+    let auth = match session.get() {
+        Session::SignedIn(auth) => auth,
+        _ => return loading_screen(),
+    };
     view()
         .flex_1()
         .bg(move || theme().background)
@@ -126,7 +135,10 @@ fn app_shell(route: Signal<Route>, _session: Signal<Session>) -> AnyElement {
                             .child(
                                 when(
                                     move || route.get() == Route::Dashboard,
-                                    || dashboard::dashboard(),
+                                    {
+                                        let auth = auth.clone();
+                                        move || dashboard::dashboard(auth.clone(), route)
+                                    },
                                 )
                                 .otherwise(move || ui::pending_screen(route.get().label())),
                             ),

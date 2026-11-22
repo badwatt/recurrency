@@ -23,7 +23,8 @@ from <https://nsh.dev/docs/installation>.
 - [x] App frame: top navigation and dashboard shell.
 - [x] Server URL, login and session restore.
 - [ ] Registration, logout and local mode.
-- [ ] Dashboard data, upcoming payments and the account/category ledger.
+- [x] Dashboard data, upcoming payments and the account/category ledger.
+- [ ] Dashboard hover links and responsive/mobile layout.
 - [ ] Subscriptions, transactions, debts, calendar, reports.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
