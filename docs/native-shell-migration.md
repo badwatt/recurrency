@@ -76,4 +76,6 @@ toolbar.
 | `date_picker.rs` | `date_picker.rs` | Ported custom calendar |
 | `checkbox.rs`, `segmented.rs`, `skeleton.rs` | same names | Ported |
 | `theme_picker.rs` | `theme.rs` catalogue + Appearance grid | Ported + server sync |
+| `web_server_qr.rs` | `components/web_server_qr.rs` | Ported (canvas QR) |
+| `backup_restore_card.rs` | Settings data card | Ported |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |

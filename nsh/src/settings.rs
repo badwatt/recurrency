@@ -2,7 +2,7 @@
 
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
-use nsh_core::file_dialog::{FileFilter, SaveDialog};
+use nsh_core::file_dialog::{FileFilter, OpenDialog, SaveDialog};
 use nsh_core::prelude::*;
 use serde::{Deserialize, Serialize};
 use crate::models::AiSettings;
@@ -749,6 +749,7 @@ fn data_card(
     token: String,
     status: Signal<String>,
 ) -> impl IntoElement {
+    let pending = signal(None::<serde_json::Value>);
     let export = {
         let server = server.clone();
         let token = token.clone();
@@ -777,6 +778,60 @@ fn data_card(
             });
         }
     };
+    let choose_restore = move || {
+        status.set("Choose a backup…".to_string());
+        spawn(async move {
+            match pick_paths(
+                OpenDialog::files()
+                    .title("Restore Recurrency backup")
+                    .filter(FileFilter::new("JSON", ["json"])),
+            )
+            .await
+            {
+                Ok(Some(paths)) => {
+                    let Some(path) = paths.first() else {
+                        status.set(String::new());
+                        return;
+                    };
+                    match std::fs::read_to_string(path) {
+                        Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+                            Ok(value) => {
+                                pending.set(Some(value));
+                                status.set(
+                                    "Backup loaded. Confirm to replace the current data.".to_string(),
+                                );
+                            }
+                            Err(_) => status.set("That file is not a Recurrency backup.".to_string()),
+                        },
+                        Err(error) => status.set(format!("Could not read the backup: {error}")),
+                    }
+                }
+                Ok(None) => status.set(String::new()),
+                Err(error) => status.set(error),
+            }
+        });
+    };
+    let confirm_restore = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let Some(value) = pending.get() else {
+                return;
+            };
+            let server = server.clone();
+            let token = token.clone();
+            status.set("Restoring backup…".to_string());
+            spawn(async move {
+                match crate::api::import_backup(server, token, &value).await {
+                    Ok(_) => {
+                        pending.set(None);
+                        status.set("Backup restored. Revisit each screen to see the new data.".to_string());
+                    }
+                    Err(error) => status.set(format!("Could not restore the backup: {error}")),
+                }
+            });
+        }
+    };
     ui::surface()
         .p(px(24.0))
         .gap(px(10.0))
@@ -787,11 +842,48 @@ fn data_card(
                 .text_color(move || theme().foreground),
         )
         .child(
-            text("Download a validated JSON backup created by the server. Restore uses the admin endpoints.")
+            text("Export a validated JSON backup, or restore one to replace the current data.")
                 .text_size(px(12.0))
                 .text_color(move || theme().muted_foreground),
         )
-        .child(ui::action_button("Export backup", false, export))
+        .child(
+            view()
+                .flex_row()
+                .flex_wrap()
+                .gap(px(8.0))
+                .child(ui::action_button("Export backup", false, export))
+                .child(ui::action_button("Restore backup", true, choose_restore)),
+        )
+        .child(
+            when(move || pending.get().is_some(), move || {
+                view()
+                    .w_full()
+                    .p(px(12.0))
+                    .gap(px(8.0))
+                    .rounded(px(8.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().destructive.opacity(0.4))
+                    .bg(move || theme().destructive.opacity(0.08))
+                    .child(
+                        text("This replaces your current accounts, categories, subscriptions, transactions and debts.")
+                            .text_size(px(12.0))
+                            .text_color(move || theme().destructive),
+                    )
+                    .child(
+                        view()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(ui::action_button("Cancel", false, move || {
+                                pending.set(None);
+                                status.set(String::new());
+                            }))
+                            .child(ui::action_button("Restore now", true, confirm_restore.clone())),
+                    )
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(
             text(move || status.get())
                 .text_size(px(11.0))
@@ -800,26 +892,34 @@ fn data_card(
 }
 
 fn server_card(server: String) -> impl IntoElement {
-    ui::surface()
-        .p(px(24.0))
-        .gap(px(8.0))
+    let qr_server = server.clone();
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
         .child(
-            text("Server")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(8.0))
+                .child(
+                    text("Server")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(server)
+                        .text_size(px(13.0))
+                        .font_family(crate::theme::MONO)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("The native app connects to this server. Change it from the sign-in screen.")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
         )
-        .child(
-            text(server)
-                .text_size(px(13.0))
-                .font_family(crate::theme::MONO)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("The native app connects to this server. Change it from the sign-in screen.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
-        )
+        .child(crate::components::web_server_qr::web_server_qr(qr_server))
 }
 
 fn about_card() -> impl IntoElement {

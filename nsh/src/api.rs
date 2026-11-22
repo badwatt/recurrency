@@ -396,6 +396,14 @@ pub async fn update_admin_settings(server: String, token: String, registration_e
         .await
 }
 
+pub async fn import_backup(
+    server: String,
+    token: String,
+    backup: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    Client::new(server, token).post("/api/backup/import", backup).await
+}
+
 pub async fn export_backup(server: String, token: String) -> Result<String, String> {
     let request = HttpRequest::get(format!("{}/api/backup", server.trim_end_matches('/')))
         .header("Authorization", format!("Bearer {token}"));

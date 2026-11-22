@@ -17,3 +17,4 @@ pub mod toggle;
 pub mod checkbox;
 pub mod segmented;
 pub mod skeleton;
+pub mod web_server_qr;
