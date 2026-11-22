@@ -12,6 +12,7 @@ thread_local! {
     static PRIVACY: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
     static SETTINGS_INTENT: RefCell<Option<Signal<Option<String>>>> = const { RefCell::new(None) };
     static AI_CHAT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
+    static ROUTE: RefCell<Option<Signal<Route>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -31,6 +32,20 @@ pub fn init_privacy() {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
             *slot = Some(signal(false));
+        }
+    });
+}
+
+pub fn init_route(route: Signal<Route>) {
+    ROUTE.with(|slot| {
+        *slot.borrow_mut() = Some(route);
+    });
+}
+
+pub fn navigate(route: Route) {
+    ROUTE.with(|slot| {
+        if let Some(current) = *slot.borrow() {
+            current.set(route);
         }
     });
 }

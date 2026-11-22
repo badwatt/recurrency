@@ -1129,6 +1129,27 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                         data_toggle.refetch();
                                     });
                                 };
+                                let adjust_channel = channel.clone();
+                                let adjust_server = channel_currency.clone();
+                                let adjust_token = channel_token.clone();
+                                let adjust = move |delta: i32| {
+                                    let next_days = (days + delta).max(0).min(30);
+                                    let server = adjust_server.clone();
+                                    let token = adjust_token.clone();
+                                    let request = UpdateNotificationPreferencesRequest {
+                                        preferences: vec![UpdateNotificationPreference {
+                                            channel: adjust_channel.clone(),
+                                            enabled,
+                                            reminder_days_before: next_days,
+                                        }],
+                                    };
+                                    spawn(async move {
+                                        let _ = crate::api::update_notification_preferences(server, token, &request).await;
+                                        data.refetch();
+                                    });
+                                };
+                                let decrement = adjust.clone();
+                                let increment = adjust;
                                 view()
                                     .w_full()
                                     .flex_row()
@@ -1151,7 +1172,16 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                                     .text_color(move || theme().muted_foreground),
                                             ),
                                     )
-                                    .child(shared_toggle(enabled, channel_label(&channel), move |_| toggle()))
+                                    .child(
+                                        view()
+                                            .flex_row()
+                                            .items_center()
+                                            .gap(px(6.0))
+                                            .child(button().h(px(24.0)).w(px(24.0)).items_center().justify_center().rounded(px(5.0)).border(px(1.0)).border_color(move || theme().border).on_press(move || decrement(-1)).child(text("−").text_size(px(13.0)).text_color(move || theme().foreground)))
+                                            .child(text(move || format!("{days} days")).text_size(px(10.0)).text_color(move || theme().muted_foreground))
+                                            .child(button().h(px(24.0)).w(px(24.0)).items_center().justify_center().rounded(px(5.0)).border(px(1.0)).border_color(move || theme().border).on_press(move || increment(1)).child(text("+").text_size(px(13.0)).text_color(move || theme().foreground)))
+                                            .child(shared_toggle(enabled, channel_label(&channel), move |_| toggle())),
+                                    )
                             },
                         )),
                 )

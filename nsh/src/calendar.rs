@@ -378,11 +378,13 @@ fn mobile_section(
                             entry.date.format("%a, %b %e").to_string()
                         };
                         let amount = format_currency(entry.amount, &currency);
+                        let target = if entry.is_transaction { crate::Route::Transactions } else { crate::Route::Subscriptions };
                         view()
                             .w_full()
                             .flex_row()
                             .items_center()
                             .justify_between()
+                            .on_press(move || crate::ui::navigate(target))
                             .gap(px(10.0))
                             .p(px(12.0))
                             .rounded(px(8.0))
@@ -497,12 +499,14 @@ fn day_cell(
                                     .convert(entry.amount, &entry.currency),
                                 &currency,
                             );
+                            let target = if entry.is_transaction { crate::Route::Transactions } else { crate::Route::Subscriptions };
                             view()
                                 .w_full()
                                 .flex_row()
                                 .items_center()
                                 .justify_between()
                                 .gap(px(4.0))
+                                .on_press(move || crate::ui::navigate(target))
                                 .child(
                                     image(asset!("icons/card.svg"))
                                         .size(px(10.0))

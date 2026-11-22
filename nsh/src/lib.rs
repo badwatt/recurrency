@@ -24,7 +24,7 @@ mod transactions;
 mod ui;
 
 use auth::Session;
-use nsh_base::theme;
+use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,6 +87,7 @@ pub fn App() -> impl IntoElement {
     crate::format::init_date_format();
     ui::init_privacy();
     let route = signal(Route::Dashboard);
+    ui::init_route(route);
     let stored = auth::has_stored_session();
     let session = signal(if stored { Session::Loading } else { Session::SignedOut });
     if stored {
@@ -214,6 +215,33 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             ),
                     ),
             ),
+        )
+        .child(
+            when(
+                move || compact.get() && matches!(route.get(), Route::Subscriptions | Route::Transactions | Route::Debts),
+                move || {
+                    button()
+                        .absolute()
+                        .right(px(18.0))
+                        .bottom(px(76.0))
+                        .z_index(60)
+                        .items_center()
+                        .justify_center()
+                        .h(px(52.0))
+                        .w(px(52.0))
+                        .rounded(px(999.0))
+                        .bg(move || theme().primary)
+                        .accessibility_label("Add entry")
+                        .on_press(move || {
+                            let current = route.get();
+                            create_intent.set(Some(current));
+                            route.set(current);
+                        })
+                        .child(image(asset!("icons/plus.svg")).size(px(22.0)).tint_color(move || theme().primary_foreground))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0))),
         )
         .child(
             when(move || compact.get(), move || ui::bottom_bar(route))

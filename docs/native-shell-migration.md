@@ -81,4 +81,6 @@ toolbar.
 | `ai_chat.rs` | `ai_chat.rs` | Ported (text chat) |
 | Preferences (currency, dates, week start) | Settings General + `format.rs` | Ported |
 | Notes dialogs | subscription/transaction note modals | Ported |
+| Bulk actions | subscription/transaction/debt bulk dialogs | Ported (subset) |
+| Mobile FAB / calendar links | App shell / calendar | Ported |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |

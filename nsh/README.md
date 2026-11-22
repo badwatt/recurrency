@@ -54,3 +54,6 @@ and reuse it, matching the Dioxus component boundaries.
 - [x] In-app BYOK AI chat dialog with action results.
 - [x] Date format and first day of week persisted and applied to lists, pickers and calendar.
 - [x] Notes editors for subscriptions and transactions.
+- [x] Bulk select/activate/pause/delete for subscriptions and bulk delete for transactions/debts.
+- [x] Mobile floating add button on list pages; calendar entries jump to their list.
+- [x] Reminder lead-time controls per notification channel.

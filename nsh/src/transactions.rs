@@ -162,6 +162,10 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         open_form();
     }
 
+    let open_bulk = move || {
+        modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
+    };
+
     let sort_desc = signal(true);
     let month_only = signal(false);
     let list_view = signal(true);
@@ -169,7 +173,7 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(header(open_form))
+        .child(header(open_form, open_bulk))
         .child(toolbar(search, list_view, month_only, sort_desc))
         .child(
             when(loading, || loading_card()).otherwise(move || {
@@ -185,11 +189,22 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         .into_element()
 }
 
-fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
+fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl IntoElement {
     shared_page_header(
         TITLE,
         SUBTITLE,
-        shared_button(ButtonProps::new("Add Transaction").icon(asset!("icons/plus.svg")).on_press(on_add)).into_element(),
+        view()
+            .flex_row()
+            .flex_wrap()
+            .items_center()
+            .gap(px(8.0))
+            .child(shared_button(
+                ButtonProps::new("Bulk actions")
+                    .variant(crate::components::button::ButtonVariant::Outline)
+                    .on_press(on_bulk),
+            ))
+            .child(shared_button(ButtonProps::new("Add Transaction").icon(asset!("icons/plus.svg")).on_press(on_add)))
+            .into_element(),
     )
 }
 
@@ -639,6 +654,159 @@ fn row(
                     token,
                     currency.clone(),
                 )),
+        )
+}
+
+fn bulk_modal(
+    data: Resource<TransactionsData, String>,
+    server: Signal<String>,
+    token: Signal<String>,
+    modal: ui::ModalHost,
+) -> impl IntoElement {
+    let selected = signal(Vec::<Uuid>::new());
+    let busy = signal(false);
+    let error = signal(String::new());
+    let confirm_delete = signal(false);
+    let toggle = move |id: Uuid| {
+        let mut values = selected.get();
+        if let Some(index) = values.iter().position(|value| *value == id) {
+            values.remove(index);
+        } else {
+            values.push(id);
+        }
+        selected.set(values);
+    };
+    let all_ids = move || data.get().unwrap_or_default().transactions.into_iter().map(|item| item.id).collect::<Vec<_>>();
+    let select_all = move || {
+        let mut values = selected.get();
+        for id in all_ids() {
+            if !values.contains(&id) {
+                values.push(id);
+            }
+        }
+        selected.set(values);
+    };
+    let clear = move || selected.set(Vec::new());
+    let delete = move || {
+        let ids = selected.get();
+        if ids.is_empty() || busy.get() {
+            return;
+        }
+        let server = server.get();
+        let token = token.get();
+        busy.set(true);
+        error.set(String::new());
+        spawn(async move {
+            for id in ids {
+                let _ = api::delete_transaction(server.clone(), token.clone(), id).await;
+            }
+            selected.set(Vec::new());
+            confirm_delete.set(false);
+            data.refetch();
+            busy.set(false);
+        });
+    };
+    let rows = move || {
+        data.get().unwrap_or_default().transactions.into_iter().map(|transaction| {
+            let id = transaction.id;
+            let name = transaction.name;
+            let date = format_date(transaction.date);
+            let is_selected = selected.get().contains(&id);
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .gap(px(8.0))
+                .p(px(8.0))
+                .rounded(px(6.0))
+                .bg(move || if is_selected { theme().accent } else { theme().card.opacity(0.0) })
+                .on_press(move || toggle(id))
+                .child(
+                    view()
+                        .flex_col()
+                        .child(text(name).text_size(px(12.0)).text_color(move || theme().foreground))
+                        .child(text(date).text_size(px(10.0)).text_color(move || theme().muted_foreground)),
+                )
+                .child(
+                    when(move || is_selected, move || {
+                        image(asset!("icons/check.svg")).size(px(14.0)).tint_color(move || theme().primary).into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .into_element()
+        }).collect::<Vec<_>>()
+    };
+    let count = move || selected.get().len();
+    view()
+        .w(px(520.0))
+        .max_h(px(640.0))
+        .rounded(px(14.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(20.0))
+        .gap(px(10.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    view()
+                        .flex_col()
+                        .child(text("Bulk actions").text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
+                        .child(text(move || format!("{} selected", count())).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                )
+                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .justify_between()
+                .gap(px(8.0))
+                .child(ui::action_button("Select all", false, select_all))
+                .child(ui::action_button("Clear", false, clear)),
+        )
+        .child(
+            scroll()
+                .max_h(px(340.0))
+                .w_full()
+                .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
+        )
+        .child(
+            when(move || confirm_delete.get(), move || {
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(8.0))
+                    .p(px(10.0))
+                    .rounded(px(7.0))
+                    .bg(move || theme().destructive.opacity(0.1))
+                    .child(text(move || format!("Delete {} transactions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
+                    .child(
+                        view()
+                            .flex_row()
+                            .gap(px(6.0))
+                            .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
+                            .child(ui::action_button("Delete", true, delete)),
+                    )
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+        .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .justify_end()
+                .gap(px(8.0))
+                .child(ui::action_button("Delete", true, move || confirm_delete.set(true))),
         )
 }
 
