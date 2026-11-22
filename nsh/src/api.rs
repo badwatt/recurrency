@@ -603,6 +603,8 @@ pub struct Release {
     pub tag_name: String,
     pub html_url: String,
     #[serde(default)]
+    pub body: String,
+    #[serde(default)]
     pub assets: Vec<ReleaseAsset>,
 }
 
@@ -705,6 +707,16 @@ pub struct SummarySettings {
     pub minute: i16,
     #[serde(default)]
     pub timezone: String,
+    #[serde(default)]
+    pub weekday: Option<i16>,
+    #[serde(default)]
+    pub day_of_month: Option<i16>,
+    #[serde(default)]
+    pub period: String,
+    #[serde(default)]
+    pub next_run_at: Option<String>,
+    #[serde(default)]
+    pub last_error: Option<String>,
 }
 
 #[derive(Serialize)]

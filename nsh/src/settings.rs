@@ -1429,7 +1429,36 @@ fn server_card(server: String, session: Signal<Session>) -> impl IntoElement {
 const LATEST_APK_URL: &str =
     "https://github.com/badwatt/recurrency/releases/latest/download/recurrency-aarch64.apk";
 
+const REPO_URL: &str = "https://github.com/badwatt/recurrency";
+
 fn about_card() -> impl IntoElement {
+    let release = resource(
+        || Some(()),
+        |(), _| async { Ok::<_, String>(crate::api::latest_release().await) },
+    );
+    let show_notes = signal(false);
+    let notes = move || {
+        release
+            .get()
+            .flatten()
+            .map(|release| release.body)
+            .filter(|body| !body.trim().is_empty())
+            .unwrap_or_else(|| "Release notes are available on GitHub.".to_string())
+    };
+    let release_url = move || {
+        release
+            .get()
+            .flatten()
+            .map(|release| release.html_url)
+            .unwrap_or_else(|| format!("{REPO_URL}/releases"))
+    };
+    let version = move || {
+        release
+            .get()
+            .flatten()
+            .map(|release| release.tag_name.trim_start_matches('v').to_string())
+            .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
+    };
     view()
         .w_full()
         .flex_col()
@@ -1445,15 +1474,66 @@ fn about_card() -> impl IntoElement {
                         .text_color(move || theme().foreground),
                 )
                 .child(
-                    text(format!("Recurrency v{}", env!("CARGO_PKG_VERSION")))
-                        .text_size(px(14.0))
+                    text("Every expense is a subscription.")
+                        .text_size(px(20.0))
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().foreground),
                 )
                 .child(
-                    text("Native Shell migration · Rust · Axum · PostgreSQL")
+                    text("A small, self-hosted tool for seeing what you keep paying for — and what you would subscribe to again today.")
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    text(format!("Installed version v{}", env!("CARGO_PKG_VERSION")))
+                        .text_size(px(14.0))
+                        .text_color(move || theme().foreground),
                 ),
+        )
+        .child(
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(10.0))
+                .child(
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            view()
+                                .flex_col()
+                                .child(text("What's new").text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
+                                .child(text(move || format!("Release notes for v{}", version())).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                        )
+                        .child(ui::action_button(
+                            if show_notes.get() { "Hide notes" } else { "Show changelog" },
+                            false,
+                            move || show_notes.set(!show_notes.get()),
+                        )),
+                )
+                .when(show_notes.get(), move |panel| {
+                    panel
+                        .child(
+                            scroll().max_h(px(240.0)).child(
+                                text(notes())
+                                    .text_size(px(11.0))
+                                    .line_height(px(17.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                        )
+                        .child(ui::action_button("Open release on GitHub", false, move || {
+                            let url = release_url();
+                            spawn(async move {
+                                let _ = open_url(url).await;
+                            });
+                        }))
+                })
+                .child(ui::action_button("★ Star on GitHub", false, move || {
+                    let url = REPO_URL.to_string();
+                    spawn(async move {
+                        let _ = open_url(url).await;
+                    });
+                })),
         )
         .when(!cfg!(target_os = "android"), |view| {
             view.child(crate::components::web_server_qr::qr_card(
@@ -1517,6 +1597,11 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
     let summary_frequency = signal("daily".to_string());
     let summary_time = signal("09:00".to_string());
     let summary_timezone = signal("UTC".to_string());
+    let summary_weekday = signal("1".to_string());
+    let summary_day = signal("1".to_string());
+    let summary_period = signal("current".to_string());
+    let summary_next = signal(String::new());
+    let summary_error = signal(String::new());
     let summary_status = signal(String::new());
     let summary_loaded = signal(false);
     effect(move || {
@@ -1536,6 +1621,15 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
             } else {
                 summary.timezone
             });
+            summary_weekday.set(summary.weekday.unwrap_or(1).to_string());
+            summary_day.set(summary.day_of_month.unwrap_or(1).to_string());
+            summary_period.set(if summary.period.is_empty() {
+                "current".to_string()
+            } else {
+                summary.period
+            });
+            summary_next.set(summary.next_run_at.unwrap_or_default());
+            summary_error.set(summary.last_error.unwrap_or_default());
             summary_loaded.set(true);
         }
     });
@@ -1554,16 +1648,19 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                 .and_then(|value| value.parse::<i16>().ok())
                 .unwrap_or(0);
             let frequency = summary_frequency.get();
-            let weekday = (frequency == "weekly").then_some(1);
-            let day = (frequency == "monthly").then_some(1);
+            let weekday =
+                (frequency == "weekly").then(|| summary_weekday.get().parse::<i16>().unwrap_or(1));
+            let day =
+                (frequency == "monthly").then(|| summary_day.get().parse::<i16>().unwrap_or(1));
             let server = server.clone();
             let token = token.clone();
             let timezone = summary_timezone.get();
+            let period = summary_period.get();
             let enabled = summary_enabled.get();
             spawn(async move {
                 match crate::api::save_summary(
                     server, token, enabled, &frequency, weekday, day, hour, minute, &timezone,
-                    "current",
+                    &period,
                 )
                 .await
                 {
@@ -1801,6 +1898,40 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         SegmentOption::new("monthly", "Monthly"),
                     ],
                 ))
+                .when(summary_frequency.get() == "weekly", |panel| {
+                    panel.child(string_select(StringSelectProps::new(
+                        "Weekday",
+                        summary_weekday,
+                        vec![
+                            ("1".to_string(), "Monday".to_string()),
+                            ("2".to_string(), "Tuesday".to_string()),
+                            ("3".to_string(), "Wednesday".to_string()),
+                            ("4".to_string(), "Thursday".to_string()),
+                            ("5".to_string(), "Friday".to_string()),
+                            ("6".to_string(), "Saturday".to_string()),
+                            ("7".to_string(), "Sunday".to_string()),
+                        ],
+                    )))
+                })
+                .when(summary_frequency.get() == "monthly", |panel| {
+                    let mut days = (1..=31)
+                        .map(|day| (day.to_string(), day.to_string()))
+                        .collect::<Vec<_>>();
+                    days.push(("0".to_string(), "Last day".to_string()));
+                    panel.child(string_select(StringSelectProps::new(
+                        "Day of month",
+                        summary_day,
+                        days,
+                    )))
+                })
+                .child(string_select(StringSelectProps::new(
+                    "Report period",
+                    summary_period,
+                    vec![
+                        ("current".to_string(), "Current month".to_string()),
+                        ("next".to_string(), "Next month".to_string()),
+                    ],
+                )))
                 .child(ui::field("Time (HH:MM)", summary_time, "09:00"))
                 .child(string_select(StringSelectProps::new(
                     "Timezone",
@@ -1815,6 +1946,25 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         .child(ui::action_button("Save summary", false, save_summary))
                         .child(ui::action_button("Send now", false, send_summary)),
                 )
+                .child(
+                    text(move || {
+                        let next = summary_next.get();
+                        if next.is_empty() {
+                            "No run scheduled".to_string()
+                        } else {
+                            format!("Next run: {next}")
+                        }
+                    })
+                    .text_size(px(10.0))
+                    .text_color(move || theme().muted_foreground),
+                )
+                .when(!summary_error.get().is_empty(), |panel| {
+                    panel.child(
+                        text(move || format!("Last attempt failed: {}", summary_error.get()))
+                            .text_size(px(10.0))
+                            .text_color(move || theme().destructive),
+                    )
+                })
                 .child(
                     text(move || summary_status.get())
                         .text_size(px(11.0))

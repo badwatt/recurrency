@@ -133,6 +133,7 @@ mod tests {
         let release = Release {
             tag_name: "v9.0.0".to_string(),
             html_url: "https://example.com".to_string(),
+            body: String::new(),
             assets: vec![
                 ReleaseAsset {
                     name: "Recurrency-x86_64.AppImage".to_string(),
@@ -163,6 +164,7 @@ mod tests {
         let release = Release {
             tag_name: "v9.0.0".to_string(),
             html_url: "https://example.com".to_string(),
+            body: String::new(),
             assets: Vec::new(),
         };
         assert!(preferred_asset(&release).is_none());
