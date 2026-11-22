@@ -16,6 +16,7 @@ pub fn search_input(value: Signal<String>, placeholder: &'static str) -> impl In
         .border_color(move || theme().input)
         .bg(move || theme().card)
         .flex_grow(1.0)
+        .basis(px(220.0))
         .min_w(px(0.0))
         .child(image(asset!("icons/search.svg")).size(px(16.0)).tint_color(move || theme().muted_foreground))
         .child(

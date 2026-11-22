@@ -9,24 +9,32 @@ pub fn list_toolbar(search: Signal<String>, list_view: Signal<bool>, actions: An
     view()
         .w_full()
         .flex_row()
+        .flex_wrap()
         .items_center()
         .gap(px(8.0))
         .child(search_input(search, "Search"))
-        .child(actions)
         .child(
             view()
                 .flex_row()
+                .flex_wrap()
                 .items_center()
-                .flex_shrink_0()
-                .w(px(88.0))
-                .gap(px(2.0))
-                .p(px(2.0))
-                .rounded(px(8.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().muted.opacity(0.4))
-                .child(icon_button(asset!("icons/grid.svg"), "Grid view", !list_view.get(), move || list_view.set(false)))
-                .child(icon_button(asset!("icons/list.svg"), "List view", list_view.get(), move || list_view.set(true))),
+                .gap(px(8.0))
+                .child(actions)
+                .child(
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .flex_shrink_0()
+                        .w(px(88.0))
+                        .gap(px(2.0))
+                        .p(px(2.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().muted.opacity(0.4))
+                        .child(icon_button(asset!("icons/grid.svg"), "Grid view", !list_view.get(), move || list_view.set(false)))
+                        .child(icon_button(asset!("icons/list.svg"), "List view", list_view.get(), move || list_view.set(true))),
+                ),
         )
 }
 
