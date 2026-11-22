@@ -224,7 +224,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let verified = auth.user.verified;
     let is_admin = auth.user.is_admin;
     let backup_status = signal(String::new());
-    let delete_open = signal(false);
+    let modal = ui::ModalHost::new();
     let delete_password = signal(String::new());
     let delete_error = signal(String::new());
     let save_server = server.clone();
@@ -279,6 +279,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let save_general = save.clone();
     let compact = signal(false);
     view()
+        .relative()
         .w_full()
         .pt(px(10.0))
         .on_layout(
@@ -453,7 +454,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                 saving,
                                 save.clone(),
                                 session,
-                                delete_open,
+                                modal,
                                 delete_password,
                                 delete_error,
                                 data_server,
@@ -545,6 +546,10 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         .otherwise(|| view().h(px(0.0))),
                 ),
         )
+        .child(
+            when(move || modal.active(), move || ui::modal_overlay(modal))
+                .otherwise(|| view().h(px(0.0))),
+        )
         .into_element()
 }
 
@@ -574,7 +579,7 @@ fn account_card(
     saving: Signal<bool>,
     save: impl Fn() + 'static,
     session: Signal<Session>,
-    delete_open: Signal<bool>,
+    modal: ui::ModalHost,
     delete_password: Signal<String>,
     delete_error: Signal<String>,
     server: Signal<String>,
@@ -633,6 +638,87 @@ fn account_card(
                     Ok(None) => {}
                     Err(problem) => error.set(problem),
                 }
+            });
+        }
+    };
+    let open_delete = {
+        let server = server;
+        let token = token;
+        let session = session;
+        let delete_password = delete_password;
+        let delete_error = delete_error;
+        move || {
+            delete_error.set(String::new());
+            modal.open(move || {
+                let confirm_server = server.get();
+                let confirm_token = token.get();
+                crate::components::dialog::dialog(
+                    crate::components::dialog::DialogProps::new(
+                        "Delete account",
+                        "This permanently removes your account and all of its data.",
+                        move || modal.close(),
+                    )
+                    .width(420.0)
+                    .body(
+                        view()
+                            .p(px(24.0))
+                            .gap(px(10.0))
+                            .child(ui::label("Password"))
+                            .child(
+                                input()
+                                    .value(delete_password)
+                                    .on_change(move |value: &str| {
+                                        delete_password.set(value.to_string())
+                                    })
+                                    .placeholder("Password")
+                                    .masked(true)
+                                    .auto_fill(AutoFill::Off)
+                                    .h(px(38.0))
+                                    .px(px(10.0))
+                                    .rounded(px(7.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().input)
+                                    .bg(move || theme().background)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text(move || delete_error.get())
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().destructive),
+                            )
+                            .into_element(),
+                    )
+                    .footer(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(ui::action_button("Cancel", false, move || modal.close()))
+                            .child(ui::action_button("Confirm deletion", true, move || {
+                                let password = delete_password.get();
+                                if password.is_empty() {
+                                    delete_error.set("Enter your password.".to_string());
+                                    return;
+                                }
+                                let server = confirm_server.clone();
+                                let token = confirm_token.clone();
+                                spawn(async move {
+                                    match crate::api::delete_account(server, token, password).await
+                                    {
+                                        Ok(()) => {
+                                            modal.close();
+                                            auth::clear_session();
+                                            session.set(Session::SignedOut);
+                                        }
+                                        Err(message) => delete_error.set(message),
+                                    }
+                                });
+                            }))
+                            .into_element(),
+                    ),
+                )
+                .into_element()
             });
         }
     };
@@ -786,94 +872,7 @@ fn account_card(
                         .text_size(px(13.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(8.0))
-                        .child(
-                            button()
-                                .items_center()
-                                .justify_center()
-                                .h(px(36.0))
-                                .px(px(12.0))
-                                .rounded(px(7.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().destructive)
-                                .bg(move || theme().destructive.opacity(0.12))
-                                .on_press(move || delete_open.set(!delete_open.get()))
-                                .child(
-                                    text("Delete account")
-                                        .text_size(px(12.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().destructive),
-                                ),
-                        )
-                        .when(delete_open.get(), |column| {
-                            column
-                                .child(
-                                    input()
-                                        .value(delete_password)
-                                        .on_change(move |value: &str| {
-                                            delete_password.set(value.to_string())
-                                        })
-                                        .placeholder("Password")
-                                        .masked(true)
-                                        .auto_fill(AutoFill::Off)
-                                        .h(px(38.0))
-                                        .px(px(10.0))
-                                        .rounded(px(7.0))
-                                        .border(px(1.0))
-                                        .border_color(move || theme().input)
-                                        .bg(move || theme().background)
-                                        .text_color(move || theme().foreground),
-                                )
-                                .child(
-                                    text(move || delete_error.get())
-                                        .text_size(px(11.0))
-                                        .text_color(move || theme().destructive),
-                                )
-                                .child(
-                                    button()
-                                        .items_center()
-                                        .justify_center()
-                                        .h(px(34.0))
-                                        .px(px(12.0))
-                                        .rounded(px(7.0))
-                                        .bg(move || theme().destructive)
-                                        .on_press(move || {
-                                            let password = delete_password.get();
-                                            if password.is_empty() {
-                                                delete_error
-                                                    .set("Enter your password.".to_string());
-                                                return;
-                                            }
-                                            let server_value = server.get();
-                                            let token_value = token.get();
-                                            spawn(async move {
-                                                match crate::api::delete_account(
-                                                    server_value,
-                                                    token_value,
-                                                    password,
-                                                )
-                                                .await
-                                                {
-                                                    Ok(()) => {
-                                                        auth::clear_session();
-                                                        session.set(Session::SignedOut);
-                                                    }
-                                                    Err(message) => delete_error.set(message),
-                                                }
-                                            });
-                                        })
-                                        .child(
-                                            text("Confirm deletion")
-                                                .text_size(px(12.0))
-                                                .font_weight(FontWeight::SEMIBOLD)
-                                                .text_color(move || theme().primary_foreground),
-                                        ),
-                                )
-                        }),
-                ),
+                .child(ui::action_button("Delete account", true, open_delete)),
         )
 }
 
