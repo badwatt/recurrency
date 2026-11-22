@@ -16,6 +16,36 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
     let edit_server = signal(false);
     let error = signal(String::new());
     let busy = signal(false);
+    let demo_enabled = signal(false);
+    let demo_loading = signal(false);
+    let demo_server = auth::stored_server();
+    spawn(async move {
+        if auth::demo_enabled(&demo_server).await {
+            demo_enabled.set(true);
+        }
+    });
+    let demo = {
+        let server = server;
+        move || {
+            if demo_loading.get() {
+                return;
+            }
+            demo_loading.set(true);
+            error.set(String::new());
+            let server_value = server.get().trim().trim_end_matches('/').to_string();
+            spawn(async move {
+                match auth::demo_login(&server_value).await {
+                    Ok(next) => {
+                        demo_loading.set(false);
+                        session.set(Session::SignedIn(next));
+                        return;
+                    }
+                    Err(message) => error.set(message),
+                }
+                demo_loading.set(false);
+            });
+        }
+    };
 
     let submit = move || {
         if busy.get() {
@@ -46,7 +76,9 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                 Ok(next) => {
                     server.set(server_value);
                     edit_server.set(false);
+                    busy.set(false);
                     session.set(Session::SignedIn(next));
+                    return;
                 }
                 Err(message) => error.set(message),
             }
@@ -96,7 +128,9 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                 .text_color(move || theme().muted_foreground),
                         ),
                 )
-                .child(server_row(server, edit_server, error))
+                .when(!cfg!(target_arch = "wasm32"), |card| {
+                    card.child(server_row(server, edit_server, error))
+                })
                 .child(
                     view()
                         .p(px(24.0))
@@ -112,6 +146,8 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                         .child(form_field("Password", "", "current-password", true, password, move || submit()))
                         .child(
                             button()
+                                .items_center()
+                                .justify_center()
                                 .w_full()
                                 .h(px(40.0))
                                 .rounded(px(6.0))
@@ -136,7 +172,35 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                 ),
                         )
                         .child(
+                            when(move || demo_enabled.get(), move || {
+                                button()
+                                    .items_center()
+                                    .justify_center()
+                                    .w_full()
+                                    .h(px(40.0))
+                                    .rounded(px(6.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .bg(move || theme().background)
+                                    .disabled(move || demo_loading.get())
+                                    .disabled_style(|state| state.opacity(0.5))
+                                    .on_press(move || demo())
+                                    .child(
+                                        text(move || {
+                                            if demo_loading.get() { "Loading..." } else { "Demo account" }
+                                        })
+                                            .text_size(px(14.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .into_element()
+                            })
+                            .otherwise(|| view().h(px(0.0))),
+                        )
+                        .child(
                             button()
+                                .items_center()
+                                .justify_center()
                                 .w_full()
                                 .h(px(32.0))
                                 .rounded(px(6.0))
@@ -145,14 +209,26 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                     error.set(String::new());
                                 })
                                 .child(
-                                    text(move || if registering.get() {
-                                        "Already have an account? Sign in"
-                                    } else {
-                                        "Create an account"
-                                    })
-                                        .text_size(px(12.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().primary),
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_center()
+                                        .gap(px(4.0))
+                                        .child(
+                                            text(move || if registering.get() {
+                                                "Already have an account?"
+                                            } else {
+                                                "Don't have an account?"
+                                            })
+                                            .text_size(px(14.0))
+                                            .text_color(move || theme().muted_foreground),
+                                        )
+                                        .child(
+                                            text(move || if registering.get() { "Sign in" } else { "Sign up" })
+                                                .text_size(px(14.0))
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(move || theme().primary),
+                                        ),
                                 ),
                         ),
                 ),
@@ -200,6 +276,8 @@ fn server_row(
                 )
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(32.0))
                         .px(px(12.0))
                         .rounded(px(6.0))

@@ -49,6 +49,18 @@ struct LoginRequest<'a> {
     password: &'a str,
 }
 
+#[derive(Deserialize)]
+struct DemoStatus {
+    #[serde(default)]
+    enabled: bool,
+}
+
+#[derive(Deserialize)]
+struct DemoCredentials {
+    email: String,
+    password: String,
+}
+
 #[derive(Serialize)]
 struct RegisterRequest<'a> {
     email: &'a str,
@@ -130,6 +142,32 @@ pub async fn login(server: &str, email: &str, password: &str) -> Result<AuthSess
         .map_err(|_| "The server returned an unexpected response".to_string())?;
     store_server(server);
     store_session(&session);
+    Ok(session)
+}
+
+pub async fn demo_enabled(server: &str) -> bool {
+    let server = server.trim().trim_end_matches('/');
+    match fetch(format!("{server}/api/demo/status")).await {
+        Ok(response) if response.ok() => serde_json::from_str::<DemoStatus>(&response.text())
+            .map(|status| status.enabled)
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+
+pub async fn demo_login(server: &str) -> Result<AuthSession, String> {
+    let server = server.trim().trim_end_matches('/');
+    let response = fetch(format!("{server}/api/demo/init")).await?;
+    if !response.ok() {
+        return Err(error_message(response.status(), &response.text()));
+    }
+    let credentials: DemoCredentials = serde_json::from_str(&response.text())
+        .map_err(|_| "The server returned an unexpected response".to_string())?;
+    let session = login(server, &credentials.email, &credentials.password).await?;
+    let reset = HttpRequest::post(format!("{server}/api/demo/reset"), "{}")
+        .header("Authorization", format!("Bearer {}", session.token))
+        .header("Content-Type", "application/json");
+    let _ = fetch(reset).await;
     Ok(session)
 }
 

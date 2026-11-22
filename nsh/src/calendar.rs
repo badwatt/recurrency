@@ -25,7 +25,7 @@ struct CalendarEntry {
     is_transaction: bool,
 }
 
-pub fn calendar(auth: AuthSession) -> AnyElement {
+pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -59,14 +59,13 @@ pub fn calendar(auth: AuthSession) -> AnyElement {
         .flex_col()
         .gap(px(24.0))
         .child(header())
-        .child(navigation(year, month, today))
         .child(
             when(loading, || loading_card()).otherwise(move || {
                 let currency = render_currency.clone();
                 when(has_error, move || {
                     error_card(&data.error().unwrap_or_default(), data)
                 })
-                .otherwise(move || content(data, year, month, currency.clone(), today))
+                .otherwise(move || content(data, year, month, currency.clone(), today, compact))
             }),
         )
         .into_element()
@@ -85,58 +84,51 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
         .w_full()
         .flex_row()
         .items_center()
-        .gap(px(8.0))
+        .justify_between()
+        .px(px(16.0))
+        .py(px(12.0))
+        .border_b(px(1.0))
+        .border_color(move || theme().border)
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .gap(px(8.0))
+                .child(ui::icon_button(
+                    asset!("icons/chevron-left.svg"),
+                    false,
+                    move || {
+                        let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
+                        year.set(next_year);
+                        month.set(next_month);
+                    },
+                ))
+                .child(
+                    text(move || month_label(year.get(), month.get()))
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(ui::icon_button(
+                    asset!("icons/chevron-right.svg"),
+                    false,
+                    move || {
+                        let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
+                        year.set(next_year);
+                        month.set(next_month);
+                    },
+                )),
+        )
         .child(
             button()
-                .h(px(32.0))
-                .px(px(10.0))
-                .rounded(px(6.0))
+                .items_center()
+                .justify_center()
+                .h(px(38.0))
+                .px(px(12.0))
+                .rounded(px(8.0))
                 .border(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().card)
-                .on_press(move || {
-                    let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
-                    year.set(next_year);
-                    month.set(next_month);
-                })
-                .child(
-                    text("Previous")
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
-                ),
-        )
-        .child(
-            text(move || month_label(year.get(), month.get()))
-                .text_size(px(20.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            button()
-                .h(px(32.0))
-                .px(px(10.0))
-                .rounded(px(6.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().card)
-                .on_press(move || {
-                    let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
-                    year.set(next_year);
-                    month.set(next_month);
-                })
-                .child(
-                    text("Next")
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
-                ),
-        )
-        .child(
-            button()
-                .h(px(32.0))
-                .px(px(10.0))
-                .rounded(px(6.0))
                 .on_press(move || {
                     year.set(today.year());
                     month.set(today.month());
@@ -145,7 +137,7 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
                     text("Today")
                         .text_size(px(12.0))
                         .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().primary),
+                        .text_color(move || theme().foreground),
                 ),
         )
 }
@@ -156,6 +148,7 @@ fn content(
     month: Signal<u32>,
     currency: String,
     today: NaiveDate,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let total_currency = currency.clone();
     let total = move || {
@@ -171,12 +164,13 @@ fn content(
         let snapshot = data.get().unwrap_or_default();
         calendar_entries(&snapshot, year.get(), month.get())
             .into_iter()
-            .filter(|entry| entry.date >= today)
+            .filter(|entry| entry.date > today)
             .map(|entry| snapshot.rates.convert(entry.amount, &entry.currency))
             .sum::<Decimal>()
     };
-    let count = move || calendar_entries(&data.get().unwrap_or_default(), year.get(), month.get()).len();
     let cells = move || cells_for(year.get(), month.get());
+    let mobile_currency = currency.clone();
+    let desktop_currency = currency.clone();
 
     view()
         .w_full()
@@ -188,7 +182,7 @@ fn content(
                 .flex_row()
                 .gap(px(12.0))
                 .child(summary(
-                    "PAYMENTS THIS MONTH",
+                    "TRANSFER THIS MONTH",
                     move || format_currency(total(), &total_currency),
                 ))
                 .child(summary(
@@ -197,48 +191,51 @@ fn content(
                 )),
         )
         .child(
-            text(move || ui::count_label(count(), "payment", "payments"))
-                .text_size(px(13.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(
-            view()
-                .w_full()
-                .rounded(px(12.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().card)
-                .overflow_hidden()
-                .child(
-                    view()
-                        .w_full()
-                        .grid()
-                        .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
-                        .bg(move || theme().border)
-                        .gap(px(1.0))
-                        .child(weekday_header("MON"))
-                        .child(weekday_header("TUE"))
-                        .child(weekday_header("WED"))
-                        .child(weekday_header("THU"))
-                        .child(weekday_header("FRI"))
-                        .child(weekday_header("SAT"))
-                        .child(weekday_header("SUN"))
-                        .child(each(
-                            cells,
-                            |(index, _)| *index,
-                            move |cell, _| {
-                                let (_, day) = cell.get();
-                                day_cell(
-                                    day,
-                                    data,
-                                    year,
-                                    month,
-                                    currency.clone(),
-                                    today,
-                                )
-                            },
-                        )),
-                ),
+            when(
+                move || compact.get(),
+                move || {
+                    let mobile_currency = mobile_currency.clone();
+                    mobile_calendar(data, year, month, mobile_currency, today)
+                },
+            )
+            .otherwise(move || {
+                let desktop_currency = desktop_currency.clone();
+                view()
+                    .w_full()
+                    .rounded(px(12.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().card)
+                    .overflow_hidden()
+                    .child(navigation(year, month, today))
+                    .child(
+                        view()
+                            .w_full()
+                            .pt(px(32.0))
+                            .px(px(16.0))
+                            .pb(px(16.0))
+                            .grid()
+                            .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
+                            .bg(move || theme().border)
+                            .gap(px(1.0))
+                            .child(weekday_header("Mon"))
+                            .child(weekday_header("Tue"))
+                            .child(weekday_header("Wed"))
+                            .child(weekday_header("Thu"))
+                            .child(weekday_header("Fri"))
+                            .child(weekday_header("Sat"))
+                            .child(weekday_header("Sun"))
+                            .child(each(
+                                cells,
+                                |(index, _)| *index,
+                                move |cell, _| {
+                                    let (_, day) = cell.get();
+                                    day_cell(day, data, year, month, desktop_currency.clone(), today)
+                                },
+                            )),
+                    )
+                    .into_element()
+            }),
         )
         .into_element()
 }
@@ -269,6 +266,7 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
 
 fn weekday_header(label: &'static str) -> impl IntoElement {
     view()
+        .h(px(42.0))
         .py(px(8.0))
         .items_center()
         .bg(move || theme().muted)
@@ -277,6 +275,169 @@ fn weekday_header(label: &'static str) -> impl IntoElement {
                 .text_size(px(10.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().muted_foreground),
+        )
+}
+
+fn mobile_calendar(
+    data: Resource<CalendarData, String>,
+    year: Signal<i32>,
+    month: Signal<u32>,
+    currency: String,
+    today: NaiveDate,
+) -> AnyElement {
+    let entries = move || calendar_entries(&data.get().unwrap_or_default(), year.get(), month.get());
+    let total_currency = currency.clone();
+    let total = move || {
+        let snapshot = data.get().unwrap_or_default();
+        entries()
+            .iter()
+            .map(|entry| snapshot.rates.convert(entry.amount, &entry.currency))
+            .sum::<Decimal>()
+    };
+    let upcoming = move || entries().into_iter().filter(|entry| entry.date >= today).collect::<Vec<_>>();
+    let past = move || entries().into_iter().filter(|entry| entry.date < today).collect::<Vec<_>>();
+    let row_currency = currency.clone();
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
+        .child(
+            view()
+                .w_full()
+                .rounded(px(12.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().card)
+                .child(navigation(year, month, today)),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    text("Payments this month")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(move || format_currency(total(), &total_currency))
+                        .text_size(px(18.0))
+                        .font_family(design::MONO)
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                ),
+        )
+        .child(mobile_section("UPCOMING", upcoming, row_currency.clone(), today))
+        .child(mobile_section("PAST", past, row_currency, today))
+        .into_element()
+}
+
+fn mobile_section(
+    label: &'static str,
+    entries: impl Fn() -> Vec<CalendarEntry> + Clone + 'static,
+    currency: String,
+    today: NaiveDate,
+) -> impl IntoElement {
+    let count_entries = entries.clone();
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    text(label)
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    text(move || count_entries().len().to_string())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            view()
+                .flex_col()
+                .gap(px(6.0))
+                .child(each(
+                    entries,
+                    |entry| entry.key.clone(),
+                    move |entry, _| {
+                        let entry = entry.get();
+                        let past = entry.date < today;
+                        let date = if entry.date == today {
+                            "Today".to_string()
+                        } else {
+                            entry.date.format("%a, %b %e").to_string()
+                        };
+                        let amount = format_currency(entry.amount, &currency);
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(10.0))
+                            .p(px(12.0))
+                            .rounded(px(8.0))
+                            .border(px(1.0))
+                            .border_color(move || theme().border)
+                            .bg(move || theme().card)
+                            .when(past, |row| row.opacity(0.55))
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(10.0))
+                                    .min_w(px(0.0))
+                                    .child(
+                                        view()
+                                            .h(px(40.0))
+                                            .w(px(40.0))
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(999.0))
+                                            .bg(move || theme().muted)
+                                            .child(
+                                                image(asset!("icons/card.svg"))
+                                                    .size(px(16.0))
+                                                    .tint_color(move || theme().muted_foreground),
+                                            ),
+                                    )
+                                    .child(
+                                        view()
+                                            .flex_col()
+                                            .min_w(px(0.0))
+                                            .child(
+                                                text(entry.name)
+                                                    .text_size(px(13.0))
+                                                    .font_weight(FontWeight::MEDIUM)
+                                                    .text_color(move || theme().foreground),
+                                            )
+                                            .child(
+                                                text(date)
+                                                    .text_size(px(11.0))
+                                                    .text_color(move || theme().muted_foreground),
+                                            ),
+                                    ),
+                            )
+                            .child(
+                                text(amount)
+                                    .text_size(px(13.0))
+                                    .font_family(design::MONO)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                    },
+                )),
         )
 }
 
@@ -298,12 +459,19 @@ fn day_cell(
             .filter(|entry| entry.date.day() == day)
             .collect::<Vec<_>>()
     };
+    let truncated = move || {
+        let mut entries = entries();
+        if entries.len() > 3 {
+            entries.truncate(3);
+        }
+        entries
+    };
     let is_today = day.is_some_and(|day| {
         year.get() == today.year() && month.get() == today.month() && day == today.day()
     });
     view()
         .w_full()
-        .min_h(px(92.0))
+        .min_h(px(100.0))
         .p(px(6.0))
         .gap(px(2.0))
         .bg(move || if day.is_some() { theme().card } else { theme().muted.opacity(0.15) })
@@ -320,7 +488,7 @@ fn day_cell(
                     .flex_col()
                     .gap(px(1.0))
                     .child(each(
-                        entries,
+                        truncated,
                         |entry| entry.key.clone(),
                         move |entry, _| {
                             let entry = entry.get();
@@ -336,21 +504,34 @@ fn day_cell(
                                 .flex_row()
                                 .items_center()
                                 .justify_between()
-                                .gap(px(2.0))
+                                .gap(px(4.0))
+                                .child(
+                                    image(asset!("icons/card.svg"))
+                                        .size(px(10.0))
+                                        .tint_color(move || theme().muted_foreground),
+                                )
                                 .child(
                                     text(entry.name)
-                                        .text_size(px(9.0))
+                                        .text_size(px(12.0))
                                         .text_color(move || theme().foreground)
                                         .number_of_lines(1),
                                 )
                                 .child(
                                     text(amount)
-                                        .text_size(px(8.0))
+                                        .text_size(px(11.0))
                                         .font_family(design::MONO)
                                         .text_color(move || theme().muted_foreground),
                                 )
                         },
-                    )),
+                    ))
+                    .child(
+                        when(move || entries().len() > 3, move || {
+                            text(format!("+{} more", entries().len().saturating_sub(3)))
+                                .text_size(px(9.0))
+                                .text_color(move || theme().muted_foreground)
+                        })
+                        .otherwise(|| view().h(px(0.0))),
+                    ),
             )
         })
 }
@@ -381,7 +562,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
             });
         }
     }
-    entries.sort_by_key(|entry| (entry.date, entry.name.clone()));
+    entries.sort_by_key(|entry| entry.date);
     entries
 }
 
@@ -443,6 +624,8 @@ fn error_card(message: &str, data: Resource<CalendarData, String>) -> AnyElement
         )
         .child(
             button()
+                .items_center()
+                .justify_center()
                 .h(px(34.0))
                 .px(px(14.0))
                 .rounded(px(7.0))

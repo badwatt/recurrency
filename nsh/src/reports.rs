@@ -1,7 +1,9 @@
 //! Monthly reports: summary, category split and recent trends.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::theme;
+use std::f32::consts::TAU;
+use nsh_base::{button, theme};
+use nsh_core::canvas::{CanvasTextAlign, LineJoin};
 use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
@@ -45,8 +47,24 @@ pub fn reports(auth: AuthSession) -> AnyElement {
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(header())
-        .child(navigation(year, month, today))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .flex_wrap()
+                .items_end()
+                .justify_between()
+                .gap(px(16.0))
+                .child(ui::page_header(TITLE, SUBTITLE))
+                .child(
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(navigation(year, month, today))
+                        .child(export_button(data, &currency)),
+                ),
+        )
         .child(
             when(loading, || loading_card()).otherwise(move || {
                 let currency = render_currency.clone();
@@ -59,13 +77,9 @@ pub fn reports(auth: AuthSession) -> AnyElement {
         .into_element()
 }
 
-fn header() -> impl IntoElement {
-    view().w_full().child(ui::page_header(TITLE, SUBTITLE))
-}
 
 fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl IntoElement {
     view()
-        .w_full()
         .flex_row()
         .items_center()
         .gap(px(8.0))
@@ -119,6 +133,7 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
         let value = average_trend(&report());
         format_currency(value, &average_currency)
     };
+    let subscriptions_caption_currency = currency.clone();
     let category_currency = currency.clone();
     let trend_currency = currency.clone();
 
@@ -130,38 +145,43 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
             view()
                 .w_full()
                 .flex_row()
-                .justify_end()
-                .child(ui::action_button("Export CSV", false, {
-                    let currency = currency.clone();
-                    move || {
-                        let Some(snapshot) = data.get() else {
-                            return;
-                        };
-                        let csv = build_csv(&snapshot.report, &currency);
-                        spawn(async move {
-                            if let Ok(Some(path)) = pick_save_path(
-                                SaveDialog::new()
-                                    .file_name("recurrency-report.csv")
-                                    .filter(FileFilter::new("CSV", ["csv"])),
-                            )
-                            .await
-                            {
-                                let _ = std::fs::write(path, csv);
-                            }
-                        });
-                    }
-                })),
-        )
-        .child(
-            view()
-                .w_full()
-                .grid()
-                .grid_template_columns(SharedString::from("repeat(4, minmax(0, 1fr))"))
+                .flex_wrap()
                 .gap(px(12.0))
-                .child(summary_card("Total spending", total, "This month"))
-                .child(summary_card("Subscriptions", subscriptions, "Recurring"))
-                .child(summary_card("One-time", transactions, "Transactions"))
-                .child(summary_card("Avg / month", average, "Recent trends")),
+                .child(summary_card(
+                    "Total Spending",
+                    asset!("icons/wallet.svg"),
+                    total,
+                    move || {
+                        let summary = report().monthly_summary;
+                        NaiveDate::from_ymd_opt(summary.year, summary.month, 1)
+                            .map_or_else(String::new, |date| date.format("%B %Y").to_string())
+                    },
+                ))
+                .child(summary_card(
+                    "Subscriptions",
+                    asset!("icons/card.svg"),
+                    subscriptions,
+                    move || {
+                        let summary = report().monthly_summary;
+                        format!(
+                            "{} active · {} / year",
+                            summary.subscriptions_count,
+                            format_currency(summary.subscriptions_total * Decimal::from(12), &subscriptions_caption_currency)
+                        )
+                    },
+                ))
+                .child(summary_card(
+                    "One-time",
+                    asset!("icons/receipt.svg"),
+                    transactions,
+                    move || format!("{} transactions", report().monthly_summary.transactions_count),
+                ))
+                .child(summary_card(
+                    "Avg / month",
+                    asset!("icons/trending.svg"),
+                    average,
+                    move || format!("over {} months", report().recent_trends.len()),
+                )),
         )
         .child(
             view()
@@ -169,19 +189,58 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                 .flex_row()
                 .items_start()
                 .gap(px(16.0))
-                .child(category_card(data, &category_currency))
-                .child(trend_card(data, &trend_currency)),
+                .child(trend_chart(data, &trend_currency))
+                .child(category_donut(data, &category_currency)),
         )
+        .child(category_table(data, &currency))
         .into_element()
+}
+
+fn export_button(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+    let currency = currency.to_string();
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(38.0))
+        .px(px(12.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .on_press(move || {
+            let Some(snapshot) = data.get() else {
+                return;
+            };
+            let csv = build_csv(&snapshot.report, &currency);
+            spawn(async move {
+                if let Ok(Some(path)) = pick_save_path(
+                    SaveDialog::new()
+                        .file_name("recurrency-report.csv")
+                        .filter(FileFilter::new("CSV", ["csv"])),
+                )
+                .await
+                {
+                    let _ = std::fs::write(path, csv);
+                }
+            });
+        })
+        .child(
+            text("Export CSV")
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().foreground),
+        )
 }
 
 fn summary_card(
     label: &'static str,
+    icon: ImageAsset,
     value: impl Fn() -> String + 'static,
-    caption: &'static str,
+    caption: impl Fn() -> String + 'static,
 ) -> impl IntoElement {
     view()
-        .w_full()
+        .flex_grow(1.0)
+        .min_w(px(200.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -189,10 +248,22 @@ fn summary_card(
         .p(px(18.0))
         .gap(px(4.0))
         .child(
-            text(label)
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().muted_foreground),
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    text(label)
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    image(icon)
+                        .size(px(16.0))
+                        .tint_color(move || theme().muted_foreground),
+                ),
         )
         .child(
             text(value)
@@ -203,17 +274,16 @@ fn summary_card(
         )
         .child(
             text(caption)
-                .text_size(px(10.0))
+                .text_size(px(12.0))
                 .text_color(move || theme().muted_foreground),
         )
 }
 
-fn category_card(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
-    let currency = currency.to_string();
-    let categories = move || data.get().unwrap_or_default().report.category_breakdown;
+fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+    let _currency = currency.to_string();
     view()
-        .flex_grow(1.2)
-        .min_w(px(0.0))
+        .flex_grow(1.0)
+        .min_w(px(320.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -221,80 +291,106 @@ fn category_card(data: Resource<ReportsData, String>, currency: &str) -> impl In
         .p(px(20.0))
         .gap(px(12.0))
         .child(
-            text("By category")
+            text("By Category")
                 .text_size(px(16.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
         .child(
             view()
+                .w_full()
+                .items_center()
+                .child(
+                    canvas(move || {
+                        let size = 240.0_f32;
+                        let center = size / 2.0;
+                        let radius = size * 0.34;
+                        let mut painter = Painter::new().line_width(size * 0.11);
+                        let categories = data
+                            .get()
+                            .unwrap_or_default()
+                            .report
+                            .category_breakdown;
+                        if categories.is_empty() {
+                            return painter
+                                .stroke_color(rgb(0x454759))
+                                .begin_path()
+                                .arc(center, center, radius, 0.0, TAU)
+                                .stroke();
+                        }
+                        let total: f64 = categories.iter().map(|category| category.percentage).sum();
+                        if total <= 0.0 {
+                            return painter
+                                .stroke_color(rgb(0x454759))
+                                .begin_path()
+                                .arc(center, center, radius, 0.0, TAU)
+                                .stroke();
+                        }
+                        if categories.len() == 1 {
+                            let color = category_color(data, &categories[0].category_name);
+                            return painter
+                                .stroke_color(rgb(parse_hex(&color)))
+                                .begin_path()
+                                .arc(center, center, radius, 0.0, TAU)
+                                .stroke();
+                        }
+                        let mut start = -TAU / 4.0;
+                        for (index, category) in categories.iter().enumerate() {
+                            let sweep = (category.percentage / total) as f32 * TAU;
+                            let color = category_color(data, &category.category_name);
+                            painter = painter
+                                .stroke_color(rgb(parse_hex(&color)))
+                                .begin_path()
+                                .arc(center, center, radius, start + 0.02, start + sweep - 0.02)
+                                .stroke();
+                            start += sweep;
+                            let _ = index;
+                        }
+                        painter
+                    })
+                    .h(px(240.0))
+                    .w(px(240.0)),
+                ),
+        )
+        .child(
+            view()
                 .flex_col()
-                .gap(px(10.0))
+                .gap(px(6.0))
                 .child(each(
-                    categories,
+                    move || data.get().unwrap_or_default().report.category_breakdown,
                     |category| category.category_name.clone(),
                     move |category, _| {
                         let category = category.get();
                         let color = category_color(data, &category.category_name);
-                        let amount = format_currency(category.total, &currency);
-                        let percent = category.percentage.clamp(0.0, 100.0) as f32;
-                        let color_text = color.clone();
-                        let color_bg = color;
+                        let name = category.category_name.clone();
+                        let percentage = format!("{:.0}%", category.percentage);
                         view()
                             .w_full()
-                            .flex_col()
-                            .gap(px(4.0))
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
                             .child(
                                 view()
                                     .flex_row()
                                     .items_center()
-                                    .justify_between()
+                                    .gap(px(6.0))
                                     .child(
                                         view()
-                                            .flex_row()
-                                            .items_center()
-                                            .gap(px(6.0))
-                                            .child(
-                                                view()
-                                                    .h(px(8.0))
-                                                    .w(px(8.0))
-                                                    .rounded(px(999.0))
-                                                    .bg(move || rgb(parse_hex(&color_bg))),
-                                            )
-                                            .child(
-                                                text(category.category_name)
-                                                    .text_size(px(12.0))
-                                                    .font_weight(FontWeight::MEDIUM)
-                                                    .text_color(move || theme().foreground),
-                                            ),
+                                            .h(px(8.0))
+                                            .w(px(8.0))
+                                            .rounded(px(999.0))
+                                            .bg(move || rgb(parse_hex(&color))),
                                     )
                                     .child(
-                                        text(amount)
+                                        text(name)
                                             .text_size(px(12.0))
-                                            .font_family(design::MONO)
-                                            .font_weight(FontWeight::SEMIBOLD)
                                             .text_color(move || theme().foreground),
                                     ),
                             )
                             .child(
-                                view()
-                                    .h(px(5.0))
-                                    .w_full()
-                                    .rounded(px(999.0))
-                                    .bg(move || theme().muted)
-                                    .overflow_hidden()
-                                    .flex_row()
-                                    .child(
-                                        view()
-                                            .h_full()
-                                            .flex_grow(percent.max(0.01))
-                                            .bg(move || rgb(parse_hex(&color_text))),
-                                    )
-                                    .child(view().h_full().flex_grow((100.0 - percent).max(0.01))),
-                            )
-                            .child(
-                                text(format!("{} items · {:.1}%", category.count, category.percentage))
-                                    .text_size(px(10.0))
+                                text(percentage)
+                                    .text_size(px(12.0))
+                                    .font_family(design::MONO)
                                     .text_color(move || theme().muted_foreground),
                             )
                     },
@@ -302,16 +398,128 @@ fn category_card(data: Resource<ReportsData, String>, currency: &str) -> impl In
         )
 }
 
-fn trend_card(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
     let currency = currency.to_string();
-    let trends = move || {
-        let mut trends = data.get().unwrap_or_default().report.recent_trends;
-        trends.reverse();
-        trends
-    };
     view()
-        .flex_grow(0.8)
-        .min_w(px(0.0))
+        .w_full()
+        .rounded(px(12.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(20.0))
+        .gap(px(10.0))
+        .child(
+            text("Category Breakdown")
+                .text_size(px(16.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .py(px(8.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    text("CATEGORY")
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground)
+                        .flex_grow(2.0),
+                )
+                .child(
+                    text("ITEMS")
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground)
+                        .flex_grow(1.0),
+                )
+                .child(
+                    text("SHARE")
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground)
+                        .flex_grow(1.0),
+                )
+                .child(
+                    text("AMOUNT")
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground)
+                        .flex_grow(1.0),
+                ),
+        )
+        .child(
+            view()
+                .flex_col()
+                .child(each(
+                    move || data.get().unwrap_or_default().report.category_breakdown,
+                    |category| category.category_name.clone(),
+                    move |category, _| {
+                        let category = category.get();
+                        let color = category_color(data, &category.category_name);
+                        let amount = format_currency(category.total, &currency);
+                        let name = category.category_name.clone();
+                        let count = category.count;
+                        let share = format!("{:.1}%", category.percentage);
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .py(px(9.0))
+                            .border_b(px(1.0))
+                            .border_color(move || theme().border)
+                            .child(
+                                view()
+                                    .flex_grow(2.0)
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(6.0))
+                                    .child(
+                                        view()
+                                            .h(px(8.0))
+                                            .w(px(8.0))
+                                            .rounded(px(999.0))
+                                            .bg(move || rgb(parse_hex(&color))),
+                                    )
+                                    .child(
+                                        text(name)
+                                            .text_size(px(12.0))
+                                            .text_color(move || theme().foreground),
+                                    ),
+                            )
+                            .child(
+                                text(count.to_string())
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground)
+                                    .flex_grow(1.0),
+                            )
+                            .child(
+                                text(share)
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground)
+                                    .flex_grow(1.0),
+                            )
+                            .child(
+                                text(amount)
+                                    .text_size(px(12.0))
+                                    .font_family(design::MONO)
+                                    .text_color(move || theme().foreground)
+                                    .flex_grow(1.0),
+                            )
+                    },
+                )),
+        )
+}
+
+
+fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+    let _currency = currency.to_string();
+    let width = signal(0.0_f32);
+    view()
+        .flex_grow(1.0)
+        .min_w(px(320.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -319,79 +527,105 @@ fn trend_card(data: Resource<ReportsData, String>, currency: &str) -> impl IntoE
         .p(px(20.0))
         .gap(px(12.0))
         .child(
-            text("Spending trends")
+            text("Spending Trends")
                 .text_size(px(16.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
         .child(
-            view()
-                .flex_col()
-                .gap(px(8.0))
-                .child(each(
-                    trends,
-                    |trend| trend.period.clone(),
-                    move |trend, _| {
-                        let trend = trend.get();
-                        let max = data
-                            .get()
-                            .unwrap_or_default()
-                            .report
-                            .recent_trends
-                            .iter()
-                            .map(|item| item.total)
-                            .max()
-                            .unwrap_or(Decimal::ONE);
-                        let ratio = if max > Decimal::ZERO {
-                            (trend.total / max * Decimal::from(100))
-                                .to_string()
-                                .parse::<f32>()
-                                .unwrap_or(0.0)
-                                .clamp(0.0, 100.0)
-                        } else {
-                            0.0
-                        };
-                        let amount = format_currency(trend.total, &currency);
-                        view()
-                            .w_full()
-                            .flex_col()
-                            .gap(px(3.0))
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .justify_between()
-                                    .child(
-                                        text(trend.period)
-                                            .text_size(px(11.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    )
-                                    .child(
-                                        text(amount)
-                                            .text_size(px(11.0))
-                                            .font_family(design::MONO)
-                                            .text_color(move || theme().foreground),
-                                    ),
-                            )
-                            .child(
-                                view()
-                                    .h(px(5.0))
-                                    .w_full()
-                                    .rounded(px(999.0))
-                                    .bg(move || theme().muted)
-                                    .overflow_hidden()
-                                    .flex_row()
-                                    .child(
-                                        view()
-                                            .h_full()
-                                            .flex_grow(ratio.max(0.01))
-                                            .bg(move || theme().primary),
-                                    )
-                                    .child(view().h_full().flex_grow((100.0 - ratio).max(0.01))),
-                            )
-                    },
-                )),
+            canvas(move || {
+                let mut trends = data.get().unwrap_or_default().report.recent_trends;
+                trends.reverse();
+                let w = width.get().max(1.0);
+                let h: f32 = 220.0;
+                let left = 34.0;
+                let right = 8.0;
+                let top: f32 = 10.0;
+                let bottom: f32 = 28.0;
+                let plot_w = (w - left - right).max(1.0);
+                let plot_h: f32 = (h - top - bottom).max(1.0);
+                let max = trends
+                    .iter()
+                    .map(|trend| trend.total)
+                    .max()
+                    .unwrap_or(Decimal::ZERO)
+                    .to_string()
+                    .parse::<f32>()
+                    .unwrap_or(0.0)
+                    .max(1.0);
+                let mut painter = Painter::new();
+                for step in 0..=4 {
+                    let value = max * step as f32 / 4.0;
+                    let y = top + plot_h - value / max * plot_h;
+                    painter = painter
+                        .stroke_color(rgb(0x313244))
+                        .line_width(1.0)
+                        .begin_path()
+                        .move_to(left, y)
+                        .line_to(w - right, y)
+                        .stroke()
+                        .fill_color(rgb(0x949AB3))
+                        .font("10px Cabinet Grotesk")
+                        .text_align(CanvasTextAlign::Right)
+                        .fill_text(&format!("{value:.0}"), left - 6.0, y + 3.0);
+                }
+                if trends.is_empty() {
+                    return painter;
+                }
+                let x = |index: usize| {
+                    if trends.len() <= 1 {
+                        left + plot_w / 2.0
+                    } else {
+                        left + index as f32 / (trends.len() - 1) as f32 * plot_w
+                    }
+                };
+                let y = |total: Decimal| {
+                    let value = total.to_string().parse::<f32>().unwrap_or(0.0);
+                    top + plot_h - value / max * plot_h
+                };
+                painter = painter
+                    .fill_color(rgba(0x6366f133))
+                    .begin_path()
+                    .move_to(x(0), top + plot_h);
+                for (index, trend) in trends.iter().enumerate() {
+                    painter = painter.line_to(x(index), y(trend.total));
+                }
+                painter = painter
+                    .line_to(x(trends.len() - 1), top + plot_h)
+                    .close_path()
+                    .fill()
+                    .stroke_color(rgb(0xB4BEFE))
+                    .line_width(2.0)
+                    .line_join(LineJoin::Round)
+                    .begin_path()
+                    .move_to(x(0), y(trends[0].total));
+                for (index, trend) in trends.iter().enumerate().skip(1) {
+                    painter = painter.line_to(x(index), y(trend.total));
+                }
+                painter = painter.stroke();
+                for (index, trend) in trends.iter().enumerate() {
+                    let cx = x(index);
+                    let cy = y(trend.total);
+                    painter = painter
+                        .fill_color(rgb(0xB4BEFE))
+                        .begin_path()
+                        .arc(cx, cy, 3.0, 0.0, TAU)
+                        .fill()
+                        .fill_color(rgb(0x949AB3))
+                        .font("10px Cabinet Grotesk")
+                        .text_align(CanvasTextAlign::Center)
+                        .fill_text(&trend.period, cx, h - 8.0);
+                }
+                painter
+            })
+            .w_full()
+            .h(px(220.0))
+            .on_layout(move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                width.set(bounds.size.width.0);
+            }),
         )
 }
+
 
 fn build_csv(report: &ReportResponse, currency: &str) -> String {
     let mut csv = String::from("Period,Total\n");

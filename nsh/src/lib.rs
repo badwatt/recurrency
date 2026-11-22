@@ -106,7 +106,7 @@ fn loading_screen() -> AnyElement {
         .justify_center()
         .bg(move || theme().background)
         .gap(px(12.0))
-        .child(image(LOGO).size(px(36.0)))
+        .child(image(LOGO).size(px(36.0)).tint_color(move || theme().primary))
         .child(
             text("Recurrency")
                 .text_size(px(18.0))
@@ -124,6 +124,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     let auth_signal = signal(auth);
     let compact = signal(false);
     let modal = ui::ModalHost::new();
+    let create_intent = signal(None::<Route>);
     view()
         .relative()
         .flex_1()
@@ -133,7 +134,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .bg(move || theme().background)
         .font_family(theme::SANS)
         .text_color(move || theme().foreground)
-        .child(ui::top_bar(route, auth_signal.get(), compact.get()))
+        .child(ui::top_bar(route, auth_signal.get(), compact))
         .child(
             scroll().flex_1().child(
                 view()
@@ -143,32 +144,36 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                         view()
                             .w_full()
                             .max_w(px(1280.0))
-                            .px(px(40.0))
-                            .py(px(32.0))
+                            .px(move || {
+                                if compact.get() { px(16.0) } else if route.get() == Route::Dashboard { px(28.0) } else { px(24.0) }
+                            })
+                            .py(move || {
+                                if compact.get() { px(16.0) } else if route.get() == Route::Dashboard { px(32.0) } else { px(24.0) }
+                            })
                             .child(
                                 when(
                                     move || route.get() == Route::Dashboard,
-                                    move || dashboard::dashboard(auth_signal.get(), route),
+                                    move || dashboard::dashboard(auth_signal.get(), route, create_intent, compact),
                                 )
                                 .otherwise(move || {
                                     when(
                                         move || route.get() == Route::Subscriptions,
-                                        move || subscriptions::subscriptions(auth_signal.get(), modal),
+                                        move || subscriptions::subscriptions(auth_signal.get(), modal, create_intent),
                                     )
                                     .otherwise(move || {
                                         when(
                                             move || route.get() == Route::Transactions,
-                                            move || transactions::transactions(auth_signal.get(), modal),
+                                            move || transactions::transactions(auth_signal.get(), modal, create_intent),
                                         )
                                         .otherwise(move || {
                                             when(
                                                 move || route.get() == Route::Debts,
-                                                move || debts::debts(auth_signal.get(), modal),
+                                                move || debts::debts(auth_signal.get(), modal, create_intent),
                                             )
                                             .otherwise(move || {
                                                 when(
                                                     move || route.get() == Route::Calendar,
-                                                    move || calendar::calendar(auth_signal.get()),
+                                                    move || calendar::calendar(auth_signal.get(), compact),
                                                 )
                                                 .otherwise(move || {
                                                     when(

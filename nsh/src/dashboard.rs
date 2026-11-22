@@ -18,7 +18,7 @@ use crate::Route;
 const PAGE_TITLE: &str = "This month's plan";
 const PAGE_SUBTITLE: &str = "What to transfer into each account, and what is still left to pay.";
 
-pub fn dashboard(auth: AuthSession, route: Signal<Route>) -> AnyElement {
+pub fn dashboard(auth: AuthSession, route: Signal<Route>, intent: Signal<Option<Route>>, compact: Signal<bool>) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -49,8 +49,8 @@ pub fn dashboard(auth: AuthSession, route: Signal<Route>) -> AnyElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(24.0))
-        .child(header(&user_name, route))
+        .gap(px(30.0))
+        .child(header(&user_name, route, intent, compact))
         .child(
             when(loading, loading_card).otherwise(move || {
                 let value = render_currency.clone();
@@ -78,6 +78,7 @@ fn body(data: Resource<DashboardData, String>, currency: String, route: Signal<R
             view()
                 .w_full()
                 .flex_row()
+                .flex_wrap()
                 .gap(px(16.0))
                 .items_start()
                 .child(upcoming_card(data, &currency, route, today, hovered))
@@ -86,54 +87,91 @@ fn body(data: Resource<DashboardData, String>, currency: String, route: Signal<R
         .into_element()
 }
 
-fn header(user_name: &str, route: Signal<Route>) -> impl IntoElement {
-    let greeting = format!("Welcome back, {user_name}");
-    view()
-        .w_full()
-        .flex_row()
-        .items_end()
-        .justify_between()
-        .gap(px(24.0))
-        .child(
-            view()
-                .flex_col()
-                .gap(px(4.0))
-                .child(
-                    text(greeting)
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(
-                    text(PAGE_TITLE)
-                        .text_size(px(34.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text(PAGE_SUBTITLE)
-                        .text_size(px(14.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
+fn header(
+    user_name: &str,
+    route: Signal<Route>,
+    intent: Signal<Option<Route>>,
+    compact: Signal<bool>,
+) -> impl IntoElement {
+    let name = user_name.to_string();
+    let mobile_name = name.clone();
+    view().w_full().child(
+        when(
+            move || compact.get(),
+            move || {
+                view()
+                    .w_full()
+                    .flex_col()
+                    .gap(px(12.0))
+                    .child(title_block(mobile_name.clone()))
+                    .child(actions(route, intent))
+                    .into_element()
+            },
         )
-        .child(
+        .otherwise(move || {
             view()
+                .w_full()
                 .flex_row()
-                .items_center()
-                .gap(px(8.0))
-                .child(action("Add subscription", true, route, Route::Subscriptions))
-                .child(action("Add transaction", false, route, Route::Transactions))
-                .child(action("Add debt", false, route, Route::Debts)),
+                .items_end()
+                .justify_between()
+                .gap(px(24.0))
+                .child(title_block(name.clone()))
+                .child(actions(route, intent))
+                .into_element()
+        }),
+    )
+}
+
+fn title_block(user_name: String) -> impl IntoElement {
+    view()
+        .flex_1()
+        .min_w(px(0.0))
+        .flex_col()
+        .gap(px(4.0))
+        .child(
+            text(format!("Welcome back, {user_name}"))
+                .text_size(px(14.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground)
+                .line_height(px(20.0)),
         )
+        .child(
+            text(PAGE_TITLE)
+                .text_size(px(36.0))
+                .line_height(px(40.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text(PAGE_SUBTITLE)
+                .text_size(px(14.0))
+                .line_height(px(20.0))
+                .text_color(move || theme().muted_foreground),
+        )
+}
+
+fn actions(route: Signal<Route>, intent: Signal<Option<Route>>) -> impl IntoElement {
+    view()
+        .flex_row()
+        .flex_wrap()
+        .items_center()
+        .gap(px(8.0))
+        .child(action("Add subscription", true, route, intent, Route::Subscriptions, asset!("icons/plus.svg")))
+        .child(action("Add transaction", false, route, intent, Route::Transactions, asset!("icons/transactions.svg")))
+        .child(action("Add debt", false, route, intent, Route::Debts, asset!("icons/plus.svg")))
 }
 
 fn action(
     label: &'static str,
     primary: bool,
     route: Signal<Route>,
+    intent: Signal<Option<Route>>,
     target: Route,
+    icon: ImageAsset,
 ) -> impl IntoElement {
     button()
+        .items_center()
+        .justify_center()
         .h(px(40.0))
         .px(px(16.0))
         .rounded(px(8.0))
@@ -141,7 +179,17 @@ fn action(
         .border_color(move || theme().border)
         .bg(move || if primary { theme().primary } else { theme().card })
         .active(|state| state.opacity(0.8))
-        .on_press(move || route.set(target))
+        .flex_row()
+        .gap(px(6.0))
+        .on_press(move || {
+            intent.set(Some(target));
+            route.set(target);
+        })
+        .child(
+            image(icon)
+                .size(px(14.0))
+                .tint_color(move || if primary { theme().primary_foreground } else { theme().foreground }),
+        )
         .child(
             text(label)
                 .text_size(px(14.0))
@@ -221,9 +269,11 @@ fn hero(
         .bg(move || theme().card)
         .overflow_hidden()
         .flex_row()
+        .flex_wrap()
         .child(
             view()
                 .flex_grow(1.15)
+                .basis(px(400.0))
                 .p(px(32.0))
                 .child(
                     text(format!("PLAN FOR {month}"))
@@ -253,6 +303,7 @@ fn hero(
                 .child(
                     view()
                         .flex_row()
+                        .flex_wrap()
                         .gap(px(20.0))
                         .mt(px(22.0))
                         .child(stat(move || ui::count_label(count(), "account", "accounts")))
@@ -267,6 +318,7 @@ fn hero(
         .child(
             view()
                 .flex_grow(0.85)
+                .basis(px(300.0))
                 .p(px(32.0))
                 .border_l(px(1.0))
                 .border_color(move || theme().border)
@@ -339,7 +391,7 @@ fn upcoming_card(
     };
     view()
         .flex_grow(1.0)
-        .min_w(px(0.0))
+        .basis(px(500.0))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -364,6 +416,8 @@ fn upcoming_card(
                 )
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(28.0))
                         .px(px(4.0))
                         .rounded(px(6.0))
@@ -418,8 +472,6 @@ fn upcoming_row(
         rates.convert(payment.amount, &payment.currency)
     };
     let original = payment.currency != currency;
-    let color = payment.account_color.clone();
-    let initial = first_letter(&payment.name);
     let date = short_date(payment.date);
     let days = days_text(payment.date, today);
     let is_transaction = payment.is_transaction;
@@ -428,8 +480,6 @@ fn upcoming_row(
     let account = payment.account_name;
     let amount = format_currency(converted, &currency);
     let original = original.then(|| format_currency(payment.amount, &payment.currency));
-    let color_text = color.clone();
-    let color_bg = color.clone();
 
     view()
         .w_full()
@@ -451,17 +501,16 @@ fn upcoming_row(
                 .flex_1()
                 .child(
                     view()
-                        .h(px(36.0))
-                        .w(px(36.0))
+                        .h(px(40.0))
+                        .w(px(40.0))
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || rgba((parse_hex(&color_bg) << 8) | 0x24))
+                        .bg(move || theme().muted)
                         .child(
-                            text(initial)
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || rgb(parse_hex(&color_text))),
+                            image(asset!("icons/card.svg"))
+                            .size(px(17.0))
+                            .tint_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
@@ -538,6 +587,7 @@ fn ledger_card(
     let category_count = move || data.get().unwrap_or_default().categories.len();
     view()
         .w(px(460.0))
+        .flex_shrink(0.0)
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -661,9 +711,6 @@ fn account_row(
     currency: String,
     hovered: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
-    let color = entry.color.clone();
-    let color_text = color.clone();
-    let color_bg = color;
     let name = entry.name;
     let counts = format!(
         "{} subscriptions · {} manual",
@@ -672,7 +719,6 @@ fn account_row(
     let budget = format_currency(entry.budget, &currency);
     let pending = format_currency(entry.pending, &currency);
     let pending_count = entry.pending_count;
-    let initial = first_letter(&name);
     let id = entry.account_id;
 
     view()
@@ -695,17 +741,16 @@ fn account_row(
                 .min_w(px(0.0))
                 .child(
                     view()
-                        .h(px(34.0))
-                        .w(px(34.0))
+                        .h(px(36.0))
+                        .w(px(36.0))
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || rgba((parse_hex(&color_bg) << 8) | 0x24))
+                        .bg(move || theme().muted)
                         .child(
-                            text(initial)
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || rgb(parse_hex(&color_text))),
+                            image(asset!("icons/card.svg"))
+                                .size(px(16.0))
+                                .tint_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
@@ -751,14 +796,10 @@ fn category_rows(data: Resource<DashboardData, String>, currency: &str) -> impl 
 }
 
 fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
-    let color = entry.color.clone();
-    let color_text = color.clone();
-    let color_bg = color;
     let name = entry.name;
     let count = format!("{} charges", entry.charge_count);
     let amount = format_currency(entry.amount, &currency);
     let pending = format_currency(entry.pending, &currency);
-    let initial = first_letter(&name);
     view()
         .w_full()
         .flex_row()
@@ -776,17 +817,16 @@ fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
                 .min_w(px(0.0))
                 .child(
                     view()
-                        .h(px(34.0))
-                        .w(px(34.0))
+                        .h(px(36.0))
+                        .w(px(36.0))
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || rgba((parse_hex(&color_bg) << 8) | 0x24))
+                        .bg(move || theme().muted)
                         .child(
-                            text(initial)
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || rgb(parse_hex(&color_text))),
+                            image(asset!("icons/card.svg"))
+                                .size(px(16.0))
+                                .tint_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
@@ -882,6 +922,8 @@ fn amount_cell(
 
 fn tab(label: &'static str, active: bool, on_press: impl Fn() + 'static) -> impl IntoElement {
     button()
+        .items_center()
+        .justify_center()
         .h(px(26.0))
         .px(px(9.0))
         .rounded(px(5.0))
@@ -918,17 +960,6 @@ fn section_title(label: &'static str) -> impl IntoElement {
         .text_color(move || theme().muted_foreground)
 }
 
-fn first_letter(name: &str) -> String {
-    name.chars()
-        .find(|character| !character.is_whitespace())
-        .map(|character| character.to_uppercase().to_string())
-        .unwrap_or_else(|| "•".to_string())
-}
-
-fn parse_hex(value: &str) -> u32 {
-    u32::from_str_radix(value.trim_start_matches('#'), 16).unwrap_or(0x6b7280)
-}
-
 fn loading_card() -> AnyElement {
     ui::surface()
         .p(px(32.0))
@@ -958,6 +989,8 @@ fn error_screen(message: &str, data: Resource<DashboardData, String>) -> AnyElem
                 )
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(34.0))
                         .px(px(14.0))
                         .rounded(px(7.0))

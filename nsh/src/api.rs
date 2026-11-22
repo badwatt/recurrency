@@ -313,6 +313,16 @@ pub async fn export_backup(server: String, token: String) -> Result<String, Stri
     }
 }
 
+pub async fn delete_account(
+    server: String,
+    token: String,
+    password: String,
+) -> Result<(), String> {
+    Client::new(server, token)
+        .post("/api/settings/account", &serde_json::json!({"password": password}))
+        .await
+}
+
 pub async fn update_settings(
     server: String,
     token: String,

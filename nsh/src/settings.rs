@@ -1,6 +1,7 @@
 //! Settings: account, appearance, server and about.
 
-use nsh_base::{button, theme};
+use nsh_base::{button, input, theme};
+use nsh_core::element::AutoFill;
 use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -37,6 +38,7 @@ enum Section {
 }
 
 impl Section {
+    #[allow(dead_code)]
     const ALL: [Section; 10] = [
         Section::Account,
         Section::Appearance,
@@ -65,18 +67,52 @@ impl Section {
         }
     }
 
+    fn icon(self) -> ImageAsset {
+        match self {
+            Section::Account => asset!("icons/settings.svg"),
+            Section::Appearance => asset!("icons/palette.svg"),
+            Section::General => asset!("icons/sun.svg"),
+            Section::Notifications => asset!("icons/bell.svg"),
+            Section::Ai => asset!("icons/sparkles.svg"),
+            Section::Money => asset!("icons/tag.svg"),
+            Section::Data => asset!("icons/database.svg"),
+            Section::Server => asset!("icons/monitor.svg"),
+            Section::Admin => asset!("icons/settings.svg"),
+            Section::About => asset!("icons/info.svg"),
+        }
+    }
+
+    fn title(self) -> &'static str {
+        self.label()
+    }
+
+    fn subtitle(self) -> &'static str {
+        match self {
+            Section::Account => "Your profile, session and account",
+            Section::Appearance => "Color themes and palette",
+            Section::General => "Currency, exchange rates, week start and dates",
+            Section::Notifications => "Choose where your summary lands and when it leaves",
+            Section::Ai => "Model, voice input and privacy",
+            Section::Money => "Accounts and categories that organize your money",
+            Section::Data => "Keep a copy of your data and sync devices",
+            Section::Server => "Server connection and device pairing",
+            Section::Admin => "Users, registration and full backups",
+            Section::About => "Version, release notes and Android app",
+        }
+    }
+
     fn description(self) -> &'static str {
         match self {
-            Section::Account => "Profile, session and account",
+            Section::Account => "Profile, session and account removal",
             Section::Appearance => "Color theme and palette",
-            Section::General => "Currency and defaults",
-            Section::Notifications => "Delivery channels",
-            Section::Ai => "Provider and model",
+            Section::General => "Currency, exchange rates, week start and dates",
+            Section::Notifications => "Delivery channels and summaries",
+            Section::Ai => "Model, voice input and privacy",
             Section::Money => "Accounts and categories",
-            Section::Data => "Backups and restore",
-            Section::Server => "Connection and device pairing",
+            Section::Data => "Backups, restore and folder sync",
+            Section::Server => "Server connection and device pairing",
             Section::Admin => "Users and registration",
-            Section::About => "Version and release notes",
+            Section::About => "Version, release notes and Android app",
         }
     }
 }
@@ -93,6 +129,9 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let verified = auth.user.verified;
     let is_admin = auth.user.is_admin;
     let backup_status = signal(String::new());
+    let delete_open = signal(false);
+    let delete_password = signal(String::new());
+    let delete_error = signal(String::new());
     let save_server = server.clone();
     let save_token = token.clone();
     let data_server = signal(server.clone());
@@ -124,11 +163,14 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             requires_verification: false,
                         };
                         auth::store_session(&next);
+                        saving.set(false);
                         session.set(Session::SignedIn(next));
                     }
-                    Err(message) => error.set(message),
+                    Err(message) => {
+                        error.set(message);
+                        saving.set(false);
+                    }
                 }
-                saving.set(false);
             });
         }
     };
@@ -136,13 +178,14 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let save_general = save.clone();
     view()
         .w_full()
+        .pt(px(10.0))
         .flex_row()
         .flex_wrap()
         .items_start()
-        .gap(px(28.0))
+        .gap(px(36.0))
         .child(
             view()
-                .w(px(220.0))
+                .w(px(200.0))
                 .flex_col()
                 .gap(px(4.0))
                 .child(
@@ -152,36 +195,70 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         .text_color(move || theme().muted_foreground)
                         .mb(px(8.0)),
                 )
-                .children(Section::ALL.iter().filter(|item| **item != Section::Admin || is_admin).map(|item| {
-                    let item = *item;
-                    let active = move || section.get() == item;
-                    button()
-                        .w_full()
-                        .rounded(px(8.0))
-                        .px(px(10.0))
-                        .py(px(8.0))
-                        .bg(move || if active() { theme().accent } else { theme().background })
-                        .on_press(move || section.set(item))
+                .children([
+                    ("PERSONAL", &[Section::Account, Section::Appearance][..]),
+                    ("CONFIGURATION", &[Section::General, Section::Ai, Section::Money, Section::Notifications][..]),
+                    ("SYSTEM", &[Section::Data, Section::Server, Section::Admin, Section::About][..]),
+                ].into_iter().map(|(group, items)| {
+                    view()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .mb(px(8.0))
                         .child(
-                            view()
-                                .flex_col()
-                                .gap(px(1.0))
-                                .child(
-                                    text(item.label())
-                                        .text_size(px(13.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || if active() {
-                                            theme().foreground
-                                        } else {
-                                            theme().muted_foreground
-                                        }),
-                                )
-                                .child(
-                                    text(item.description())
-                                        .text_size(px(10.0))
-                                        .text_color(move || theme().muted_foreground),
-                                ),
+                            text(group)
+                                .text_size(px(9.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().muted_foreground)
+                                .px(px(10.0))
+                                .mb(px(2.0)),
                         )
+                        .children(items.iter().filter(|item| **item != Section::Admin || is_admin).map(|item| {
+                            let item = *item;
+                            let active = move || section.get() == item;
+                            button()
+                                .items_center()
+                                .justify_center()
+                                .w_full()
+                                .rounded(px(8.0))
+                                .px(px(10.0))
+                                .py(px(10.0))
+                                .bg(move || if active() { theme().accent } else { theme().background })
+                                .on_press(move || section.set(item))
+                                .child(
+                                    view()
+                                        .w_full()
+                                        .flex_row()
+                                        .items_start()
+                                        .gap(px(8.0))
+                                        .child(
+                                            image(item.icon())
+                                                .size(px(16.0))
+                                                .mt(px(1.0))
+                                                .tint_color(move || theme().muted_foreground),
+                                        )
+                                        .child(
+                                            view()
+                                                .flex_col()
+                                                .gap(px(1.0))
+                                                .min_w(px(0.0))
+                                                .child(
+                                                    text(item.label())
+                                                        .text_size(px(13.0))
+                                                        .font_weight(FontWeight::MEDIUM)
+                                                        .text_color(move || if active() {
+                                                            theme().foreground
+                                                        } else {
+                                                            theme().muted_foreground
+                                                        }),
+                                                )
+                                                .child(
+                                                    text(item.description())
+                                                        .text_size(px(10.0))
+                                                        .text_color(move || theme().muted_foreground),
+                                                ),
+                                        ),
+                                )
+                        }))
                 })),
         )
         .child(
@@ -190,7 +267,24 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .min_w(px(320.0))
                 .flex_col()
                 .gap(px(20.0))
-                .child(ui::page_header("Settings", "Preferences for this device"))
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(4.0))
+                        .child(
+                            text(move || section.get().title())
+                                .text_size(px(48.0))
+                                .line_height(px(48.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(move || section.get().subtitle())
+                                .text_size(px(16.0))
+                                .line_height(px(24.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
                 .child(
                     when(move || section.get() == Section::Account, move || {
                         account_card(
@@ -198,11 +292,15 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             verified,
                             is_admin,
                             name,
-                            currency,
                             error,
                             saving,
                             save.clone(),
                             session,
+                            delete_open,
+                            delete_password,
+                            delete_error,
+                            data_server,
+                            data_token,
                         )
                     })
                     .otherwise(|| view().h(px(0.0))),
@@ -264,15 +362,24 @@ fn account_card(
     verified: bool,
     is_admin: bool,
     name: Signal<String>,
-    currency: Signal<String>,
     error: Signal<String>,
     saving: Signal<bool>,
     save: impl Fn() + 'static,
     session: Signal<Session>,
+    delete_open: Signal<bool>,
+    delete_password: Signal<String>,
+    delete_error: Signal<String>,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> impl IntoElement {
+    let initial = email
+        .chars()
+        .next()
+        .map(|value| value.to_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_string());
+    let email_value = signal(email.clone());
     view()
         .w_full()
-        .max_w(px(680.0))
         .flex_col()
         .gap(px(16.0))
         .child(
@@ -280,33 +387,83 @@ fn account_card(
                 .p(px(24.0))
                 .gap(px(16.0))
                 .child(
-                    text("Account")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
                     view()
                         .flex_col()
                         .gap(px(2.0))
                         .child(
-                            text("Email")
-                                .text_size(px(12.0))
-                                .text_color(move || theme().muted_foreground),
+                            text("Personal information")
+                                .text_size(px(20.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
                         )
                         .child(
-                            text(email)
+                            text("Your email identifies you; your name is how we greet you.")
                                 .text_size(px(14.0))
-                                .text_color(move || theme().foreground),
+                                .text_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
                     view()
+                        .mt(px(32.0))
                         .flex_row()
+                        .items_center()
                         .gap(px(12.0))
-                        .child(ui::field("Name", name, "Your name"))
-                        .child(ui::field("Currency", currency, "EUR")),
+                        .child(
+                            view()
+                                .h(px(64.0))
+                                .w(px(64.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(999.0))
+                                .bg(move || theme().primary)
+                                .child(
+                                    text(initial)
+                                        .text_size(px(22.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().primary_foreground),
+                                ),
+                        )
+                        .child(
+                            button()
+                                .items_center()
+                                .justify_center()
+                                .h(px(34.0))
+                                .px(px(12.0))
+                                .rounded(px(7.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .bg(move || theme().background)
+                                .on_press(move || {})
+                                .child(
+                                    text("Change photo")
+                                        .text_size(px(12.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                ),
+                        ),
                 )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(ui::label("Email"))
+                        .child(
+                            input()
+                                .value(email_value)
+                                .readonly(true)
+                                .auto_fill(AutoFill::Off)
+                                .h(px(40.0))
+                                .w_full()
+                                .px(px(12.0))
+                                .rounded(px(7.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().input)
+                                .bg(move || theme().background)
+                                .text_size(px(14.0))
+                                .text_color(move || theme().foreground),
+                        ),
+                )
+                .child(ui::field("Name", name, "Your name"))
                 .child(
                     view()
                         .flex_row()
@@ -334,12 +491,16 @@ fn account_card(
                 )
                 .child(
                     view()
+                        .w_full()
                         .flex_row()
+                        .justify_end()
                         .gap(px(8.0))
                         .child(
                             button()
-                                .h(px(36.0))
-                                .px(px(14.0))
+                                .items_center()
+                                .justify_center()
+                                .h(px(40.0))
+                                .px(px(16.0))
                                 .rounded(px(7.0))
                                 .bg(move || theme().primary)
                                 .disabled(move || saving.get())
@@ -351,11 +512,7 @@ fn account_card(
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(move || theme().primary_foreground),
                                 ),
-                        )
-                        .child(ui::action_button("Log out", true, move || {
-                            auth::clear_session();
-                            session.set(Session::SignedOut);
-                        })),
+                        ),
                 ),
         )
         .child(
@@ -363,16 +520,95 @@ fn account_card(
                 .p(px(24.0))
                 .gap(px(6.0))
                 .child(
-                    text("Session")
-                        .text_size(px(16.0))
+                    text("Delete account")
+                        .text_size(px(20.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
+                        .text_color(move || theme().destructive),
                 )
                 .child(
-                    text("Signing out removes the token from this device. Your server data stays untouched.")
-                        .text_size(px(12.0))
+                    text("Permanently remove your account and all of its data.")
+                        .text_size(px(13.0))
                         .text_color(move || theme().muted_foreground),
-                ),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(8.0))
+                        .child(
+                            button()
+                                .items_center()
+                                .justify_center()
+                                .h(px(36.0))
+                                .px(px(12.0))
+                                .rounded(px(7.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().destructive)
+                                .bg(move || theme().destructive.opacity(0.12))
+                                .on_press(move || delete_open.set(!delete_open.get()))
+                                .child(
+                                    text("Delete account")
+                                        .text_size(px(12.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().destructive),
+                                ),
+                        )
+                        .when(delete_open.get(), |column| {
+                            column
+                                .child(
+                                    input()
+                                        .value(delete_password)
+                                        .on_change(move |value: &str| delete_password.set(value.to_string()))
+                                        .placeholder("Password")
+                                        .masked(true)
+                                        .auto_fill(AutoFill::Off)
+                                        .h(px(38.0))
+                                        .px(px(10.0))
+                                        .rounded(px(7.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().input)
+                                        .bg(move || theme().background)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text(move || delete_error.get())
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().destructive),
+                                )
+                                .child(
+                                    button()
+                                        .items_center()
+                                        .justify_center()
+                                        .h(px(34.0))
+                                        .px(px(12.0))
+                                        .rounded(px(7.0))
+                                        .bg(move || theme().destructive)
+                                        .on_press(move || {
+                                            let password = delete_password.get();
+                                            if password.is_empty() {
+                                                delete_error.set("Enter your password.".to_string());
+                                                return;
+                                            }
+                                            let server_value = server.get();
+                                            let token_value = token.get();
+                                            spawn(async move {
+                                                match crate::api::delete_account(server_value, token_value, password).await {
+                                                    Ok(()) => {
+                                                        auth::clear_session();
+                                                        session.set(Session::SignedOut);
+                                                    }
+                                                    Err(message) => delete_error.set(message),
+                                                }
+                                            });
+                                        })
+                                        .child(
+                                            text("Confirm deletion")
+                                                .text_size(px(12.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .text_color(move || theme().primary_foreground),
+                                        ),
+                                )
+                        }),
+            ),
         )
 }
 
@@ -400,7 +636,7 @@ fn appearance_card() -> impl IntoElement {
 
 fn general_card(currency: Signal<String>, save: impl Fn() + 'static) -> impl IntoElement {
     ui::surface()
-        .w(px(680.0))
+        .w_full()
         .p(px(24.0))
         .gap(px(14.0))
         .child(
@@ -417,6 +653,8 @@ fn general_card(currency: Signal<String>, save: impl Fn() + 'static) -> impl Int
         )
         .child(
             button()
+                .items_center()
+                .justify_center()
                 .h(px(36.0))
                 .px(px(14.0))
                 .rounded(px(7.0))
@@ -573,7 +811,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
     let channel_currency = server.clone();
     let channel_token = token.clone();
     view()
-        .w(px(680.0))
+        .w_full()
         .flex_col()
         .gap(px(12.0))
         .child(
@@ -749,7 +987,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
         }
     };
     view()
-        .w(px(680.0))
+        .w_full()
         .flex_col()
         .gap(px(12.0))
         .child(
@@ -808,6 +1046,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .child(ui::action_button("Save", false, configure))
                         .child(
                             button()
+                                .items_center()
+                                .justify_center()
                                 .h(px(26.0))
                                 .px(px(8.0))
                                 .rounded(px(5.0))
@@ -847,7 +1087,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
         },
     );
     view()
-        .w(px(680.0))
+        .w_full()
         .flex_col()
         .gap(px(12.0))
         .child(
@@ -955,7 +1195,7 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
         },
     );
     ui::surface()
-        .w(px(680.0))
+        .w_full()
         .p(px(24.0))
         .gap(px(10.0))
         .child(

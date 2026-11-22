@@ -9,7 +9,7 @@ use std::rc::Rc;
 use uuid::Uuid;
 use nsh_core::prelude::*;
 
-pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: bool) -> impl IntoElement {
+pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -> impl IntoElement {
     view()
         .h(px(56.0))
         .w_full()
@@ -27,45 +27,52 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: bool) -> impl I
                 .flex_row()
                 .items_center()
                 .gap(px(4.0))
-                .px(px(24.0))
+                .px(px(28.0))
                 .child(
                     view()
                         .flex_row()
                         .items_center()
-                        .gap(px(10.0))
-                        .mr(px(24.0))
-                        .child(image(crate::LOGO).size(px(26.0)))
+                        .gap(px(8.0))
+                        .mr(px(4.0))
+                        .child(image(crate::LOGO).size(px(20.0)).tint_color(move || theme().primary))
                         .child(
                             text("Recurrency")
-                                .text_size(px(18.0))
+                                .text_size(px(16.0))
                                 .font_weight(FontWeight::BOLD)
                                 .text_color(move || theme().foreground),
                         ),
                 )
-                .when(!compact, |bar| {
-                    bar.child(
+                .child(
+                    when(move || !compact.get(), move || {
                         view()
                             .flex_row()
                             .items_center()
                             .gap(px(2.0))
-                            .children(Route::NAV.iter().map(|item| nav_item(*item, route))),
-                    )
-                })
-                .child(view().flex_1())
-                .child(
-                    button()
-                        .h(px(34.0))
-                        .px(px(10.0))
-                        .rounded(px(7.0))
-                        .on_press(move || route.set(Route::Settings))
-                        .child(
-                            text("Settings")
-                                .text_size(px(12.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().muted_foreground),
-                        ),
+                            .children(Route::NAV.iter().map(|item| nav_item(*item, route)))
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0))),
                 )
+                .child(view().flex_1())
+                .child(icon_action(route, asset!("icons/sparkles.svg")))
+                .child(icon_action(route, asset!("icons/eye.svg")))
+                .child(icon_action(route, asset!("icons/palette.svg")))
                 .child(avatar(route, auth)),
+        )
+}
+
+fn icon_action(route: Signal<Route>, icon: ImageAsset) -> impl IntoElement {
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(30.0))
+        .w(px(30.0))
+        .rounded(px(6.0))
+        .on_press(move || route.set(Route::Settings))
+        .child(
+            image(icon)
+                .size(px(17.0))
+                .tint_color(move || theme().muted_foreground),
         )
 }
 
@@ -82,6 +89,8 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .map(|character| character.to_uppercase().to_string())
         .unwrap_or_else(|| "?".to_string());
     button()
+        .items_center()
+        .justify_center()
         .h(px(30.0))
         .w(px(30.0))
         .items_center()
@@ -100,6 +109,8 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
 fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
     let active = move || route.get() == item;
     button()
+        .items_center()
+        .justify_center()
         .h(px(36.0))
         .px(px(12.0))
         .rounded(px(8.0))
@@ -144,6 +155,8 @@ pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
             let item = *item;
             let active = move || route.get() == item;
             button()
+                .items_center()
+                .justify_center()
                 .h(px(48.0))
                 .px(px(6.0))
                 .rounded(px(8.0))
@@ -175,18 +188,20 @@ pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
 
 pub fn page_header(title: &'static str, subtitle: &'static str) -> impl IntoElement {
     view()
-        .w_full()
+        .min_w(px(0.0))
         .flex_col()
         .gap(px(4.0))
         .child(
             text(title)
-                .text_size(px(34.0))
+                .text_size(px(48.0))
+                .line_height(px(48.0))
                 .font_weight(FontWeight::BOLD)
                 .text_color(move || theme().foreground),
         )
         .child(
             text(subtitle)
-                .text_size(px(15.0))
+                .text_size(px(16.0))
+                .line_height(px(24.0))
                 .text_color(move || theme().muted_foreground),
         )
 }
@@ -282,6 +297,8 @@ pub fn choice_picker(
                         let (id, name) = entry.get();
                         let active = selected.get() == Some(id);
                         button()
+                            .items_center()
+                            .justify_center()
                             .h(px(30.0))
                             .px(px(10.0))
                             .rounded(px(6.0))
@@ -310,6 +327,8 @@ pub fn action_button(
     on_press: impl Fn() + 'static,
 ) -> impl IntoElement {
     button()
+        .items_center()
+        .justify_center()
         .h(px(26.0))
         .px(px(8.0))
         .rounded(px(5.0))
@@ -376,4 +395,45 @@ pub fn modal_overlay(modal: ModalHost) -> AnyElement {
         .bg(rgba(0x000000cc))
         .child(modal.render())
         .into_element()
+}
+
+pub fn icon_button(
+    icon: ImageAsset,
+    active: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(38.0))
+        .w(px(38.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || if active { theme().primary } else { theme().border })
+        .bg(move || if active { theme().accent } else { theme().card })
+        .on_press(on_press)
+        .child(
+            image(icon)
+                .size(px(16.0))
+                .tint_color(move || if active { theme().foreground } else { theme().muted_foreground }),
+        )
+}
+
+pub fn mini_icon_button(
+    icon: ImageAsset,
+    destructive: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(26.0))
+        .w(px(26.0))
+        .rounded(px(5.0))
+        .on_press(on_press)
+        .child(
+            image(icon)
+                .size(px(13.0))
+                .tint_color(move || if destructive { theme().destructive } else { theme().muted_foreground }),
+        )
 }

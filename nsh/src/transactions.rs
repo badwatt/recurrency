@@ -59,7 +59,7 @@ struct TransactionGroup {
 const TITLE: &str = "Transactions";
 const SUBTITLE: &str = "Track your one-time expenses";
 
-pub fn transactions(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
+pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Option<crate::Route>>) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -150,20 +150,17 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
         });
     };
 
+    if intent.get() == Some(crate::Route::Transactions) {
+        intent.set(None);
+        open_form();
+    }
+
     view()
         .w_full()
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form))
-        .child(toolbar(data, search))
-        .child(
-            when(move || !actions.error.get().is_empty(), move || {
-                text(move || actions.error.get())
-                    .text_size(px(13.0))
-                    .text_color(move || theme().destructive)
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
+        .child(toolbar(search))
         .child(
             when(loading, || loading_card()).otherwise(move || {
                 let value = render_currency.clone();
@@ -182,19 +179,29 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
     view()
         .w_full()
         .flex_row()
+        .flex_wrap()
         .items_end()
         .justify_between()
-        .gap(px(24.0))
+        .gap(px(16.0))
         .child(ui::page_header(TITLE, SUBTITLE))
         .child(
             button()
+                .items_center()
+                .justify_center()
                 .h(px(40.0))
                 .px(px(16.0))
                 .rounded(px(8.0))
                 .bg(move || theme().primary)
+                .flex_row()
+                .gap(px(6.0))
                 .on_press(on_add)
                 .child(
-                    text("Add transaction")
+                    image(asset!("icons/plus.svg"))
+                        .size(px(14.0))
+                        .tint_color(move || theme().primary_foreground),
+                )
+                .child(
+                    text("Add Transaction")
                         .text_size(px(14.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().primary_foreground),
@@ -284,7 +291,7 @@ fn form(
 
     view()
         .w_full()
-        .max_w(px(760.0))
+        .w(px(672.0))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -365,6 +372,8 @@ fn form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(36.0))
                         .px(px(14.0))
                         .rounded(px(7.0))
@@ -381,6 +390,8 @@ fn form(
                 )
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(36.0))
                         .px(px(14.0))
                         .rounded(px(7.0))
@@ -402,34 +413,48 @@ fn form(
         )
 }
 
-fn toolbar(data: Resource<TransactionsData, String>, search: Signal<String>) -> impl IntoElement {
-    let count = move || filtered(data, search).len();
+fn toolbar(search: Signal<String>) -> impl IntoElement {
     view()
         .w_full()
         .flex_row()
         .items_center()
-        .gap(px(12.0))
+        .gap(px(8.0))
         .child(
-            input()
-                .value(search)
-                .on_change(move |value: &str| search.set(value.to_string()))
-                .placeholder("Search")
-                .auto_fill(AutoFill::Off)
+            view()
+                .flex_1()
+                .flex_row()
+                .items_center()
+                .gap(px(8.0))
                 .h(px(40.0))
-                .w(px(320.0))
                 .px(px(12.0))
                 .rounded(px(8.0))
                 .border(px(1.0))
                 .border_color(move || theme().input)
                 .bg(move || theme().card)
-                .text_size(px(14.0))
-                .text_color(move || theme().foreground),
+                .child(
+                    image(asset!("icons/search.svg"))
+                        .size(px(16.0))
+                        .tint_color(move || theme().muted_foreground),
+                )
+                .child(
+                    input()
+                        .value(search)
+                        .on_change(move |value: &str| search.set(value.to_string()))
+                        .placeholder("Search")
+                        .auto_fill(AutoFill::Off)
+                        .flex_1()
+                        .h(px(38.0))
+                        .px(px(0.0))
+                        .border(px(0.0))
+                        .bg(rgba(0x00000000))
+                        .text_size(px(14.0))
+                        .text_color(move || theme().foreground),
+                ),
         )
-        .child(
-            text(move || ui::count_label(count(), "transaction", "transactions"))
-                .text_size(px(13.0))
-                .text_color(move || theme().muted_foreground),
-        )
+        .child(ui::icon_button(asset!("icons/filter.svg"), false, move || {}))
+        .child(ui::icon_button(asset!("icons/sort.svg"), false, move || {}))
+        .child(ui::icon_button(asset!("icons/grid.svg"), true, move || {}))
+        .child(ui::icon_button(asset!("icons/list.svg"), false, move || {}))
 }
 
 fn content(
@@ -453,22 +478,6 @@ fn content(
         .w_full()
         .flex_col()
         .gap(px(16.0))
-        .child(
-            when(
-                move || data.get().unwrap_or_default().transactions.is_empty(),
-                || {
-                    ui::surface()
-                        .p(px(28.0))
-                        .child(
-                            text("No transactions yet.")
-                                .text_size(px(14.0))
-                                .text_color(move || theme().muted_foreground),
-                        )
-                        .into_element()
-                },
-            )
-            .otherwise(|| view().h(px(0.0))),
-        )
         .child(each(
             groups,
             |group| group.key.clone(),
@@ -498,11 +507,8 @@ fn group_card(
     let total = format_currency(group.total, &currency);
     view()
         .w_full()
-        .rounded(px(12.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .overflow_hidden()
+        .flex_col()
+        .gap(px(8.0))
         .child(
             view()
                 .w_full()
@@ -511,16 +517,17 @@ fn group_card(
                 .justify_between()
                 .px(px(20.0))
                 .py(px(12.0))
+                .rounded(px(8.0))
                 .bg(move || theme().muted)
                 .child(
                     text(format!("{} · {count}", group.label))
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
                     text(total)
-                        .text_size(px(13.0))
+                        .text_size(px(14.0))
                         .font_family(design::MONO)
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().foreground),
@@ -530,6 +537,7 @@ fn group_card(
             view()
                 .w_full()
                 .flex_col()
+                .gap(px(8.0))
                 .child(each(
                     move || group.items.clone(),
                     |transaction| transaction.id,
@@ -555,9 +563,6 @@ fn row(
     server: Signal<String>,
     token: Signal<String>,
 ) -> impl IntoElement {
-    let color = account_color(data, transaction.account_id);
-    let color_text = color.clone();
-    let color_bg = color;
     let account = account_name(data, transaction.account_id);
     let action_transaction = transaction.clone();
     let name = transaction.name;
@@ -571,10 +576,12 @@ fn row(
         .flex_row()
         .items_center()
         .justify_between()
-        .px(px(20.0))
-        .py(px(12.0))
-        .border_b(px(1.0))
+        .p(px(16.0))
+        .min_h(px(128.0))
+        .rounded(px(12.0))
+        .border(px(1.0))
         .border_color(move || theme().border)
+        .bg(move || theme().card)
         .gap(px(12.0))
         .child(
             view()
@@ -585,43 +592,65 @@ fn row(
                 .flex_1()
                 .child(
                     view()
-                        .h(px(36.0))
-                        .w(px(36.0))
+                        .h(px(40.0))
+                        .w(px(40.0))
                         .items_center()
                         .justify_center()
-                        .rounded(px(8.0))
-                        .bg(move || rgba((parse_hex(&color_bg) << 8) | 0x24))
+                        .rounded(px(999.0))
+                        .bg(move || theme().muted)
                         .child(
-                            image(asset!("icons/transactions.svg"))
-                                .size(px(16.0))
-                                .tint_color(move || rgb(parse_hex(&color_text))),
+                            image(asset!("icons/receipt.svg"))
+                                .size(px(17.0))
+                                .tint_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
                     view()
                         .flex_col()
+                        .gap(px(3.0))
                         .min_w(px(0.0))
                         .child(
                             text(name)
-                                .text_size(px(14.0))
+                                .text_size(px(15.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
-                            text(format!("{date} · {account}"))
-                                .text_size(px(11.0))
+                            text(date)
+                                .text_size(px(13.0))
                                 .text_color(move || theme().muted_foreground),
+                        )
+                        .child(
+                            view()
+                                .self_start()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(5.0))
+                                .px(px(7.0))
+                                .py(px(2.0))
+                                .rounded(px(5.0))
+                                .bg(move || theme().muted)
+                                .child(
+                                    image(asset!("icons/card.svg"))
+                                        .size(px(11.0))
+                                        .tint_color(move || theme().muted_foreground),
+                                )
+                                .child(
+                                    text(account)
+                                        .text_size(px(10.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
                         ),
                 ),
         )
         .child(
             view()
-                .flex_col()
-                .items_end()
-                .gap(px(4.0))
+                .flex_row()
+                .items_center()
+                .gap(px(12.0))
                 .child(
                     text(amount)
-                        .text_size(px(14.0))
+                        .text_size(px(15.0))
                         .font_family(design::MONO)
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().foreground),
@@ -692,7 +721,7 @@ fn transaction_actions(
         view()
             .flex_row()
             .gap(px(4.0))
-            .child(ui::action_button("Delete", true, delete))
+            .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete))
             .child(ui::action_button("Cancel", false, move || {
                 actions.delete_confirm.set(None)
             }))
@@ -703,8 +732,9 @@ fn transaction_actions(
         view()
             .flex_row()
             .gap(px(4.0))
-            .child(ui::action_button("Edit", false, edit))
-            .child(ui::action_button("Delete", true, move || {
+            .child(ui::mini_icon_button(asset!("icons/notes.svg"), false, edit.clone()))
+            .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, edit))
+            .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || {
                 confirm.set(Some(id));
             }))
             .into_element()
@@ -712,13 +742,6 @@ fn transaction_actions(
     .into_element()
 }
 
-fn filtered(
-    data: Resource<TransactionsData, String>,
-    search: Signal<String>,
-) -> Vec<Transaction> {
-    let snapshot = data.get().unwrap_or_default();
-    filter_transactions(&snapshot.transactions, &snapshot.accounts, &search.get())
-}
 
 fn filter_transactions(
     transactions: &[Transaction],
@@ -781,19 +804,7 @@ fn account_name(data: Resource<TransactionsData, String>, account_id: Uuid) -> S
         .map_or_else(|| "No account".to_string(), |account| account.name)
 }
 
-fn account_color(data: Resource<TransactionsData, String>, account_id: Uuid) -> String {
-    data.get()
-        .unwrap_or_default()
-        .accounts
-        .into_iter()
-        .find(|account| account.id == account_id)
-        .and_then(|account| account.color)
-        .unwrap_or_else(|| "#6b7280".to_string())
-}
 
-fn parse_hex(value: &str) -> u32 {
-    u32::from_str_radix(value.trim_start_matches('#'), 16).unwrap_or(0x6b7280)
-}
 
 fn loading_card() -> AnyElement {
     ui::surface()
@@ -824,6 +835,8 @@ fn error_card(message: &str, data: Resource<TransactionsData, String>) -> AnyEle
         )
         .child(
             button()
+                .items_center()
+                .justify_center()
                 .h(px(34.0))
                 .px(px(14.0))
                 .rounded(px(7.0))

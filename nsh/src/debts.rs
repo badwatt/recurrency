@@ -80,7 +80,7 @@ struct DebtActions {
 const TITLE: &str = "Debts";
 const SUBTITLE: &str = "Money you owe, manual or paid automatically";
 
-pub fn debts(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
+pub fn debts(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Option<crate::Route>>) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -200,27 +200,36 @@ pub fn debts(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
         });
     };
 
+    if intent.get() == Some(crate::Route::Debts) {
+        intent.set(None);
+        open_form();
+    }
+
+    let empty_open = open_form.clone();
     view()
         .w_full()
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form))
-        .child(toolbar(data, search))
-        .child(
-            when(move || !actions.error.get().is_empty(), move || {
-                text(move || actions.error.get())
-                    .text_size(px(13.0))
-                    .text_color(move || theme().destructive)
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
         .child(
             when(loading, || loading_card()).otherwise(move || {
                 let value = render_currency.clone();
+                let empty_open = empty_open.clone();
                 when(has_error, move || {
                     error_card(&data.error().unwrap_or_default(), data)
                 })
-                .otherwise(move || content(data, search, value.clone(), actions, server_signal, token_signal))
+                .otherwise(move || {
+                    let empty_open = empty_open.clone();
+                    content(
+                        data,
+                        search,
+                        value.clone(),
+                        actions,
+                        server_signal,
+                        token_signal,
+                        empty_open,
+                    )
+                })
             }),
         )
         .into_element()
@@ -284,7 +293,7 @@ fn payment_form(
 
     view()
         .w_full()
-        .max_w(px(620.0))
+        .w(px(560.0))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -330,6 +339,8 @@ fn payment_form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(36.0))
                         .px(px(14.0))
                         .rounded(px(7.0))
@@ -346,6 +357,8 @@ fn payment_form(
                 )
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(36.0))
                         .px(px(14.0))
                         .rounded(px(7.0))
@@ -472,17 +485,27 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
     view()
         .w_full()
         .flex_row()
+        .flex_wrap()
         .items_end()
         .justify_between()
-        .gap(px(24.0))
+        .gap(px(16.0))
         .child(ui::page_header(TITLE, SUBTITLE))
         .child(
             button()
+                .items_center()
+                .justify_center()
                 .h(px(40.0))
                 .px(px(16.0))
                 .rounded(px(8.0))
                 .bg(move || theme().primary)
+                .flex_row()
+                .gap(px(6.0))
                 .on_press(on_add)
+                .child(
+                    image(asset!("icons/plus.svg"))
+                        .size(px(14.0))
+                        .tint_color(move || theme().primary_foreground),
+                )
                 .child(
                     text("Add Debt")
                         .text_size(px(14.0))
@@ -594,7 +617,7 @@ fn form(
 
     view()
         .w_full()
-        .max_w(px(760.0))
+        .w(px(672.0))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -685,6 +708,8 @@ fn form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(36.0))
                         .px(px(14.0))
                         .rounded(px(7.0))
@@ -701,6 +726,8 @@ fn form(
                 )
                 .child(
                     button()
+                        .items_center()
+                        .justify_center()
                         .h(px(36.0))
                         .px(px(14.0))
                         .rounded(px(7.0))
@@ -725,6 +752,8 @@ fn form(
 fn type_chip(label_text: &'static str, value: &'static str, selected: Signal<String>) -> impl IntoElement {
     let active = move || selected.get() == value;
     button()
+        .items_center()
+        .justify_center()
         .h(px(30.0))
         .px(px(10.0))
         .rounded(px(6.0))
@@ -781,48 +810,94 @@ fn content(
     actions: DebtActions,
     server: Signal<String>,
     token: Signal<String>,
+    open_form: impl Fn() + Clone + 'static,
 ) -> AnyElement {
     let items = move || filtered(data, search);
+    let empty = move || data.get().unwrap_or_default().debts.is_empty();
     view()
         .w_full()
         .flex_col()
         .gap(px(16.0))
         .child(
-            when(
-                move || data.get().unwrap_or_default().debts.is_empty(),
-                || {
-                    ui::surface()
-                        .p(px(28.0))
-                        .child(
-                            text("No debts yet.")
-                                .text_size(px(14.0))
-                                .text_color(move || theme().muted_foreground),
-                        )
-                        .into_element()
-                },
-            )
-            .otherwise(|| view().h(px(0.0))),
-        )
-        .child(
-            view()
-                .w_full()
-                .grid()
-                .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
-                .gap(px(16.0))
-                .child(each(
-                    items,
-                    |debt| debt.id,
-                    move |debt, _| {
-                        card(
-                            debt.get(),
-                            data,
-                            currency.clone(),
-                            actions,
-                            server,
-                            token,
-                        )
-                    },
-                )),
+            when(empty, move || {
+                let open_form = open_form.clone();
+                ui::surface()
+                    .p(px(40.0))
+                    .items_center()
+                    .justify_center()
+                    .gap(px(10.0))
+                    .child(
+                        image(asset!("icons/debts.svg"))
+                            .size(px(40.0))
+                            .tint_color(move || theme().muted_foreground),
+                    )
+                    .child(
+                        text("No debts yet")
+                            .text_size(px(18.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(move || theme().foreground),
+                    )
+                    .child(
+                        text("Add a manual debt or let an automatic debt pay itself month by month.")
+                            .text_size(px(14.0))
+                            .text_color(move || theme().muted_foreground),
+                    )
+                    .child(
+                        button()
+                            .items_center()
+                            .justify_center()
+                            .flex_row()
+                            .gap(px(6.0))
+                            .h(px(40.0))
+                            .px(px(16.0))
+                            .rounded(px(8.0))
+                            .bg(move || theme().primary)
+                            .on_press(move || open_form())
+                            .child(
+                                image(asset!("icons/plus.svg"))
+                                    .size(px(14.0))
+                                    .tint_color(move || theme().primary_foreground),
+                            )
+                            .child(
+                                text("Add Debt")
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().primary_foreground),
+                            ),
+                    )
+                    .into_element()
+            })
+            .otherwise(move || {
+                let open_search = search;
+                let card_currency = currency.clone();
+                view()
+                    .w_full()
+                    .flex_col()
+                    .gap(px(16.0))
+                    .child(toolbar(data, open_search))
+                    .child(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .flex_wrap()
+                            .gap(px(16.0))
+                            .child(each(
+                                items,
+                                |debt| debt.id,
+                                move |debt, _| {
+                                    card(
+                                        debt.get(),
+                                        data,
+                                        card_currency.clone(),
+                                        actions,
+                                        server,
+                                        token,
+                                    )
+                                },
+                            )),
+                    )
+                    .into_element()
+            }),
         )
         .into_element()
 }
@@ -1184,6 +1259,8 @@ fn error_card(message: &str, data: Resource<DebtsData, String>) -> AnyElement {
         )
         .child(
             button()
+                .items_center()
+                .justify_center()
                 .h(px(34.0))
                 .px(px(14.0))
                 .rounded(px(7.0))
