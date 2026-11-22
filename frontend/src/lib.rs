@@ -365,8 +365,10 @@ Thanks for using Recurrency. If it saves you money, consider starring the projec
     });
 
     rsx! {
-        // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK
-        document::Style { {font_face_css()} }
+        // Inject @font-face with Dioxus-resolved URLs — ensures fonts are bundled in APK.
+        // A plain style element avoids document::Style's "props changed" diagnostic
+        // when the app re-renders.
+        style { dangerous_inner_html: font_face_css() }
         document::Link { rel: "icon", r#type: "image/png", href: FAVICON.to_string() }
         document::Link { rel: "apple-touch-icon", href: APPLE_TOUCH_ICON.to_string() }
         // Load CSS without blocking the first paint. The inline loader in

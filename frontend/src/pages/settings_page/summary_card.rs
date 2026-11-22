@@ -171,8 +171,9 @@ pub fn SummaryCard() -> Element {
                         class: "mt-1",
                     }
                 }
-                Field { label: "Time", class: "text-sm",
+                Field { label: "Time", html_for: "summary-time", class: "text-sm",
                     Input {
+                        id: "summary-time",
                         r#type: "time",
                         size: InputSize::Sm,
                         value: time(),

@@ -38,6 +38,7 @@ pub fn SelectMenu(
     let generated_id = use_hook(|| format!("select-menu-{}", uuid::Uuid::new_v4()));
     let button_id = id.unwrap_or(generated_id);
     let mut open = use_signal(|| false);
+    let mut drop_up = use_signal(|| false);
     let mut query = use_signal(String::new);
     let filter_id = use_signal(|| format!("select-filter-{}", uuid::Uuid::new_v4()));
 
@@ -68,7 +69,7 @@ pub fn SelectMenu(
             Button {
                 variant: ButtonVariant::Unstyled,
                 size: ButtonSize::Unstyled,
-                id: button_id,
+                id: button_id.clone(),
                 align: ButtonAlign::Between,
                 class: "flex h-9 w-full items-center rounded-md border border-border bg-background px-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50".to_string(),
                 disabled: disabled,
@@ -81,6 +82,15 @@ pub fn SelectMenu(
                     } else {
                         query.set(String::new());
                         open.set(true);
+                        let trigger_id = button_id.clone();
+                        spawn(async move {
+                            let mut eval = document::eval(&format!(
+                                "(()=>{{const e=document.getElementById('{trigger_id}');if(!e)return false;const r=e.getBoundingClientRect();return window.innerHeight-r.bottom<240;}})()"
+                            ));
+                            if let Ok(up) = eval.recv::<bool>().await {
+                                drop_up.set(up);
+                            }
+                        });
                     }
                 },
                 span { class: if value.is_empty() { "truncate text-muted-foreground" } else { "truncate" },
@@ -100,7 +110,11 @@ pub fn SelectMenu(
                     },
                 }
                 div {
-                    class: "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md",
+                    class: if drop_up() {
+                        "absolute left-0 right-0 bottom-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+                    } else {
+                        "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+                    },
                     role: "listbox",
                     onclick: move |event| event.stop_propagation(),
                     if searchable {
@@ -183,5 +197,7 @@ mod tests {
         assert!(source.contains("autofocus: true"));
         assert!(source.contains("Search..."));
         assert!(source.contains("requestAnimationFrame"));
+        assert!(source.contains("bottom-[calc(100%+4px)]"));
+        assert!(source.contains("innerHeight-r.bottom<240"));
     }
 }

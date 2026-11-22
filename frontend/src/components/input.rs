@@ -57,6 +57,7 @@ pub fn Input(
     #[props(default)] minlength: String,
     #[props(default)] maxlength: String,
     on_blur: Option<EventHandler<FocusEvent>>,
+    on_click: Option<EventHandler<MouseEvent>>,
     on_keydown: Option<EventHandler<KeyboardEvent>>,
 ) -> Element {
     let input_type = if r#type.is_empty() {
@@ -79,7 +80,7 @@ pub fn Input(
     let size_class = size.class();
     let width_class = if full_width { "w-full" } else { "" };
     let surface_class = match variant {
-        InputVariant::Default => "rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/40",
+        InputVariant::Default => "rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-primary/60",
         InputVariant::Bare => "bg-transparent text-foreground placeholder:text-muted-foreground outline-none",
     };
 
@@ -146,7 +147,9 @@ mod tests {
     #[test]
     fn input_has_shared_focus_and_disabled_states() {
         let source = include_str!("input.rs");
-        assert!(source.contains("focus-visible:ring-2"));
+        let production = source.split("#[cfg(test)]").next().unwrap_or(source);
+        assert!(!production.contains("focus-visible:ring-2"));
+        assert!(production.contains("focus-visible:border-primary/60"));
         assert!(source.contains("disabled:opacity-50"));
     }
 }

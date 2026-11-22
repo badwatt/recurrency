@@ -42,7 +42,9 @@ pub fn LabelCombobox(
     let mut create_name = use_signal(String::new);
     let mut creating_loading = use_signal(|| false);
     let mut create_error = use_signal(String::new);
+    let mut drop_up = use_signal(|| false);
     let filter_id = use_signal(|| format!("label-filter-{}", Uuid::new_v4()));
+    let trigger_id = use_hook(|| format!("label-combo-{}", Uuid::new_v4()));
 
     use_effect(move || {
         if open() && !creating() {
@@ -150,10 +152,26 @@ pub fn LabelCombobox(
                 } else {
                     "flex h-9 w-full items-center rounded-md border border-red-500 bg-background px-2 text-left text-sm hover:bg-muted"
                 }).to_string(),
+                id: trigger_id.clone(),
                 align: ButtonAlign::Between,
                 aria_expanded: Some((if open() { "true" } else { "false" }).to_string()),
                 aria_haspopup: Some("listbox".to_string()),
-                onclick: move |_| open.toggle(),
+                onclick: move |_| {
+                    if open() {
+                        open.set(false);
+                    } else {
+                        open.set(true);
+                        let id = trigger_id.clone();
+                        spawn(async move {
+                            let mut eval = document::eval(&format!(
+                                "(()=>{{const e=document.getElementById('{id}');if(!e)return false;const r=e.getBoundingClientRect();return window.innerHeight-r.bottom<240;}})()"
+                            ));
+                            if let Ok(up) = eval.recv::<bool>().await {
+                                drop_up.set(up);
+                            }
+                        });
+                    }
+                },
                 if sel_id.is_empty() {
                     span { class: "text-muted-foreground truncate", {placeholder.to_string()} }
                 } else {
@@ -205,7 +223,11 @@ pub fn LabelCombobox(
 
             if open() {
                 div {
-                    class: "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md",
+                    class: if drop_up() {
+                        "absolute left-0 right-0 bottom-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+                    } else {
+                        "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+                    },
                     onclick: move |e| e.stop_propagation(),
 
                     if creating() {
@@ -460,6 +482,13 @@ pub fn should_show_create(items: &[LabelItem], search: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn combobox_flips_up_near_the_viewport_bottom() {
+        let source = include_str!("label_combobox.rs");
+        assert!(source.contains("bottom-[calc(100%+4px)]"));
+        assert!(source.contains("innerHeight-r.bottom<240"));
+    }
+
     use super::*;
 
     fn item(name: &str) -> LabelItem {

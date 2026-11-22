@@ -311,16 +311,18 @@ pub fn DeliveryCard() -> Element {
                     if selected() == "email" {
                         p { class: "text-sm text-muted-foreground", "Leave the SMTP fields empty to use the server-wide SMTP configuration." }
                         div { class: "grid gap-3 sm:grid-cols-2",
-                            Field { label: "SMTP host", class: "text-sm",
+                            Field { label: "SMTP host", html_for: "smtp-host", class: "text-sm",
 Input {
+id: "smtp-host",
 value: form().email_host,
 on_input: move |value| form.write().email_host = value,
 placeholder: "smtp.example.com",
 size: InputSize::Sm,
 }
 }
-                            Field { label: "SMTP port", class: "text-sm",
+                            Field { label: "SMTP port", html_for: "smtp-port", class: "text-sm",
 Input {
+id: "smtp-port",
 r#type: "number",
 value: form().email_port,
 on_input: move |value| form.write().email_port = value,
@@ -341,22 +343,25 @@ size: InputSize::Sm,
                                     class: "mt-1",
                                 }
                             }
-                            Field { label: "From email", class: "text-sm",
+                            Field { label: "From email", html_for: "smtp-from", class: "text-sm",
 Input {
+id: "smtp-from",
 value: form().email_from,
 on_input: move |value| form.write().email_from = value,
 size: InputSize::Sm,
 }
 }
-                            Field { label: "SMTP username", class: "text-sm",
+                            Field { label: "SMTP username", html_for: "smtp-username", class: "text-sm",
 Input {
+id: "smtp-username",
 value: form().email_username,
 on_input: move |value| form.write().email_username = value,
 size: InputSize::Sm,
 }
 }
-                            Field { label: "SMTP password", class: "text-sm",
+                            Field { label: "SMTP password", html_for: "smtp-password", class: "text-sm",
 Input {
+id: "smtp-password",
 r#type: "password",
 value: form().email_password,
 on_input: move |value| form.write().email_password = value,

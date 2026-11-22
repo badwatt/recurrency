@@ -619,6 +619,7 @@ pub(crate) fn render_dialog(
                     Field { label: "Start date", html_for: "subscription-start-date", error: start_date_err.to_string(), hint: "Leave empty to start from today.",
                         DatePicker {
                             id: "subscription-start-date",
+                            reserve_clear: true,
                             value: form_start_date,
                             class: if start_date_err.is_empty() { "" } else { "border-red-500" },
                             on_input: move |value| {
@@ -628,27 +629,15 @@ pub(crate) fn render_dialog(
                         }
                     }
                     Field { label: "End date", html_for: "subscription-end-date", error: end_date_err.to_string(), hint: "Last billing date (inclusive).",
-                        div { class: "flex gap-2",
-                            DatePicker {
-                                id: "subscription-end-date",
-                                value: form_end_date.clone(),
-                                class: if end_date_err.is_empty() { "" } else { "border-red-500" },
-                                on_input: move |value| {
-                                    form.write().end_date = value;
-                                    end_date_error.set(String::new());
-                                },
-                            }
-                            if !form_end_date.is_empty() {
-                                Button {
-                                    variant: ButtonVariant::Outline,
-                                    size: ButtonSize::Sm,
-                                    onclick: move |_| {
-                                        form.write().end_date = String::new();
-                                        end_date_error.set(String::new());
-                                    },
-                                    "Clear"
-                                }
-                            }
+                        DatePicker {
+                            id: "subscription-end-date",
+                            reserve_clear: true,
+                            value: form_end_date.clone(),
+                            class: if end_date_err.is_empty() { "" } else { "border-red-500" },
+                            on_input: move |value| {
+                                form.write().end_date = value;
+                                end_date_error.set(String::new());
+                            },
                         }
                     }
                 }

@@ -21,7 +21,7 @@ pub fn Checkbox(
             name: field_name,
             checked,
             disabled,
-            class: "h-4 w-4 rounded border-border accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 {class}",
+            class: "h-4 w-4 rounded border-border accent-primary {class}",
             onchange: move |event| on_change.call(event.checked()),
         }
     };

@@ -621,7 +621,7 @@ pub fn SubscriptionsPage() -> Element {
             aria_label: Some((if selection_mode() { "Exit selection mode" } else { "Enter selection mode" }).to_string()),
             title: Some((if selection_mode() { "Exit selection mode" } else { "Select subscriptions" }).to_string()),
             aria_pressed: Some((if selection_mode() { "true" } else { "false" }).to_string()),
-            class: (if selection_mode() { "rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" }).to_string(),
+            class: (if selection_mode() { "inline-flex items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15" } else { "inline-flex items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground" }).to_string(),
             onclick: move |_| {
                 if selection_mode() {
                     selection_mode.set(false);
