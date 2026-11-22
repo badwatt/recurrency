@@ -1,7 +1,66 @@
 //! Currency and date strings used by the native dashboard.
 
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use rust_decimal::Decimal;
+use std::cell::RefCell;
+use nsh_core::prelude::{signal, Signal};
+
+thread_local! {
+    static DATE_FORMAT: RefCell<Option<Signal<String>>> = const { RefCell::new(None) };
+    static FIRST_DAY: RefCell<Option<Signal<String>>> = const { RefCell::new(None) };
+}
+
+pub fn init_date_format() {
+    DATE_FORMAT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal("DD/MM/YYYY".to_string()));
+        }
+    });
+    FIRST_DAY.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal("monday".to_string()));
+        }
+    });
+}
+
+pub fn first_day() -> String {
+    FIRST_DAY.with(|slot| slot.borrow().map_or_else(|| "monday".to_string(), |day| day.get()))
+}
+
+pub fn set_first_day(value: &str) {
+    FIRST_DAY.with(|slot| {
+        if let Some(day) = *slot.borrow() {
+            day.set(value.to_string());
+        }
+    });
+}
+
+pub fn week_starts_sunday() -> bool {
+    first_day() == "sunday"
+}
+
+pub fn date_format() -> String {
+    DATE_FORMAT.with(|slot| slot.borrow().map_or_else(|| "DD/MM/YYYY".to_string(), |format| format.get()))
+}
+
+pub fn set_date_format(value: &str) {
+    DATE_FORMAT.with(|slot| {
+        if let Some(format) = *slot.borrow() {
+            format.set(value.to_string());
+        }
+    });
+}
+
+/// A calendar date in the user's chosen pattern.
+pub fn format_date(date: NaiveDate) -> String {
+    match date_format().as_str() {
+        "MM/DD/YYYY" => format!("{:02}/{:02}/{:04}", date.month(), date.day(), date.year()),
+        "YYYY/MM/DD" => format!("{:04}/{:02}/{:02}", date.year(), date.month(), date.day()),
+        _ => format!("{:02}/{:02}/{:04}", date.day(), date.month(), date.year()),
+    }
+}
 
 pub fn format_currency(amount: Decimal, currency: &str) -> String {
     if crate::ui::privacy_active() {

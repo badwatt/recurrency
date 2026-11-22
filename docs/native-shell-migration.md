@@ -79,4 +79,5 @@ toolbar.
 | `web_server_qr.rs` | `components/web_server_qr.rs` | Ported (canvas QR) |
 | `backup_restore_card.rs` | Settings data card | Ported |
 | `ai_chat.rs` | `ai_chat.rs` | Ported (text chat) |
+| Preferences (currency, dates, week start) | Settings General + `format.rs` | Ported |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |

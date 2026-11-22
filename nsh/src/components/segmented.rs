@@ -19,6 +19,7 @@ pub fn segmented(selected: Signal<String>, options: Vec<SegmentOption>) -> impl 
     view()
         .flex_row()
         .items_center()
+        .self_start()
         .gap(px(2.0))
         .p(px(3.0))
         .rounded(px(8.0))
@@ -28,6 +29,7 @@ pub fn segmented(selected: Signal<String>, options: Vec<SegmentOption>) -> impl 
         .children(options.into_iter().map(|option| {
             let value = option.value;
             let press_value = value.clone();
+            let border_value = value.clone();
             let bg_value = value.clone();
             let text_value = value.clone();
             button()
@@ -36,7 +38,9 @@ pub fn segmented(selected: Signal<String>, options: Vec<SegmentOption>) -> impl 
                 .items_center()
                 .justify_center()
                 .rounded(px(6.0))
-                .bg(move || if selected.get() == bg_value { theme().background } else { theme().muted.opacity(0.0) })
+                .border(px(1.0))
+                .border_color(move || if selected.get() == border_value { theme().primary } else { theme().border.opacity(0.0) })
+                .bg(move || if selected.get() == bg_value { theme().accent } else { theme().muted.opacity(0.0) })
                 .on_press(move || selected.set(press_value.clone()))
                 .child(
                     text(option.label)

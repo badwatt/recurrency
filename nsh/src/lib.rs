@@ -84,6 +84,7 @@ fn native(registry: &mut Registry) {
 #[component]
 pub fn App() -> impl IntoElement {
     crate::theme::apply(&crate::theme::saved());
+    crate::format::init_date_format();
     ui::init_privacy();
     let route = signal(Route::Dashboard);
     let stored = auth::has_stored_session();
@@ -133,6 +134,8 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                 theme::apply(&preferences.theme);
                 theme::save(&preferences.theme);
             }
+            format::set_date_format(&preferences.date_format);
+            format::set_first_day(&preferences.first_day_of_week);
         }
     });
     let chat_auth = auth.clone();

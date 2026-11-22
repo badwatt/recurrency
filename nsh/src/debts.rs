@@ -13,7 +13,7 @@ use crate::components::page_header::page_header as shared_page_header;
 use crate::components::empty_state::empty_state;
 use crate::components::search_input::search_input;
 use crate::auth::AuthSession;
-use crate::format::format_currency;
+use crate::format::{format_currency, format_date};
 use crate::models::{Debt, DebtPayment};
 use crate::theme as design;
 use crate::ui;
@@ -462,7 +462,7 @@ fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost)
                                 view()
                                     .flex_col()
                                     .child(
-                                        text(payment.paid_on.format("%d/%m/%Y").to_string())
+                                        text(format_date(payment.paid_on))
                                             .text_size(px(13.0))
                                             .text_color(move || theme().foreground),
                                     )
@@ -851,7 +851,7 @@ fn card(
     );
     let next = debt.next_payment_date.map_or_else(
         || "No next payment".to_string(),
-        |date| format!("Next: {}", date.format("%d/%m/%Y")),
+        |date| format!("Next: {}", format_date(date)),
     );
     let progress_width = progress.max(0.01) as f32;
 

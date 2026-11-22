@@ -340,7 +340,14 @@ pub struct Preferences {
     pub theme: String,
     #[serde(default)]
     pub theme_is_set: bool,
+    #[serde(default = "default_first_day")]
+    pub first_day_of_week: String,
+    #[serde(default = "default_date_format")]
+    pub date_format: String,
 }
+
+fn default_first_day() -> String { "monday".to_string() }
+fn default_date_format() -> String { "DD/MM/YYYY".to_string() }
 
 #[derive(Serialize)]
 struct ThemeBody<'a> {
@@ -349,6 +356,28 @@ struct ThemeBody<'a> {
 
 pub async fn load_preferences(server: String, token: String) -> Result<Preferences, String> {
     Client::new(server, token).get("/api/preferences").await
+}
+
+#[derive(Serialize)]
+struct PreferencesPatch<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    theme: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_day_of_week: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    date_format: Option<&'a str>,
+}
+
+pub async fn save_first_day(server: String, token: String, first_day: &str) -> Result<Preferences, String> {
+    Client::new(server, token)
+        .put("/api/preferences", &PreferencesPatch { theme: None, first_day_of_week: Some(first_day), date_format: None })
+        .await
+}
+
+pub async fn save_date_format(server: String, token: String, date_format: &str) -> Result<Preferences, String> {
+    Client::new(server, token)
+        .put("/api/preferences", &PreferencesPatch { theme: None, first_day_of_week: None, date_format: Some(date_format) })
+        .await
 }
 
 pub async fn save_theme(server: String, token: String, theme: &str) -> Result<Preferences, String> {

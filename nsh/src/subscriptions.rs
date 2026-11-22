@@ -15,7 +15,7 @@ use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
 use crate::components::badge::{badge, BadgeProps, BadgeTone};
 use crate::components::checkbox::checkbox;
 use crate::auth::AuthSession;
-use crate::format::format_currency;
+use crate::format::{format_currency, format_date};
 use crate::models::{AnnualDate, Recurrence, Subscription};
 use crate::theme as design;
 use crate::ui;
@@ -892,7 +892,7 @@ fn list_card(
     let name = subscription.name;
     let next = subscription
         .next_billing_date
-        .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", date.format("%d/%m/%Y")));
+        .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", format_date(date)));
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
         format_currency(rates.convert(subscription.amount, &subscription.currency), &currency)
@@ -987,7 +987,7 @@ fn card(
     };
     let next = subscription
         .next_billing_date
-        .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", date.format("%d/%m/%Y")));
+        .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", format_date(date)));
     let active = subscription.is_active;
     let status = if active { "Active" } else { "Inactive" };
 

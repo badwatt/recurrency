@@ -10,6 +10,7 @@ use crate::models::AiSettings;
 use crate::auth::{self, AuthSession, AuthUser, Session};
 use uuid::Uuid;
 use crate::components::toggle::toggle as shared_toggle;
+use crate::components::segmented::{segmented, SegmentOption};
 use crate::ui;
 
 #[derive(Debug, Deserialize)]
@@ -165,6 +166,8 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let info_server = server.clone();
     let appearance_server = server.clone();
     let appearance_token = token.clone();
+    let general_server = server.clone();
+    let general_token = token.clone();
 
     let save = {
         let token = save_token;
@@ -343,7 +346,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 )
                 .child(
                     when(move || section.get() == Section::General, move || {
-                        general_card(currency, save_general.clone())
+                        general_card(currency, save_general.clone(), general_server.clone(), general_token.clone())
                     })
                     .otherwise(|| view().h(px(0.0))),
                 )
@@ -733,7 +736,34 @@ fn appearance_card(server: String, token: String) -> impl IntoElement {
         )
 }
 
-fn general_card(currency: Signal<String>, save: impl Fn() + 'static) -> impl IntoElement {
+fn general_card(
+    currency: Signal<String>,
+    save: impl Fn() + 'static,
+    server: String,
+    token: String,
+) -> impl IntoElement {
+    let date_format = signal(crate::format::date_format());
+    let first_day = signal(crate::format::first_day());
+    let first_server = server.clone();
+    let first_token = token.clone();
+    effect(move || {
+        let value = first_day.get();
+        crate::format::set_first_day(&value);
+        let server = first_server.clone();
+        let token = first_token.clone();
+        spawn(async move {
+            let _ = crate::api::save_first_day(server, token, &value).await;
+        });
+    });
+    effect(move || {
+        let value = date_format.get();
+        crate::format::set_date_format(&value);
+        let server = server.clone();
+        let token = token.clone();
+        spawn(async move {
+            let _ = crate::api::save_date_format(server, token, &value).await;
+        });
+    });
     ui::surface()
         .w_full()
         .p(px(24.0))
@@ -751,9 +781,42 @@ fn general_card(currency: Signal<String>, save: impl Fn() + 'static) -> impl Int
                 .text_color(move || theme().muted_foreground),
         )
         .child(
+            text("Date format")
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(segmented(
+            date_format,
+            vec![
+                SegmentOption::new("DD/MM/YYYY", "DD/MM/YYYY"),
+                SegmentOption::new("MM/DD/YYYY", "MM/DD/YYYY"),
+                SegmentOption::new("YYYY/MM/DD", "YYYY/MM/DD"),
+            ],
+        ))
+        .child(
+            text("First day of week")
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(segmented(
+            first_day,
+            vec![
+                SegmentOption::new("monday", "Monday"),
+                SegmentOption::new("sunday", "Sunday"),
+            ],
+        ))
+        .child(
+            text("Amounts and dates use these defaults across the app.")
+                .text_size(px(12.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
             button()
                 .items_center()
                 .justify_center()
+                .self_start()
                 .h(px(36.0))
                 .px(px(14.0))
                 .rounded(px(7.0))

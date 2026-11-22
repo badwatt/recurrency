@@ -215,13 +215,14 @@ fn content(
                             .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
                             .bg(move || theme().border)
                             .gap(px(1.0))
-                            .child(weekday_header("Mon"))
-                            .child(weekday_header("Tue"))
-                            .child(weekday_header("Wed"))
-                            .child(weekday_header("Thu"))
-                            .child(weekday_header("Fri"))
-                            .child(weekday_header("Sat"))
-                            .child(weekday_header("Sun"))
+                            .children({
+                                let labels: [&'static str; 7] = if crate::format::week_starts_sunday() {
+                                    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                                } else {
+                                    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                                };
+                                labels.into_iter().map(weekday_header).collect::<Vec<_>>()
+                            })
                             .child(each(
                                 cells,
                                 |(index, _)| *index,
@@ -567,7 +568,11 @@ fn cells_for(year: i32, month: u32) -> Vec<(usize, Option<u32>)> {
     let Some(first) = NaiveDate::from_ymd_opt(year, month, 1) else {
         return Vec::new();
     };
-    let leading = first.weekday().num_days_from_monday() as usize;
+    let leading = if crate::format::week_starts_sunday() {
+        first.weekday().num_days_from_sunday() as usize
+    } else {
+        first.weekday().num_days_from_monday() as usize
+    };
     let days = days_in_month(year, month);
     let mut cells = Vec::with_capacity(42);
     for index in 0..leading {

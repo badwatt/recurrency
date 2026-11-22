@@ -35,7 +35,11 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
     let month = signal(month_start(initial));
     let cells = move || {
         let first = month.get();
-        let leading = first.weekday().num_days_from_monday() as usize;
+        let leading = if crate::format::week_starts_sunday() {
+            first.weekday().num_days_from_sunday() as usize
+        } else {
+            first.weekday().num_days_from_monday() as usize
+        };
         let total = days_in_month(first) as usize;
         let selected = parse_date(&value.get());
         let today = Local::now().date_naive();
@@ -178,14 +182,21 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                             .grid()
                             .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
                             .gap(px(2.0))
-                            .children(WEEKDAYS.iter().map(|day| {
-                                view()
-                                    .items_center()
-                                    .justify_center()
-                                    .py(px(2.0))
-                                    .child(text(*day).text_size(px(9.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().muted_foreground))
-                                    .into_element()
-                            })),
+                            .children({
+                                let labels: [&'static str; 7] = if crate::format::week_starts_sunday() {
+                                    ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+                                } else {
+                                    WEEKDAYS
+                                };
+                                labels.into_iter().map(|day| {
+                                    view()
+                                        .items_center()
+                                        .justify_center()
+                                        .py(px(2.0))
+                                        .child(text(day).text_size(px(9.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().muted_foreground))
+                                        .into_element()
+                                }).collect::<Vec<_>>()
+                            }),
                     )
                     .child(
                         view()

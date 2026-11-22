@@ -12,7 +12,7 @@ use crate::components::button::{button as shared_button, ButtonProps};
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
 use crate::auth::AuthSession;
-use crate::format::format_currency;
+use crate::format::{format_currency, format_date};
 use crate::models::{Account, Rates, Transaction};
 use crate::theme as design;
 use crate::ui;
@@ -535,7 +535,7 @@ fn row(
     let account = account_name(data, transaction.account_id);
     let action_transaction = transaction.clone();
     let name = transaction.name;
-    let date = transaction.date.format("%d/%m/%Y").to_string();
+    let date = format_date(transaction.date);
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
         format_currency(rates.convert(transaction.amount, &transaction.currency), &currency)
