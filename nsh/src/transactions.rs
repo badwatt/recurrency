@@ -28,6 +28,8 @@ pub struct CreateTransactionRequest {
     pub category_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -42,6 +44,7 @@ struct TxForm {
     error: Signal<String>,
     saving: Signal<bool>,
     notes: Signal<String>,
+    logo_url: Signal<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -98,6 +101,7 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
     let form_error = signal(String::new());
     let saving = signal(false);
     let notes = signal(String::new());
+    let logo_url = signal(String::new());
     let delete_confirm = signal(None::<Uuid>);
     let busy = signal(None::<Uuid>);
     let action_error = signal(String::new());
@@ -112,6 +116,7 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         error: form_error,
         saving,
         notes,
+        logo_url,
     };
     let actions = TxActions {
         form: form_signals,
@@ -228,6 +233,7 @@ fn form(
         error: form_error,
         saving,
         notes,
+        logo_url,
     } = form;
     let save = {
         let currency = currency.clone();
@@ -264,6 +270,7 @@ fn form(
                 account_id: account_value,
                 category_id: category_id.get(),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
+                logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -341,6 +348,7 @@ fn form(
                     },
                     category_id,
                 ))
+                .child(ui::field("Logo URL", logo_url, "https://example.com/logo.png"))
                 .child(
                     when(move || !form_error.get().is_empty(), move || {
                         text(move || form_error.get())
@@ -539,6 +547,7 @@ fn row(
 ) -> impl IntoElement {
     let account = account_name(data, transaction.account_id);
     let action_transaction = transaction.clone();
+    let logo = transaction.logo_url.clone();
     let name = transaction.name;
     let date = format_date(transaction.date);
     let amount = {
@@ -573,9 +582,12 @@ fn row(
                         .rounded(px(999.0))
                         .bg(move || theme().muted)
                         .child(
-                            image(asset!("icons/receipt.svg"))
-                                .size(px(17.0))
-                                .tint_color(move || theme().muted_foreground),
+                            when(logo.is_some(), move || {
+                                image(logo.clone().unwrap_or_default()).size(px(22.0)).into_element()
+                            })
+                            .otherwise(|| {
+                                image(asset!("icons/receipt.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground).into_element()
+                            }),
                         ),
                 )
                 .child(
@@ -887,6 +899,7 @@ fn transaction_actions(
         form_signals.account_id.set(Some(edit_transaction.account_id));
         form_signals.category_id.set(Some(edit_transaction.category_id));
         form_signals.notes.set(edit_transaction.notes.clone().unwrap_or_default());
+        form_signals.logo_url.set(edit_transaction.logo_url.clone().unwrap_or_default());
         form_signals.error.set(String::new());
         form_signals.saving.set(false);
         form_signals.editing.set(Some(id));
@@ -1157,6 +1170,7 @@ mod tests {
             account_id: Uuid::new_v4(),
             category_id: None,
             notes: None,
+            logo_url: None,
         };
         let value = serde_json::to_value(request).expect("request serializes");
         assert_eq!(value["name"], json!("Groceries"));

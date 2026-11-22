@@ -34,6 +34,8 @@ pub struct CreateSubscriptionRequest {
     pub is_active: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -58,6 +60,7 @@ struct FormSignals {
     saving: Signal<bool>,
     active: Signal<bool>,
     notes: Signal<String>,
+    logo_url: Signal<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -111,6 +114,7 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
     let form_error = signal(String::new());
     let saving = signal(false);
     let notes = signal(String::new());
+    let logo_url = signal(String::new());
     let delete_confirm = signal(None::<Uuid>);
     let busy = signal(None::<Uuid>);
     let action_error = signal(String::new());
@@ -130,6 +134,7 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
         saving,
         active,
         notes,
+        logo_url,
     };
     let actions = ListActions {
         form: form_signals,
@@ -263,6 +268,7 @@ fn form(
         saving,
         active,
         notes,
+        logo_url,
     } = form;
     let save = {
         let currency = currency.clone();
@@ -321,6 +327,7 @@ fn form(
                 recurrence: recurrence_for(&unit_value, &day_values, start_value, interval_value),
                 is_active: active.get(),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
+                logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -451,6 +458,7 @@ fn form(
                     },
                     category_id,
                 ))
+                .child(ui::field("Logo URL", logo_url, "https://example.com/logo.png"))
                 .child(checkbox(active, "Active subscription".to_string()))
                 .child(
                     when(move || !form_error.get().is_empty(), move || {
@@ -870,6 +878,7 @@ fn list_card(
 ) -> impl IntoElement {
     let account = account_name(data, subscription.account_id);
     let action_subscription = subscription.clone();
+    let logo = subscription.logo_url.clone();
     let name = subscription.name;
     let next = subscription
         .next_billing_date
@@ -905,9 +914,12 @@ fn list_card(
                         .rounded(px(8.0))
                         .bg(move || theme().muted)
                         .child(
-                            image(asset!("icons/card.svg"))
-                                .size(px(16.0))
-                                .tint_color(move || theme().muted_foreground),
+                            when(logo.is_some(), move || {
+                                image(logo.clone().unwrap_or_default()).size(px(18.0)).into_element()
+                            })
+                            .otherwise(|| {
+                                image(asset!("icons/card.svg")).size(px(16.0)).tint_color(move || theme().muted_foreground).into_element()
+                            }),
                         ),
                 )
                 .child(
@@ -961,6 +973,7 @@ fn card(
 ) -> impl IntoElement {
     let account = account_name(data, subscription.account_id);
     let action_subscription = subscription.clone();
+    let logo = subscription.logo_url.clone();
     let name = subscription.name;
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
@@ -998,9 +1011,12 @@ fn card(
                         .rounded(px(8.0))
                         .bg(move || theme().muted)
                         .child(
-                            image(asset!("icons/card.svg"))
-                                .size(px(18.0))
-                                .tint_color(move || theme().muted_foreground),
+                            when(logo.is_some(), move || {
+                                image(logo.clone().unwrap_or_default()).size(px(24.0)).into_element()
+                            })
+                            .otherwise(|| {
+                                image(asset!("icons/card.svg")).size(px(18.0)).tint_color(move || theme().muted_foreground).into_element()
+                            }),
                         ),
                 )
                 .child(badge(
@@ -1369,6 +1385,7 @@ fn card_actions(
         form_signals.category_id.set(Some(edit_subscription.category_id));
         form_signals.active.set(edit_subscription.is_active);
         form_signals.notes.set(edit_subscription.notes.clone().unwrap_or_default());
+        form_signals.logo_url.set(edit_subscription.logo_url.clone().unwrap_or_default());
         form_signals.error.set(String::new());
         form_signals.saving.set(false);
         form_signals.editing.set(Some(id));
@@ -1402,6 +1419,7 @@ fn card_actions(
                 recurrence: original.recurrence.clone(),
                 is_active: original.is_active,
                 notes: None,
+                logo_url: original.logo_url.clone(),
             };
             let server_value = server.get();
             let token_value = token.get();
@@ -1711,6 +1729,7 @@ mod tests {
             recurrence: recurrence_for("month", &[23], date(2026, 11, 22), 1),
             is_active: true,
             notes: None,
+            logo_url: None,
         };
         let json = serde_json::to_value(request).expect("request serializes");
         assert_eq!(json["frequency"], "monthly");

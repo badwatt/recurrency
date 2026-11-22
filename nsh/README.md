@@ -58,3 +58,4 @@ and reuse it, matching the Dioxus component boundaries.
 - [x] Mobile floating add button on list pages; calendar entries jump to their list.
 - [x] Reminder lead-time controls per notification channel.
 - [x] Email verification code dialog with resend and automatic sign-in after verification.
+- [x] Logo URLs in subscription/transaction forms and cards.
