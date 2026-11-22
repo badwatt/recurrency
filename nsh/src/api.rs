@@ -417,6 +417,25 @@ struct AiModelsResponse {
     models: Vec<String>,
 }
 
+pub async fn transcribe(
+    server: String,
+    token: String,
+    audio_base64: &str,
+    mime_type: &str,
+) -> Result<String, String> {
+    #[derive(Deserialize)]
+    struct Response {
+        text: String,
+    }
+    let response: Response = Client::new(server, token)
+        .post(
+            "/api/ai/transcribe",
+            &serde_json::json!({ "audio_base64": audio_base64, "mime_type": mime_type }),
+        )
+        .await?;
+    Ok(response.text)
+}
+
 pub async fn ai_models(server: String, token: String, base_url: Option<String>) -> Result<Vec<String>, String> {
     let response: AiModelsResponse = Client::new(server, token)
         .post("/api/ai/models", &AiModelsRequest { base_url })

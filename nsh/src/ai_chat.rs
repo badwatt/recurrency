@@ -3,7 +3,9 @@
 use std::rc::Rc;
 
 use nsh_base::{button, input, theme};
+use base64::Engine;
 use nsh_core::element::AutoFill;
+use nsh_core::file_dialog::{FileFilter, OpenDialog};
 use nsh_core::prelude::*;
 
 use crate::api::{self, AiMessage};
@@ -71,6 +73,54 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
                 send_sending.set(false);
             });
         })
+    };
+    let transcribing = signal(false);
+    let voice = {
+        let token = auth.token.clone();
+        move || {
+            if transcribing.get() {
+                return;
+            }
+            let token = token.clone();
+            error.set(String::new());
+            transcribing.set(true);
+            spawn(async move {
+                match pick_paths(
+                    OpenDialog::files()
+                        .title("Transcribe a voice note")
+                        .filter(FileFilter::new("Audio", ["wav", "mp3", "m4a", "ogg", "webm", "mp4"])),
+                )
+                .await
+                {
+                    Ok(Some(paths)) => {
+                        let Some(path) = paths.first() else {
+                            transcribing.set(false);
+                            return;
+                        };
+                        match std::fs::read(path) {
+                            Ok(bytes) => {
+                                let audio = base64::engine::general_purpose::STANDARD.encode(bytes);
+                                match api::transcribe(auth::stored_server(), token, &audio, audio_mime(path)).await {
+                                    Ok(text) => {
+                                        let mut next = draft.get();
+                                        if !next.trim().is_empty() {
+                                            next.push(' ');
+                                        }
+                                        next.push_str(text.trim());
+                                        draft.set(next);
+                                    }
+                                    Err(message) => error.set(message),
+                                }
+                            }
+                            Err(problem) => error.set(format!("Could not read the audio file: {problem}")),
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(problem) => error.set(problem),
+                }
+                transcribing.set(false);
+            });
+        }
     };
     let submit = send.clone();
     let press = send.clone();
@@ -174,6 +224,13 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
                                         .text_color(move || theme().foreground),
                                 )
                                 .child(shared_button(
+                                    ButtonProps::new(if transcribing.get() { "Transcribing…" } else { "Voice note" })
+                                        .variant(crate::components::button::ButtonVariant::Outline)
+                                        .icon(asset!("icons/mic.svg"))
+                                        .disabled(transcribing.get())
+                                        .on_press(voice),
+                                ))
+                                .child(shared_button(
                                     ButtonProps::new(if sending.get() { "Thinking…" } else { "Send" })
                                         .disabled(sending.get())
                                         .on_press(move || press()),
@@ -187,4 +244,27 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
                 ),
         )
         .into_element()
+}
+
+
+fn audio_mime(path: &std::path::Path) -> &'static str {
+    match path.extension().and_then(|value| value.to_str()).map(str::to_ascii_lowercase).as_deref() {
+        Some("mp3") => "audio/mpeg",
+        Some("m4a") | Some("mp4") => "audio/mp4",
+        Some("ogg") => "audio/ogg",
+        Some("webm") => "audio/webm",
+        _ => "audio/wav",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::audio_mime;
+
+    #[test]
+    fn audio_mime_follows_the_file_extension() {
+        assert_eq!(audio_mime(std::path::Path::new("note.mp3")), "audio/mpeg");
+        assert_eq!(audio_mime(std::path::Path::new("note.ogg")), "audio/ogg");
+        assert_eq!(audio_mime(std::path::Path::new("note.unknown")), "audio/wav");
+    }
 }

@@ -3258,6 +3258,7 @@ dependencies = [
 name = "recurrency-nsh"
 version = "0.56.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "chrono-tz",
  "env_logger",
