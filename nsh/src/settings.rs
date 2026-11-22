@@ -849,6 +849,8 @@ fn general_card(
     let first_day = signal(crate::format::first_day());
     let first_server = server.clone();
     let first_token = token.clone();
+    let rates_server = server.clone();
+    let rates_token = token.clone();
     effect(move || {
         let value = first_day.get();
         crate::format::set_first_day(&value);
@@ -867,10 +869,15 @@ fn general_card(
             let _ = crate::api::save_date_format(server, token, &value).await;
         });
     });
-    ui::surface()
+    view()
         .w_full()
-        .p(px(24.0))
-        .gap(px(14.0))
+        .flex_col()
+        .gap(px(12.0))
+        .child(
+            ui::surface()
+                .w_full()
+                .p(px(24.0))
+                .gap(px(14.0))
         .child(
             text("General")
                 .text_size(px(18.0))
@@ -932,6 +939,8 @@ fn general_card(
                         .text_color(move || theme().primary_foreground),
                 ),
         )
+        )
+        .child(exchange_rates_card(rates_server, rates_token))
 }
 
 fn data_card(
@@ -1746,6 +1755,106 @@ fn voice_card() -> impl IntoElement {
                         )
                 })),
         )
+}
+
+fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
+    let data = resource(
+        || Some(()),
+        {
+            let server = server.clone();
+            let token = token.clone();
+            move |(), _| {
+                let server = server.clone();
+                let token = token.clone();
+                async move { crate::api::load_currency_settings(server, token).await }
+            }
+        },
+    );
+    let provider = signal("frankfurter".to_string());
+    let key = signal(String::new());
+    let configured = signal(false);
+    let status = signal(String::new());
+    let loaded = signal(false);
+    effect(move || {
+        if loaded.get() {
+            return;
+        }
+        if let Some(settings) = data.get() {
+            provider.set(if settings.provider.is_empty() { "frankfurter".to_string() } else { settings.provider });
+            configured.set(settings.fixer_configured);
+            loaded.set(true);
+        }
+    });
+    let save = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let provider = provider.get();
+            let api_key = (!key.get().trim().is_empty()).then(|| key.get());
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::save_currency_settings(server, token, &provider, api_key, false).await {
+                    Ok(settings) => {
+                        configured.set(settings.fixer_configured);
+                        key.set(String::new());
+                        status.set("Exchange-rate settings saved.".to_string());
+                        data.refetch();
+                    }
+                    Err(message) => status.set(message),
+                }
+            });
+        }
+    };
+    let clear_key = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::save_currency_settings(server, token, "frankfurter", None, true).await {
+                    Ok(_) => {
+                        provider.set("frankfurter".to_string());
+                        configured.set(false);
+                        data.refetch();
+                        status.set("Fixer key removed.".to_string());
+                    }
+                    Err(message) => status.set(message),
+                }
+            });
+        }
+    };
+    ui::surface()
+        .p(px(24.0))
+        .gap(px(12.0))
+        .child(text("Exchange rates").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
+        .child(text("Choose where automatic currency conversion gets its daily rates.").text_size(px(12.0)).text_color(move || theme().muted_foreground))
+        .child(string_select(StringSelectProps::new(
+            "Provider",
+            provider,
+            vec![
+                ("frankfurter".to_string(), "Frankfurter — free, no API key".to_string()),
+                ("fixer".to_string(), "Fixer — requires an API key".to_string()),
+            ],
+        )))
+        .when(provider.get() == "fixer", |view| {
+            view.child(ui::field(
+                if configured.get() { "Fixer API key (saved — enter a new key to replace it)" } else { "Fixer API key" },
+                key,
+                "Paste your Fixer API key",
+            ))
+        })
+        .child(
+            view()
+                .flex_row()
+                .flex_wrap()
+                .items_center()
+                .gap(px(8.0))
+                .child(ui::action_button("Save rates", false, save))
+                .when(configured.get(), |view| view.child(ui::action_button("Remove key", true, clear_key))),
+        )
+        .child(text(move || status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground))
 }
 
 fn money_card(server: String, token: String) -> impl IntoElement {

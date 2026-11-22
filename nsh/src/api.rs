@@ -595,6 +595,33 @@ struct SummaryUpdate<'a> {
     period: &'a str,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct CurrencySettings {
+    pub provider: String,
+    #[serde(default)]
+    pub fixer_configured: bool,
+}
+
+pub async fn load_currency_settings(server: String, token: String) -> Result<CurrencySettings, String> {
+    Client::new(server, token).get("/api/currency/settings").await
+}
+
+pub async fn save_currency_settings(
+    server: String,
+    token: String,
+    provider: &str,
+    fixer_api_key: Option<String>,
+    clear_fixer_api_key: bool,
+) -> Result<CurrencySettings, String> {
+    Client::new(server, token)
+        .put("/api/currency/settings", &serde_json::json!({
+            "provider": provider,
+            "fixer_api_key": fixer_api_key,
+            "clear_fixer_api_key": clear_fixer_api_key,
+        }))
+        .await
+}
+
 pub async fn load_summary(server: String, token: String) -> Result<SummarySettings, String> {
     Client::new(server, token).get("/api/settings/summary-notification").await
 }
