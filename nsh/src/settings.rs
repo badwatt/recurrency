@@ -2407,12 +2407,16 @@ fn money_card(server: String, token: String) -> impl IntoElement {
         }
     });
     let account_name = signal(String::new());
+    let account_icon = signal("wallet".to_string());
+    let account_color = signal(crate::components::color_picker::DEFAULT_COLOR.to_string());
     let account_edit = signal(None::<Uuid>);
     let account_open = signal(false);
     let account_error = signal(String::new());
     let account_busy = signal(false);
     let account_delete = signal(None::<Uuid>);
     let category_name = signal(String::new());
+    let category_icon = signal("tag".to_string());
+    let category_color = signal(crate::components::color_picker::DEFAULT_COLOR.to_string());
     let category_edit = signal(None::<Uuid>);
     let category_open = signal(false);
     let category_error = signal(String::new());
@@ -2451,6 +2455,8 @@ fn money_card(server: String, token: String) -> impl IntoElement {
     let start_account = {
         move || {
             account_name.set(String::new());
+            account_icon.set("wallet".to_string());
+            account_color.set(crate::components::color_picker::DEFAULT_COLOR.to_string());
             account_edit.set(None);
             account_error.set(String::new());
             account_open.set(true);
@@ -2466,17 +2472,32 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                 return;
             }
             let editing = account_edit.get();
+            let icon = (!account_icon.get().trim().is_empty()).then(|| account_icon.get());
+            let color = (!account_color.get().trim().is_empty()).then(|| account_color.get());
             let server = server.clone();
             let token = token.clone();
             account_busy.set(true);
             spawn(async move {
                 let result = match editing {
-                    Some(id) => crate::api::update_account(server, token, id, &name)
-                        .await
-                        .map(|_| ()),
-                    None => crate::api::create_account(server, token, &name)
-                        .await
-                        .map(|_| ()),
+                    Some(id) => crate::api::update_account(
+                        server,
+                        token,
+                        id,
+                        &name,
+                        icon.as_deref(),
+                        color.as_deref(),
+                    )
+                    .await
+                    .map(|_| ()),
+                    None => crate::api::create_account(
+                        server,
+                        token,
+                        &name,
+                        icon.as_deref(),
+                        color.as_deref(),
+                    )
+                    .await
+                    .map(|_| ()),
                 };
                 match result {
                     Ok(()) => {
@@ -2493,6 +2514,8 @@ fn money_card(server: String, token: String) -> impl IntoElement {
     let start_category = {
         move || {
             category_name.set(String::new());
+            category_icon.set("tag".to_string());
+            category_color.set(crate::components::color_picker::DEFAULT_COLOR.to_string());
             category_edit.set(None);
             category_error.set(String::new());
             category_open.set(true);
@@ -2508,17 +2531,32 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                 return;
             }
             let editing = category_edit.get();
+            let icon = (!category_icon.get().trim().is_empty()).then(|| category_icon.get());
+            let color = (!category_color.get().trim().is_empty()).then(|| category_color.get());
             let server = server.clone();
             let token = token.clone();
             category_busy.set(true);
             spawn(async move {
                 let result = match editing {
-                    Some(id) => crate::api::update_category(server, token, id, &name)
-                        .await
-                        .map(|_| ()),
-                    None => crate::api::create_category(server, token, &name)
-                        .await
-                        .map(|_| ()),
+                    Some(id) => crate::api::update_category(
+                        server,
+                        token,
+                        id,
+                        &name,
+                        icon.as_deref(),
+                        color.as_deref(),
+                    )
+                    .await
+                    .map(|_| ()),
+                    None => crate::api::create_category(
+                        server,
+                        token,
+                        &name,
+                        icon.as_deref(),
+                        color.as_deref(),
+                    )
+                    .await
+                    .map(|_| ()),
                 };
                 match result {
                     Ok(()) => {
@@ -2568,6 +2606,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                     let id = item.account.id;
                                     let row_name = item.account.name.clone();
                                     let edit_name = row_name.clone();
+                                    let dot_color = item.account.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string());
                                     view()
                                         .w_full()
                                         .flex_row()
@@ -2582,6 +2621,13 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                 .flex_row()
                                                 .items_center()
                                                 .gap(px(7.0))
+                                                .child(
+                                                    view()
+                                                        .h(px(10.0))
+                                                        .w(px(10.0))
+                                                        .rounded(px(999.0))
+                                                        .bg(move || rgba(crate::components::color_picker::color_value(&dot_color))),
+                                                )
                                                 .child(
                                                     text(row_name)
                                                         .text_size(px(13.0))
@@ -2606,6 +2652,8 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                 )
                                                 .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || {
                                                     account_name.set(edit_name.clone());
+                                                    account_icon.set(item.account.icon.clone().unwrap_or_else(|| "wallet".to_string()));
+                                                    account_color.set(item.account.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string()));
                                                     account_edit.set(Some(id));
                                                     account_error.set(String::new());
                                                     account_open.set(true);
@@ -2633,6 +2681,14 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                     .text_color(move || theme().foreground),
                             )
                             .child(ui::field("Name", account_name, "Main account"))
+                            .child(ui::field("Icon name", account_icon, "wallet"))
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .gap(px(6.0))
+                                    .child(ui::label("Color"))
+                                    .child(crate::components::color_picker::color_picker(account_color)),
+                            )
                             .child(
                                 when(move || !account_error.get().is_empty(), move || {
                                     text(move || account_error.get())
@@ -2722,6 +2778,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                     let id = item.category.id;
                                     let row_name = item.category.name.clone();
                                     let edit_name = row_name.clone();
+                                    let dot_color = item.category.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string());
                                     view()
                                         .w_full()
                                         .flex_row()
@@ -2732,9 +2789,22 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                         .border_b(px(1.0))
                                         .border_color(move || theme().border)
                                         .child(
-                                            text(row_name)
-                                                .text_size(px(13.0))
-                                                .text_color(move || theme().foreground),
+                                            view()
+                                                .flex_row()
+                                                .items_center()
+                                                .gap(px(6.0))
+                                                .child(
+                                                    view()
+                                                        .h(px(10.0))
+                                                        .w(px(10.0))
+                                                        .rounded(px(999.0))
+                                                        .bg(move || rgba(crate::components::color_picker::color_value(&dot_color))),
+                                                )
+                                                .child(
+                                                    text(row_name)
+                                                        .text_size(px(13.0))
+                                                        .text_color(move || theme().foreground),
+                                                ),
                                         )
                                         .child(
                                             view()
@@ -2751,6 +2821,8 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                 )
                                                 .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || {
                                                     category_name.set(edit_name.clone());
+                                                    category_icon.set(item.category.icon.clone().unwrap_or_else(|| "tag".to_string()));
+                                                    category_color.set(item.category.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string()));
                                                     category_edit.set(Some(id));
                                                     category_error.set(String::new());
                                                     category_open.set(true);
@@ -2778,6 +2850,14 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                     .text_color(move || theme().foreground),
                             )
                             .child(ui::field("Name", category_name, "Entertainment"))
+                            .child(ui::field("Icon name", category_icon, "tag"))
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .gap(px(6.0))
+                                    .child(ui::label("Color"))
+                                    .child(crate::components::color_picker::color_picker(category_color)),
+                            )
                             .child(
                                 when(move || !category_error.get().is_empty(), move || {
                                     text(move || category_error.get())

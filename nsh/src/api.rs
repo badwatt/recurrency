@@ -324,18 +324,17 @@ pub async fn load_money_counts(
     Ok((accounts, categories))
 }
 
-#[derive(Serialize)]
-struct NameBody {
-    name: String,
-}
-
-pub async fn create_account(server: String, token: String, name: &str) -> Result<Account, String> {
+pub async fn create_account(
+    server: String,
+    token: String,
+    name: &str,
+    icon: Option<&str>,
+    color: Option<&str>,
+) -> Result<Account, String> {
     Client::new(server, token)
         .post(
             "/api/accounts",
-            &NameBody {
-                name: name.to_string(),
-            },
+            &serde_json::json!({ "name": name, "icon": icon, "color": color }),
         )
         .await
 }
@@ -345,13 +344,21 @@ pub async fn update_account(
     token: String,
     id: uuid::Uuid,
     name: &str,
+    icon: Option<&str>,
+    color: Option<&str>,
 ) -> Result<Account, String> {
+    let mut body = serde_json::Map::new();
+    body.insert("name".to_string(), serde_json::json!(name));
+    if let Some(icon) = icon {
+        body.insert("icon".to_string(), serde_json::json!(icon));
+    }
+    if let Some(color) = color {
+        body.insert("color".to_string(), serde_json::json!(color));
+    }
     Client::new(server, token)
         .put(
             &format!("/api/accounts/{id}"),
-            &NameBody {
-                name: name.to_string(),
-            },
+            &serde_json::Value::Object(body),
         )
         .await
 }
@@ -370,13 +377,13 @@ pub async fn create_category(
     server: String,
     token: String,
     name: &str,
+    icon: Option<&str>,
+    color: Option<&str>,
 ) -> Result<Category, String> {
     Client::new(server, token)
         .post(
             "/api/categories",
-            &NameBody {
-                name: name.to_string(),
-            },
+            &serde_json::json!({ "name": name, "icon": icon, "color": color }),
         )
         .await
 }
@@ -386,13 +393,21 @@ pub async fn update_category(
     token: String,
     id: uuid::Uuid,
     name: &str,
+    icon: Option<&str>,
+    color: Option<&str>,
 ) -> Result<Category, String> {
+    let mut body = serde_json::Map::new();
+    body.insert("name".to_string(), serde_json::json!(name));
+    if let Some(icon) = icon {
+        body.insert("icon".to_string(), serde_json::json!(icon));
+    }
+    if let Some(color) = color {
+        body.insert("color".to_string(), serde_json::json!(color));
+    }
     Client::new(server, token)
         .put(
             &format!("/api/categories/{id}"),
-            &NameBody {
-                name: name.to_string(),
-            },
+            &serde_json::Value::Object(body),
         )
         .await
 }
