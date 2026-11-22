@@ -26,6 +26,27 @@ pub struct CreateTransactionRequest {
     pub category_id: Option<Uuid>,
 }
 
+#[derive(Clone, Copy)]
+struct TxForm {
+    open: Signal<bool>,
+    editing: Signal<Option<Uuid>>,
+    name: Signal<String>,
+    amount: Signal<String>,
+    date: Signal<String>,
+    account_id: Signal<Option<Uuid>>,
+    category_id: Signal<Option<Uuid>>,
+    error: Signal<String>,
+    saving: Signal<bool>,
+}
+
+#[derive(Clone, Copy)]
+struct TxActions {
+    form: TxForm,
+    delete_confirm: Signal<Option<Uuid>>,
+    busy: Signal<Option<Uuid>>,
+    error: Signal<String>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct TransactionGroup {
     key: String,
@@ -61,6 +82,7 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
     let token_signal = signal(token);
     let search = signal(String::new());
     let form_open = signal(false);
+    let editing = signal(None::<Uuid>);
     let name = signal(String::new());
     let amount = signal(String::new());
     let today = Local::now().date_naive();
@@ -69,6 +91,26 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
     let category_id = signal(None::<Uuid>);
     let form_error = signal(String::new());
     let saving = signal(false);
+    let delete_confirm = signal(None::<Uuid>);
+    let busy = signal(None::<Uuid>);
+    let action_error = signal(String::new());
+    let form_signals = TxForm {
+        open: form_open,
+        editing,
+        name,
+        amount,
+        date,
+        account_id,
+        category_id,
+        error: form_error,
+        saving,
+    };
+    let actions = TxActions {
+        form: form_signals,
+        delete_confirm,
+        busy,
+        error: action_error,
+    };
     let loading = move || data.loading() && data.get().is_none();
     let has_error = move || data.error().is_some();
     let render_currency = currency.clone();
@@ -90,6 +132,7 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
         category_id.set(snapshot.categories.first().map(|category| category.id));
         form_error.set(String::new());
         saving.set(false);
+        editing.set(None);
         form_open.set(true);
     };
 
@@ -102,14 +145,7 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
             when(move || form_open.get(), move || {
                 form(
                     data,
-                    name,
-                    amount,
-                    date,
-                    account_id,
-                    category_id,
-                    form_error,
-                    saving,
-                    form_open,
+                    form_signals,
                     server_signal,
                     token_signal,
                     currency.clone(),
@@ -119,12 +155,22 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
         )
         .child(toolbar(data, search))
         .child(
+            when(move || !actions.error.get().is_empty(), move || {
+                text(move || actions.error.get())
+                    .text_size(px(13.0))
+                    .text_color(move || theme().destructive)
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
             when(loading, || loading_card()).otherwise(move || {
                 let value = render_currency.clone();
                 when(has_error, move || {
                     error_card(&data.error().unwrap_or_default(), data)
                 })
-                .otherwise(move || content(data, search, value.clone()))
+                .otherwise(move || {
+                    content(data, search, value.clone(), actions, server_signal, token_signal)
+                })
             }),
         )
         .into_element()
@@ -157,18 +203,22 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
 #[allow(clippy::too_many_arguments)]
 fn form(
     data: Resource<TransactionsData, String>,
-    name: Signal<String>,
-    amount: Signal<String>,
-    date: Signal<String>,
-    account_id: Signal<Option<Uuid>>,
-    category_id: Signal<Option<Uuid>>,
-    form_error: Signal<String>,
-    saving: Signal<bool>,
-    form_open: Signal<bool>,
+    form: TxForm,
     server: Signal<String>,
     token: Signal<String>,
     currency: String,
 ) -> impl IntoElement {
+    let TxForm {
+        open: form_open,
+        editing,
+        name,
+        amount,
+        date,
+        account_id,
+        category_id,
+        error: form_error,
+        saving,
+    } = form;
     let save = {
         let currency = currency.clone();
         move || {
@@ -208,10 +258,17 @@ fn form(
             form_error.set(String::new());
             let server_value = server.get();
             let token_value = token.get();
+            let editing_value = editing.get();
             spawn(async move {
-                match api::create_transaction(server_value, token_value, &request).await {
+                let result = if let Some(id) = editing_value {
+                    api::update_transaction(server_value, token_value, id, &request).await
+                } else {
+                    api::create_transaction(server_value, token_value, &request).await
+                };
+                match result {
                     Ok(_) => {
                         form_open.set(false);
+                        editing.set(None);
                         data.refetch();
                     }
                     Err(message) => form_error.set(message),
@@ -235,13 +292,17 @@ fn form(
                 .flex_col()
                 .gap(px(2.0))
                 .child(
-                    text("New transaction")
+                    text(move || if editing.get().is_some() { "Edit transaction" } else { "New transaction" })
                         .text_size(px(20.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
                 )
                 .child(
-                    text("Record a one-time expense.")
+                    text(move || if editing.get().is_some() {
+                        "Update the amount, date or account."
+                    } else {
+                        "Record a one-time expense."
+                    })
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 ),
@@ -322,7 +383,10 @@ fn form(
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
-                        .on_press(move || form_open.set(false))
+                        .on_press(move || {
+                            form_open.set(false);
+                            editing.set(None);
+                        })
                         .child(
                             text("Cancel")
                                 .text_size(px(13.0))
@@ -367,6 +431,9 @@ fn content(
     data: Resource<TransactionsData, String>,
     search: Signal<String>,
     currency: String,
+    actions: TxActions,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> AnyElement {
     let groups = move || {
         let snapshot = data.get().unwrap_or_default();
@@ -400,7 +467,16 @@ fn content(
         .child(each(
             groups,
             |group| group.key.clone(),
-            move |group, _| group_card(group.get(), data, currency.clone()),
+            move |group, _| {
+                group_card(
+                    group.get(),
+                    data,
+                    currency.clone(),
+                    actions,
+                    server,
+                    token,
+                )
+            },
         ))
         .into_element()
 }
@@ -409,6 +485,9 @@ fn group_card(
     group: TransactionGroup,
     data: Resource<TransactionsData, String>,
     currency: String,
+    actions: TxActions,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> impl IntoElement {
     let count = ui::count_label(group.items.len(), "transaction", "transactions");
     let total = format_currency(group.total, &currency);
@@ -449,7 +528,16 @@ fn group_card(
                 .child(each(
                     move || group.items.clone(),
                     |transaction| transaction.id,
-                    move |transaction, _| row(transaction.get(), data, currency.clone()),
+                    move |transaction, _| {
+                        row(
+                            transaction.get(),
+                            data,
+                            currency.clone(),
+                            actions,
+                            server,
+                            token,
+                        )
+                    },
                 )),
         )
 }
@@ -458,11 +546,15 @@ fn row(
     transaction: Transaction,
     data: Resource<TransactionsData, String>,
     currency: String,
+    actions: TxActions,
+    server: Signal<String>,
+    token: Signal<String>,
 ) -> impl IntoElement {
     let color = account_color(data, transaction.account_id);
     let color_text = color.clone();
     let color_bg = color;
     let account = account_name(data, transaction.account_id);
+    let action_transaction = transaction.clone();
     let name = transaction.name;
     let date = transaction.date.format("%d/%m/%Y").to_string();
     let amount = {
@@ -518,12 +610,86 @@ fn row(
                 ),
         )
         .child(
-            text(amount)
-                .text_size(px(14.0))
-                .font_family(design::MONO)
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || theme().foreground),
+            view()
+                .flex_col()
+                .items_end()
+                .gap(px(4.0))
+                .child(
+                    text(amount)
+                        .text_size(px(14.0))
+                        .font_family(design::MONO)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(transaction_actions(
+                    action_transaction,
+                    actions,
+                    data,
+                    server,
+                    token,
+                )),
         )
+}
+
+fn transaction_actions(
+    transaction: Transaction,
+    actions: TxActions,
+    data: Resource<TransactionsData, String>,
+    server: Signal<String>,
+    token: Signal<String>,
+) -> AnyElement {
+    let id = transaction.id;
+    let form = actions.form;
+    let edit_transaction = transaction.clone();
+    let edit = move || {
+        form.name.set(edit_transaction.name.clone());
+        form.amount.set(edit_transaction.amount.to_string());
+        form.date.set(edit_transaction.date.to_string());
+        form.account_id.set(Some(edit_transaction.account_id));
+        form.category_id.set(Some(edit_transaction.category_id));
+        form.error.set(String::new());
+        form.saving.set(false);
+        form.editing.set(Some(id));
+        form.open.set(true);
+    };
+    let delete = move || {
+        actions.delete_confirm.set(None);
+        actions.busy.set(Some(id));
+        actions.error.set(String::new());
+        let server_value = server.get();
+        let token_value = token.get();
+        spawn(async move {
+            match api::delete_transaction(server_value, token_value, id).await {
+                Ok(()) => data.refetch(),
+                Err(message) => actions.error.set(message),
+            }
+            actions.busy.set(None);
+        });
+    };
+    let confirm = actions.delete_confirm;
+    when(move || actions.delete_confirm.get() == Some(id), move || {
+        let delete = delete.clone();
+        view()
+            .flex_row()
+            .gap(px(4.0))
+            .child(ui::action_button("Delete", true, delete))
+            .child(ui::action_button("Cancel", false, move || {
+                actions.delete_confirm.set(None)
+            }))
+            .into_element()
+    })
+    .otherwise(move || {
+        let edit = edit.clone();
+        view()
+            .flex_row()
+            .gap(px(4.0))
+            .child(ui::action_button("Edit", false, edit))
+            .child(ui::action_button("Delete", true, move || {
+                confirm.set(Some(id));
+            }))
+            .into_element()
+    })
+    .into_element()
 }
 
 fn filtered(

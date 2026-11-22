@@ -27,8 +27,8 @@ from <https://nsh.dev/docs/installation>.
 - [ ] Dashboard hover links and responsive/mobile layout.
 - [x] Subscriptions list, search and active/inactive groups.
 - [x] Inline create/edit form, pause/resume and delete confirmation.
-- [x] Transactions list, monthly groups, search and inline create.
-- [ ] Modal shell, transaction edit/delete, debts, calendar, reports.
+- [x] Transactions list, monthly groups, search, create, edit and delete.
+- [ ] Modal shell, debts, calendar, reports.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 

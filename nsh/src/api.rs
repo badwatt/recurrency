@@ -147,6 +147,27 @@ pub async fn create_transaction(
         .await
 }
 
+pub async fn update_transaction<B: Serialize>(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+    request: &B,
+) -> Result<Transaction, String> {
+    Client::new(server, token)
+        .put(&format!("/api/transactions/{id}"), request)
+        .await
+}
+
+pub async fn delete_transaction(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
+    Client::new(server, token)
+        .delete(&format!("/api/transactions/{id}"))
+        .await
+}
+
 pub async fn load_subscriptions(
     server: String,
     token: String,

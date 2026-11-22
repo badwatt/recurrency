@@ -896,8 +896,8 @@ fn card_actions(
                 view()
                     .flex_row()
                     .gap(px(4.0))
-                    .child(action_button("Delete", true, delete))
-                    .child(action_button("Cancel", false, move || {
+                    .child(ui::action_button("Delete", true, delete))
+                    .child(ui::action_button("Cancel", false, move || {
                         actions.delete_confirm.set(None)
                     })),
             )
@@ -910,9 +910,9 @@ fn card_actions(
             .w_full()
             .flex_row()
             .gap(px(4.0))
-            .child(action_button("Edit", false, edit))
-            .child(action_button(action_label, false, toggle))
-            .child(action_button("Delete", true, move || {
+            .child(ui::action_button("Edit", false, edit))
+            .child(ui::action_button(action_label, false, toggle))
+            .child(ui::action_button("Delete", true, move || {
                 confirm.set(Some(id));
             }))
             .into_element()
@@ -920,28 +920,6 @@ fn card_actions(
     .into_element()
 }
 
-fn action_button(
-    label: &'static str,
-    destructive: bool,
-    on_press: impl Fn() + 'static,
-) -> impl IntoElement {
-    button()
-        .h(px(26.0))
-        .px(px(8.0))
-        .rounded(px(5.0))
-        .bg(move || theme().card)
-        .on_press(on_press)
-        .child(
-            text(label)
-                .text_size(px(11.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || if destructive {
-                    theme().destructive
-                } else {
-                    theme().muted_foreground
-                }),
-        )
-}
 
 fn account_name(data: Resource<SubscriptionsData, String>, account_id: Uuid) -> String {
     data.get()

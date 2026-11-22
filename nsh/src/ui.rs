@@ -213,3 +213,26 @@ pub fn choice_picker(
                 )),
         )
 }
+
+pub fn action_button(
+    label: &'static str,
+    destructive: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .h(px(26.0))
+        .px(px(8.0))
+        .rounded(px(5.0))
+        .bg(move || theme().card)
+        .on_press(on_press)
+        .child(
+            text(label)
+                .text_size(px(11.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || if destructive {
+                    theme().destructive
+                } else {
+                    theme().muted_foreground
+                }),
+        )
+}
