@@ -405,6 +405,25 @@ struct AiChatRequest<'a> {
     messages: &'a [AiMessage],
 }
 
+#[derive(Serialize)]
+struct AiModelsRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    base_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AiModelsResponse {
+    #[serde(default)]
+    models: Vec<String>,
+}
+
+pub async fn ai_models(server: String, token: String, base_url: Option<String>) -> Result<Vec<String>, String> {
+    let response: AiModelsResponse = Client::new(server, token)
+        .post("/api/ai/models", &AiModelsRequest { base_url })
+        .await?;
+    Ok(response.models)
+}
+
 pub async fn ai_chat(server: String, token: String, messages: &[AiMessage]) -> Result<AiChatResponse, String> {
     Client::new(server, token)
         .post("/api/ai/chat", &AiChatRequest { messages })

@@ -1111,6 +1111,7 @@ struct UpdateAiSettingsRequest {
     model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     api_key: Option<String>,
+    clear_api_key: bool,
 }
 
 fn notifications_card(server: String, token: String) -> impl IntoElement {
@@ -1279,6 +1280,10 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
     let base_url = signal(String::new());
     let model = signal(String::new());
     let api_key = signal(String::new());
+    let clear_key = signal(false);
+    let models = signal(Vec::<String>::new());
+    let models_loading = signal(false);
+    let models_error = signal(String::new());
     let status = signal(String::new());
     let save = {
         let server = server.clone();
@@ -1295,6 +1300,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                 base_url: (!base_url.get().trim().is_empty()).then(|| base_url.get()),
                 model: (!model.get().trim().is_empty()).then(|| model.get()),
                 api_key: (!api_key.get().trim().is_empty()).then(|| api_key.get()),
+                clear_api_key: clear_key.get(),
             };
             spawn(async move {
                 match crate::api::update_ai_settings(server, token, &request).await {
@@ -1319,6 +1325,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                 base_url: (!base_url.get().trim().is_empty()).then(|| base_url.get()),
                 model: (!model.get().trim().is_empty()).then(|| model.get()),
                 api_key: (!api_key.get().trim().is_empty()).then(|| api_key.get()),
+                clear_api_key: clear_key.get(),
             };
             spawn(async move {
                 match crate::api::update_ai_settings(server, token, &request).await {
@@ -1329,6 +1336,32 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                     Err(message) => status.set(message),
                 }
             });
+        }
+    };
+    let refresh_models = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            models_loading.set(true);
+            models_error.set(String::new());
+            let server = server.clone();
+            let token = token.clone();
+            let base = base_url.get().trim().to_string();
+            spawn(async move {
+                match crate::api::ai_models(server, token, (!base.is_empty()).then_some(base)).await {
+                    Ok(values) => models.set(values),
+                    Err(message) => models_error.set(message),
+                }
+                models_loading.set(false);
+            });
+        }
+    };
+    let preset = |provider_id: &'static str, url: &'static str| {
+        let provider = provider;
+        let base_url = base_url;
+        move || {
+            provider.set(provider_id.to_string());
+            base_url.set(url.to_string());
         }
     };
     view()
@@ -1381,9 +1414,47 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                 .child(
                     view()
                         .flex_row()
+                        .flex_wrap()
+                        .gap(px(6.0))
+                        .child(ui::action_button("OpenAI", false, preset("openai", "https://api.openai.com/v1")))
+                        .child(ui::action_button("Groq", false, preset("groq", "https://api.groq.com/openai/v1")))
+                        .child(ui::action_button("OpenRouter", false, preset("openrouter", "https://openrouter.ai/api/v1")))
+                        .child(ui::action_button("Ollama", false, preset("ollama", "http://localhost:11434/v1")))
+                        .child(ui::action_button("LM Studio", false, preset("lmstudio", "http://localhost:1234/v1")))
+                        .child(ui::action_button("Custom", false, preset("custom", ""))),
+                )
+                .child(
+                    view()
+                        .flex_row()
                         .gap(px(12.0))
                         .child(ui::field("Model", model, "gpt-4o-mini"))
                         .child(ui::field("API key", api_key, "sk-…")),
+                )
+                .child(
+                    view()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(6.0))
+                        .child(ui::action_button(if models_loading.get() { "Loading models…" } else { "Refresh models" }, false, refresh_models))
+                        .child(ui::action_button(if clear_key.get() { "Keep key" } else { "Clear stored key" }, clear_key.get(), move || clear_key.set(!clear_key.get())))
+                        .children(models.get().into_iter().map(|name| {
+                            let value = name.clone();
+                            button()
+                                .h(px(24.0))
+                                .px(px(7.0))
+                                .rounded(px(5.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .on_press(move || model.set(value.clone()))
+                                .child(text(name).text_size(px(10.0)).text_color(move || theme().foreground))
+                                .into_element()
+                        })),
+                )
+                .child(
+                    text(move || models_error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
                 )
                 .child(
                     view()
