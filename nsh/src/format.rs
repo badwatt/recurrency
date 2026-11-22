@@ -4,6 +4,9 @@ use chrono::NaiveDate;
 use rust_decimal::Decimal;
 
 pub fn format_currency(amount: Decimal, currency: &str) -> String {
+    if crate::ui::privacy_active() {
+        return "••••".to_string();
+    }
     let symbol = match currency {
         "EUR" => "€",
         "USD" | "CAD" | "AUD" => "$",

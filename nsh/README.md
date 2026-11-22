@@ -49,3 +49,5 @@ Pages compose the shared library in `src/components`: buttons, badges, cards,
 fields, inputs, search fields, empty states, page headers, list toolbars,
 toggles and the dialog host. New page code should add a primitive there first
 and reuse it, matching the Dioxus component boundaries.
+
+- [x] Privacy mode masks every amount from the top-bar eye control.

@@ -495,7 +495,7 @@ fn group_card(
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
-                    text(total)
+                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { total.clone() })
                         .text_size(px(14.0))
                         .font_family(design::MONO)
                         .font_weight(FontWeight::SEMIBOLD)
@@ -618,7 +618,7 @@ fn row(
                 .items_center()
                 .gap(px(12.0))
                 .child(
-                    text(amount)
+                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                         .text_size(px(15.0))
                         .font_family(design::MONO)
                         .font_weight(FontWeight::SEMIBOLD)

@@ -3,9 +3,35 @@
 
 use crate::Route;
 use crate::auth::AuthSession;
+use std::cell::RefCell;
 use nsh_base::{button, theme};
 use uuid::Uuid;
 use nsh_core::prelude::*;
+
+thread_local! {
+    static PRIVACY: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
+}
+
+pub fn init_privacy() {
+    PRIVACY.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(false));
+        }
+    });
+}
+
+pub fn privacy_active() -> bool {
+    PRIVACY.with(|slot| slot.borrow().map_or(false, |privacy| privacy.get()))
+}
+
+fn toggle_privacy() {
+    PRIVACY.with(|slot| {
+        if let Some(privacy) = *slot.borrow() {
+            privacy.set(!privacy.get());
+        }
+    });
+}
 
 pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -> impl IntoElement {
     view()
@@ -53,7 +79,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                 )
                 .child(view().flex_1())
                 .child(icon_action(route, asset!("icons/sparkles.svg")))
-                .child(icon_action(route, asset!("icons/eye.svg")))
+                .child(privacy_action())
                 .child(icon_action(route, asset!("icons/palette.svg")))
                 .child(avatar(route, auth)),
         )
@@ -71,6 +97,22 @@ fn icon_action(route: Signal<Route>, icon: ImageAsset) -> impl IntoElement {
             image(icon)
                 .size(px(17.0))
                 .tint_color(move || theme().muted_foreground),
+        )
+}
+
+fn privacy_action() -> impl IntoElement {
+    let active = move || privacy_active();
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(30.0))
+        .w(px(30.0))
+        .rounded(px(6.0))
+        .on_press(toggle_privacy)
+        .child(
+            image(asset!("icons/eye.svg"))
+                .size(px(17.0))
+                .tint_color(move || if active() { theme().primary } else { theme().muted_foreground }),
         )
 }
 

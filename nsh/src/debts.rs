@@ -473,7 +473,7 @@ fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost)
                                     ),
                             )
                             .child(
-                                text(amount)
+                                text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                                     .text_size(px(13.0))
                                     .font_family(design::MONO)
                                     .font_weight(FontWeight::SEMIBOLD)

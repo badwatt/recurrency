@@ -480,6 +480,7 @@ fn upcoming_row(
     let account = payment.account_name;
     let amount = format_currency(converted, &currency);
     let original = original.then(|| format_currency(payment.amount, &payment.currency));
+    let original_display = original.clone();
 
     view()
         .w_full()
@@ -553,7 +554,7 @@ fn upcoming_row(
                 .flex_col()
                 .items_end()
                 .child(
-                    text(amount)
+                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                         .text_size(px(14.0))
                         .font_family(crate::theme::MONO)
                         .font_weight(FontWeight::SEMIBOLD)
@@ -561,7 +562,13 @@ fn upcoming_row(
                 )
                 .when(original.is_some(), |column| {
                     column.child(
-                        text(original.unwrap_or_default())
+                        text(move || {
+                            if crate::ui::privacy_active() {
+                                "••••".to_string()
+                            } else {
+                                original_display.clone().unwrap_or_default()
+                            }
+                        })
                             .text_size(px(10.0))
                             .text_color(move || theme().muted_foreground),
                     )
@@ -896,7 +903,7 @@ fn amount_value(amount: String, grow: f32) -> impl IntoElement {
         .flex_grow(grow)
         .items_end()
         .child(
-            text(amount)
+            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                 .text_size(px(13.0))
                 .font_family(crate::theme::MONO)
                 .font_weight(FontWeight::SEMIBOLD)
@@ -912,7 +919,7 @@ fn amount_cell(
         .flex_grow(grow)
         .items_end()
         .child(
-            text(amount)
+            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount() })
                 .text_size(px(13.0))
                 .font_family(crate::theme::MONO)
                 .font_weight(FontWeight::SEMIBOLD)

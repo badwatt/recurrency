@@ -252,7 +252,7 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
                 .text_color(move || theme().muted_foreground),
         )
         .child(
-            text(value)
+            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { value() })
                 .text_size(px(28.0))
                 .font_family(design::MONO)
                 .font_weight(FontWeight::BOLD)
@@ -427,7 +427,7 @@ fn mobile_section(
                                     ),
                             )
                             .child(
-                                text(amount)
+                                text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                                     .text_size(px(13.0))
                                     .font_family(design::MONO)
                                     .font_weight(FontWeight::SEMIBOLD)
@@ -514,7 +514,7 @@ fn day_cell(
                                         .number_of_lines(1),
                                 )
                                 .child(
-                                    text(amount)
+                                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                                         .text_size(px(11.0))
                                         .font_family(design::MONO)
                                         .text_color(move || theme().muted_foreground),

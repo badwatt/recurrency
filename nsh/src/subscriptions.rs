@@ -952,7 +952,7 @@ fn list_card(
                 .items_center()
                 .gap(px(12.0))
                 .child(
-                    text(amount)
+                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                         .text_size(px(14.0))
                         .font_family(design::MONO)
                         .font_weight(FontWeight::SEMIBOLD)
@@ -1044,7 +1044,7 @@ fn card(
                 ),
         )
         .child(
-            text(amount)
+            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                 .text_size(px(24.0))
                 .font_family(design::MONO)
                 .font_weight(FontWeight::BOLD)

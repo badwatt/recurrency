@@ -83,6 +83,7 @@ fn native(registry: &mut Registry) {
 #[component]
 pub fn App() -> impl IntoElement {
     crate::theme::apply(&crate::theme::saved());
+    ui::init_privacy();
     let route = signal(Route::Dashboard);
     let stored = auth::has_stored_session();
     let session = signal(if stored { Session::Loading } else { Session::SignedOut });
@@ -145,6 +146,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                     .child(
                         view()
                             .w_full()
+                            .key(if ui::privacy_active() { "private" } else { "public" })
                             .max_w(px(1280.0))
                             .px(move || {
                                 if compact.get() { px(16.0) } else if route.get() == Route::Dashboard { px(28.0) } else { px(24.0) }

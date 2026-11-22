@@ -298,7 +298,7 @@ fn summary_card(
                 ),
         )
         .child(
-            text(value)
+            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { value() })
                 .text_size(px(24.0))
                 .font_family(design::MONO)
                 .font_weight(FontWeight::BOLD)
@@ -534,7 +534,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .flex_grow(1.0),
                             )
                             .child(
-                                text(amount)
+                                text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
                                     .text_size(px(12.0))
                                     .font_family(design::MONO)
                                     .text_color(move || theme().foreground)
