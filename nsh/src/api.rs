@@ -481,9 +481,17 @@ pub struct NotificationList {
 const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/badwatt/recurrency/releases/latest";
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct ReleaseAsset {
+    pub name: String,
+    pub browser_download_url: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct Release {
     pub tag_name: String,
     pub html_url: String,
+    #[serde(default)]
+    pub assets: Vec<ReleaseAsset>,
 }
 
 pub async fn latest_release() -> Option<Release> {

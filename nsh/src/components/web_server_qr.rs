@@ -44,9 +44,13 @@ fn paint_qr(payload: &str) -> Painter {
     painter
 }
 
-pub fn web_server_qr(server: String) -> impl IntoElement {
-    let display_server = server.clone();
-    let payload = format!(r#"{{"type":"recurrency-server","url":"{server}"}}"#);
+/// Shared QR card used for server pairing and the Android download code.
+pub fn qr_card(
+    title: &'static str,
+    description: &'static str,
+    payload: String,
+    caption: String,
+) -> impl IntoElement {
     view()
         .w_full()
         .rounded(px(crate::theme::CARD_RADIUS))
@@ -56,13 +60,13 @@ pub fn web_server_qr(server: String) -> impl IntoElement {
         .p(px(24.0))
         .gap(px(14.0))
         .child(
-            text("Connect a device")
+            text(title)
                 .text_size(px(18.0))
                 .font_weight(FontWeight::BOLD)
                 .text_color(move || theme().foreground),
         )
         .child(
-            text("Scan this code from the Recurrency app to use this server.")
+            text(description)
                 .text_size(px(12.0))
                 .text_color(move || theme().muted_foreground),
         )
@@ -94,16 +98,26 @@ pub fn web_server_qr(server: String) -> impl IntoElement {
                     view()
                         .flex_col()
                         .gap(px(4.0))
-                        .child(text("Server").text_size(px(12.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground))
+                        .child(text(caption.clone()).text_size(px(12.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground))
                         .child(
-                            text(display_server)
+                            text("This code always points to the latest release.")
                                 .number_of_lines(3)
                                 .text_size(px(11.0))
-                                .font_family(crate::theme::MONO)
                                 .text_color(move || theme().muted_foreground),
                         ),
                 ),
         )
+}
+
+pub fn web_server_qr(server: String) -> impl IntoElement {
+    let caption = server.clone();
+    let payload = format!(r#"{{"type":"recurrency-server","url":"{server}"}}"#);
+    qr_card(
+        "Connect a device",
+        "Scan this code from the Recurrency app to use this server.",
+        payload,
+        caption,
+    )
 }
 
 #[cfg(test)]

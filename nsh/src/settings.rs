@@ -1070,26 +1070,43 @@ fn server_card(server: String, session: Signal<Session>) -> impl IntoElement {
         .child(crate::components::web_server_qr::web_server_qr(qr_server))
 }
 
+const LATEST_APK_URL: &str =
+    "https://github.com/badwatt/recurrency/releases/latest/download/recurrency-aarch64.apk";
+
 fn about_card() -> impl IntoElement {
-    ui::surface()
-        .p(px(24.0))
-        .gap(px(6.0))
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
         .child(
-            text("About")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(6.0))
+                .child(
+                    text("About")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(format!("Recurrency v{}", env!("CARGO_PKG_VERSION")))
+                        .text_size(px(14.0))
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("Native Shell migration · Rust · Axum · PostgreSQL")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
         )
-        .child(
-            text(format!("Recurrency v{}", env!("CARGO_PKG_VERSION")))
-                .text_size(px(14.0))
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("Native Shell migration · Rust · Axum · PostgreSQL")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
-        )
+        .when(!cfg!(target_os = "android"), |view| {
+            view.child(crate::components::web_server_qr::qr_card(
+                "Android app",
+                "Scan the code with an Android device to download the latest APK.",
+                LATEST_APK_URL.to_string(),
+                "recurrency-aarch64.apk".to_string(),
+            ))
+        })
 }
 
 #[derive(Serialize)]

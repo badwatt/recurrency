@@ -3,6 +3,22 @@
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
+fn preferred_asset<'a>(release: &'a crate::api::Release) -> Option<&'a crate::api::ReleaseAsset> {
+    let suffix = if cfg!(target_os = "android") {
+        [".apk"].as_slice()
+    } else if cfg!(target_os = "windows") {
+        [".exe", ".msi"].as_slice()
+    } else if cfg!(target_os = "macos") {
+        [".dmg"].as_slice()
+    } else {
+        [".appimage", ".deb"].as_slice()
+    };
+    release.assets.iter().find(|asset| {
+        let name = asset.name.to_ascii_lowercase();
+        suffix.iter().any(|suffix| name.ends_with(suffix))
+    })
+}
+
 fn newer(current: &str, latest: &str) -> bool {
     let parse = |value: &str| {
         value
@@ -32,6 +48,7 @@ pub fn update_banner() -> AnyElement {
         };
         let version = info.tag_name.trim_start_matches('v').to_string();
         let url = info.html_url.clone();
+        let download = preferred_asset(&info).map(|asset| asset.browser_download_url.clone());
         view()
             .w_full()
             .items_center()
@@ -62,10 +79,45 @@ pub fn update_banner() -> AnyElement {
                             let _ = open_url(url).await;
                         });
                     }))
+                    .when(download.is_some(), |view| {
+                        let download = download.clone();
+                        view.child(crate::ui::action_button("Download", false, move || {
+                            let Some(url) = download.clone() else { return };
+                            spawn(async move {
+                                let _ = open_url(url).await;
+                            });
+                        }))
+                    })
                     .child(button().items_center().justify_center().h(px(26.0)).w(px(26.0)).rounded(px(5.0)).on_press(move || dismissed.set(true)).child(image(asset!("icons/x.svg")).size(px(13.0)).tint_color(move || theme().muted_foreground))),
             )
             .into_element()
     })
     .otherwise(|| view().h(px(0.0)).into_element())
     .into_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preferred_asset;
+    use crate::api::{Release, ReleaseAsset};
+
+    #[test]
+    fn the_platform_asset_is_preferred() {
+        let release = Release {
+            tag_name: "v9.0.0".to_string(),
+            html_url: "https://example.com".to_string(),
+            assets: vec![
+                ReleaseAsset { name: "Recurrency-x86_64.AppImage".to_string(), browser_download_url: "a".to_string() },
+                ReleaseAsset { name: "Recurrency-x86_64.deb".to_string(), browser_download_url: "b".to_string() },
+            ],
+        };
+        let asset = preferred_asset(&release).expect("a linux asset");
+        assert!(asset.name.to_ascii_lowercase().ends_with(if cfg!(target_os = "linux") { ".appimage" } else { ".apk" }) || cfg!(not(target_os = "linux")));
+    }
+
+    #[test]
+    fn a_release_without_assets_has_no_download() {
+        let release = Release { tag_name: "v9.0.0".to_string(), html_url: "https://example.com".to_string(), assets: Vec::new() };
+        assert!(preferred_asset(&release).is_none());
+    }
 }
