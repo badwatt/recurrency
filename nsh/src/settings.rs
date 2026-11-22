@@ -419,7 +419,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Server, move || server_card(info_server.clone()))
+                    when(move || section.get() == Section::Server, move || server_card(info_server.clone(), session))
                         .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
@@ -1016,8 +1016,20 @@ fn data_card(
         )
 }
 
-fn server_card(server: String) -> impl IntoElement {
+fn server_card(server: String, session: Signal<Session>) -> impl IntoElement {
     let qr_server = server.clone();
+    let draft = signal(server.clone());
+    let error = signal(String::new());
+    let save = move || {
+        let value = draft.get().trim().trim_end_matches('/').to_string();
+        if !value.starts_with("http://") && !value.starts_with("https://") {
+            error.set("Use an http:// or https:// URL.".to_string());
+            return;
+        }
+        crate::auth::store_server(&value);
+        crate::auth::clear_session();
+        session.set(Session::SignedOut);
+    };
     view()
         .w_full()
         .flex_col()
@@ -1039,10 +1051,17 @@ fn server_card(server: String) -> impl IntoElement {
                         .text_color(move || theme().foreground),
                 )
                 .child(
-                    text("The native app connects to this server. Change it from the sign-in screen.")
+                    text("The app connects to this server. Saving a new URL signs you out.")
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
-                ),
+                )
+                .child(ui::field("Server URL", draft, "https://recurrency.example.com"))
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
+                .child(ui::action_button("Use this server", false, save)),
         )
         .child(crate::components::web_server_qr::web_server_qr(qr_server))
 }
