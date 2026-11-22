@@ -2072,6 +2072,19 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
     );
     let backup_status = signal(String::new());
     let backup_pending = signal(None::<serde_json::Value>);
+    let admin_delete = signal(None::<Uuid>);
+    let remove_user = {
+        let server = server.clone();
+        let token = token.clone();
+        move |id: Uuid| {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                let _ = crate::api::delete_admin_user(server, token, id).await;
+                data.refetch();
+            });
+        }
+    };
     let export_backup = {
         let server = server.clone();
         let token = token.clone();
@@ -2221,8 +2234,6 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                             {
                                 let role_server = server.clone();
                                 let role_token = token.clone();
-                                let delete_server = server.clone();
-                                let delete_token = token.clone();
                                 move |user, _| {
                                     let user: crate::models::AdminUser = user.get();
                                     let id = user.id;
@@ -2236,16 +2247,6 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                                         let token = role_token.clone();
                                         spawn(async move {
                                             let _ = crate::api::update_admin_role(server, token, id, !is_admin).await;
-                                            data.refetch();
-                                        });
-                                    };
-                                    let delete_server = delete_server.clone();
-                                    let delete_token = delete_token.clone();
-                                    let delete = move || {
-                                        let server = delete_server.clone();
-                                        let token = delete_token.clone();
-                                        spawn(async move {
-                                            let _ = crate::api::delete_admin_user(server, token, id).await;
                                             data.refetch();
                                         });
                                     };
@@ -2287,11 +2288,28 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                                                     false,
                                                     role,
                                                 ))
-                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete)),
+                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || admin_delete.set(Some(id)))),
                                         )
                                 }
                             },
                         )),
+                )
+                .child(
+                    when(move || admin_delete.get().is_some(), move || {
+                        let id = admin_delete.get().unwrap_or_default();
+                        let remove = remove_user.clone();
+                        confirm_row(ConfirmProps::new(
+                            "Delete this user?",
+                            "Delete",
+                            move || {
+                                admin_delete.set(None);
+                                remove(id);
+                            },
+                            move || admin_delete.set(None),
+                        ))
+                        .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
                 )
                 .child(
                     text("Server backup")

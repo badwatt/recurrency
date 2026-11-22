@@ -223,7 +223,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         )
         .child(
             when(
-                move || compact.get() && matches!(route.get(), Route::Subscriptions | Route::Transactions | Route::Debts),
+                move || compact.get() && matches!(route.get(), Route::Dashboard | Route::Subscriptions | Route::Transactions | Route::Debts),
                 move || {
                     button()
                         .absolute()
@@ -238,9 +238,13 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                         .bg(move || theme().primary)
                         .accessibility_label("Add entry")
                         .on_press(move || {
-                            let current = route.get();
-                            create_intent.set(Some(current));
-                            route.set(current);
+                            let target = match route.get() {
+                                Route::Transactions => Route::Transactions,
+                                Route::Debts => Route::Debts,
+                                _ => Route::Subscriptions,
+                            };
+                            create_intent.set(Some(target));
+                            route.set(target);
                         })
                         .child(image(asset!("icons/plus.svg")).size(px(22.0)).tint_color(move || theme().primary_foreground))
                         .into_element()

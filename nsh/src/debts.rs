@@ -510,6 +510,7 @@ fn bulk_modal(
     let busy = signal(false);
     let error = signal(String::new());
     let confirm_delete = signal(false);
+    let bulk_category = signal(None::<Uuid>);
     let toggle = move |id: Uuid| {
         let mut values = selected.get();
         if let Some(index) = values.iter().position(|value| *value == id) {
@@ -530,6 +531,27 @@ fn bulk_modal(
         selected.set(values);
     };
     let clear = move || selected.set(Vec::new());
+    let apply_category = {
+        let server = server;
+        let token = token;
+        move || {
+            let Some(category) = bulk_category.get() else { return };
+            let ids = selected.get();
+            if ids.is_empty() || busy.get() { return; }
+            let server = server.get();
+            let token = token.get();
+            busy.set(true);
+            error.set(String::new());
+            spawn(async move {
+                for id in ids {
+                    let _ = api::update_debt(server.clone(), token.clone(), id, &serde_json::json!({ "category_id": category })).await;
+                }
+                selected.set(Vec::new());
+                data.refetch();
+                busy.set(false);
+            });
+        }
+    };
     let delete = move || {
         let ids = selected.get();
         if ids.is_empty() || busy.get() {
@@ -614,6 +636,11 @@ fn bulk_modal(
                         .w_full()
                         .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
                 )
+                .child(ui::choice_picker(
+                    "Move selected to category",
+                    move || data.get().unwrap_or_default().categories.into_iter().map(|category| (category.id, category.name)).collect(),
+                    bulk_category,
+                ))
                 .child(
                     when(move || confirm_delete.get(), move || {
                         view()
@@ -646,6 +673,7 @@ fn bulk_modal(
                 .flex_row()
                 .justify_end()
                 .gap(px(8.0))
+                .child(ui::action_button("Apply category", false, apply_category))
                 .child(ui::action_button("Delete", true, move || confirm_delete.set(true)))
                 .into_element(),
         ),

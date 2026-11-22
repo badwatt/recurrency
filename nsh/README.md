@@ -59,3 +59,4 @@ and reuse it, matching the Dioxus component boundaries.
 - [x] Reminder lead-time controls per notification channel.
 - [x] Email verification code dialog with resend and automatic sign-in after verification.
 - [x] Logo URLs in subscription/transaction forms and cards.
+- [x] Searchable IANA timezone picker, dashboard summary schedule, bulk categories and admin delete confirmation.
