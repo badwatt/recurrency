@@ -15,6 +15,7 @@ use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
 use crate::components::badge::{badge, BadgeProps, BadgeTone};
 use crate::components::checkbox::checkbox;
 use crate::components::confirm::{confirm_row, ConfirmProps};
+use crate::components::string_select::{string_select, StringSelectProps};
 use crate::auth::AuthSession;
 use crate::format::{format_currency, format_date};
 use crate::models::{AnnualDate, Recurrence, Subscription};
@@ -379,7 +380,7 @@ fn form(
                         .flex_row()
                         .gap(px(12.0))
                         .child(ui::field("Amount", amount, "9.99"))
-                        .child(ui::field("Currency", currency, "EUR")),
+                        .child(string_select(StringSelectProps::new("Currency", currency, crate::currencies::CURRENCIES))),
                 )
                 .child(
                     view()

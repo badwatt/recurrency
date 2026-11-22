@@ -19,3 +19,4 @@ pub mod segmented;
 pub mod skeleton;
 pub mod web_server_qr;
 pub mod confirm;
+pub mod string_select;

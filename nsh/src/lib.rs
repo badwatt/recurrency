@@ -8,6 +8,7 @@ mod ai_chat;
 mod api;
 mod auth;
 mod calendar;
+mod currencies;
 pub mod components;
 mod dashboard;
 mod debts;

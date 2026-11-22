@@ -11,6 +11,7 @@ use crate::auth::{self, AuthSession, AuthUser, Session};
 use uuid::Uuid;
 use crate::components::toggle::toggle as shared_toggle;
 use crate::components::segmented::{segmented, SegmentOption};
+use crate::components::string_select::{string_select, StringSelectProps};
 use crate::ui;
 
 #[derive(Debug, Deserialize)]
@@ -812,7 +813,7 @@ fn general_card(
                 .font_weight(FontWeight::BOLD)
                 .text_color(move || theme().foreground),
         )
-        .child(ui::field("Display currency", currency, "EUR"))
+        .child(string_select(StringSelectProps::new("Display currency", currency, crate::currencies::CURRENCIES)))
         .child(
             text("Amounts are formatted in this currency. Exchange rates stay on the server.")
                 .text_size(px(12.0))
