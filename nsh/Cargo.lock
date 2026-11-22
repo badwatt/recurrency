@@ -3263,6 +3263,7 @@ dependencies = [
  "chrono-tz",
  "env_logger",
  "image",
+ "js-sys",
  "nsh-base",
  "nsh-core",
  "nsh-platform-linux",
@@ -3273,6 +3274,8 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

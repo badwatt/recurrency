@@ -87,6 +87,7 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
         })
     };
     let transcribing = signal(false);
+    let recording = signal(false);
     let voice = {
         let token = auth.token.clone();
         move || {
@@ -140,6 +141,53 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
                 transcribing.set(false);
             });
         }
+    };
+    let record = {
+        let token = auth.token.clone();
+        move || {
+            if transcribing.get() {
+                return;
+            }
+            let token = token.clone();
+            error.set(String::new());
+            spawn(async move {
+                match crate::mic::toggle().await {
+                    Ok(crate::mic::Capture::Started) => recording.set(true),
+                    Ok(crate::mic::Capture::Stopped { base64, mime }) => {
+                        recording.set(false);
+                        transcribing.set(true);
+                        match api::transcribe(
+                            auth::stored_server(),
+                            token,
+                            &base64,
+                            if mime.is_empty() { "audio/webm" } else { &mime },
+                        )
+                        .await
+                        {
+                            Ok(text) => {
+                                let mut next = draft.get();
+                                if !next.trim().is_empty() {
+                                    next.push(' ');
+                                }
+                                next.push_str(text.trim());
+                                draft.set(next);
+                            }
+                            Err(message) => error.set(message),
+                        }
+                        transcribing.set(false);
+                    }
+                    Err(message) => {
+                        recording.set(false);
+                        error.set(message);
+                    }
+                }
+            });
+        }
+    };
+    let voice_press: Rc<dyn Fn()> = if crate::mic::supported() {
+        Rc::new(record)
+    } else {
+        Rc::new(voice)
     };
     let submit = send.clone();
     let press = send.clone();
@@ -277,13 +325,17 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
                                 .child(shared_button(
                                     ButtonProps::new(if transcribing.get() {
                                         "Transcribing…"
+                                    } else if recording.get() {
+                                        "Stop recording"
+                                    } else if crate::mic::supported() {
+                                        "Record"
                                     } else {
                                         "Voice note"
                                     })
                                     .variant(crate::components::button::ButtonVariant::Outline)
                                     .icon(asset!("icons/mic.svg"))
                                     .disabled(transcribing.get())
-                                    .on_press(voice),
+                                    .on_press(move || voice_press()),
                                 ))
                                 .child(shared_button(
                                     ButtonProps::new(if sending.get() {
