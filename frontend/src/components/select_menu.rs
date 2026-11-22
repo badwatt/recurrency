@@ -57,6 +57,11 @@ pub fn SelectMenu(
         .find(|option| option.value == value)
         .map(|option| option.label.clone())
         .unwrap_or_else(|| value.clone());
+    let panel_class = if drop_up() {
+        "absolute left-0 right-0 bottom-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+    } else {
+        "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
+    };
     let visible: Vec<SelectOption> = options
         .into_iter()
         .filter(|option| {
@@ -110,11 +115,7 @@ pub fn SelectMenu(
                     },
                 }
                 div {
-                    class: if drop_up() {
-                        "absolute left-0 right-0 bottom-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
-                    } else {
-                        "absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md"
-                    },
+                    class: "{panel_class}",
                     role: "listbox",
                     onclick: move |event| event.stop_propagation(),
                     if searchable {

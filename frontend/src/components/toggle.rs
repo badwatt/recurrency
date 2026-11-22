@@ -10,6 +10,16 @@ pub fn Toggle(
     #[props(default)] disabled: bool,
     #[props(default)] class: String,
 ) -> Element {
+    let track_class = if checked {
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {class}"
+    } else {
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {class}"
+    };
+    let knob_class = if checked {
+        "inline-block h-4 w-4 translate-x-6 rounded-full bg-white transition-transform"
+    } else {
+        "inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform"
+    };
     rsx! {
         button {
             r#type: "button",
@@ -18,19 +28,9 @@ pub fn Toggle(
             aria_label: label.clone(),
             title: label,
             disabled,
-            class: if checked {
-                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {class}"
-            } else {
-                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {class}"
-            },
+            class: "{track_class}",
             onclick: move |_| on_change.call(!checked),
-            span {
-                class: if checked {
-                    "inline-block h-4 w-4 translate-x-6 rounded-full bg-white transition-transform"
-                } else {
-                    "inline-block h-4 w-4 translate-x-1 rounded-full bg-white transition-transform"
-                }
-            }
+            span { class: "{knob_class}" }
         }
     }
 }
