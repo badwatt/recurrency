@@ -312,21 +312,7 @@ pub fn icon_button(
     active: bool,
     on_press: impl Fn() + 'static,
 ) -> impl IntoElement {
-    button()
-        .items_center()
-        .justify_center()
-        .h(px(38.0))
-        .w(px(38.0))
-        .rounded(px(8.0))
-        .border(px(1.0))
-        .border_color(move || if active { theme().primary } else { theme().border })
-        .bg(move || if active { theme().accent } else { theme().card })
-        .on_press(on_press)
-        .child(
-            image(icon)
-                .size(px(16.0))
-                .tint_color(move || if active { theme().foreground } else { theme().muted_foreground }),
-        )
+    crate::components::button::icon_button(icon, "Action", active, on_press)
 }
 
 pub fn mini_icon_button(
