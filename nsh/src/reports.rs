@@ -58,6 +58,7 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 .gap(px(8.0))
                 .child(navigation(year, month, today))
                 .child(export_button(data, &currency))
+                .child(export_pdf_button(data, &currency))
                 .into_element(),
         ))
         .child(
@@ -221,6 +222,42 @@ fn export_button(data: Resource<ReportsData, String>, currency: &str) -> impl In
         })
         .child(
             text("Export CSV")
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().foreground),
+        )
+}
+
+fn export_pdf_button(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+    let currency = currency.to_string();
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(38.0))
+        .px(px(12.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .on_press(move || {
+            let Some(snapshot) = data.get() else {
+                return;
+            };
+            let pdf = build_pdf(&snapshot.report, &currency);
+            spawn(async move {
+                if let Ok(Some(path)) = pick_save_path(
+                    SaveDialog::new()
+                        .file_name("recurrency-report.pdf")
+                        .filter(FileFilter::new("PDF", ["pdf"])),
+                )
+                .await
+                {
+                    let _ = std::fs::write(path, pdf);
+                }
+            });
+        })
+        .child(
+            text("Export PDF")
                 .text_size(px(12.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || theme().foreground),
@@ -636,6 +673,78 @@ fn build_csv(report: &ReportResponse, currency: &str) -> String {
     }
     csv.push_str(&format!("\nCurrency,{currency}\n"));
     csv
+}
+
+fn pdf_text(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('(', "\\(")
+        .replace(')', "\\)")
+}
+
+fn build_pdf(report: &ReportResponse, currency: &str) -> Vec<u8> {
+    let summary = &report.monthly_summary;
+    let period = NaiveDate::from_ymd_opt(summary.year, summary.month, 1)
+        .map_or_else(String::new, |date| date.format("%B %Y").to_string());
+    let mut lines = vec![
+        ("Recurrency report".to_string(), 18.0),
+        (period, 12.0),
+        (String::new(), 10.0),
+        (format!("Total spending: {} {}", summary.overall_total, currency), 11.0),
+        (format!("Subscriptions: {} {} ({} active)", summary.subscriptions_total, currency, summary.subscriptions_count), 11.0),
+        (format!("One-time: {} {} ({} transactions)", summary.transactions_total, currency, summary.transactions_count), 11.0),
+        (String::new(), 10.0),
+        ("Category breakdown".to_string(), 13.0),
+    ];
+    for category in &report.category_breakdown {
+        lines.push((
+            format!(
+                "{}: {} {} ({} items, {:.1}%)",
+                category.category_name, category.total, currency, category.count, category.percentage
+            ),
+            10.0,
+        ));
+    }
+    lines.push((String::new(), 10.0));
+    lines.push(("Monthly trend".to_string(), 13.0));
+    for trend in &report.recent_trends {
+        lines.push((format!("{}: {} {}", trend.period, trend.total, currency), 10.0));
+    }
+    let mut content = String::new();
+    let mut y = 800.0;
+    for (line, size) in lines {
+        if y < 50.0 {
+            break;
+        }
+        content.push_str(&format!(
+            "BT /F1 {size} Tf 1 0 0 1 50 {y} Tm ({}) Tj ET\n",
+            pdf_text(&line)
+        ));
+        y -= size + 7.0;
+    }
+    let objects = vec![
+        "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_string(),
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>".to_string(),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(),
+        format!("<< /Length {} >>\nstream\n{}endstream", content.len(), content),
+    ];
+    let mut pdf = String::from("%PDF-1.4\n");
+    let mut offsets = Vec::new();
+    for (index, object) in objects.iter().enumerate() {
+        offsets.push(pdf.len());
+        pdf.push_str(&format!("{} 0 obj\n{}\nendobj\n", index + 1, object));
+    }
+    let xref = pdf.len();
+    pdf.push_str(&format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1));
+    for offset in offsets {
+        pdf.push_str(&format!("{offset:010} 00000 n \n"));
+    }
+    pdf.push_str(&format!(
+        "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
+        objects.len() + 1
+    ));
+    pdf.into_bytes()
 }
 
 fn average_trend(report: &ReportResponse) -> Decimal {
