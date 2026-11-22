@@ -73,3 +73,5 @@ the Dioxus component boundaries.
 - [x] Field-aware sort menus and transaction filters for category, price range and month.
 - [x] Status filtering for subscriptions (all/active/inactive).
 - [x] Shared filter-popover and sort-menu components reused by both list pages.
+- [x] Browser microphone recording with MediaRecorder and provider transcription; file-based voice notes on native.
+- [x] Cloud folder sync card with folder picker, manual backup sync, last-sync state and disconnect.
