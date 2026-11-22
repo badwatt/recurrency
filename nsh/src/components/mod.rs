@@ -18,6 +18,7 @@ pub mod filter_menu;
 pub mod input;
 pub mod list_toolbar;
 pub mod logo_avatar;
+pub mod logo_search;
 pub mod page_header;
 pub mod privacy_toggle;
 pub mod search_input;

@@ -380,33 +380,6 @@ fn form(
         }
     };
 
-    let find_logo = {
-        let server = server;
-        move || {
-            let query = name.get().trim().to_string();
-            if query.is_empty() {
-                logo_error.set("Enter a name first.".to_string());
-                return;
-            }
-            logo_loading.set(true);
-            logo_error.set(String::new());
-            let server = server.get();
-            spawn(async move {
-                match api::search_logos(server, query).await {
-                    Ok(results) => {
-                        logo_results.set(
-                            results
-                                .into_iter()
-                                .map(|result| (result.url, result.thumbnail))
-                                .collect(),
-                        );
-                    }
-                    Err(message) => logo_error.set(message),
-                }
-                logo_loading.set(false);
-            });
-        }
-    };
     let title = if editing.get().is_some() {
         "Edit Subscription"
     } else {
@@ -522,61 +495,16 @@ fn form(
                     },
                     category_id,
                 ))
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_end()
-                        .gap(px(8.0))
-                        .child(ui::field(
-                            "Logo URL",
-                            logo_url,
-                            "https://example.com/logo.png",
-                        ))
-                        .child(ui::action_button(
-                            if logo_loading.get() {
-                                "Searching…"
-                            } else {
-                                "Find logo"
-                            },
-                            false,
-                            find_logo,
-                        )),
-                )
-                .child(
-                    when(
-                        move || !logo_results.get().is_empty(),
-                        move || {
-                            view()
-                                .w_full()
-                                .flex_row()
-                                .flex_wrap()
-                                .gap(px(6.0))
-                                .children(logo_results.get().into_iter().map(|(url, thumbnail)| {
-                                    let value = url.clone();
-                                    button()
-                                        .h(px(38.0))
-                                        .w(px(38.0))
-                                        .items_center()
-                                        .justify_center()
-                                        .rounded(px(6.0))
-                                        .border(px(1.0))
-                                        .border_color(move || theme().border)
-                                        .bg(move || theme().background)
-                                        .on_press(move || logo_url.set(value.clone()))
-                                        .child(image(thumbnail).size(px(28.0)))
-                                        .into_element()
-                                }))
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    text(move || logo_error.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().destructive),
-                )
+                .child(crate::components::logo_search::logo_search(
+                    name,
+                    logo_url,
+                    server,
+                    crate::components::logo_search::LogoSearchState {
+                        results: logo_results,
+                        loading: logo_loading,
+                        error: logo_error,
+                    },
+                ))
                 .child(checkbox(active, "Active subscription".to_string()))
                 .child(
                     when(
