@@ -1326,6 +1326,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                     .otherwise(|| view().h(px(0.0))),
                 ),
         )
+        .child(crate::delivery::delivery_card(server.clone(), token.clone()))
         .child(
             ui::surface()
                 .p(px(24.0))
@@ -1377,6 +1378,7 @@ fn channel_label(channel: &str) -> String {
         "email" => "Email".to_string(),
         "push" => "Push".to_string(),
         "in_app" | "in-app" => "In-app".to_string(),
+        "system" => "System".to_string(),
         other => other.to_string(),
     }
 }

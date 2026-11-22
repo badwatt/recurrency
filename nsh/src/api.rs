@@ -502,6 +502,47 @@ pub async fn search_logos(server: String, query: String) -> Result<Vec<LogoResul
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct DeliveryChannel {
+    pub provider: String,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub configured: bool,
+    #[serde(default)]
+    pub config: serde_json::Value,
+}
+
+pub async fn load_delivery_channels(server: String, token: String) -> Result<Vec<DeliveryChannel>, String> {
+    Client::new(server, token).get("/api/settings/notification-channels").await
+}
+
+pub async fn update_delivery_channel(
+    server: String,
+    token: String,
+    provider: &str,
+    enabled: bool,
+    config: serde_json::Value,
+) -> Result<DeliveryChannel, String> {
+    let path = format!("/api/settings/notification-channels/{provider}");
+    Client::new(server, token)
+        .put(&path, &serde_json::json!({ "enabled": enabled, "config": config }))
+        .await
+}
+
+pub async fn test_delivery_channel(
+    server: String,
+    token: String,
+    provider: &str,
+    config: serde_json::Value,
+) -> Result<(), String> {
+    let path = format!("/api/settings/notification-channels/{provider}/test");
+    let _: serde_json::Value = Client::new(server, token)
+        .post(&path, &serde_json::json!({ "config": config }))
+        .await?;
+    Ok(())
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct SummarySettings {
     #[serde(default)]
     pub enabled: bool,

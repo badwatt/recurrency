@@ -20,3 +20,26 @@ pub fn text_input(value: Signal<String>, placeholder: &'static str) -> impl Into
         .text_size(px(13.0))
         .text_color(move || theme().foreground)
 }
+
+/// Input whose current value is passed by copy, for dynamic rows that cannot
+/// allocate one `Signal` per field (provider configs, key/value editors).
+pub fn text_input_value(
+    value: String,
+    placeholder: &'static str,
+    on_change: impl Fn(String) + 'static,
+) -> impl IntoElement {
+    input()
+        .value(value)
+        .on_change(move |next: &str| on_change(next.to_string()))
+        .placeholder(placeholder)
+        .auto_fill(AutoFill::Off)
+        .h(px(38.0))
+        .w_full()
+        .px(px(10.0))
+        .rounded(px(7.0))
+        .border(px(1.0))
+        .border_color(move || theme().input)
+        .bg(move || theme().card)
+        .text_size(px(13.0))
+        .text_color(move || theme().foreground)
+}

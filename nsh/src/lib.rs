@@ -12,6 +12,7 @@ mod currencies;
 pub mod components;
 mod dashboard;
 mod debts;
+mod delivery;
 mod dashboard_data;
 mod format;
 mod login;
