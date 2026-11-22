@@ -204,11 +204,11 @@ fn hero(
         if count == 0 {
             "All covered through today.".to_string()
         } else if days_left == 0 {
-            format!("{} · last day of the month", count_label(count, "payment", "payments"))
+            format!("{} · last day of the month", ui::count_label(count, "payment", "payments"))
         } else {
             format!(
                 "{} · {days_left} days left",
-                count_label(count, "payment", "payments")
+                ui::count_label(count, "payment", "payments")
             )
         }
     };
@@ -255,12 +255,12 @@ fn hero(
                         .flex_row()
                         .gap(px(20.0))
                         .mt(px(22.0))
-                        .child(stat(move || count_label(count(), "account", "accounts")))
+                        .child(stat(move || ui::count_label(count(), "account", "accounts")))
                         .child(stat(move || {
-                            count_label(active(), "active subscription", "active subscriptions")
+                            ui::count_label(active(), "active subscription", "active subscriptions")
                         }))
                         .child(stat(move || {
-                            count_label(manual_count(), "manual payment", "manual payments")
+                            ui::count_label(manual_count(), "manual payment", "manual payments")
                         })),
                 ),
         )
@@ -315,14 +315,6 @@ fn hero(
                         .mt(px(8.0)),
                 ),
         )
-}
-
-fn count_label(count: usize, singular: &str, plural: &str) -> String {
-    if count == 1 {
-        format!("1 {singular}")
-    } else {
-        format!("{count} {plural}")
-    }
 }
 
 fn stat(label: impl Fn() -> String + 'static) -> impl IntoElement {
@@ -604,7 +596,7 @@ fn ledger_card(
         .when(!show_categories.get(), move |card| {
             card.child(account_rows(data, &currency_accounts, hovered))
                 .child(ledger_footer(
-                    move || count_label(account_count(), "account", "accounts"),
+                    move || ui::count_label(account_count(), "account", "accounts"),
                     move || {
                         total_budget(
                             &data
@@ -627,7 +619,7 @@ fn ledger_card(
         .when(show_categories.get(), move |card| {
             card.child(category_rows(data, &currency_categories))
                 .child(ledger_footer(
-                    move || count_label(category_count(), "category", "categories"),
+                    move || ui::count_label(category_count(), "category", "categories"),
                     move || {
                         data.get()
                             .unwrap_or_default()
@@ -987,8 +979,8 @@ mod tests {
 
     #[test]
     fn count_labels_use_the_singular_for_one() {
-        assert_eq!(count_label(1, "account", "accounts"), "1 account");
-        assert_eq!(count_label(2, "account", "accounts"), "2 accounts");
-        assert_eq!(count_label(0, "payment", "payments"), "0 payments");
+        assert_eq!(ui::count_label(1, "account", "accounts"), "1 account");
+        assert_eq!(ui::count_label(2, "account", "accounts"), "2 accounts");
+        assert_eq!(ui::count_label(0, "payment", "payments"), "0 payments");
     }
 }

@@ -10,13 +10,17 @@ use crate::dashboard_data::{
 use crate::models::{Account, Category, Rates, Subscription, Transaction};
 use nsh_core::prelude::*;
 
-struct Api {
+pub struct Client {
     server: String,
     token: String,
 }
 
-impl Api {
-    async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
+impl Client {
+    pub fn new(server: String, token: String) -> Self {
+        Self { server, token }
+    }
+
+    pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, String> {
         let request = HttpRequest::get(format!("{}{path}", self.server.trim_end_matches('/')))
             .header("Authorization", format!("Bearer {}", self.token));
         let response = fetch(request).await?;
@@ -26,18 +30,28 @@ impl Api {
         serde_json::from_str(&response.text())
             .map_err(|_| "The server returned an unexpected response".to_string())
     }
+
+    async fn rates(&self, currency: &str) -> Rates {
+        self.get(&format!("/api/currency/rates?base={currency}"))
+            .await
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SubscriptionsData {
+    pub subscriptions: Vec<Subscription>,
+    pub accounts: Vec<Account>,
+    pub rates: Rates,
 }
 
 pub async fn load_dashboard(server: String, token: String, currency: String) -> Result<DashboardData, String> {
-    let api = Api { server, token };
+    let api = Client::new(server, token);
     let accounts: Vec<Account> = api.get("/api/accounts").await?;
     let subscriptions: Vec<Subscription> = api.get("/api/subscriptions").await?;
     let transactions: Vec<Transaction> = api.get("/api/transactions").await?;
     let categories: Vec<Category> = api.get("/api/categories").await?;
-    let rates: Rates = api
-        .get(&format!("/api/currency/rates?base={currency}"))
-        .await
-        .unwrap_or_default();
+    let rates = api.rates(&currency).await;
 
     let today = Local::now().date_naive();
     let account_budgets: Vec<AccountBudget> =
@@ -53,5 +67,21 @@ pub async fn load_dashboard(server: String, token: String, currency: String) -> 
         upcoming,
         rates,
         active_subscriptions,
+    })
+}
+
+pub async fn load_subscriptions(
+    server: String,
+    token: String,
+    currency: String,
+) -> Result<SubscriptionsData, String> {
+    let api = Client::new(server, token);
+    let subscriptions: Vec<Subscription> = api.get("/api/subscriptions").await?;
+    let accounts: Vec<Account> = api.get("/api/accounts").await?;
+    let rates = api.rates(&currency).await;
+    Ok(SubscriptionsData {
+        subscriptions,
+        accounts,
+        rates,
     })
 }

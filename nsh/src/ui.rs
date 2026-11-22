@@ -88,7 +88,7 @@ pub fn page_header(title: &'static str, subtitle: &'static str) -> impl IntoElem
         .gap(px(4.0))
         .child(
             text(title)
-                .text_size(px(46.0))
+                .text_size(px(34.0))
                 .font_weight(FontWeight::BOLD)
                 .text_color(move || theme().foreground),
         )
@@ -124,4 +124,12 @@ pub fn pending_screen(title: &'static str) -> AnyElement {
                 ),
         )
         .into_element()
+}
+
+pub fn count_label(count: usize, singular: &str, plural: &str) -> String {
+    if count == 1 {
+        format!("1 {singular}")
+    } else {
+        format!("{count} {plural}")
+    }
 }

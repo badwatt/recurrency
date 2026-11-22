@@ -12,6 +12,7 @@ mod format;
 mod login;
 mod models;
 mod recurrence;
+mod subscriptions;
 mod theme;
 mod ui;
 
@@ -140,7 +141,14 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                         move || dashboard::dashboard(auth.clone(), route)
                                     },
                                 )
-                                .otherwise(move || ui::pending_screen(route.get().label())),
+                                .otherwise(move || {
+                                    let subscriptions_auth = auth.clone();
+                                    when(
+                                        move || route.get() == Route::Subscriptions,
+                                        move || subscriptions::subscriptions(subscriptions_auth.clone()),
+                                    )
+                                    .otherwise(move || ui::pending_screen(route.get().label()))
+                                }),
                             ),
                     ),
             ),

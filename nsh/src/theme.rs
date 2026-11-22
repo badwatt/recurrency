@@ -8,3 +8,9 @@ pub const MONO: &str = "JetBrains Mono";
 
 pub const PAGE_GAP: f32 = 24.0;
 pub const CARD_RADIUS: f32 = 12.0;
+
+/// Success badges (active states) use the `success` token when the theme
+/// defines it; the primary color is the fallback.
+pub fn success() -> nsh_core::element::AdaptiveColor {
+    nsh_base::theme().color("success").unwrap_or_else(|| nsh_base::theme().primary)
+}
