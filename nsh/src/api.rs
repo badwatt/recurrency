@@ -430,6 +430,15 @@ pub async fn ai_chat(server: String, token: String, messages: &[AiMessage]) -> R
         .await
 }
 
+pub async fn admin_export_backup(server: String, token: String) -> Result<String, String> {
+    let value: serde_json::Value = Client::new(server, token).get("/api/admin/backup").await?;
+    serde_json::to_string_pretty(&value).map_err(|error| error.to_string())
+}
+
+pub async fn admin_import_backup(server: String, token: String, value: &serde_json::Value) -> Result<serde_json::Value, String> {
+    Client::new(server, token).post("/api/admin/backup/restore", value).await
+}
+
 pub async fn load_admin_users(server: String, token: String) -> Result<Vec<AdminUser>, String> {
     Client::new(server, token).get("/api/admin/users").await
 }

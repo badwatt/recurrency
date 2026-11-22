@@ -1915,6 +1915,82 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
             }
         },
     );
+    let backup_status = signal(String::new());
+    let backup_pending = signal(None::<serde_json::Value>);
+    let export_backup = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            backup_status.set("Preparing full backup…".to_string());
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::admin_export_backup(server, token).await {
+                    Ok(json) => match pick_save_path(
+                        SaveDialog::new()
+                            .file_name("recurrency-full-backup.json")
+                            .filter(FileFilter::new("JSON", ["json"])),
+                    )
+                    .await
+                    {
+                        Ok(Some(path)) => match std::fs::write(&path, json) {
+                            Ok(()) => backup_status.set(format!("Full backup saved to {}", path.display())),
+                            Err(error) => backup_status.set(format!("Could not write the backup: {error}")),
+                        },
+                        Ok(None) => backup_status.set(String::new()),
+                        Err(error) => backup_status.set(error),
+                    },
+                    Err(error) => backup_status.set(error),
+                }
+            });
+        }
+    };
+    let choose_backup = move || {
+        spawn(async move {
+            match pick_paths(
+                OpenDialog::files()
+                    .title("Restore full Recurrency backup")
+                    .filter(FileFilter::new("JSON", ["json"])),
+            )
+            .await
+            {
+                Ok(Some(paths)) => {
+                    let Some(path) = paths.first() else { return };
+                    match std::fs::read_to_string(path) {
+                        Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+                            Ok(value) => {
+                                backup_pending.set(Some(value));
+                                backup_status.set("Full backup loaded. Confirm to restore all tables.".to_string());
+                            }
+                            Err(_) => backup_status.set("That file is not a Recurrency backup.".to_string()),
+                        },
+                        Err(error) => backup_status.set(format!("Could not read the backup: {error}")),
+                    }
+                }
+                Ok(None) => backup_status.set(String::new()),
+                Err(error) => backup_status.set(error),
+            }
+        });
+    };
+    let restore_backup = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let Some(value) = backup_pending.get() else { return };
+            let server = server.clone();
+            let token = token.clone();
+            backup_status.set("Restoring full backup…".to_string());
+            spawn(async move {
+                match crate::api::admin_import_backup(server, token, &value).await {
+                    Ok(_) => {
+                        backup_pending.set(None);
+                        backup_status.set("Full backup restored.".to_string());
+                    }
+                    Err(error) => backup_status.set(format!("Could not restore the backup: {error}")),
+                }
+            });
+        }
+    };
     let registration = {
         let server = server.clone();
         let token = token.clone();
@@ -2061,6 +2137,49 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                                 }
                             },
                         )),
+                )
+                .child(
+                    text("Server backup")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    view()
+                        .flex_row()
+                        .flex_wrap()
+                        .gap(px(8.0))
+                        .child(ui::action_button("Export full backup", false, export_backup))
+                        .child(ui::action_button("Restore full backup", true, choose_backup)),
+                )
+                .child(
+                    when(move || backup_pending.get().is_some(), move || {
+                        let restore_backup = restore_backup.clone();
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(8.0))
+                            .p(px(10.0))
+                            .rounded(px(7.0))
+                            .bg(move || theme().destructive.opacity(0.1))
+                            .child(text("Replace every table with this backup?").text_size(px(11.0)).text_color(move || theme().destructive))
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .gap(px(6.0))
+                                    .child(ui::action_button("Cancel", false, move || backup_pending.set(None)))
+                                    .child(ui::action_button("Restore now", true, restore_backup)),
+                            )
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    text(move || backup_status.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
                 ),
         )
 }
