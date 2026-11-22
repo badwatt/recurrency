@@ -137,6 +137,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     view()
         .w_full()
         .flex_row()
+        .flex_wrap()
         .items_start()
         .gap(px(28.0))
         .child(
@@ -186,7 +187,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .child(
             view()
                 .flex_1()
-                .min_w(px(0.0))
+                .min_w(px(320.0))
                 .flex_col()
                 .gap(px(20.0))
                 .child(ui::page_header("Settings", "Preferences for this device"))
@@ -609,6 +610,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                 let days = preference.reminder_days_before;
                                 let server = channel_currency.clone();
                                 let token = channel_token.clone();
+                                let data_toggle = data;
                                 let toggle = move || {
                                     let server = server.clone();
                                     let token = token.clone();
@@ -624,6 +626,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                             server, token, &request,
                                         )
                                         .await;
+                                        data_toggle.refetch();
                                     });
                                 };
                                 view()

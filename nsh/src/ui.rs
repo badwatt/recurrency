@@ -8,7 +8,7 @@ use nsh_core::element::AutoFill;
 use uuid::Uuid;
 use nsh_core::prelude::*;
 
-pub fn top_bar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
+pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: bool) -> impl IntoElement {
     view()
         .h(px(56.0))
         .w_full()
@@ -41,13 +41,15 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
                                 .text_color(move || theme().foreground),
                         ),
                 )
-                .child(
-                    view()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(2.0))
-                        .children(Route::NAV.iter().map(|item| nav_item(*item, route))),
-                )
+                .when(!compact, |bar| {
+                    bar.child(
+                        view()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(2.0))
+                            .children(Route::NAV.iter().map(|item| nav_item(*item, route))),
+                    )
+                })
                 .child(view().flex_1())
                 .child(
                     button()
@@ -125,6 +127,49 @@ fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
                     theme().muted_foreground
                 }),
         )
+}
+
+pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
+    view()
+        .w_full()
+        .h(px(60.0))
+        .flex_row()
+        .items_center()
+        .justify_around()
+        .border_t(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .children(Route::NAV.iter().map(|item| {
+            let item = *item;
+            let active = move || route.get() == item;
+            button()
+                .h(px(48.0))
+                .px(px(6.0))
+                .rounded(px(8.0))
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(2.0))
+                .on_press(move || route.set(item))
+                .child(
+                    image(item.icon())
+                        .size(px(18.0))
+                        .tint_color(move || if active() {
+                            theme().foreground
+                        } else {
+                            theme().muted_foreground
+                        }),
+                )
+                .child(
+                    text(item.label())
+                        .text_size(px(9.0))
+                        .text_color(move || if active() {
+                            theme().foreground
+                        } else {
+                            theme().muted_foreground
+                        }),
+                )
+        }))
 }
 
 pub fn page_header(title: &'static str, subtitle: &'static str) -> impl IntoElement {

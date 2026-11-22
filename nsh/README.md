@@ -34,7 +34,8 @@ from <https://nsh.dev/docs/installation>.
 - [x] Settings account, appearance, general, notifications, AI, backup, server and about.
 - [x] Registration, login, top-bar account access, logout, CSV export and server backups.
 - [x] Read-only accounts/categories and admin user lists in Settings.
-- [ ] Modal shell, mobile layout, PDF export and full settings CRUD.
+- [x] Compact top bar, bottom navigation and wrapping page grids.
+- [ ] Modal shell, PDF export, full settings CRUD and calendar mobile view.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 

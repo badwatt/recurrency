@@ -122,12 +122,17 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         _ => return loading_screen(),
     };
     let auth_signal = signal(auth);
+    let compact = signal(false);
     view()
+        .relative()
         .flex_1()
+        .on_layout(move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+            compact.set(bounds.size.width.0 < 900.0);
+        })
         .bg(move || theme().background)
         .font_family(theme::SANS)
         .text_color(move || theme().foreground)
-        .child(ui::top_bar(route, auth_signal.get()))
+        .child(ui::top_bar(route, auth_signal.get(), compact.get()))
         .child(
             scroll().flex_1().child(
                 view()
@@ -184,6 +189,10 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             ),
                     ),
             ),
+        )
+        .child(
+            when(move || compact.get(), move || ui::bottom_bar(route))
+                .otherwise(|| view().h(px(0.0))),
         )
         .into_element()
 }
