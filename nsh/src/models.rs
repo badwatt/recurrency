@@ -96,3 +96,26 @@ impl Rates {
         amount / *rate
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct Debt {
+    pub id: Uuid,
+    pub account_id: Uuid,
+    pub category_id: Uuid,
+    pub name: String,
+    pub currency: String,
+    pub total_amount: Decimal,
+    pub remaining_amount: Decimal,
+    #[serde(default)]
+    pub paid_amount: Decimal,
+    pub debt_type: String,
+    pub monthly_payment: Option<Decimal>,
+    #[serde(default)]
+    pub payment_days: Vec<u8>,
+    pub start_date: NaiveDate,
+    pub next_payment_date: Option<NaiveDate>,
+    pub subscription_id: Option<Uuid>,
+    pub is_active: bool,
+    pub notes: Option<String>,
+    pub logo_url: Option<String>,
+}

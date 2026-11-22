@@ -7,6 +7,7 @@
 mod api;
 mod auth;
 mod dashboard;
+mod debts;
 mod dashboard_data;
 mod format;
 mod login;
@@ -150,7 +151,13 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                             move || route.get() == Route::Transactions,
                                             move || transactions::transactions(auth_signal.get()),
                                         )
-                                        .otherwise(move || ui::pending_screen(route.get().label()))
+                                        .otherwise(move || {
+                                            when(
+                                                move || route.get() == Route::Debts,
+                                                move || debts::debts(auth_signal.get()),
+                                            )
+                                            .otherwise(move || ui::pending_screen(route.get().label()))
+                                        })
                                     })
                                 }),
                             ),

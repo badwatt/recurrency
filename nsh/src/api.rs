@@ -7,9 +7,10 @@ use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
     DashboardData, UpcomingPayment,
 };
-use crate::models::{Account, Category, Rates, Subscription, Transaction};
+use crate::models::{Account, Category, Debt, Rates, Subscription, Transaction};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
+use crate::debts::CreateDebtRequest;
 use nsh_core::prelude::*;
 
 pub struct Client {
@@ -165,6 +166,59 @@ pub async fn delete_transaction(
 ) -> Result<(), String> {
     Client::new(server, token)
         .delete(&format!("/api/transactions/{id}"))
+        .await
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct DebtsData {
+    pub debts: Vec<Debt>,
+    pub accounts: Vec<Account>,
+    pub categories: Vec<Category>,
+    pub rates: Rates,
+}
+
+pub async fn load_debts(
+    server: String,
+    token: String,
+    currency: String,
+) -> Result<DebtsData, String> {
+    let api = Client::new(server, token);
+    let debts: Vec<Debt> = api.get("/api/debts").await?;
+    let accounts: Vec<Account> = api.get("/api/accounts").await?;
+    let categories: Vec<Category> = api.get("/api/categories").await?;
+    let rates = api.rates(&currency).await;
+    Ok(DebtsData {
+        debts,
+        accounts,
+        categories,
+        rates,
+    })
+}
+
+pub async fn create_debt(
+    server: String,
+    token: String,
+    request: &CreateDebtRequest,
+) -> Result<Debt, String> {
+    Client::new(server, token)
+        .post("/api/debts", request)
+        .await
+}
+
+pub async fn update_debt<B: Serialize>(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+    request: &B,
+) -> Result<Debt, String> {
+    Client::new(server, token)
+        .put(&format!("/api/debts/{id}"), request)
+        .await
+}
+
+pub async fn delete_debt(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    Client::new(server, token)
+        .delete(&format!("/api/debts/{id}"))
         .await
 }
 
