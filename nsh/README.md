@@ -17,6 +17,11 @@ Linux needs GTK 4.14+, WebKitGTK 6.0 and GStreamer; the repository dev shell now
 provides their development packages. The `nsh` CLI itself is installed separately
 from <https://nsh.dev/docs/installation>.
 
+```sh
+nsh package nsh --target linux --out target/nsh-package \
+  --name Recurrency --id com.badwatt.recurrency --app-version 0.56.0
+```
+
 ## Status
 
 - [x] Design tokens: Mocha theme, Cabinet Grotesk / JetBrains Mono assets.
@@ -75,3 +80,4 @@ the Dioxus component boundaries.
 - [x] Shared filter-popover and sort-menu components reused by both list pages.
 - [x] Browser microphone recording with MediaRecorder and provider transcription; file-based voice notes on native.
 - [x] Cloud folder sync card with folder picker, manual backup sync, last-sync state and disconnect.
+- [x] Shared color palette, entity icons and multiline textarea; account/category colors persist and render in the lists.

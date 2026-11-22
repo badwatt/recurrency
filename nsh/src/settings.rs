@@ -2621,13 +2621,11 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                 .flex_row()
                                                 .items_center()
                                                 .gap(px(7.0))
-                                                .child(
-                                                    view()
-                                                        .h(px(10.0))
-                                                        .w(px(10.0))
-                                                        .rounded(px(999.0))
-                                                        .bg(move || rgba(crate::components::color_picker::color_value(&dot_color))),
-                                                )
+                                                .child(crate::components::entity_icon::entity_icon(
+                                                    &item.account.icon.clone().unwrap_or_else(|| "wallet".to_string()),
+                                                    crate::components::color_picker::color_value(&dot_color),
+                                                    14.0,
+                                                ))
                                                 .child(
                                                     text(row_name)
                                                         .text_size(px(13.0))
@@ -2793,13 +2791,11 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                 .flex_row()
                                                 .items_center()
                                                 .gap(px(6.0))
-                                                .child(
-                                                    view()
-                                                        .h(px(10.0))
-                                                        .w(px(10.0))
-                                                        .rounded(px(999.0))
-                                                        .bg(move || rgba(crate::components::color_picker::color_value(&dot_color))),
-                                                )
+                                                .child(crate::components::entity_icon::entity_icon(
+                                                    &item.category.icon.clone().unwrap_or_else(|| "tag".to_string()),
+                                                    crate::components::color_picker::color_value(&dot_color),
+                                                    14.0,
+                                                ))
                                                 .child(
                                                     text(row_name)
                                                         .text_size(px(13.0))

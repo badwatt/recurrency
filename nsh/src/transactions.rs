@@ -1,7 +1,7 @@
 //! Transactions: one-time expenses grouped by month.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::{button, input, theme};
+use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -1202,23 +1202,7 @@ fn notes_form(
             view()
                 .p(px(24.0))
                 .gap(px(12.0))
-                .child(
-                    input()
-                        .value(notes)
-                        .on_change(move |value: &str| notes.set(value.to_string()))
-                        .placeholder("Add notes…")
-                        .auto_fill(nsh_core::element::AutoFill::Off)
-                        .multiline(true)
-                        .h(px(120.0))
-                        .w_full()
-                        .p(px(10.0))
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().input)
-                        .bg(move || theme().background)
-                        .text_size(px(13.0))
-                        .text_color(move || theme().foreground),
-                )
+                .child(crate::components::textarea::text_area(notes, "Add notes…"))
                 .child(
                     text(move || error.get())
                         .text_size(px(11.0))
