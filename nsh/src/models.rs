@@ -140,3 +140,36 @@ pub struct CalendarItem {
     pub is_active: bool,
     pub logo_url: Option<String>,
 }
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct MonthlySummary {
+    pub year: i32,
+    pub month: u32,
+    pub subscriptions_total: Decimal,
+    pub transactions_total: Decimal,
+    pub overall_total: Decimal,
+    pub subscriptions_count: i64,
+    pub transactions_count: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct CategoryBreakdown {
+    pub category_id: Option<String>,
+    pub category_name: String,
+    pub total: Decimal,
+    pub count: i64,
+    pub percentage: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct SpendingTrend {
+    pub period: String,
+    pub total: Decimal,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct ReportResponse {
+    pub monthly_summary: MonthlySummary,
+    pub category_breakdown: Vec<CategoryBreakdown>,
+    pub recent_trends: Vec<SpendingTrend>,
+}

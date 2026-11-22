@@ -7,7 +7,7 @@ use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
     DashboardData, UpcomingPayment,
 };
-use crate::models::{Account, CalendarItem, Category, Debt, DebtPayment, Rates, Subscription, Transaction};
+use crate::models::{Account, CalendarItem, Category, Debt, DebtPayment, Rates, ReportResponse, Subscription, Transaction};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
 use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
@@ -248,6 +248,26 @@ pub struct CalendarData {
     pub items: Vec<CalendarItem>,
     pub transactions: Vec<Transaction>,
     pub rates: Rates,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReportsData {
+    pub report: ReportResponse,
+    pub categories: Vec<Category>,
+}
+
+pub async fn load_report(
+    server: String,
+    token: String,
+    year: i32,
+    month: u32,
+) -> Result<ReportsData, String> {
+    let api = Client::new(server, token);
+    let report: ReportResponse = api
+        .get(&format!("/api/reports/summary?year={year}&month={month}"))
+        .await?;
+    let categories: Vec<Category> = api.get("/api/categories").await?;
+    Ok(ReportsData { report, categories })
 }
 
 pub async fn load_calendar(

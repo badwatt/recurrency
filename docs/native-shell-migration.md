@@ -31,7 +31,7 @@ kept side by side so screens can be compared against
 3. **Dashboard** — data, upcoming payments, ledger and month plan done; hover
    links and mobile layout pending.
 4. **Lists and forms** — subscriptions, transactions and debts complete; calendar
-   month grid done. Modal shell, reports and settings pending.
+   and reports done. Modal shell, exports and settings pending.
 5. **Calendar, reports and settings** — charts, calendar, exports, themes, AI,
    notifications, backup/restore and admin.
 6. **Platforms** — web, Linux/macOS/Windows, Android, update flow and CI artifacts.

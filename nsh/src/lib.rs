@@ -14,6 +14,7 @@ mod format;
 mod login;
 mod models;
 mod recurrence;
+mod reports;
 mod subscriptions;
 mod theme;
 mod transactions;
@@ -162,7 +163,13 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                     move || route.get() == Route::Calendar,
                                                     move || calendar::calendar(auth_signal.get()),
                                                 )
-                                                .otherwise(move || ui::pending_screen(route.get().label()))
+                                                .otherwise(move || {
+                                                    when(
+                                                        move || route.get() == Route::Reports,
+                                                        move || reports::reports(auth_signal.get()),
+                                                    )
+                                                    .otherwise(move || ui::pending_screen(route.get().label()))
+                                                })
                                             })
                                         })
                                     })
