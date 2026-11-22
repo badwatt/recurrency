@@ -217,23 +217,27 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         .px(px(padding))
         .rounded(px(radius.value()))
         .border(px(1.0))
-        .border_color(move || if selected {
-            theme().primary
-        } else {
-            match variant {
-                ButtonVariant::Outline => theme().border,
-                _ => theme().border.opacity(0.0),
+        .border_color(move || {
+            if selected {
+                theme().primary
+            } else {
+                match variant {
+                    ButtonVariant::Outline => theme().border,
+                    _ => theme().border.opacity(0.0),
+                }
             }
         })
-        .bg(move || if selected {
-            theme().accent
-        } else {
-            match variant {
-                ButtonVariant::Primary => theme().primary,
-                ButtonVariant::Secondary => theme().secondary,
-                ButtonVariant::Outline | ButtonVariant::Ghost => theme().card,
-                ButtonVariant::Destructive => theme().destructive,
-                ButtonVariant::Unstyled => theme().card.opacity(0.0),
+        .bg(move || {
+            if selected {
+                theme().accent
+            } else {
+                match variant {
+                    ButtonVariant::Primary => theme().primary,
+                    ButtonVariant::Secondary => theme().secondary,
+                    ButtonVariant::Outline | ButtonVariant::Ghost => theme().card,
+                    ButtonVariant::Destructive => theme().destructive,
+                    ButtonVariant::Unstyled => theme().card.opacity(0.0),
+                }
             }
         })
         .opacity(if disabled { 0.5 } else { 1.0 })
@@ -244,13 +248,19 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
                 handler();
             }
         })
-        .child(icon.map_or_else(|| view().into_element(), |icon| {
-            image(icon).size(px(label_size + 3.0)).tint_color(move || match variant {
-                ButtonVariant::Primary => theme().primary_foreground,
-                ButtonVariant::Destructive => theme().foreground,
-                _ => theme().foreground,
-            }).into_element()
-        }))
+        .child(icon.map_or_else(
+            || view().into_element(),
+            |icon| {
+                image(icon)
+                    .size(px(label_size + 3.0))
+                    .tint_color(move || match variant {
+                        ButtonVariant::Primary => theme().primary_foreground,
+                        ButtonVariant::Destructive => theme().foreground,
+                        _ => theme().foreground,
+                    })
+                    .into_element()
+            },
+        ))
         .when(!label.is_empty(), |button| {
             button.child(
                 text(label)
@@ -262,7 +272,12 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         })
 }
 
-pub fn icon_button(icon: ImageAsset, label: &'static str, active: bool, on_press: impl Fn() + 'static) -> impl IntoElement {
+pub fn icon_button(
+    icon: ImageAsset,
+    label: &'static str,
+    active: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
     button(
         ButtonProps::new("")
             .icon(icon)

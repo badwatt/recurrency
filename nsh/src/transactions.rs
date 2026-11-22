@@ -8,11 +8,11 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, TransactionsData};
-use crate::components::button::{button as shared_button, ButtonProps};
-use crate::components::page_header::page_header as shared_page_header;
-use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
-use crate::components::confirm::{confirm_row, ConfirmProps};
 use crate::auth::AuthSession;
+use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::confirm::{ConfirmProps, confirm_row};
+use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
+use crate::components::page_header::page_header as shared_page_header;
 use crate::format::{format_currency, format_date};
 use crate::models::{Account, Rates, Transaction};
 use crate::theme as design;
@@ -71,7 +71,11 @@ struct TransactionGroup {
 const TITLE: &str = "Transactions";
 const SUBTITLE: &str = "Track your one-time expenses";
 
-pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Option<crate::Route>>) -> AnyElement {
+pub fn transactions(
+    auth: AuthSession,
+    modal: ui::ModalHost,
+    intent: Signal<Option<crate::Route>>,
+) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -190,17 +194,25 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
         .child(toolbar(search, list_view, month_only, sort_desc))
-        .child(
-            when(loading, || loading_card()).otherwise(move || {
-                let value = render_currency.clone();
-                when(has_error, move || {
-                    error_card(&data.error().unwrap_or_default(), data)
-                })
-                .otherwise(move || {
-                    content(data, search, value.clone(), actions, server_signal, token_signal, list_view, month_only, sort_desc)
-                })
-            }),
-        )
+        .child(when(loading, || loading_card()).otherwise(move || {
+            let value = render_currency.clone();
+            when(has_error, move || {
+                error_card(&data.error().unwrap_or_default(), data)
+            })
+            .otherwise(move || {
+                content(
+                    data,
+                    search,
+                    value.clone(),
+                    actions,
+                    server_signal,
+                    token_signal,
+                    list_view,
+                    month_only,
+                    sort_desc,
+                )
+            })
+        }))
         .into_element()
 }
 
@@ -218,7 +230,11 @@ fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl Int
                     .variant(crate::components::button::ButtonVariant::Outline)
                     .on_press(on_bulk),
             ))
-            .child(shared_button(ButtonProps::new("Add Transaction").icon(asset!("icons/plus.svg")).on_press(on_add)))
+            .child(shared_button(
+                ButtonProps::new("Add Transaction")
+                    .icon(asset!("icons/plus.svg"))
+                    .on_press(on_add),
+            ))
             .into_element(),
     )
 }
@@ -324,7 +340,12 @@ fn form(
             spawn(async move {
                 match api::search_logos(server, query).await {
                     Ok(results) => {
-                        logo_results.set(results.into_iter().map(|result| (result.url, result.thumbnail)).collect());
+                        logo_results.set(
+                            results
+                                .into_iter()
+                                .map(|result| (result.url, result.thumbnail))
+                                .collect(),
+                        );
                     }
                     Err(message) => logo_error.set(message),
                 }
@@ -332,7 +353,11 @@ fn form(
             });
         }
     };
-    let title = if editing.get().is_some() { "Edit transaction" } else { "New transaction" };
+    let title = if editing.get().is_some() {
+        "Edit transaction"
+    } else {
+        "New transaction"
+    };
     let subtitle = if editing.get().is_some() {
         "Update the amount, date or account."
     } else {
@@ -389,46 +414,64 @@ fn form(
                         .flex_row()
                         .items_end()
                         .gap(px(8.0))
-                        .child(ui::field("Logo URL", logo_url, "https://example.com/logo.png"))
+                        .child(ui::field(
+                            "Logo URL",
+                            logo_url,
+                            "https://example.com/logo.png",
+                        ))
                         .child(ui::action_button(
-                            if logo_loading.get() { "Searching…" } else { "Find logo" },
+                            if logo_loading.get() {
+                                "Searching…"
+                            } else {
+                                "Find logo"
+                            },
                             false,
                             find_logo,
                         )),
                 )
                 .child(
-                    when(move || !logo_results.get().is_empty(), move || {
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .flex_wrap()
-                            .gap(px(6.0))
-                            .children(logo_results.get().into_iter().map(|(url, thumbnail)| {
-                                let value = url.clone();
-                                button()
-                                    .h(px(38.0))
-                                    .w(px(38.0))
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(px(6.0))
-                                    .border(px(1.0))
-                                    .border_color(move || theme().border)
-                                    .bg(move || theme().background)
-                                    .on_press(move || logo_url.set(value.clone()))
-                                    .child(image(thumbnail).size(px(28.0)))
-                                    .into_element()
-                            }))
-                            .into_element()
-                    })
+                    when(
+                        move || !logo_results.get().is_empty(),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .flex_wrap()
+                                .gap(px(6.0))
+                                .children(logo_results.get().into_iter().map(|(url, thumbnail)| {
+                                    let value = url.clone();
+                                    button()
+                                        .h(px(38.0))
+                                        .w(px(38.0))
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(6.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .bg(move || theme().background)
+                                        .on_press(move || logo_url.set(value.clone()))
+                                        .child(image(thumbnail).size(px(28.0)))
+                                        .into_element()
+                                }))
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
-                .child(text(move || logo_error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
                 .child(
-                    when(move || !form_error.get().is_empty(), move || {
-                        text(move || form_error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    text(move || logo_error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
+                .child(
+                    when(
+                        move || !form_error.get().is_empty(),
+                        move || {
+                            text(move || form_error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .into_element(),
@@ -454,7 +497,12 @@ fn form(
                             editing.set(None);
                             modal.close();
                         })
-                        .child(text("Cancel").text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground)),
+                        .child(
+                            text("Cancel")
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        ),
                 )
                 .child(
                     button()
@@ -468,10 +516,16 @@ fn form(
                         .disabled_style(|state| state.opacity(0.5))
                         .on_press(move || save())
                         .child(
-                            text(move || if saving.get() { "Saving..." } else { "Save transaction" })
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
+                            text(move || {
+                                if saving.get() {
+                                    "Saving..."
+                                } else {
+                                    "Save transaction"
+                                }
+                            })
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(move || theme().primary_foreground),
                         ),
                 )
                 .into_element(),
@@ -582,33 +636,33 @@ fn group_card(
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
-                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { total.clone() })
-                        .text_size(px(14.0))
-                        .font_family(design::MONO)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
+                    text(move || {
+                        if crate::ui::privacy_active() {
+                            "••••".to_string()
+                        } else {
+                            total.clone()
+                        }
+                    })
+                    .text_size(px(14.0))
+                    .font_family(design::MONO)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().foreground),
                 ),
         )
-        .child(
-            view()
-                .w_full()
-                .flex_col()
-                .gap(px(8.0))
-                .child(each(
-                    move || group.items.clone(),
-                    |transaction| transaction.id,
-                    move |transaction, _| {
-                        row(
-                            transaction.get(),
-                            data,
-                            currency.clone(),
-                            actions,
-                            server,
-                            token,
-                        )
-                    },
-                )),
-        )
+        .child(view().w_full().flex_col().gap(px(8.0)).child(each(
+            move || group.items.clone(),
+            |transaction| transaction.id,
+            move |transaction, _| {
+                row(
+                    transaction.get(),
+                    data,
+                    currency.clone(),
+                    actions,
+                    server,
+                    token,
+                )
+            },
+        )))
 }
 
 fn row(
@@ -626,7 +680,10 @@ fn row(
     let date = format_date(transaction.date);
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
-        format_currency(rates.convert(transaction.amount, &transaction.currency), &currency)
+        format_currency(
+            rates.convert(transaction.amount, &transaction.currency),
+            &currency,
+        )
     };
     view()
         .w_full()
@@ -657,10 +714,15 @@ fn row(
                         .bg(move || theme().muted)
                         .child(
                             when(logo.is_some(), move || {
-                                image(logo.clone().unwrap_or_default()).size(px(22.0)).into_element()
+                                image(logo.clone().unwrap_or_default())
+                                    .size(px(22.0))
+                                    .into_element()
                             })
                             .otherwise(|| {
-                                image(asset!("icons/receipt.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground).into_element()
+                                image(asset!("icons/receipt.svg"))
+                                    .size(px(17.0))
+                                    .tint_color(move || theme().muted_foreground)
+                                    .into_element()
                             }),
                         ),
                 )
@@ -709,11 +771,17 @@ fn row(
                 .items_center()
                 .gap(px(12.0))
                 .child(
-                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                        .text_size(px(15.0))
-                        .font_family(design::MONO)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
+                    text(move || {
+                        if crate::ui::privacy_active() {
+                            "••••".to_string()
+                        } else {
+                            amount.clone()
+                        }
+                    })
+                    .text_size(px(15.0))
+                    .font_family(design::MONO)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().foreground),
                 )
                 .child(transaction_actions(
                     action_transaction,
@@ -746,7 +814,14 @@ fn bulk_modal(
         }
         selected.set(values);
     };
-    let all_ids = move || data.get().unwrap_or_default().transactions.into_iter().map(|item| item.id).collect::<Vec<_>>();
+    let all_ids = move || {
+        data.get()
+            .unwrap_or_default()
+            .transactions
+            .into_iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>()
+    };
     let select_all = move || {
         let mut values = selected.get();
         for id in all_ids() {
@@ -761,16 +836,26 @@ fn bulk_modal(
         let server = server;
         let token = token;
         move || {
-            let Some(category) = bulk_category.get() else { return };
+            let Some(category) = bulk_category.get() else {
+                return;
+            };
             let ids = selected.get();
-            if ids.is_empty() || busy.get() { return; }
+            if ids.is_empty() || busy.get() {
+                return;
+            }
             let server = server.get();
             let token = token.get();
             busy.set(true);
             error.set(String::new());
             spawn(async move {
                 for id in ids {
-                    let _ = api::update_transaction(server.clone(), token.clone(), id, &serde_json::json!({ "category_id": category })).await;
+                    let _ = api::update_transaction(
+                        server.clone(),
+                        token.clone(),
+                        id,
+                        &serde_json::json!({ "category_id": category }),
+                    )
+                    .await;
                 }
                 selected.set(Vec::new());
                 data.refetch();
@@ -798,35 +883,60 @@ fn bulk_modal(
         });
     };
     let rows = move || {
-        data.get().unwrap_or_default().transactions.into_iter().map(|transaction| {
-            let id = transaction.id;
-            let name = transaction.name;
-            let date = format_date(transaction.date);
-            let is_selected = selected.get().contains(&id);
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .gap(px(8.0))
-                .p(px(8.0))
-                .rounded(px(6.0))
-                .bg(move || if is_selected { theme().accent } else { theme().card.opacity(0.0) })
-                .on_press(move || toggle(id))
-                .child(
-                    view()
-                        .flex_col()
-                        .child(text(name).text_size(px(12.0)).text_color(move || theme().foreground))
-                        .child(text(date).text_size(px(10.0)).text_color(move || theme().muted_foreground)),
-                )
-                .child(
-                    when(move || is_selected, move || {
-                        image(asset!("icons/check.svg")).size(px(14.0)).tint_color(move || theme().primary).into_element()
+        data.get()
+            .unwrap_or_default()
+            .transactions
+            .into_iter()
+            .map(|transaction| {
+                let id = transaction.id;
+                let name = transaction.name;
+                let date = format_date(transaction.date);
+                let is_selected = selected.get().contains(&id);
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(8.0))
+                    .p(px(8.0))
+                    .rounded(px(6.0))
+                    .bg(move || {
+                        if is_selected {
+                            theme().accent
+                        } else {
+                            theme().card.opacity(0.0)
+                        }
                     })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .into_element()
-        }).collect::<Vec<_>>()
+                    .on_press(move || toggle(id))
+                    .child(
+                        view()
+                            .flex_col()
+                            .child(
+                                text(name)
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text(date)
+                                    .text_size(px(10.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                    )
+                    .child(
+                        when(
+                            move || is_selected,
+                            move || {
+                                image(asset!("icons/check.svg"))
+                                    .size(px(14.0))
+                                    .tint_color(move || theme().primary)
+                                    .into_element()
+                            },
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .into_element()
+            })
+            .collect::<Vec<_>>()
     };
     let count = move || selected.get().len();
     crate::components::dialog::dialog(
@@ -847,7 +957,11 @@ fn bulk_modal(
                         .items_center()
                         .justify_between()
                         .gap(px(8.0))
-                        .child(text(move || format!("{} selected", count())).text_size(px(12.0)).text_color(move || theme().muted_foreground))
+                        .child(
+                            text(move || format!("{} selected", count()))
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        )
                         .child(
                             view()
                                 .flex_row()
@@ -864,33 +978,53 @@ fn bulk_modal(
                 )
                 .child(ui::choice_picker(
                     "Move selected to category",
-                    move || data.get().unwrap_or_default().categories.into_iter().map(|category| (category.id, category.name)).collect(),
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .categories
+                            .into_iter()
+                            .map(|category| (category.id, category.name))
+                            .collect()
+                    },
                     bulk_category,
                 ))
                 .child(
-                    when(move || confirm_delete.get(), move || {
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .gap(px(8.0))
-                            .p(px(10.0))
-                            .rounded(px(7.0))
-                            .bg(move || theme().destructive.opacity(0.1))
-                            .child(text(move || format!("Delete {} transactions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .gap(px(6.0))
-                                    .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
-                                    .child(ui::action_button("Delete", true, delete)),
-                            )
-                            .into_element()
-                    })
+                    when(
+                        move || confirm_delete.get(),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .gap(px(8.0))
+                                .p(px(10.0))
+                                .rounded(px(7.0))
+                                .bg(move || theme().destructive.opacity(0.1))
+                                .child(
+                                    text(move || format!("Delete {} transactions?", count()))
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().destructive),
+                                )
+                                .child(
+                                    view()
+                                        .flex_row()
+                                        .gap(px(6.0))
+                                        .child(ui::action_button("Cancel", false, move || {
+                                            confirm_delete.set(false)
+                                        }))
+                                        .child(ui::action_button("Delete", true, delete)),
+                                )
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
-                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
                 .into_element(),
         )
         .footer(
@@ -900,7 +1034,9 @@ fn bulk_modal(
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Apply category", false, apply_category))
-                .child(ui::action_button("Delete", true, move || confirm_delete.set(true)))
+                .child(ui::action_button("Delete", true, move || {
+                    confirm_delete.set(true)
+                }))
                 .into_element(),
         ),
     )
@@ -924,7 +1060,9 @@ fn notes_form(
         let server = server.get();
         let token = token.get();
         spawn(async move {
-            match api::update_transaction(server, token, id, &serde_json::json!({ "notes": value })).await {
+            match api::update_transaction(server, token, id, &serde_json::json!({ "notes": value }))
+                .await
+            {
                 Ok(_) => {
                     data.refetch();
                     modal.close();
@@ -976,7 +1114,15 @@ fn notes_form(
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Cancel", false, move || modal.close()))
-                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save))
+                .child(ui::action_button(
+                    if saving.get() {
+                        "Saving…"
+                    } else {
+                        "Save notes"
+                    },
+                    false,
+                    save,
+                ))
                 .into_element(),
         ),
     )
@@ -997,10 +1143,18 @@ fn transaction_actions(
         form_signals.name.set(edit_transaction.name.clone());
         form_signals.amount.set(edit_transaction.amount.to_string());
         form_signals.date.set(edit_transaction.date.to_string());
-        form_signals.account_id.set(Some(edit_transaction.account_id));
-        form_signals.category_id.set(Some(edit_transaction.category_id));
-        form_signals.notes.set(edit_transaction.notes.clone().unwrap_or_default());
-        form_signals.logo_url.set(edit_transaction.logo_url.clone().unwrap_or_default());
+        form_signals
+            .account_id
+            .set(Some(edit_transaction.account_id));
+        form_signals
+            .category_id
+            .set(Some(edit_transaction.category_id));
+        form_signals
+            .notes
+            .set(edit_transaction.notes.clone().unwrap_or_default());
+        form_signals
+            .logo_url
+            .set(edit_transaction.logo_url.clone().unwrap_or_default());
         form_signals.logo_results.set(Vec::new());
         form_signals.logo_error.set(String::new());
         form_signals.error.set(String::new());
@@ -1060,32 +1214,46 @@ fn transaction_actions(
             .into_element()
         });
     };
-    when(move || actions.delete_confirm.get() == Some(id), move || {
-        let delete = delete.clone();
-        confirm_row(ConfirmProps::new(
-            "Delete this transaction?",
-            "Delete",
-            move || delete(),
-            move || actions.delete_confirm.set(None),
-        ))
-        .into_element()
-    })
+    when(
+        move || actions.delete_confirm.get() == Some(id),
+        move || {
+            let delete = delete.clone();
+            confirm_row(ConfirmProps::new(
+                "Delete this transaction?",
+                "Delete",
+                move || delete(),
+                move || actions.delete_confirm.set(None),
+            ))
+            .into_element()
+        },
+    )
     .otherwise(move || {
         let edit = edit.clone();
         let open_notes = open_notes.clone();
         view()
             .flex_row()
             .gap(px(4.0))
-            .child(ui::mini_icon_button(asset!("icons/notes.svg"), false, open_notes))
-            .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, edit))
-            .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || {
-                confirm.set(Some(id));
-            }))
+            .child(ui::mini_icon_button(
+                asset!("icons/notes.svg"),
+                false,
+                open_notes,
+            ))
+            .child(ui::mini_icon_button(
+                asset!("icons/pencil.svg"),
+                false,
+                edit,
+            ))
+            .child(ui::mini_icon_button(
+                asset!("icons/trash.svg"),
+                true,
+                move || {
+                    confirm.set(Some(id));
+                },
+            ))
             .into_element()
     })
     .into_element()
 }
-
 
 fn filter_transactions(
     transactions: &[Transaction],
@@ -1121,7 +1289,11 @@ fn group_transactions(
 ) -> Vec<TransactionGroup> {
     let mut groups: Vec<TransactionGroup> = Vec::new();
     for transaction in filter_transactions(transactions, accounts, query) {
-        let key = format!("{:04}-{:02}", transaction.date.year(), transaction.date.month());
+        let key = format!(
+            "{:04}-{:02}",
+            transaction.date.year(),
+            transaction.date.month()
+        );
         let label = transaction.date.format("%B %Y").to_string();
         let amount = rates.convert(transaction.amount, &transaction.currency);
         if let Some(group) = groups.iter_mut().find(|group| group.key == key) {
@@ -1152,8 +1324,6 @@ fn account_name(data: Resource<TransactionsData, String>, account_id: Uuid) -> S
         .find(|account| account.id == account_id)
         .map_or_else(|| "No account".to_string(), |account| account.name)
 }
-
-
 
 fn loading_card() -> AnyElement {
     ui::surface()
@@ -1254,7 +1424,12 @@ mod tests {
         let account_id = Uuid::new_v4();
         let accounts = vec![account(account_id, "Everyday")];
         let items = vec![
-            transaction("Groceries", account_id, Decimal::from(42), date(2026, 11, 22)),
+            transaction(
+                "Groceries",
+                account_id,
+                Decimal::from(42),
+                date(2026, 11, 22),
+            ),
             transaction("Gym", Uuid::new_v4(), Decimal::from(30), date(2026, 11, 21)),
         ];
         assert_eq!(filter_transactions(&items, &accounts, "groc").len(), 1);

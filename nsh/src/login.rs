@@ -1,7 +1,7 @@
 //! Native sign-in surface, matching the Dioxus card layout.
 
 use crate::auth::{self, Session};
-use crate::components::button::{button as shared_button, ButtonProps};
+use crate::components::button::{ButtonProps, button as shared_button};
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
@@ -120,19 +120,27 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                         .pb(px(0.0))
                         .gap(px(4.0))
                         .child(
-                            text(move || if registering.get() { "Create account" } else { "Sign in" })
-                                .text_size(px(24.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
+                            text(move || {
+                                if registering.get() {
+                                    "Create account"
+                                } else {
+                                    "Sign in"
+                                }
+                            })
+                            .text_size(px(24.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(move || theme().foreground),
                         )
                         .child(
-                            text(move || if registering.get() {
-                                "Create an account on this server"
-                            } else {
-                                "Enter your email and password to access your account"
+                            text(move || {
+                                if registering.get() {
+                                    "Create an account on this server"
+                                } else {
+                                    "Enter your email and password to access your account"
+                                }
                             })
-                                .text_size(px(14.0))
-                                .text_color(move || theme().muted_foreground),
+                            .text_size(px(14.0))
+                            .text_color(move || theme().muted_foreground),
                         ),
                 )
                 .when(!cfg!(target_arch = "wasm32"), |card| {
@@ -147,10 +155,26 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                 .otherwise(|| view().h(px(0.0))),
                         )
                         .when(registering.get(), move |form| {
-                            form.child(form_field("Name", "Alex", "name", false, name, move || submit()))
+                            form.child(form_field("Name", "Alex", "name", false, name, move || {
+                                submit()
+                            }))
                         })
-                        .child(form_field("Email", "email@example.com", "email", false, email, move || submit()))
-                        .child(form_field("Password", "", "current-password", true, password, move || submit()))
+                        .child(form_field(
+                            "Email",
+                            "email@example.com",
+                            "email",
+                            false,
+                            email,
+                            move || submit(),
+                        ))
+                        .child(form_field(
+                            "Password",
+                            "",
+                            "current-password",
+                            true,
+                            password,
+                            move || submit(),
+                        ))
                         .child(shared_button(
                             ButtonProps::new(if busy.get() {
                                 "Please wait..."
@@ -164,16 +188,23 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                             .on_press(move || submit()),
                         ))
                         .child(
-                            when(move || demo_enabled.get(), move || {
-                                shared_button(
-                                    ButtonProps::new(if demo_loading.get() { "Loading..." } else { "Demo account" })
+                            when(
+                                move || demo_enabled.get(),
+                                move || {
+                                    shared_button(
+                                        ButtonProps::new(if demo_loading.get() {
+                                            "Loading..."
+                                        } else {
+                                            "Demo account"
+                                        })
                                         .variant(crate::components::button::ButtonVariant::Outline)
                                         .full_width()
                                         .disabled(demo_loading.get())
                                         .on_press(move || demo()),
-                                )
+                                    )
                                     .into_element()
-                            })
+                                },
+                            )
                             .otherwise(|| view().h(px(0.0))),
                         )
                         .child(
@@ -194,30 +225,41 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                         .justify_center()
                                         .gap(px(4.0))
                                         .child(
-                                            text(move || if registering.get() {
-                                                "Already have an account?"
-                                            } else {
-                                                "Don't have an account?"
+                                            text(move || {
+                                                if registering.get() {
+                                                    "Already have an account?"
+                                                } else {
+                                                    "Don't have an account?"
+                                                }
                                             })
                                             .text_size(px(14.0))
                                             .text_color(move || theme().muted_foreground),
                                         )
                                         .child(
-                                            text(move || if registering.get() { "Sign in" } else { "Sign up" })
-                                                .text_size(px(14.0))
-                                                .font_weight(FontWeight::MEDIUM)
-                                                .text_color(move || theme().primary),
+                                            text(move || {
+                                                if registering.get() {
+                                                    "Sign in"
+                                                } else {
+                                                    "Sign up"
+                                                }
+                                            })
+                                            .text_size(px(14.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().primary),
                                         ),
                                 ),
                         ),
                 ),
         )
         .child(
-            when(move || verification.get().is_some(), move || {
-                let (email, token) = verification.get().unwrap_or_default();
-                verification_dialog(session, server, email, token, password, verification)
-                    .into_element()
-            })
+            when(
+                move || verification.get().is_some(),
+                move || {
+                    let (email, token) = verification.get().unwrap_or_default();
+                    verification_dialog(session, server, email, token, password, verification)
+                        .into_element()
+                },
+            )
             .otherwise(|| view().h(px(0.0)).into_element()),
         )
 }
@@ -301,8 +343,16 @@ fn verification_dialog(
                 .p(px(24.0))
                 .gap(px(12.0))
                 .child(crate::ui::field("Verification code", code, "123456"))
-                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
-                .child(text(move || status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground))
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
+                .child(
+                    text(move || status.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                )
                 .into_element(),
         )
         .footer(
@@ -312,9 +362,15 @@ fn verification_dialog(
                 .flex_wrap()
                 .justify_end()
                 .gap(px(8.0))
-                .child(crate::ui::action_button("Back", false, move || verification.set(None)))
+                .child(crate::ui::action_button("Back", false, move || {
+                    verification.set(None)
+                }))
                 .child(crate::ui::action_button("Resend code", false, resend))
-                .child(crate::ui::action_button(if busy.get() { "Verifying…" } else { "Verify" }, false, verify))
+                .child(crate::ui::action_button(
+                    if busy.get() { "Verifying…" } else { "Verify" },
+                    false,
+                    verify,
+                ))
                 .into_element(),
         ),
     )

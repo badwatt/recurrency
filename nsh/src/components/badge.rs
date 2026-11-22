@@ -20,7 +20,10 @@ pub struct BadgeProps {
 
 impl BadgeProps {
     pub fn new(label: impl Into<String>) -> Self {
-        Self { label: label.into(), tone: BadgeTone::Neutral }
+        Self {
+            label: label.into(),
+            tone: BadgeTone::Neutral,
+        }
     }
 
     pub fn tone(mut self, tone: BadgeTone) -> Self {
@@ -52,12 +55,17 @@ pub fn badge(props: BadgeProps) -> impl IntoElement {
             BadgeTone::Destructive => theme().destructive.opacity(0.12),
             BadgeTone::Outline => theme().card,
         })
-        .child(text(props.label).text_size(px(10.0)).font_weight(FontWeight::MEDIUM).text_color(move || match tone {
-            BadgeTone::Primary => theme().primary,
-            BadgeTone::Success => theme().primary,
-            BadgeTone::Destructive => theme().destructive,
-            _ => theme().muted_foreground,
-        }))
+        .child(
+            text(props.label)
+                .text_size(px(10.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || match tone {
+                    BadgeTone::Primary => theme().primary,
+                    BadgeTone::Success => theme().primary,
+                    BadgeTone::Destructive => theme().destructive,
+                    _ => theme().muted_foreground,
+                }),
+        )
 }
 
 #[cfg(test)]

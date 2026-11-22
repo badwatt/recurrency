@@ -3,7 +3,11 @@
 use nsh_base::theme;
 use nsh_core::prelude::*;
 
-pub fn page_header(title: &'static str, subtitle: &'static str, actions: AnyElement) -> impl IntoElement {
+pub fn page_header(
+    title: &'static str,
+    subtitle: &'static str,
+    actions: AnyElement,
+) -> impl IntoElement {
     view()
         .w_full()
         .flex_row()

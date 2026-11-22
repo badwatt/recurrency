@@ -1,10 +1,7 @@
 //! Session state, server configuration and the REST calls used by the native
 //! login flow.
 
-use nsh_core::{
-    prelude::*,
-    storage::Storage,
-};
+use nsh_core::{prelude::*, storage::Storage};
 use serde::{Deserialize, Serialize};
 
 const TOKEN_KEY: &str = "recurrency.token";
@@ -207,7 +204,8 @@ struct VerifyEmailRequest<'a> {
 
 pub async fn verify_email(server: &str, token: &str, code: &str) -> Result<AuthUser, String> {
     let server = server.trim().trim_end_matches('/');
-    let body = serde_json::to_string(&VerifyEmailRequest { code }).map_err(|error| error.to_string())?;
+    let body =
+        serde_json::to_string(&VerifyEmailRequest { code }).map_err(|error| error.to_string())?;
     let request = HttpRequest::post(format!("{server}/api/auth/verify-email"), body)
         .header("Authorization", format!("Bearer {token}"))
         .header("Content-Type", "application/json");

@@ -19,7 +19,13 @@ pub fn avatar_badge(size: f32, name: &str, avatar: Option<String>) -> impl IntoE
         .justify_center()
         .rounded(px(999.0))
         .overflow_hidden()
-        .bg(move || if has_avatar { theme().muted } else { theme().primary })
+        .bg(move || {
+            if has_avatar {
+                theme().muted
+            } else {
+                theme().primary
+            }
+        })
         .when(has_avatar, |view| {
             view.child(image(avatar.clone().unwrap_or_default()).size(px(size)))
         })

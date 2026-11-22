@@ -158,7 +158,14 @@ pub fn occurrences_in_month(
     let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
     let month_end =
         NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).unwrap_or_default();
-    occurrences_between(start, recurrence, month_start, month_end, end_date, base_amount)
+    occurrences_between(
+        start,
+        recurrence,
+        month_start,
+        month_end,
+        end_date,
+        base_amount,
+    )
 }
 
 #[cfg(test)]
@@ -180,11 +187,20 @@ mod tests {
 
     #[test]
     fn monthly_multiple_days_are_actual_charges() {
-        let occurrences =
-            occurrences_in_month(date(2026, 1, 3), &monthly(vec![1, 15]), None, 2026, 2, Decimal::from(10));
+        let occurrences = occurrences_in_month(
+            date(2026, 1, 3),
+            &monthly(vec![1, 15]),
+            None,
+            2026,
+            2,
+            Decimal::from(10),
+        );
         assert_eq!(
             occurrences,
-            vec![(date(2026, 2, 1), Decimal::from(10)), (date(2026, 2, 15), Decimal::from(10))]
+            vec![
+                (date(2026, 2, 1), Decimal::from(10)),
+                (date(2026, 2, 15), Decimal::from(10))
+            ]
         );
     }
 
@@ -196,7 +212,14 @@ mod tests {
             days: vec![10],
             ..Recurrence::default()
         };
-        let occurrences = occurrences_in_month(date(2026, 1, 1), &recurrence, None, 2026, 2, Decimal::from(10));
+        let occurrences = occurrences_in_month(
+            date(2026, 1, 1),
+            &recurrence,
+            None,
+            2026,
+            2,
+            Decimal::from(10),
+        );
         assert!(occurrences.is_empty());
     }
 

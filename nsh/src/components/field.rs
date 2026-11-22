@@ -12,7 +12,12 @@ pub struct FieldProps {
 
 impl FieldProps {
     pub fn new(label: impl Into<String>) -> Self {
-        Self { label: label.into(), required: false, error: String::new(), hint: String::new() }
+        Self {
+            label: label.into(),
+            required: false,
+            error: String::new(),
+            hint: String::new(),
+        }
     }
 
     pub fn required(mut self) -> Self {
@@ -32,7 +37,12 @@ impl FieldProps {
 }
 
 pub fn field(props: FieldProps, control: AnyElement) -> impl IntoElement {
-    let FieldProps { label, required, error, hint } = props;
+    let FieldProps {
+        label,
+        required,
+        error,
+        hint,
+    } = props;
     let has_error = !error.is_empty();
     let has_hint = has_error == false && !hint.is_empty();
     view()
@@ -45,12 +55,35 @@ pub fn field(props: FieldProps, control: AnyElement) -> impl IntoElement {
                 .flex_row()
                 .items_center()
                 .gap(px(4.0))
-                .child(text(label).text_size(px(12.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().muted_foreground))
-                .when(required, |view| view.child(text("*").text_size(px(12.0)).text_color(move || theme().destructive))),
+                .child(
+                    text(label)
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .when(required, |view| {
+                    view.child(
+                        text("*")
+                            .text_size(px(12.0))
+                            .text_color(move || theme().destructive),
+                    )
+                }),
         )
         .child(control)
-        .when(has_error, |view| view.child(text(error.clone()).text_size(px(11.0)).text_color(move || theme().destructive)))
-        .when(has_hint, |view| view.child(text(hint.clone()).text_size(px(11.0)).text_color(move || theme().muted_foreground)))
+        .when(has_error, |view| {
+            view.child(
+                text(error.clone())
+                    .text_size(px(11.0))
+                    .text_color(move || theme().destructive),
+            )
+        })
+        .when(has_hint, |view| {
+            view.child(
+                text(hint.clone())
+                    .text_size(px(11.0))
+                    .text_color(move || theme().muted_foreground),
+            )
+        })
 }
 
 #[cfg(test)]

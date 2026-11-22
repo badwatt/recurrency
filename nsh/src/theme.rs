@@ -12,7 +12,9 @@ pub const CARD_RADIUS: f32 = 12.0;
 /// Success badges (active states) use the `success` token when the theme
 /// defines it; the primary color is the fallback.
 pub fn success() -> nsh_core::element::AdaptiveColor {
-    nsh_base::theme().color("success").unwrap_or_else(|| nsh_base::theme().primary)
+    nsh_base::theme()
+        .color("success")
+        .unwrap_or_else(|| nsh_base::theme().primary)
 }
 
 /// The app-wide palette catalogue. The ids are the keys the Dioxus frontend
@@ -31,24 +33,186 @@ pub struct ThemeDefinition {
 }
 
 pub const THEMES: &[ThemeDefinition] = &[
-    ThemeDefinition { id: "mocha", label: "Catppuccin Mocha", description: "Soft lavender night.", is_dark: true, background: 0x1E1E2E, foreground: 0xCDD6F4, card: 0x181825, primary: 0xB4BEFE },
-    ThemeDefinition { id: "frappe", label: "Catppuccin Frappé", description: "Muted winter blue.", is_dark: true, background: 0x303446, foreground: 0xC6D0F5, card: 0x292C3C, primary: 0xCA9EE6 },
-    ThemeDefinition { id: "macchiato", label: "Catppuccin Macchiato", description: "Deep violet dusk.", is_dark: true, background: 0x24273A, foreground: 0xCAD3F5, card: 0x1E2030, primary: 0xC6A0F6 },
-    ThemeDefinition { id: "mocha-bloom", label: "Mocha Bloom", description: "Catppuccin, turned up.", is_dark: true, background: 0x221A2E, foreground: 0xF4ECFF, card: 0x2B213A, primary: 0xF5A9E6 },
-    ThemeDefinition { id: "dracula", label: "Dracula", description: "Purple night, pink accents.", is_dark: true, background: 0x282A36, foreground: 0xF8F8F2, card: 0x21222C, primary: 0xBD93F9 },
-    ThemeDefinition { id: "nord", label: "Nord", description: "Arctic blue.", is_dark: true, background: 0x2E3440, foreground: 0xECEFF4, card: 0x3B4252, primary: 0x88C0D0 },
-    ThemeDefinition { id: "tokyo-night", label: "Tokyo Night", description: "Deep blue city.", is_dark: true, background: 0x1A1B26, foreground: 0xC0CAF5, card: 0x16161E, primary: 0x7AA2F7 },
-    ThemeDefinition { id: "gruvbox", label: "Gruvbox", description: "Warm retro.", is_dark: true, background: 0x282828, foreground: 0xEBDBB2, card: 0x32302F, primary: 0xFABD2F },
-    ThemeDefinition { id: "rose-pine", label: "Rosé Pine", description: "Muted rose.", is_dark: true, background: 0x191724, foreground: 0xE0DEF4, card: 0x1F1D2E, primary: 0xC4A7E7 },
-    ThemeDefinition { id: "one-dark", label: "One Dark", description: "Editor classic.", is_dark: true, background: 0x282C34, foreground: 0xABB2BF, card: 0x21252B, primary: 0x61AFEF },
-    ThemeDefinition { id: "kanagawa", label: "Kanagawa", description: "Ink and wave blue.", is_dark: true, background: 0x1F1F28, foreground: 0xDCD7BA, card: 0x16161D, primary: 0x7E9CD8 },
-    ThemeDefinition { id: "everforest", label: "Everforest", description: "Mossy green night.", is_dark: true, background: 0x2D353B, foreground: 0xD3C6AA, card: 0x272E33, primary: 0xA7C080 },
-    ThemeDefinition { id: "github-dark", label: "GitHub Dark", description: "GitHub's dark canvas.", is_dark: true, background: 0x0D1117, foreground: 0xE6EDF3, card: 0x161B22, primary: 0x58A6FF },
-    ThemeDefinition { id: "dark", label: "Midnight Amber", description: "Near-black with amber.", is_dark: true, background: 0x0D0D11, foreground: 0xEDEDED, card: 0x131117, primary: 0xE9900C },
-    ThemeDefinition { id: "latte", label: "Catppuccin Latte", description: "Pastel daylight.", is_dark: false, background: 0xEFF1F5, foreground: 0x4C4F69, card: 0xFFFFFF, primary: 0x8839EF },
-    ThemeDefinition { id: "solarized-light", label: "Solarized Light", description: "Low-contrast daylight.", is_dark: false, background: 0xFDF6E3, foreground: 0x586E75, card: 0xFFFBF0, primary: 0x268BD2 },
-    ThemeDefinition { id: "github-light", label: "GitHub Light", description: "GitHub's paper canvas.", is_dark: false, background: 0xFFFFFF, foreground: 0x1F2328, card: 0xF6F8FA, primary: 0x0969DA },
-    ThemeDefinition { id: "light", label: "Paper", description: "Warm paper, ink primary.", is_dark: false, background: 0xFAF9F2, foreground: 0x212121, card: 0xFFFFFF, primary: 0x212121 },
+    ThemeDefinition {
+        id: "mocha",
+        label: "Catppuccin Mocha",
+        description: "Soft lavender night.",
+        is_dark: true,
+        background: 0x1E1E2E,
+        foreground: 0xCDD6F4,
+        card: 0x181825,
+        primary: 0xB4BEFE,
+    },
+    ThemeDefinition {
+        id: "frappe",
+        label: "Catppuccin Frappé",
+        description: "Muted winter blue.",
+        is_dark: true,
+        background: 0x303446,
+        foreground: 0xC6D0F5,
+        card: 0x292C3C,
+        primary: 0xCA9EE6,
+    },
+    ThemeDefinition {
+        id: "macchiato",
+        label: "Catppuccin Macchiato",
+        description: "Deep violet dusk.",
+        is_dark: true,
+        background: 0x24273A,
+        foreground: 0xCAD3F5,
+        card: 0x1E2030,
+        primary: 0xC6A0F6,
+    },
+    ThemeDefinition {
+        id: "mocha-bloom",
+        label: "Mocha Bloom",
+        description: "Catppuccin, turned up.",
+        is_dark: true,
+        background: 0x221A2E,
+        foreground: 0xF4ECFF,
+        card: 0x2B213A,
+        primary: 0xF5A9E6,
+    },
+    ThemeDefinition {
+        id: "dracula",
+        label: "Dracula",
+        description: "Purple night, pink accents.",
+        is_dark: true,
+        background: 0x282A36,
+        foreground: 0xF8F8F2,
+        card: 0x21222C,
+        primary: 0xBD93F9,
+    },
+    ThemeDefinition {
+        id: "nord",
+        label: "Nord",
+        description: "Arctic blue.",
+        is_dark: true,
+        background: 0x2E3440,
+        foreground: 0xECEFF4,
+        card: 0x3B4252,
+        primary: 0x88C0D0,
+    },
+    ThemeDefinition {
+        id: "tokyo-night",
+        label: "Tokyo Night",
+        description: "Deep blue city.",
+        is_dark: true,
+        background: 0x1A1B26,
+        foreground: 0xC0CAF5,
+        card: 0x16161E,
+        primary: 0x7AA2F7,
+    },
+    ThemeDefinition {
+        id: "gruvbox",
+        label: "Gruvbox",
+        description: "Warm retro.",
+        is_dark: true,
+        background: 0x282828,
+        foreground: 0xEBDBB2,
+        card: 0x32302F,
+        primary: 0xFABD2F,
+    },
+    ThemeDefinition {
+        id: "rose-pine",
+        label: "Rosé Pine",
+        description: "Muted rose.",
+        is_dark: true,
+        background: 0x191724,
+        foreground: 0xE0DEF4,
+        card: 0x1F1D2E,
+        primary: 0xC4A7E7,
+    },
+    ThemeDefinition {
+        id: "one-dark",
+        label: "One Dark",
+        description: "Editor classic.",
+        is_dark: true,
+        background: 0x282C34,
+        foreground: 0xABB2BF,
+        card: 0x21252B,
+        primary: 0x61AFEF,
+    },
+    ThemeDefinition {
+        id: "kanagawa",
+        label: "Kanagawa",
+        description: "Ink and wave blue.",
+        is_dark: true,
+        background: 0x1F1F28,
+        foreground: 0xDCD7BA,
+        card: 0x16161D,
+        primary: 0x7E9CD8,
+    },
+    ThemeDefinition {
+        id: "everforest",
+        label: "Everforest",
+        description: "Mossy green night.",
+        is_dark: true,
+        background: 0x2D353B,
+        foreground: 0xD3C6AA,
+        card: 0x272E33,
+        primary: 0xA7C080,
+    },
+    ThemeDefinition {
+        id: "github-dark",
+        label: "GitHub Dark",
+        description: "GitHub's dark canvas.",
+        is_dark: true,
+        background: 0x0D1117,
+        foreground: 0xE6EDF3,
+        card: 0x161B22,
+        primary: 0x58A6FF,
+    },
+    ThemeDefinition {
+        id: "dark",
+        label: "Midnight Amber",
+        description: "Near-black with amber.",
+        is_dark: true,
+        background: 0x0D0D11,
+        foreground: 0xEDEDED,
+        card: 0x131117,
+        primary: 0xE9900C,
+    },
+    ThemeDefinition {
+        id: "latte",
+        label: "Catppuccin Latte",
+        description: "Pastel daylight.",
+        is_dark: false,
+        background: 0xEFF1F5,
+        foreground: 0x4C4F69,
+        card: 0xFFFFFF,
+        primary: 0x8839EF,
+    },
+    ThemeDefinition {
+        id: "solarized-light",
+        label: "Solarized Light",
+        description: "Low-contrast daylight.",
+        is_dark: false,
+        background: 0xFDF6E3,
+        foreground: 0x586E75,
+        card: 0xFFFBF0,
+        primary: 0x268BD2,
+    },
+    ThemeDefinition {
+        id: "github-light",
+        label: "GitHub Light",
+        description: "GitHub's paper canvas.",
+        is_dark: false,
+        background: 0xFFFFFF,
+        foreground: 0x1F2328,
+        card: 0xF6F8FA,
+        primary: 0x0969DA,
+    },
+    ThemeDefinition {
+        id: "light",
+        label: "Paper",
+        description: "Warm paper, ink primary.",
+        is_dark: false,
+        background: 0xFAF9F2,
+        foreground: 0x212121,
+        card: 0xFFFFFF,
+        primary: 0x212121,
+    },
 ];
 
 pub const DEFAULT_THEME: &str = "mocha";
@@ -73,7 +237,11 @@ fn contrast(primary: u32) -> u32 {
     let green = (primary >> 8) & 0xFF;
     let blue = primary & 0xFF;
     let luminance = red * 299 + green * 587 + blue * 114;
-    if luminance > 150_000 { 0x000000 } else { 0xFFFFFF }
+    if luminance > 150_000 {
+        0x000000
+    } else {
+        0xFFFFFF
+    }
 }
 
 /// Rebuild the design tokens for `id` and hand them to the shell. The light
@@ -88,7 +256,10 @@ pub fn apply(id: &str) {
     let fg = nsh_core::element::AdaptiveColor::rgb(definition.foreground, definition.foreground);
     let card = nsh_core::element::AdaptiveColor::rgb(definition.card, definition.card);
     let primary = nsh_core::element::AdaptiveColor::rgb(definition.primary, definition.primary);
-    let on_primary = nsh_core::element::AdaptiveColor::rgb(contrast(definition.primary), contrast(definition.primary));
+    let on_primary = nsh_core::element::AdaptiveColor::rgb(
+        contrast(definition.primary),
+        contrast(definition.primary),
+    );
     tokens.set_color("background", bg);
     tokens.set_color("foreground", fg);
     tokens.set_color("card", card);

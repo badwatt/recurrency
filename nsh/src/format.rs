@@ -1,9 +1,9 @@
 //! Currency and date strings used by the native dashboard.
 
 use chrono::{Datelike, NaiveDate};
+use nsh_core::prelude::{Signal, signal};
 use rust_decimal::Decimal;
 use std::cell::RefCell;
-use nsh_core::prelude::{signal, Signal};
 
 thread_local! {
     static DATE_FORMAT: RefCell<Option<Signal<String>>> = const { RefCell::new(None) };
@@ -26,7 +26,10 @@ pub fn init_date_format() {
 }
 
 pub fn first_day() -> String {
-    FIRST_DAY.with(|slot| slot.borrow().map_or_else(|| "monday".to_string(), |day| day.get()))
+    FIRST_DAY.with(|slot| {
+        slot.borrow()
+            .map_or_else(|| "monday".to_string(), |day| day.get())
+    })
 }
 
 pub fn set_first_day(value: &str) {
@@ -42,7 +45,10 @@ pub fn week_starts_sunday() -> bool {
 }
 
 pub fn date_format() -> String {
-    DATE_FORMAT.with(|slot| slot.borrow().map_or_else(|| "DD/MM/YYYY".to_string(), |format| format.get()))
+    DATE_FORMAT.with(|slot| {
+        slot.borrow()
+            .map_or_else(|| "DD/MM/YYYY".to_string(), |format| format.get())
+    })
 }
 
 pub fn set_date_format(value: &str) {
@@ -86,7 +92,9 @@ fn format_decimal(decimal: Decimal, no_decimals: bool) -> String {
     let text = format!("{decimal}");
     let (integer, fraction) = text
         .split_once('.')
-        .map_or((text.as_str(), None), |(integer, fraction)| (integer, Some(fraction)));
+        .map_or((text.as_str(), None), |(integer, fraction)| {
+            (integer, Some(fraction))
+        });
     let integer = add_thousands_separators(integer);
     if no_decimals {
         integer
@@ -156,7 +164,10 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 11, 22).expect("valid date");
         assert_eq!(days_text(today, today), "Today");
         assert_eq!(
-            days_text(NaiveDate::from_ymd_opt(2026, 11, 25).expect("valid date"), today),
+            days_text(
+                NaiveDate::from_ymd_opt(2026, 11, 25).expect("valid date"),
+                today
+            ),
             "3 days"
         );
     }

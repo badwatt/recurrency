@@ -8,12 +8,12 @@ mod ai_chat;
 mod api;
 mod auth;
 mod calendar;
-mod currencies;
 pub mod components;
+mod currencies;
 mod dashboard;
+mod dashboard_data;
 mod debts;
 mod delivery;
-mod dashboard_data;
 mod format;
 mod login;
 mod models;
@@ -94,14 +94,19 @@ pub fn App() -> impl IntoElement {
     let route = signal(Route::Dashboard);
     ui::init_route(route);
     let stored = auth::has_stored_session();
-    let session = signal(if stored { Session::Loading } else { Session::SignedOut });
+    let session = signal(if stored {
+        Session::Loading
+    } else {
+        Session::SignedOut
+    });
     if stored {
         spawn(async move { session.set(auth::restore_session().await) });
     }
 
-    when(move || matches!(session.get(), Session::SignedIn(_)), move || {
-        app_shell(route, session)
-    })
+    when(
+        move || matches!(session.get(), Session::SignedIn(_)),
+        move || app_shell(route, session),
+    )
     .otherwise(move || match session.get() {
         Session::Loading => loading_screen(),
         _ => login::login_screen(session).into_element(),
@@ -117,7 +122,11 @@ fn loading_screen() -> AnyElement {
         .justify_center()
         .bg(move || theme().background)
         .gap(px(12.0))
-        .child(image(LOGO).size(px(36.0)).tint_color(move || theme().primary))
+        .child(
+            image(LOGO)
+                .size(px(36.0))
+                .tint_color(move || theme().primary),
+        )
         .child(
             text("Recurrency")
                 .text_size(px(18.0))
@@ -154,9 +163,11 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     view()
         .relative()
         .flex_1()
-        .on_layout(move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-            compact.set(bounds.size.width.0 < 900.0);
-        })
+        .on_layout(
+            move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                compact.set(bounds.size.width.0 < 900.0);
+            },
+        )
         .bg(move || theme().background)
         .font_family(theme::SANS)
         .text_color(move || theme().foreground)
@@ -164,44 +175,88 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .child(update_banner::update_banner())
         .child(
             scroll().flex_1().child(
-                view()
-                    .w_full()
-                    .items_center()
-                    .child(
-                        view()
-                            .w_full()
-                            .key(if ui::privacy_active() { "private" } else { "public" })
-                            .max_w(px(1280.0))
-                            .px(move || {
-                                if compact.get() { px(16.0) } else if route.get() == Route::Dashboard { px(28.0) } else { px(24.0) }
-                            })
-                            .py(move || {
-                                if compact.get() { px(16.0) } else if route.get() == Route::Dashboard { px(32.0) } else { px(24.0) }
-                            })
-                            .child(
+                view().w_full().items_center().child(
+                    view()
+                        .w_full()
+                        .key(if ui::privacy_active() {
+                            "private"
+                        } else {
+                            "public"
+                        })
+                        .max_w(px(1280.0))
+                        .px(move || {
+                            if compact.get() {
+                                px(16.0)
+                            } else if route.get() == Route::Dashboard {
+                                px(28.0)
+                            } else {
+                                px(24.0)
+                            }
+                        })
+                        .py(move || {
+                            if compact.get() {
+                                px(16.0)
+                            } else if route.get() == Route::Dashboard {
+                                px(32.0)
+                            } else {
+                                px(24.0)
+                            }
+                        })
+                        .child(
+                            when(
+                                move || route.get() == Route::Dashboard,
+                                move || {
+                                    dashboard::dashboard(
+                                        auth_signal.get(),
+                                        route,
+                                        create_intent,
+                                        compact,
+                                    )
+                                },
+                            )
+                            .otherwise(move || {
                                 when(
-                                    move || route.get() == Route::Dashboard,
-                                    move || dashboard::dashboard(auth_signal.get(), route, create_intent, compact),
+                                    move || route.get() == Route::Subscriptions,
+                                    move || {
+                                        subscriptions::subscriptions(
+                                            auth_signal.get(),
+                                            modal,
+                                            create_intent,
+                                        )
+                                    },
                                 )
                                 .otherwise(move || {
                                     when(
-                                        move || route.get() == Route::Subscriptions,
-                                        move || subscriptions::subscriptions(auth_signal.get(), modal, create_intent),
+                                        move || route.get() == Route::Transactions,
+                                        move || {
+                                            transactions::transactions(
+                                                auth_signal.get(),
+                                                modal,
+                                                create_intent,
+                                            )
+                                        },
                                     )
                                     .otherwise(move || {
                                         when(
-                                            move || route.get() == Route::Transactions,
-                                            move || transactions::transactions(auth_signal.get(), modal, create_intent),
+                                            move || route.get() == Route::Debts,
+                                            move || {
+                                                debts::debts(
+                                                    auth_signal.get(),
+                                                    modal,
+                                                    create_intent,
+                                                )
+                                            },
                                         )
-                                        .otherwise(move || {
-                                            when(
-                                                move || route.get() == Route::Debts,
-                                                move || debts::debts(auth_signal.get(), modal, create_intent),
-                                            )
-                                            .otherwise(move || {
+                                        .otherwise(
+                                            move || {
                                                 when(
                                                     move || route.get() == Route::Calendar,
-                                                    move || calendar::calendar(auth_signal.get(), compact),
+                                                    move || {
+                                                        calendar::calendar(
+                                                            auth_signal.get(),
+                                                            compact,
+                                                        )
+                                                    },
                                                 )
                                                 .otherwise(move || {
                                                     when(
@@ -211,22 +266,39 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                     .otherwise(move || {
                                                         when(
                                                             move || route.get() == Route::Settings,
-                                                            move || settings::settings(auth_signal.get(), session),
+                                                            move || {
+                                                                settings::settings(
+                                                                    auth_signal.get(),
+                                                                    session,
+                                                                )
+                                                            },
                                                         )
-                                                        .otherwise(move || ui::pending_screen(route.get().label()))
+                                                        .otherwise(move || {
+                                                            ui::pending_screen(route.get().label())
+                                                        })
                                                     })
                                                 })
-                                            })
-                                        })
+                                            },
+                                        )
                                     })
-                                }),
-                            ),
-                    ),
+                                })
+                            }),
+                        ),
+                ),
             ),
         )
         .child(
             when(
-                move || compact.get() && matches!(route.get(), Route::Dashboard | Route::Subscriptions | Route::Transactions | Route::Debts),
+                move || {
+                    compact.get()
+                        && matches!(
+                            route.get(),
+                            Route::Dashboard
+                                | Route::Subscriptions
+                                | Route::Transactions
+                                | Route::Debts
+                        )
+                },
                 move || {
                     let ai_route = route;
                     let ai_auth = auth_signal;
@@ -278,22 +350,30 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                 .otherwise(|| view().h(px(0.0))),
         )
         .child(
-            when(move || ui::ai_chat_open(), move || ai_chat::ai_chat(chat_auth.clone()))
-                .otherwise(|| view().h(px(0.0))),
+            when(
+                move || ui::ai_chat_open(),
+                move || ai_chat::ai_chat(chat_auth.clone()),
+            )
+            .otherwise(|| view().h(px(0.0))),
         )
         .child(
-            when(move || ui::notifications_open(), move || {
-                view()
-                    .absolute()
-                    .inset_0()
-                    .z_index(100)
-                    .items_center()
-                    .justify_center()
-                    .p(px(16.0))
-                    .bg(rgba(0x000000cc))
-                    .child(notifications::notifications_modal(notification_auth.clone()))
-                    .into_element()
-            })
+            when(
+                move || ui::notifications_open(),
+                move || {
+                    view()
+                        .absolute()
+                        .inset_0()
+                        .z_index(100)
+                        .items_center()
+                        .justify_center()
+                        .p(px(16.0))
+                        .bg(rgba(0x000000cc))
+                        .child(notifications::notifications_modal(
+                            notification_auth.clone(),
+                        ))
+                        .into_element()
+                },
+            )
             .otherwise(|| view().h(px(0.0))),
         )
         .into_element()

@@ -6,8 +6,8 @@ use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 
 use crate::api::{self, CalendarData};
-use crate::components::page_header::page_header as shared_page_header;
 use crate::auth::AuthSession;
+use crate::components::page_header::page_header as shared_page_header;
 use crate::format::format_currency;
 use crate::recurrence::days_in_month;
 use crate::theme as design;
@@ -46,9 +46,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
             let server = resource_server.clone();
             let token = resource_token.clone();
             let currency = load_currency.clone();
-            async move {
-                api::load_calendar(server, token, currency, load_year, load_month).await
-            }
+            async move { api::load_calendar(server, token, currency, load_year, load_month).await }
         },
     );
     let loading = move || data.loading() && data.get().is_none();
@@ -60,15 +58,13 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
         .flex_col()
         .gap(px(24.0))
         .child(header())
-        .child(
-            when(loading, || loading_card()).otherwise(move || {
-                let currency = render_currency.clone();
-                when(has_error, move || {
-                    error_card(&data.error().unwrap_or_default(), data)
-                })
-                .otherwise(move || content(data, year, month, currency.clone(), today, compact))
-            }),
-        )
+        .child(when(loading, || loading_card()).otherwise(move || {
+            let currency = render_currency.clone();
+            when(has_error, move || {
+                error_card(&data.error().unwrap_or_default(), data)
+            })
+            .otherwise(move || content(data, year, month, currency.clone(), today, compact))
+        }))
         .into_element()
 }
 
@@ -178,14 +174,12 @@ fn content(
                 .w_full()
                 .flex_row()
                 .gap(px(12.0))
-                .child(summary(
-                    "TRANSFER THIS MONTH",
-                    move || format_currency(total(), &total_currency),
-                ))
-                .child(summary(
-                    "PENDING FROM TODAY",
-                    move || format_currency(pending(), &pending_currency),
-                )),
+                .child(summary("TRANSFER THIS MONTH", move || {
+                    format_currency(total(), &total_currency)
+                }))
+                .child(summary("PENDING FROM TODAY", move || {
+                    format_currency(pending(), &pending_currency)
+                })),
         )
         .child(
             when(
@@ -216,11 +210,12 @@ fn content(
                             .bg(move || theme().border)
                             .gap(px(1.0))
                             .children({
-                                let labels: [&'static str; 7] = if crate::format::week_starts_sunday() {
-                                    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-                                } else {
-                                    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                                };
+                                let labels: [&'static str; 7] =
+                                    if crate::format::week_starts_sunday() {
+                                        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                                    } else {
+                                        ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                                    };
                                 labels.into_iter().map(weekday_header).collect::<Vec<_>>()
                             })
                             .child(each(
@@ -228,7 +223,14 @@ fn content(
                                 |(index, _)| *index,
                                 move |cell, _| {
                                     let (_, day) = cell.get();
-                                    day_cell(day, data, year, month, desktop_currency.clone(), today)
+                                    day_cell(
+                                        day,
+                                        data,
+                                        year,
+                                        month,
+                                        desktop_currency.clone(),
+                                        today,
+                                    )
                                 },
                             )),
                     )
@@ -253,12 +255,18 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
                 .text_color(move || theme().muted_foreground),
         )
         .child(
-            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { value() })
-                .text_size(px(28.0))
-                .font_family(design::MONO)
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground)
-                .mt(px(6.0)),
+            text(move || {
+                if crate::ui::privacy_active() {
+                    "••••".to_string()
+                } else {
+                    value()
+                }
+            })
+            .text_size(px(28.0))
+            .font_family(design::MONO)
+            .font_weight(FontWeight::BOLD)
+            .text_color(move || theme().foreground)
+            .mt(px(6.0)),
         )
 }
 
@@ -283,7 +291,8 @@ fn mobile_calendar(
     currency: String,
     today: NaiveDate,
 ) -> AnyElement {
-    let entries = move || calendar_entries(&data.get().unwrap_or_default(), year.get(), month.get());
+    let entries =
+        move || calendar_entries(&data.get().unwrap_or_default(), year.get(), month.get());
     let total_currency = currency.clone();
     let total = move || {
         let snapshot = data.get().unwrap_or_default();
@@ -292,8 +301,18 @@ fn mobile_calendar(
             .map(|entry| snapshot.rates.convert(entry.amount, &entry.currency))
             .sum::<Decimal>()
     };
-    let upcoming = move || entries().into_iter().filter(|entry| entry.date >= today).collect::<Vec<_>>();
-    let past = move || entries().into_iter().filter(|entry| entry.date < today).collect::<Vec<_>>();
+    let upcoming = move || {
+        entries()
+            .into_iter()
+            .filter(|entry| entry.date >= today)
+            .collect::<Vec<_>>()
+    };
+    let past = move || {
+        entries()
+            .into_iter()
+            .filter(|entry| entry.date < today)
+            .collect::<Vec<_>>()
+    };
     let row_currency = currency.clone();
     view()
         .w_full()
@@ -328,7 +347,12 @@ fn mobile_calendar(
                         .text_color(move || theme().foreground),
                 ),
         )
-        .child(mobile_section("UPCOMING", upcoming, row_currency.clone(), today))
+        .child(mobile_section(
+            "UPCOMING",
+            upcoming,
+            row_currency.clone(),
+            today,
+        ))
         .child(mobile_section("PAST", past, row_currency, today))
         .into_element()
 }
@@ -362,83 +386,88 @@ fn mobile_section(
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(
-            view()
-                .flex_col()
-                .gap(px(6.0))
-                .child(each(
-                    entries,
-                    |entry| entry.key.clone(),
-                    move |entry, _| {
-                        let entry = entry.get();
-                        let past = entry.date < today;
-                        let date = if entry.date == today {
-                            "Today".to_string()
-                        } else {
-                            entry.date.format("%a, %b %e").to_string()
-                        };
-                        let amount = format_currency(entry.amount, &currency);
-                        let target = if entry.is_transaction { crate::Route::Transactions } else { crate::Route::Subscriptions };
+        .child(view().flex_col().gap(px(6.0)).child(each(
+            entries,
+            |entry| entry.key.clone(),
+            move |entry, _| {
+                let entry = entry.get();
+                let past = entry.date < today;
+                let date = if entry.date == today {
+                    "Today".to_string()
+                } else {
+                    entry.date.format("%a, %b %e").to_string()
+                };
+                let amount = format_currency(entry.amount, &currency);
+                let target = if entry.is_transaction {
+                    crate::Route::Transactions
+                } else {
+                    crate::Route::Subscriptions
+                };
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .on_press(move || crate::ui::navigate(target))
+                    .gap(px(10.0))
+                    .p(px(12.0))
+                    .rounded(px(8.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().card)
+                    .when(past, |row| row.opacity(0.55))
+                    .child(
                         view()
-                            .w_full()
                             .flex_row()
                             .items_center()
-                            .justify_between()
-                            .on_press(move || crate::ui::navigate(target))
                             .gap(px(10.0))
-                            .p(px(12.0))
-                            .rounded(px(8.0))
-                            .border(px(1.0))
-                            .border_color(move || theme().border)
-                            .bg(move || theme().card)
-                            .when(past, |row| row.opacity(0.55))
+                            .min_w(px(0.0))
                             .child(
                                 view()
-                                    .flex_row()
+                                    .h(px(40.0))
+                                    .w(px(40.0))
                                     .items_center()
-                                    .gap(px(10.0))
-                                    .min_w(px(0.0))
+                                    .justify_center()
+                                    .rounded(px(999.0))
+                                    .bg(move || theme().muted)
                                     .child(
-                                        view()
-                                            .h(px(40.0))
-                                            .w(px(40.0))
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(999.0))
-                                            .bg(move || theme().muted)
-                                            .child(
-                                                image(asset!("icons/card.svg"))
-                                                    .size(px(16.0))
-                                                    .tint_color(move || theme().muted_foreground),
-                                            ),
-                                    )
-                                    .child(
-                                        view()
-                                            .flex_col()
-                                            .min_w(px(0.0))
-                                            .child(
-                                                text(entry.name)
-                                                    .text_size(px(13.0))
-                                                    .font_weight(FontWeight::MEDIUM)
-                                                    .text_color(move || theme().foreground),
-                                            )
-                                            .child(
-                                                text(date)
-                                                    .text_size(px(11.0))
-                                                    .text_color(move || theme().muted_foreground),
-                                            ),
+                                        image(asset!("icons/card.svg"))
+                                            .size(px(16.0))
+                                            .tint_color(move || theme().muted_foreground),
                                     ),
                             )
                             .child(
-                                text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                                    .text_size(px(13.0))
-                                    .font_family(design::MONO)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().foreground),
-                            )
-                    },
-                )),
-        )
+                                view()
+                                    .flex_col()
+                                    .min_w(px(0.0))
+                                    .child(
+                                        text(entry.name)
+                                            .text_size(px(13.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(date)
+                                            .text_size(px(11.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        text(move || {
+                            if crate::ui::privacy_active() {
+                                "••••".to_string()
+                            } else {
+                                amount.clone()
+                            }
+                        })
+                        .text_size(px(13.0))
+                        .font_family(design::MONO)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                    )
+            },
+        )))
 }
 
 fn day_cell(
@@ -474,14 +503,26 @@ fn day_cell(
         .min_h(px(100.0))
         .p(px(6.0))
         .gap(px(2.0))
-        .bg(move || if day.is_some() { theme().card } else { theme().muted.opacity(0.15) })
+        .bg(move || {
+            if day.is_some() {
+                theme().card
+            } else {
+                theme().muted.opacity(0.15)
+            }
+        })
         .when(is_today, |cell| cell.bg(move || theme().accent))
         .when(day.is_some(), move |cell| {
             cell.child(
                 text(move || day.map_or_else(String::new, |day| day.to_string()))
                     .text_size(px(11.0))
                     .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(move || if is_today { theme().primary } else { theme().muted_foreground }),
+                    .text_color(move || {
+                        if is_today {
+                            theme().primary
+                        } else {
+                            theme().muted_foreground
+                        }
+                    }),
             )
             .child(
                 view()
@@ -499,7 +540,11 @@ fn day_cell(
                                     .convert(entry.amount, &entry.currency),
                                 &currency,
                             );
-                            let target = if entry.is_transaction { crate::Route::Transactions } else { crate::Route::Subscriptions };
+                            let target = if entry.is_transaction {
+                                crate::Route::Transactions
+                            } else {
+                                crate::Route::Subscriptions
+                            };
                             view()
                                 .w_full()
                                 .flex_row()
@@ -519,19 +564,28 @@ fn day_cell(
                                         .number_of_lines(1),
                                 )
                                 .child(
-                                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                                        .text_size(px(11.0))
-                                        .font_family(design::MONO)
-                                        .text_color(move || theme().muted_foreground),
+                                    text(move || {
+                                        if crate::ui::privacy_active() {
+                                            "••••".to_string()
+                                        } else {
+                                            amount.clone()
+                                        }
+                                    })
+                                    .text_size(px(11.0))
+                                    .font_family(design::MONO)
+                                    .text_color(move || theme().muted_foreground),
                                 )
                         },
                     ))
                     .child(
-                        when(move || entries().len() > 3, move || {
-                            text(format!("+{} more", entries().len().saturating_sub(3)))
-                                .text_size(px(9.0))
-                                .text_color(move || theme().muted_foreground)
-                        })
+                        when(
+                            move || entries().len() > 3,
+                            move || {
+                                text(format!("+{} more", entries().len().saturating_sub(3)))
+                                    .text_size(px(9.0))
+                                    .text_color(move || theme().muted_foreground)
+                            },
+                        )
                         .otherwise(|| view().h(px(0.0))),
                     ),
             )
@@ -543,7 +597,10 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
     for item in &data.items {
         if item.billing_date.year() == year && item.billing_date.month() == month {
             entries.push(CalendarEntry {
-                key: format!("subscription-{}-{}", item.subscription_id, item.billing_date),
+                key: format!(
+                    "subscription-{}-{}",
+                    item.subscription_id, item.billing_date
+                ),
                 name: item.name.clone(),
                 amount: item.amount,
                 currency: item.currency.clone(),

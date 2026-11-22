@@ -14,7 +14,10 @@ pub struct DialogHost {
 
 impl DialogHost {
     pub fn new() -> Self {
-        Self { slot: stored(None), version: signal(0) }
+        Self {
+            slot: stored(None),
+            version: signal(0),
+        }
     }
 
     pub fn open(&self, build: impl Fn() -> AnyElement + 'static) {
@@ -65,7 +68,11 @@ pub struct DialogProps {
 }
 
 impl DialogProps {
-    pub fn new(title: impl Into<String>, subtitle: impl Into<String>, on_close: impl Fn() + 'static) -> Self {
+    pub fn new(
+        title: impl Into<String>,
+        subtitle: impl Into<String>,
+        on_close: impl Fn() + 'static,
+    ) -> Self {
         Self {
             title: title.into(),
             subtitle: subtitle.into(),
@@ -93,7 +100,14 @@ impl DialogProps {
 }
 
 pub fn dialog(dialog: DialogProps) -> impl IntoElement {
-    let DialogProps { title, subtitle, width, body, footer, on_close } = dialog;
+    let DialogProps {
+        title,
+        subtitle,
+        width,
+        body,
+        footer,
+        on_close,
+    } = dialog;
     let close = on_close.clone();
     view()
         .w(px(width))
@@ -148,11 +162,7 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                         .text_color(move || nsh_base::theme().muted_foreground),
                 ),
         )
-        .child(
-            scroll()
-                .max_h(px(480.0))
-                .child(body),
-        )
+        .child(scroll().max_h(px(480.0)).child(body))
         .child(
             view()
                 .w_full()

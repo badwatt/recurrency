@@ -8,12 +8,12 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, DebtsData};
-use crate::components::button::{button as shared_button, ButtonProps};
-use crate::components::page_header::page_header as shared_page_header;
-use crate::components::empty_state::empty_state;
-use crate::components::confirm::{confirm_row, ConfirmProps};
-use crate::components::search_input::search_input;
 use crate::auth::AuthSession;
+use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::confirm::{ConfirmProps, confirm_row};
+use crate::components::empty_state::empty_state;
+use crate::components::page_header::page_header as shared_page_header;
+use crate::components::search_input::search_input;
 use crate::format::{format_currency, format_date};
 use crate::models::{Debt, DebtPayment};
 use crate::theme as design;
@@ -84,7 +84,11 @@ struct DebtActions {
 const TITLE: &str = "Debts";
 const SUBTITLE: &str = "Money you owe, manual or paid automatically";
 
-pub fn debts(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Option<crate::Route>>) -> AnyElement {
+pub fn debts(
+    auth: AuthSession,
+    modal: ui::ModalHost,
+    intent: Signal<Option<crate::Route>>,
+) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -218,30 +222,27 @@ pub fn debts(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Option<crat
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
-        .child(
-            when(loading, || loading_card()).otherwise(move || {
-                let value = render_currency.clone();
+        .child(when(loading, || loading_card()).otherwise(move || {
+            let value = render_currency.clone();
+            let empty_open = empty_open.clone();
+            when(has_error, move || {
+                error_card(&data.error().unwrap_or_default(), data)
+            })
+            .otherwise(move || {
                 let empty_open = empty_open.clone();
-                when(has_error, move || {
-                    error_card(&data.error().unwrap_or_default(), data)
-                })
-                .otherwise(move || {
-                    let empty_open = empty_open.clone();
-                    content(
-                        data,
-                        search,
-                        value.clone(),
-                        actions,
-                        server_signal,
-                        token_signal,
-                        empty_open,
-                    )
-                })
-            }),
-        )
+                content(
+                    data,
+                    search,
+                    value.clone(),
+                    actions,
+                    server_signal,
+                    token_signal,
+                    empty_open,
+                )
+            })
+        }))
         .into_element()
 }
-
 
 fn payment_form(
     data: Resource<DebtsData, String>,
@@ -322,11 +323,14 @@ fn payment_form(
                 )
                 .child(ui::field("Note", note, "November payment"))
                 .child(
-                    when(move || !error.get().is_empty(), move || {
-                        text(move || error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    when(
+                        move || !error.get().is_empty(),
+                        move || {
+                            text(move || error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .into_element(),
@@ -347,8 +351,16 @@ fn payment_form(
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
-                        .on_press(move || { pay_id.set(None); modal.close(); })
-                        .child(text("Cancel").text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground)),
+                        .on_press(move || {
+                            pay_id.set(None);
+                            modal.close();
+                        })
+                        .child(
+                            text("Cancel")
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        ),
                 )
                 .child(
                     button()
@@ -362,10 +374,16 @@ fn payment_form(
                         .disabled_style(|state| state.opacity(0.5))
                         .on_press(move || save())
                         .child(
-                            text(move || if saving.get() { "Saving..." } else { "Record payment" })
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
+                            text(move || {
+                                if saving.get() {
+                                    "Saving..."
+                                } else {
+                                    "Record payment"
+                                }
+                            })
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(move || theme().primary_foreground),
                         ),
                 )
                 .into_element(),
@@ -373,7 +391,11 @@ fn payment_form(
     )
 }
 
-fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost) -> impl IntoElement {
+fn history_panel(
+    payments: DebtPayments,
+    currency: String,
+    modal: ui::ModalHost,
+) -> impl IntoElement {
     let DebtPayments {
         history_id,
         history,
@@ -396,20 +418,26 @@ fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost)
                 .p(px(24.0))
                 .gap(px(12.0))
                 .child(
-                    when(move || history_loading.get(), || {
-                        text("Loading payments…")
-                            .text_size(px(13.0))
-                            .text_color(move || theme().muted_foreground)
-                            .into_element()
-                    })
+                    when(
+                        move || history_loading.get(),
+                        || {
+                            text("Loading payments…")
+                                .text_size(px(13.0))
+                                .text_color(move || theme().muted_foreground)
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || !history_error.get().is_empty(), move || {
-                        text(move || history_error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    when(
+                        move || !history_error.get().is_empty(),
+                        move || {
+                            text(move || history_error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
@@ -424,47 +452,49 @@ fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost)
                     )
                     .otherwise(|| view().h(px(0.0))),
                 )
-                .child(
-                    view()
-                        .flex_col()
-                        .child(each(
-                            move || history.get(),
-                            |payment| payment.id,
-                            move |payment, _| {
-                                let payment = payment.get();
-                                let amount = format_currency(payment.amount, &currency);
+                .child(view().flex_col().child(each(
+                    move || history.get(),
+                    |payment| payment.id,
+                    move |payment, _| {
+                        let payment = payment.get();
+                        let amount = format_currency(payment.amount, &currency);
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .py(px(8.0))
+                            .border_b(px(1.0))
+                            .border_color(move || theme().border)
+                            .child(
                                 view()
-                                    .w_full()
-                                    .flex_row()
-                                    .items_center()
-                                    .justify_between()
-                                    .py(px(8.0))
-                                    .border_b(px(1.0))
-                                    .border_color(move || theme().border)
+                                    .flex_col()
                                     .child(
-                                        view()
-                                            .flex_col()
-                                            .child(
-                                                text(format_date(payment.paid_on))
-                                                    .text_size(px(13.0))
-                                                    .text_color(move || theme().foreground),
-                                            )
-                                            .child(
-                                                text(payment.note.unwrap_or_default())
-                                                    .text_size(px(11.0))
-                                                    .text_color(move || theme().muted_foreground),
-                                            ),
-                                    )
-                                    .child(
-                                        text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
+                                        text(format_date(payment.paid_on))
                                             .text_size(px(13.0))
-                                            .font_family(design::MONO)
-                                            .font_weight(FontWeight::SEMIBOLD)
                                             .text_color(move || theme().foreground),
                                     )
-                            },
-                        )),
-                )
+                                    .child(
+                                        text(payment.note.unwrap_or_default())
+                                            .text_size(px(11.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
+                            )
+                            .child(
+                                text(move || {
+                                    if crate::ui::privacy_active() {
+                                        "••••".to_string()
+                                    } else {
+                                        amount.clone()
+                                    }
+                                })
+                                .text_size(px(13.0))
+                                .font_family(design::MONO)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                            )
+                    },
+                )))
                 .into_element(),
         )
         .footer(
@@ -495,7 +525,11 @@ fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl Int
                     .variant(crate::components::button::ButtonVariant::Outline)
                     .on_press(on_bulk),
             ))
-            .child(shared_button(ButtonProps::new("Add Debt").icon(asset!("icons/plus.svg")).on_press(on_add)))
+            .child(shared_button(
+                ButtonProps::new("Add Debt")
+                    .icon(asset!("icons/plus.svg"))
+                    .on_press(on_add),
+            ))
             .into_element(),
     )
 }
@@ -520,7 +554,14 @@ fn bulk_modal(
         }
         selected.set(values);
     };
-    let all_ids = move || data.get().unwrap_or_default().debts.into_iter().map(|item| item.id).collect::<Vec<_>>();
+    let all_ids = move || {
+        data.get()
+            .unwrap_or_default()
+            .debts
+            .into_iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>()
+    };
     let select_all = move || {
         let mut values = selected.get();
         for id in all_ids() {
@@ -535,16 +576,26 @@ fn bulk_modal(
         let server = server;
         let token = token;
         move || {
-            let Some(category) = bulk_category.get() else { return };
+            let Some(category) = bulk_category.get() else {
+                return;
+            };
             let ids = selected.get();
-            if ids.is_empty() || busy.get() { return; }
+            if ids.is_empty() || busy.get() {
+                return;
+            }
             let server = server.get();
             let token = token.get();
             busy.set(true);
             error.set(String::new());
             spawn(async move {
                 for id in ids {
-                    let _ = api::update_debt(server.clone(), token.clone(), id, &serde_json::json!({ "category_id": category })).await;
+                    let _ = api::update_debt(
+                        server.clone(),
+                        token.clone(),
+                        id,
+                        &serde_json::json!({ "category_id": category }),
+                    )
+                    .await;
                 }
                 selected.set(Vec::new());
                 data.refetch();
@@ -572,35 +623,61 @@ fn bulk_modal(
         });
     };
     let rows = move || {
-        data.get().unwrap_or_default().debts.into_iter().map(|debt| {
-            let id = debt.id;
-            let name = debt.name;
-            let balance = format_currency(debt.remaining_amount, &debt.currency);
-            let is_selected = selected.get().contains(&id);
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .gap(px(8.0))
-                .p(px(8.0))
-                .rounded(px(6.0))
-                .bg(move || if is_selected { theme().accent } else { theme().card.opacity(0.0) })
-                .on_press(move || toggle(id))
-                .child(
-                    view()
-                        .flex_col()
-                        .child(text(name).text_size(px(12.0)).text_color(move || theme().foreground))
-                        .child(text(balance).text_size(px(10.0)).font_family(design::MONO).text_color(move || theme().muted_foreground)),
-                )
-                .child(
-                    when(move || is_selected, move || {
-                        image(asset!("icons/check.svg")).size(px(14.0)).tint_color(move || theme().primary).into_element()
+        data.get()
+            .unwrap_or_default()
+            .debts
+            .into_iter()
+            .map(|debt| {
+                let id = debt.id;
+                let name = debt.name;
+                let balance = format_currency(debt.remaining_amount, &debt.currency);
+                let is_selected = selected.get().contains(&id);
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(8.0))
+                    .p(px(8.0))
+                    .rounded(px(6.0))
+                    .bg(move || {
+                        if is_selected {
+                            theme().accent
+                        } else {
+                            theme().card.opacity(0.0)
+                        }
                     })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .into_element()
-        }).collect::<Vec<_>>()
+                    .on_press(move || toggle(id))
+                    .child(
+                        view()
+                            .flex_col()
+                            .child(
+                                text(name)
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text(balance)
+                                    .text_size(px(10.0))
+                                    .font_family(design::MONO)
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                    )
+                    .child(
+                        when(
+                            move || is_selected,
+                            move || {
+                                image(asset!("icons/check.svg"))
+                                    .size(px(14.0))
+                                    .tint_color(move || theme().primary)
+                                    .into_element()
+                            },
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .into_element()
+            })
+            .collect::<Vec<_>>()
     };
     let count = move || selected.get().len();
     crate::components::dialog::dialog(
@@ -621,7 +698,11 @@ fn bulk_modal(
                         .items_center()
                         .justify_between()
                         .gap(px(8.0))
-                        .child(text(move || format!("{} selected", count())).text_size(px(12.0)).text_color(move || theme().muted_foreground))
+                        .child(
+                            text(move || format!("{} selected", count()))
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        )
                         .child(
                             view()
                                 .flex_row()
@@ -638,33 +719,53 @@ fn bulk_modal(
                 )
                 .child(ui::choice_picker(
                     "Move selected to category",
-                    move || data.get().unwrap_or_default().categories.into_iter().map(|category| (category.id, category.name)).collect(),
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .categories
+                            .into_iter()
+                            .map(|category| (category.id, category.name))
+                            .collect()
+                    },
                     bulk_category,
                 ))
                 .child(
-                    when(move || confirm_delete.get(), move || {
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .gap(px(8.0))
-                            .p(px(10.0))
-                            .rounded(px(7.0))
-                            .bg(move || theme().destructive.opacity(0.1))
-                            .child(text(move || format!("Delete {} debts?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .gap(px(6.0))
-                                    .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
-                                    .child(ui::action_button("Delete", true, delete)),
-                            )
-                            .into_element()
-                    })
+                    when(
+                        move || confirm_delete.get(),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .gap(px(8.0))
+                                .p(px(10.0))
+                                .rounded(px(7.0))
+                                .bg(move || theme().destructive.opacity(0.1))
+                                .child(
+                                    text(move || format!("Delete {} debts?", count()))
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().destructive),
+                                )
+                                .child(
+                                    view()
+                                        .flex_row()
+                                        .gap(px(6.0))
+                                        .child(ui::action_button("Cancel", false, move || {
+                                            confirm_delete.set(false)
+                                        }))
+                                        .child(ui::action_button("Delete", true, delete)),
+                                )
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
-                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
                 .into_element(),
         )
         .footer(
@@ -674,7 +775,9 @@ fn bulk_modal(
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Apply category", false, apply_category))
-                .child(ui::action_button("Delete", true, move || confirm_delete.set(true)))
+                .child(ui::action_button("Delete", true, move || {
+                    confirm_delete.set(true)
+                }))
                 .into_element(),
         ),
     )
@@ -724,7 +827,8 @@ fn form(
                 form_error.set("Total must be positive.".to_string());
                 return;
             }
-            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d") else {
+            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
+            else {
                 form_error.set("Use YYYY-MM-DD for the first payment.".to_string());
                 return;
             };
@@ -780,13 +884,21 @@ fn form(
         }
     };
 
-    let title = if editing.get().is_some() { "Edit debt" } else { "Add debt" };
+    let title = if editing.get().is_some() {
+        "Edit debt"
+    } else {
+        "Add debt"
+    };
     crate::components::dialog::dialog(
-        crate::components::dialog::DialogProps::new(title, "Manual balances or automatic payments.", move || {
-            form_open.set(false);
-            editing.set(None);
-            modal.close();
-        })
+        crate::components::dialog::DialogProps::new(
+            title,
+            "Manual balances or automatic payments.",
+            move || {
+                form_open.set(false);
+                editing.set(None);
+                modal.close();
+            },
+        )
         .width(672.0)
         .body(
             view()
@@ -846,11 +958,14 @@ fn form(
                     category_id,
                 ))
                 .child(
-                    when(move || !form_error.get().is_empty(), move || {
-                        text(move || form_error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    when(
+                        move || !form_error.get().is_empty(),
+                        move || {
+                            text(move || form_error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .into_element(),
@@ -876,7 +991,12 @@ fn form(
                             editing.set(None);
                             modal.close();
                         })
-                        .child(text("Cancel").text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground)),
+                        .child(
+                            text("Cancel")
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        ),
                 )
                 .child(
                     button()
@@ -890,10 +1010,16 @@ fn form(
                         .disabled_style(|state| state.opacity(0.5))
                         .on_press(move || save())
                         .child(
-                            text(move || if saving.get() { "Saving..." } else { "Save debt" })
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
+                            text(move || {
+                                if saving.get() {
+                                    "Saving..."
+                                } else {
+                                    "Save debt"
+                                }
+                            })
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(move || theme().primary_foreground),
                         ),
                 )
                 .into_element(),
@@ -901,7 +1027,11 @@ fn form(
     )
 }
 
-fn type_chip(label_text: &'static str, value: &'static str, selected: Signal<String>) -> impl IntoElement {
+fn type_chip(
+    label_text: &'static str,
+    value: &'static str,
+    selected: Signal<String>,
+) -> impl IntoElement {
     let active = move || selected.get() == value;
     button()
         .items_center()
@@ -910,17 +1040,31 @@ fn type_chip(label_text: &'static str, value: &'static str, selected: Signal<Str
         .px(px(10.0))
         .rounded(px(6.0))
         .border(px(1.0))
-        .border_color(move || if active() { theme().primary } else { theme().border })
-        .bg(move || if active() { theme().accent } else { theme().card })
+        .border_color(move || {
+            if active() {
+                theme().primary
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || {
+            if active() {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
         .on_press(move || selected.set(value.to_string()))
         .child(
             text(label_text)
                 .text_size(px(12.0))
                 .font_weight(FontWeight::MEDIUM)
-                .text_color(move || if active() {
-                    theme().foreground
-                } else {
-                    theme().muted_foreground
+                .text_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
                 }),
         )
 }
@@ -962,8 +1106,14 @@ fn content(
                     asset!("icons/debts.svg"),
                     "No debts yet",
                     "Add a manual debt or let an automatic debt pay itself month by month.",
-                    shared_button(ButtonProps::new("Add Debt").icon(asset!("icons/plus.svg")).on_press(move || open_form())).into_element(),
-                ).into_element()
+                    shared_button(
+                        ButtonProps::new("Add Debt")
+                            .icon(asset!("icons/plus.svg"))
+                            .on_press(move || open_form()),
+                    )
+                    .into_element(),
+                )
+                .into_element()
             })
             .otherwise(move || {
                 let open_search = search;
@@ -1119,13 +1269,18 @@ fn card(
                 .bg(move || theme().muted)
                 .overflow_hidden()
                 .flex_row()
+                .child(view().h_full().flex_grow(progress_width).bg(move || {
+                    if automatic {
+                        theme().primary
+                    } else {
+                        design::success()
+                    }
+                }))
                 .child(
                     view()
                         .h_full()
-                        .flex_grow(progress_width)
-                        .bg(move || if automatic { theme().primary } else { design::success() }),
-                )
-                .child(view().h_full().flex_grow((100.0 - progress_width).max(0.01))),
+                        .flex_grow((100.0 - progress_width).max(0.01)),
+                ),
         )
         .child(
             view()
@@ -1138,7 +1293,14 @@ fn card(
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(card_actions(action_debt, actions, data, server, token, currency.clone())),
+                .child(card_actions(
+                    action_debt,
+                    actions,
+                    data,
+                    server,
+                    token,
+                    currency.clone(),
+                )),
         )
 }
 
@@ -1239,16 +1401,19 @@ fn card_actions(
         });
     };
     let confirm = actions.delete_confirm;
-    when(move || actions.delete_confirm.get() == Some(id), move || {
-        let delete = delete.clone();
-        confirm_row(ConfirmProps::new(
-            "Delete this debt?",
-            "Delete",
-            move || delete(),
-            move || actions.delete_confirm.set(None),
-        ))
-        .into_element()
-    })
+    when(
+        move || actions.delete_confirm.get() == Some(id),
+        move || {
+            let delete = delete.clone();
+            confirm_row(ConfirmProps::new(
+                "Delete this debt?",
+                "Delete",
+                move || delete(),
+                move || actions.delete_confirm.set(None),
+            ))
+            .into_element()
+        },
+    )
     .otherwise(move || {
         let edit = edit.clone();
         view()

@@ -4,14 +4,17 @@ use chrono::Local;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::dashboard_data::{
-    build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
-    DashboardData, UpcomingPayment,
+    AccountBudget, CategoryBudget, DashboardData, UpcomingPayment, build_account_budgets,
+    build_category_budgets, upcoming_payments,
 };
-use crate::models::{Account, AccountWithCounts, AdminUser, AiSettings, CalendarItem, Category, CategoryWithCounts, Debt, DebtPayment, NotificationPreferences, Rates, ReportResponse, Subscription, Transaction};
+use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
+use crate::models::{
+    Account, AccountWithCounts, AdminUser, AiSettings, CalendarItem, Category, CategoryWithCounts,
+    Debt, DebtPayment, NotificationPreferences, Rates, ReportResponse, Subscription, Transaction,
+};
 use crate::settings::{SettingsResponse, UpdateSettingsRequest};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
-use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
 use nsh_core::prelude::*;
 
 pub struct Client {
@@ -35,11 +38,16 @@ impl Client {
             .map_err(|_| "The server returned an unexpected response".to_string())
     }
 
-    pub async fn post<T: DeserializeOwned, B: Serialize>(&self, path: &str, body: &B) -> Result<T, String> {
+    pub async fn post<T: DeserializeOwned, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, String> {
         let json = serde_json::to_string(body).map_err(|error| error.to_string())?;
-        let request = HttpRequest::post(format!("{}{path}", self.server.trim_end_matches('/')), json)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .header("Content-Type", "application/json");
+        let request =
+            HttpRequest::post(format!("{}{path}", self.server.trim_end_matches('/')), json)
+                .header("Authorization", format!("Bearer {}", self.token))
+                .header("Content-Type", "application/json");
         let response = fetch(request).await?;
         if !response.ok() {
             return Err(format!("The server answered {}", response.status()));
@@ -48,12 +56,19 @@ impl Client {
             .map_err(|_| "The server returned an unexpected response".to_string())
     }
 
-    pub async fn put<T: DeserializeOwned, B: Serialize>(&self, path: &str, body: &B) -> Result<T, String> {
+    pub async fn put<T: DeserializeOwned, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, String> {
         let json = serde_json::to_string(body).map_err(|error| error.to_string())?;
-        let request = HttpRequest::new("PUT", format!("{}{path}", self.server.trim_end_matches('/')))
-            .header("Authorization", format!("Bearer {}", self.token))
-            .header("Content-Type", "application/json")
-            .body(json);
+        let request = HttpRequest::new(
+            "PUT",
+            format!("{}{path}", self.server.trim_end_matches('/')),
+        )
+        .header("Authorization", format!("Bearer {}", self.token))
+        .header("Content-Type", "application/json")
+        .body(json);
         let response = fetch(request).await?;
         if !response.ok() {
             return Err(format!("The server answered {}", response.status()));
@@ -63,8 +78,11 @@ impl Client {
     }
 
     pub async fn delete(&self, path: &str) -> Result<(), String> {
-        let request = HttpRequest::new("DELETE", format!("{}{path}", self.server.trim_end_matches('/')))
-            .header("Authorization", format!("Bearer {}", self.token));
+        let request = HttpRequest::new(
+            "DELETE",
+            format!("{}{path}", self.server.trim_end_matches('/')),
+        )
+        .header("Authorization", format!("Bearer {}", self.token));
         let response = fetch(request).await?;
         if response.ok() {
             Ok(())
@@ -88,7 +106,11 @@ pub struct SubscriptionsData {
     pub rates: Rates,
 }
 
-pub async fn load_dashboard(server: String, token: String, currency: String) -> Result<DashboardData, String> {
+pub async fn load_dashboard(
+    server: String,
+    token: String,
+    currency: String,
+) -> Result<DashboardData, String> {
     let api = Client::new(server, token);
     let accounts: Vec<Account> = api.get("/api/accounts").await?;
     let subscriptions: Vec<Subscription> = api.get("/api/subscriptions").await?;
@@ -101,8 +123,12 @@ pub async fn load_dashboard(server: String, token: String, currency: String) -> 
         build_account_budgets(&accounts, &subscriptions, &transactions, today, &rates);
     let category_budgets: Vec<CategoryBudget> =
         build_category_budgets(&categories, &subscriptions, &transactions, today, &rates);
-    let upcoming: Vec<UpcomingPayment> = upcoming_payments(&subscriptions, &transactions, &accounts, today);
-    let active_subscriptions = subscriptions.iter().filter(|subscription| subscription.is_active).count();
+    let upcoming: Vec<UpcomingPayment> =
+        upcoming_payments(&subscriptions, &transactions, &accounts, today);
+    let active_subscriptions = subscriptions
+        .iter()
+        .filter(|subscription| subscription.is_active)
+        .count();
 
     Ok(DashboardData {
         accounts: account_budgets,
@@ -201,9 +227,7 @@ pub async fn create_debt(
     token: String,
     request: &CreateDebtRequest,
 ) -> Result<Debt, String> {
-    Client::new(server, token)
-        .post("/api/debts", request)
-        .await
+    Client::new(server, token).post("/api/debts", request).await
 }
 
 pub async fn update_debt<B: Serialize>(
@@ -285,7 +309,9 @@ pub async fn update_ai_settings<B: Serialize>(
     token: String,
     request: &B,
 ) -> Result<AiSettings, String> {
-    Client::new(server, token).put("/api/ai/settings", request).await
+    Client::new(server, token)
+        .put("/api/ai/settings", request)
+        .await
 }
 
 pub async fn load_money_counts(
@@ -305,34 +331,80 @@ struct NameBody {
 
 pub async fn create_account(server: String, token: String, name: &str) -> Result<Account, String> {
     Client::new(server, token)
-        .post("/api/accounts", &NameBody { name: name.to_string() })
+        .post(
+            "/api/accounts",
+            &NameBody {
+                name: name.to_string(),
+            },
+        )
         .await
 }
 
-pub async fn update_account(server: String, token: String, id: uuid::Uuid, name: &str) -> Result<Account, String> {
+pub async fn update_account(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+    name: &str,
+) -> Result<Account, String> {
     Client::new(server, token)
-        .put(&format!("/api/accounts/{id}"), &NameBody { name: name.to_string() })
+        .put(
+            &format!("/api/accounts/{id}"),
+            &NameBody {
+                name: name.to_string(),
+            },
+        )
         .await
 }
 
-pub async fn delete_account_by_id(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
-    Client::new(server, token).delete(&format!("/api/accounts/{id}")).await
-}
-
-pub async fn create_category(server: String, token: String, name: &str) -> Result<Category, String> {
+pub async fn delete_account_by_id(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
     Client::new(server, token)
-        .post("/api/categories", &NameBody { name: name.to_string() })
+        .delete(&format!("/api/accounts/{id}"))
         .await
 }
 
-pub async fn update_category(server: String, token: String, id: uuid::Uuid, name: &str) -> Result<Category, String> {
+pub async fn create_category(
+    server: String,
+    token: String,
+    name: &str,
+) -> Result<Category, String> {
     Client::new(server, token)
-        .put(&format!("/api/categories/{id}"), &NameBody { name: name.to_string() })
+        .post(
+            "/api/categories",
+            &NameBody {
+                name: name.to_string(),
+            },
+        )
         .await
 }
 
-pub async fn delete_category_by_id(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
-    Client::new(server, token).delete(&format!("/api/categories/{id}")).await
+pub async fn update_category(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+    name: &str,
+) -> Result<Category, String> {
+    Client::new(server, token)
+        .put(
+            &format!("/api/categories/{id}"),
+            &NameBody {
+                name: name.to_string(),
+            },
+        )
+        .await
+}
+
+pub async fn delete_category_by_id(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
+    Client::new(server, token)
+        .delete(&format!("/api/categories/{id}"))
+        .await
 }
 
 #[derive(Clone, Debug, serde::Deserialize, PartialEq)]
@@ -346,8 +418,12 @@ pub struct Preferences {
     pub date_format: String,
 }
 
-fn default_first_day() -> String { "monday".to_string() }
-fn default_date_format() -> String { "DD/MM/YYYY".to_string() }
+fn default_first_day() -> String {
+    "monday".to_string()
+}
+fn default_date_format() -> String {
+    "DD/MM/YYYY".to_string()
+}
 
 #[derive(Serialize)]
 struct ThemeBody<'a> {
@@ -368,15 +444,37 @@ struct PreferencesPatch<'a> {
     date_format: Option<&'a str>,
 }
 
-pub async fn save_first_day(server: String, token: String, first_day: &str) -> Result<Preferences, String> {
+pub async fn save_first_day(
+    server: String,
+    token: String,
+    first_day: &str,
+) -> Result<Preferences, String> {
     Client::new(server, token)
-        .put("/api/preferences", &PreferencesPatch { theme: None, first_day_of_week: Some(first_day), date_format: None })
+        .put(
+            "/api/preferences",
+            &PreferencesPatch {
+                theme: None,
+                first_day_of_week: Some(first_day),
+                date_format: None,
+            },
+        )
         .await
 }
 
-pub async fn save_date_format(server: String, token: String, date_format: &str) -> Result<Preferences, String> {
+pub async fn save_date_format(
+    server: String,
+    token: String,
+    date_format: &str,
+) -> Result<Preferences, String> {
     Client::new(server, token)
-        .put("/api/preferences", &PreferencesPatch { theme: None, first_day_of_week: None, date_format: Some(date_format) })
+        .put(
+            "/api/preferences",
+            &PreferencesPatch {
+                theme: None,
+                first_day_of_week: None,
+                date_format: Some(date_format),
+            },
+        )
         .await
 }
 
@@ -436,14 +534,22 @@ pub async fn transcribe(
     Ok(response.text)
 }
 
-pub async fn ai_models(server: String, token: String, base_url: Option<String>) -> Result<Vec<String>, String> {
+pub async fn ai_models(
+    server: String,
+    token: String,
+    base_url: Option<String>,
+) -> Result<Vec<String>, String> {
     let response: AiModelsResponse = Client::new(server, token)
         .post("/api/ai/models", &AiModelsRequest { base_url })
         .await?;
     Ok(response.models)
 }
 
-pub async fn ai_chat(server: String, token: String, messages: &[AiMessage]) -> Result<AiChatResponse, String> {
+pub async fn ai_chat(
+    server: String,
+    token: String,
+    messages: &[AiMessage],
+) -> Result<AiChatResponse, String> {
     Client::new(server, token)
         .post("/api/ai/chat", &AiChatRequest { messages })
         .await
@@ -454,8 +560,14 @@ pub async fn admin_export_backup(server: String, token: String) -> Result<String
     serde_json::to_string_pretty(&value).map_err(|error| error.to_string())
 }
 
-pub async fn admin_import_backup(server: String, token: String, value: &serde_json::Value) -> Result<serde_json::Value, String> {
-    Client::new(server, token).post("/api/admin/backup/restore", value).await
+pub async fn admin_import_backup(
+    server: String,
+    token: String,
+    value: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    Client::new(server, token)
+        .post("/api/admin/backup/restore", value)
+        .await
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -495,7 +607,8 @@ pub struct Release {
 }
 
 pub async fn latest_release() -> Option<Release> {
-    let request = HttpRequest::get(LATEST_RELEASE_URL).header("Accept", "application/vnd.github+json");
+    let request =
+        HttpRequest::get(LATEST_RELEASE_URL).header("Accept", "application/vnd.github+json");
     let response = fetch(request).await.ok()?;
     if !response.ok() {
         return None;
@@ -518,7 +631,10 @@ struct LogoSearchResponse {
 
 pub async fn search_logos(server: String, query: String) -> Result<Vec<LogoResult>, String> {
     let encoded = query.replace(' ', "%20");
-    let request = HttpRequest::get(format!("{}/api/logos/search?q={encoded}", server.trim_end_matches('/')));
+    let request = HttpRequest::get(format!(
+        "{}/api/logos/search?q={encoded}",
+        server.trim_end_matches('/')
+    ));
     let response = fetch(request).await?;
     if !response.ok() {
         return Err(format!("The server answered {}", response.status()));
@@ -539,8 +655,13 @@ pub struct DeliveryChannel {
     pub config: serde_json::Value,
 }
 
-pub async fn load_delivery_channels(server: String, token: String) -> Result<Vec<DeliveryChannel>, String> {
-    Client::new(server, token).get("/api/settings/notification-channels").await
+pub async fn load_delivery_channels(
+    server: String,
+    token: String,
+) -> Result<Vec<DeliveryChannel>, String> {
+    Client::new(server, token)
+        .get("/api/settings/notification-channels")
+        .await
 }
 
 pub async fn update_delivery_channel(
@@ -552,7 +673,10 @@ pub async fn update_delivery_channel(
 ) -> Result<DeliveryChannel, String> {
     let path = format!("/api/settings/notification-channels/{provider}");
     Client::new(server, token)
-        .put(&path, &serde_json::json!({ "enabled": enabled, "config": config }))
+        .put(
+            &path,
+            &serde_json::json!({ "enabled": enabled, "config": config }),
+        )
         .await
 }
 
@@ -602,8 +726,13 @@ pub struct CurrencySettings {
     pub fixer_configured: bool,
 }
 
-pub async fn load_currency_settings(server: String, token: String) -> Result<CurrencySettings, String> {
-    Client::new(server, token).get("/api/currency/settings").await
+pub async fn load_currency_settings(
+    server: String,
+    token: String,
+) -> Result<CurrencySettings, String> {
+    Client::new(server, token)
+        .get("/api/currency/settings")
+        .await
 }
 
 pub async fn save_currency_settings(
@@ -614,16 +743,21 @@ pub async fn save_currency_settings(
     clear_fixer_api_key: bool,
 ) -> Result<CurrencySettings, String> {
     Client::new(server, token)
-        .put("/api/currency/settings", &serde_json::json!({
-            "provider": provider,
-            "fixer_api_key": fixer_api_key,
-            "clear_fixer_api_key": clear_fixer_api_key,
-        }))
+        .put(
+            "/api/currency/settings",
+            &serde_json::json!({
+                "provider": provider,
+                "fixer_api_key": fixer_api_key,
+                "clear_fixer_api_key": clear_fixer_api_key,
+            }),
+        )
         .await
 }
 
 pub async fn load_summary(server: String, token: String) -> Result<SummarySettings, String> {
-    Client::new(server, token).get("/api/settings/summary-notification").await
+    Client::new(server, token)
+        .get("/api/settings/summary-notification")
+        .await
 }
 
 pub async fn save_summary(
@@ -639,22 +773,28 @@ pub async fn save_summary(
     period: &str,
 ) -> Result<SummarySettings, String> {
     Client::new(server, token)
-        .put("/api/settings/summary-notification", &SummaryUpdate {
-            enabled,
-            frequency,
-            weekday,
-            day_of_month,
-            hour,
-            minute,
-            timezone,
-            period,
-        })
+        .put(
+            "/api/settings/summary-notification",
+            &SummaryUpdate {
+                enabled,
+                frequency,
+                weekday,
+                day_of_month,
+                hour,
+                minute,
+                timezone,
+                period,
+            },
+        )
         .await
 }
 
 pub async fn send_summary_now(server: String, token: String) -> Result<(), String> {
     let _: serde_json::Value = Client::new(server, token)
-        .post("/api/settings/summary-notification/test", &serde_json::json!({}))
+        .post(
+            "/api/settings/summary-notification/test",
+            &serde_json::json!({}),
+        )
         .await?;
     Ok(())
 }
@@ -663,9 +803,16 @@ pub async fn load_notifications(server: String, token: String) -> Result<Notific
     Client::new(server, token).get("/api/notifications").await
 }
 
-pub async fn mark_notification_read(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+pub async fn mark_notification_read(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
     let _: serde_json::Value = Client::new(server, token)
-        .post(&format!("/api/notifications/{id}/read"), &serde_json::json!({}))
+        .post(
+            &format!("/api/notifications/{id}/read"),
+            &serde_json::json!({}),
+        )
         .await?;
     Ok(())
 }
@@ -677,8 +824,14 @@ pub async fn mark_all_notifications_read(server: String, token: String) -> Resul
     Ok(())
 }
 
-pub async fn delete_notification(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
-    Client::new(server, token).delete(&format!("/api/notifications/{id}")).await
+pub async fn delete_notification(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
+    Client::new(server, token)
+        .delete(&format!("/api/notifications/{id}"))
+        .await
 }
 
 pub async fn load_admin_users(server: String, token: String) -> Result<Vec<AdminUser>, String> {
@@ -700,23 +853,46 @@ pub struct AdminSettings {
     pub registration_enabled: bool,
 }
 
-pub async fn update_admin_role(server: String, token: String, id: uuid::Uuid, is_admin: bool) -> Result<AdminUser, String> {
+pub async fn update_admin_role(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+    is_admin: bool,
+) -> Result<AdminUser, String> {
     Client::new(server, token)
-        .put(&format!("/api/admin/users/{id}/role"), &RoleBody { is_admin })
+        .put(
+            &format!("/api/admin/users/{id}/role"),
+            &RoleBody { is_admin },
+        )
         .await
 }
 
-pub async fn delete_admin_user(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
-    Client::new(server, token).delete(&format!("/api/admin/users/{id}")).await
+pub async fn delete_admin_user(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<(), String> {
+    Client::new(server, token)
+        .delete(&format!("/api/admin/users/{id}"))
+        .await
 }
 
 pub async fn load_admin_settings(server: String, token: String) -> Result<AdminSettings, String> {
     Client::new(server, token).get("/api/admin/settings").await
 }
 
-pub async fn update_admin_settings(server: String, token: String, registration_enabled: bool) -> Result<AdminSettings, String> {
+pub async fn update_admin_settings(
+    server: String,
+    token: String,
+    registration_enabled: bool,
+) -> Result<AdminSettings, String> {
     Client::new(server, token)
-        .put("/api/admin/settings", &RegistrationBody { registration_enabled })
+        .put(
+            "/api/admin/settings",
+            &RegistrationBody {
+                registration_enabled,
+            },
+        )
         .await
 }
 
@@ -725,7 +901,9 @@ pub async fn import_backup(
     token: String,
     backup: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    Client::new(server, token).post("/api/backup/import", backup).await
+    Client::new(server, token)
+        .post("/api/backup/import", backup)
+        .await
 }
 
 pub async fn export_backup(server: String, token: String) -> Result<String, String> {
@@ -739,13 +917,12 @@ pub async fn export_backup(server: String, token: String) -> Result<String, Stri
     }
 }
 
-pub async fn delete_account(
-    server: String,
-    token: String,
-    password: String,
-) -> Result<(), String> {
+pub async fn delete_account(server: String, token: String, password: String) -> Result<(), String> {
     Client::new(server, token)
-        .post("/api/settings/account", &serde_json::json!({"password": password}))
+        .post(
+            "/api/settings/account",
+            &serde_json::json!({"password": password}),
+        )
         .await
 }
 
@@ -782,7 +959,9 @@ pub async fn load_calendar(
 ) -> Result<CalendarData, String> {
     let api = Client::new(server, token);
     let items: Vec<CalendarItem> = api
-        .get(&format!("/api/subscriptions/calendar?year={year}&month={month}"))
+        .get(&format!(
+            "/api/subscriptions/calendar?year={year}&month={month}"
+        ))
         .await?;
     let transactions: Vec<Transaction> = api.get("/api/transactions").await?;
     let rates = api.rates(&currency).await;

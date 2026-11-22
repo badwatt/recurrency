@@ -16,7 +16,13 @@ pub enum VoiceMode {
 }
 
 impl VoiceMode {
-    pub const ALL: [Self; 5] = [Self::Auto, Self::Native, Self::Browser, Self::Provider, Self::Local];
+    pub const ALL: [Self; 5] = [
+        Self::Auto,
+        Self::Native,
+        Self::Browser,
+        Self::Provider,
+        Self::Local,
+    ];
 
     pub fn id(self) -> &'static str {
         match self {

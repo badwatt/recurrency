@@ -28,7 +28,12 @@ impl ConfirmProps {
 }
 
 pub fn confirm_row(props: ConfirmProps) -> impl IntoElement {
-    let ConfirmProps { message, confirm_label, on_confirm, on_cancel } = props;
+    let ConfirmProps {
+        message,
+        confirm_label,
+        on_confirm,
+        on_cancel,
+    } = props;
     let confirm = on_confirm.clone();
     view()
         .w_full()
@@ -45,13 +50,24 @@ pub fn confirm_row(props: ConfirmProps) -> impl IntoElement {
             view()
                 .flex_row()
                 .gap(px(4.0))
-                .child(crate::ui::action_button(confirm_label.clone(), true, move || confirm()))
-                .child(crate::ui::action_button("Cancel", false, move || on_cancel())),
+                .child(crate::ui::action_button(
+                    confirm_label.clone(),
+                    true,
+                    move || confirm(),
+                ))
+                .child(crate::ui::action_button("Cancel", false, move || {
+                    on_cancel()
+                })),
         )
 }
 
 pub fn confirm_dialog(props: ConfirmProps) -> impl IntoElement {
-    let ConfirmProps { message, confirm_label, on_confirm, on_cancel } = props;
+    let ConfirmProps {
+        message,
+        confirm_label,
+        on_confirm,
+        on_cancel,
+    } = props;
     let cancel = on_cancel.clone();
     let confirm = on_confirm.clone();
     crate::components::dialog::dialog(
@@ -73,8 +89,14 @@ pub fn confirm_dialog(props: ConfirmProps) -> impl IntoElement {
                     .flex_row()
                     .justify_end()
                     .gap(px(8.0))
-                    .child(crate::ui::action_button("Cancel", false, move || on_cancel()))
-                    .child(crate::ui::action_button(confirm_label.clone(), true, move || confirm()))
+                    .child(crate::ui::action_button("Cancel", false, move || {
+                        on_cancel()
+                    }))
+                    .child(crate::ui::action_button(
+                        confirm_label.clone(),
+                        true,
+                        move || confirm(),
+                    ))
                     .into_element(),
             ),
     )

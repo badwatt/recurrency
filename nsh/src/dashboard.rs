@@ -5,20 +5,25 @@ use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use uuid::Uuid;
 
+use crate::Route;
 use crate::api;
 use crate::auth::AuthSession;
 use crate::dashboard_data::{
-    pending_ratio, total_budget, total_pending, AccountBudget, CategoryBudget, DashboardData,
-    UpcomingPayment,
+    AccountBudget, CategoryBudget, DashboardData, UpcomingPayment, pending_ratio, total_budget,
+    total_pending,
 };
 use crate::format::{days_text, format_currency, month_label, short_date};
 use crate::ui;
-use crate::Route;
 
 const PAGE_TITLE: &str = "This month's plan";
 const PAGE_SUBTITLE: &str = "What to transfer into each account, and what is still left to pay.";
 
-pub fn dashboard(auth: AuthSession, route: Signal<Route>, intent: Signal<Option<Route>>, compact: Signal<bool>) -> AnyElement {
+pub fn dashboard(
+    auth: AuthSession,
+    route: Signal<Route>,
+    intent: Signal<Option<Route>>,
+    compact: Signal<bool>,
+) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -51,23 +56,25 @@ pub fn dashboard(auth: AuthSession, route: Signal<Route>, intent: Signal<Option<
         .flex_col()
         .gap(px(30.0))
         .child(header(&user_name, route, intent, compact))
-        .child(
-            when(loading, loading_card).otherwise(move || {
-                let value = render_currency.clone();
-                when(has_error, move || {
-                    error_screen(&data.error().unwrap_or_default(), data)
-                })
-                .otherwise(move || body(data, value.clone(), route))
-            }),
-        )
+        .child(when(loading, loading_card).otherwise(move || {
+            let value = render_currency.clone();
+            when(has_error, move || {
+                error_screen(&data.error().unwrap_or_default(), data)
+            })
+            .otherwise(move || body(data, value.clone(), route))
+        }))
         .into_element()
 }
 
-fn body(data: Resource<DashboardData, String>, currency: String, route: Signal<Route>) -> AnyElement {
+fn body(
+    data: Resource<DashboardData, String>,
+    currency: String,
+    route: Signal<Route>,
+) -> AnyElement {
     let today = Local::now().date_naive();
     let month = month_label(today);
-    let days_left = crate::recurrence::days_in_month(today.year(), today.month())
-        .saturating_sub(today.day());
+    let days_left =
+        crate::recurrence::days_in_month(today.year(), today.month()).saturating_sub(today.day());
     let hovered = signal(None::<Uuid>);
     view()
         .w_full()
@@ -156,9 +163,30 @@ fn actions(route: Signal<Route>, intent: Signal<Option<Route>>) -> impl IntoElem
         .flex_wrap()
         .items_center()
         .gap(px(8.0))
-        .child(action("Add subscription", true, route, intent, Route::Subscriptions, asset!("icons/plus.svg")))
-        .child(action("Add transaction", false, route, intent, Route::Transactions, asset!("icons/transactions.svg")))
-        .child(action("Add debt", false, route, intent, Route::Debts, asset!("icons/plus.svg")))
+        .child(action(
+            "Add subscription",
+            true,
+            route,
+            intent,
+            Route::Subscriptions,
+            asset!("icons/plus.svg"),
+        ))
+        .child(action(
+            "Add transaction",
+            false,
+            route,
+            intent,
+            Route::Transactions,
+            asset!("icons/transactions.svg"),
+        ))
+        .child(action(
+            "Add debt",
+            false,
+            route,
+            intent,
+            Route::Debts,
+            asset!("icons/plus.svg"),
+        ))
 }
 
 fn action(
@@ -177,7 +205,13 @@ fn action(
         .rounded(px(8.0))
         .border(px(1.0))
         .border_color(move || theme().border)
-        .bg(move || if primary { theme().primary } else { theme().card })
+        .bg(move || {
+            if primary {
+                theme().primary
+            } else {
+                theme().card
+            }
+        })
         .active(|state| state.opacity(0.8))
         .flex_row()
         .gap(px(6.0))
@@ -185,19 +219,23 @@ fn action(
             intent.set(Some(target));
             route.set(target);
         })
-        .child(
-            image(icon)
-                .size(px(14.0))
-                .tint_color(move || if primary { theme().primary_foreground } else { theme().foreground }),
-        )
+        .child(image(icon).size(px(14.0)).tint_color(move || {
+            if primary {
+                theme().primary_foreground
+            } else {
+                theme().foreground
+            }
+        }))
         .child(
             text(label)
                 .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || if primary {
-                    theme().primary_foreground
-                } else {
-                    theme().foreground
+                .text_color(move || {
+                    if primary {
+                        theme().primary_foreground
+                    } else {
+                        theme().foreground
+                    }
                 }),
         )
 }
@@ -252,7 +290,10 @@ fn hero(
         if count == 0 {
             "All covered through today.".to_string()
         } else if days_left == 0 {
-            format!("{} · last day of the month", ui::count_label(count, "payment", "payments"))
+            format!(
+                "{} · last day of the month",
+                ui::count_label(count, "payment", "payments")
+            )
         } else {
             format!(
                 "{} · {days_left} days left",
@@ -306,7 +347,9 @@ fn hero(
                         .flex_wrap()
                         .gap(px(20.0))
                         .mt(px(22.0))
-                        .child(stat(move || ui::count_label(count(), "account", "accounts")))
+                        .child(stat(move || {
+                            ui::count_label(count(), "account", "accounts")
+                        }))
                         .child(stat(move || {
                             ui::count_label(active(), "active subscription", "active subscriptions")
                         }))
@@ -358,7 +401,11 @@ fn hero(
                                 .flex_grow(ratio().max(0.01) as f32)
                                 .bg(move || theme().primary),
                         )
-                        .child(view().h_full().flex_grow((100.0 - ratio()).max(0.01) as f32)),
+                        .child(
+                            view()
+                                .h_full()
+                                .flex_grow((100.0 - ratio()).max(0.01) as f32),
+                        ),
                 )
                 .child(
                     text(ratio_label)
@@ -383,12 +430,7 @@ fn upcoming_card(
     hovered: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
-    let total = move || {
-        data.get()
-            .unwrap_or_default()
-            .upcoming
-            .len()
-    };
+    let total = move || data.get().unwrap_or_default().upcoming.len();
     view()
         .flex_grow(1.0)
         .basis(px(500.0))
@@ -440,23 +482,18 @@ fn upcoming_card(
             )
         })
         .when(total() > 0, |card| {
-            card.child(
-                view()
-                    .px(px(22.0))
-                    .pb(px(12.0))
-                    .child(each(
-                        move || {
-                            let mut upcoming = data.get().unwrap_or_default().upcoming;
-                            upcoming.truncate(5);
-                            upcoming
-                        },
-                        |payment| payment.id,
-                        move |payment, _| {
-                            let payment = payment.get();
-                            upcoming_row(payment, data, currency.clone(), today, hovered)
-                        },
-                    )),
-            )
+            card.child(view().px(px(22.0)).pb(px(12.0)).child(each(
+                move || {
+                    let mut upcoming = data.get().unwrap_or_default().upcoming;
+                    upcoming.truncate(5);
+                    upcoming
+                },
+                |payment| payment.id,
+                move |payment, _| {
+                    let payment = payment.get();
+                    upcoming_row(payment, data, currency.clone(), today, hovered)
+                },
+            )))
         })
 }
 
@@ -490,7 +527,13 @@ fn upcoming_row(
         .py(px(10.0))
         .gap(px(12.0))
         .rounded(px(8.0))
-        .bg(move || if hovered.get() == Some(id) { theme().accent } else { theme().card })
+        .bg(move || {
+            if hovered.get() == Some(id) {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
         .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(id)))
         .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
         .child(
@@ -510,8 +553,8 @@ fn upcoming_row(
                         .bg(move || theme().muted)
                         .child(
                             image(asset!("icons/card.svg"))
-                            .size(px(17.0))
-                            .tint_color(move || theme().muted_foreground),
+                                .size(px(17.0))
+                                .tint_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
@@ -554,11 +597,17 @@ fn upcoming_row(
                 .flex_col()
                 .items_end()
                 .child(
-                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                        .text_size(px(14.0))
-                        .font_family(crate::theme::MONO)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
+                    text(move || {
+                        if crate::ui::privacy_active() {
+                            "••••".to_string()
+                        } else {
+                            amount.clone()
+                        }
+                    })
+                    .text_size(px(14.0))
+                    .font_family(crate::theme::MONO)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().foreground),
                 )
                 .when(original.is_some(), |column| {
                     column.child(
@@ -569,8 +618,8 @@ fn upcoming_row(
                                 original_display.clone().unwrap_or_default()
                             }
                         })
-                            .text_size(px(10.0))
-                            .text_color(move || theme().muted_foreground),
+                        .text_size(px(10.0))
+                        .text_color(move || theme().muted_foreground),
                     )
                 })
                 .child(
@@ -654,22 +703,8 @@ fn ledger_card(
             card.child(account_rows(data, &currency_accounts, hovered))
                 .child(ledger_footer(
                     move || ui::count_label(account_count(), "account", "accounts"),
-                    move || {
-                        total_budget(
-                            &data
-                                .get()
-                                .unwrap_or_default()
-                                .accounts,
-                        )
-                    },
-                    move || {
-                        total_pending(
-                            &data
-                                .get()
-                                .unwrap_or_default()
-                                .accounts,
-                        )
-                    },
+                    move || total_budget(&data.get().unwrap_or_default().accounts),
+                    move || total_pending(&data.get().unwrap_or_default().accounts),
                     &currency_accounts,
                 ))
         })
@@ -704,13 +739,11 @@ fn account_rows(
     hovered: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
-    view()
-        .flex_col()
-        .child(each(
-            move || data.get().unwrap_or_default().accounts,
-            |entry| entry.account_id,
-            move |entry, _| account_row(entry.get(), currency.clone(), hovered),
-        ))
+    view().flex_col().child(each(
+        move || data.get().unwrap_or_default().accounts,
+        |entry| entry.account_id,
+        move |entry, _| account_row(entry.get(), currency.clone(), hovered),
+    ))
 }
 
 fn account_row(
@@ -734,7 +767,13 @@ fn account_row(
         .items_center()
         .px(px(22.0))
         .py(px(12.0))
-        .bg(move || if hovered.get() == Some(id) { theme().accent } else { theme().card })
+        .bg(move || {
+            if hovered.get() == Some(id) {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
         .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(id)))
         .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
         .border_b(px(1.0))
@@ -793,13 +832,11 @@ fn account_row(
 
 fn category_rows(data: Resource<DashboardData, String>, currency: &str) -> impl IntoElement {
     let currency = currency.to_string();
-    view()
-        .flex_col()
-        .child(each(
-            move || data.get().unwrap_or_default().categories,
-            |entry| entry.category_id,
-            move |entry, _| category_row(entry.get(), currency.clone()),
-        ))
+    view().flex_col().child(each(
+        move || data.get().unwrap_or_default().categories,
+        |entry| entry.category_id,
+        move |entry, _| category_row(entry.get(), currency.clone()),
+    ))
 }
 
 fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
@@ -899,32 +936,35 @@ fn ledger_footer(
 }
 
 fn amount_value(amount: String, grow: f32) -> impl IntoElement {
-    view()
-        .flex_grow(grow)
-        .items_end()
-        .child(
-            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                .text_size(px(13.0))
-                .font_family(crate::theme::MONO)
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || theme().foreground),
-        )
+    view().flex_grow(grow).items_end().child(
+        text(move || {
+            if crate::ui::privacy_active() {
+                "••••".to_string()
+            } else {
+                amount.clone()
+            }
+        })
+        .text_size(px(13.0))
+        .font_family(crate::theme::MONO)
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(move || theme().foreground),
+    )
 }
 
-fn amount_cell(
-    amount: impl Fn() -> String + 'static,
-    grow: f32,
-) -> impl IntoElement {
-    view()
-        .flex_grow(grow)
-        .items_end()
-        .child(
-            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount() })
-                .text_size(px(13.0))
-                .font_family(crate::theme::MONO)
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || theme().foreground),
-        )
+fn amount_cell(amount: impl Fn() -> String + 'static, grow: f32) -> impl IntoElement {
+    view().flex_grow(grow).items_end().child(
+        text(move || {
+            if crate::ui::privacy_active() {
+                "••••".to_string()
+            } else {
+                amount()
+            }
+        })
+        .text_size(px(13.0))
+        .font_family(crate::theme::MONO)
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(move || theme().foreground),
+    )
 }
 
 fn tab(label: &'static str, active: bool, on_press: impl Fn() + 'static) -> impl IntoElement {
@@ -940,24 +980,23 @@ fn tab(label: &'static str, active: bool, on_press: impl Fn() + 'static) -> impl
             text(label)
                 .text_size(px(11.0))
                 .font_weight(FontWeight::MEDIUM)
-                .text_color(move || if active {
-                    theme().foreground
-                } else {
-                    theme().muted_foreground
+                .text_color(move || {
+                    if active {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
                 }),
         )
 }
 
 fn column_header(label: &'static str, grow: f32) -> impl IntoElement {
-    view()
-        .flex_grow(grow)
-        .items_end()
-        .child(
-            text(label)
-                .text_size(px(10.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || theme().muted_foreground),
-        )
+    view().flex_grow(grow).items_end().child(
+        text(label)
+            .text_size(px(10.0))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(move || theme().muted_foreground),
+    )
 }
 
 fn section_title(label: &'static str) -> impl IntoElement {
@@ -981,35 +1020,35 @@ fn loading_card() -> AnyElement {
 fn error_screen(message: &str, data: Resource<DashboardData, String>) -> AnyElement {
     let message = message.to_string();
     ui::surface()
-                .p(px(24.0))
-                .gap(px(12.0))
+        .p(px(24.0))
+        .gap(px(12.0))
+        .child(
+            text("The dashboard could not be loaded.")
+                .text_size(px(15.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text(message)
+                .text_size(px(13.0))
+                .text_color(move || theme().destructive),
+        )
+        .child(
+            button()
+                .items_center()
+                .justify_center()
+                .h(px(34.0))
+                .px(px(14.0))
+                .rounded(px(7.0))
+                .bg(move || theme().primary)
+                .on_press(move || data.refetch())
                 .child(
-                    text("The dashboard could not be loaded.")
-                        .text_size(px(15.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text(message)
+                    text("Try again")
                         .text_size(px(13.0))
-                        .text_color(move || theme().destructive),
-                )
-                .child(
-                    button()
-                        .items_center()
-                        .justify_center()
-                        .h(px(34.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
-                        .bg(move || theme().primary)
-                        .on_press(move || data.refetch())
-                        .child(
-                            text("Try again")
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
-                        ),
-                )
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().primary_foreground),
+                ),
+        )
         .into_element()
 }
 

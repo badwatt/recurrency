@@ -1,7 +1,9 @@
 //! Mobile floating action menu. One trigger, one list of actions; pages only
 //! supply the actions they own.
 
-use crate::components::button::{button as shared_button, ButtonAlign, ButtonProps, ButtonSize, ButtonVariant};
+use crate::components::button::{
+    ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button as shared_button,
+};
 use crate::components::card::card;
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
@@ -15,7 +17,11 @@ pub struct FabAction {
 
 impl FabAction {
     pub fn new(label: impl Into<String>, icon: ImageAsset, on_press: impl Fn() + 'static) -> Self {
-        Self { label: label.into(), icon, on_press: Rc::new(on_press) }
+        Self {
+            label: label.into(),
+            icon,
+            on_press: Rc::new(on_press),
+        }
     }
 }
 
@@ -64,9 +70,13 @@ pub fn fab_menu(open: Signal<bool>, actions: Vec<FabAction>) -> impl IntoElement
                 .accessibility_label("Quick actions")
                 .on_press(move || open.set(!open.get()))
                 .child(
-                    image(if open.get() { asset!("icons/x.svg") } else { asset!("icons/plus.svg") })
-                        .size(px(22.0))
-                        .tint_color(move || theme().primary_foreground),
+                    image(if open.get() {
+                        asset!("icons/x.svg")
+                    } else {
+                        asset!("icons/plus.svg")
+                    })
+                    .size(px(22.0))
+                    .tint_color(move || theme().primary_foreground),
                 ),
         )
 }

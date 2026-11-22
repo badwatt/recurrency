@@ -78,7 +78,10 @@ pub fn build_account_budgets(
                 AccountBudget {
                     account_id: account.id,
                     name: account.name.clone(),
-                    color: account.color.clone().unwrap_or_else(|| "#6b7280".to_string()),
+                    color: account
+                        .color
+                        .clone()
+                        .unwrap_or_else(|| "#6b7280".to_string()),
                     subscriptions: Decimal::ZERO,
                     manual: Decimal::ZERO,
                     budget: Decimal::ZERO,
@@ -91,7 +94,10 @@ pub fn build_account_budgets(
         })
         .collect();
 
-    for subscription in subscriptions.iter().filter(|subscription| subscription.is_active) {
+    for subscription in subscriptions
+        .iter()
+        .filter(|subscription| subscription.is_active)
+    {
         let occurrences = occurrences_in_month(
             subscription.start_date,
             &subscription.recurrence,
@@ -103,18 +109,20 @@ pub fn build_account_budgets(
         if occurrences.is_empty() {
             continue;
         }
-        let entry = plan.entry(subscription.account_id).or_insert_with(|| AccountBudget {
-            account_id: subscription.account_id,
-            name: "No account".to_string(),
-            color: "#6b7280".to_string(),
-            subscriptions: Decimal::ZERO,
-            manual: Decimal::ZERO,
-            budget: Decimal::ZERO,
-            pending: Decimal::ZERO,
-            subscription_count: 0,
-            manual_count: 0,
-            pending_count: 0,
-        });
+        let entry = plan
+            .entry(subscription.account_id)
+            .or_insert_with(|| AccountBudget {
+                account_id: subscription.account_id,
+                name: "No account".to_string(),
+                color: "#6b7280".to_string(),
+                subscriptions: Decimal::ZERO,
+                manual: Decimal::ZERO,
+                budget: Decimal::ZERO,
+                pending: Decimal::ZERO,
+                subscription_count: 0,
+                manual_count: 0,
+                pending_count: 0,
+            });
         entry.subscription_count += 1;
         for (date, amount) in occurrences {
             let amount = rates.convert(amount, &subscription.currency);
@@ -127,22 +135,23 @@ pub fn build_account_budgets(
         }
     }
 
-    for transaction in transactions
-        .iter()
-        .filter(|transaction| transaction.date.year() == today.year() && transaction.date.month() == today.month())
-    {
-        let entry = plan.entry(transaction.account_id).or_insert_with(|| AccountBudget {
-            account_id: transaction.account_id,
-            name: "No account".to_string(),
-            color: "#6b7280".to_string(),
-            subscriptions: Decimal::ZERO,
-            manual: Decimal::ZERO,
-            budget: Decimal::ZERO,
-            pending: Decimal::ZERO,
-            subscription_count: 0,
-            manual_count: 0,
-            pending_count: 0,
-        });
+    for transaction in transactions.iter().filter(|transaction| {
+        transaction.date.year() == today.year() && transaction.date.month() == today.month()
+    }) {
+        let entry = plan
+            .entry(transaction.account_id)
+            .or_insert_with(|| AccountBudget {
+                account_id: transaction.account_id,
+                name: "No account".to_string(),
+                color: "#6b7280".to_string(),
+                subscriptions: Decimal::ZERO,
+                manual: Decimal::ZERO,
+                budget: Decimal::ZERO,
+                pending: Decimal::ZERO,
+                subscription_count: 0,
+                manual_count: 0,
+                pending_count: 0,
+            });
         let amount = rates.convert(transaction.amount, &transaction.currency);
         entry.manual += amount;
         entry.budget += amount;
@@ -175,10 +184,15 @@ pub fn build_category_budgets(
 ) -> Vec<CategoryBudget> {
     let mut plan: HashMap<Uuid, CategoryBudget> = HashMap::new();
     let mut add = |category_id: Uuid, amount: Decimal, pending: bool| {
-        let category = categories.iter().find(|category| category.id == category_id);
+        let category = categories
+            .iter()
+            .find(|category| category.id == category_id);
         let entry = plan.entry(category_id).or_insert_with(|| CategoryBudget {
             category_id,
-            name: category.map_or_else(|| "Uncategorized".to_string(), |category| category.name.clone()),
+            name: category.map_or_else(
+                || "Uncategorized".to_string(),
+                |category| category.name.clone(),
+            ),
             color: category
                 .and_then(|category| category.color.clone())
                 .unwrap_or_else(|| "#6b7280".to_string()),
@@ -193,7 +207,10 @@ pub fn build_category_budgets(
         }
     };
 
-    for subscription in subscriptions.iter().filter(|subscription| subscription.is_active) {
+    for subscription in subscriptions
+        .iter()
+        .filter(|subscription| subscription.is_active)
+    {
         let occurrences = occurrences_in_month(
             subscription.start_date,
             &subscription.recurrence,
@@ -210,10 +227,9 @@ pub fn build_category_budgets(
             );
         }
     }
-    for transaction in transactions
-        .iter()
-        .filter(|transaction| transaction.date.year() == today.year() && transaction.date.month() == today.month())
-    {
+    for transaction in transactions.iter().filter(|transaction| {
+        transaction.date.year() == today.year() && transaction.date.month() == today.month()
+    }) {
         add(
             transaction.category_id,
             rates.convert(transaction.amount, &transaction.currency),
@@ -233,7 +249,10 @@ pub fn upcoming_payments(
     today: NaiveDate,
 ) -> Vec<UpcomingPayment> {
     let mut items = Vec::new();
-    for subscription in subscriptions.iter().filter(|subscription| subscription.is_active) {
+    for subscription in subscriptions
+        .iter()
+        .filter(|subscription| subscription.is_active)
+    {
         if let Some(date) = subscription.next_billing_date {
             items.push(UpcomingPayment {
                 id: subscription.id,
@@ -248,7 +267,10 @@ pub fn upcoming_payments(
             });
         }
     }
-    for transaction in transactions.iter().filter(|transaction| transaction.date >= today) {
+    for transaction in transactions
+        .iter()
+        .filter(|transaction| transaction.date >= today)
+    {
         items.push(UpcomingPayment {
             id: transaction.id,
             name: transaction.name.clone(),
@@ -303,7 +325,7 @@ pub fn pending_ratio(budget: Decimal, pending: Decimal) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Recurrence, AnnualDate};
+    use crate::models::{AnnualDate, Recurrence};
     use chrono::NaiveDate;
 
     fn date(year: i32, month: u32, day: u32) -> NaiveDate {
@@ -348,7 +370,11 @@ mod tests {
     fn budgets_split_paid_and_pending_charges() {
         let account_id = Uuid::new_v4();
         let accounts = vec![account(account_id, "Main")];
-        let subscriptions = vec![subscription(account_id, Decimal::from(10), date(2026, 11, 25))];
+        let subscriptions = vec![subscription(
+            account_id,
+            Decimal::from(10),
+            date(2026, 11, 25),
+        )];
         let budgets = build_account_budgets(
             &accounts,
             &subscriptions,

@@ -26,7 +26,9 @@ fn shift_month(date: NaiveDate, months: i32) -> NaiveDate {
 
 fn days_in_month(date: NaiveDate) -> u32 {
     let next = shift_month(month_start(date), 1);
-    next.signed_duration_since(month_start(date)).num_days().clamp(0, 31) as u32
+    next.signed_duration_since(month_start(date))
+        .num_days()
+        .clamp(0, 31) as u32
 }
 
 pub fn date_picker(value: Signal<String>) -> impl IntoElement {
@@ -48,7 +50,8 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
             items.push(view().h(px(28.0)).into_element());
         }
         for day in 1..=total {
-            let date = NaiveDate::from_ymd_opt(first.year(), first.month(), day as u32).unwrap_or(first);
+            let date =
+                NaiveDate::from_ymd_opt(first.year(), first.month(), day as u32).unwrap_or(first);
             let is_selected = selected == Some(date);
             let is_today = date == today;
             items.push(
@@ -74,8 +77,18 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                     .child(
                         text(day.to_string())
                             .text_size(px(11.0))
-                            .font_weight(if is_selected { FontWeight::SEMIBOLD } else { FontWeight::NORMAL })
-                            .text_color(move || if is_selected { theme().primary_foreground } else { theme().foreground }),
+                            .font_weight(if is_selected {
+                                FontWeight::SEMIBOLD
+                            } else {
+                                FontWeight::NORMAL
+                            })
+                            .text_color(move || {
+                                if is_selected {
+                                    theme().primary_foreground
+                                } else {
+                                    theme().foreground
+                                }
+                            }),
                     )
                     .into_element(),
             );
@@ -129,7 +142,11 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                         .border_color(move || theme().input)
                         .bg(move || theme().card)
                         .on_press(open_calendar)
-                        .child(image(asset!("icons/calendar.svg")).size(px(15.0)).tint_color(move || theme().muted_foreground)),
+                        .child(
+                            image(asset!("icons/calendar.svg"))
+                                .size(px(15.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
                 ),
         )
         .child(
@@ -157,7 +174,11 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                                     .justify_center()
                                     .rounded(px(5.0))
                                     .on_press(move || month.set(shift_month(month.get(), -1)))
-                                    .child(image(asset!("icons/chevron-left.svg")).size(px(14.0)).tint_color(move || theme().muted_foreground)),
+                                    .child(
+                                        image(asset!("icons/chevron-left.svg"))
+                                            .size(px(14.0))
+                                            .tint_color(move || theme().muted_foreground),
+                                    ),
                             )
                             .child(
                                 text(move || month.get().format("%B %Y").to_string())
@@ -173,7 +194,11 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                                     .justify_center()
                                     .rounded(px(5.0))
                                     .on_press(move || month.set(shift_month(month.get(), 1)))
-                                    .child(image(asset!("icons/chevron-right.svg")).size(px(14.0)).tint_color(move || theme().muted_foreground)),
+                                    .child(
+                                        image(asset!("icons/chevron-right.svg"))
+                                            .size(px(14.0))
+                                            .tint_color(move || theme().muted_foreground),
+                                    ),
                             ),
                     )
                     .child(
@@ -183,19 +208,28 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                             .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
                             .gap(px(2.0))
                             .children({
-                                let labels: [&'static str; 7] = if crate::format::week_starts_sunday() {
-                                    ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
-                                } else {
-                                    WEEKDAYS
-                                };
-                                labels.into_iter().map(|day| {
-                                    view()
-                                        .items_center()
-                                        .justify_center()
-                                        .py(px(2.0))
-                                        .child(text(day).text_size(px(9.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().muted_foreground))
-                                        .into_element()
-                                }).collect::<Vec<_>>()
+                                let labels: [&'static str; 7] =
+                                    if crate::format::week_starts_sunday() {
+                                        ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+                                    } else {
+                                        WEEKDAYS
+                                    };
+                                labels
+                                    .into_iter()
+                                    .map(|day| {
+                                        view()
+                                            .items_center()
+                                            .justify_center()
+                                            .py(px(2.0))
+                                            .child(
+                                                text(day)
+                                                    .text_size(px(9.0))
+                                                    .font_weight(FontWeight::SEMIBOLD)
+                                                    .text_color(move || theme().muted_foreground),
+                                            )
+                                            .into_element()
+                                    })
+                                    .collect::<Vec<_>>()
                             }),
                     )
                     .child(
@@ -224,7 +258,11 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                                         value.set(String::new());
                                         open.set(false);
                                     })
-                                    .child(text("Clear").text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                                    .child(
+                                        text("Clear")
+                                            .text_size(px(11.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
                             )
                             .child(
                                 button()
@@ -237,7 +275,12 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                                         month.set(month_start(today));
                                         open.set(false);
                                     })
-                                    .child(text("Today").text_size(px(11.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().primary)),
+                                    .child(
+                                        text("Today")
+                                            .text_size(px(11.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().primary),
+                                    ),
                             ),
                     )
                     .into_element()

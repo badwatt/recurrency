@@ -3,14 +3,14 @@
 //! derived from that schema instead of duplicating one form per channel.
 
 use crate::api::DeliveryChannel;
-use crate::components::badge::{badge, BadgeProps, BadgeTone};
-use crate::components::button::{button, ButtonProps, ButtonSize, ButtonVariant};
-use crate::components::field::{field, FieldProps};
+use crate::components::badge::{BadgeProps, BadgeTone, badge};
+use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, button};
+use crate::components::field::{FieldProps, field};
 use crate::components::input::text_input_value;
 use crate::components::toggle::toggle;
 use nsh_base::theme;
 use nsh_core::prelude::*;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 #[derive(Clone, Copy)]
 pub struct ChannelField {
@@ -19,8 +19,16 @@ pub struct ChannelField {
     pub placeholder: &'static str,
 }
 
-const fn config_field(key: &'static str, label: &'static str, placeholder: &'static str) -> ChannelField {
-    ChannelField { key, label, placeholder }
+const fn config_field(
+    key: &'static str,
+    label: &'static str,
+    placeholder: &'static str,
+) -> ChannelField {
+    ChannelField {
+        key,
+        label,
+        placeholder,
+    }
 }
 
 pub struct ProviderSpec {
@@ -46,7 +54,11 @@ const TELEGRAM_FIELDS: &[ChannelField] = &[
     config_field("bot_token", "Bot token", "123456:ABC"),
     config_field("chat_id", "Chat ID", "-1001234567890"),
 ];
-const WEBHOOK_FIELDS: &[ChannelField] = &[config_field("webhook_url", "Webhook URL", "https://example.com/hook")];
+const WEBHOOK_FIELDS: &[ChannelField] = &[config_field(
+    "webhook_url",
+    "Webhook URL",
+    "https://example.com/hook",
+)];
 const GOTIFY_FIELDS: &[ChannelField] = &[
     config_field("server_url", "Server URL", "https://gotify.example.com"),
     config_field("token", "App token", ""),
@@ -59,17 +71,61 @@ const TOKEN_FIELDS: &[ChannelField] = &[config_field("token", "Token", "")];
 const SERVERCHAN_FIELDS: &[ChannelField] = &[config_field("send_key", "SendKey", "")];
 
 pub const PROVIDERS: &[ProviderSpec] = &[
-    ProviderSpec { id: "email", label: "Email", fields: EMAIL_FIELDS },
-    ProviderSpec { id: "ntfy", label: "ntfy", fields: NTFY_FIELDS },
-    ProviderSpec { id: "telegram", label: "Telegram", fields: TELEGRAM_FIELDS },
-    ProviderSpec { id: "discord", label: "Discord", fields: WEBHOOK_FIELDS },
-    ProviderSpec { id: "gotify", label: "Gotify", fields: GOTIFY_FIELDS },
-    ProviderSpec { id: "webhook", label: "Webhook", fields: WEBHOOK_FIELDS },
-    ProviderSpec { id: "slack", label: "Slack", fields: WEBHOOK_FIELDS },
-    ProviderSpec { id: "mattermost", label: "Mattermost", fields: WEBHOOK_FIELDS },
-    ProviderSpec { id: "pushover", label: "Pushover", fields: PUSHOVER_FIELDS },
-    ProviderSpec { id: "pushplus", label: "PushPlus", fields: TOKEN_FIELDS },
-    ProviderSpec { id: "serverchan", label: "ServerChan", fields: SERVERCHAN_FIELDS },
+    ProviderSpec {
+        id: "email",
+        label: "Email",
+        fields: EMAIL_FIELDS,
+    },
+    ProviderSpec {
+        id: "ntfy",
+        label: "ntfy",
+        fields: NTFY_FIELDS,
+    },
+    ProviderSpec {
+        id: "telegram",
+        label: "Telegram",
+        fields: TELEGRAM_FIELDS,
+    },
+    ProviderSpec {
+        id: "discord",
+        label: "Discord",
+        fields: WEBHOOK_FIELDS,
+    },
+    ProviderSpec {
+        id: "gotify",
+        label: "Gotify",
+        fields: GOTIFY_FIELDS,
+    },
+    ProviderSpec {
+        id: "webhook",
+        label: "Webhook",
+        fields: WEBHOOK_FIELDS,
+    },
+    ProviderSpec {
+        id: "slack",
+        label: "Slack",
+        fields: WEBHOOK_FIELDS,
+    },
+    ProviderSpec {
+        id: "mattermost",
+        label: "Mattermost",
+        fields: WEBHOOK_FIELDS,
+    },
+    ProviderSpec {
+        id: "pushover",
+        label: "Pushover",
+        fields: PUSHOVER_FIELDS,
+    },
+    ProviderSpec {
+        id: "pushplus",
+        label: "PushPlus",
+        fields: TOKEN_FIELDS,
+    },
+    ProviderSpec {
+        id: "serverchan",
+        label: "ServerChan",
+        fields: SERVERCHAN_FIELDS,
+    },
 ];
 
 pub fn provider(id: &str) -> Option<&'static ProviderSpec> {
@@ -115,26 +171,31 @@ fn config_for(provider: &ProviderSpec, values: &[(String, String)]) -> Value {
     Value::Object(map)
 }
 
-fn load_from(id: &str, channels: &[DeliveryChannel], values: Signal<Vec<(String, String)>>, enabled: Signal<bool>) {
+fn load_from(
+    id: &str,
+    channels: &[DeliveryChannel],
+    values: Signal<Vec<(String, String)>>,
+    enabled: Signal<bool>,
+) {
     let Some(provider) = provider(id) else { return };
     let channel = channels.iter().find(|channel| channel.provider == id);
-    values.set(values_for(provider, channel.map_or(&Value::Null, |channel| &channel.config)));
+    values.set(values_for(
+        provider,
+        channel.map_or(&Value::Null, |channel| &channel.config),
+    ));
     enabled.set(channel.is_some_and(|channel| channel.enabled));
 }
 
 pub fn delivery_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(
-        || Some(()),
-        {
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_delivery_channels(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_delivery_channels(server, token).await }
+        }
+    });
     let selected = signal("email".to_string());
     let enabled = signal(false);
     let values = signal(Vec::<(String, String)>::new());
@@ -153,13 +214,23 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
         let server = server.clone();
         let token = token.clone();
         move || {
-            let Some(provider) = provider(&selected.get()) else { return };
+            let Some(provider) = provider(&selected.get()) else {
+                return;
+            };
             let config = config_for(provider, &values.get());
             let enabled = enabled.get();
             let server = server.clone();
             let token = token.clone();
             spawn(async move {
-                match crate::api::update_delivery_channel(server, token, provider.id, enabled, config).await {
+                match crate::api::update_delivery_channel(
+                    server,
+                    token,
+                    provider.id,
+                    enabled,
+                    config,
+                )
+                .await
+                {
                     Ok(_) => {
                         status.set(format!("{} saved.", provider.label));
                         data.refetch();
@@ -173,7 +244,9 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
         let server = server.clone();
         let token = token.clone();
         move || {
-            let Some(provider) = provider(&selected.get()) else { return };
+            let Some(provider) = provider(&selected.get()) else {
+                return;
+            };
             let config = config_for(provider, &values.get());
             let server = server.clone();
             let token = token.clone();
@@ -199,10 +272,23 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 .child(
                     view()
                         .flex_col()
-                        .child(text("Delivery channels").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
-                        .child(text("One summary, several destinations. Secrets stay encrypted.").text_size(px(12.0)).text_color(move || theme().muted_foreground)),
+                        .child(
+                            text("Delivery channels")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("One summary, several destinations. Secrets stay encrypted.")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
                 )
-                .child(toggle(enabled.get(), format!("Enable {}", current()), move |value| enabled.set(value))),
+                .child(toggle(
+                    enabled.get(),
+                    format!("Enable {}", current()),
+                    move |value| enabled.set(value),
+                )),
         )
         .child(
             view()
@@ -212,14 +298,22 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 .children(PROVIDERS.iter().map(|spec| {
                     let id = spec.id;
                     let active = selected.get() == id;
-                    let is_enabled = data.get().unwrap_or_default().iter().any(|channel| channel.provider == id && channel.enabled);
+                    let is_enabled = data
+                        .get()
+                        .unwrap_or_default()
+                        .iter()
+                        .any(|channel| channel.provider == id && channel.enabled);
                     view()
                         .flex_row()
                         .items_center()
                         .gap(px(4.0))
                         .child(button(
                             ButtonProps::new(spec.label)
-                                .variant(if active { ButtonVariant::Secondary } else { ButtonVariant::Ghost })
+                                .variant(if active {
+                                    ButtonVariant::Secondary
+                                } else {
+                                    ButtonVariant::Ghost
+                                })
                                 .size(ButtonSize::Xs)
                                 .on_press(move || {
                                     let channels = data.get().unwrap_or_default();
@@ -227,7 +321,15 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                                     selected.set(id.to_string());
                                 }),
                         ))
-                        .when(is_enabled, |row| row.child(view().h(px(5.0)).w(px(5.0)).rounded(px(99.0)).bg(move || theme().primary)))
+                        .when(is_enabled, |row| {
+                            row.child(
+                                view()
+                                    .h(px(5.0))
+                                    .w(px(5.0))
+                                    .rounded(px(99.0))
+                                    .bg(move || theme().primary),
+                            )
+                        })
                 })),
         )
         .child(
@@ -244,40 +346,63 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                         .flex_row()
                         .items_center()
                         .gap(px(8.0))
-                        .child(text(move || current().to_string()).text_size(px(14.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                        .child(badge(BadgeProps::new("Configured").tone(if data.get().unwrap_or_default().iter().any(|channel| channel.provider == selected.get() && channel.configured) { BadgeTone::Success } else { BadgeTone::Neutral }))),
+                        .child(
+                            text(move || current().to_string())
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(badge(BadgeProps::new("Configured").tone(
+                            if data.get().unwrap_or_default().iter().any(|channel| {
+                                channel.provider == selected.get() && channel.configured
+                            }) {
+                                BadgeTone::Success
+                            } else {
+                                BadgeTone::Neutral
+                            },
+                        ))),
                 )
-                .child(
-                    view()
-                        .flex_row()
-                        .flex_wrap()
-                        .gap(px(10.0))
-                        .children((0..fields().len()).map(|index| {
-                            let field_spec = fields()[index];
-                            let current_value = values.get().get(index).map_or_else(String::new, |(_, value)| value.clone());
-                            let control = text_input_value(current_value, field_spec.placeholder, move |next| {
+                .child(view().flex_row().flex_wrap().gap(px(10.0)).children(
+                    (0..fields().len()).map(|index| {
+                        let field_spec = fields()[index];
+                        let current_value = values
+                            .get()
+                            .get(index)
+                            .map_or_else(String::new, |(_, value)| value.clone());
+                        let control =
+                            text_input_value(current_value, field_spec.placeholder, move |next| {
                                 let mut next_values = values.get();
                                 if let Some(slot) = next_values.get_mut(index) {
                                     slot.1 = next;
                                 }
                                 values.set(next_values);
                             });
-                            view()
-                                .min_w(px(180.0))
-                                .flex_grow(1.0)
-                                .child(field(FieldProps::new(field_spec.label), control.into_element()))
-                        })),
-                )
+                        view().min_w(px(180.0)).flex_grow(1.0).child(field(
+                            FieldProps::new(field_spec.label),
+                            control.into_element(),
+                        ))
+                    }),
+                ))
                 .child(
                     view()
                         .flex_row()
                         .flex_wrap()
                         .items_center()
                         .gap(px(8.0))
-                        .child(button(ButtonProps::new(format!("Save {}", current())).on_press(save)))
-                        .child(button(ButtonProps::new("Send test").variant(ButtonVariant::Outline).on_press(send_test))),
+                        .child(button(
+                            ButtonProps::new(format!("Save {}", current())).on_press(save),
+                        ))
+                        .child(button(
+                            ButtonProps::new("Send test")
+                                .variant(ButtonVariant::Outline)
+                                .on_press(send_test),
+                        )),
                 )
-                .child(text(move || status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                .child(
+                    text(move || status.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
         )
 }
 
@@ -289,7 +414,12 @@ mod tests {
     fn every_provider_has_a_unique_id_and_fields() {
         for (index, provider) in PROVIDERS.iter().enumerate() {
             assert!(provider.fields.iter().all(|field| !field.key.is_empty()));
-            assert!(PROVIDERS.iter().skip(index + 1).all(|other| other.id != provider.id));
+            assert!(
+                PROVIDERS
+                    .iter()
+                    .skip(index + 1)
+                    .all(|other| other.id != provider.id)
+            );
         }
     }
 
@@ -303,8 +433,17 @@ mod tests {
     #[test]
     fn empty_fields_are_omitted_and_shared_webhook_schema_is_reused() {
         let provider = super::provider("slack").expect("slack provider");
-        let config = config_for(provider, &[("webhook_url".to_string(), "https://hooks.slack.com/x".to_string())]);
+        let config = config_for(
+            provider,
+            &[(
+                "webhook_url".to_string(),
+                "https://hooks.slack.com/x".to_string(),
+            )],
+        );
         assert_eq!(config.as_object().map(Map::len), Some(1));
-        assert_eq!(provider.fields.len(), super::provider("discord").expect("discord").fields.len());
+        assert_eq!(
+            provider.fields.len(),
+            super::provider("discord").expect("discord").fields.len()
+        );
     }
 }

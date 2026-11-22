@@ -11,13 +11,25 @@ pub struct StringSelectProps {
 }
 
 impl StringSelectProps {
-    pub fn new(label: impl Into<String>, selected: Signal<String>, options: Vec<(String, String)>) -> Self {
-        Self { label: label.into(), selected, options }
+    pub fn new(
+        label: impl Into<String>,
+        selected: Signal<String>,
+        options: Vec<(String, String)>,
+    ) -> Self {
+        Self {
+            label: label.into(),
+            selected,
+            options,
+        }
     }
 }
 
 pub fn string_select(props: StringSelectProps) -> impl IntoElement {
-    let StringSelectProps { label, selected, options } = props;
+    let StringSelectProps {
+        label,
+        selected,
+        options,
+    } = props;
     let open = signal(false);
     let query = signal(String::new());
     let option_rows = options.clone();
@@ -32,7 +44,11 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         let q = query.get().trim().to_lowercase();
         option_rows
             .iter()
-            .filter(|(value, label)| q.is_empty() || value.to_lowercase().contains(&q) || label.to_lowercase().contains(&q))
+            .filter(|(value, label)| {
+                q.is_empty()
+                    || value.to_lowercase().contains(&q)
+                    || label.to_lowercase().contains(&q)
+            })
             .cloned()
             .collect::<Vec<_>>()
     };
@@ -41,7 +57,12 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))
-        .child(text(label).text_size(px(12.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().muted_foreground))
+        .child(
+            text(label)
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground),
+        )
         .child(
             button()
                 .w_full()
@@ -56,8 +77,17 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                 .border_color(move || theme().input)
                 .bg(move || theme().card)
                 .on_press(move || open.set(!open.get()))
-                .child(text(selected_label()).number_of_lines(1).text_size(px(13.0)).text_color(move || theme().foreground))
-                .child(image(asset!("icons/chevron-down.svg")).size(px(13.0)).tint_color(move || theme().muted_foreground)),
+                .child(
+                    text(selected_label())
+                        .number_of_lines(1)
+                        .text_size(px(13.0))
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    image(asset!("icons/chevron-down.svg"))
+                        .size(px(13.0))
+                        .tint_color(move || theme().muted_foreground),
+                ),
         )
         .child(
             when(open, move || {
@@ -101,14 +131,31 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                                     .items_center()
                                     .justify_between()
                                     .rounded(px(5.0))
-                                    .bg(move || if active { theme().accent } else { theme().popover })
+                                    .bg(move || {
+                                        if active {
+                                            theme().accent
+                                        } else {
+                                            theme().popover
+                                        }
+                                    })
                                     .on_press(move || {
                                         selected.set(press_value.clone());
                                         open.set(false);
                                         query.set(String::new());
                                     })
-                                    .child(text(label).number_of_lines(1).text_size(px(11.0)).text_color(move || theme().foreground))
-                                    .when(active, |row| row.child(image(asset!("icons/check.svg")).size(px(12.0)).tint_color(move || theme().primary)))
+                                    .child(
+                                        text(label)
+                                            .number_of_lines(1)
+                                            .text_size(px(11.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .when(active, |row| {
+                                        row.child(
+                                            image(asset!("icons/check.svg"))
+                                                .size(px(12.0))
+                                                .tint_color(move || theme().primary),
+                                        )
+                                    })
                                     .into_element()
                             })),
                     )

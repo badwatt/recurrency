@@ -1,16 +1,16 @@
 //! Monthly reports: summary, category split and recent trends.
 
 use chrono::{Datelike, Local, NaiveDate};
-use std::f32::consts::TAU;
 use nsh_base::{button, theme};
 use nsh_core::canvas::{CanvasTextAlign, LineJoin};
 use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
+use std::f32::consts::TAU;
 
 use crate::api::{self, ReportsData};
-use crate::components::page_header::page_header as shared_page_header;
 use crate::auth::AuthSession;
+use crate::components::page_header::page_header as shared_page_header;
 use crate::format::format_currency;
 use crate::models::{Category, ReportResponse};
 use crate::theme as design;
@@ -61,18 +61,15 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 .child(export_pdf_button(data, &currency))
                 .into_element(),
         ))
-        .child(
-            when(loading, || loading_card()).otherwise(move || {
-                let currency = render_currency.clone();
-                when(has_error, move || {
-                    error_card(&data.error().unwrap_or_default(), data)
-                })
-                .otherwise(move || content(data, currency.clone()))
-            }),
-        )
+        .child(when(loading, || loading_card()).otherwise(move || {
+            let currency = render_currency.clone();
+            when(has_error, move || {
+                error_card(&data.error().unwrap_or_default(), data)
+            })
+            .otherwise(move || content(data, currency.clone()))
+        }))
         .into_element()
 }
-
 
 fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl IntoElement {
     view()
@@ -107,12 +104,7 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
     let subscriptions_currency = currency.clone();
     let transactions_currency = currency.clone();
     let average_currency = currency.clone();
-    let total = move || {
-        format_currency(
-            report().monthly_summary.overall_total,
-            &total_currency,
-        )
-    };
+    let total = move || format_currency(report().monthly_summary.overall_total, &total_currency);
     let subscriptions = move || {
         format_currency(
             report().monthly_summary.subscriptions_total,
@@ -162,7 +154,10 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                         format!(
                             "{} active · {} / year",
                             summary.subscriptions_count,
-                            format_currency(summary.subscriptions_total * Decimal::from(12), &subscriptions_caption_currency)
+                            format_currency(
+                                summary.subscriptions_total * Decimal::from(12),
+                                &subscriptions_caption_currency
+                            )
                         )
                     },
                 ))
@@ -170,7 +165,12 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                     "One-time",
                     asset!("icons/receipt.svg"),
                     transactions,
-                    move || format!("{} transactions", report().monthly_summary.transactions_count),
+                    move || {
+                        format!(
+                            "{} transactions",
+                            report().monthly_summary.transactions_count
+                        )
+                    },
                 ))
                 .child(summary_card(
                     "Avg / month",
@@ -298,11 +298,17 @@ fn summary_card(
                 ),
         )
         .child(
-            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { value() })
-                .text_size(px(24.0))
-                .font_family(design::MONO)
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
+            text(move || {
+                if crate::ui::privacy_active() {
+                    "••••".to_string()
+                } else {
+                    value()
+                }
+            })
+            .text_size(px(24.0))
+            .font_family(design::MONO)
+            .font_weight(FontWeight::BOLD)
+            .text_color(move || theme().foreground),
         )
         .child(
             text(caption)
@@ -329,105 +335,93 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                 .text_color(move || theme().foreground),
         )
         .child(
-            view()
-                .w_full()
-                .items_center()
-                .child(
-                    canvas(move || {
-                        let size = 240.0_f32;
-                        let center = size / 2.0;
-                        let radius = size * 0.34;
-                        let mut painter = Painter::new().line_width(size * 0.11);
-                        let categories = data
-                            .get()
-                            .unwrap_or_default()
-                            .report
-                            .category_breakdown;
-                        if categories.is_empty() {
-                            return painter
-                                .stroke_color(rgb(0x454759))
-                                .begin_path()
-                                .arc(center, center, radius, 0.0, TAU)
-                                .stroke();
-                        }
-                        let total: f64 = categories.iter().map(|category| category.percentage).sum();
-                        if total <= 0.0 {
-                            return painter
-                                .stroke_color(rgb(0x454759))
-                                .begin_path()
-                                .arc(center, center, radius, 0.0, TAU)
-                                .stroke();
-                        }
-                        if categories.len() == 1 {
-                            let color = category_color(data, &categories[0].category_name);
-                            return painter
-                                .stroke_color(rgb(parse_hex(&color)))
-                                .begin_path()
-                                .arc(center, center, radius, 0.0, TAU)
-                                .stroke();
-                        }
-                        let mut start = -TAU / 4.0;
-                        for (index, category) in categories.iter().enumerate() {
-                            let sweep = (category.percentage / total) as f32 * TAU;
-                            let color = category_color(data, &category.category_name);
-                            painter = painter
-                                .stroke_color(rgb(parse_hex(&color)))
-                                .begin_path()
-                                .arc(center, center, radius, start + 0.02, start + sweep - 0.02)
-                                .stroke();
-                            start += sweep;
-                            let _ = index;
-                        }
-                        painter
-                    })
-                    .h(px(240.0))
-                    .w(px(240.0)),
-                ),
-        )
-        .child(
-            view()
-                .flex_col()
-                .gap(px(6.0))
-                .child(each(
-                    move || data.get().unwrap_or_default().report.category_breakdown,
-                    |category| category.category_name.clone(),
-                    move |category, _| {
-                        let category = category.get();
+            view().w_full().items_center().child(
+                canvas(move || {
+                    let size = 240.0_f32;
+                    let center = size / 2.0;
+                    let radius = size * 0.34;
+                    let mut painter = Painter::new().line_width(size * 0.11);
+                    let categories = data.get().unwrap_or_default().report.category_breakdown;
+                    if categories.is_empty() {
+                        return painter
+                            .stroke_color(rgb(0x454759))
+                            .begin_path()
+                            .arc(center, center, radius, 0.0, TAU)
+                            .stroke();
+                    }
+                    let total: f64 = categories.iter().map(|category| category.percentage).sum();
+                    if total <= 0.0 {
+                        return painter
+                            .stroke_color(rgb(0x454759))
+                            .begin_path()
+                            .arc(center, center, radius, 0.0, TAU)
+                            .stroke();
+                    }
+                    if categories.len() == 1 {
+                        let color = category_color(data, &categories[0].category_name);
+                        return painter
+                            .stroke_color(rgb(parse_hex(&color)))
+                            .begin_path()
+                            .arc(center, center, radius, 0.0, TAU)
+                            .stroke();
+                    }
+                    let mut start = -TAU / 4.0;
+                    for (index, category) in categories.iter().enumerate() {
+                        let sweep = (category.percentage / total) as f32 * TAU;
                         let color = category_color(data, &category.category_name);
-                        let name = category.category_name.clone();
-                        let percentage = format!("{:.0}%", category.percentage);
+                        painter = painter
+                            .stroke_color(rgb(parse_hex(&color)))
+                            .begin_path()
+                            .arc(center, center, radius, start + 0.02, start + sweep - 0.02)
+                            .stroke();
+                        start += sweep;
+                        let _ = index;
+                    }
+                    painter
+                })
+                .h(px(240.0))
+                .w(px(240.0)),
+            ),
+        )
+        .child(view().flex_col().gap(px(6.0)).child(each(
+            move || data.get().unwrap_or_default().report.category_breakdown,
+            |category| category.category_name.clone(),
+            move |category, _| {
+                let category = category.get();
+                let color = category_color(data, &category.category_name);
+                let name = category.category_name.clone();
+                let percentage = format!("{:.0}%", category.percentage);
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .child(
                         view()
-                            .w_full()
                             .flex_row()
                             .items_center()
-                            .justify_between()
+                            .gap(px(6.0))
                             .child(
                                 view()
-                                    .flex_row()
-                                    .items_center()
-                                    .gap(px(6.0))
-                                    .child(
-                                        view()
-                                            .h(px(8.0))
-                                            .w(px(8.0))
-                                            .rounded(px(999.0))
-                                            .bg(move || rgb(parse_hex(&color))),
-                                    )
-                                    .child(
-                                        text(name)
-                                            .text_size(px(12.0))
-                                            .text_color(move || theme().foreground),
-                                    ),
+                                    .h(px(8.0))
+                                    .w(px(8.0))
+                                    .rounded(px(999.0))
+                                    .bg(move || rgb(parse_hex(&color))),
                             )
                             .child(
-                                text(percentage)
+                                text(name)
                                     .text_size(px(12.0))
-                                    .font_family(design::MONO)
-                                    .text_color(move || theme().muted_foreground),
-                            )
-                    },
-                )),
-        )
+                                    .text_color(move || theme().foreground),
+                            ),
+                    )
+                    .child(
+                        text(percentage)
+                            .text_size(px(12.0))
+                            .font_family(design::MONO)
+                            .text_color(move || theme().muted_foreground),
+                    )
+            },
+        )))
 }
 
 fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
@@ -482,69 +476,70 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                         .flex_grow(1.0),
                 ),
         )
-        .child(
-            view()
-                .flex_col()
-                .child(each(
-                    move || data.get().unwrap_or_default().report.category_breakdown,
-                    |category| category.category_name.clone(),
-                    move |category, _| {
-                        let category = category.get();
-                        let color = category_color(data, &category.category_name);
-                        let amount = format_currency(category.total, &currency);
-                        let name = category.category_name.clone();
-                        let count = category.count;
-                        let share = format!("{:.1}%", category.percentage);
+        .child(view().flex_col().child(each(
+            move || data.get().unwrap_or_default().report.category_breakdown,
+            |category| category.category_name.clone(),
+            move |category, _| {
+                let category = category.get();
+                let color = category_color(data, &category.category_name);
+                let amount = format_currency(category.total, &currency);
+                let name = category.category_name.clone();
+                let count = category.count;
+                let share = format!("{:.1}%", category.percentage);
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .py(px(9.0))
+                    .border_b(px(1.0))
+                    .border_color(move || theme().border)
+                    .child(
                         view()
-                            .w_full()
+                            .flex_grow(2.0)
                             .flex_row()
                             .items_center()
-                            .py(px(9.0))
-                            .border_b(px(1.0))
-                            .border_color(move || theme().border)
+                            .gap(px(6.0))
                             .child(
                                 view()
-                                    .flex_grow(2.0)
-                                    .flex_row()
-                                    .items_center()
-                                    .gap(px(6.0))
-                                    .child(
-                                        view()
-                                            .h(px(8.0))
-                                            .w(px(8.0))
-                                            .rounded(px(999.0))
-                                            .bg(move || rgb(parse_hex(&color))),
-                                    )
-                                    .child(
-                                        text(name)
-                                            .text_size(px(12.0))
-                                            .text_color(move || theme().foreground),
-                                    ),
+                                    .h(px(8.0))
+                                    .w(px(8.0))
+                                    .rounded(px(999.0))
+                                    .bg(move || rgb(parse_hex(&color))),
                             )
                             .child(
-                                text(count.to_string())
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().muted_foreground)
-                                    .flex_grow(1.0),
-                            )
-                            .child(
-                                text(share)
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().muted_foreground)
-                                    .flex_grow(1.0),
-                            )
-                            .child(
-                                text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
+                                text(name)
                                     .text_size(px(12.0))
-                                    .font_family(design::MONO)
-                                    .text_color(move || theme().foreground)
-                                    .flex_grow(1.0),
-                            )
-                    },
-                )),
-        )
+                                    .text_color(move || theme().foreground),
+                            ),
+                    )
+                    .child(
+                        text(count.to_string())
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground)
+                            .flex_grow(1.0),
+                    )
+                    .child(
+                        text(share)
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground)
+                            .flex_grow(1.0),
+                    )
+                    .child(
+                        text(move || {
+                            if crate::ui::privacy_active() {
+                                "••••".to_string()
+                            } else {
+                                amount.clone()
+                            }
+                        })
+                        .text_size(px(12.0))
+                        .font_family(design::MONO)
+                        .text_color(move || theme().foreground)
+                        .flex_grow(1.0),
+                    )
+            },
+        )))
 }
-
 
 fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
     let _currency = currency.to_string();
@@ -652,12 +647,13 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
             })
             .w_full()
             .h(px(220.0))
-            .on_layout(move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-                width.set(bounds.size.width.0);
-            }),
+            .on_layout(
+                move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                    width.set(bounds.size.width.0);
+                },
+            ),
         )
 }
-
 
 fn build_csv(report: &ReportResponse, currency: &str) -> String {
     let mut csv = String::from("Period,Total\n");
@@ -690,9 +686,24 @@ fn build_pdf(report: &ReportResponse, currency: &str) -> Vec<u8> {
         ("Recurrency report".to_string(), 18.0),
         (period, 12.0),
         (String::new(), 10.0),
-        (format!("Total spending: {} {}", summary.overall_total, currency), 11.0),
-        (format!("Subscriptions: {} {} ({} active)", summary.subscriptions_total, currency, summary.subscriptions_count), 11.0),
-        (format!("One-time: {} {} ({} transactions)", summary.transactions_total, currency, summary.transactions_count), 11.0),
+        (
+            format!("Total spending: {} {}", summary.overall_total, currency),
+            11.0,
+        ),
+        (
+            format!(
+                "Subscriptions: {} {} ({} active)",
+                summary.subscriptions_total, currency, summary.subscriptions_count
+            ),
+            11.0,
+        ),
+        (
+            format!(
+                "One-time: {} {} ({} transactions)",
+                summary.transactions_total, currency, summary.transactions_count
+            ),
+            11.0,
+        ),
         (String::new(), 10.0),
         ("Category breakdown".to_string(), 13.0),
     ];
@@ -700,7 +711,11 @@ fn build_pdf(report: &ReportResponse, currency: &str) -> Vec<u8> {
         lines.push((
             format!(
                 "{}: {} {} ({} items, {:.1}%)",
-                category.category_name, category.total, currency, category.count, category.percentage
+                category.category_name,
+                category.total,
+                currency,
+                category.count,
+                category.percentage
             ),
             10.0,
         ));
@@ -708,7 +723,10 @@ fn build_pdf(report: &ReportResponse, currency: &str) -> Vec<u8> {
     lines.push((String::new(), 10.0));
     lines.push(("Monthly trend".to_string(), 13.0));
     for trend in &report.recent_trends {
-        lines.push((format!("{}: {} {}", trend.period, trend.total, currency), 10.0));
+        lines.push((
+            format!("{}: {} {}", trend.period, trend.total, currency),
+            10.0,
+        ));
     }
     let mut content = String::new();
     let mut y = 800.0;
@@ -736,7 +754,10 @@ fn build_pdf(report: &ReportResponse, currency: &str) -> Vec<u8> {
         pdf.push_str(&format!("{} 0 obj\n{}\nendobj\n", index + 1, object));
     }
     let xref = pdf.len();
-    pdf.push_str(&format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1));
+    pdf.push_str(&format!(
+        "xref\n0 {}\n0000000000 65535 f \n",
+        objects.len() + 1
+    ));
     for offset in offsets {
         pdf.push_str(&format!("{offset:010} 00000 n \n"));
     }
@@ -806,7 +827,9 @@ fn error_card(message: &str, data: Resource<ReportsData, String>) -> AnyElement 
                 .text_size(px(13.0))
                 .text_color(move || theme().destructive),
         )
-        .child(ui::action_button("Try again", false, move || data.refetch()))
+        .child(ui::action_button("Try again", false, move || {
+            data.refetch()
+        }))
         .into_element()
 }
 

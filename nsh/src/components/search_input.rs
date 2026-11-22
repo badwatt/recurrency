@@ -18,7 +18,11 @@ pub fn search_input(value: Signal<String>, placeholder: &'static str) -> impl In
         .flex_grow(1.0)
         .basis(px(220.0))
         .min_w(px(0.0))
-        .child(image(asset!("icons/search.svg")).size(px(16.0)).tint_color(move || theme().muted_foreground))
+        .child(
+            image(asset!("icons/search.svg"))
+                .size(px(16.0))
+                .tint_color(move || theme().muted_foreground),
+        )
         .child(
             input()
                 .value(value)
@@ -34,15 +38,25 @@ pub fn search_input(value: Signal<String>, placeholder: &'static str) -> impl In
                 .text_size(px(14.0))
                 .text_color(move || theme().foreground),
         )
-        .child(when(move || !value.get().is_empty(), move || {
-            button()
-                .items_center()
-                .justify_center()
-                .h(px(24.0))
-                .w(px(24.0))
-                .rounded(px(5.0))
-                .on_press(move || value.set(String::new()))
-                .child(image(asset!("icons/x.svg")).size(px(13.0)).tint_color(move || theme().muted_foreground))
-                .into_element()
-        }).otherwise(|| view().h(px(0.0)).into_element()))
+        .child(
+            when(
+                move || !value.get().is_empty(),
+                move || {
+                    button()
+                        .items_center()
+                        .justify_center()
+                        .h(px(24.0))
+                        .w(px(24.0))
+                        .rounded(px(5.0))
+                        .on_press(move || value.set(String::new()))
+                        .child(
+                            image(asset!("icons/x.svg"))
+                                .size(px(13.0))
+                                .tint_color(move || theme().muted_foreground),
+                        )
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
 }

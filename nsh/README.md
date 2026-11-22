@@ -22,9 +22,9 @@ from <https://nsh.dev/docs/installation>.
 - [x] Design tokens: Mocha theme, Cabinet Grotesk / JetBrains Mono assets.
 - [x] App frame: top navigation and dashboard shell.
 - [x] Server URL, login and session restore.
-- [ ] Registration, logout and local mode.
+- [x] Registration, email verification, logout and session restore.
 - [x] Dashboard data, upcoming payments and the account/category ledger.
-- [ ] Dashboard hover links and responsive/mobile layout.
+- [x] Responsive top/bottom bars, compact settings navigation and the quick-action FAB.
 - [x] Subscriptions list, search and active/inactive groups.
 - [x] Inline create/edit form, pause/resume and delete confirmation.
 - [x] Transactions list, monthly groups, search, create, edit and delete.
@@ -36,8 +36,8 @@ from <https://nsh.dev/docs/installation>.
 - [x] Accounts and categories CRUD, plus admin role, user deletion and registration toggles in Settings.
 - [x] Compact top bar, bottom navigation and wrapping page grids.
 - [x] Shared modal shell for create/edit/payment/history forms.
-- [ ] PDF export, full settings CRUD and calendar mobile view.
-- [ ] Settings, themes, AI, backup and admin.
+- [x] PDF export, full settings CRUD and the mobile calendar list.
+- [x] Settings: 18 themes, currency/rates, dates, delivery channels, summaries, AI, voice, backups, server and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 
 Reference captures of the Dioxus interface live in `design/native-shell/`.
@@ -45,10 +45,12 @@ Reference captures of the Dioxus interface live in `design/native-shell/`.
 
 ## Components
 
-Pages compose the shared library in `src/components`: buttons, badges, cards,
-fields, inputs, search fields, empty states, page headers, list toolbars,
-toggles and the dialog host. New page code should add a primitive there first
-and reuse it, matching the Dioxus component boundaries.
+Pages compose the shared library in `src/components`: avatars, badges, buttons,
+cards, checkboxes, confirmations, date pickers, dialogs, empty states, fields,
+inputs, the quick-action FAB, list toolbars, page headers, search fields,
+segmented controls, select menus, skeletons, toggles, QR cards and typed string
+selects. New page code must add a primitive there first and reuse it, matching
+the Dioxus component boundaries.
 
 - [x] Privacy mode masks every amount from the top-bar eye control.
 - [x] In-app BYOK AI chat dialog with action results.
@@ -60,3 +62,11 @@ and reuse it, matching the Dioxus component boundaries.
 - [x] Email verification code dialog with resend and automatic sign-in after verification.
 - [x] Logo URLs in subscription/transaction forms and cards.
 - [x] Searchable IANA timezone picker, dashboard summary schedule, bulk categories and admin delete confirmation.
+- [x] 11-provider delivery-channel editor with per-provider fields, test and save.
+- [x] Dashboard summary frequency, time and searchable IANA timezone.
+- [x] Bulk category moves for transactions and debts.
+- [x] Avatar upload, editable email and profile persistence.
+- [x] Exchange-rate provider with encrypted Fixer key management.
+- [x] Release banner with platform download and the Android APK QR card.
+- [x] Per-device voice-engine preference and provider voice-note transcription.
+- [x] Shared QR card, avatar badge, FAB menu and dynamic-row input.

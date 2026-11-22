@@ -11,7 +11,10 @@ pub struct SegmentOption {
 
 impl SegmentOption {
     pub fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
-        Self { value: value.into(), label: label.into() }
+        Self {
+            value: value.into(),
+            label: label.into(),
+        }
     }
 }
 
@@ -39,14 +42,32 @@ pub fn segmented(selected: Signal<String>, options: Vec<SegmentOption>) -> impl 
                 .justify_center()
                 .rounded(px(6.0))
                 .border(px(1.0))
-                .border_color(move || if selected.get() == border_value { theme().primary } else { theme().border.opacity(0.0) })
-                .bg(move || if selected.get() == bg_value { theme().accent } else { theme().muted.opacity(0.0) })
+                .border_color(move || {
+                    if selected.get() == border_value {
+                        theme().primary
+                    } else {
+                        theme().border.opacity(0.0)
+                    }
+                })
+                .bg(move || {
+                    if selected.get() == bg_value {
+                        theme().accent
+                    } else {
+                        theme().muted.opacity(0.0)
+                    }
+                })
                 .on_press(move || selected.set(press_value.clone()))
                 .child(
                     text(option.label)
                         .text_size(px(12.0))
                         .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || if selected.get() == text_value { theme().foreground } else { theme().muted_foreground }),
+                        .text_color(move || {
+                            if selected.get() == text_value {
+                                theme().foreground
+                            } else {
+                                theme().muted_foreground
+                            }
+                        }),
                 )
         }))
 }

@@ -3,10 +3,10 @@
 
 use crate::Route;
 use crate::auth::AuthSession;
-use std::cell::RefCell;
 use nsh_base::{button, theme};
-use uuid::Uuid;
 use nsh_core::prelude::*;
+use std::cell::RefCell;
+use uuid::Uuid;
 
 thread_local! {
     static PRIVACY: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
@@ -155,7 +155,11 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                         .items_center()
                         .gap(px(8.0))
                         .mr(px(4.0))
-                        .child(image(crate::LOGO).size(px(20.0)).tint_color(move || theme().primary))
+                        .child(
+                            image(crate::LOGO)
+                                .size(px(20.0))
+                                .tint_color(move || theme().primary),
+                        )
                         .child(
                             text("Recurrency")
                                 .text_size(px(16.0))
@@ -164,21 +168,28 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                         ),
                 )
                 .child(
-                    when(move || !compact.get(), move || {
-                        view()
-                            .flex_row()
-                            .items_center()
-                            .gap(px(2.0))
-                            .children(Route::NAV.iter().map(|item| nav_item(*item, route)))
-                            .into_element()
-                    })
+                    when(
+                        move || !compact.get(),
+                        move || {
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(2.0))
+                                .children(Route::NAV.iter().map(|item| nav_item(*item, route)))
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(view().flex_1())
                 .child(ai_action(route, auth.clone()))
                 .child(notification_action())
-        .child(privacy_action())
-                .child(icon_action(route, asset!("icons/palette.svg"), "appearance"))
+                .child(privacy_action())
+                .child(icon_action(
+                    route,
+                    asset!("icons/palette.svg"),
+                    "appearance",
+                ))
                 .child(avatar(route, auth)),
         )
 }
@@ -207,7 +218,11 @@ fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .rounded(px(6.0))
         .accessibility_label("AI assistant")
         .on_press(move || open_ai(route, auth.clone()))
-        .child(image(asset!("icons/sparkles.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground))
+        .child(
+            image(asset!("icons/sparkles.svg"))
+                .size(px(17.0))
+                .tint_color(move || theme().muted_foreground),
+        )
 }
 
 /// Open the assistant when it is configured, otherwise jump to its settings.
@@ -231,7 +246,11 @@ fn notification_action() -> impl IntoElement {
         .rounded(px(6.0))
         .accessibility_label("Notifications")
         .on_press(open_notifications)
-        .child(image(asset!("icons/bell.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground))
+        .child(
+            image(asset!("icons/bell.svg"))
+                .size(px(17.0))
+                .tint_color(move || theme().muted_foreground),
+        )
 }
 
 fn privacy_action() -> impl IntoElement {
@@ -246,7 +265,13 @@ fn privacy_action() -> impl IntoElement {
         .child(
             image(asset!("icons/eye.svg"))
                 .size(px(17.0))
-                .tint_color(move || if active() { theme().primary } else { theme().muted_foreground }),
+                .tint_color(move || {
+                    if active() {
+                        theme().primary
+                    } else {
+                        theme().muted_foreground
+                    }
+                }),
         )
 }
 
@@ -264,7 +289,11 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .w(px(30.0))
         .rounded(px(999.0))
         .on_press(move || route.set(Route::Settings))
-        .child(crate::components::avatar::avatar_badge(30.0, &name, auth.user.avatar))
+        .child(crate::components::avatar::avatar_badge(
+            30.0,
+            &name,
+            auth.user.avatar,
+        ))
 }
 
 fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
@@ -278,26 +307,32 @@ fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
         .flex_row()
         .items_center()
         .gap(px(8.0))
-        .bg(move || if active() { theme().accent } else { theme().card })
+        .bg(move || {
+            if active() {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
         .active(|s| s.bg(move || theme().muted))
         .on_press(move || route.set(item))
-        .child(
-            image(item.icon())
-                .size(px(18.0))
-                .tint_color(move || if active() {
-                    theme().foreground
-                } else {
-                    theme().muted_foreground
-                }),
-        )
+        .child(image(item.icon()).size(px(18.0)).tint_color(move || {
+            if active() {
+                theme().foreground
+            } else {
+                theme().muted_foreground
+            }
+        }))
         .child(
             text(item.label())
                 .text_size(px(14.0))
                 .font_weight(FontWeight::MEDIUM)
-                .text_color(move || if active() {
-                    theme().foreground
-                } else {
-                    theme().muted_foreground
+                .text_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
                 }),
         )
 }
@@ -326,24 +361,20 @@ pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
                 .justify_center()
                 .gap(px(2.0))
                 .on_press(move || route.set(item))
-                .child(
-                    image(item.icon())
-                        .size(px(18.0))
-                        .tint_color(move || if active() {
-                            theme().foreground
-                        } else {
-                            theme().muted_foreground
-                        }),
-                )
-                .child(
-                    text(item.label())
-                        .text_size(px(9.0))
-                        .text_color(move || if active() {
-                            theme().foreground
-                        } else {
-                            theme().muted_foreground
-                        }),
-                )
+                .child(image(item.icon()).size(px(18.0)).tint_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
+                }))
+                .child(text(item.label()).text_size(px(9.0)).text_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
+                }))
         }))
 }
 
@@ -378,13 +409,11 @@ pub fn pending_screen(title: &'static str) -> AnyElement {
         .gap(px(crate::theme::PAGE_GAP))
         .child(page_header(title, "Native Shell migration in progress"))
         .child(
-            surface()
-                .p(px(24.0))
-                .child(
-                    text("This screen is being ported from the Dioxus interface.")
-                        .text_size(px(15.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
+            surface().p(px(24.0)).child(
+                text("This screen is being ported from the Dioxus interface.")
+                    .text_size(px(15.0))
+                    .text_color(move || theme().muted_foreground),
+            ),
         )
         .into_element()
 }
@@ -490,9 +519,11 @@ pub fn mini_icon_button(
         .w(px(26.0))
         .rounded(px(5.0))
         .on_press(on_press)
-        .child(
-            image(icon)
-                .size(px(13.0))
-                .tint_color(move || if destructive { theme().destructive } else { theme().muted_foreground }),
-        )
+        .child(image(icon).size(px(13.0)).tint_color(move || {
+            if destructive {
+                theme().destructive
+            } else {
+                theme().muted_foreground
+            }
+        }))
 }

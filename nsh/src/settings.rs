@@ -1,22 +1,24 @@
 //! Settings: account, appearance, server and about.
 
+use crate::models::AiSettings;
 use base64::Engine;
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use nsh_core::file_dialog::{FileFilter, OpenDialog, SaveDialog};
 use nsh_core::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::models::AiSettings;
 
 use crate::auth::{self, AuthSession, AuthUser, Session};
-use uuid::Uuid;
-use crate::components::badge::{badge, BadgeProps, BadgeTone};
-use crate::components::button::{button as shared_button, ButtonAlign, ButtonProps, ButtonSize, ButtonVariant};
+use crate::components::badge::{BadgeProps, BadgeTone, badge};
+use crate::components::button::{
+    ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button as shared_button,
+};
+use crate::components::confirm::{ConfirmProps, confirm_row};
+use crate::components::segmented::{SegmentOption, segmented};
+use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle as shared_toggle;
-use crate::components::segmented::{segmented, SegmentOption};
-use crate::components::string_select::{string_select, StringSelectProps};
-use crate::components::confirm::{confirm_row, ConfirmProps};
 use crate::ui;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct SettingsResponse {
@@ -151,29 +153,54 @@ fn compact_nav(section: Signal<Section>, is_admin: bool) -> impl IntoElement {
         .flex_row()
         .flex_wrap()
         .gap(px(4.0))
-        .children(Section::ALL.iter().filter(|item| **item != Section::Admin || is_admin).map(|item| {
-            let item = *item;
-            let active = move || section.get() == item;
-            button()
-                .items_center()
-                .justify_center()
-                .h(px(32.0))
-                .px(px(10.0))
-                .rounded(px(7.0))
-                .bg(move || if active() { theme().accent } else { theme().background })
-                .border(px(1.0))
-                .border_color(move || if active() { theme().primary } else { theme().border })
-                .on_press(move || section.set(item))
-                .child(
-                    view()
-                        .flex_row()
+        .children(
+            Section::ALL
+                .iter()
+                .filter(|item| **item != Section::Admin || is_admin)
+                .map(|item| {
+                    let item = *item;
+                    let active = move || section.get() == item;
+                    button()
                         .items_center()
-                        .gap(px(5.0))
-                        .child(image(item.icon()).size(px(13.0)).tint_color(move || theme().muted_foreground))
-                        .child(text(item.label()).text_size(px(11.0)).text_color(move || theme().foreground)),
-                )
-                .into_element()
-        }))
+                        .justify_center()
+                        .h(px(32.0))
+                        .px(px(10.0))
+                        .rounded(px(7.0))
+                        .bg(move || {
+                            if active() {
+                                theme().accent
+                            } else {
+                                theme().background
+                            }
+                        })
+                        .border(px(1.0))
+                        .border_color(move || {
+                            if active() {
+                                theme().primary
+                            } else {
+                                theme().border
+                            }
+                        })
+                        .on_press(move || section.set(item))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(5.0))
+                                .child(
+                                    image(item.icon())
+                                        .size(px(13.0))
+                                        .tint_color(move || theme().muted_foreground),
+                                )
+                                .child(
+                                    text(item.label())
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().foreground),
+                                ),
+                        )
+                        .into_element()
+                }),
+        )
 }
 
 pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
@@ -254,14 +281,19 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     view()
         .w_full()
         .pt(px(10.0))
-        .on_layout(move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-            compact.set(bounds.size.width.0 < 900.0);
-        })
+        .on_layout(
+            move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                compact.set(bounds.size.width.0 < 900.0);
+            },
+        )
         .flex_row()
         .flex_wrap()
         .items_start()
         .gap(move || if compact.get() { px(0.0) } else { px(36.0) })
-        .child(when(move || compact.get(), move || compact_nav(section, is_admin)))
+        .child(when(
+            move || compact.get(),
+            move || compact_nav(section, is_admin),
+        ))
         .child(
             view()
                 .w(move || if compact.get() { px(0.0) } else { px(200.0) })
@@ -276,75 +308,112 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         .text_color(move || theme().muted_foreground)
                         .mb(px(8.0)),
                 )
-                .children([
-                    ("PERSONAL", &[Section::Account, Section::Appearance][..]),
-                    ("CONFIGURATION", &[Section::General, Section::Ai, Section::Money, Section::Notifications][..]),
-                    ("SYSTEM", &[Section::Data, Section::Server, Section::Admin, Section::About][..]),
-                ].into_iter().map(|(group, items)| {
-                    view()
-                        .flex_col()
-                        .gap(px(2.0))
-                        .mb(px(8.0))
-                        .child(
-                            text(group)
-                                .text_size(px(9.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().muted_foreground)
-                                .px(px(10.0))
-                                .mb(px(2.0)),
-                        )
-                        .children(items.iter().filter(|item| **item != Section::Admin || is_admin).map(|item| {
-                            let item = *item;
-                            let active = move || section.get() == item;
-                            button()
-                                .items_center()
-                                .justify_start()
-                                .w_full()
-                                .rounded(px(8.0))
-                                .px(px(10.0))
-                                .py(px(10.0))
-                                .bg(move || if active() { theme().accent } else { theme().background })
-                                .on_press(move || section.set(item))
-                                .child(
-                                    view()
-                                        .w_full()
-                                        .flex_row()
-                                        .items_start()
-                                        .gap(px(8.0))
-                                        .child(
-                                            image(item.icon())
-                                                .size(px(16.0))
-                                                .mt(px(1.0))
-                                                .tint_color(move || theme().muted_foreground),
-                                        )
-                                        .child(
-                                            view()
-                                                .flex_col()
-                                                .w_full()
-                                                .gap(px(1.0))
-                                                .flex_grow(1.0)
-                                                .min_w(px(0.0))
-                                                .child(
-                                                    text(item.label())
-                                                        .text_size(px(13.0))
-                                                        .font_weight(FontWeight::MEDIUM)
-                                                        .text_color(move || if active() {
-                                                            theme().foreground
-                                                        } else {
-                                                            theme().muted_foreground
-                                                        }),
-                                                )
-                                                .child(
-                                                    text(item.description())
-                                                        .w_full()
-                                                        .number_of_lines(2)
-                                                        .text_size(px(10.0))
-                                                        .text_color(move || theme().muted_foreground),
-                                                ),
-                                        ),
-                                )
-                        }))
-                })),
+                .children(
+                    [
+                        ("PERSONAL", &[Section::Account, Section::Appearance][..]),
+                        (
+                            "CONFIGURATION",
+                            &[
+                                Section::General,
+                                Section::Ai,
+                                Section::Money,
+                                Section::Notifications,
+                            ][..],
+                        ),
+                        (
+                            "SYSTEM",
+                            &[
+                                Section::Data,
+                                Section::Server,
+                                Section::Admin,
+                                Section::About,
+                            ][..],
+                        ),
+                    ]
+                    .into_iter()
+                    .map(|(group, items)| {
+                        view()
+                            .flex_col()
+                            .gap(px(2.0))
+                            .mb(px(8.0))
+                            .child(
+                                text(group)
+                                    .text_size(px(9.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().muted_foreground)
+                                    .px(px(10.0))
+                                    .mb(px(2.0)),
+                            )
+                            .children(
+                                items
+                                    .iter()
+                                    .filter(|item| **item != Section::Admin || is_admin)
+                                    .map(|item| {
+                                        let item = *item;
+                                        let active = move || section.get() == item;
+                                        button()
+                                            .items_center()
+                                            .justify_start()
+                                            .w_full()
+                                            .rounded(px(8.0))
+                                            .px(px(10.0))
+                                            .py(px(10.0))
+                                            .bg(move || {
+                                                if active() {
+                                                    theme().accent
+                                                } else {
+                                                    theme().background
+                                                }
+                                            })
+                                            .on_press(move || section.set(item))
+                                            .child(
+                                                view()
+                                                    .w_full()
+                                                    .flex_row()
+                                                    .items_start()
+                                                    .gap(px(8.0))
+                                                    .child(
+                                                        image(item.icon())
+                                                            .size(px(16.0))
+                                                            .mt(px(1.0))
+                                                            .tint_color(move || {
+                                                                theme().muted_foreground
+                                                            }),
+                                                    )
+                                                    .child(
+                                                        view()
+                                                            .flex_col()
+                                                            .w_full()
+                                                            .gap(px(1.0))
+                                                            .flex_grow(1.0)
+                                                            .min_w(px(0.0))
+                                                            .child(
+                                                                text(item.label())
+                                                                    .text_size(px(13.0))
+                                                                    .font_weight(FontWeight::MEDIUM)
+                                                                    .text_color(move || {
+                                                                        if active() {
+                                                                            theme().foreground
+                                                                        } else {
+                                                                            theme().muted_foreground
+                                                                        }
+                                                                    }),
+                                                            )
+                                                            .child(
+                                                                text(item.description())
+                                                                    .w_full()
+                                                                    .number_of_lines(2)
+                                                                    .text_size(px(10.0))
+                                                                    .text_color(move || {
+                                                                        theme().muted_foreground
+                                                                    }),
+                                                            ),
+                                                    ),
+                                            )
+                                    }),
+                            )
+                    }),
+                ),
         )
         .child(
             view()
@@ -371,69 +440,93 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         ),
                 )
                 .child(
-                    when(move || section.get() == Section::Account, move || {
-                        account_card(
-                            email_signal,
-                            verified,
-                            is_admin,
-                            name,
-                            avatar,
-                            error,
-                            saving,
-                            save.clone(),
-                            session,
-                            delete_open,
-                            delete_password,
-                            delete_error,
-                            data_server,
-                            data_token,
-                        )
-                    })
+                    when(
+                        move || section.get() == Section::Account,
+                        move || {
+                            account_card(
+                                email_signal,
+                                verified,
+                                is_admin,
+                                name,
+                                avatar,
+                                error,
+                                saving,
+                                save.clone(),
+                                session,
+                                delete_open,
+                                delete_password,
+                                delete_error,
+                                data_server,
+                                data_token,
+                            )
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Appearance, move || appearance_card(appearance_server.clone(), appearance_token.clone()))
-                        .otherwise(|| view().h(px(0.0))),
-                )
-                .child(
-                    when(move || section.get() == Section::General, move || {
-                        general_card(currency, save_general.clone(), general_server.clone(), general_token.clone())
-                    })
+                    when(
+                        move || section.get() == Section::Appearance,
+                        move || {
+                            appearance_card(appearance_server.clone(), appearance_token.clone())
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Notifications, move || {
-                        notifications_card(data_server.get(), data_token.get())
-                    })
+                    when(
+                        move || section.get() == Section::General,
+                        move || {
+                            general_card(
+                                currency,
+                                save_general.clone(),
+                                general_server.clone(),
+                                general_token.clone(),
+                            )
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Ai, move || {
-                        ai_card(data_server.get(), data_token.get())
-                    })
+                    when(
+                        move || section.get() == Section::Notifications,
+                        move || notifications_card(data_server.get(), data_token.get()),
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Money, move || {
-                        money_card(data_server.get(), data_token.get())
-                    })
+                    when(
+                        move || section.get() == Section::Ai,
+                        move || ai_card(data_server.get(), data_token.get()),
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Admin, move || {
-                        admin_card(data_server.get(), data_token.get())
-                    })
+                    when(
+                        move || section.get() == Section::Money,
+                        move || money_card(data_server.get(), data_token.get()),
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Data, move || {
-                        data_card(data_server.get(), data_token.get(), backup_status)
-                    })
-                        .otherwise(|| view().h(px(0.0))),
+                    when(
+                        move || section.get() == Section::Admin,
+                        move || admin_card(data_server.get(), data_token.get()),
+                    )
+                    .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Server, move || server_card(info_server.clone(), session))
-                        .otherwise(|| view().h(px(0.0))),
+                    when(
+                        move || section.get() == Section::Data,
+                        move || data_card(data_server.get(), data_token.get(), backup_status),
+                    )
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .child(
+                    when(
+                        move || section.get() == Section::Server,
+                        move || server_card(info_server.clone(), session),
+                    )
+                    .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
                     when(move || section.get() == Section::About, || about_card())
@@ -446,7 +539,9 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
 fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
     let image = image::load_from_memory(bytes)
         .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
-    let resized = image.resize(256, 256, image::imageops::FilterType::Lanczos3).to_rgb8();
+    let resized = image
+        .resize(256, 256, image::imageops::FilterType::Lanczos3)
+        .to_rgb8();
     let mut output = Vec::new();
     image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 86)
         .encode_image(&resized)
@@ -501,7 +596,8 @@ fn account_card(
                                         avatar: Some(data_url.clone()),
                                         currency: None,
                                     };
-                                    match crate::api::update_settings(server, token, &request).await {
+                                    match crate::api::update_settings(server, token, &request).await
+                                    {
                                         Ok(response) => {
                                             let next = AuthSession {
                                                 token: session_token.clone(),
@@ -517,7 +613,9 @@ fn account_card(
                                 }
                                 Err(message) => error.set(message),
                             },
-                            Err(problem) => error.set(format!("Could not read the photo: {problem}")),
+                            Err(problem) => {
+                                error.set(format!("Could not read the photo: {problem}"))
+                            }
                         }
                     }
                     Ok(None) => {}
@@ -607,9 +705,13 @@ fn account_card(
                         .flex_row()
                         .gap(px(8.0))
                         .child(
-                            text(if verified { "Email verified" } else { "Email not verified" })
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
+                            text(if verified {
+                                "Email verified"
+                            } else {
+                                "Email not verified"
+                            })
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground),
                         )
                         .when(is_admin, |row| {
                             row.child(
@@ -620,37 +722,41 @@ fn account_card(
                         }),
                 )
                 .child(
-                    when(move || !error.get().is_empty(), move || {
-                        text(move || error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    when(
+                        move || !error.get().is_empty(),
+                        move || {
+                            text(move || error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .justify_end()
-                        .gap(px(8.0))
-                        .child(
-                            button()
-                                .items_center()
-                                .justify_center()
-                                .h(px(40.0))
-                                .px(px(16.0))
-                                .rounded(px(7.0))
-                                .bg(move || theme().primary)
-                                .disabled(move || saving.get())
-                                .disabled_style(|state| state.opacity(0.5))
-                                .on_press(move || save())
-                                .child(
-                                    text(move || if saving.get() { "Saving..." } else { "Save changes" })
-                                        .text_size(px(13.0))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(move || theme().primary_foreground),
-                                ),
-                        ),
+                    view().w_full().flex_row().justify_end().gap(px(8.0)).child(
+                        button()
+                            .items_center()
+                            .justify_center()
+                            .h(px(40.0))
+                            .px(px(16.0))
+                            .rounded(px(7.0))
+                            .bg(move || theme().primary)
+                            .disabled(move || saving.get())
+                            .disabled_style(|state| state.opacity(0.5))
+                            .on_press(move || save())
+                            .child(
+                                text(move || {
+                                    if saving.get() {
+                                        "Saving..."
+                                    } else {
+                                        "Save changes"
+                                    }
+                                })
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
+                            ),
+                    ),
                 ),
         )
         .child(
@@ -695,7 +801,9 @@ fn account_card(
                                 .child(
                                     input()
                                         .value(delete_password)
-                                        .on_change(move |value: &str| delete_password.set(value.to_string()))
+                                        .on_change(move |value: &str| {
+                                            delete_password.set(value.to_string())
+                                        })
                                         .placeholder("Password")
                                         .masked(true)
                                         .auto_fill(AutoFill::Off)
@@ -723,13 +831,20 @@ fn account_card(
                                         .on_press(move || {
                                             let password = delete_password.get();
                                             if password.is_empty() {
-                                                delete_error.set("Enter your password.".to_string());
+                                                delete_error
+                                                    .set("Enter your password.".to_string());
                                                 return;
                                             }
                                             let server_value = server.get();
                                             let token_value = token.get();
                                             spawn(async move {
-                                                match crate::api::delete_account(server_value, token_value, password).await {
+                                                match crate::api::delete_account(
+                                                    server_value,
+                                                    token_value,
+                                                    password,
+                                                )
+                                                .await
+                                                {
                                                     Ok(()) => {
                                                         auth::clear_session();
                                                         session.set(Session::SignedOut);
@@ -746,97 +861,128 @@ fn account_card(
                                         ),
                                 )
                         }),
-            ),
+                ),
         )
 }
 
 fn appearance_card(server: String, token: String) -> impl IntoElement {
     let selected = signal(crate::theme::saved());
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(12.0))
-        .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(14.0))
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(3.0))
-                        .child(
-                            text("Appearance")
-                                .text_size(px(18.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(move || {
-                                crate::theme::theme_by_id(&selected.get())
-                                    .map_or_else(|| "Choose a palette".to_string(), |theme| format!("{} · {}", theme.label, theme.description))
+    view().w_full().flex_col().gap(px(12.0)).child(
+        ui::surface()
+            .p(px(24.0))
+            .gap(px(14.0))
+            .child(
+                view()
+                    .flex_col()
+                    .gap(px(3.0))
+                    .child(
+                        text("Appearance")
+                            .text_size(px(18.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(move || theme().foreground),
+                    )
+                    .child(
+                        text(move || {
+                            crate::theme::theme_by_id(&selected.get()).map_or_else(
+                                || "Choose a palette".to_string(),
+                                |theme| format!("{} · {}", theme.label, theme.description),
+                            )
+                        })
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                    ),
+            )
+            .child(
+                view()
+                    .w_full()
+                    .grid()
+                    .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
+                    .gap(px(8.0))
+                    .children(crate::theme::THEMES.iter().map(|definition| {
+                        let id = definition.id;
+                        let card_server = server.clone();
+                        let card_token = token.clone();
+                        let active = move || selected.get() == id;
+                        button()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(10.0))
+                            .p(px(10.0))
+                            .rounded(px(9.0))
+                            .border(px(1.0))
+                            .border_color(move || {
+                                if active() {
+                                    theme().primary
+                                } else {
+                                    theme().border
+                                }
                             })
-                                .text_size(px(12.0))
-                                .text_color(move || theme().muted_foreground),
-                        ),
-                )
-                .child(
-                    view()
-                        .w_full()
-                        .grid()
-                        .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
-                        .gap(px(8.0))
-                        .children(crate::theme::THEMES.iter().map(|definition| {
-                            let id = definition.id;
-                            let card_server = server.clone();
-                            let card_token = token.clone();
-                            let active = move || selected.get() == id;
-                            button()
-                                .w_full()
-                                .flex_row()
-                                .items_center()
-                                .gap(px(10.0))
-                                .p(px(10.0))
-                                .rounded(px(9.0))
-                                .border(px(1.0))
-                                .border_color(move || if active() { theme().primary } else { theme().border })
-                                .bg(move || if active() { theme().accent } else { theme().background })
-                                .on_press(move || {
-                                    crate::theme::apply(id);
-                                    crate::theme::save(id);
-                                    selected.set(id.to_string());
-                                    let server = card_server.clone();
-                                    let token = card_token.clone();
-                                    spawn(async move {
-                                        let _ = crate::api::save_theme(server, token, id).await;
-                                    });
+                            .bg(move || {
+                                if active() {
+                                    theme().accent
+                                } else {
+                                    theme().background
+                                }
+                            })
+                            .on_press(move || {
+                                crate::theme::apply(id);
+                                crate::theme::save(id);
+                                selected.set(id.to_string());
+                                let server = card_server.clone();
+                                let token = card_token.clone();
+                                spawn(async move {
+                                    let _ = crate::api::save_theme(server, token, id).await;
+                                });
+                            })
+                            .child(
+                                text(definition.label)
+                                    .flex_grow(1.0)
+                                    .number_of_lines(1)
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(3.0))
+                                    .child(
+                                        view()
+                                            .h(px(12.0))
+                                            .w(px(12.0))
+                                            .rounded(px(3.0))
+                                            .bg(rgba((definition.background << 8) | 0xff)),
+                                    )
+                                    .child(
+                                        view()
+                                            .h(px(12.0))
+                                            .w(px(12.0))
+                                            .rounded(px(3.0))
+                                            .bg(rgba((definition.card << 8) | 0xff)),
+                                    )
+                                    .child(
+                                        view()
+                                            .h(px(12.0))
+                                            .w(px(12.0))
+                                            .rounded(px(3.0))
+                                            .bg(rgba((definition.primary << 8) | 0xff)),
+                                    ),
+                            )
+                            .child(
+                                when(active, move || {
+                                    image(asset!("icons/check.svg"))
+                                        .size(px(13.0))
+                                        .tint_color(move || theme().primary)
+                                        .into_element()
                                 })
-                                .child(
-                                    text(definition.label)
-                                        .flex_grow(1.0)
-                                        .number_of_lines(1)
-                                        .text_size(px(12.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().foreground),
-                                )
-                                .child(
-                                    view()
-                                        .flex_row()
-                                        .items_center()
-                                        .gap(px(3.0))
-                                        .child(view().h(px(12.0)).w(px(12.0)).rounded(px(3.0)).bg(rgba((definition.background << 8) | 0xff)))
-                                        .child(view().h(px(12.0)).w(px(12.0)).rounded(px(3.0)).bg(rgba((definition.card << 8) | 0xff)))
-                                        .child(view().h(px(12.0)).w(px(12.0)).rounded(px(3.0)).bg(rgba((definition.primary << 8) | 0xff))),
-                                )
-                                .child(
-                                    when(active, move || {
-                                        image(asset!("icons/check.svg")).size(px(13.0)).tint_color(move || theme().primary).into_element()
-                                    })
-                                    .otherwise(|| view().h(px(0.0)).into_element()),
-                                )
-                                .into_element()
-                        })),
-                ),
-        )
+                                .otherwise(|| view().h(px(0.0)).into_element()),
+                            )
+                            .into_element()
+                    })),
+            ),
+    )
 }
 
 fn general_card(
@@ -943,11 +1089,7 @@ fn general_card(
         .child(exchange_rates_card(rates_server, rates_token))
 }
 
-fn data_card(
-    server: String,
-    token: String,
-    status: Signal<String>,
-) -> impl IntoElement {
+fn data_card(server: String, token: String, status: Signal<String>) -> impl IntoElement {
     let pending = signal(None::<serde_json::Value>);
     let export = {
         let server = server.clone();
@@ -967,7 +1109,9 @@ fn data_card(
                     {
                         Ok(Some(path)) => match std::fs::write(&path, json) {
                             Ok(()) => status.set(format!("Backup saved to {}", path.display())),
-                            Err(error) => status.set(format!("Could not write the backup: {error}")),
+                            Err(error) => {
+                                status.set(format!("Could not write the backup: {error}"))
+                            }
                         },
                         Ok(None) => status.set(String::new()),
                         Err(error) => status.set(error),
@@ -997,10 +1141,13 @@ fn data_card(
                             Ok(value) => {
                                 pending.set(Some(value));
                                 status.set(
-                                    "Backup loaded. Confirm to replace the current data.".to_string(),
+                                    "Backup loaded. Confirm to replace the current data."
+                                        .to_string(),
                                 );
                             }
-                            Err(_) => status.set("That file is not a Recurrency backup.".to_string()),
+                            Err(_) => {
+                                status.set("That file is not a Recurrency backup.".to_string())
+                            }
                         },
                         Err(error) => status.set(format!("Could not read the backup: {error}")),
                     }
@@ -1024,7 +1171,9 @@ fn data_card(
                 match crate::api::import_backup(server, token, &value).await {
                     Ok(_) => {
                         pending.set(None);
-                        status.set("Backup restored. Revisit each screen to see the new data.".to_string());
+                        status.set(
+                            "Backup restored. Revisit each screen to see the new data.".to_string(),
+                        );
                     }
                     Err(error) => status.set(format!("Could not restore the backup: {error}")),
                 }
@@ -1129,7 +1278,11 @@ fn server_card(server: String, session: Signal<Session>) -> impl IntoElement {
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(ui::field("Server URL", draft, "https://recurrency.example.com"))
+                .child(ui::field(
+                    "Server URL",
+                    draft,
+                    "https://recurrency.example.com",
+                ))
                 .child(
                     text(move || error.get())
                         .text_size(px(11.0))
@@ -1206,33 +1359,27 @@ struct UpdateAiSettingsRequest {
 }
 
 fn notifications_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(
-        || Some(()),
-        {
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_notification_preferences(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_notification_preferences(server, token).await }
+        }
+    });
     let error = signal(String::new());
     let channel_currency = server.clone();
     let channel_token = token.clone();
-    let summary_data = resource(
-        || Some(()),
-        {
+    let summary_data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_summary(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_summary(server, token).await }
+        }
+    });
     let summary_enabled = signal(false);
     let summary_frequency = signal("daily".to_string());
     let summary_time = signal("09:00".to_string());
@@ -1245,9 +1392,17 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
         }
         if let Some(summary) = summary_data.get() {
             summary_enabled.set(summary.enabled);
-            summary_frequency.set(if summary.frequency.is_empty() { "daily".to_string() } else { summary.frequency });
+            summary_frequency.set(if summary.frequency.is_empty() {
+                "daily".to_string()
+            } else {
+                summary.frequency
+            });
             summary_time.set(format!("{:02}:{:02}", summary.hour, summary.minute));
-            summary_timezone.set(if summary.timezone.is_empty() { "UTC".to_string() } else { summary.timezone });
+            summary_timezone.set(if summary.timezone.is_empty() {
+                "UTC".to_string()
+            } else {
+                summary.timezone
+            });
             summary_loaded.set(true);
         }
     });
@@ -1257,8 +1412,14 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
         move || {
             let time = summary_time.get();
             let mut parts = time.split(':');
-            let hour = parts.next().and_then(|value| value.parse::<i16>().ok()).unwrap_or(9);
-            let minute = parts.next().and_then(|value| value.parse::<i16>().ok()).unwrap_or(0);
+            let hour = parts
+                .next()
+                .and_then(|value| value.parse::<i16>().ok())
+                .unwrap_or(9);
+            let minute = parts
+                .next()
+                .and_then(|value| value.parse::<i16>().ok())
+                .unwrap_or(0);
             let frequency = summary_frequency.get();
             let weekday = (frequency == "weekly").then_some(1);
             let day = (frequency == "monthly").then_some(1);
@@ -1267,7 +1428,12 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
             let timezone = summary_timezone.get();
             let enabled = summary_enabled.get();
             spawn(async move {
-                match crate::api::save_summary(server, token, enabled, &frequency, weekday, day, hour, minute, &timezone, "current").await {
+                match crate::api::save_summary(
+                    server, token, enabled, &frequency, weekday, day, hour, minute, &timezone,
+                    "current",
+                )
+                .await
+                {
                     Ok(_) => {
                         summary_status.set("Summary schedule saved.".to_string());
                         summary_data.refetch();
@@ -1291,7 +1457,10 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
             });
         }
     };
-    let mut timezone_options = chrono_tz::TZ_VARIANTS.iter().map(|zone| (zone.name().to_string(), zone.name().to_string())).collect::<Vec<_>>();
+    let mut timezone_options = chrono_tz::TZ_VARIANTS
+        .iter()
+        .map(|zone| (zone.name().to_string(), zone.name().to_string()))
+        .collect::<Vec<_>>();
     timezone_options.sort_by(|a, b| a.0.cmp(&b.0));
     view()
         .w_full()
@@ -1312,110 +1481,148 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(6.0))
-                        .child(each(
-                            move || {
-                                data.get()
-                                    .unwrap_or_default()
-                                    .preferences
-                            },
-                            |preference| preference.channel.clone(),
-                            move |preference, _| {
-                                let preference = preference.get();
-                                let channel = preference.channel.clone();
-                                let toggle_channel = channel.clone();
-                                let enabled = preference.enabled;
-                                let days = preference.reminder_days_before;
-                                let server = channel_currency.clone();
-                                let token = channel_token.clone();
-                                let data_toggle = data;
-                                let toggle = move || {
-                                    let server = server.clone();
-                                    let token = token.clone();
-                                    let request = UpdateNotificationPreferencesRequest {
-                                        preferences: vec![UpdateNotificationPreference {
-                                            channel: toggle_channel.clone(),
-                                            enabled: !enabled,
-                                            reminder_days_before: days,
-                                        }],
-                                    };
-                                    spawn(async move {
-                                        let _ = crate::api::update_notification_preferences(
-                                            server, token, &request,
-                                        )
-                                        .await;
-                                        data_toggle.refetch();
-                                    });
-                                };
-                                let adjust_channel = channel.clone();
-                                let adjust_server = channel_currency.clone();
-                                let adjust_token = channel_token.clone();
-                                let adjust = move |delta: i32| {
-                                    let next_days = (days + delta).max(0).min(30);
-                                    let server = adjust_server.clone();
-                                    let token = adjust_token.clone();
-                                    let request = UpdateNotificationPreferencesRequest {
-                                        preferences: vec![UpdateNotificationPreference {
-                                            channel: adjust_channel.clone(),
-                                            enabled,
-                                            reminder_days_before: next_days,
-                                        }],
-                                    };
-                                    spawn(async move {
-                                        let _ = crate::api::update_notification_preferences(server, token, &request).await;
-                                        data.refetch();
-                                    });
-                                };
-                                let decrement = adjust.clone();
-                                let increment = adjust;
+                .child(view().flex_col().gap(px(6.0)).child(each(
+                    move || data.get().unwrap_or_default().preferences,
+                    |preference| preference.channel.clone(),
+                    move |preference, _| {
+                        let preference = preference.get();
+                        let channel = preference.channel.clone();
+                        let toggle_channel = channel.clone();
+                        let enabled = preference.enabled;
+                        let days = preference.reminder_days_before;
+                        let server = channel_currency.clone();
+                        let token = channel_token.clone();
+                        let data_toggle = data;
+                        let toggle = move || {
+                            let server = server.clone();
+                            let token = token.clone();
+                            let request = UpdateNotificationPreferencesRequest {
+                                preferences: vec![UpdateNotificationPreference {
+                                    channel: toggle_channel.clone(),
+                                    enabled: !enabled,
+                                    reminder_days_before: days,
+                                }],
+                            };
+                            spawn(async move {
+                                let _ = crate::api::update_notification_preferences(
+                                    server, token, &request,
+                                )
+                                .await;
+                                data_toggle.refetch();
+                            });
+                        };
+                        let adjust_channel = channel.clone();
+                        let adjust_server = channel_currency.clone();
+                        let adjust_token = channel_token.clone();
+                        let adjust = move |delta: i32| {
+                            let next_days = (days + delta).max(0).min(30);
+                            let server = adjust_server.clone();
+                            let token = adjust_token.clone();
+                            let request = UpdateNotificationPreferencesRequest {
+                                preferences: vec![UpdateNotificationPreference {
+                                    channel: adjust_channel.clone(),
+                                    enabled,
+                                    reminder_days_before: next_days,
+                                }],
+                            };
+                            spawn(async move {
+                                let _ = crate::api::update_notification_preferences(
+                                    server, token, &request,
+                                )
+                                .await;
+                                data.refetch();
+                            });
+                        };
+                        let decrement = adjust.clone();
+                        let increment = adjust;
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .py(px(8.0))
+                            .border_b(px(1.0))
+                            .border_color(move || theme().border)
+                            .child(
                                 view()
-                                    .w_full()
+                                    .flex_col()
+                                    .child(
+                                        text(channel_label(&channel))
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(format!("{days} days before"))
+                                            .text_size(px(10.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
+                            )
+                            .child(
+                                view()
                                     .flex_row()
                                     .items_center()
-                                    .justify_between()
-                                    .py(px(8.0))
-                                    .border_b(px(1.0))
-                                    .border_color(move || theme().border)
+                                    .gap(px(6.0))
                                     .child(
-                                        view()
-                                            .flex_col()
+                                        button()
+                                            .h(px(24.0))
+                                            .w(px(24.0))
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(5.0))
+                                            .border(px(1.0))
+                                            .border_color(move || theme().border)
+                                            .on_press(move || decrement(-1))
                                             .child(
-                                                text(channel_label(&channel))
+                                                text("−")
                                                     .text_size(px(13.0))
                                                     .text_color(move || theme().foreground),
-                                            )
-                                            .child(
-                                                text(format!("{days} days before"))
-                                                    .text_size(px(10.0))
-                                                    .text_color(move || theme().muted_foreground),
                                             ),
                                     )
                                     .child(
-                                        view()
-                                            .flex_row()
-                                            .items_center()
-                                            .gap(px(6.0))
-                                            .child(button().h(px(24.0)).w(px(24.0)).items_center().justify_center().rounded(px(5.0)).border(px(1.0)).border_color(move || theme().border).on_press(move || decrement(-1)).child(text("−").text_size(px(13.0)).text_color(move || theme().foreground)))
-                                            .child(text(move || format!("{days} days")).text_size(px(10.0)).text_color(move || theme().muted_foreground))
-                                            .child(button().h(px(24.0)).w(px(24.0)).items_center().justify_center().rounded(px(5.0)).border(px(1.0)).border_color(move || theme().border).on_press(move || increment(1)).child(text("+").text_size(px(13.0)).text_color(move || theme().foreground)))
-                                            .child(shared_toggle(enabled, channel_label(&channel), move |_| toggle())),
+                                        text(move || format!("{days} days"))
+                                            .text_size(px(10.0))
+                                            .text_color(move || theme().muted_foreground),
                                     )
-                            },
-                        )),
-                )
+                                    .child(
+                                        button()
+                                            .h(px(24.0))
+                                            .w(px(24.0))
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(5.0))
+                                            .border(px(1.0))
+                                            .border_color(move || theme().border)
+                                            .on_press(move || increment(1))
+                                            .child(
+                                                text("+")
+                                                    .text_size(px(13.0))
+                                                    .text_color(move || theme().foreground),
+                                            ),
+                                    )
+                                    .child(shared_toggle(
+                                        enabled,
+                                        channel_label(&channel),
+                                        move |_| toggle(),
+                                    )),
+                            )
+                    },
+                )))
                 .child(
-                    when(move || !error.get().is_empty(), move || {
-                        text(move || error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    when(
+                        move || !error.get().is_empty(),
+                        move || {
+                            text(move || error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 ),
         )
-        .child(crate::delivery::delivery_card(server.clone(), token.clone()))
+        .child(crate::delivery::delivery_card(
+            server.clone(),
+            token.clone(),
+        ))
         .child(
             ui::surface()
                 .p(px(24.0))
@@ -1429,10 +1636,23 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         .child(
                             view()
                                 .flex_col()
-                                .child(text("Dashboard summary").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
-                                .child(text("Sent to every active delivery channel.").text_size(px(12.0)).text_color(move || theme().muted_foreground)),
+                                .child(
+                                    text("Dashboard summary")
+                                        .text_size(px(18.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text("Sent to every active delivery channel.")
+                                        .text_size(px(12.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
                         )
-                        .child(shared_toggle(summary_enabled.get(), "Dashboard summary".to_string(), move |value| summary_enabled.set(value))),
+                        .child(shared_toggle(
+                            summary_enabled.get(),
+                            "Dashboard summary".to_string(),
+                            move |value| summary_enabled.set(value),
+                        )),
                 )
                 .child(
                     text("Frequency")
@@ -1449,7 +1669,11 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                     ],
                 ))
                 .child(ui::field("Time (HH:MM)", summary_time, "09:00"))
-                .child(string_select(StringSelectProps::new("Timezone", summary_timezone, timezone_options)))
+                .child(string_select(StringSelectProps::new(
+                    "Timezone",
+                    summary_timezone,
+                    timezone_options,
+                )))
                 .child(
                     view()
                         .flex_row()
@@ -1458,7 +1682,11 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         .child(ui::action_button("Save summary", false, save_summary))
                         .child(ui::action_button("Send now", false, send_summary)),
                 )
-                .child(text(move || summary_status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                .child(
+                    text(move || summary_status.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
         )
 }
 
@@ -1473,18 +1701,15 @@ fn channel_label(channel: &str) -> String {
 }
 
 fn ai_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(
-        || Some(()),
-        {
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_ai_settings(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_ai_settings(server, token).await }
+        }
+    });
     let provider = signal(String::new());
     let base_url = signal(String::new());
     let model = signal(String::new());
@@ -1557,7 +1782,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
             let token = token.clone();
             let base = base_url.get().trim().to_string();
             spawn(async move {
-                match crate::api::ai_models(server, token, (!base.is_empty()).then_some(base)).await {
+                match crate::api::ai_models(server, token, (!base.is_empty()).then_some(base)).await
+                {
                     Ok(values) => models.set(values),
                     Err(message) => models_error.set(message),
                 }
@@ -1758,18 +1984,15 @@ fn voice_card() -> impl IntoElement {
 }
 
 fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(
-        || Some(()),
-        {
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_currency_settings(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_currency_settings(server, token).await }
+        }
+    });
     let provider = signal("frankfurter".to_string());
     let key = signal(String::new());
     let configured = signal(false);
@@ -1780,7 +2003,11 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
             return;
         }
         if let Some(settings) = data.get() {
-            provider.set(if settings.provider.is_empty() { "frankfurter".to_string() } else { settings.provider });
+            provider.set(if settings.provider.is_empty() {
+                "frankfurter".to_string()
+            } else {
+                settings.provider
+            });
             configured.set(settings.fixer_configured);
             loaded.set(true);
         }
@@ -1794,7 +2021,9 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
             let server = server.clone();
             let token = token.clone();
             spawn(async move {
-                match crate::api::save_currency_settings(server, token, &provider, api_key, false).await {
+                match crate::api::save_currency_settings(server, token, &provider, api_key, false)
+                    .await
+                {
                     Ok(settings) => {
                         configured.set(settings.fixer_configured);
                         key.set(String::new());
@@ -1813,7 +2042,9 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
             let server = server.clone();
             let token = token.clone();
             spawn(async move {
-                match crate::api::save_currency_settings(server, token, "frankfurter", None, true).await {
+                match crate::api::save_currency_settings(server, token, "frankfurter", None, true)
+                    .await
+                {
                     Ok(_) => {
                         provider.set("frankfurter".to_string());
                         configured.set(false);
@@ -1828,19 +2059,38 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
     ui::surface()
         .p(px(24.0))
         .gap(px(12.0))
-        .child(text("Exchange rates").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
-        .child(text("Choose where automatic currency conversion gets its daily rates.").text_size(px(12.0)).text_color(move || theme().muted_foreground))
+        .child(
+            text("Exchange rates")
+                .text_size(px(18.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text("Choose where automatic currency conversion gets its daily rates.")
+                .text_size(px(12.0))
+                .text_color(move || theme().muted_foreground),
+        )
         .child(string_select(StringSelectProps::new(
             "Provider",
             provider,
             vec![
-                ("frankfurter".to_string(), "Frankfurter — free, no API key".to_string()),
-                ("fixer".to_string(), "Fixer — requires an API key".to_string()),
+                (
+                    "frankfurter".to_string(),
+                    "Frankfurter — free, no API key".to_string(),
+                ),
+                (
+                    "fixer".to_string(),
+                    "Fixer — requires an API key".to_string(),
+                ),
             ],
         )))
         .when(provider.get() == "fixer", |view| {
             view.child(ui::field(
-                if configured.get() { "Fixer API key (saved — enter a new key to replace it)" } else { "Fixer API key" },
+                if configured.get() {
+                    "Fixer API key (saved — enter a new key to replace it)"
+                } else {
+                    "Fixer API key"
+                },
                 key,
                 "Paste your Fixer API key",
             ))
@@ -1852,24 +2102,27 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
                 .items_center()
                 .gap(px(8.0))
                 .child(ui::action_button("Save rates", false, save))
-                .when(configured.get(), |view| view.child(ui::action_button("Remove key", true, clear_key))),
+                .when(configured.get(), |view| {
+                    view.child(ui::action_button("Remove key", true, clear_key))
+                }),
         )
-        .child(text(move || status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground))
+        .child(
+            text(move || status.get())
+                .text_size(px(11.0))
+                .text_color(move || theme().muted_foreground),
+        )
 }
 
 fn money_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(
-        || Some(()),
-        {
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_money_counts(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_money_counts(server, token).await }
+        }
+    });
     let account_name = signal(String::new());
     let account_edit = signal(None::<Uuid>);
     let account_open = signal(false);
@@ -1935,8 +2188,12 @@ fn money_card(server: String, token: String) -> impl IntoElement {
             account_busy.set(true);
             spawn(async move {
                 let result = match editing {
-                    Some(id) => crate::api::update_account(server, token, id, &name).await.map(|_| ()),
-                    None => crate::api::create_account(server, token, &name).await.map(|_| ()),
+                    Some(id) => crate::api::update_account(server, token, id, &name)
+                        .await
+                        .map(|_| ()),
+                    None => crate::api::create_account(server, token, &name)
+                        .await
+                        .map(|_| ()),
                 };
                 match result {
                     Ok(()) => {
@@ -1973,8 +2230,12 @@ fn money_card(server: String, token: String) -> impl IntoElement {
             category_busy.set(true);
             spawn(async move {
                 let result = match editing {
-                    Some(id) => crate::api::update_category(server, token, id, &name).await.map(|_| ()),
-                    None => crate::api::create_category(server, token, &name).await.map(|_| ()),
+                    Some(id) => crate::api::update_category(server, token, id, &name)
+                        .await
+                        .map(|_| ()),
+                    None => crate::api::create_category(server, token, &name)
+                        .await
+                        .map(|_| ()),
                 };
                 match result {
                     Ok(()) => {
@@ -2295,30 +2556,24 @@ fn money_card(server: String, token: String) -> impl IntoElement {
 }
 
 fn admin_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(
-        || Some(()),
-        {
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_admin_users(server, token).await }
-            }
-        },
-    );
-    let settings_data = resource(
-        || Some(()),
-        {
+            async move { crate::api::load_admin_users(server, token).await }
+        }
+    });
+    let settings_data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
             let server = server.clone();
             let token = token.clone();
-            move |(), _| {
-                let server = server.clone();
-                let token = token.clone();
-                async move { crate::api::load_admin_settings(server, token).await }
-            }
-        },
-    );
+            async move { crate::api::load_admin_settings(server, token).await }
+        }
+    });
     let backup_status = signal(String::new());
     let backup_pending = signal(None::<serde_json::Value>);
     let admin_delete = signal(None::<Uuid>);
@@ -2351,8 +2606,11 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                     .await
                     {
                         Ok(Some(path)) => match std::fs::write(&path, json) {
-                            Ok(()) => backup_status.set(format!("Full backup saved to {}", path.display())),
-                            Err(error) => backup_status.set(format!("Could not write the backup: {error}")),
+                            Ok(()) => backup_status
+                                .set(format!("Full backup saved to {}", path.display())),
+                            Err(error) => {
+                                backup_status.set(format!("Could not write the backup: {error}"))
+                            }
                         },
                         Ok(None) => backup_status.set(String::new()),
                         Err(error) => backup_status.set(error),
@@ -2377,11 +2635,17 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                         Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
                             Ok(value) => {
                                 backup_pending.set(Some(value));
-                                backup_status.set("Full backup loaded. Confirm to restore all tables.".to_string());
+                                backup_status.set(
+                                    "Full backup loaded. Confirm to restore all tables."
+                                        .to_string(),
+                                );
                             }
-                            Err(_) => backup_status.set("That file is not a Recurrency backup.".to_string()),
+                            Err(_) => backup_status
+                                .set("That file is not a Recurrency backup.".to_string()),
                         },
-                        Err(error) => backup_status.set(format!("Could not read the backup: {error}")),
+                        Err(error) => {
+                            backup_status.set(format!("Could not read the backup: {error}"))
+                        }
                     }
                 }
                 Ok(None) => backup_status.set(String::new()),
@@ -2393,7 +2657,9 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
         let server = server.clone();
         let token = token.clone();
         move || {
-            let Some(value) = backup_pending.get() else { return };
+            let Some(value) = backup_pending.get() else {
+                return;
+            };
             let server = server.clone();
             let token = token.clone();
             backup_status.set("Restoring full backup…".to_string());
@@ -2403,7 +2669,9 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                         backup_pending.set(None);
                         backup_status.set("Full backup restored.".to_string());
                     }
-                    Err(error) => backup_status.set(format!("Could not restore the backup: {error}")),
+                    Err(error) => {
+                        backup_status.set(format!("Could not restore the backup: {error}"))
+                    }
                 }
             });
         }
@@ -2416,135 +2684,141 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
             let token = token.clone();
             let enabled = settings_data
                 .get()
-                .map_or(false, |settings: crate::api::AdminSettings| settings.registration_enabled);
+                .map_or(false, |settings: crate::api::AdminSettings| {
+                    settings.registration_enabled
+                });
             spawn(async move {
                 let _ = crate::api::update_admin_settings(server, token, !enabled).await;
                 settings_data.refetch();
             });
         }
     };
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(12.0))
-        .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(12.0))
-                .child(
-                    text("Administration")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("Users registered on this server.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .py(px(8.0))
-                        .border_b(px(1.0))
-                        .border_color(move || theme().border)
-                        .child(
-                            view()
-                                .flex_col()
-                                .child(
-                                    text("Registration")
-                                        .text_size(px(13.0))
-                                        .text_color(move || theme().foreground),
-                                )
-                                .child(
-                                    text("Allow new accounts to sign up.")
-                                        .text_size(px(10.0))
-                                        .text_color(move || theme().muted_foreground),
-                                ),
-                        )
-                        .child(shared_toggle(
-                            settings_data
-                                .get()
-                                .map_or(false, |settings: crate::api::AdminSettings| settings.registration_enabled),
-                            "Registration".to_string(),
-                            move |_| registration(),
-                        )),
-                )
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(6.0))
-                        .child(each(
-                            move || data.get().unwrap_or_default(),
-                            |user| user.id,
-                            {
-                                let role_server = server.clone();
-                                let role_token = token.clone();
-                                move |user, _| {
-                                    let user: crate::models::AdminUser = user.get();
-                                    let id = user.id;
-                                    let is_admin = user.is_admin;
-                                    let row_name = user.name.clone().unwrap_or_else(|| user.email.clone());
-                                    let row_email = user.email.clone();
-                                    let role_server = role_server.clone();
-                                    let role_token = role_token.clone();
-                                    let role = move || {
-                                        let server = role_server.clone();
-                                        let token = role_token.clone();
-                                        spawn(async move {
-                                            let _ = crate::api::update_admin_role(server, token, id, !is_admin).await;
-                                            data.refetch();
-                                        });
-                                    };
-                                    view()
-                                        .w_full()
-                                        .flex_row()
-                                        .items_center()
-                                        .justify_between()
-                                        .gap(px(8.0))
-                                        .py(px(7.0))
-                                        .border_b(px(1.0))
-                                        .border_color(move || theme().border)
-                                        .child(
-                                            view()
-                                                .flex_col()
-                                                .child(
-                                                    text(row_name)
-                                                        .text_size(px(13.0))
-                                                        .text_color(move || theme().foreground),
-                                                )
-                                                .child(
-                                                    text(row_email)
-                                                        .text_size(px(10.0))
-                                                        .text_color(move || theme().muted_foreground),
-                                                ),
-                                        )
-                                        .child(
-                                            view()
-                                                .flex_row()
-                                                .items_center()
-                                                .gap(px(8.0))
-                                                .child(
-                                                    text(if is_admin { "Admin" } else { "User" })
-                                                        .text_size(px(10.0))
-                                                        .text_color(move || theme().muted_foreground),
-                                                )
-                                                .child(ui::action_button(
-                                                    if is_admin { "Remove admin" } else { "Make admin" },
-                                                    false,
-                                                    role,
-                                                ))
-                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || admin_delete.set(Some(id)))),
-                                        )
-                                }
-                            },
-                        )),
-                )
-                .child(
-                    when(move || admin_delete.get().is_some(), move || {
+    view().w_full().flex_col().gap(px(12.0)).child(
+        ui::surface()
+            .p(px(24.0))
+            .gap(px(12.0))
+            .child(
+                text("Administration")
+                    .text_size(px(18.0))
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(move || theme().foreground),
+            )
+            .child(
+                text("Users registered on this server.")
+                    .text_size(px(12.0))
+                    .text_color(move || theme().muted_foreground),
+            )
+            .child(
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .py(px(8.0))
+                    .border_b(px(1.0))
+                    .border_color(move || theme().border)
+                    .child(
+                        view()
+                            .flex_col()
+                            .child(
+                                text("Registration")
+                                    .text_size(px(13.0))
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text("Allow new accounts to sign up.")
+                                    .text_size(px(10.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                    )
+                    .child(shared_toggle(
+                        settings_data
+                            .get()
+                            .map_or(false, |settings: crate::api::AdminSettings| {
+                                settings.registration_enabled
+                            }),
+                        "Registration".to_string(),
+                        move |_| registration(),
+                    )),
+            )
+            .child(view().flex_col().gap(px(6.0)).child(each(
+                move || data.get().unwrap_or_default(),
+                |user| user.id,
+                {
+                    let role_server = server.clone();
+                    let role_token = token.clone();
+                    move |user, _| {
+                        let user: crate::models::AdminUser = user.get();
+                        let id = user.id;
+                        let is_admin = user.is_admin;
+                        let row_name = user.name.clone().unwrap_or_else(|| user.email.clone());
+                        let row_email = user.email.clone();
+                        let role_server = role_server.clone();
+                        let role_token = role_token.clone();
+                        let role = move || {
+                            let server = role_server.clone();
+                            let token = role_token.clone();
+                            spawn(async move {
+                                let _ = crate::api::update_admin_role(server, token, id, !is_admin)
+                                    .await;
+                                data.refetch();
+                            });
+                        };
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(8.0))
+                            .py(px(7.0))
+                            .border_b(px(1.0))
+                            .border_color(move || theme().border)
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .child(
+                                        text(row_name)
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(row_email)
+                                            .text_size(px(10.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
+                            )
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(8.0))
+                                    .child(
+                                        text(if is_admin { "Admin" } else { "User" })
+                                            .text_size(px(10.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    )
+                                    .child(ui::action_button(
+                                        if is_admin {
+                                            "Remove admin"
+                                        } else {
+                                            "Make admin"
+                                        },
+                                        false,
+                                        role,
+                                    ))
+                                    .child(ui::mini_icon_button(
+                                        asset!("icons/trash.svg"),
+                                        true,
+                                        move || admin_delete.set(Some(id)),
+                                    )),
+                            )
+                    }
+                },
+            )))
+            .child(
+                when(
+                    move || admin_delete.get().is_some(),
+                    move || {
                         let id = admin_delete.get().unwrap_or_default();
                         let remove = remove_user.clone();
                         confirm_row(ConfirmProps::new(
@@ -2557,25 +2831,36 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                             move || admin_delete.set(None),
                         ))
                         .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
+                    },
                 )
-                .child(
-                    text("Server backup")
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .flex_wrap()
-                        .gap(px(8.0))
-                        .child(ui::action_button("Export full backup", false, export_backup))
-                        .child(ui::action_button("Restore full backup", true, choose_backup)),
-                )
-                .child(
-                    when(move || backup_pending.get().is_some(), move || {
+                .otherwise(|| view().h(px(0.0)).into_element()),
+            )
+            .child(
+                text("Server backup")
+                    .text_size(px(14.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().foreground),
+            )
+            .child(
+                view()
+                    .flex_row()
+                    .flex_wrap()
+                    .gap(px(8.0))
+                    .child(ui::action_button(
+                        "Export full backup",
+                        false,
+                        export_backup,
+                    ))
+                    .child(ui::action_button(
+                        "Restore full backup",
+                        true,
+                        choose_backup,
+                    )),
+            )
+            .child(
+                when(
+                    move || backup_pending.get().is_some(),
+                    move || {
                         let restore_backup = restore_backup.clone();
                         view()
                             .w_full()
@@ -2586,24 +2871,31 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                             .p(px(10.0))
                             .rounded(px(7.0))
                             .bg(move || theme().destructive.opacity(0.1))
-                            .child(text("Replace every table with this backup?").text_size(px(11.0)).text_color(move || theme().destructive))
+                            .child(
+                                text("Replace every table with this backup?")
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().destructive),
+                            )
                             .child(
                                 view()
                                     .flex_row()
                                     .gap(px(6.0))
-                                    .child(ui::action_button("Cancel", false, move || backup_pending.set(None)))
+                                    .child(ui::action_button("Cancel", false, move || {
+                                        backup_pending.set(None)
+                                    }))
                                     .child(ui::action_button("Restore now", true, restore_backup)),
                             )
                             .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
+                    },
                 )
-                .child(
-                    text(move || backup_status.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
-        )
+                .otherwise(|| view().h(px(0.0)).into_element()),
+            )
+            .child(
+                text(move || backup_status.get())
+                    .text_size(px(11.0))
+                    .text_color(move || theme().muted_foreground),
+            ),
+    )
 }
 
 #[cfg(test)]
@@ -2623,7 +2915,10 @@ mod tests {
         let source = image::RgbImage::from_pixel(4, 4, image::Rgb([20, 40, 60]));
         let mut bytes = Vec::new();
         image::DynamicImage::ImageRgb8(source)
-            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .write_to(
+                &mut std::io::Cursor::new(&mut bytes),
+                image::ImageFormat::Png,
+            )
             .expect("fixture image encodes");
         let data_url = avatar_data_url(&bytes).expect("avatar encodes");
         assert!(data_url.starts_with("data:image/jpeg;base64,"));

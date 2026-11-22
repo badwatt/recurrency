@@ -15,7 +15,10 @@ pub struct SelectOption {
 
 impl SelectOption {
     pub fn new(value: Uuid, label: impl Into<String>) -> Self {
-        Self { value, label: label.into() }
+        Self {
+            value,
+            label: label.into(),
+        }
     }
 }
 
@@ -43,7 +46,12 @@ impl SelectMenuProps {
 }
 
 pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
-    let SelectMenuProps { label, placeholder, selected, options } = props;
+    let SelectMenuProps {
+        label,
+        placeholder,
+        selected,
+        options,
+    } = props;
     let open = signal(false);
     let option_rows = options.clone();
     let selected_label = move || {
@@ -84,7 +92,11 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                         .text_size(px(13.0))
                         .text_color(move || theme().foreground),
                 )
-                .child(image(asset!("icons/chevron-down.svg")).size(px(13.0)).tint_color(move || theme().muted_foreground)),
+                .child(
+                    image(asset!("icons/chevron-down.svg"))
+                        .size(px(13.0))
+                        .tint_color(move || theme().muted_foreground),
+                ),
         )
         .child(
             when(open, move || {
@@ -108,7 +120,13 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                             .items_center()
                             .justify_between()
                             .rounded(px(5.0))
-                            .bg(move || if active { theme().accent } else { theme().popover })
+                            .bg(move || {
+                                if active {
+                                    theme().accent
+                                } else {
+                                    theme().popover
+                                }
+                            })
                             .on_press(move || {
                                 selected.set(Some(id));
                                 open.set(false);
@@ -120,7 +138,11 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                     .text_color(move || theme().foreground),
                             )
                             .when(active, |row| {
-                                row.child(image(asset!("icons/check.svg")).size(px(13.0)).tint_color(move || theme().primary))
+                                row.child(
+                                    image(asset!("icons/check.svg"))
+                                        .size(px(13.0))
+                                        .tint_color(move || theme().primary),
+                                )
                             })
                     }))
                     .into_element()

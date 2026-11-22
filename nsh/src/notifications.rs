@@ -62,7 +62,13 @@ pub fn notifications_modal(auth: AuthSession) -> AnyElement {
                     .gap(px(8.0))
                     .p(px(8.0))
                     .rounded(px(6.0))
-                    .bg(move || if unread { theme().accent } else { theme().card.opacity(0.0) })
+                    .bg(move || {
+                        if unread {
+                            theme().accent
+                        } else {
+                            theme().card.opacity(0.0)
+                        }
+                    })
                     .on_press(move || {
                         let server = server.clone();
                         let token = token.clone();
@@ -77,23 +83,49 @@ pub fn notifications_modal(auth: AuthSession) -> AnyElement {
                             .w(px(7.0))
                             .mt(px(5.0))
                             .rounded(px(999.0))
-                            .bg(move || if unread { theme().primary } else { theme().border }),
+                            .bg(move || {
+                                if unread {
+                                    theme().primary
+                                } else {
+                                    theme().border
+                                }
+                            }),
                     )
                     .child(
                         view()
                             .flex_col()
                             .flex_grow(1.0)
                             .min_w(px(0.0))
-                            .child(text(title).text_size(px(12.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground))
-                            .child(text(message).text_size(px(11.0)).text_color(move || theme().muted_foreground))
-                            .child(text(date).text_size(px(9.0)).text_color(move || theme().muted_foreground)),
+                            .child(
+                                text(title)
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text(message)
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                            .child(
+                                text(date)
+                                    .text_size(px(9.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
                     )
-                    .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, delete))
+                    .child(crate::ui::mini_icon_button(
+                        asset!("icons/trash.svg"),
+                        true,
+                        delete,
+                    ))
                     .into_element()
             })
             .collect::<Vec<_>>()
     };
-    let unread = move || data.get().map_or(0, |list: NotificationList| list.unread_count);
+    let unread = move || {
+        data.get()
+            .map_or(0, |list: NotificationList| list.unread_count)
+    };
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(
             "Notifications",
@@ -108,14 +140,27 @@ pub fn notifications_modal(auth: AuthSession) -> AnyElement {
                 .child(
                     when(
                         move || data.loading() && data.get().is_none(),
-                        || text("Loading notifications…").text_size(px(12.0)).text_color(move || theme().muted_foreground).into_element(),
+                        || {
+                            text("Loading notifications…")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground)
+                                .into_element()
+                        },
                     )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
                     when(
-                        move || !data.loading() && data.get().is_some_and(|list| list.notifications.is_empty()),
-                        || text("You're all caught up.").text_size(px(12.0)).text_color(move || theme().muted_foreground).into_element(),
+                        move || {
+                            !data.loading()
+                                && data.get().is_some_and(|list| list.notifications.is_empty())
+                        },
+                        || {
+                            text("You're all caught up.")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground)
+                                .into_element()
+                        },
                     )
                     .otherwise(|| view().h(px(0.0))),
                 )
@@ -129,7 +174,9 @@ pub fn notifications_modal(auth: AuthSession) -> AnyElement {
                 .justify_end()
                 .gap(px(8.0))
                 .child(crate::ui::action_button("Mark all read", false, mark_all))
-                .child(crate::ui::action_button("Close", false, move || crate::ui::close_notifications()))
+                .child(crate::ui::action_button("Close", false, move || {
+                    crate::ui::close_notifications()
+                }))
                 .into_element(),
         ),
     )

@@ -9,14 +9,14 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, SubscriptionsData};
-use crate::components::button::{button as shared_button, ButtonProps};
-use crate::components::page_header::page_header as shared_page_header;
-use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
-use crate::components::badge::{badge, BadgeProps, BadgeTone};
-use crate::components::checkbox::checkbox;
-use crate::components::confirm::{confirm_row, ConfirmProps};
-use crate::components::string_select::{string_select, StringSelectProps};
 use crate::auth::AuthSession;
+use crate::components::badge::{BadgeProps, BadgeTone, badge};
+use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::checkbox::checkbox;
+use crate::components::confirm::{ConfirmProps, confirm_row};
+use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
+use crate::components::page_header::page_header as shared_page_header;
+use crate::components::string_select::{StringSelectProps, string_select};
 use crate::format::{format_currency, format_date};
 use crate::models::{AnnualDate, Recurrence, Subscription};
 use crate::theme as design;
@@ -80,7 +80,11 @@ struct ListActions {
 const TITLE: &str = "Subscriptions";
 const SUBTITLE: &str = "Track and manage recurring payments";
 
-pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Option<crate::Route>>) -> AnyElement {
+pub fn subscriptions(
+    auth: AuthSession,
+    modal: ui::ModalHost,
+    intent: Signal<Option<crate::Route>>,
+) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -110,7 +114,11 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
     let name = signal(String::new());
     let amount = signal(String::new());
     let start_date = signal(String::new());
-    let form_currency = signal(if auth.user.currency.is_empty() { "EUR".to_string() } else { auth.user.currency.clone() });
+    let form_currency = signal(if auth.user.currency.is_empty() {
+        "EUR".to_string()
+    } else {
+        auth.user.currency.clone()
+    });
     let interval = signal("1".to_string());
     let days = signal(Vec::<u8>::new());
     let unit = signal("month".to_string());
@@ -166,7 +174,11 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
         name.set(String::new());
         amount.set(String::new());
         start_date.set(today.to_string());
-        form_currency.set(if auth.user.currency.is_empty() { "EUR".to_string() } else { auth.user.currency.clone() });
+        form_currency.set(if auth.user.currency.is_empty() {
+            "EUR".to_string()
+        } else {
+            auth.user.currency.clone()
+        });
         interval.set("1".to_string());
         days.set(vec![today.day() as u8]);
         unit.set("month".to_string());
@@ -185,14 +197,7 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
         active.set(true);
         form_open.set(true);
         modal.open(move || {
-            form(
-                data,
-                form_signals,
-                server_signal,
-                token_signal,
-                modal,
-            )
-            .into_element()
+            form(data, form_signals, server_signal, token_signal, modal).into_element()
         });
     };
 
@@ -202,9 +207,7 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
     }
 
     let open_bulk = move || {
-        modal.open(move || {
-            bulk_modal(data, server_signal, token_signal, modal).into_element()
-        });
+        modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
     };
 
     view()
@@ -213,27 +216,25 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
         .child(toolbar(data, search, sort_desc, list_view, active_only))
-        .child(
-            when(loading, || loading_card()).otherwise(move || {
-                let value = render_currency.clone();
-                when(has_error, move || {
-                    error_card(&data.error().unwrap_or_default(), data)
-                })
-                .otherwise(move || {
-                    content(
-                        data,
-                        search,
-                        value.clone(),
-                        actions,
-                        server_signal,
-                        token_signal,
-                        sort_desc,
-                        list_view,
-                        active_only,
-                    )
-                })
-            }),
-        )
+        .child(when(loading, || loading_card()).otherwise(move || {
+            let value = render_currency.clone();
+            when(has_error, move || {
+                error_card(&data.error().unwrap_or_default(), data)
+            })
+            .otherwise(move || {
+                content(
+                    data,
+                    search,
+                    value.clone(),
+                    actions,
+                    server_signal,
+                    token_signal,
+                    sort_desc,
+                    list_view,
+                    active_only,
+                )
+            })
+        }))
         .into_element()
 }
 
@@ -251,7 +252,11 @@ fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl Int
                     .variant(crate::components::button::ButtonVariant::Outline)
                     .on_press(on_bulk),
             ))
-            .child(shared_button(ButtonProps::new("Add Subscription").icon(asset!("icons/plus.svg")).on_press(on_add)))
+            .child(shared_button(
+                ButtonProps::new("Add Subscription")
+                    .icon(asset!("icons/plus.svg"))
+                    .on_press(on_add),
+            ))
             .into_element(),
     )
 }
@@ -307,7 +312,8 @@ fn form(
                 form_error.set("Amount must be positive.".to_string());
                 return;
             }
-            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d") else {
+            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
+            else {
                 form_error.set("Use YYYY-MM-DD for the start date.".to_string());
                 return;
             };
@@ -382,7 +388,12 @@ fn form(
             spawn(async move {
                 match api::search_logos(server, query).await {
                     Ok(results) => {
-                        logo_results.set(results.into_iter().map(|result| (result.url, result.thumbnail)).collect());
+                        logo_results.set(
+                            results
+                                .into_iter()
+                                .map(|result| (result.url, result.thumbnail))
+                                .collect(),
+                        );
                     }
                     Err(message) => logo_error.set(message),
                 }
@@ -390,7 +401,11 @@ fn form(
             });
         }
     };
-    let title = if editing.get().is_some() { "Edit Subscription" } else { "Add Subscription" };
+    let title = if editing.get().is_some() {
+        "Edit Subscription"
+    } else {
+        "Add Subscription"
+    };
     let subtitle = if editing.get().is_some() {
         "Update the recurring expense or subscription."
     } else {
@@ -414,7 +429,14 @@ fn form(
                         .flex_row()
                         .gap(px(12.0))
                         .child(ui::field("Amount", amount, "9.99"))
-                        .child(string_select(StringSelectProps::new("Currency", currency, crate::currencies::CURRENCIES.iter().map(|(code, label)| ((*code).to_string(), (*label).to_string())).collect()))),
+                        .child(string_select(StringSelectProps::new(
+                            "Currency",
+                            currency,
+                            crate::currencies::CURRENCIES
+                                .iter()
+                                .map(|(code, label)| ((*code).to_string(), (*label).to_string()))
+                                .collect(),
+                        ))),
                 )
                 .child(
                     view()
@@ -439,23 +461,23 @@ fn form(
                                 .items_center()
                                 .gap(px(8.0))
                                 .child(
-                                    view()
-                                        .w(px(64.0))
-                                        .child(
-                                            input()
-                                                .value(interval)
-                                                .on_change(move |value: &str| interval.set(value.to_string()))
-                                                .auto_fill(AutoFill::Off)
-                                                .h(px(34.0))
-                                                .w_full()
-                                                .px(px(10.0))
-                                                .rounded(px(7.0))
-                                                .border(px(1.0))
-                                                .border_color(move || theme().input)
-                                                .bg(move || theme().background)
-                                                .text_size(px(13.0))
-                                                .text_color(move || theme().foreground),
-                                        ),
+                                    view().w(px(64.0)).child(
+                                        input()
+                                            .value(interval)
+                                            .on_change(move |value: &str| {
+                                                interval.set(value.to_string())
+                                            })
+                                            .auto_fill(AutoFill::Off)
+                                            .h(px(34.0))
+                                            .w_full()
+                                            .px(px(10.0))
+                                            .rounded(px(7.0))
+                                            .border(px(1.0))
+                                            .border_color(move || theme().input)
+                                            .bg(move || theme().background)
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    ),
                                 )
                                 .child(unit_chip("Day", "day", unit))
                                 .child(unit_chip("Week", "week", unit))
@@ -500,47 +522,65 @@ fn form(
                         .flex_row()
                         .items_end()
                         .gap(px(8.0))
-                        .child(ui::field("Logo URL", logo_url, "https://example.com/logo.png"))
+                        .child(ui::field(
+                            "Logo URL",
+                            logo_url,
+                            "https://example.com/logo.png",
+                        ))
                         .child(ui::action_button(
-                            if logo_loading.get() { "Searching…" } else { "Find logo" },
+                            if logo_loading.get() {
+                                "Searching…"
+                            } else {
+                                "Find logo"
+                            },
                             false,
                             find_logo,
                         )),
                 )
                 .child(
-                    when(move || !logo_results.get().is_empty(), move || {
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .flex_wrap()
-                            .gap(px(6.0))
-                            .children(logo_results.get().into_iter().map(|(url, thumbnail)| {
-                                let value = url.clone();
-                                button()
-                                    .h(px(38.0))
-                                    .w(px(38.0))
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(px(6.0))
-                                    .border(px(1.0))
-                                    .border_color(move || theme().border)
-                                    .bg(move || theme().background)
-                                    .on_press(move || logo_url.set(value.clone()))
-                                    .child(image(thumbnail).size(px(28.0)))
-                                    .into_element()
-                            }))
-                            .into_element()
-                    })
+                    when(
+                        move || !logo_results.get().is_empty(),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .flex_wrap()
+                                .gap(px(6.0))
+                                .children(logo_results.get().into_iter().map(|(url, thumbnail)| {
+                                    let value = url.clone();
+                                    button()
+                                        .h(px(38.0))
+                                        .w(px(38.0))
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(6.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .bg(move || theme().background)
+                                        .on_press(move || logo_url.set(value.clone()))
+                                        .child(image(thumbnail).size(px(28.0)))
+                                        .into_element()
+                                }))
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
-                .child(text(move || logo_error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .child(
+                    text(move || logo_error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
                 .child(checkbox(active, "Active subscription".to_string()))
                 .child(
-                    when(move || !form_error.get().is_empty(), move || {
-                        text(move || form_error.get())
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive)
-                    })
+                    when(
+                        move || !form_error.get().is_empty(),
+                        move || {
+                            text(move || form_error.get())
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive)
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .into_element(),
@@ -594,9 +634,9 @@ fn form(
                                     "Add Subscription"
                                 }
                             })
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(move || theme().primary_foreground),
                         ),
                 )
                 .into_element(),
@@ -619,8 +659,20 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                 .w_full()
                 .rounded(px(5.0))
                 .border(px(1.0))
-                .border_color(move || if active() { theme().primary } else { theme().border })
-                .bg(move || if active() { theme().primary } else { theme().card })
+                .border_color(move || {
+                    if active() {
+                        theme().primary
+                    } else {
+                        theme().border
+                    }
+                })
+                .bg(move || {
+                    if active() {
+                        theme().primary
+                    } else {
+                        theme().card
+                    }
+                })
                 .on_press(move || {
                     let mut values = days.get();
                     if let Some(index) = values.iter().position(|value| *value == day) {
@@ -635,16 +687,22 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                     text(day.to_string())
                         .text_size(px(11.0))
                         .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || if active() {
-                            theme().primary_foreground
-                        } else {
-                            theme().foreground
+                        .text_color(move || {
+                            if active() {
+                                theme().primary_foreground
+                            } else {
+                                theme().foreground
+                            }
                         }),
                 )
         }))
 }
 
-fn unit_chip(label_text: &'static str, value: &'static str, unit: Signal<String>) -> impl IntoElement {
+fn unit_chip(
+    label_text: &'static str,
+    value: &'static str,
+    unit: Signal<String>,
+) -> impl IntoElement {
     let active = move || unit.get() == value;
     button()
         .items_center()
@@ -653,17 +711,31 @@ fn unit_chip(label_text: &'static str, value: &'static str, unit: Signal<String>
         .px(px(10.0))
         .rounded(px(6.0))
         .border(px(1.0))
-        .border_color(move || if active() { theme().primary } else { theme().border })
-        .bg(move || if active() { theme().accent } else { theme().card })
+        .border_color(move || {
+            if active() {
+                theme().primary
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || {
+            if active() {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
         .on_press(move || unit.set(value.to_string()))
         .child(
             text(label_text)
                 .text_size(px(12.0))
                 .font_weight(FontWeight::MEDIUM)
-                .text_color(move || if active() {
-                    theme().foreground
-                } else {
-                    theme().muted_foreground
+                .text_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
                 }),
         )
 }
@@ -881,7 +953,6 @@ fn section(
                     .into_element()
             }),
         )
-
 }
 
 fn filtered(
@@ -932,13 +1003,16 @@ fn filter_subscriptions(
                 .next_billing_date
                 .map_or(i32::MAX, |date| date.num_days_from_ce())
         };
-        b.is_active.cmp(&a.is_active).then_with(|| {
-            if sort_desc {
-                date(b).cmp(&date(a))
-            } else {
-                date(a).cmp(&date(b))
-            }
-        }).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        b.is_active
+            .cmp(&a.is_active)
+            .then_with(|| {
+                if sort_desc {
+                    date(b).cmp(&date(a))
+                } else {
+                    date(a).cmp(&date(b))
+                }
+            })
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
     result
 }
@@ -955,12 +1029,16 @@ fn list_card(
     let action_subscription = subscription.clone();
     let logo = subscription.logo_url.clone();
     let name = subscription.name;
-    let next = subscription
-        .next_billing_date
-        .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", format_date(date)));
+    let next = subscription.next_billing_date.map_or_else(
+        || "No next date".to_string(),
+        |date| format!("Next: {}", format_date(date)),
+    );
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
-        format_currency(rates.convert(subscription.amount, &subscription.currency), &currency)
+        format_currency(
+            rates.convert(subscription.amount, &subscription.currency),
+            &currency,
+        )
     };
     view()
         .w_full()
@@ -990,10 +1068,15 @@ fn list_card(
                         .bg(move || theme().muted)
                         .child(
                             when(logo.is_some(), move || {
-                                image(logo.clone().unwrap_or_default()).size(px(18.0)).into_element()
+                                image(logo.clone().unwrap_or_default())
+                                    .size(px(18.0))
+                                    .into_element()
                             })
                             .otherwise(|| {
-                                image(asset!("icons/card.svg")).size(px(16.0)).tint_color(move || theme().muted_foreground).into_element()
+                                image(asset!("icons/card.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().muted_foreground)
+                                    .into_element()
                             }),
                         ),
                 )
@@ -1020,11 +1103,17 @@ fn list_card(
                 .items_center()
                 .gap(px(12.0))
                 .child(
-                    text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                        .text_size(px(14.0))
-                        .font_family(design::MONO)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
+                    text(move || {
+                        if crate::ui::privacy_active() {
+                            "••••".to_string()
+                        } else {
+                            amount.clone()
+                        }
+                    })
+                    .text_size(px(14.0))
+                    .font_family(design::MONO)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().foreground),
                 )
                 .child(card_actions(
                     action_subscription,
@@ -1052,11 +1141,15 @@ fn card(
     let name = subscription.name;
     let amount = {
         let rates = data.get().unwrap_or_default().rates;
-        format_currency(rates.convert(subscription.amount, &subscription.currency), &currency)
+        format_currency(
+            rates.convert(subscription.amount, &subscription.currency),
+            &currency,
+        )
     };
-    let next = subscription
-        .next_billing_date
-        .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", format_date(date)));
+    let next = subscription.next_billing_date.map_or_else(
+        || "No next date".to_string(),
+        |date| format!("Next: {}", format_date(date)),
+    );
     let active = subscription.is_active;
     let status = if active { "Active" } else { "Inactive" };
 
@@ -1087,16 +1180,23 @@ fn card(
                         .bg(move || theme().muted)
                         .child(
                             when(logo.is_some(), move || {
-                                image(logo.clone().unwrap_or_default()).size(px(24.0)).into_element()
+                                image(logo.clone().unwrap_or_default())
+                                    .size(px(24.0))
+                                    .into_element()
                             })
                             .otherwise(|| {
-                                image(asset!("icons/card.svg")).size(px(18.0)).tint_color(move || theme().muted_foreground).into_element()
+                                image(asset!("icons/card.svg"))
+                                    .size(px(18.0))
+                                    .tint_color(move || theme().muted_foreground)
+                                    .into_element()
                             }),
                         ),
                 )
-                .child(badge(
-                    BadgeProps::new(status).tone(if active { BadgeTone::Primary } else { BadgeTone::Neutral }),
-                )),
+                .child(badge(BadgeProps::new(status).tone(if active {
+                    BadgeTone::Primary
+                } else {
+                    BadgeTone::Neutral
+                }))),
         )
         .child(
             view()
@@ -1116,11 +1216,17 @@ fn card(
                 ),
         )
         .child(
-            text(move || if crate::ui::privacy_active() { "••••".to_string() } else { amount.clone() })
-                .text_size(px(24.0))
-                .font_family(design::MONO)
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
+            text(move || {
+                if crate::ui::privacy_active() {
+                    "••••".to_string()
+                } else {
+                    amount.clone()
+                }
+            })
+            .text_size(px(24.0))
+            .font_family(design::MONO)
+            .font_weight(FontWeight::BOLD)
+            .text_color(move || theme().foreground),
         )
         .child(
             view()
@@ -1143,7 +1249,15 @@ fn card(
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(card_actions(action_subscription, active, actions, data, server, token, currency.clone()))
+        .child(card_actions(
+            action_subscription,
+            active,
+            actions,
+            data,
+            server,
+            token,
+            currency.clone(),
+        ))
 }
 
 fn bulk_modal(
@@ -1166,7 +1280,14 @@ fn bulk_modal(
         }
         selected.set(values);
     };
-    let all_ids = move || data.get().unwrap_or_default().subscriptions.into_iter().map(|item| item.id).collect::<Vec<_>>();
+    let all_ids = move || {
+        data.get()
+            .unwrap_or_default()
+            .subscriptions
+            .into_iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>()
+    };
     let select_all = move || {
         let mut values = selected.get();
         for id in all_ids() {
@@ -1188,7 +1309,13 @@ fn bulk_modal(
         error.set(String::new());
         spawn(async move {
             for id in ids {
-                let _ = api::update_subscription(server.clone(), token.clone(), id, &serde_json::json!({ "is_active": active })).await;
+                let _ = api::update_subscription(
+                    server.clone(),
+                    token.clone(),
+                    id,
+                    &serde_json::json!({ "is_active": active }),
+                )
+                .await;
             }
             selected.set(Vec::new());
             data.refetch();
@@ -1212,7 +1339,13 @@ fn bulk_modal(
             error.set(String::new());
             spawn(async move {
                 for id in ids {
-                    let _ = api::update_subscription(server.clone(), token.clone(), id, &serde_json::json!({ "category_id": category })).await;
+                    let _ = api::update_subscription(
+                        server.clone(),
+                        token.clone(),
+                        id,
+                        &serde_json::json!({ "category_id": category }),
+                    )
+                    .await;
                 }
                 selected.set(Vec::new());
                 data.refetch();
@@ -1240,35 +1373,60 @@ fn bulk_modal(
         });
     };
     let rows = move || {
-        data.get().unwrap_or_default().subscriptions.into_iter().map(|subscription| {
-            let id = subscription.id;
-            let name = subscription.name;
-            let active = subscription.is_active;
-            let is_selected = selected.get().contains(&id);
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .gap(px(8.0))
-                .p(px(8.0))
-                .rounded(px(6.0))
-                .bg(move || if is_selected { theme().accent } else { theme().card.opacity(0.0) })
-                .on_press(move || toggle(id))
-                .child(
-                    view()
-                        .flex_col()
-                        .child(text(name).text_size(px(12.0)).text_color(move || theme().foreground))
-                        .child(text(if active { "Active" } else { "Inactive" }).text_size(px(10.0)).text_color(move || theme().muted_foreground)),
-                )
-                .child(
-                    when(move || is_selected, move || {
-                        image(asset!("icons/check.svg")).size(px(14.0)).tint_color(move || theme().primary).into_element()
+        data.get()
+            .unwrap_or_default()
+            .subscriptions
+            .into_iter()
+            .map(|subscription| {
+                let id = subscription.id;
+                let name = subscription.name;
+                let active = subscription.is_active;
+                let is_selected = selected.get().contains(&id);
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(8.0))
+                    .p(px(8.0))
+                    .rounded(px(6.0))
+                    .bg(move || {
+                        if is_selected {
+                            theme().accent
+                        } else {
+                            theme().card.opacity(0.0)
+                        }
                     })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .into_element()
-        }).collect::<Vec<_>>()
+                    .on_press(move || toggle(id))
+                    .child(
+                        view()
+                            .flex_col()
+                            .child(
+                                text(name)
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text(if active { "Active" } else { "Inactive" })
+                                    .text_size(px(10.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                    )
+                    .child(
+                        when(
+                            move || is_selected,
+                            move || {
+                                image(asset!("icons/check.svg"))
+                                    .size(px(14.0))
+                                    .tint_color(move || theme().primary)
+                                    .into_element()
+                            },
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .into_element()
+            })
+            .collect::<Vec<_>>()
     };
     let count = move || selected.get().len();
     crate::components::dialog::dialog(
@@ -1289,7 +1447,11 @@ fn bulk_modal(
                         .items_center()
                         .justify_between()
                         .gap(px(8.0))
-                        .child(text(move || format!("{} selected", count())).text_size(px(12.0)).text_color(move || theme().muted_foreground))
+                        .child(
+                            text(move || format!("{} selected", count()))
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        )
                         .child(
                             view()
                                 .flex_row()
@@ -1306,33 +1468,53 @@ fn bulk_modal(
                 )
                 .child(ui::choice_picker(
                     "Move selected to category",
-                    move || data.get().unwrap_or_default().categories.into_iter().map(|category| (category.id, category.name)).collect(),
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .categories
+                            .into_iter()
+                            .map(|category| (category.id, category.name))
+                            .collect()
+                    },
                     bulk_category,
                 ))
                 .child(
-                    when(move || confirm_delete.get(), move || {
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .gap(px(8.0))
-                            .p(px(10.0))
-                            .rounded(px(7.0))
-                            .bg(move || theme().destructive.opacity(0.1))
-                            .child(text(move || format!("Delete {} subscriptions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .gap(px(6.0))
-                                    .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
-                                    .child(ui::action_button("Delete", true, delete)),
-                            )
-                            .into_element()
-                    })
+                    when(
+                        move || confirm_delete.get(),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .gap(px(8.0))
+                                .p(px(10.0))
+                                .rounded(px(7.0))
+                                .bg(move || theme().destructive.opacity(0.1))
+                                .child(
+                                    text(move || format!("Delete {} subscriptions?", count()))
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().destructive),
+                                )
+                                .child(
+                                    view()
+                                        .flex_row()
+                                        .gap(px(6.0))
+                                        .child(ui::action_button("Cancel", false, move || {
+                                            confirm_delete.set(false)
+                                        }))
+                                        .child(ui::action_button("Delete", true, delete)),
+                                )
+                                .into_element()
+                        },
+                    )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
-                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
                 .into_element(),
         )
         .footer(
@@ -1343,9 +1525,13 @@ fn bulk_modal(
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Apply category", false, apply_category))
-                .child(ui::action_button("Activate", false, move || set_active(true)))
+                .child(ui::action_button("Activate", false, move || {
+                    set_active(true)
+                }))
                 .child(ui::action_button("Pause", false, move || set_active(false)))
-                .child(ui::action_button("Delete", true, move || confirm_delete.set(true)))
+                .child(ui::action_button("Delete", true, move || {
+                    confirm_delete.set(true)
+                }))
                 .into_element(),
         ),
     )
@@ -1369,7 +1555,14 @@ fn notes_form(
         let server = server.get();
         let token = token.get();
         spawn(async move {
-            match api::update_subscription(server, token, id, &serde_json::json!({ "notes": value })).await {
+            match api::update_subscription(
+                server,
+                token,
+                id,
+                &serde_json::json!({ "notes": value }),
+            )
+            .await
+            {
                 Ok(_) => {
                     data.refetch();
                     modal.close();
@@ -1421,7 +1614,15 @@ fn notes_form(
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Cancel", false, move || modal.close()))
-                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save))
+                .child(ui::action_button(
+                    if saving.get() {
+                        "Saving…"
+                    } else {
+                        "Save notes"
+                    },
+                    false,
+                    save,
+                ))
                 .into_element(),
         ),
     )
@@ -1443,24 +1644,44 @@ fn card_actions(
     let edit = move || {
         let recurrence = &edit_subscription.recurrence;
         let days = if recurrence.unit == "year" {
-            recurrence.dates.iter().map(|date| date.day).collect::<Vec<_>>()
+            recurrence
+                .dates
+                .iter()
+                .map(|date| date.day)
+                .collect::<Vec<_>>()
         } else if recurrence.days.is_empty() {
             vec![edit_subscription.start_date.day() as u8]
         } else {
             recurrence.days.clone()
         };
         form_signals.name.set(edit_subscription.name.clone());
-        form_signals.amount.set(edit_subscription.amount.to_string());
-        form_signals.start_date.set(edit_subscription.start_date.to_string());
-        form_signals.currency.set(edit_subscription.currency.clone());
-        form_signals.interval.set(recurrence.interval.max(1).to_string());
+        form_signals
+            .amount
+            .set(edit_subscription.amount.to_string());
+        form_signals
+            .start_date
+            .set(edit_subscription.start_date.to_string());
+        form_signals
+            .currency
+            .set(edit_subscription.currency.clone());
+        form_signals
+            .interval
+            .set(recurrence.interval.max(1).to_string());
         form_signals.days.set(days);
         form_signals.unit.set(recurrence.unit.clone());
-        form_signals.account_id.set(Some(edit_subscription.account_id));
-        form_signals.category_id.set(Some(edit_subscription.category_id));
+        form_signals
+            .account_id
+            .set(Some(edit_subscription.account_id));
+        form_signals
+            .category_id
+            .set(Some(edit_subscription.category_id));
         form_signals.active.set(edit_subscription.is_active);
-        form_signals.notes.set(edit_subscription.notes.clone().unwrap_or_default());
-        form_signals.logo_url.set(edit_subscription.logo_url.clone().unwrap_or_default());
+        form_signals
+            .notes
+            .set(edit_subscription.notes.clone().unwrap_or_default());
+        form_signals
+            .logo_url
+            .set(edit_subscription.logo_url.clone().unwrap_or_default());
         form_signals.logo_results.set(Vec::new());
         form_signals.logo_error.set(String::new());
         form_signals.error.set(String::new());
@@ -1468,16 +1689,9 @@ fn card_actions(
         form_signals.editing.set(Some(id));
         form_signals.open.set(true);
         let modal = actions.modal;
-        actions.modal.open(move || {
-            form(
-                data,
-                form_signals,
-                server,
-                token,
-                modal,
-            )
-            .into_element()
-        });
+        actions
+            .modal
+            .open(move || form(data, form_signals, server, token, modal).into_element());
     };
     let duplicate = {
         let original = subscription.clone();
@@ -1501,7 +1715,10 @@ fn card_actions(
             let server_value = server.get();
             let token_value = token.get();
             spawn(async move {
-                if api::create_subscription(server_value, token_value, &request).await.is_ok() {
+                if api::create_subscription(server_value, token_value, &request)
+                    .await
+                    .is_ok()
+                {
                     data.refetch();
                 }
             });
@@ -1568,16 +1785,19 @@ fn card_actions(
         }
     };
 
-    when(move || actions.delete_confirm.get() == Some(id), move || {
-        let delete = delete.clone();
-        confirm_row(ConfirmProps::new(
-            "Delete this subscription?",
-            "Delete",
-            move || delete(),
-            move || actions.delete_confirm.set(None),
-        ))
-        .into_element()
-    })
+    when(
+        move || actions.delete_confirm.get() == Some(id),
+        move || {
+            let delete = delete.clone();
+            confirm_row(ConfirmProps::new(
+                "Delete this subscription?",
+                "Delete",
+                move || delete(),
+                move || actions.delete_confirm.set(None),
+            ))
+            .into_element()
+        },
+    )
     .otherwise(move || {
         let edit = edit.clone();
         let toggle = toggle.clone();
@@ -1598,7 +1818,11 @@ fn card_actions(
                 open_notes,
             ))
             .child(ui::mini_icon_button(
-                if active { asset!("icons/pause.svg") } else { asset!("icons/play.svg") },
+                if active {
+                    asset!("icons/pause.svg")
+                } else {
+                    asset!("icons/play.svg")
+                },
                 false,
                 toggle,
             ))
@@ -1617,7 +1841,6 @@ fn card_actions(
     .into_element()
 }
 
-
 fn account_name(data: Resource<SubscriptionsData, String>, account_id: Uuid) -> String {
     data.get()
         .unwrap_or_default()
@@ -1626,7 +1849,6 @@ fn account_name(data: Resource<SubscriptionsData, String>, account_id: Uuid) -> 
         .find(|account| account.id == account_id)
         .map_or_else(|| "No account".to_string(), |account| account.name)
 }
-
 
 fn loading_card() -> AnyElement {
     ui::surface()
@@ -1725,7 +1947,10 @@ mod tests {
             filter_subscriptions(&items, "every", &accounts, false, false).len(),
             1
         );
-        assert_eq!(filter_subscriptions(&items, "", &accounts, false, false).len(), 2);
+        assert_eq!(
+            filter_subscriptions(&items, "", &accounts, false, false).len(),
+            2
+        );
     }
 
     #[test]

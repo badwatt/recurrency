@@ -1,11 +1,15 @@
 //! Compact list toolbar: shared search, extra actions and view switch.
 
-use crate::components::button::{icon_button, ButtonProps, ButtonSize, ButtonVariant};
+use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, icon_button};
 use crate::components::search_input::search_input;
 use nsh_base::theme;
 use nsh_core::prelude::*;
 
-pub fn list_toolbar(search: Signal<String>, list_view: Signal<bool>, actions: AnyElement) -> impl IntoElement {
+pub fn list_toolbar(
+    search: Signal<String>,
+    list_view: Signal<bool>,
+    actions: AnyElement,
+) -> impl IntoElement {
     view()
         .w_full()
         .flex_row()
@@ -32,22 +36,47 @@ pub fn list_toolbar(search: Signal<String>, list_view: Signal<bool>, actions: An
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().muted.opacity(0.4))
-                        .child(icon_button(asset!("icons/grid.svg"), "Grid view", !list_view.get(), move || list_view.set(false)))
-                        .child(icon_button(asset!("icons/list.svg"), "List view", list_view.get(), move || list_view.set(true))),
+                        .child(icon_button(
+                            asset!("icons/grid.svg"),
+                            "Grid view",
+                            !list_view.get(),
+                            move || list_view.set(false),
+                        ))
+                        .child(icon_button(
+                            asset!("icons/list.svg"),
+                            "List view",
+                            list_view.get(),
+                            move || list_view.set(true),
+                        )),
                 ),
         )
 }
 
 pub fn filter_button(active: Signal<bool>) -> impl IntoElement {
-    icon_button(asset!("icons/filter.svg"), "Filter active", active.get(), move || active.set(!active.get()))
+    icon_button(
+        asset!("icons/filter.svg"),
+        "Filter active",
+        active.get(),
+        move || active.set(!active.get()),
+    )
 }
 
 pub fn sort_button(descending: Signal<bool>) -> impl IntoElement {
-    icon_button(asset!("icons/sort.svg"), "Sort newest first", descending.get(), move || descending.set(!descending.get()))
+    icon_button(
+        asset!("icons/sort.svg"),
+        "Sort newest first",
+        descending.get(),
+        move || descending.set(!descending.get()),
+    )
 }
 
 pub fn text_action(label: &'static str, on_press: impl Fn() + 'static) -> impl IntoElement {
-    crate::components::button::button(ButtonProps::new(label).size(ButtonSize::Sm).variant(ButtonVariant::Outline).on_press(on_press))
+    crate::components::button::button(
+        ButtonProps::new(label)
+            .size(ButtonSize::Sm)
+            .variant(ButtonVariant::Outline)
+            .on_press(on_press),
+    )
 }
 
 #[cfg(test)]

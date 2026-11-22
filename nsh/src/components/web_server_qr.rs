@@ -20,7 +20,9 @@ fn paint_qr(payload: &str) -> Painter {
     let cell = size / width as f32;
     let mut painter = Painter::new();
     // Quiet zone and light modules.
-    painter = painter.fill_color(rgb(0xFFFFFF)).begin_path()
+    painter = painter
+        .fill_color(rgb(0xFFFFFF))
+        .begin_path()
         .move_to(0.0, 0.0)
         .line_to(size, 0.0)
         .line_to(size, size)
@@ -33,7 +35,9 @@ fn paint_qr(payload: &str) -> Painter {
         }
         let x = (index % width) as f32 * cell;
         let y = (index / width) as f32 * cell;
-        painter = painter.fill_color(rgb(0x111827)).begin_path()
+        painter = painter
+            .fill_color(rgb(0x111827))
+            .begin_path()
             .move_to(x, y)
             .line_to(x + cell, y)
             .line_to(x + cell, y + cell)
@@ -98,7 +102,12 @@ pub fn qr_card(
                     view()
                         .flex_col()
                         .gap(px(4.0))
-                        .child(text(caption.clone()).text_size(px(12.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground))
+                        .child(
+                            text(caption.clone())
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        )
                         .child(
                             text("This code always points to the latest release.")
                                 .number_of_lines(3)

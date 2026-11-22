@@ -33,14 +33,19 @@ fn newer(current: &str, latest: &str) -> bool {
 }
 
 pub fn update_banner() -> AnyElement {
-    let release = resource(|| Some(()), |(), _| async { Ok::<_, String>(crate::api::latest_release().await) });
+    let release = resource(
+        || Some(()),
+        |(), _| async { Ok::<_, String>(crate::api::latest_release().await) },
+    );
     let dismissed = signal(false);
     let visible = move || {
         !dismissed.get()
             && release
                 .get()
                 .flatten()
-                .is_some_and(|info: crate::api::Release| newer(env!("CARGO_PKG_VERSION"), &info.tag_name))
+                .is_some_and(|info: crate::api::Release| {
+                    newer(env!("CARGO_PKG_VERSION"), &info.tag_name)
+                })
     };
     when(visible, move || {
         let Some(info) = release.get().flatten() else {
@@ -70,8 +75,17 @@ pub fn update_banner() -> AnyElement {
                             .flex_col()
                             .flex_grow(1.0)
                             .min_w(px(0.0))
-                            .child(text(format!("Recurrency {version} is available")).text_size(px(12.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                            .child(text(format!("You are on {}.", env!("CARGO_PKG_VERSION"))).text_size(px(10.0)).text_color(move || theme().muted_foreground)),
+                            .child(
+                                text(format!("Recurrency {version} is available"))
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text(format!("You are on {}.", env!("CARGO_PKG_VERSION")))
+                                    .text_size(px(10.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
                     )
                     .child(crate::ui::action_button("View release", false, move || {
                         let url = url.clone();
@@ -88,7 +102,20 @@ pub fn update_banner() -> AnyElement {
                             });
                         }))
                     })
-                    .child(button().items_center().justify_center().h(px(26.0)).w(px(26.0)).rounded(px(5.0)).on_press(move || dismissed.set(true)).child(image(asset!("icons/x.svg")).size(px(13.0)).tint_color(move || theme().muted_foreground))),
+                    .child(
+                        button()
+                            .items_center()
+                            .justify_center()
+                            .h(px(26.0))
+                            .w(px(26.0))
+                            .rounded(px(5.0))
+                            .on_press(move || dismissed.set(true))
+                            .child(
+                                image(asset!("icons/x.svg"))
+                                    .size(px(13.0))
+                                    .tint_color(move || theme().muted_foreground),
+                            ),
+                    ),
             )
             .into_element()
     })
@@ -107,17 +134,37 @@ mod tests {
             tag_name: "v9.0.0".to_string(),
             html_url: "https://example.com".to_string(),
             assets: vec![
-                ReleaseAsset { name: "Recurrency-x86_64.AppImage".to_string(), browser_download_url: "a".to_string() },
-                ReleaseAsset { name: "Recurrency-x86_64.deb".to_string(), browser_download_url: "b".to_string() },
+                ReleaseAsset {
+                    name: "Recurrency-x86_64.AppImage".to_string(),
+                    browser_download_url: "a".to_string(),
+                },
+                ReleaseAsset {
+                    name: "Recurrency-x86_64.deb".to_string(),
+                    browser_download_url: "b".to_string(),
+                },
             ],
         };
         let asset = preferred_asset(&release).expect("a linux asset");
-        assert!(asset.name.to_ascii_lowercase().ends_with(if cfg!(target_os = "linux") { ".appimage" } else { ".apk" }) || cfg!(not(target_os = "linux")));
+        assert!(
+            asset
+                .name
+                .to_ascii_lowercase()
+                .ends_with(if cfg!(target_os = "linux") {
+                    ".appimage"
+                } else {
+                    ".apk"
+                })
+                || cfg!(not(target_os = "linux"))
+        );
     }
 
     #[test]
     fn a_release_without_assets_has_no_download() {
-        let release = Release { tag_name: "v9.0.0".to_string(), html_url: "https://example.com".to_string(), assets: Vec::new() };
+        let release = Release {
+            tag_name: "v9.0.0".to_string(),
+            html_url: "https://example.com".to_string(),
+            assets: Vec::new(),
+        };
         assert!(preferred_asset(&release).is_none());
     }
 }
