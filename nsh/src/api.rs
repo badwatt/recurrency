@@ -7,10 +7,10 @@ use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
     DashboardData, UpcomingPayment,
 };
-use crate::models::{Account, Category, Debt, Rates, Subscription, Transaction};
+use crate::models::{Account, Category, Debt, DebtPayment, Rates, Subscription, Transaction};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
-use crate::debts::CreateDebtRequest;
+use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
 use nsh_core::prelude::*;
 
 pub struct Client {
@@ -219,6 +219,27 @@ pub async fn update_debt<B: Serialize>(
 pub async fn delete_debt(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
     Client::new(server, token)
         .delete(&format!("/api/debts/{id}"))
+        .await
+}
+
+pub async fn load_debt_payments(
+    server: String,
+    token: String,
+    debt_id: uuid::Uuid,
+) -> Result<Vec<DebtPayment>, String> {
+    Client::new(server, token)
+        .get(&format!("/api/debts/{debt_id}/payments"))
+        .await
+}
+
+pub async fn record_debt_payment(
+    server: String,
+    token: String,
+    debt_id: uuid::Uuid,
+    request: &RecordDebtPaymentRequest,
+) -> Result<DebtPayment, String> {
+    Client::new(server, token)
+        .post(&format!("/api/debts/{debt_id}/payments"), request)
         .await
 }
 

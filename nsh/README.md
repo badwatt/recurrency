@@ -28,8 +28,8 @@ from <https://nsh.dev/docs/installation>.
 - [x] Subscriptions list, search and active/inactive groups.
 - [x] Inline create/edit form, pause/resume and delete confirmation.
 - [x] Transactions list, monthly groups, search, create, edit and delete.
-- [x] Debts list, search, create/edit/delete and progress cards.
-- [ ] Debt payments/history, modal shell, calendar, reports.
+- [x] Debts list, search, create/edit/delete, payments and history.
+- [ ] Modal shell, calendar, reports.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 

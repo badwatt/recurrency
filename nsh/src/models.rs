@@ -119,3 +119,12 @@ pub struct Debt {
     pub notes: Option<String>,
     pub logo_url: Option<String>,
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct DebtPayment {
+    pub id: Uuid,
+    pub debt_id: Uuid,
+    pub amount: Decimal,
+    pub paid_on: NaiveDate,
+    pub note: Option<String>,
+}

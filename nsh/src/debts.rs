@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::api::{self, DebtsData};
 use crate::auth::AuthSession;
 use crate::format::format_currency;
-use crate::models::Debt;
+use crate::models::{Debt, DebtPayment};
 use crate::theme as design;
 use crate::ui;
 
@@ -45,9 +45,32 @@ struct DebtForm {
     saving: Signal<bool>,
 }
 
+#[derive(Serialize)]
+pub struct RecordDebtPaymentRequest {
+    pub amount: Decimal,
+    pub paid_on: NaiveDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+#[derive(Clone, Copy)]
+struct DebtPayments {
+    pay_id: Signal<Option<Uuid>>,
+    amount: Signal<String>,
+    paid_on: Signal<String>,
+    note: Signal<String>,
+    error: Signal<String>,
+    saving: Signal<bool>,
+    history_id: Signal<Option<Uuid>>,
+    history: Signal<Vec<DebtPayment>>,
+    history_loading: Signal<bool>,
+    history_error: Signal<String>,
+}
+
 #[derive(Clone, Copy)]
 struct DebtActions {
     form: DebtForm,
+    payments: DebtPayments,
     delete_confirm: Signal<Option<Uuid>>,
     busy: Signal<Option<Uuid>>,
     error: Signal<String>,
@@ -94,6 +117,28 @@ pub fn debts(auth: AuthSession) -> AnyElement {
     let delete_confirm = signal(None::<Uuid>);
     let busy = signal(None::<Uuid>);
     let action_error = signal(String::new());
+    let pay_id = signal(None::<Uuid>);
+    let pay_amount = signal(String::new());
+    let pay_date = signal(today.to_string());
+    let pay_note = signal(String::new());
+    let pay_error = signal(String::new());
+    let paying = signal(false);
+    let history_id = signal(None::<Uuid>);
+    let history = signal(Vec::<DebtPayment>::new());
+    let history_loading = signal(false);
+    let history_error = signal(String::new());
+    let payments = DebtPayments {
+        pay_id,
+        amount: pay_amount,
+        paid_on: pay_date,
+        note: pay_note,
+        error: pay_error,
+        saving: paying,
+        history_id,
+        history,
+        history_loading,
+        history_error,
+    };
     let form_state = DebtForm {
         open: form_open,
         editing,
@@ -109,10 +154,14 @@ pub fn debts(auth: AuthSession) -> AnyElement {
     };
     let actions = DebtActions {
         form: form_state,
+        payments,
         delete_confirm,
         busy,
         error: action_error,
     };
+    let pay_currency = currency.clone();
+    let history_currency = currency.clone();
+    let form_currency = currency.clone();
     let loading = move || data.loading() && data.get().is_none();
     let has_error = move || data.error().is_some();
     let render_currency = currency.clone();
@@ -146,13 +195,31 @@ pub fn debts(auth: AuthSession) -> AnyElement {
         .gap(px(24.0))
         .child(header(open_form))
         .child(
+            when(move || payments.pay_id.get().is_some(), move || {
+                payment_form(
+                    data,
+                    payments,
+                    server_signal,
+                    token_signal,
+                    pay_currency.clone(),
+                )
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(move || payments.history_id.get().is_some(), move || {
+                history_panel(payments, history_currency.clone())
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
             when(move || form_open.get(), move || {
                 form(
                     data,
                     form_state,
                     server_signal,
                     token_signal,
-                    currency.clone(),
+                    form_currency.clone(),
                 )
             })
             .otherwise(|| view().h(px(0.0))),
@@ -178,6 +245,245 @@ pub fn debts(auth: AuthSession) -> AnyElement {
         .into_element()
 }
 
+
+fn payment_form(
+    data: Resource<DebtsData, String>,
+    payments: DebtPayments,
+    server: Signal<String>,
+    token: Signal<String>,
+    _currency: String,
+) -> impl IntoElement {
+    let DebtPayments {
+        pay_id,
+        amount,
+        paid_on,
+        note,
+        error,
+        saving,
+        ..
+    } = payments;
+    let save = move || {
+        if saving.get() || pay_id.get().is_none() {
+            return;
+        }
+        let id = pay_id.get().unwrap_or_else(Uuid::nil);
+        let Ok(amount_value) = amount.get().trim().parse::<Decimal>() else {
+            error.set("Enter a valid amount.".to_string());
+            return;
+        };
+        if amount_value <= Decimal::ZERO {
+            error.set("Amount must be positive.".to_string());
+            return;
+        }
+        let Ok(paid_on_value) = NaiveDate::parse_from_str(paid_on.get().trim(), "%Y-%m-%d") else {
+            error.set("Use YYYY-MM-DD for the payment date.".to_string());
+            return;
+        };
+        let request = RecordDebtPaymentRequest {
+            amount: amount_value,
+            paid_on: paid_on_value,
+            note: (!note.get().trim().is_empty()).then(|| note.get()),
+        };
+        saving.set(true);
+        error.set(String::new());
+        let server_value = server.get();
+        let token_value = token.get();
+        spawn(async move {
+            match api::record_debt_payment(server_value, token_value, id, &request).await {
+                Ok(_) => {
+                    pay_id.set(None);
+                    data.refetch();
+                }
+                Err(message) => error.set(message),
+            }
+            saving.set(false);
+        });
+    };
+
+    view()
+        .w_full()
+        .max_w(px(620.0))
+        .rounded(px(16.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(24.0))
+        .gap(px(16.0))
+        .child(
+            view()
+                .flex_col()
+                .gap(px(2.0))
+                .child(
+                    text("Record payment")
+                        .text_size(px(20.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("Reduce the remaining balance of this debt.")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .gap(px(12.0))
+                .child(ui::field("Amount", amount, "250"))
+                .child(ui::field("Paid on", paid_on, "2026-11-22")),
+        )
+        .child(ui::field("Note", note, "November payment"))
+        .child(
+            when(move || !error.get().is_empty(), move || {
+                text(move || error.get())
+                    .text_size(px(12.0))
+                    .text_color(move || theme().destructive)
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            view()
+                .flex_row()
+                .gap(px(8.0))
+                .child(
+                    button()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .bg(move || theme().primary)
+                        .disabled(move || saving.get())
+                        .disabled_style(|state| state.opacity(0.5))
+                        .on_press(move || save())
+                        .child(
+                            text(move || if saving.get() { "Saving..." } else { "Record payment" })
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
+                        ),
+                )
+                .child(
+                    button()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().card)
+                        .on_press(move || pay_id.set(None))
+                        .child(
+                            text("Cancel")
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        ),
+                ),
+        )
+}
+
+fn history_panel(payments: DebtPayments, currency: String) -> impl IntoElement {
+    let DebtPayments {
+        history_id,
+        history,
+        history_loading,
+        history_error,
+        ..
+    } = payments;
+    view()
+        .w_full()
+        .max_w(px(720.0))
+        .rounded(px(16.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(24.0))
+        .gap(px(12.0))
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    text("Payment history")
+                        .text_size(px(20.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(ui::action_button("Close", false, move || {
+                    history_id.set(None)
+                })),
+        )
+        .child(
+            when(move || history_loading.get(), || {
+                text("Loading payments…")
+                    .text_size(px(13.0))
+                    .text_color(move || theme().muted_foreground)
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(move || !history_error.get().is_empty(), move || {
+                text(move || history_error.get())
+                    .text_size(px(12.0))
+                    .text_color(move || theme().destructive)
+            })
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(
+                move || !history_loading.get() && history.get().is_empty(),
+                || {
+                    text("No payments recorded.")
+                        .text_size(px(13.0))
+                        .text_color(move || theme().muted_foreground)
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            view()
+                .flex_col()
+                .child(each(
+                    move || history.get(),
+                    |payment| payment.id,
+                    move |payment, _| {
+                        let payment = payment.get();
+                        let amount = format_currency(payment.amount, &currency);
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .py(px(8.0))
+                            .border_b(px(1.0))
+                            .border_color(move || theme().border)
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .child(
+                                        text(payment.paid_on.format("%d/%m/%Y").to_string())
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        text(payment.note.unwrap_or_default())
+                                            .text_size(px(11.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
+                            )
+                            .child(
+                                text(amount)
+                                    .text_size(px(13.0))
+                                    .font_family(design::MONO)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                    },
+                )),
+        )
+}
 
 fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
     view()
@@ -704,6 +1010,42 @@ fn card_actions(
         form.editing.set(Some(id));
         form.open.set(true);
     };
+    let payments = actions.payments;
+    let pay = {
+        let amount = edit_debt
+            .monthly_payment
+            .unwrap_or(edit_debt.remaining_amount)
+            .to_string();
+        let today = Local::now().date_naive().to_string();
+        move || {
+            payments.pay_id.set(Some(id));
+            payments.amount.set(amount.clone());
+            payments.paid_on.set(today.clone());
+            payments.note.set(String::new());
+            payments.error.set(String::new());
+            payments.saving.set(false);
+            payments.history_id.set(None);
+        }
+    };
+    let history = {
+        let server = server;
+        let token = token;
+        move || {
+            payments.pay_id.set(None);
+            payments.history_id.set(Some(id));
+            payments.history_loading.set(true);
+            payments.history_error.set(String::new());
+            let server_value = server.get();
+            let token_value = token.get();
+            spawn(async move {
+                match api::load_debt_payments(server_value, token_value, id).await {
+                    Ok(list) => payments.history.set(list),
+                    Err(message) => payments.history_error.set(message),
+                }
+                payments.history_loading.set(false);
+            });
+        }
+    };
     let delete = move || {
         actions.delete_confirm.set(None);
         actions.busy.set(Some(id));
@@ -735,6 +1077,8 @@ fn card_actions(
         view()
             .flex_row()
             .gap(px(4.0))
+            .child(ui::action_button("Pay", false, pay.clone()))
+            .child(ui::action_button("History", false, history.clone()))
             .child(ui::action_button("Edit", false, edit))
             .child(ui::action_button("Delete", true, move || {
                 confirm.set(Some(id));
@@ -895,6 +1239,18 @@ mod tests {
         ];
         assert_eq!(filter_debts(&debts, &[], "car").len(), 1);
         assert_eq!(filter_debts(&debts, &[], "").len(), 2);
+    }
+
+    #[test]
+    fn payment_request_serializes_and_skips_empty_note() {
+        let request = RecordDebtPaymentRequest {
+            amount: Decimal::new(250, 0),
+            paid_on: date(2026, 11, 22),
+            note: None,
+        };
+        let value = serde_json::to_value(request).expect("payment serializes");
+        assert_eq!(value["amount"], "250");
+        assert!(value.get("note").is_none());
     }
 
     #[test]
