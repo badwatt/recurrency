@@ -115,7 +115,7 @@ pub fn SelectMenu(
                     },
                 }
                 div {
-                    class: "{panel_class}",
+                    class: panel_class.to_string(),
                     role: "listbox",
                     onclick: move |event| event.stop_propagation(),
                     if searchable {

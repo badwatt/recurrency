@@ -28,9 +28,9 @@ pub fn Toggle(
             aria_label: label.clone(),
             title: label,
             disabled,
-            class: "{track_class}",
+            class: track_class.to_string(),
             onclick: move |_| on_change.call(!checked),
-            span { class: "{knob_class}" }
+            span { class: knob_class.to_string() }
         }
     }
 }
