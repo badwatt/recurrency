@@ -459,6 +459,23 @@ pub struct NotificationList {
     pub unread_count: i64,
 }
 
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/badwatt/recurrency/releases/latest";
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Release {
+    pub tag_name: String,
+    pub html_url: String,
+}
+
+pub async fn latest_release() -> Option<Release> {
+    let request = HttpRequest::get(LATEST_RELEASE_URL).header("Accept", "application/vnd.github+json");
+    let response = fetch(request).await.ok()?;
+    if !response.ok() {
+        return None;
+    }
+    serde_json::from_str::<Release>(&response.text()).ok()
+}
+
 pub async fn load_notifications(server: String, token: String) -> Result<NotificationList, String> {
     Client::new(server, token).get("/api/notifications").await
 }

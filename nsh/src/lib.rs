@@ -24,6 +24,7 @@ mod subscriptions;
 mod theme;
 mod transactions;
 mod ui;
+mod update_banner;
 
 use auth::Session;
 use nsh_base::{button, theme};
@@ -157,6 +158,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .font_family(theme::SANS)
         .text_color(move || theme().foreground)
         .child(ui::top_bar(route, auth_signal.get(), compact))
+        .child(update_banner::update_banner())
         .child(
             scroll().flex_1().child(
                 view()
