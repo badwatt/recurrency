@@ -74,6 +74,6 @@ toolbar.
 | `dialog.rs` / `select.rs` | `dialog.rs` (`DialogHost`) | Ported |
 | `select_menu.rs` | `select_menu.rs` | Ported inline menu |
 | `date_picker.rs` | `date_picker.rs` | Ported custom calendar |
-| `checkbox.rs`, `segmented.rs` | none | Pending use |
+| `checkbox.rs`, `segmented.rs`, `skeleton.rs` | same names | Ported |
 | `theme_picker.rs` | `theme.rs` catalogue + Appearance grid | Ported (local persistence) |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |

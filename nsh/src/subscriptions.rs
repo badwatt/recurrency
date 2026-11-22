@@ -13,6 +13,7 @@ use crate::components::button::{button as shared_button, ButtonProps};
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
 use crate::components::badge::{badge, BadgeProps, BadgeTone};
+use crate::components::checkbox::checkbox;
 use crate::auth::AuthSession;
 use crate::format::format_currency;
 use crate::models::{AnnualDate, Recurrence, Subscription};
@@ -466,6 +467,7 @@ fn form(
                     },
                     category_id,
                 ))
+                .child(checkbox(active, "Active subscription".to_string()))
                 .child(
                     when(move || !form_error.get().is_empty(), move || {
                         text(move || form_error.get())

@@ -14,3 +14,6 @@ pub mod page_header;
 pub mod search_input;
 pub mod select_menu;
 pub mod toggle;
+pub mod checkbox;
+pub mod segmented;
+pub mod skeleton;
