@@ -82,6 +82,7 @@ fn native(registry: &mut Registry) {
 /// Recurrency root component.
 #[component]
 pub fn App() -> impl IntoElement {
+    crate::theme::apply(&crate::theme::saved());
     let route = signal(Route::Dashboard);
     let stored = auth::has_stored_session();
     let session = signal(if stored { Session::Loading } else { Session::SignedOut });

@@ -618,24 +618,84 @@ fn account_card(
 }
 
 fn appearance_card() -> impl IntoElement {
-    ui::surface()
-        .p(px(24.0))
-        .gap(px(8.0))
+    let selected = signal(crate::theme::saved());
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
         .child(
-            text("Appearance")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("Mocha dark palette")
-                .text_size(px(14.0))
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("Native Shell uses the app theme tokens. The full 18-palette catalogue is being ported.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(14.0))
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(3.0))
+                        .child(
+                            text("Appearance")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(move || {
+                                crate::theme::theme_by_id(&selected.get())
+                                    .map_or_else(|| "Choose a palette".to_string(), |theme| format!("{} · {}", theme.label, theme.description))
+                            })
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .grid()
+                        .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
+                        .gap(px(8.0))
+                        .children(crate::theme::THEMES.iter().map(|definition| {
+                            let id = definition.id;
+                            let active = move || selected.get() == id;
+                            button()
+                                .w_full()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(10.0))
+                                .p(px(10.0))
+                                .rounded(px(9.0))
+                                .border(px(1.0))
+                                .border_color(move || if active() { theme().primary } else { theme().border })
+                                .bg(move || if active() { theme().accent } else { theme().background })
+                                .on_press(move || {
+                                    crate::theme::apply(id);
+                                    crate::theme::save(id);
+                                    selected.set(id.to_string());
+                                })
+                                .child(
+                                    text(definition.label)
+                                        .flex_grow(1.0)
+                                        .number_of_lines(1)
+                                        .text_size(px(12.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(3.0))
+                                        .child(view().h(px(12.0)).w(px(12.0)).rounded(px(3.0)).bg(rgba((definition.background << 8) | 0xff)))
+                                        .child(view().h(px(12.0)).w(px(12.0)).rounded(px(3.0)).bg(rgba((definition.card << 8) | 0xff)))
+                                        .child(view().h(px(12.0)).w(px(12.0)).rounded(px(3.0)).bg(rgba((definition.primary << 8) | 0xff))),
+                                )
+                                .child(
+                                    when(active, move || {
+                                        image(asset!("icons/check.svg")).size(px(13.0)).tint_color(move || theme().primary).into_element()
+                                    })
+                                    .otherwise(|| view().h(px(0.0)).into_element()),
+                                )
+                                .into_element()
+                        })),
+                ),
         )
 }
 
