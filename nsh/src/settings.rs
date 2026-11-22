@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::AiSettings;
 
 use crate::auth::{self, AuthSession, AuthUser, Session};
+use crate::components::toggle::toggle as shared_toggle;
 use crate::ui;
 
 #[derive(Debug, Deserialize)]
@@ -217,7 +218,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             let active = move || section.get() == item;
                             button()
                                 .items_center()
-                                .justify_center()
+                                .justify_start()
                                 .w_full()
                                 .rounded(px(8.0))
                                 .px(px(10.0))
@@ -239,7 +240,9 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                         .child(
                                             view()
                                                 .flex_col()
+                                                .w_full()
                                                 .gap(px(1.0))
+                                                .flex_grow(1.0)
                                                 .min_w(px(0.0))
                                                 .child(
                                                     text(item.label())
@@ -253,6 +256,8 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                                 )
                                                 .child(
                                                     text(item.description())
+                                                        .w_full()
+                                                        .number_of_lines(2)
                                                         .text_size(px(10.0))
                                                         .text_color(move || theme().muted_foreground),
                                                 ),
@@ -889,11 +894,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                                     .text_color(move || theme().muted_foreground),
                                             ),
                                     )
-                                    .child(ui::action_button(
-                                        if enabled { "Disable" } else { "Enable" },
-                                        false,
-                                        toggle,
-                                    ))
+                                    .child(shared_toggle(enabled, channel_label(&channel), move |_| toggle()))
                             },
                         )),
                 )

@@ -9,6 +9,7 @@ use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 
 use crate::api::{self, ReportsData};
+use crate::components::page_header::page_header as shared_page_header;
 use crate::auth::AuthSession;
 use crate::format::format_currency;
 use crate::models::{Category, ReportResponse};
@@ -47,24 +48,18 @@ pub fn reports(auth: AuthSession) -> AnyElement {
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(
+        .child(shared_page_header(
+            TITLE,
+            SUBTITLE,
             view()
-                .w_full()
                 .flex_row()
                 .flex_wrap()
-                .items_end()
-                .justify_between()
-                .gap(px(16.0))
-                .child(ui::page_header(TITLE, SUBTITLE))
-                .child(
-                    view()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(8.0))
-                        .child(navigation(year, month, today))
-                        .child(export_button(data, &currency)),
-                ),
-        )
+                .items_center()
+                .gap(px(8.0))
+                .child(navigation(year, month, today))
+                .child(export_button(data, &currency))
+                .into_element(),
+        ))
         .child(
             when(loading, || loading_card()).otherwise(move || {
                 let currency = render_currency.clone();

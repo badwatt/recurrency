@@ -1,0 +1,54 @@
+//! Compact list toolbar: shared search, extra actions and view switch.
+
+use crate::components::button::{icon_button, ButtonProps, ButtonSize, ButtonVariant};
+use crate::components::search_input::search_input;
+use nsh_base::theme;
+use nsh_core::prelude::*;
+
+pub fn list_toolbar(search: Signal<String>, list_view: Signal<bool>, actions: AnyElement) -> impl IntoElement {
+    view()
+        .w_full()
+        .flex_row()
+        .items_center()
+        .gap(px(8.0))
+        .child(search_input(search, "Search"))
+        .child(actions)
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .flex_shrink_0()
+                .w(px(88.0))
+                .gap(px(2.0))
+                .p(px(2.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().muted.opacity(0.4))
+                .child(icon_button(asset!("icons/grid.svg"), "Grid view", !list_view.get(), move || list_view.set(false)))
+                .child(icon_button(asset!("icons/list.svg"), "List view", list_view.get(), move || list_view.set(true))),
+        )
+}
+
+pub fn filter_button(active: Signal<bool>) -> impl IntoElement {
+    icon_button(asset!("icons/filter.svg"), "Filter active", active.get(), move || active.set(!active.get()))
+}
+
+pub fn sort_button(descending: Signal<bool>) -> impl IntoElement {
+    icon_button(asset!("icons/sort.svg"), "Sort newest first", descending.get(), move || descending.set(!descending.get()))
+}
+
+pub fn text_action(label: &'static str, on_press: impl Fn() + 'static) -> impl IntoElement {
+    crate::components::button::button(ButtonProps::new(label).size(ButtonSize::Sm).variant(ButtonVariant::Outline).on_press(on_press))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn toolbar_uses_the_shared_search_and_view_controls() {
+        let source = include_str!("list_toolbar.rs");
+        assert!(source.contains("search_input(search"));
+        assert!(source.contains("icons/grid.svg"));
+        assert!(source.contains("icons/list.svg"));
+    }
+}

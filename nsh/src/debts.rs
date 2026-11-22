@@ -1,14 +1,17 @@
 //! Debts: manual balances and automatic month-by-month payments.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::{button, input, theme};
-use nsh_core::element::AutoFill;
+use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, DebtsData};
+use crate::components::button::{button as shared_button, ButtonProps};
+use crate::components::page_header::page_header as shared_page_header;
+use crate::components::empty_state::empty_state;
+use crate::components::search_input::search_input;
 use crate::auth::AuthSession;
 use crate::format::format_currency;
 use crate::models::{Debt, DebtPayment};
@@ -482,37 +485,11 @@ fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost)
 }
 
 fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
-    view()
-        .w_full()
-        .flex_row()
-        .flex_wrap()
-        .items_end()
-        .justify_between()
-        .gap(px(16.0))
-        .child(ui::page_header(TITLE, SUBTITLE))
-        .child(
-            button()
-                .items_center()
-                .justify_center()
-                .h(px(40.0))
-                .px(px(16.0))
-                .rounded(px(8.0))
-                .bg(move || theme().primary)
-                .flex_row()
-                .gap(px(6.0))
-                .on_press(on_add)
-                .child(
-                    image(asset!("icons/plus.svg"))
-                        .size(px(14.0))
-                        .tint_color(move || theme().primary_foreground),
-                )
-                .child(
-                    text("Add Debt")
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().primary_foreground),
-                ),
-        )
+    shared_page_header(
+        TITLE,
+        SUBTITLE,
+        shared_button(ButtonProps::new("Add Debt").icon(asset!("icons/plus.svg")).on_press(on_add)).into_element(),
+    )
 }
 
 fn form(
@@ -780,22 +757,7 @@ fn toolbar(data: Resource<DebtsData, String>, search: Signal<String>) -> impl In
         .flex_row()
         .items_center()
         .gap(px(12.0))
-        .child(
-            input()
-                .value(search)
-                .on_change(move |value: &str| search.set(value.to_string()))
-                .placeholder("Search")
-                .auto_fill(AutoFill::Off)
-                .h(px(40.0))
-                .w(px(320.0))
-                .px(px(12.0))
-                .rounded(px(8.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().card)
-                .text_size(px(14.0))
-                .text_color(move || theme().foreground),
-        )
+        .child(search_input(search, "Search"))
         .child(
             text(move || ui::count_label(count(), "debt", "debts"))
                 .text_size(px(13.0))
@@ -821,51 +783,12 @@ fn content(
         .child(
             when(empty, move || {
                 let open_form = open_form.clone();
-                ui::surface()
-                    .p(px(40.0))
-                    .items_center()
-                    .justify_center()
-                    .gap(px(10.0))
-                    .child(
-                        image(asset!("icons/debts.svg"))
-                            .size(px(40.0))
-                            .tint_color(move || theme().muted_foreground),
-                    )
-                    .child(
-                        text("No debts yet")
-                            .text_size(px(18.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(move || theme().foreground),
-                    )
-                    .child(
-                        text("Add a manual debt or let an automatic debt pay itself month by month.")
-                            .text_size(px(14.0))
-                            .text_color(move || theme().muted_foreground),
-                    )
-                    .child(
-                        button()
-                            .items_center()
-                            .justify_center()
-                            .flex_row()
-                            .gap(px(6.0))
-                            .h(px(40.0))
-                            .px(px(16.0))
-                            .rounded(px(8.0))
-                            .bg(move || theme().primary)
-                            .on_press(move || open_form())
-                            .child(
-                                image(asset!("icons/plus.svg"))
-                                    .size(px(14.0))
-                                    .tint_color(move || theme().primary_foreground),
-                            )
-                            .child(
-                                text("Add Debt")
-                                    .text_size(px(14.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().primary_foreground),
-                            ),
-                    )
-                    .into_element()
+                empty_state(
+                    asset!("icons/debts.svg"),
+                    "No debts yet",
+                    "Add a manual debt or let an automatic debt pay itself month by month.",
+                    shared_button(ButtonProps::new("Add Debt").icon(asset!("icons/plus.svg")).on_press(move || open_form())).into_element(),
+                ).into_element()
             })
             .otherwise(move || {
                 let open_search = search;

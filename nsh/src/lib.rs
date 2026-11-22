@@ -7,6 +7,7 @@
 mod api;
 mod auth;
 mod calendar;
+pub mod components;
 mod dashboard;
 mod debts;
 mod dashboard_data;

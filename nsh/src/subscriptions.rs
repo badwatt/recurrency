@@ -9,6 +9,10 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, SubscriptionsData};
+use crate::components::button::{button as shared_button, ButtonProps};
+use crate::components::page_header::page_header as shared_page_header;
+use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
+use crate::components::badge::{badge, BadgeProps, BadgeTone};
 use crate::auth::AuthSession;
 use crate::format::format_currency;
 use crate::models::{AnnualDate, Recurrence, Subscription};
@@ -206,37 +210,11 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
 }
 
 fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
-    view()
-        .w_full()
-        .flex_row()
-        .flex_wrap()
-        .items_end()
-        .justify_between()
-        .gap(px(16.0))
-        .child(ui::page_header(TITLE, SUBTITLE))
-        .child(
-            button()
-                .items_center()
-                .justify_center()
-                .h(px(40.0))
-                .px(px(16.0))
-                .rounded(px(8.0))
-                .bg(move || theme().primary)
-                .flex_row()
-                .gap(px(6.0))
-                .on_press(on_add)
-                .child(
-                    image(asset!("icons/plus.svg"))
-                        .size(px(14.0))
-                        .tint_color(move || theme().primary_foreground),
-                )
-                .child(
-                    text("Add Subscription")
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().primary_foreground),
-                ),
-        )
+    shared_page_header(
+        TITLE,
+        SUBTITLE,
+        shared_button(ButtonProps::new("Add Subscription").icon(asset!("icons/plus.svg")).on_press(on_add)).into_element(),
+    )
 }
 
 fn form(
@@ -672,65 +650,17 @@ fn toolbar(
         .w_full()
         .flex_col()
         .gap(px(14.0))
-        .child(
+        .child(list_toolbar(
+            search,
+            list_view,
             view()
-                .w_full()
                 .flex_row()
                 .items_center()
                 .gap(px(8.0))
-                .child(
-                    view()
-                        .flex_1()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(8.0))
-                        .h(px(40.0))
-                        .px(px(12.0))
-                        .rounded(px(8.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().input)
-                        .bg(move || theme().card)
-                        .child(
-                            image(asset!("icons/search.svg"))
-                                .size(px(16.0))
-                                .tint_color(move || theme().muted_foreground),
-                        )
-                        .child(
-                            input()
-                                .value(search)
-                                .on_change(move |value: &str| search.set(value.to_string()))
-                                .placeholder("Search")
-                                .auto_fill(AutoFill::Off)
-                                .flex_1()
-                                .h(px(38.0))
-                                .px(px(0.0))
-                                .border(px(0.0))
-                                .bg(rgba(0x00000000))
-                                .text_size(px(14.0))
-                                .text_color(move || theme().foreground),
-                        ),
-                )
-                .child(ui::icon_button(
-                    asset!("icons/filter.svg"),
-                    active_only.get(),
-                    move || active_only.set(!active_only.get()),
-                ))
-                .child(ui::icon_button(
-                    asset!("icons/sort.svg"),
-                    sort_desc.get(),
-                    move || sort_desc.set(!sort_desc.get()),
-                ))
-                .child(ui::icon_button(
-                    asset!("icons/grid.svg"),
-                    !list_view.get(),
-                    move || list_view.set(false),
-                ))
-                .child(ui::icon_button(
-                    asset!("icons/list.svg"),
-                    list_view.get(),
-                    move || list_view.set(true),
-                )),
-        )
+                .child(filter_button(active_only))
+                .child(sort_button(sort_desc))
+                .into_element(),
+        ))
         .child(
             text(move || ui::count_label(count(), "subscription", "subscriptions"))
                 .text_size(px(13.0))
@@ -1057,17 +987,7 @@ fn card(
         .next_billing_date
         .map_or_else(|| "No next date".to_string(), |date| format!("Next: {}", date.format("%d/%m/%Y")));
     let active = subscription.is_active;
-    let badge = if active { "Active" } else { "Inactive" };
-    let badge_bg = if active {
-        design::success().opacity(0.15)
-    } else {
-        theme().muted
-    };
-    let badge_text = if active {
-        design::success()
-    } else {
-        theme().muted_foreground
-    };
+    let status = if active { "Active" } else { "Inactive" };
 
     view()
         .w(px(292.0))
@@ -1100,16 +1020,9 @@ fn card(
                                 .tint_color(move || theme().muted_foreground),
                         ),
                 )
-                .child(
-                    text(badge)
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || badge_text)
-                        .px(px(7.0))
-                        .py(px(2.0))
-                        .rounded(px(4.0))
-                        .bg(move || badge_bg),
-                ),
+                .child(badge(
+                    BadgeProps::new(status).tone(if active { BadgeTone::Primary } else { BadgeTone::Neutral }),
+                )),
         )
         .child(
             view()

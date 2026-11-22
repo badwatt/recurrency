@@ -3,9 +3,7 @@
 
 use crate::Route;
 use crate::auth::AuthSession;
-use nsh_base::{button, input, theme};
-use nsh_core::element::AutoFill;
-use std::rc::Rc;
+use nsh_base::{button, theme};
 use uuid::Uuid;
 use nsh_core::prelude::*;
 
@@ -207,12 +205,7 @@ pub fn page_header(title: &'static str, subtitle: &'static str) -> impl IntoElem
 }
 
 pub fn surface() -> nsh_core::element::View {
-    view()
-        .w_full()
-        .rounded(px(crate::theme::CARD_RADIUS))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
+    crate::components::card::card()
 }
 
 pub fn pending_screen(title: &'static str) -> AnyElement {
@@ -259,21 +252,7 @@ pub fn field(
         .gap(px(6.0))
         .min_w(px(0.0))
         .child(label(label_text))
-        .child(
-            input()
-                .value(value)
-                .on_change(move |next: &str| value.set(next.to_string()))
-                .placeholder(placeholder)
-                .auto_fill(AutoFill::Off)
-                .h(px(38.0))
-                .px(px(10.0))
-                .rounded(px(7.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().card)
-                .text_size(px(13.0))
-                .text_color(move || theme().foreground),
-        )
+        .child(crate::components::input::text_input(value, placeholder))
 }
 
 pub fn choice_picker(
@@ -326,75 +305,23 @@ pub fn action_button(
     destructive: bool,
     on_press: impl Fn() + 'static,
 ) -> impl IntoElement {
-    button()
-        .items_center()
-        .justify_center()
-        .h(px(26.0))
-        .px(px(8.0))
-        .rounded(px(5.0))
-        .bg(move || theme().card)
-        .on_press(on_press)
-        .child(
-            text(label)
-                .text_size(px(11.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || if destructive {
-                    theme().destructive
-                } else {
-                    theme().muted_foreground
-                }),
-        )
+    crate::components::button::button(
+        crate::components::button::ButtonProps::new(label)
+            .variant(if destructive {
+                crate::components::button::ButtonVariant::Destructive
+            } else {
+                crate::components::button::ButtonVariant::Outline
+            })
+            .size(crate::components::button::ButtonSize::Xs)
+            .radius(crate::components::button::ButtonRadius::Sm)
+            .on_press(on_press),
+    )
 }
 
-pub type ModalBuilder = Rc<dyn Fn() -> AnyElement>;
-
-#[derive(Clone, Copy)]
-pub struct ModalHost {
-    slot: Stored<Option<ModalBuilder>>,
-    version: Signal<u64>,
-}
-
-impl ModalHost {
-    pub fn new() -> Self {
-        Self {
-            slot: stored(None),
-            version: signal(0),
-        }
-    }
-
-    pub fn open(&self, build: impl Fn() -> AnyElement + 'static) {
-        self.slot.replace(Some(Rc::new(build)));
-        self.version.set(self.version.get().wrapping_add(1));
-    }
-
-    pub fn close(&self) {
-        self.slot.replace(None);
-        self.version.set(self.version.get().wrapping_add(1));
-    }
-
-    pub fn active(&self) -> bool {
-        self.version.get();
-        self.slot.with(|slot| slot.is_some())
-    }
-
-    pub fn render(&self) -> AnyElement {
-        self.slot
-            .with(|slot| slot.clone())
-            .map_or_else(|| view().h(px(0.0)).into_element(), |build| build())
-    }
-}
+pub use crate::components::dialog::DialogHost as ModalHost;
 
 pub fn modal_overlay(modal: ModalHost) -> AnyElement {
-    view()
-        .absolute()
-        .inset_0()
-        .z_index(80)
-        .items_center()
-        .justify_center()
-        .p(px(24.0))
-        .bg(rgba(0x000000cc))
-        .child(modal.render())
-        .into_element()
+    crate::components::dialog::dialog_overlay(modal)
 }
 
 pub fn icon_button(

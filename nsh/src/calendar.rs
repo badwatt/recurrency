@@ -6,6 +6,7 @@ use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 
 use crate::api::{self, CalendarData};
+use crate::components::page_header::page_header as shared_page_header;
 use crate::auth::AuthSession;
 use crate::format::format_currency;
 use crate::recurrence::days_in_month;
@@ -72,11 +73,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
 }
 
 fn header() -> impl IntoElement {
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(4.0))
-        .child(ui::page_header(TITLE, SUBTITLE))
+    shared_page_header(TITLE, SUBTITLE, view().into_element())
 }
 
 fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl IntoElement {

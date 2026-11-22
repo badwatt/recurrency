@@ -50,3 +50,29 @@ Native Shell renders with each platform's native views. Typography metrics and
 platform controls can differ by a point or a pixel from the HTML build; the design
 tokens and layouts are matched, but cross-platform pixel identity is not a promise
 of the framework.
+
+
+## Component migration
+
+The native port follows the Dioxus component boundaries instead of rebuilding
+whole pages. Each shared primitive is translated once and page code composes
+it; a page must not paint its own button, field, card, badge, empty state or
+toolbar.
+
+| Dioxus (`frontend/src/components`) | Native Shell (`nsh/src/components`) | Status |
+| --- | --- | --- |
+| `button.rs` | `button.rs` (`ButtonProps`, variants, sizes, radius, icon) | Ported |
+| `badge.rs` | `badge.rs` | Ported |
+| `card.rs` | `card.rs` | Ported |
+| `field.rs` | `field.rs` | Ported |
+| `input.rs` | `input.rs` | Ported |
+| `search_input.rs` | `search_input.rs` | Ported |
+| `empty_state.rs` | `empty_state.rs` | Ported |
+| `page_header.rs` | `page_header.rs` | Ported |
+| `list_toolbar.rs` | `list_toolbar.rs` | Ported |
+| `toggle.rs` | `toggle.rs` | Ported |
+| `dialog.rs` / `select.rs` | `dialog.rs` (`DialogHost`) | Ported |
+| `select_menu.rs` | choice chips in `ui.rs` | Pending dropdown |
+| `date_picker.rs` | native date input | Pending custom calendar |
+| `checkbox.rs`, `segmented.rs` | none | Pending use |
+| `chart.rs`, `toast.rs`, `tooltip.rs`, `theme_picker.rs` | page-local | Pending |

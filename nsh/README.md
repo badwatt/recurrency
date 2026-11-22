@@ -41,3 +41,11 @@ from <https://nsh.dev/docs/installation>.
 - [ ] Desktop/mobile/web packaging and CI.
 
 Reference captures of the Dioxus interface live in `design/native-shell/`.
+
+
+## Components
+
+Pages compose the shared library in `src/components`: buttons, badges, cards,
+fields, inputs, search fields, empty states, page headers, list toolbars,
+toggles and the dialog host. New page code should add a primitive there first
+and reuse it, matching the Dioxus component boundaries.

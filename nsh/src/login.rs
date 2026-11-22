@@ -1,6 +1,7 @@
 //! Native sign-in surface, matching the Dioxus card layout.
 
 use crate::auth::{self, Session};
+use crate::components::button::{button as shared_button, ButtonProps};
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
@@ -144,55 +145,27 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                         })
                         .child(form_field("Email", "email@example.com", "email", false, email, move || submit()))
                         .child(form_field("Password", "", "current-password", true, password, move || submit()))
-                        .child(
-                            button()
-                                .items_center()
-                                .justify_center()
-                                .w_full()
-                                .h(px(40.0))
-                                .rounded(px(6.0))
-                                .bg(move || theme().primary)
-                                .active(|s| s.opacity(0.85))
-                                .disabled(move || busy.get())
-                                .disabled_style(|s| s.opacity(0.5))
-                                .on_press(move || submit())
-                                .child(
-                                    text(move || {
-                                        if busy.get() {
-                                            "Please wait..."
-                                        } else if registering.get() {
-                                            "Create account"
-                                        } else {
-                                            "Sign in"
-                                        }
-                                    })
-                                        .text_size(px(14.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().primary_foreground),
-                                ),
-                        )
+                        .child(shared_button(
+                            ButtonProps::new(if busy.get() {
+                                "Please wait..."
+                            } else if registering.get() {
+                                "Create account"
+                            } else {
+                                "Sign in"
+                            })
+                            .full_width()
+                            .disabled(busy.get())
+                            .on_press(move || submit()),
+                        ))
                         .child(
                             when(move || demo_enabled.get(), move || {
-                                button()
-                                    .items_center()
-                                    .justify_center()
-                                    .w_full()
-                                    .h(px(40.0))
-                                    .rounded(px(6.0))
-                                    .border(px(1.0))
-                                    .border_color(move || theme().border)
-                                    .bg(move || theme().background)
-                                    .disabled(move || demo_loading.get())
-                                    .disabled_style(|state| state.opacity(0.5))
-                                    .on_press(move || demo())
-                                    .child(
-                                        text(move || {
-                                            if demo_loading.get() { "Loading..." } else { "Demo account" }
-                                        })
-                                            .text_size(px(14.0))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .text_color(move || theme().foreground),
-                                    )
+                                shared_button(
+                                    ButtonProps::new(if demo_loading.get() { "Loading..." } else { "Demo account" })
+                                        .variant(crate::components::button::ButtonVariant::Outline)
+                                        .full_width()
+                                        .disabled(demo_loading.get())
+                                        .on_press(move || demo()),
+                                )
                                     .into_element()
                             })
                             .otherwise(|| view().h(px(0.0))),

@@ -1,14 +1,16 @@
 //! Transactions: one-time expenses grouped by month.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::{button, input, theme};
-use nsh_core::element::AutoFill;
+use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::{self, TransactionsData};
+use crate::components::button::{button as shared_button, ButtonProps};
+use crate::components::page_header::page_header as shared_page_header;
+use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
 use crate::auth::AuthSession;
 use crate::format::format_currency;
 use crate::models::{Account, Rates, Transaction};
@@ -155,12 +157,15 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         open_form();
     }
 
+    let sort_desc = signal(true);
+    let month_only = signal(false);
+    let list_view = signal(true);
     view()
         .w_full()
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form))
-        .child(toolbar(search))
+        .child(toolbar(search, list_view, month_only, sort_desc))
         .child(
             when(loading, || loading_card()).otherwise(move || {
                 let value = render_currency.clone();
@@ -168,7 +173,7 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
                     error_card(&data.error().unwrap_or_default(), data)
                 })
                 .otherwise(move || {
-                    content(data, search, value.clone(), actions, server_signal, token_signal)
+                    content(data, search, value.clone(), actions, server_signal, token_signal, list_view, month_only, sort_desc)
                 })
             }),
         )
@@ -176,37 +181,11 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
 }
 
 fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
-    view()
-        .w_full()
-        .flex_row()
-        .flex_wrap()
-        .items_end()
-        .justify_between()
-        .gap(px(16.0))
-        .child(ui::page_header(TITLE, SUBTITLE))
-        .child(
-            button()
-                .items_center()
-                .justify_center()
-                .h(px(40.0))
-                .px(px(16.0))
-                .rounded(px(8.0))
-                .bg(move || theme().primary)
-                .flex_row()
-                .gap(px(6.0))
-                .on_press(on_add)
-                .child(
-                    image(asset!("icons/plus.svg"))
-                        .size(px(14.0))
-                        .tint_color(move || theme().primary_foreground),
-                )
-                .child(
-                    text("Add Transaction")
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().primary_foreground),
-                ),
-        )
+    shared_page_header(
+        TITLE,
+        SUBTITLE,
+        shared_button(ButtonProps::new("Add Transaction").icon(asset!("icons/plus.svg")).on_press(on_add)).into_element(),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -413,48 +392,23 @@ fn form(
         )
 }
 
-fn toolbar(search: Signal<String>) -> impl IntoElement {
-    view()
-        .w_full()
-        .flex_row()
-        .items_center()
-        .gap(px(8.0))
-        .child(
-            view()
-                .flex_1()
-                .flex_row()
-                .items_center()
-                .gap(px(8.0))
-                .h(px(40.0))
-                .px(px(12.0))
-                .rounded(px(8.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().card)
-                .child(
-                    image(asset!("icons/search.svg"))
-                        .size(px(16.0))
-                        .tint_color(move || theme().muted_foreground),
-                )
-                .child(
-                    input()
-                        .value(search)
-                        .on_change(move |value: &str| search.set(value.to_string()))
-                        .placeholder("Search")
-                        .auto_fill(AutoFill::Off)
-                        .flex_1()
-                        .h(px(38.0))
-                        .px(px(0.0))
-                        .border(px(0.0))
-                        .bg(rgba(0x00000000))
-                        .text_size(px(14.0))
-                        .text_color(move || theme().foreground),
-                ),
-        )
-        .child(ui::icon_button(asset!("icons/filter.svg"), false, move || {}))
-        .child(ui::icon_button(asset!("icons/sort.svg"), false, move || {}))
-        .child(ui::icon_button(asset!("icons/grid.svg"), true, move || {}))
-        .child(ui::icon_button(asset!("icons/list.svg"), false, move || {}))
+fn toolbar(
+    search: Signal<String>,
+    list_view: Signal<bool>,
+    month_only: Signal<bool>,
+    sort_desc: Signal<bool>,
+) -> impl IntoElement {
+    list_toolbar(
+        search,
+        list_view,
+        view()
+            .flex_row()
+            .items_center()
+            .gap(px(8.0))
+            .child(filter_button(month_only))
+            .child(sort_button(sort_desc))
+            .into_element(),
+    )
 }
 
 fn content(
@@ -464,20 +418,32 @@ fn content(
     actions: TxActions,
     server: Signal<String>,
     token: Signal<String>,
+    list_view: Signal<bool>,
+    month_only: Signal<bool>,
+    sort_desc: Signal<bool>,
 ) -> AnyElement {
     let groups = move || {
         let snapshot = data.get().unwrap_or_default();
-        group_transactions(
+        let mut groups = group_transactions(
             &snapshot.transactions,
             &snapshot.accounts,
             &snapshot.rates,
             &search.get(),
-        )
+            sort_desc.get(),
+        );
+        if month_only.get() {
+            let today = Local::now().date_naive();
+            let key = format!("{:04}-{:02}", today.year(), today.month());
+            groups.retain(|group| group.key == key);
+        }
+        groups
     };
+    let grid = list_view.get() == false;
     view()
         .w_full()
         .flex_col()
-        .gap(px(16.0))
+        .when(grid, |view| view.flex_row().flex_wrap().gap(px(16.0)))
+        .when(!grid, |view| view.gap(px(16.0)))
         .child(each(
             groups,
             |group| group.key.clone(),
@@ -489,6 +455,7 @@ fn content(
                     actions,
                     server,
                     token,
+                    grid,
                 )
             },
         ))
@@ -502,11 +469,13 @@ fn group_card(
     actions: TxActions,
     server: Signal<String>,
     token: Signal<String>,
+    grid: bool,
 ) -> impl IntoElement {
     let count = ui::count_label(group.items.len(), "transaction", "transactions");
     let total = format_currency(group.total, &currency);
     view()
         .w_full()
+        .when(grid, |view| view.w(px(360.0)).flex_grow(1.0))
         .flex_col()
         .gap(px(8.0))
         .child(
@@ -773,6 +742,7 @@ fn group_transactions(
     accounts: &[Account],
     rates: &Rates,
     query: &str,
+    descending: bool,
 ) -> Vec<TransactionGroup> {
     let mut groups: Vec<TransactionGroup> = Vec::new();
     for transaction in filter_transactions(transactions, accounts, query) {
@@ -791,7 +761,11 @@ fn group_transactions(
             });
         }
     }
-    groups.sort_by(|a, b| b.key.cmp(&a.key));
+    if descending {
+        groups.sort_by(|a, b| b.key.cmp(&a.key));
+    } else {
+        groups.sort_by(|a, b| a.key.cmp(&b.key));
+    }
     groups
 }
 
@@ -892,7 +866,7 @@ mod tests {
             transaction("Rent", account_id, Decimal::from(900), date(2026, 10, 1)),
             transaction("Lunch", account_id, Decimal::from(12), date(2026, 11, 20)),
         ];
-        let groups = group_transactions(&items, &[], &Rates::default(), "");
+        let groups = group_transactions(&items, &[], &Rates::default(), "", true);
         assert_eq!(groups.len(), 2);
         assert_eq!(groups[0].label, "November 2026");
         assert_eq!(groups[0].items.len(), 2);
