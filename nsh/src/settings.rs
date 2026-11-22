@@ -1386,6 +1386,15 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
                 .child(
+                    when(move || !account_error.get().is_empty() && !account_open.get(), move || {
+                        text(move || account_error.get())
+                            .text_size(px(11.0))
+                            .text_color(move || theme().destructive)
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
                     text("Accounts are required. Every subscription and transaction belongs to one.")
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
@@ -1515,6 +1524,15 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                             )
                             .into_element()
                     }
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    when(move || !category_error.get().is_empty() && !category_open.get(), move || {
+                        text(move || category_error.get())
+                            .text_size(px(11.0))
+                            .text_color(move || theme().destructive)
+                            .into_element()
                     })
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
