@@ -200,6 +200,38 @@ pub async fn register(
     Ok(session)
 }
 
+#[derive(Serialize)]
+struct VerifyEmailRequest<'a> {
+    code: &'a str,
+}
+
+pub async fn verify_email(server: &str, token: &str, code: &str) -> Result<AuthUser, String> {
+    let server = server.trim().trim_end_matches('/');
+    let body = serde_json::to_string(&VerifyEmailRequest { code }).map_err(|error| error.to_string())?;
+    let request = HttpRequest::post(format!("{server}/api/auth/verify-email"), body)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Content-Type", "application/json");
+    let response = fetch(request).await?;
+    if !response.ok() {
+        return Err(error_message(response.status(), &response.text()));
+    }
+    serde_json::from_str::<AuthUser>(&response.text())
+        .map_err(|_| "The server returned an unexpected response".to_string())
+}
+
+pub async fn resend_verification(server: &str, token: &str) -> Result<(), String> {
+    let server = server.trim().trim_end_matches('/');
+    let request = HttpRequest::post(format!("{server}/api/auth/resend-verification"), "{}")
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Content-Type", "application/json");
+    let response = fetch(request).await?;
+    if response.ok() {
+        Ok(())
+    } else {
+        Err(error_message(response.status(), &response.text()))
+    }
+}
+
 fn error_message(status: u16, body: &str) -> String {
     let detail = serde_json::from_str::<serde_json::Value>(body)
         .ok()

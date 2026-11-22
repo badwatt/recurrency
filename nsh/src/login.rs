@@ -19,6 +19,7 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
     let busy = signal(false);
     let demo_enabled = signal(false);
     let demo_loading = signal(false);
+    let verification = signal(None::<(String, String)>);
     let demo_server = auth::stored_server();
     spawn(async move {
         if auth::demo_enabled(&demo_server).await {
@@ -75,9 +76,14 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
             };
             match result {
                 Ok(next) => {
-                    server.set(server_value);
+                    server.set(server_value.clone());
                     edit_server.set(false);
                     busy.set(false);
+                    if next.requires_verification {
+                        verification.set(Some((email_value.clone(), next.token.clone())));
+                        auth::clear_session();
+                        return;
+                    }
                     session.set(Session::SignedIn(next));
                     return;
                 }
@@ -206,6 +212,112 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                         ),
                 ),
         )
+        .child(
+            when(move || verification.get().is_some(), move || {
+                let (email, token) = verification.get().unwrap_or_default();
+                verification_dialog(session, server, email, token, password, verification)
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+}
+
+fn verification_dialog(
+    session: Signal<Session>,
+    server: Signal<String>,
+    email: String,
+    token: String,
+    password: Signal<String>,
+    verification: Signal<Option<(String, String)>>,
+) -> impl IntoElement {
+    let code = signal(String::new());
+    let busy = signal(false);
+    let error = signal(String::new());
+    let status = signal(String::new());
+    let verify = {
+        let server = server.get();
+        let token = token.clone();
+        let email = email.clone();
+        move || {
+            if busy.get() {
+                return;
+            }
+            let value = code.get().trim().to_string();
+            if value.is_empty() {
+                error.set("Enter the verification code.".to_string());
+                return;
+            }
+            let server = server.clone();
+            let token = token.clone();
+            let email = email.clone();
+            let password = password.get();
+            busy.set(true);
+            error.set(String::new());
+            spawn(async move {
+                match auth::verify_email(&server, &token, &value).await {
+                    Ok(_) => {
+                        if password.is_empty() {
+                            status.set("Email verified. Sign in.".to_string());
+                            verification.set(None);
+                        } else {
+                            match auth::login(&server, &email, &password).await {
+                                Ok(next) => {
+                                    verification.set(None);
+                                    session.set(Session::SignedIn(next));
+                                }
+                                Err(message) => error.set(message),
+                            }
+                        }
+                    }
+                    Err(message) => error.set(message),
+                }
+                busy.set(false);
+            });
+        }
+    };
+    let resend = {
+        let server = server.get();
+        let token = token.clone();
+        move || {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match auth::resend_verification(&server, &token).await {
+                    Ok(()) => status.set("A new code was sent.".to_string()),
+                    Err(message) => error.set(message),
+                }
+            });
+        }
+    };
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(
+            "Verify your email",
+            format!("Enter the code sent to {email}."),
+            move || verification.set(None),
+        )
+        .width(440.0)
+        .body(
+            view()
+                .p(px(24.0))
+                .gap(px(12.0))
+                .child(crate::ui::field("Verification code", code, "123456"))
+                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .child(text(move || status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground))
+                .into_element(),
+        )
+        .footer(
+            view()
+                .w_full()
+                .flex_row()
+                .flex_wrap()
+                .justify_end()
+                .gap(px(8.0))
+                .child(crate::ui::action_button("Back", false, move || verification.set(None)))
+                .child(crate::ui::action_button("Resend code", false, resend))
+                .child(crate::ui::action_button(if busy.get() { "Verifying…" } else { "Verify" }, false, verify))
+                .into_element(),
+        ),
+    )
 }
 
 fn server_row(

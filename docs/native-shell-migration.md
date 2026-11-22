@@ -73,6 +73,7 @@ toolbar.
 | `toggle.rs` | `toggle.rs` | Ported |
 | `dialog.rs` / `select.rs` | `dialog.rs` (`DialogHost` + `dialog` shell) | Ported |
 | Add/edit/notes/bulk forms | shared `dialog` shell | Ported (subscription, transaction, debt, notes, subscription bulk) |
+| Register verification | login verification dialog | Ported |
 | `select_menu.rs` | `select_menu.rs` | Ported inline menu |
 | `date_picker.rs` | `date_picker.rs` | Ported custom calendar |
 | `checkbox.rs`, `segmented.rs`, `skeleton.rs` | same names | Ported |
