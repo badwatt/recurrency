@@ -310,7 +310,7 @@ fn form(
                 .w_full()
                 .flex_row()
                 .gap(px(12.0))
-                .child(ui::field("Date", date, "2026-11-22")),
+                .child(ui::date_field("Date", date)),
         )
         .child(ui::choice_picker(
             "Account",

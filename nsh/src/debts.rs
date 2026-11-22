@@ -325,7 +325,7 @@ fn payment_form(
                 .flex_row()
                 .gap(px(12.0))
                 .child(ui::field("Amount", amount, "250"))
-                .child(ui::field("Paid on", paid_on, "2026-11-22")),
+                .child(ui::date_field("Paid on", paid_on)),
         )
         .child(ui::field("Note", note, "November payment"))
         .child(
@@ -630,7 +630,7 @@ fn form(
                 .w_full()
                 .flex_row()
                 .gap(px(12.0))
-                .child(ui::field("First payment", start_date, "2026-11-22"))
+                .child(ui::date_field("First payment", start_date))
                 .child(ui::field("Monthly payment", monthly, "250")),
         )
         .child(

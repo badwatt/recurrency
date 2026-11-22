@@ -403,7 +403,7 @@ fn form(
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
                         )
-                        .child(ui::field("First charge", start_date, "2026-11-22"))
+                        .child(ui::date_field("First charge", start_date))
                         .child(
                             view()
                                 .w_full()

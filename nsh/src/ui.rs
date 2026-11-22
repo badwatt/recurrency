@@ -255,49 +255,32 @@ pub fn field(
         .child(crate::components::input::text_input(value, placeholder))
 }
 
+pub fn date_field(label_text: &'static str, value: Signal<String>) -> impl IntoElement {
+    crate::components::field::field(
+        crate::components::field::FieldProps::new(label_text),
+        crate::components::date_picker::date_picker(value).into_element(),
+    )
+}
+
 pub fn choice_picker(
     label_text: &'static str,
     items: impl Fn() -> Vec<(Uuid, String)> + Clone + 'static,
     selected: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
-    view()
-        .flex_col()
-        .gap(px(6.0))
-        .child(label(label_text))
-        .child(
-            view()
-                .flex_row()
-                .items_center()
-                .gap(px(6.0))
-                .child(each(
-                    items,
-                    |(id, _)| *id,
-                    move |entry, _| {
-                        let (id, name) = entry.get();
-                        let active = selected.get() == Some(id);
-                        button()
-                            .items_center()
-                            .justify_center()
-                            .h(px(30.0))
-                            .px(px(10.0))
-                            .rounded(px(6.0))
-                            .border(px(1.0))
-                            .border_color(move || if active { theme().primary } else { theme().border })
-                            .bg(move || if active { theme().accent } else { theme().card })
-                            .on_press(move || selected.set(Some(id)))
-                            .child(
-                                text(name)
-                                    .text_size(px(12.0))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(move || if active {
-                                        theme().foreground
-                                    } else {
-                                        theme().muted_foreground
-                                    }),
-                            )
-                    },
-                )),
-        )
+    let options = move || {
+        items()
+            .into_iter()
+            .map(|(id, name)| crate::components::select_menu::SelectOption::new(id, name))
+            .collect()
+    };
+    crate::components::select_menu::select_menu(
+        crate::components::select_menu::SelectMenuProps::new(
+            label_text,
+            "Select...",
+            selected,
+            options,
+        ),
+    )
 }
 
 pub fn action_button(

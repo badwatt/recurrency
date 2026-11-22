@@ -72,7 +72,7 @@ toolbar.
 | `list_toolbar.rs` | `list_toolbar.rs` | Ported |
 | `toggle.rs` | `toggle.rs` | Ported |
 | `dialog.rs` / `select.rs` | `dialog.rs` (`DialogHost`) | Ported |
-| `select_menu.rs` | choice chips in `ui.rs` | Pending dropdown |
-| `date_picker.rs` | native date input | Pending custom calendar |
+| `select_menu.rs` | `select_menu.rs` | Ported inline menu |
+| `date_picker.rs` | `date_picker.rs` | Ported custom calendar |
 | `checkbox.rs`, `segmented.rs` | none | Pending use |
 | `chart.rs`, `toast.rs`, `tooltip.rs`, `theme_picker.rs` | page-local | Pending |
