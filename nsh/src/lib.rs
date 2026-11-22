@@ -15,6 +15,7 @@ mod login;
 mod models;
 mod recurrence;
 mod reports;
+mod settings;
 mod subscriptions;
 mod theme;
 mod transactions;
@@ -126,7 +127,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .bg(move || theme().background)
         .font_family(theme::SANS)
         .text_color(move || theme().foreground)
-        .child(ui::top_bar(route))
+        .child(ui::top_bar(route, auth_signal.get()))
         .child(
             scroll().flex_1().child(
                 view()
@@ -168,7 +169,13 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                         move || route.get() == Route::Reports,
                                                         move || reports::reports(auth_signal.get()),
                                                     )
-                                                    .otherwise(move || ui::pending_screen(route.get().label()))
+                                                    .otherwise(move || {
+                                                        when(
+                                                            move || route.get() == Route::Settings,
+                                                            move || settings::settings(auth_signal.get(), session),
+                                                        )
+                                                        .otherwise(move || ui::pending_screen(route.get().label()))
+                                                    })
                                                 })
                                             })
                                         })

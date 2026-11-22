@@ -49,6 +49,13 @@ struct LoginRequest<'a> {
     password: &'a str,
 }
 
+#[derive(Serialize)]
+struct RegisterRequest<'a> {
+    email: &'a str,
+    password: &'a str,
+    name: &'a str,
+}
+
 pub fn stored_server() -> String {
     Storage::get_item(SERVER_KEY)
         .map(|value| value.trim().trim_end_matches('/').to_string())
@@ -111,6 +118,35 @@ pub async fn login(server: &str, email: &str, password: &str) -> Result<AuthSess
     let body = serde_json::to_string(&LoginRequest { email, password })
         .map_err(|error| error.to_string())?;
     let request = HttpRequest::post(format!("{server}/api/auth/login"), body)
+        .header("Content-Type", "application/json");
+    let response = fetch(request).await?;
+    if !response.ok() {
+        let status = response.status();
+        let body = response.text();
+        return Err(error_message(status, &body));
+    }
+    let body = response.text();
+    let session = serde_json::from_str::<AuthSession>(&body)
+        .map_err(|_| "The server returned an unexpected response".to_string())?;
+    store_server(server);
+    store_session(&session);
+    Ok(session)
+}
+
+pub async fn register(
+    server: &str,
+    name: &str,
+    email: &str,
+    password: &str,
+) -> Result<AuthSession, String> {
+    let server = server.trim().trim_end_matches('/');
+    let body = serde_json::to_string(&RegisterRequest {
+        email,
+        password,
+        name,
+    })
+    .map_err(|error| error.to_string())?;
+    let request = HttpRequest::post(format!("{server}/api/auth/register"), body)
         .header("Content-Type", "application/json");
     let response = fetch(request).await?;
     if !response.ok() {

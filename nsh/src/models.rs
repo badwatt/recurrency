@@ -173,3 +173,30 @@ pub struct ReportResponse {
     pub category_breakdown: Vec<CategoryBreakdown>,
     pub recent_trends: Vec<SpendingTrend>,
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct NotificationPreference {
+    pub channel: String,
+    pub enabled: bool,
+    pub reminder_days_before: i32,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct NotificationPreferences {
+    #[serde(default)]
+    pub preferences: Vec<NotificationPreference>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct AiSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub provider: String,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub configured: bool,
+}

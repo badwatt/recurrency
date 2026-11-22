@@ -2,12 +2,13 @@
 //! without copying markup: one navigation bar, one surface, one page header.
 
 use crate::Route;
+use crate::auth::AuthSession;
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use uuid::Uuid;
 use nsh_core::prelude::*;
 
-pub fn top_bar(route: Signal<Route>) -> impl IntoElement {
+pub fn top_bar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
     view()
         .h(px(56.0))
         .w_full()
@@ -46,7 +47,50 @@ pub fn top_bar(route: Signal<Route>) -> impl IntoElement {
                         .items_center()
                         .gap(px(2.0))
                         .children(Route::NAV.iter().map(|item| nav_item(*item, route))),
-                ),
+                )
+                .child(view().flex_1())
+                .child(
+                    button()
+                        .h(px(34.0))
+                        .px(px(10.0))
+                        .rounded(px(7.0))
+                        .on_press(move || route.set(Route::Settings))
+                        .child(
+                            text("Settings")
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(avatar(route, auth)),
+        )
+}
+
+fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
+    let name = auth
+        .user
+        .name
+        .clone()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| auth.user.email.clone());
+    let initial = name
+        .chars()
+        .find(|character| !character.is_whitespace())
+        .map(|character| character.to_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_string());
+    button()
+        .h(px(30.0))
+        .w(px(30.0))
+        .items_center()
+        .justify_center()
+        .rounded(px(999.0))
+        .bg(move || theme().primary)
+        .on_press(move || route.set(Route::Settings))
+        .child(
+            text(initial)
+                .text_size(px(12.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(move || theme().primary_foreground),
         )
 }
 

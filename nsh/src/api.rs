@@ -7,7 +7,8 @@ use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
     DashboardData, UpcomingPayment,
 };
-use crate::models::{Account, CalendarItem, Category, Debt, DebtPayment, Rates, ReportResponse, Subscription, Transaction};
+use crate::models::{Account, AiSettings, CalendarItem, Category, Debt, DebtPayment, NotificationPreferences, Rates, ReportResponse, Subscription, Transaction};
+use crate::settings::{SettingsResponse, UpdateSettingsRequest};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
 use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
@@ -254,6 +255,58 @@ pub struct CalendarData {
 pub struct ReportsData {
     pub report: ReportResponse,
     pub categories: Vec<Category>,
+}
+
+pub async fn load_notification_preferences(
+    server: String,
+    token: String,
+) -> Result<NotificationPreferences, String> {
+    Client::new(server, token)
+        .get("/api/settings/notifications")
+        .await
+}
+
+pub async fn update_notification_preferences<B: Serialize>(
+    server: String,
+    token: String,
+    request: &B,
+) -> Result<NotificationPreferences, String> {
+    Client::new(server, token)
+        .put("/api/settings/notifications", request)
+        .await
+}
+
+pub async fn load_ai_settings(server: String, token: String) -> Result<AiSettings, String> {
+    Client::new(server, token).get("/api/ai/settings").await
+}
+
+pub async fn update_ai_settings<B: Serialize>(
+    server: String,
+    token: String,
+    request: &B,
+) -> Result<AiSettings, String> {
+    Client::new(server, token).put("/api/ai/settings", request).await
+}
+
+pub async fn export_backup(server: String, token: String) -> Result<String, String> {
+    let request = HttpRequest::get(format!("{}/api/backup", server.trim_end_matches('/')))
+        .header("Authorization", format!("Bearer {token}"));
+    let response = fetch(request).await?;
+    if response.ok() {
+        Ok(response.text())
+    } else {
+        Err(format!("The server answered {}", response.status()))
+    }
+}
+
+pub async fn update_settings(
+    server: String,
+    token: String,
+    request: &UpdateSettingsRequest,
+) -> Result<SettingsResponse, String> {
+    Client::new(server, token)
+        .put("/api/settings", request)
+        .await
 }
 
 pub async fn load_report(

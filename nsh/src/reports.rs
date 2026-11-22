@@ -2,6 +2,7 @@
 
 use chrono::{Datelike, Local, NaiveDate};
 use nsh_base::theme;
+use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 
@@ -125,6 +126,32 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
         .w_full()
         .flex_col()
         .gap(px(20.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .justify_end()
+                .child(ui::action_button("Export CSV", false, {
+                    let currency = currency.clone();
+                    move || {
+                        let Some(snapshot) = data.get() else {
+                            return;
+                        };
+                        let csv = build_csv(&snapshot.report, &currency);
+                        spawn(async move {
+                            if let Ok(Some(path)) = pick_save_path(
+                                SaveDialog::new()
+                                    .file_name("recurrency-report.csv")
+                                    .filter(FileFilter::new("CSV", ["csv"])),
+                            )
+                            .await
+                            {
+                                let _ = std::fs::write(path, csv);
+                            }
+                        });
+                    }
+                })),
+        )
         .child(
             view()
                 .w_full()
@@ -366,6 +393,22 @@ fn trend_card(data: Resource<ReportsData, String>, currency: &str) -> impl IntoE
         )
 }
 
+fn build_csv(report: &ReportResponse, currency: &str) -> String {
+    let mut csv = String::from("Period,Total\n");
+    for trend in &report.recent_trends {
+        csv.push_str(&format!("{},{}\n", trend.period, trend.total));
+    }
+    csv.push_str("\nCategory,Amount,Count,Percentage\n");
+    for category in &report.category_breakdown {
+        csv.push_str(&format!(
+            "{},{},{},{:.1}%\n",
+            category.category_name, category.total, category.count, category.percentage
+        ));
+    }
+    csv.push_str(&format!("\nCurrency,{currency}\n"));
+    csv
+}
+
 fn average_trend(report: &ReportResponse) -> Decimal {
     if report.recent_trends.is_empty() {
         return report.monthly_summary.overall_total;
@@ -458,6 +501,28 @@ mod tests {
         let mut report = ReportResponse::default();
         report.monthly_summary.overall_total = Decimal::from(42);
         assert_eq!(average_trend(&report), Decimal::from(42));
+    }
+
+    #[test]
+    fn csv_contains_trends_and_categories() {
+        let report = ReportResponse {
+            monthly_summary: MonthlySummary::default(),
+            category_breakdown: vec![crate::models::CategoryBreakdown {
+                category_id: None,
+                category_name: "Streaming".to_string(),
+                total: Decimal::from(10),
+                count: 1,
+                percentage: 100.0,
+            }],
+            recent_trends: vec![SpendingTrend {
+                period: "11/26".to_string(),
+                total: Decimal::from(10),
+            }],
+        };
+        let csv = build_csv(&report, "EUR");
+        assert!(csv.contains("Streaming"));
+        assert!(csv.contains("11/26"));
+        assert!(csv.contains("Currency,EUR"));
     }
 
     #[test]

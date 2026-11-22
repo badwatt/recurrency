@@ -8,6 +8,8 @@ use nsh_core::prelude::*;
 const CARD_WIDTH: f32 = 448.0;
 
 pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
+    let registering = signal(false);
+    let name = signal(String::new());
     let email = signal(String::new());
     let password = signal(String::new());
     let server = signal(auth::stored_server());
@@ -21,15 +23,26 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
         }
         let email_value = email.get().trim().to_string();
         let password_value = password.get();
+        let name_value = name.get().trim().to_string();
         if email_value.is_empty() || password_value.is_empty() {
             error.set("Enter your email and password".to_string());
+            return;
+        }
+        if registering.get() && name_value.is_empty() {
+            error.set("Enter your name".to_string());
             return;
         }
         busy.set(true);
         error.set(String::new());
         let server_value = server.get().trim().trim_end_matches('/').to_string();
+        let registering_value = registering.get();
         spawn(async move {
-            match auth::login(&server_value, &email_value, &password_value).await {
+            let result = if registering_value {
+                auth::register(&server_value, &name_value, &email_value, &password_value).await
+            } else {
+                auth::login(&server_value, &email_value, &password_value).await
+            };
+            match result {
                 Ok(next) => {
                     server.set(server_value);
                     edit_server.set(false);
@@ -68,13 +81,17 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                         .pb(px(0.0))
                         .gap(px(4.0))
                         .child(
-                            text("Sign in")
+                            text(move || if registering.get() { "Create account" } else { "Sign in" })
                                 .text_size(px(24.0))
                                 .font_weight(FontWeight::BOLD)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
-                            text("Enter your email and password to access your account")
+                            text(move || if registering.get() {
+                                "Create an account on this server"
+                            } else {
+                                "Enter your email and password to access your account"
+                            })
                                 .text_size(px(14.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
@@ -88,6 +105,9 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                             when(move || !error.get().is_empty(), move || error_box(error))
                                 .otherwise(|| view().h(px(0.0))),
                         )
+                        .when(registering.get(), move |form| {
+                            form.child(form_field("Name", "Alex", "name", false, name, move || submit()))
+                        })
                         .child(form_field("Email", "email@example.com", "email", false, email, move || submit()))
                         .child(form_field("Password", "", "current-password", true, password, move || submit()))
                         .child(
@@ -101,10 +121,38 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                 .disabled_style(|s| s.opacity(0.5))
                                 .on_press(move || submit())
                                 .child(
-                                    text(move || if busy.get() { "Signing in..." } else { "Sign in" })
+                                    text(move || {
+                                        if busy.get() {
+                                            "Please wait..."
+                                        } else if registering.get() {
+                                            "Create account"
+                                        } else {
+                                            "Sign in"
+                                        }
+                                    })
                                         .text_size(px(14.0))
                                         .font_weight(FontWeight::MEDIUM)
                                         .text_color(move || theme().primary_foreground),
+                                ),
+                        )
+                        .child(
+                            button()
+                                .w_full()
+                                .h(px(32.0))
+                                .rounded(px(6.0))
+                                .on_press(move || {
+                                    registering.set(!registering.get());
+                                    error.set(String::new());
+                                })
+                                .child(
+                                    text(move || if registering.get() {
+                                        "Already have an account? Sign in"
+                                    } else {
+                                        "Create an account"
+                                    })
+                                        .text_size(px(12.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().primary),
                                 ),
                         ),
                 ),

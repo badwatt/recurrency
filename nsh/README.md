@@ -30,8 +30,10 @@ from <https://nsh.dev/docs/installation>.
 - [x] Transactions list, monthly groups, search, create, edit and delete.
 - [x] Debts list, search, create/edit/delete, payments and history.
 - [x] Calendar month grid with scheduled and one-time payments.
-- [x] Reports summary, category split and spending trends.
-- [ ] Modal shell, exports, settings.
+- [x] Reports summary, category split, spending trends and CSV export.
+- [x] Settings account, appearance, general, notifications, AI, backup, server and about.
+- [x] Registration, login, top-bar account access and logout.
+- [ ] Modal shell, mobile layout, Money/Admin settings, PDF export.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 
