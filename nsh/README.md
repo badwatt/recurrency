@@ -20,7 +20,14 @@ from <https://nsh.dev/docs/installation>.
 ```sh
 nsh package nsh --target linux --out target/nsh-package \
   --name Recurrency --id com.badwatt.recurrency --app-version 0.56.0
+
+nsh package nsh --target web --out target/nsh-web \
+  --name Recurrency --id com.badwatt.recurrency --app-version 0.56.0
 ```
+
+The web package is a static site; under a Content-Security-Policy it needs
+`script-src 'self' 'wasm-unsafe-eval'` and `img-src 'self' blob: data:`.
+Android packaging needs the Rust Android targets and NDK in the shell.
 
 ## Status
 
