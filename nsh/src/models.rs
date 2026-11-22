@@ -128,3 +128,15 @@ pub struct DebtPayment {
     pub paid_on: NaiveDate,
     pub note: Option<String>,
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct CalendarItem {
+    pub subscription_id: Uuid,
+    pub name: String,
+    pub amount: Decimal,
+    pub currency: String,
+    pub frequency: String,
+    pub billing_date: NaiveDate,
+    pub is_active: bool,
+    pub logo_url: Option<String>,
+}

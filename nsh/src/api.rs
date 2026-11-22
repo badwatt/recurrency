@@ -7,7 +7,7 @@ use crate::dashboard_data::{
     build_account_budgets, build_category_budgets, upcoming_payments, AccountBudget, CategoryBudget,
     DashboardData, UpcomingPayment,
 };
-use crate::models::{Account, Category, Debt, DebtPayment, Rates, Subscription, Transaction};
+use crate::models::{Account, CalendarItem, Category, Debt, DebtPayment, Rates, Subscription, Transaction};
 use crate::subscriptions::CreateSubscriptionRequest;
 use crate::transactions::CreateTransactionRequest;
 use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
@@ -241,6 +241,33 @@ pub async fn record_debt_payment(
     Client::new(server, token)
         .post(&format!("/api/debts/{debt_id}/payments"), request)
         .await
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CalendarData {
+    pub items: Vec<CalendarItem>,
+    pub transactions: Vec<Transaction>,
+    pub rates: Rates,
+}
+
+pub async fn load_calendar(
+    server: String,
+    token: String,
+    currency: String,
+    year: i32,
+    month: u32,
+) -> Result<CalendarData, String> {
+    let api = Client::new(server, token);
+    let items: Vec<CalendarItem> = api
+        .get(&format!("/api/subscriptions/calendar?year={year}&month={month}"))
+        .await?;
+    let transactions: Vec<Transaction> = api.get("/api/transactions").await?;
+    let rates = api.rates(&currency).await;
+    Ok(CalendarData {
+        items,
+        transactions,
+        rates,
+    })
 }
 
 pub async fn load_subscriptions(

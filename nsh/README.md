@@ -29,7 +29,8 @@ from <https://nsh.dev/docs/installation>.
 - [x] Inline create/edit form, pause/resume and delete confirmation.
 - [x] Transactions list, monthly groups, search, create, edit and delete.
 - [x] Debts list, search, create/edit/delete, payments and history.
-- [ ] Modal shell, calendar, reports.
+- [x] Calendar month grid with scheduled and one-time payments.
+- [ ] Modal shell, reports, settings.
 - [ ] Settings, themes, AI, backup and admin.
 - [ ] Desktop/mobile/web packaging and CI.
 
