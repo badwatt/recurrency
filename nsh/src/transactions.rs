@@ -11,8 +11,9 @@ use crate::api::{self, TransactionsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
-use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
+use crate::components::list_toolbar::{filter_button, list_toolbar};
 use crate::components::page_header::page_header as shared_page_header;
+use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::format::{format_currency, format_date};
 use crate::models::{Account, Rates, Transaction};
 use crate::theme as design;
@@ -186,6 +187,7 @@ pub fn transactions(
     };
 
     let sort_desc = signal(true);
+    let sort_field = signal("date".to_string());
     let month_only = signal(false);
     let list_view = signal(true);
     view()
@@ -193,7 +195,9 @@ pub fn transactions(
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
-        .child(toolbar(search, list_view, month_only, sort_desc))
+        .child(toolbar(
+            search, list_view, month_only, sort_desc, sort_field,
+        ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
             when(has_error, move || {
@@ -210,6 +214,7 @@ pub fn transactions(
                     list_view,
                     month_only,
                     sort_desc,
+                    sort_field,
                 )
             })
         }))
@@ -538,6 +543,7 @@ fn toolbar(
     list_view: Signal<bool>,
     month_only: Signal<bool>,
     sort_desc: Signal<bool>,
+    sort_field: Signal<String>,
 ) -> impl IntoElement {
     list_toolbar(
         search,
@@ -547,7 +553,17 @@ fn toolbar(
             .items_center()
             .gap(px(8.0))
             .child(filter_button(month_only))
-            .child(sort_button(sort_desc))
+            .child(sort_menu(
+                sort_field,
+                sort_desc,
+                vec![
+                    SortOption::new("date", "Date"),
+                    SortOption::new("amount", "Price"),
+                    SortOption::new("name", "Name"),
+                    SortOption::new("created_at", "Created"),
+                    SortOption::new("updated_at", "Last modified"),
+                ],
+            ))
             .into_element(),
     )
 }
@@ -562,6 +578,7 @@ fn content(
     list_view: Signal<bool>,
     month_only: Signal<bool>,
     sort_desc: Signal<bool>,
+    sort_field: Signal<String>,
 ) -> AnyElement {
     let groups = move || {
         let snapshot = data.get().unwrap_or_default();
@@ -576,6 +593,9 @@ fn content(
             let today = Local::now().date_naive();
             let key = format!("{:04}-{:02}", today.year(), today.month());
             groups.retain(|group| group.key == key);
+        }
+        for group in &mut groups {
+            sort_transactions(&mut group.items, &sort_field.get(), sort_desc.get());
         }
         groups
     };
@@ -1280,6 +1300,23 @@ fn filter_transactions(
     result
 }
 
+fn sort_transactions(items: &mut [Transaction], field: &str, descending: bool) {
+    items.sort_by(|a, b| {
+        let ordering = match field {
+            "amount" => a.amount.cmp(&b.amount),
+            "name" => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            "created_at" => a.created_at.cmp(&b.created_at),
+            "updated_at" => a.updated_at.cmp(&b.updated_at),
+            _ => a.date.cmp(&b.date),
+        };
+        if descending {
+            ordering.reverse()
+        } else {
+            ordering
+        }
+    });
+}
+
 fn group_transactions(
     transactions: &[Transaction],
     accounts: &[Account],
@@ -1404,6 +1441,19 @@ mod tests {
             created_at: None,
             updated_at: None,
         }
+    }
+
+    #[test]
+    fn transaction_sort_uses_amount_or_name() {
+        let account_id = Uuid::new_v4();
+        let mut items = vec![
+            transaction("Coffee", account_id, Decimal::from(3), date(2026, 11, 22)),
+            transaction("Rent", account_id, Decimal::from(900), date(2026, 10, 1)),
+        ];
+        sort_transactions(&mut items, "amount", true);
+        assert_eq!(items[0].name, "Rent");
+        sort_transactions(&mut items, "name", false);
+        assert_eq!(items[0].name, "Coffee");
     }
 
     #[test]
