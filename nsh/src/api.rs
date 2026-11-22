@@ -9,6 +9,7 @@ use crate::dashboard_data::{
 };
 use crate::models::{Account, Category, Rates, Subscription, Transaction};
 use crate::subscriptions::CreateSubscriptionRequest;
+use crate::transactions::CreateTransactionRequest;
 use nsh_core::prelude::*;
 
 pub struct Client {
@@ -108,6 +109,42 @@ pub async fn load_dashboard(server: String, token: String, currency: String) -> 
         rates,
         active_subscriptions,
     })
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TransactionsData {
+    pub transactions: Vec<Transaction>,
+    pub accounts: Vec<Account>,
+    pub categories: Vec<Category>,
+    pub rates: Rates,
+}
+
+pub async fn load_transactions(
+    server: String,
+    token: String,
+    currency: String,
+) -> Result<TransactionsData, String> {
+    let api = Client::new(server, token);
+    let transactions: Vec<Transaction> = api.get("/api/transactions").await?;
+    let accounts: Vec<Account> = api.get("/api/accounts").await?;
+    let categories: Vec<Category> = api.get("/api/categories").await?;
+    let rates = api.rates(&currency).await;
+    Ok(TransactionsData {
+        transactions,
+        accounts,
+        categories,
+        rates,
+    })
+}
+
+pub async fn create_transaction(
+    server: String,
+    token: String,
+    request: &CreateTransactionRequest,
+) -> Result<Transaction, String> {
+    Client::new(server, token)
+        .post("/api/transactions", request)
+        .await
 }
 
 pub async fn load_subscriptions(

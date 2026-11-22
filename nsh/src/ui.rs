@@ -2,7 +2,9 @@
 //! without copying markup: one navigation bar, one surface, one page header.
 
 use crate::Route;
-use nsh_base::{button, theme};
+use nsh_base::{button, input, theme};
+use nsh_core::element::AutoFill;
+use uuid::Uuid;
 use nsh_core::prelude::*;
 
 pub fn top_bar(route: Signal<Route>) -> impl IntoElement {
@@ -132,4 +134,82 @@ pub fn count_label(count: usize, singular: &str, plural: &str) -> String {
     } else {
         format!("{count} {plural}")
     }
+}
+
+pub fn label(text_value: &'static str) -> impl IntoElement {
+    text(text_value)
+        .text_size(px(12.0))
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(move || theme().muted_foreground)
+}
+
+pub fn field(
+    label_text: &'static str,
+    value: Signal<String>,
+    placeholder: &'static str,
+) -> impl IntoElement {
+    view()
+        .flex_grow(1.0)
+        .flex_col()
+        .gap(px(6.0))
+        .min_w(px(0.0))
+        .child(label(label_text))
+        .child(
+            input()
+                .value(value)
+                .on_change(move |next: &str| value.set(next.to_string()))
+                .placeholder(placeholder)
+                .auto_fill(AutoFill::Off)
+                .h(px(38.0))
+                .px(px(10.0))
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || theme().input)
+                .bg(move || theme().card)
+                .text_size(px(13.0))
+                .text_color(move || theme().foreground),
+        )
+}
+
+pub fn choice_picker(
+    label_text: &'static str,
+    items: impl Fn() -> Vec<(Uuid, String)> + Clone + 'static,
+    selected: Signal<Option<Uuid>>,
+) -> impl IntoElement {
+    view()
+        .flex_col()
+        .gap(px(6.0))
+        .child(label(label_text))
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .gap(px(6.0))
+                .child(each(
+                    items,
+                    |(id, _)| *id,
+                    move |entry, _| {
+                        let (id, name) = entry.get();
+                        let active = selected.get() == Some(id);
+                        button()
+                            .h(px(30.0))
+                            .px(px(10.0))
+                            .rounded(px(6.0))
+                            .border(px(1.0))
+                            .border_color(move || if active { theme().primary } else { theme().border })
+                            .bg(move || if active { theme().accent } else { theme().card })
+                            .on_press(move || selected.set(Some(id)))
+                            .child(
+                                text(name)
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || if active {
+                                        theme().foreground
+                                    } else {
+                                        theme().muted_foreground
+                                    }),
+                            )
+                    },
+                )),
+        )
 }

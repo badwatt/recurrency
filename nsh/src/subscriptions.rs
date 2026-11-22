@@ -344,34 +344,46 @@ fn form(
                 .w_full()
                 .flex_row()
                 .gap(px(12.0))
-                .child(field("Name", name, "Spotify Premium"))
-                .child(field("Amount", amount, "10.99")),
+                .child(ui::field("Name", name, "Spotify Premium"))
+                .child(ui::field("Amount", amount, "10.99")),
         )
         .child(
             view()
                 .w_full()
                 .flex_row()
                 .gap(px(12.0))
-                .child(field("Start date", start_date, "2026-11-22"))
-                .child(field("Day", day, "23")),
+                .child(ui::field("Start date", start_date, "2026-11-22"))
+                .child(ui::field("Day", day, "23")),
         )
-        .child(picker(
+        .child(ui::choice_picker(
             "Account",
-            data,
+            move || {
+                data.get()
+                    .unwrap_or_default()
+                    .accounts
+                    .into_iter()
+                    .map(|account| (account.id, account.name))
+                    .collect()
+            },
             account_id,
-            true,
         ))
-        .child(picker(
+        .child(ui::choice_picker(
             "Category",
-            data,
+            move || {
+                data.get()
+                    .unwrap_or_default()
+                    .categories
+                    .into_iter()
+                    .map(|category| (category.id, category.name))
+                    .collect()
+            },
             category_id,
-            false,
         ))
         .child(
             view()
                 .flex_col()
                 .gap(px(6.0))
-                .child(label("Repeat"))
+                .child(ui::label("Repeat"))
                 .child(
                     view()
                         .flex_row()
@@ -429,97 +441,6 @@ fn form(
                                 .text_color(move || theme().foreground),
                         ),
                 ),
-        )
-}
-
-fn field(label_text: &'static str, value: Signal<String>, placeholder: &'static str) -> impl IntoElement {
-    view()
-        .flex_grow(1.0)
-        .flex_col()
-        .gap(px(6.0))
-        .min_w(px(0.0))
-        .child(label(label_text))
-        .child(
-            input()
-                .value(value)
-                .on_change(move |next: &str| value.set(next.to_string()))
-                .placeholder(placeholder)
-                .auto_fill(AutoFill::Off)
-                .h(px(38.0))
-                .px(px(10.0))
-                .rounded(px(7.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().card)
-                .text_size(px(13.0))
-                .text_color(move || theme().foreground),
-        )
-}
-
-fn label(text_value: &'static str) -> impl IntoElement {
-    text(text_value)
-        .text_size(px(12.0))
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(move || theme().muted_foreground)
-}
-
-fn picker(
-    label_text: &'static str,
-    data: Resource<SubscriptionsData, String>,
-    selected: Signal<Option<Uuid>>,
-    accounts: bool,
-) -> impl IntoElement {
-    let items = move || {
-        let snapshot = data.get().unwrap_or_default();
-        if accounts {
-            snapshot
-                .accounts
-                .into_iter()
-                .map(|account| (account.id, account.name))
-                .collect::<Vec<_>>()
-        } else {
-            snapshot
-                .categories
-                .into_iter()
-                .map(|category| (category.id, category.name))
-                .collect::<Vec<_>>()
-        }
-    };
-    view()
-        .flex_col()
-        .gap(px(6.0))
-        .child(label(label_text))
-        .child(
-            view()
-                .flex_row()
-                .items_center()
-                .gap(px(6.0))
-                .child(each(
-                    items,
-                    |(id, _)| *id,
-                    move |entry, _| {
-                        let (id, name) = entry.get();
-                        let active = selected.get() == Some(id);
-                        button()
-                            .h(px(30.0))
-                            .px(px(10.0))
-                            .rounded(px(6.0))
-                            .border(px(1.0))
-                            .border_color(move || if active { theme().primary } else { theme().border })
-                            .bg(move || if active { theme().accent } else { theme().card })
-                            .on_press(move || selected.set(Some(id)))
-                            .child(
-                                text(name)
-                                    .text_size(px(12.0))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(move || if active {
-                                        theme().foreground
-                                    } else {
-                                        theme().muted_foreground
-                                    }),
-                            )
-                    },
-                )),
         )
 }
 

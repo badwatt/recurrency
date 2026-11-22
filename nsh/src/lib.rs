@@ -14,6 +14,7 @@ mod models;
 mod recurrence;
 mod subscriptions;
 mod theme;
+mod transactions;
 mod ui;
 
 use auth::Session;
@@ -116,6 +117,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         Session::SignedIn(auth) => auth,
         _ => return loading_screen(),
     };
+    let auth_signal = signal(auth);
     view()
         .flex_1()
         .bg(move || theme().background)
@@ -136,18 +138,20 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             .child(
                                 when(
                                     move || route.get() == Route::Dashboard,
-                                    {
-                                        let auth = auth.clone();
-                                        move || dashboard::dashboard(auth.clone(), route)
-                                    },
+                                    move || dashboard::dashboard(auth_signal.get(), route),
                                 )
                                 .otherwise(move || {
-                                    let subscriptions_auth = auth.clone();
                                     when(
                                         move || route.get() == Route::Subscriptions,
-                                        move || subscriptions::subscriptions(subscriptions_auth.clone()),
+                                        move || subscriptions::subscriptions(auth_signal.get()),
                                     )
-                                    .otherwise(move || ui::pending_screen(route.get().label()))
+                                    .otherwise(move || {
+                                        when(
+                                            move || route.get() == Route::Transactions,
+                                            move || transactions::transactions(auth_signal.get()),
+                                        )
+                                        .otherwise(move || ui::pending_screen(route.get().label()))
+                                    })
                                 }),
                             ),
                     ),

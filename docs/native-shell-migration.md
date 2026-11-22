@@ -30,8 +30,8 @@ kept side by side so screens can be compared against
 2. **Session** — server URL, login and session restore done; registration, logout and local-mode switch pending.
 3. **Dashboard** — data, upcoming payments, ledger and month plan done; hover
    links and mobile layout pending.
-4. **Lists and forms** — subscriptions list, search, create/edit, pause/resume and
-   delete done; modal shell, transactions, debts, bulk actions and dialogs pending.
+4. **Lists and forms** — subscriptions complete; transactions list/month groups and
+   create done. Edit/delete, modal shell, debts, bulk actions and dialogs pending.
 5. **Calendar, reports and settings** — charts, calendar, exports, themes, AI,
    notifications, backup/restore and admin.
 6. **Platforms** — web, Linux/macOS/Windows, Android, update flow and CI artifacts.
