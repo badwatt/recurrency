@@ -339,6 +339,41 @@ pub async fn load_admin_users(server: String, token: String) -> Result<Vec<Admin
     Client::new(server, token).get("/api/admin/users").await
 }
 
+#[derive(Serialize)]
+struct RoleBody {
+    is_admin: bool,
+}
+
+#[derive(Serialize)]
+struct RegistrationBody {
+    registration_enabled: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, PartialEq)]
+pub struct AdminSettings {
+    pub registration_enabled: bool,
+}
+
+pub async fn update_admin_role(server: String, token: String, id: uuid::Uuid, is_admin: bool) -> Result<AdminUser, String> {
+    Client::new(server, token)
+        .put(&format!("/api/admin/users/{id}/role"), &RoleBody { is_admin })
+        .await
+}
+
+pub async fn delete_admin_user(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    Client::new(server, token).delete(&format!("/api/admin/users/{id}")).await
+}
+
+pub async fn load_admin_settings(server: String, token: String) -> Result<AdminSettings, String> {
+    Client::new(server, token).get("/api/admin/settings").await
+}
+
+pub async fn update_admin_settings(server: String, token: String, registration_enabled: bool) -> Result<AdminSettings, String> {
+    Client::new(server, token)
+        .put("/api/admin/settings", &RegistrationBody { registration_enabled })
+        .await
+}
+
 pub async fn export_backup(server: String, token: String) -> Result<String, String> {
     let request = HttpRequest::get(format!("{}/api/backup", server.trim_end_matches('/')))
         .header("Authorization", format!("Bearer {token}"));

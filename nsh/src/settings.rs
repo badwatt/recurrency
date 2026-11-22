@@ -1530,59 +1530,165 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
             }
         },
     );
-    ui::surface()
+    let settings_data = resource(
+        || Some(()),
+        {
+            let server = server.clone();
+            let token = token.clone();
+            move |(), _| {
+                let server = server.clone();
+                let token = token.clone();
+                async move { crate::api::load_admin_settings(server, token).await }
+            }
+        },
+    );
+    let registration = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let server = server.clone();
+            let token = token.clone();
+            let enabled = settings_data
+                .get()
+                .map_or(false, |settings: crate::api::AdminSettings| settings.registration_enabled);
+            spawn(async move {
+                let _ = crate::api::update_admin_settings(server, token, !enabled).await;
+                settings_data.refetch();
+            });
+        }
+    };
+    view()
         .w_full()
-        .p(px(24.0))
-        .gap(px(10.0))
+        .flex_col()
+        .gap(px(12.0))
         .child(
-            text("Administration")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("Users registered on this server.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(
-            view()
-                .flex_col()
-                .gap(px(6.0))
-                .child(each(
-                    move || data.get().unwrap_or_default(),
-                    |user| user.id,
-                    move |user, _| {
-                        let user = user.get();
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .py(px(7.0))
-                            .border_b(px(1.0))
-                            .border_color(move || theme().border)
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .child(
-                                        text(user.name.unwrap_or_else(|| user.email.clone()))
-                                            .text_size(px(13.0))
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .child(
-                                        text(user.email)
-                                            .text_size(px(10.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    ),
-                            )
-                            .child(
-                                text(if user.is_admin { "Admin" } else { "User" })
-                                    .text_size(px(10.0))
-                                    .text_color(move || theme().muted_foreground),
-                            )
-                    },
-                )),
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(12.0))
+                .child(
+                    text("Administration")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("Users registered on this server.")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .py(px(8.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
+                        .child(
+                            view()
+                                .flex_col()
+                                .child(
+                                    text("Registration")
+                                        .text_size(px(13.0))
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text("Allow new accounts to sign up.")
+                                        .text_size(px(10.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
+                        )
+                        .child(shared_toggle(
+                            settings_data
+                                .get()
+                                .map_or(false, |settings: crate::api::AdminSettings| settings.registration_enabled),
+                            "Registration".to_string(),
+                            move |_| registration(),
+                        )),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(each(
+                            move || data.get().unwrap_or_default(),
+                            |user| user.id,
+                            {
+                                let role_server = server.clone();
+                                let role_token = token.clone();
+                                let delete_server = server.clone();
+                                let delete_token = token.clone();
+                                move |user, _| {
+                                    let user: crate::models::AdminUser = user.get();
+                                    let id = user.id;
+                                    let is_admin = user.is_admin;
+                                    let row_name = user.name.clone().unwrap_or_else(|| user.email.clone());
+                                    let row_email = user.email.clone();
+                                    let role_server = role_server.clone();
+                                    let role_token = role_token.clone();
+                                    let role = move || {
+                                        let server = role_server.clone();
+                                        let token = role_token.clone();
+                                        spawn(async move {
+                                            let _ = crate::api::update_admin_role(server, token, id, !is_admin).await;
+                                            data.refetch();
+                                        });
+                                    };
+                                    let delete_server = delete_server.clone();
+                                    let delete_token = delete_token.clone();
+                                    let delete = move || {
+                                        let server = delete_server.clone();
+                                        let token = delete_token.clone();
+                                        spawn(async move {
+                                            let _ = crate::api::delete_admin_user(server, token, id).await;
+                                            data.refetch();
+                                        });
+                                    };
+                                    view()
+                                        .w_full()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_between()
+                                        .gap(px(8.0))
+                                        .py(px(7.0))
+                                        .border_b(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .child(
+                                            view()
+                                                .flex_col()
+                                                .child(
+                                                    text(row_name)
+                                                        .text_size(px(13.0))
+                                                        .text_color(move || theme().foreground),
+                                                )
+                                                .child(
+                                                    text(row_email)
+                                                        .text_size(px(10.0))
+                                                        .text_color(move || theme().muted_foreground),
+                                                ),
+                                        )
+                                        .child(
+                                            view()
+                                                .flex_row()
+                                                .items_center()
+                                                .gap(px(8.0))
+                                                .child(
+                                                    text(if is_admin { "Admin" } else { "User" })
+                                                        .text_size(px(10.0))
+                                                        .text_color(move || theme().muted_foreground),
+                                                )
+                                                .child(ui::action_button(
+                                                    if is_admin { "Remove admin" } else { "Make admin" },
+                                                    false,
+                                                    role,
+                                                ))
+                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete)),
+                                        )
+                                }
+                            },
+                        )),
+                ),
         )
 }
 
