@@ -19,6 +19,7 @@ pub mod input;
 pub mod list_toolbar;
 pub mod logo_avatar;
 pub mod page_header;
+pub mod privacy_toggle;
 pub mod search_input;
 pub mod segmented;
 pub mod select_menu;

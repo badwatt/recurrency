@@ -254,25 +254,7 @@ fn notification_action() -> impl IntoElement {
 }
 
 fn privacy_action() -> impl IntoElement {
-    let active = move || privacy_active();
-    button()
-        .items_center()
-        .justify_center()
-        .h(px(30.0))
-        .w(px(30.0))
-        .rounded(px(6.0))
-        .on_press(toggle_privacy)
-        .child(
-            image(asset!("icons/eye.svg"))
-                .size(px(17.0))
-                .tint_color(move || {
-                    if active() {
-                        theme().primary
-                    } else {
-                        theme().muted_foreground
-                    }
-                }),
-        )
+    crate::components::privacy_toggle::privacy_toggle(privacy_active(), toggle_privacy)
 }
 
 fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {

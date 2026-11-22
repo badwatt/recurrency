@@ -81,3 +81,4 @@ the Dioxus component boundaries.
 - [x] Browser microphone recording with MediaRecorder and provider transcription; file-based voice notes on native.
 - [x] Cloud folder sync card with folder picker, manual backup sync, last-sync state and disconnect.
 - [x] Shared color palette, entity icons and multiline textarea; account/category colors persist and render in the lists.
+- [x] Shared privacy toggle, logo avatar, entity icon and color palette components.
