@@ -14,7 +14,8 @@ use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
-use crate::components::list_toolbar::{filter_button, list_toolbar};
+use crate::components::filter_menu::filter_menu;
+use crate::components::list_toolbar::list_toolbar;
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
@@ -109,7 +110,7 @@ pub fn subscriptions(
     let sort_desc = signal(false);
     let sort_field = signal("next_billing_date".to_string());
     let list_view = signal(false);
-    let active_only = signal(false);
+    let status = signal("all".to_string());
     let form_open = signal(false);
     let editing = signal(None::<Uuid>);
     let active = signal(true);
@@ -218,12 +219,7 @@ pub fn subscriptions(
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
         .child(toolbar(
-            data,
-            search,
-            sort_desc,
-            sort_field,
-            list_view,
-            active_only,
+            data, search, sort_desc, sort_field, list_view, status,
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -241,7 +237,7 @@ pub fn subscriptions(
                     sort_desc,
                     sort_field,
                     list_view,
-                    active_only,
+                    status,
                 )
             })
         }))
@@ -792,9 +788,9 @@ fn toolbar(
     sort_desc: Signal<bool>,
     sort_field: Signal<String>,
     list_view: Signal<bool>,
-    active_only: Signal<bool>,
+    status: Signal<String>,
 ) -> impl IntoElement {
-    let count = move || filtered(data, search, active_only, sort_desc, &sort_field.get()).len();
+    let count = move || filtered(data, search, status, sort_desc, &sort_field.get()).len();
     view()
         .w_full()
         .flex_col()
@@ -806,7 +802,20 @@ fn toolbar(
                 .flex_row()
                 .items_center()
                 .gap(px(8.0))
-                .child(filter_button(active_only))
+                .child(filter_menu(
+                    usize::from(status.get() != "all"),
+                    view()
+                        .child(string_select(StringSelectProps::new(
+                            "Status",
+                            status,
+                            vec![
+                                ("all".to_string(), "All".to_string()),
+                                ("active".to_string(), "Active".to_string()),
+                                ("inactive".to_string(), "Inactive".to_string()),
+                            ],
+                        )))
+                        .into_element(),
+                ))
                 .child(sort_menu(
                     sort_field,
                     sort_desc,
@@ -839,16 +848,16 @@ fn content(
     sort_desc: Signal<bool>,
     sort_field: Signal<String>,
     list_view: Signal<bool>,
-    active_only: Signal<bool>,
+    status: Signal<String>,
 ) -> AnyElement {
     let active = move || {
-        filtered(data, search, active_only, sort_desc, &sort_field.get())
+        filtered(data, search, status, sort_desc, &sort_field.get())
             .into_iter()
             .filter(|subscription| subscription.is_active)
             .collect::<Vec<_>>()
     };
     let inactive = move || {
-        filtered(data, search, active_only, sort_desc, &sort_field.get())
+        filtered(data, search, status, sort_desc, &sort_field.get())
             .into_iter()
             .filter(|subscription| !subscription.is_active)
             .collect::<Vec<_>>()
@@ -982,7 +991,7 @@ fn section(
 fn filtered(
     data: Resource<SubscriptionsData, String>,
     search: Signal<String>,
-    active_only: Signal<bool>,
+    status: Signal<String>,
     sort_desc: Signal<bool>,
     sort_field: &str,
 ) -> Vec<Subscription> {
@@ -991,7 +1000,7 @@ fn filtered(
         &data.subscriptions,
         &search.get(),
         &data.accounts,
-        active_only.get(),
+        &status.get(),
         sort_desc.get(),
         sort_field,
     )
@@ -1001,7 +1010,7 @@ fn filter_subscriptions(
     subscriptions: &[Subscription],
     query: &str,
     accounts: &[crate::models::Account],
-    active_only: bool,
+    status: &str,
     sort_desc: bool,
     sort_field: &str,
 ) -> Vec<Subscription> {
@@ -1009,7 +1018,9 @@ fn filter_subscriptions(
     let mut result: Vec<Subscription> = subscriptions
         .iter()
         .filter(|subscription| {
-            if active_only && !subscription.is_active {
+            if (status == "active" && !subscription.is_active)
+                || (status == "inactive" && subscription.is_active)
+            {
                 return false;
             }
             if query.is_empty() {
@@ -1971,9 +1982,9 @@ mod tests {
         let mut pricey = subscription("Pricey", account_id, true);
         pricey.amount = Decimal::from(50);
         let items = vec![cheap, pricey];
-        let ascending = filter_subscriptions(&items, "", &[], false, false, "amount");
+        let ascending = filter_subscriptions(&items, "", &[], "all", false, "amount");
         assert_eq!(ascending[0].name, "Cheap");
-        let descending = filter_subscriptions(&items, "", &[], false, true, "amount");
+        let descending = filter_subscriptions(&items, "", &[], "all", true, "amount");
         assert_eq!(descending[0].name, "Pricey");
     }
 
@@ -2000,7 +2011,7 @@ mod tests {
             subscription("Netflix", Uuid::new_v4(), true),
         ];
         assert_eq!(
-            filter_subscriptions(&items, "spot", &accounts, false, false, "next_billing_date")[0]
+            filter_subscriptions(&items, "spot", &accounts, "all", false, "next_billing_date")[0]
                 .name,
             "Spotify"
         );
@@ -2009,7 +2020,7 @@ mod tests {
                 &items,
                 "every",
                 &accounts,
-                false,
+                "all",
                 false,
                 "next_billing_date"
             )
@@ -2017,9 +2028,25 @@ mod tests {
             1
         );
         assert_eq!(
-            filter_subscriptions(&items, "", &accounts, false, false, "next_billing_date").len(),
+            filter_subscriptions(&items, "", &accounts, "all", false, "next_billing_date").len(),
             2
         );
+    }
+
+    #[test]
+    fn the_status_filter_limits_to_active_or_inactive() {
+        let account_id = Uuid::new_v4();
+        let items = vec![
+            subscription("Active", account_id, true),
+            subscription("Paused", account_id, false),
+        ];
+        let active = filter_subscriptions(&items, "", &[], "active", false, "next_billing_date");
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].name, "Active");
+        let inactive =
+            filter_subscriptions(&items, "", &[], "inactive", false, "next_billing_date");
+        assert_eq!(inactive.len(), 1);
+        assert_eq!(inactive[0].name, "Paused");
     }
 
     #[test]
@@ -2029,7 +2056,7 @@ mod tests {
             subscription("Aardvark", account_id, false),
             subscription("Zebra", account_id, true),
         ];
-        let filtered = filter_subscriptions(&items, "", &[], false, false, "next_billing_date");
+        let filtered = filter_subscriptions(&items, "", &[], "all", false, "next_billing_date");
         assert_eq!(filtered[0].name, "Zebra");
         assert!(!filtered[1].is_active);
     }
