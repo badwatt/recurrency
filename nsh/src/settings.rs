@@ -139,6 +139,8 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let data_server = signal(server.clone());
     let data_token = signal(token.clone());
     let info_server = server.clone();
+    let appearance_server = server.clone();
+    let appearance_token = token.clone();
 
     let save = {
         let token = save_token;
@@ -312,7 +314,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
-                    when(move || section.get() == Section::Appearance, || appearance_card())
+                    when(move || section.get() == Section::Appearance, move || appearance_card(appearance_server.clone(), appearance_token.clone()))
                         .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
@@ -618,7 +620,7 @@ fn account_card(
         )
 }
 
-fn appearance_card() -> impl IntoElement {
+fn appearance_card(server: String, token: String) -> impl IntoElement {
     let selected = signal(crate::theme::saved());
     view()
         .w_full()
@@ -655,6 +657,8 @@ fn appearance_card() -> impl IntoElement {
                         .gap(px(8.0))
                         .children(crate::theme::THEMES.iter().map(|definition| {
                             let id = definition.id;
+                            let card_server = server.clone();
+                            let card_token = token.clone();
                             let active = move || selected.get() == id;
                             button()
                                 .w_full()
@@ -670,6 +674,11 @@ fn appearance_card() -> impl IntoElement {
                                     crate::theme::apply(id);
                                     crate::theme::save(id);
                                     selected.set(id.to_string());
+                                    let server = card_server.clone();
+                                    let token = card_token.clone();
+                                    spawn(async move {
+                                        let _ = crate::api::save_theme(server, token, id).await;
+                                    });
                                 })
                                 .child(
                                     text(definition.label)

@@ -124,6 +124,16 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         Session::SignedIn(auth) => auth,
         _ => return loading_screen(),
     };
+    let sync_server = auth::stored_server();
+    let sync_token = auth.token.clone();
+    spawn(async move {
+        if let Ok(preferences) = api::load_preferences(sync_server, sync_token).await {
+            if preferences.theme_is_set && theme::theme_by_id(&preferences.theme).is_some() {
+                theme::apply(&preferences.theme);
+                theme::save(&preferences.theme);
+            }
+        }
+    });
     let auth_signal = signal(auth);
     let compact = signal(false);
     let modal = ui::ModalHost::new();

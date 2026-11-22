@@ -75,5 +75,5 @@ toolbar.
 | `select_menu.rs` | `select_menu.rs` | Ported inline menu |
 | `date_picker.rs` | `date_picker.rs` | Ported custom calendar |
 | `checkbox.rs`, `segmented.rs`, `skeleton.rs` | same names | Ported |
-| `theme_picker.rs` | `theme.rs` catalogue + Appearance grid | Ported (local persistence) |
+| `theme_picker.rs` | `theme.rs` catalogue + Appearance grid | Ported + server sync |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |

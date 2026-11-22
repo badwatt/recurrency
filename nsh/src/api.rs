@@ -335,6 +335,28 @@ pub async fn delete_category_by_id(server: String, token: String, id: uuid::Uuid
     Client::new(server, token).delete(&format!("/api/categories/{id}")).await
 }
 
+#[derive(Clone, Debug, serde::Deserialize, PartialEq)]
+pub struct Preferences {
+    pub theme: String,
+    #[serde(default)]
+    pub theme_is_set: bool,
+}
+
+#[derive(Serialize)]
+struct ThemeBody<'a> {
+    theme: &'a str,
+}
+
+pub async fn load_preferences(server: String, token: String) -> Result<Preferences, String> {
+    Client::new(server, token).get("/api/preferences").await
+}
+
+pub async fn save_theme(server: String, token: String, theme: &str) -> Result<Preferences, String> {
+    Client::new(server, token)
+        .put("/api/preferences", &ThemeBody { theme })
+        .await
+}
+
 pub async fn load_admin_users(server: String, token: String) -> Result<Vec<AdminUser>, String> {
     Client::new(server, token).get("/api/admin/users").await
 }
