@@ -1,11 +1,11 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test"]
+    types: [completed]
     branches:
       - main
-    paths:
-      - "Cargo.toml"
   workflow_dispatch:
 
 concurrency:
@@ -24,6 +24,7 @@ permissions:
 jobs:
   # ── Prepare: detect a version increase in the workspace manifest ──
   prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -33,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - name: Detect version bump
@@ -47,131 +49,28 @@ jobs:
             exit 1
           fi
 
-          OLD=""
-          BEFORE="${{ github.event.before }}"
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-            OLD=$(git show "$BEFORE:Cargo.toml" 2>/dev/null | sed -n 's/^version = "\(.*\)"/\1/p' | head -n1 || true)
-          fi
+          git fetch --tags --force --quiet || true
+          LATEST_TAG=$(git tag --list 'v*' | sort -V | tail -n1 || true)
+          LATEST_VERSION="${LATEST_TAG#v}"
 
           CHANGED=false
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CHANGED=true
-          elif [ -z "$OLD" ]; then
+          elif [ -z "$LATEST_TAG" ]; then
             CHANGED=true
-          elif [ "$OLD" != "$NEW" ] && [ "$(printf '%s\n%s\n' "$OLD" "$NEW" | sort -V | tail -n1)" = "$NEW" ]; then
+          elif [ "$NEW" != "$LATEST_VERSION" ] \
+            && [ "$(printf '%s\n%s\n' "$LATEST_VERSION" "$NEW" | sort -V | tail -n1)" = "$NEW" ]; then
             CHANGED=true
           fi
 
           echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "previous=$OLD" >> "$GITHUB_OUTPUT"
+          echo "previous=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
           echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
-          echo "Version: ${OLD:-<none>} -> $NEW (release=$CHANGED)" >> "$GITHUB_STEP_SUMMARY"
-
-  # ── Backend: lint + test ──────────────────────────────────
-  test-backend:
-    needs: prepare
-    if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: recurrency
-          POSTGRES_PASSWORD: recurrency
-          POSTGRES_DB: recurrency_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt, clippy
-
-      - name: Install nightly clippy
-        run: rustup component add clippy --toolchain nightly-x86_64-unknown-linux-gnu
-
-      - name: Install system deps (minimal)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq pkg-config libssl-dev >/dev/null 2>&1
-
-      - name: Cache Cargo
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: backend
-          cache-on-failure: true
-          cache-all-crates: true
-
-      - name: Clippy + test (parallel)
-        env:
-          DATABASE_URL: postgres://recurrency:recurrency@localhost:5432/recurrency_test
-          JWT_SECRET: test-jwt-secret-key
-          CARGO_BUILD_JOBS: 4
-        run: |
-          cd backend
-          cargo clippy --lib --bins --jobs 4 -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
-          cargo test --lib --jobs 4
-
-  # ── Frontend: lint + test ──────────────────────────────────
-  test-frontend:
-    needs: prepare
-    if: ${{ needs.prepare.outputs.changed == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          targets: wasm32-unknown-unknown
-          components: clippy, rustfmt
-
-      - name: Install nightly clippy
-        run: rustup component add clippy --toolchain nightly-x86_64-unknown-linux-gnu
-
-      - name: Install system deps (minimal)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq pkg-config libssl-dev >/dev/null 2>&1
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Build Tailwind CSS
-        run: cd frontend && npm ci --silent && npm run build:css
-
-      - name: Cache Cargo
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: frontend
-          cache-on-failure: true
-          cache-all-crates: true
-
-      - name: Clippy + test (parallel)
-        env:
-          CARGO_BUILD_JOBS: 4
-        run: |
-          cd frontend
-          cargo clippy --lib --bins --jobs 4 -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
-          cargo test --lib --jobs 4
+          echo "Version: ${LATEST_VERSION:-<none>} -> $NEW (release=$CHANGED)" >> "$GITHUB_STEP_SUMMARY"
 
   # ── Create the release early so builders upload directly ───
   create-release:
-    needs: [prepare, test-backend, test-frontend]
+    needs: [prepare]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -180,6 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - name: Build the commit changelog
@@ -187,6 +87,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
           TAG="v${VERSION}"
@@ -222,18 +123,20 @@ jobs:
             gh release edit "$TAG" --notes-file release-notes.md
             echo "Updated release notes for $TAG."
           else
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "Recurrency $TAG" --notes-file release-notes.md
+            gh release create "$TAG" --target "$RELEASE_SHA" --title "Recurrency $TAG" --notes-file release-notes.md
             echo "Created release $TAG."
           fi
 
   # ── Build and push the all-in-one image ────────────────────
   docker:
     if: ${{ needs.prepare.outputs.changed == 'true' }}
-    needs: [prepare, test-backend, test-frontend]
+    needs: [prepare]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -261,12 +164,14 @@ jobs:
 
   # ── Build Android APK ──────────────────────────────────────
   android:
-    needs: [prepare, test-backend, test-frontend, create-release]
+    needs: [prepare, create-release]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -415,20 +320,23 @@ jobs:
 
   # ── Desktop bundles ─────────────────────────────────────────
   desktop:
-    needs: [prepare, test-backend, test-frontend, create-release]
+    needs: [prepare, create-release]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     uses: ./.github/workflows/desktop.yml
     with:
       tag: v${{ needs.prepare.outputs.version }}
+      ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
   # ── Standalone all-in-one binary ───────────────────────────
   binary:
-    needs: [prepare, test-backend, test-frontend, create-release]
+    needs: [prepare, create-release]
     if: ${{ needs.prepare.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
