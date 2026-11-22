@@ -136,6 +136,37 @@ impl Section {
     }
 }
 
+fn compact_nav(section: Signal<Section>, is_admin: bool) -> impl IntoElement {
+    view()
+        .w_full()
+        .flex_row()
+        .flex_wrap()
+        .gap(px(4.0))
+        .children(Section::ALL.iter().filter(|item| **item != Section::Admin || is_admin).map(|item| {
+            let item = *item;
+            let active = move || section.get() == item;
+            button()
+                .items_center()
+                .justify_center()
+                .h(px(32.0))
+                .px(px(10.0))
+                .rounded(px(7.0))
+                .bg(move || if active() { theme().accent } else { theme().background })
+                .border(px(1.0))
+                .border_color(move || if active() { theme().primary } else { theme().border })
+                .on_press(move || section.set(item))
+                .child(
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(5.0))
+                        .child(image(item.icon()).size(px(13.0)).tint_color(move || theme().muted_foreground))
+                        .child(text(item.label()).text_size(px(11.0)).text_color(move || theme().foreground)),
+                )
+                .into_element()
+        }))
+}
+
 pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let section = signal(Section::Account);
     effect(move || {
@@ -207,16 +238,23 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     };
 
     let save_general = save.clone();
+    let compact = signal(false);
     view()
         .w_full()
         .pt(px(10.0))
+        .on_layout(move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+            compact.set(bounds.size.width.0 < 900.0);
+        })
         .flex_row()
         .flex_wrap()
         .items_start()
-        .gap(px(36.0))
+        .gap(move || if compact.get() { px(0.0) } else { px(36.0) })
+        .child(when(move || compact.get(), move || compact_nav(section, is_admin)))
         .child(
             view()
-                .w(px(200.0))
+                .w(move || if compact.get() { px(0.0) } else { px(200.0) })
+                .max_h(move || if compact.get() { px(0.0) } else { px(4000.0) })
+                .overflow_hidden()
                 .flex_col()
                 .gap(px(4.0))
                 .child(
