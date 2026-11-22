@@ -733,76 +733,75 @@ fn bulk_modal(
         }).collect::<Vec<_>>()
     };
     let count = move || selected.get().len();
-    view()
-        .w(px(520.0))
-        .max_h(px(640.0))
-        .rounded(px(14.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(20.0))
-        .gap(px(10.0))
-        .child(
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(
+            "Bulk actions",
+            "Select transactions, then delete them together.",
+            move || modal.close(),
+        )
+        .width(520.0)
+        .body(
             view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
+                .p(px(20.0))
+                .gap(px(10.0))
                 .child(
                     view()
-                        .flex_col()
-                        .child(text("Bulk actions").text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                        .child(text(move || format!("{} selected", count())).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(8.0))
+                        .child(text(move || format!("{} selected", count())).text_size(px(12.0)).text_color(move || theme().muted_foreground))
+                        .child(
+                            view()
+                                .flex_row()
+                                .gap(px(8.0))
+                                .child(ui::action_button("Select all", false, select_all))
+                                .child(ui::action_button("Clear", false, clear)),
+                        ),
                 )
-                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_between()
-                .gap(px(8.0))
-                .child(ui::action_button("Select all", false, select_all))
-                .child(ui::action_button("Clear", false, clear)),
-        )
-        .child(
-            scroll()
-                .max_h(px(340.0))
-                .w_full()
-                .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
-        )
-        .child(
-            when(move || confirm_delete.get(), move || {
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(8.0))
-                    .p(px(10.0))
-                    .rounded(px(7.0))
-                    .bg(move || theme().destructive.opacity(0.1))
-                    .child(text(move || format!("Delete {} transactions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
-                    .child(
+                .child(
+                    scroll()
+                        .max_h(px(320.0))
+                        .w_full()
+                        .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
+                )
+                .child(
+                    when(move || confirm_delete.get(), move || {
                         view()
+                            .w_full()
                             .flex_row()
-                            .gap(px(6.0))
-                            .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
-                            .child(ui::action_button("Delete", true, delete)),
-                    )
-                    .into_element()
-            })
-            .otherwise(|| view().h(px(0.0)).into_element()),
+                            .items_center()
+                            .justify_between()
+                            .gap(px(8.0))
+                            .p(px(10.0))
+                            .rounded(px(7.0))
+                            .bg(move || theme().destructive.opacity(0.1))
+                            .child(text(move || format!("Delete {} transactions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .gap(px(6.0))
+                                    .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
+                                    .child(ui::action_button("Delete", true, delete)),
+                            )
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .into_element(),
         )
-        .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
-        .child(
+        .footer(
             view()
                 .w_full()
                 .flex_row()
                 .justify_end()
                 .gap(px(8.0))
-                .child(ui::action_button("Delete", true, move || confirm_delete.set(true))),
-        )
+                .child(ui::action_button("Delete", true, move || confirm_delete.set(true)))
+                .into_element(),
+        ),
+    )
 }
 
 fn notes_form(
