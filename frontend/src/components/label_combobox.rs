@@ -164,7 +164,7 @@ pub fn LabelCombobox(
                         let id = trigger_id.clone();
                         spawn(async move {
                             let mut eval = document::eval(&format!(
-                                "(()=>{{const e=document.getElementById('{id}');if(!e)return false;const r=e.getBoundingClientRect();return window.innerHeight-r.bottom<240;}})()"
+                                "(()=>{{const e=document.getElementById('{id}');if(!e)return false;let bottom=window.innerHeight;for(let p=e.parentElement;p;p=p.parentElement){{const s=getComputedStyle(p);if(/(auto|scroll|hidden)/.test(s.overflowY))bottom=Math.min(bottom,p.getBoundingClientRect().bottom);}}dioxus.send(bottom-e.getBoundingClientRect().bottom<240);}})()"
                             ));
                             if let Ok(up) = eval.recv::<bool>().await {
                                 drop_up.set(up);
@@ -486,7 +486,7 @@ mod tests {
     fn combobox_flips_up_near_the_viewport_bottom() {
         let source = include_str!("label_combobox.rs");
         assert!(source.contains("bottom-[calc(100%+4px)]"));
-        assert!(source.contains("innerHeight-r.bottom<240"));
+        assert!(source.contains("Math.min(bottom,p.getBoundingClientRect().bottom)"));
     }
 
     use super::*;

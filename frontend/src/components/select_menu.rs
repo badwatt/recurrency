@@ -85,7 +85,7 @@ pub fn SelectMenu(
                         let trigger_id = button_id.clone();
                         spawn(async move {
                             let mut eval = document::eval(&format!(
-                                "(()=>{{const e=document.getElementById('{trigger_id}');if(!e)return false;const r=e.getBoundingClientRect();return window.innerHeight-r.bottom<240;}})()"
+                                "(()=>{{const e=document.getElementById('{trigger_id}');if(!e)return false;let bottom=window.innerHeight;for(let p=e.parentElement;p;p=p.parentElement){{const s=getComputedStyle(p);if(/(auto|scroll|hidden)/.test(s.overflowY))bottom=Math.min(bottom,p.getBoundingClientRect().bottom);}}dioxus.send(bottom-e.getBoundingClientRect().bottom<240);}})()"
                             ));
                             if let Ok(up) = eval.recv::<bool>().await {
                                 drop_up.set(up);
@@ -198,6 +198,6 @@ mod tests {
         assert!(source.contains("Search..."));
         assert!(source.contains("requestAnimationFrame"));
         assert!(source.contains("bottom-[calc(100%+4px)]"));
-        assert!(source.contains("innerHeight-r.bottom<240"));
+        assert!(source.contains("Math.min(bottom,p.getBoundingClientRect().bottom)"));
     }
 }
