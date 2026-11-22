@@ -88,6 +88,22 @@ impl Section {
         self.label()
     }
 
+    fn from_key(key: &str) -> Option<Self> {
+        Some(match key {
+            "account" => Self::Account,
+            "appearance" => Self::Appearance,
+            "general" => Self::General,
+            "ai" => Self::Ai,
+            "money" => Self::Money,
+            "notifications" => Self::Notifications,
+            "data" => Self::Data,
+            "server" => Self::Server,
+            "admin" => Self::Admin,
+            "about" => Self::About,
+            _ => return None,
+        })
+    }
+
     fn subtitle(self) -> &'static str {
         match self {
             Section::Account => "Your profile, session and account",
@@ -121,6 +137,14 @@ impl Section {
 
 pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     let section = signal(Section::Account);
+    effect(move || {
+        if let Some(key) = crate::ui::settings_intent() {
+            if let Some(requested) = Section::from_key(&key) {
+                section.set(requested);
+            }
+            crate::ui::clear_settings_intent();
+        }
+    });
     let name = signal(auth.user.name.clone().unwrap_or_default());
     let currency = signal(auth.user.currency.clone());
     let error = signal(String::new());

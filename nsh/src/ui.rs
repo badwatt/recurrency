@@ -10,6 +10,7 @@ use nsh_core::prelude::*;
 
 thread_local! {
     static PRIVACY: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
+    static SETTINGS_INTENT: RefCell<Option<Signal<Option<String>>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -17,6 +18,33 @@ pub fn init_privacy() {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
             *slot = Some(signal(false));
+        }
+    });
+    SETTINGS_INTENT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(None));
+        }
+    });
+}
+
+pub fn request_settings(route: Signal<Route>, section: &'static str) {
+    SETTINGS_INTENT.with(|slot| {
+        if let Some(intent) = *slot.borrow() {
+            intent.set(Some(section.to_string()));
+        }
+    });
+    route.set(Route::Settings);
+}
+
+pub fn settings_intent() -> Option<String> {
+    SETTINGS_INTENT.with(|slot| slot.borrow().and_then(|intent| intent.get()))
+}
+
+pub fn clear_settings_intent() {
+    SETTINGS_INTENT.with(|slot| {
+        if let Some(intent) = *slot.borrow() {
+            intent.set(None);
         }
     });
 }
@@ -78,21 +106,21 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(view().flex_1())
-                .child(icon_action(route, asset!("icons/sparkles.svg")))
+                .child(icon_action(route, asset!("icons/sparkles.svg"), "ai"))
                 .child(privacy_action())
-                .child(icon_action(route, asset!("icons/palette.svg")))
+                .child(icon_action(route, asset!("icons/palette.svg"), "appearance"))
                 .child(avatar(route, auth)),
         )
 }
 
-fn icon_action(route: Signal<Route>, icon: ImageAsset) -> impl IntoElement {
+fn icon_action(route: Signal<Route>, icon: ImageAsset, section: &'static str) -> impl IntoElement {
     button()
         .items_center()
         .justify_center()
         .h(px(30.0))
         .w(px(30.0))
         .rounded(px(6.0))
-        .on_press(move || route.set(Route::Settings))
+        .on_press(move || request_settings(route, section))
         .child(
             image(icon)
                 .size(px(17.0))
