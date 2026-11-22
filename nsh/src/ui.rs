@@ -418,12 +418,12 @@ pub fn choice_picker(
 }
 
 pub fn action_button(
-    label: &'static str,
+    label: impl Into<String>,
     destructive: bool,
     on_press: impl Fn() + 'static,
 ) -> impl IntoElement {
     crate::components::button::button(
-        crate::components::button::ButtonProps::new(label)
+        crate::components::button::ButtonProps::new(label.into())
             .variant(if destructive {
                 crate::components::button::ButtonVariant::Destructive
             } else {

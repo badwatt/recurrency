@@ -14,6 +14,7 @@ use crate::components::page_header::page_header as shared_page_header;
 use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
 use crate::components::badge::{badge, BadgeProps, BadgeTone};
 use crate::components::checkbox::checkbox;
+use crate::components::confirm::{confirm_row, ConfirmProps};
 use crate::auth::AuthSession;
 use crate::format::{format_currency, format_date};
 use crate::models::{AnnualDate, Recurrence, Subscription};
@@ -1493,27 +1494,13 @@ fn card_actions(
 
     when(move || actions.delete_confirm.get() == Some(id), move || {
         let delete = delete.clone();
-        view()
-            .w_full()
-            .flex_row()
-            .items_center()
-            .justify_between()
-            .gap(px(6.0))
-            .child(
-                text("Delete this subscription?")
-                    .text_size(px(11.0))
-                    .text_color(move || theme().muted_foreground),
-            )
-            .child(
-                view()
-                    .flex_row()
-                    .gap(px(4.0))
-                    .child(ui::action_button("Delete", true, delete))
-                    .child(ui::action_button("Cancel", false, move || {
-                        actions.delete_confirm.set(None)
-                    })),
-            )
-            .into_element()
+        confirm_row(ConfirmProps::new(
+            "Delete this subscription?",
+            "Delete",
+            move || delete(),
+            move || actions.delete_confirm.set(None),
+        ))
+        .into_element()
     })
     .otherwise(move || {
         let edit = edit.clone();

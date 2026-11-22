@@ -11,6 +11,7 @@ use crate::api::{self, DebtsData};
 use crate::components::button::{button as shared_button, ButtonProps};
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::empty_state::empty_state;
+use crate::components::confirm::{confirm_row, ConfirmProps};
 use crate::components::search_input::search_input;
 use crate::auth::AuthSession;
 use crate::format::{format_currency, format_date};
@@ -1212,14 +1213,13 @@ fn card_actions(
     let confirm = actions.delete_confirm;
     when(move || actions.delete_confirm.get() == Some(id), move || {
         let delete = delete.clone();
-        view()
-            .flex_row()
-            .gap(px(4.0))
-            .child(ui::action_button("Delete", true, delete))
-            .child(ui::action_button("Cancel", false, move || {
-                actions.delete_confirm.set(None)
-            }))
-            .into_element()
+        confirm_row(ConfirmProps::new(
+            "Delete this debt?",
+            "Delete",
+            move || delete(),
+            move || actions.delete_confirm.set(None),
+        ))
+        .into_element()
     })
     .otherwise(move || {
         let edit = edit.clone();
