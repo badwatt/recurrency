@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::components::toggle::toggle as shared_toggle;
 use crate::components::segmented::{segmented, SegmentOption};
 use crate::components::string_select::{string_select, StringSelectProps};
+use crate::components::confirm::{confirm_row, ConfirmProps};
 use crate::ui;
 
 #[derive(Debug, Deserialize)]
@@ -1509,11 +1510,42 @@ fn money_card(server: String, token: String) -> impl IntoElement {
     let account_open = signal(false);
     let account_error = signal(String::new());
     let account_busy = signal(false);
+    let account_delete = signal(None::<Uuid>);
     let category_name = signal(String::new());
     let category_edit = signal(None::<Uuid>);
     let category_open = signal(false);
     let category_error = signal(String::new());
     let category_busy = signal(false);
+    let category_delete = signal(None::<Uuid>);
+
+    let remove_account = {
+        let server = server.clone();
+        let token = token.clone();
+        move |id: Uuid| {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::delete_account_by_id(server, token, id).await {
+                    Ok(()) => data.refetch(),
+                    Err(message) => account_error.set(message),
+                }
+            });
+        }
+    };
+    let remove_category = {
+        let server = server.clone();
+        let token = token.clone();
+        move |id: Uuid| {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::delete_category_by_id(server, token, id).await {
+                    Ok(()) => data.refetch(),
+                    Err(message) => category_error.set(message),
+                }
+            });
+        }
+    };
 
     let start_account = {
         move || {
@@ -1622,25 +1654,11 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                             move || data.get().map_or_else(Vec::new, |(accounts, _)| accounts),
                             |item| item.account.id,
                             {
-                                let delete_server = server.clone();
-                                let delete_token = token.clone();
                                 move |item, _| {
                                     let item: crate::models::AccountWithCounts = item.get();
                                     let id = item.account.id;
                                     let row_name = item.account.name.clone();
                                     let edit_name = row_name.clone();
-                                    let delete_server = delete_server.clone();
-                                    let delete_token = delete_token.clone();
-                                    let delete = move || {
-                                        let server = delete_server.clone();
-                                        let token = delete_token.clone();
-                                        spawn(async move {
-                                            match crate::api::delete_account_by_id(server, token, id).await {
-                                                Ok(()) => data.refetch(),
-                                                Err(message) => account_error.set(message),
-                                            }
-                                        });
-                                    };
                                     view()
                                         .w_full()
                                         .flex_row()
@@ -1683,7 +1701,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                     account_error.set(String::new());
                                                     account_open.set(true);
                                                 }))
-                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete)),
+                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || account_delete.set(Some(id)))),
                                         )
                                 }
                             },
@@ -1742,6 +1760,23 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
                 .child(
+                    when(move || account_delete.get().is_some(), move || {
+                        let id = account_delete.get().unwrap_or_default();
+                        let remove = remove_account.clone();
+                        confirm_row(ConfirmProps::new(
+                            "Delete this account?",
+                            "Delete",
+                            move || {
+                                account_delete.set(None);
+                                remove(id);
+                            },
+                            move || account_delete.set(None),
+                        ))
+                        .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
                     text("Accounts are required. Every subscription and transaction belongs to one.")
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
@@ -1773,25 +1808,11 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                             move || data.get().map_or_else(Vec::new, |(_, categories)| categories),
                             |item| item.category.id,
                             {
-                                let delete_server = server.clone();
-                                let delete_token = token.clone();
                                 move |item, _| {
                                     let item: crate::models::CategoryWithCounts = item.get();
                                     let id = item.category.id;
                                     let row_name = item.category.name.clone();
                                     let edit_name = row_name.clone();
-                                    let delete_server = delete_server.clone();
-                                    let delete_token = delete_token.clone();
-                                    let delete = move || {
-                                        let server = delete_server.clone();
-                                        let token = delete_token.clone();
-                                        spawn(async move {
-                                            match crate::api::delete_category_by_id(server, token, id).await {
-                                                Ok(()) => data.refetch(),
-                                                Err(message) => category_error.set(message),
-                                            }
-                                        });
-                                    };
                                     view()
                                         .w_full()
                                         .flex_row()
@@ -1825,7 +1846,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                                     category_error.set(String::new());
                                                     category_open.set(true);
                                                 }))
-                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete)),
+                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || category_delete.set(Some(id)))),
                                         )
                                 }
                             },
@@ -1880,6 +1901,23 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                             .text_size(px(11.0))
                             .text_color(move || theme().destructive)
                             .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    when(move || category_delete.get().is_some(), move || {
+                        let id = category_delete.get().unwrap_or_default();
+                        let remove = remove_category.clone();
+                        confirm_row(ConfirmProps::new(
+                            "Delete this category?",
+                            "Delete",
+                            move || {
+                                category_delete.set(None);
+                                remove(id);
+                            },
+                            move || category_delete.set(None),
+                        ))
+                        .into_element()
                     })
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )

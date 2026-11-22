@@ -476,6 +476,31 @@ pub async fn latest_release() -> Option<Release> {
     serde_json::from_str::<Release>(&response.text()).ok()
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct LogoResult {
+    pub url: String,
+    #[serde(default)]
+    pub thumbnail: String,
+}
+
+#[derive(Deserialize)]
+struct LogoSearchResponse {
+    #[serde(default)]
+    results: Vec<LogoResult>,
+}
+
+pub async fn search_logos(server: String, query: String) -> Result<Vec<LogoResult>, String> {
+    let encoded = query.replace(' ', "%20");
+    let request = HttpRequest::get(format!("{}/api/logos/search?q={encoded}", server.trim_end_matches('/')));
+    let response = fetch(request).await?;
+    if !response.ok() {
+        return Err(format!("The server answered {}", response.status()));
+    }
+    let parsed: LogoSearchResponse = serde_json::from_str(&response.text())
+        .map_err(|_| "The server returned an unexpected response".to_string())?;
+    Ok(parsed.results)
+}
+
 pub async fn load_notifications(server: String, token: String) -> Result<NotificationList, String> {
     Client::new(server, token).get("/api/notifications").await
 }

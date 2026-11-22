@@ -46,6 +46,9 @@ struct TxForm {
     saving: Signal<bool>,
     notes: Signal<String>,
     logo_url: Signal<String>,
+    logo_results: Signal<Vec<(String, String)>>,
+    logo_loading: Signal<bool>,
+    logo_error: Signal<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -103,6 +106,9 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
     let saving = signal(false);
     let notes = signal(String::new());
     let logo_url = signal(String::new());
+    let logo_results = signal(Vec::<(String, String)>::new());
+    let logo_loading = signal(false);
+    let logo_error = signal(String::new());
     let delete_confirm = signal(None::<Uuid>);
     let busy = signal(None::<Uuid>);
     let action_error = signal(String::new());
@@ -118,6 +124,9 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         saving,
         notes,
         logo_url,
+        logo_results,
+        logo_loading,
+        logo_error,
     };
     let actions = TxActions {
         form: form_signals,
@@ -235,6 +244,9 @@ fn form(
         saving,
         notes,
         logo_url,
+        logo_results,
+        logo_loading,
+        logo_error,
     } = form;
     let save = {
         let currency = currency.clone();
@@ -298,6 +310,28 @@ fn form(
         }
     };
 
+    let find_logo = {
+        let server = server;
+        move || {
+            let query = name.get().trim().to_string();
+            if query.is_empty() {
+                logo_error.set("Enter a name first.".to_string());
+                return;
+            }
+            logo_loading.set(true);
+            logo_error.set(String::new());
+            let server = server.get();
+            spawn(async move {
+                match api::search_logos(server, query).await {
+                    Ok(results) => {
+                        logo_results.set(results.into_iter().map(|result| (result.url, result.thumbnail)).collect());
+                    }
+                    Err(message) => logo_error.set(message),
+                }
+                logo_loading.set(false);
+            });
+        }
+    };
     let title = if editing.get().is_some() { "Edit transaction" } else { "New transaction" };
     let subtitle = if editing.get().is_some() {
         "Update the amount, date or account."
@@ -349,7 +383,46 @@ fn form(
                     },
                     category_id,
                 ))
-                .child(ui::field("Logo URL", logo_url, "https://example.com/logo.png"))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_end()
+                        .gap(px(8.0))
+                        .child(ui::field("Logo URL", logo_url, "https://example.com/logo.png"))
+                        .child(ui::action_button(
+                            if logo_loading.get() { "Searching…" } else { "Find logo" },
+                            false,
+                            find_logo,
+                        )),
+                )
+                .child(
+                    when(move || !logo_results.get().is_empty(), move || {
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .flex_wrap()
+                            .gap(px(6.0))
+                            .children(logo_results.get().into_iter().map(|(url, thumbnail)| {
+                                let value = url.clone();
+                                button()
+                                    .h(px(38.0))
+                                    .w(px(38.0))
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(px(6.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .bg(move || theme().background)
+                                    .on_press(move || logo_url.set(value.clone()))
+                                    .child(image(thumbnail).size(px(28.0)))
+                                    .into_element()
+                            }))
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(text(move || logo_error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
                 .child(
                     when(move || !form_error.get().is_empty(), move || {
                         text(move || form_error.get())
@@ -900,6 +973,8 @@ fn transaction_actions(
         form_signals.category_id.set(Some(edit_transaction.category_id));
         form_signals.notes.set(edit_transaction.notes.clone().unwrap_or_default());
         form_signals.logo_url.set(edit_transaction.logo_url.clone().unwrap_or_default());
+        form_signals.logo_results.set(Vec::new());
+        form_signals.logo_error.set(String::new());
         form_signals.error.set(String::new());
         form_signals.saving.set(false);
         form_signals.editing.set(Some(id));
