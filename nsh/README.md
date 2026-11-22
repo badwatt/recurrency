@@ -1,0 +1,30 @@
+# Recurrency — Native Shell
+
+Rust port of the Recurrency interface on [Native Shell](https://nsh.dev/), with no
+JavaScript runtime.
+
+This directory is an independent Cargo workspace; the existing `frontend/` stays
+in place until every screen reaches visual parity.
+
+## Run
+
+```sh
+nsh check nsh
+nsh run nsh
+```
+
+Linux needs GTK 4.14+, WebKitGTK 6.0 and GStreamer; the repository dev shell now
+provides their development packages. The `nsh` CLI itself is installed separately
+from <https://nsh.dev/docs/installation>.
+
+## Status
+
+- [x] Design tokens: Mocha theme, Cabinet Grotesk / JetBrains Mono assets.
+- [x] App frame: top navigation and dashboard shell.
+- [ ] Auth and server/local mode.
+- [ ] Dashboard data, upcoming payments and the account/category ledger.
+- [ ] Subscriptions, transactions, debts, calendar, reports.
+- [ ] Settings, themes, AI, backup and admin.
+- [ ] Desktop/mobile/web packaging and CI.
+
+Reference captures of the Dioxus interface live in `design/native-shell/`.

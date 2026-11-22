@@ -51,6 +51,12 @@
             # Tauri v2 Linux dependencies
             gtk3
             webkitgtk_4_1
+            # Native Shell (nsh) Linux backend
+            gtk4
+            webkitgtk_6_0
+            gst_all_1.gstreamer
+            gst_all_1.gst-plugins-base
+            clang
             librsvg
             glib
             libsoup_3
