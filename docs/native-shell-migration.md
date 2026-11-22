@@ -27,7 +27,7 @@ kept side by side so screens can be compared against
 ## Phases
 
 1. **Foundation** — NSH crate, theme tokens, fonts, app frame, dashboard shell.
-2. **Session** — server URL, login/register, token storage, local-mode switch.
+2. **Session** — server URL, login and session restore done; registration, logout and local-mode switch pending.
 3. **Dashboard** — reports/subscriptions/transactions/accounts data, upcoming
    payments, ledger, hover links, month plan.
 4. **Lists and forms** — subscriptions, transactions and debts, including bulk

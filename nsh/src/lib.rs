@@ -4,10 +4,13 @@
 //! app while replacing the renderer. Screens are ported one at a time; this
 //! first slice owns the app frame and the dashboard's visual shell.
 
+mod auth;
 mod dashboard;
+mod login;
 mod theme;
 mod ui;
 
+use auth::Session;
 use nsh_base::theme;
 use nsh_core::prelude::*;
 
@@ -68,6 +71,41 @@ fn native(registry: &mut Registry) {
 #[component]
 pub fn App() -> impl IntoElement {
     let route = signal(Route::Dashboard);
+    let stored = auth::has_stored_session();
+    let session = signal(if stored { Session::Loading } else { Session::SignedOut });
+    if stored {
+        spawn(async move { session.set(auth::restore_session().await) });
+    }
+
+    when(move || matches!(session.get(), Session::SignedIn(_)), move || {
+        app_shell(route, session)
+    })
+    .otherwise(move || match session.get() {
+        Session::Loading => loading_screen(),
+        _ => login::login_screen(session).into_element(),
+    })
+    .into_element()
+}
+
+fn loading_screen() -> AnyElement {
+    view()
+        .flex_1()
+        .w_full()
+        .items_center()
+        .justify_center()
+        .bg(move || theme().background)
+        .gap(px(12.0))
+        .child(image(LOGO).size(px(36.0)))
+        .child(
+            text("Recurrency")
+                .text_size(px(18.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(move || theme().foreground),
+        )
+        .into_element()
+}
+
+fn app_shell(route: Signal<Route>, _session: Signal<Session>) -> AnyElement {
     view()
         .flex_1()
         .bg(move || theme().background)
@@ -75,21 +113,25 @@ pub fn App() -> impl IntoElement {
         .text_color(move || theme().foreground)
         .child(ui::top_bar(route))
         .child(
-            view()
-                .flex_1()
-                .w_full()
-                .items_center()
-                                .child(
-                    view()
-                        .w_full()
-                        .max_w(px(1280.0))
-                        .flex_1()
-                        .px(px(40.0))
-                        .py(px(32.0))
-                        .child(match route.get() {
-                            Route::Dashboard => dashboard::dashboard(),
-                            _ => ui::pending_screen(route.get().label()),
-                        }),
-                ),
+            scroll().flex_1().child(
+                view()
+                    .w_full()
+                    .items_center()
+                    .child(
+                        view()
+                            .w_full()
+                            .max_w(px(1280.0))
+                            .px(px(40.0))
+                            .py(px(32.0))
+                            .child(
+                                when(
+                                    move || route.get() == Route::Dashboard,
+                                    || dashboard::dashboard(),
+                                )
+                                .otherwise(move || ui::pending_screen(route.get().label())),
+                            ),
+                    ),
+            ),
         )
+        .into_element()
 }

@@ -21,7 +21,8 @@ from <https://nsh.dev/docs/installation>.
 
 - [x] Design tokens: Mocha theme, Cabinet Grotesk / JetBrains Mono assets.
 - [x] App frame: top navigation and dashboard shell.
-- [ ] Auth and server/local mode.
+- [x] Server URL, login and session restore.
+- [ ] Registration, logout and local mode.
 - [ ] Dashboard data, upcoming payments and the account/category ledger.
 - [ ] Subscriptions, transactions, debts, calendar, reports.
 - [ ] Settings, themes, AI, backup and admin.
