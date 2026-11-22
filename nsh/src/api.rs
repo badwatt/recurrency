@@ -501,6 +501,69 @@ pub async fn search_logos(server: String, query: String) -> Result<Vec<LogoResul
     Ok(parsed.results)
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct SummarySettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub frequency: String,
+    #[serde(default)]
+    pub hour: i16,
+    #[serde(default)]
+    pub minute: i16,
+    #[serde(default)]
+    pub timezone: String,
+}
+
+#[derive(Serialize)]
+struct SummaryUpdate<'a> {
+    enabled: bool,
+    frequency: &'a str,
+    weekday: Option<i16>,
+    day_of_month: Option<i16>,
+    hour: i16,
+    minute: i16,
+    timezone: &'a str,
+    period: &'a str,
+}
+
+pub async fn load_summary(server: String, token: String) -> Result<SummarySettings, String> {
+    Client::new(server, token).get("/api/settings/summary-notification").await
+}
+
+pub async fn save_summary(
+    server: String,
+    token: String,
+    enabled: bool,
+    frequency: &str,
+    weekday: Option<i16>,
+    day_of_month: Option<i16>,
+    hour: i16,
+    minute: i16,
+    timezone: &str,
+    period: &str,
+) -> Result<SummarySettings, String> {
+    Client::new(server, token)
+        .put("/api/settings/summary-notification", &SummaryUpdate {
+            enabled,
+            frequency,
+            weekday,
+            day_of_month,
+            hour,
+            minute,
+            timezone,
+            period,
+        })
+        .await
+}
+
+pub async fn send_summary_now(server: String, token: String) -> Result<(), String> {
+    let _: serde_json::Value = Client::new(server, token)
+        .post("/api/settings/summary-notification/test", &serde_json::json!({}))
+        .await?;
+    Ok(())
+}
+
 pub async fn load_notifications(server: String, token: String) -> Result<NotificationList, String> {
     Client::new(server, token).get("/api/notifications").await
 }

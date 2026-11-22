@@ -814,7 +814,7 @@ fn general_card(
                 .font_weight(FontWeight::BOLD)
                 .text_color(move || theme().foreground),
         )
-        .child(string_select(StringSelectProps::new("Display currency", currency, crate::currencies::CURRENCIES)))
+        .child(string_select(StringSelectProps::new("Display currency", currency, crate::currencies::CURRENCIES.iter().map(|(code, label)| ((*code).to_string(), (*label).to_string())).collect())))
         .child(
             text("Amounts are formatted in this currency. Exchange rates stay on the server.")
                 .text_size(px(12.0))
@@ -1132,6 +1132,78 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
     let error = signal(String::new());
     let channel_currency = server.clone();
     let channel_token = token.clone();
+    let summary_data = resource(
+        || Some(()),
+        {
+            let server = server.clone();
+            let token = token.clone();
+            move |(), _| {
+                let server = server.clone();
+                let token = token.clone();
+                async move { crate::api::load_summary(server, token).await }
+            }
+        },
+    );
+    let summary_enabled = signal(false);
+    let summary_frequency = signal("daily".to_string());
+    let summary_time = signal("09:00".to_string());
+    let summary_timezone = signal("UTC".to_string());
+    let summary_status = signal(String::new());
+    let summary_loaded = signal(false);
+    effect(move || {
+        if summary_loaded.get() {
+            return;
+        }
+        if let Some(summary) = summary_data.get() {
+            summary_enabled.set(summary.enabled);
+            summary_frequency.set(if summary.frequency.is_empty() { "daily".to_string() } else { summary.frequency });
+            summary_time.set(format!("{:02}:{:02}", summary.hour, summary.minute));
+            summary_timezone.set(if summary.timezone.is_empty() { "UTC".to_string() } else { summary.timezone });
+            summary_loaded.set(true);
+        }
+    });
+    let save_summary = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let time = summary_time.get();
+            let mut parts = time.split(':');
+            let hour = parts.next().and_then(|value| value.parse::<i16>().ok()).unwrap_or(9);
+            let minute = parts.next().and_then(|value| value.parse::<i16>().ok()).unwrap_or(0);
+            let frequency = summary_frequency.get();
+            let weekday = (frequency == "weekly").then_some(1);
+            let day = (frequency == "monthly").then_some(1);
+            let server = server.clone();
+            let token = token.clone();
+            let timezone = summary_timezone.get();
+            let enabled = summary_enabled.get();
+            spawn(async move {
+                match crate::api::save_summary(server, token, enabled, &frequency, weekday, day, hour, minute, &timezone, "current").await {
+                    Ok(_) => {
+                        summary_status.set("Summary schedule saved.".to_string());
+                        summary_data.refetch();
+                    }
+                    Err(message) => summary_status.set(message),
+                }
+            });
+        }
+    };
+    let send_summary = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::send_summary_now(server, token).await {
+                    Ok(()) => summary_status.set("Summary sent.".to_string()),
+                    Err(message) => summary_status.set(message),
+                }
+            });
+        }
+    };
+    let mut timezone_options = chrono_tz::TZ_VARIANTS.iter().map(|zone| (zone.name().to_string(), zone.name().to_string())).collect::<Vec<_>>();
+    timezone_options.sort_by(|a, b| a.0.cmp(&b.0));
     view()
         .w_full()
         .flex_col()
@@ -1253,6 +1325,50 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                     })
                     .otherwise(|| view().h(px(0.0))),
                 ),
+        )
+        .child(
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(12.0))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            view()
+                                .flex_col()
+                                .child(text("Dashboard summary").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
+                                .child(text("Sent to every active delivery channel.").text_size(px(12.0)).text_color(move || theme().muted_foreground)),
+                        )
+                        .child(shared_toggle(summary_enabled.get(), "Dashboard summary".to_string(), move |value| summary_enabled.set(value))),
+                )
+                .child(
+                    text("Frequency")
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(segmented(
+                    summary_frequency,
+                    vec![
+                        SegmentOption::new("daily", "Daily"),
+                        SegmentOption::new("weekly", "Weekly"),
+                        SegmentOption::new("monthly", "Monthly"),
+                    ],
+                ))
+                .child(ui::field("Time (HH:MM)", summary_time, "09:00"))
+                .child(string_select(StringSelectProps::new("Timezone", summary_timezone, timezone_options)))
+                .child(
+                    view()
+                        .flex_row()
+                        .flex_wrap()
+                        .gap(px(8.0))
+                        .child(ui::action_button("Save summary", false, save_summary))
+                        .child(ui::action_button("Send now", false, send_summary)),
+                )
+                .child(text(move || summary_status.get()).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
         )
 }
 

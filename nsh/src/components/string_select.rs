@@ -7,11 +7,11 @@ use nsh_core::prelude::*;
 pub struct StringSelectProps {
     pub label: String,
     pub selected: Signal<String>,
-    pub options: &'static [(&'static str, &'static str)],
+    pub options: Vec<(String, String)>,
 }
 
 impl StringSelectProps {
-    pub fn new(label: impl Into<String>, selected: Signal<String>, options: &'static [(&'static str, &'static str)]) -> Self {
+    pub fn new(label: impl Into<String>, selected: Signal<String>, options: Vec<(String, String)>) -> Self {
         Self { label: label.into(), selected, options }
     }
 }
@@ -20,19 +20,20 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
     let StringSelectProps { label, selected, options } = props;
     let open = signal(false);
     let query = signal(String::new());
+    let option_rows = options.clone();
     let selected_label = move || {
         let current = selected.get();
         options
             .iter()
             .find(|(value, _)| *value == current)
-            .map_or_else(|| current.clone(), |(_, label)| (*label).to_string())
+            .map_or_else(|| current.clone(), |(_, label)| label.clone())
     };
     let filtered = move || {
         let q = query.get().trim().to_lowercase();
-        options
+        option_rows
             .iter()
             .filter(|(value, label)| q.is_empty() || value.to_lowercase().contains(&q) || label.to_lowercase().contains(&q))
-            .map(|(value, label)| ((*value).to_string(), (*label).to_string()))
+            .cloned()
             .collect::<Vec<_>>()
     };
     view()
