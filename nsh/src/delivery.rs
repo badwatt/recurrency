@@ -187,9 +187,9 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
     };
     let current = move || provider(&selected.get()).map_or("Delivery", |provider| provider.label);
     let fields = move || provider(&selected.get()).map_or(&[][..], |provider| provider.fields);
-    view()
+    crate::ui::surface()
         .w_full()
-        .flex_col()
+        .p(px(24.0))
         .gap(px(12.0))
         .child(
             view()

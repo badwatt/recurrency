@@ -199,7 +199,6 @@ fn icon_action(route: Signal<Route>, icon: ImageAsset, section: &'static str) ->
 }
 
 fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
-    let token = auth.token.clone();
     button()
         .items_center()
         .justify_center()
@@ -207,17 +206,20 @@ fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .w(px(30.0))
         .rounded(px(6.0))
         .accessibility_label("AI assistant")
-        .on_press(move || {
-            let server = crate::auth::stored_server();
-            let token = token.clone();
-            spawn(async move {
-                match crate::api::load_ai_settings(server, token).await {
-                    Ok(settings) if settings.enabled && settings.configured => open_ai_chat(),
-                    _ => request_settings(route, "ai"),
-                }
-            });
-        })
+        .on_press(move || open_ai(route, auth.clone()))
         .child(image(asset!("icons/sparkles.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground))
+}
+
+/// Open the assistant when it is configured, otherwise jump to its settings.
+pub fn open_ai(route: Signal<Route>, auth: AuthSession) {
+    let server = crate::auth::stored_server();
+    let token = auth.token;
+    spawn(async move {
+        match crate::api::load_ai_settings(server, token).await {
+            Ok(settings) if settings.enabled && settings.configured => open_ai_chat(),
+            _ => request_settings(route, "ai"),
+        }
+    });
 }
 
 fn notification_action() -> impl IntoElement {

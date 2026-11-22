@@ -28,7 +28,7 @@ mod ui;
 mod update_banner;
 
 use auth::Session;
-use nsh_base::{button, theme};
+use nsh_base::theme;
 use nsh_core::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -149,6 +149,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     let compact = signal(false);
     let modal = ui::ModalHost::new();
     let create_intent = signal(None::<Route>);
+    let fab_open = signal(false);
     view()
         .relative()
         .flex_1()
@@ -226,29 +227,43 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
             when(
                 move || compact.get() && matches!(route.get(), Route::Dashboard | Route::Subscriptions | Route::Transactions | Route::Debts),
                 move || {
-                    button()
-                        .absolute()
-                        .right(px(18.0))
-                        .bottom(px(76.0))
-                        .z_index(60)
-                        .items_center()
-                        .justify_center()
-                        .h(px(52.0))
-                        .w(px(52.0))
-                        .rounded(px(999.0))
-                        .bg(move || theme().primary)
-                        .accessibility_label("Add entry")
-                        .on_press(move || {
-                            let target = match route.get() {
-                                Route::Transactions => Route::Transactions,
-                                Route::Debts => Route::Debts,
-                                _ => Route::Subscriptions,
-                            };
-                            create_intent.set(Some(target));
-                            route.set(target);
-                        })
-                        .child(image(asset!("icons/plus.svg")).size(px(22.0)).tint_color(move || theme().primary_foreground))
-                        .into_element()
+                    let ai_route = route;
+                    let ai_auth = auth_signal;
+                    crate::components::fab_menu::fab_menu(
+                        fab_open,
+                        vec![
+                            crate::components::fab_menu::FabAction::new(
+                                "AI assistant",
+                                asset!("icons/sparkles.svg"),
+                                move || ui::open_ai(ai_route, ai_auth.get()),
+                            ),
+                            crate::components::fab_menu::FabAction::new(
+                                "New subscription",
+                                asset!("icons/receipt.svg"),
+                                move || {
+                                    route.set(Route::Subscriptions);
+                                    create_intent.set(Some(Route::Subscriptions));
+                                },
+                            ),
+                            crate::components::fab_menu::FabAction::new(
+                                "New transaction",
+                                asset!("icons/wallet.svg"),
+                                move || {
+                                    route.set(Route::Transactions);
+                                    create_intent.set(Some(Route::Transactions));
+                                },
+                            ),
+                            crate::components::fab_menu::FabAction::new(
+                                "New debt",
+                                asset!("icons/notes.svg"),
+                                move || {
+                                    route.set(Route::Debts);
+                                    create_intent.set(Some(Route::Debts));
+                                },
+                            ),
+                        ],
+                    )
+                    .into_element()
                 },
             )
             .otherwise(|| view().h(px(0.0))),

@@ -7,6 +7,7 @@ pub mod card;
 pub mod date_picker;
 pub mod dialog;
 pub mod empty_state;
+pub mod fab_menu;
 pub mod field;
 pub mod input;
 pub mod list_toolbar;
