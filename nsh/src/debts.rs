@@ -71,6 +71,7 @@ struct DebtPayments {
 struct DebtActions {
     form: DebtForm,
     payments: DebtPayments,
+    modal: ui::ModalHost,
     delete_confirm: Signal<Option<Uuid>>,
     busy: Signal<Option<Uuid>>,
     error: Signal<String>,
@@ -79,7 +80,7 @@ struct DebtActions {
 const TITLE: &str = "Debts";
 const SUBTITLE: &str = "Money you owe, manual or paid automatically";
 
-pub fn debts(auth: AuthSession) -> AnyElement {
+pub fn debts(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -155,13 +156,11 @@ pub fn debts(auth: AuthSession) -> AnyElement {
     let actions = DebtActions {
         form: form_state,
         payments,
+        modal,
         delete_confirm,
         busy,
         error: action_error,
     };
-    let pay_currency = currency.clone();
-    let history_currency = currency.clone();
-    let form_currency = currency.clone();
     let loading = move || data.loading() && data.get().is_none();
     let has_error = move || data.error().is_some();
     let render_currency = currency.clone();
@@ -187,6 +186,18 @@ pub fn debts(auth: AuthSession) -> AnyElement {
         saving.set(false);
         editing.set(None);
         form_open.set(true);
+        let dialog_currency = currency.clone();
+        modal.open(move || {
+            form(
+                data,
+                form_state,
+                server_signal,
+                token_signal,
+                dialog_currency.clone(),
+                modal,
+            )
+            .into_element()
+        });
     };
 
     view()
@@ -194,36 +205,6 @@ pub fn debts(auth: AuthSession) -> AnyElement {
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form))
-        .child(
-            when(move || payments.pay_id.get().is_some(), move || {
-                payment_form(
-                    data,
-                    payments,
-                    server_signal,
-                    token_signal,
-                    pay_currency.clone(),
-                )
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
-        .child(
-            when(move || payments.history_id.get().is_some(), move || {
-                history_panel(payments, history_currency.clone())
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
-        .child(
-            when(move || form_open.get(), move || {
-                form(
-                    data,
-                    form_state,
-                    server_signal,
-                    token_signal,
-                    form_currency.clone(),
-                )
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
         .child(toolbar(data, search))
         .child(
             when(move || !actions.error.get().is_empty(), move || {
@@ -252,6 +233,7 @@ fn payment_form(
     server: Signal<String>,
     token: Signal<String>,
     _currency: String,
+    modal: ui::ModalHost,
 ) -> impl IntoElement {
     let DebtPayments {
         pay_id,
@@ -370,7 +352,7 @@ fn payment_form(
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
-                        .on_press(move || pay_id.set(None))
+                        .on_press(move || { pay_id.set(None); modal.close(); })
                         .child(
                             text("Cancel")
                                 .text_size(px(13.0))
@@ -381,7 +363,7 @@ fn payment_form(
         )
 }
 
-fn history_panel(payments: DebtPayments, currency: String) -> impl IntoElement {
+fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost) -> impl IntoElement {
     let DebtPayments {
         history_id,
         history,
@@ -410,7 +392,8 @@ fn history_panel(payments: DebtPayments, currency: String) -> impl IntoElement {
                         .text_color(move || theme().foreground),
                 )
                 .child(ui::action_button("Close", false, move || {
-                    history_id.set(None)
+                    history_id.set(None);
+                    modal.close();
                 })),
         )
         .child(
@@ -515,6 +498,7 @@ fn form(
     server: Signal<String>,
     token: Signal<String>,
     currency: String,
+    modal: ui::ModalHost,
 ) -> impl IntoElement {
     let DebtForm {
         open: form_open,
@@ -598,6 +582,7 @@ fn form(
                     Ok(_) => {
                         form_open.set(false);
                         editing.set(None);
+                        modal.close();
                         data.refetch();
                     }
                     Err(message) => form_error.set(message),
@@ -725,6 +710,7 @@ fn form(
                         .on_press(move || {
                             form_open.set(false);
                             editing.set(None);
+                            modal.close();
                         })
                         .child(
                             text("Cancel")
@@ -979,7 +965,7 @@ fn card(
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(card_actions(action_debt, actions, data, server, token)),
+                .child(card_actions(action_debt, actions, data, server, token, currency.clone())),
         )
 }
 
@@ -989,6 +975,7 @@ fn card_actions(
     data: Resource<DebtsData, String>,
     server: Signal<String>,
     token: Signal<String>,
+    currency: String,
 ) -> AnyElement {
     let id = debt.id;
     let form = actions.form;
@@ -1011,6 +998,8 @@ fn card_actions(
         form.open.set(true);
     };
     let payments = actions.payments;
+    let pay_currency = currency.clone();
+    let history_currency = currency.clone();
     let pay = {
         let amount = edit_debt
             .monthly_payment
@@ -1025,6 +1014,18 @@ fn card_actions(
             payments.error.set(String::new());
             payments.saving.set(false);
             payments.history_id.set(None);
+            let dialog_currency = pay_currency.clone();
+            actions.modal.open(move || {
+                payment_form(
+                    data,
+                    payments,
+                    server,
+                    token,
+                    dialog_currency.clone(),
+                    actions.modal,
+                )
+                .into_element()
+            });
         }
     };
     let history = {
@@ -1037,6 +1038,10 @@ fn card_actions(
             payments.history_error.set(String::new());
             let server_value = server.get();
             let token_value = token.get();
+            let dialog_currency = history_currency.clone();
+            actions.modal.open(move || {
+                history_panel(payments, dialog_currency.clone(), actions.modal).into_element()
+            });
             spawn(async move {
                 match api::load_debt_payments(server_value, token_value, id).await {
                     Ok(list) => payments.history.set(list),

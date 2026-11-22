@@ -53,6 +53,7 @@ struct FormSignals {
 #[derive(Clone, Copy)]
 struct ListActions {
     form: FormSignals,
+    modal: ui::ModalHost,
     delete_confirm: Signal<Option<Uuid>>,
     busy: Signal<Option<Uuid>>,
     error: Signal<String>,
@@ -61,7 +62,7 @@ struct ListActions {
 const TITLE: &str = "Subscriptions";
 const SUBTITLE: &str = "Track and manage recurring payments";
 
-pub fn subscriptions(auth: AuthSession) -> AnyElement {
+pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -113,6 +114,7 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
     };
     let actions = ListActions {
         form: form_signals,
+        modal,
         delete_confirm,
         busy,
         error: action_error,
@@ -145,6 +147,18 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
         editing.set(None);
         active.set(true);
         form_open.set(true);
+        let dialog_currency = currency.clone();
+        modal.open(move || {
+            form(
+                data,
+                form_signals,
+                server_signal,
+                token_signal,
+                dialog_currency.clone(),
+                modal,
+            )
+            .into_element()
+        });
     };
 
     view()
@@ -152,18 +166,6 @@ pub fn subscriptions(auth: AuthSession) -> AnyElement {
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form))
-        .child(
-            when(move || form_open.get(), move || {
-                form(
-                    data,
-                    form_signals,
-                    server_signal,
-                    token_signal,
-                    currency.clone(),
-                )
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
         .child(toolbar(data, search))
         .child(
             when(move || !actions.error.get().is_empty(), move || {
@@ -224,6 +226,7 @@ fn form(
     server: Signal<String>,
     token: Signal<String>,
     currency: String,
+    modal: ui::ModalHost,
 ) -> impl IntoElement {
     let FormSignals {
         open: form_open,
@@ -301,6 +304,7 @@ fn form(
                     Ok(_) => {
                         form_open.set(false);
                         editing.set(None);
+                        modal.close();
                         data.refetch();
                     }
                     Err(message) => form_error.set(message),
@@ -433,6 +437,7 @@ fn form(
                         .on_press(move || {
                             form_open.set(false);
                             editing.set(None);
+                            modal.close();
                         })
                         .child(
                             text("Cancel")
@@ -806,7 +811,7 @@ fn card(
                         ),
                 ),
         )
-        .child(card_actions(action_subscription, active, actions, data, server, token))
+        .child(card_actions(action_subscription, active, actions, data, server, token, currency.clone()))
 }
 
 fn card_actions(
@@ -816,9 +821,10 @@ fn card_actions(
     data: Resource<SubscriptionsData, String>,
     server: Signal<String>,
     token: Signal<String>,
+    currency: String,
 ) -> AnyElement {
     let id = subscription.id;
-    let form = actions.form;
+    let form_signals = actions.form;
     let edit_subscription = subscription.clone();
     let edit = move || {
         let recurrence = &edit_subscription.recurrence;
@@ -828,18 +834,31 @@ fn card_actions(
             .map(|date| date.day)
             .or_else(|| recurrence.days.first().copied())
             .unwrap_or_else(|| edit_subscription.start_date.day() as u8);
-        form.name.set(edit_subscription.name.clone());
-        form.amount.set(edit_subscription.amount.to_string());
-        form.start_date.set(edit_subscription.start_date.to_string());
-        form.day.set(day.to_string());
-        form.unit.set(recurrence.unit.clone());
-        form.account_id.set(Some(edit_subscription.account_id));
-        form.category_id.set(Some(edit_subscription.category_id));
-        form.active.set(edit_subscription.is_active);
-        form.error.set(String::new());
-        form.saving.set(false);
-        form.editing.set(Some(id));
-        form.open.set(true);
+        form_signals.name.set(edit_subscription.name.clone());
+        form_signals.amount.set(edit_subscription.amount.to_string());
+        form_signals.start_date.set(edit_subscription.start_date.to_string());
+        form_signals.day.set(day.to_string());
+        form_signals.unit.set(recurrence.unit.clone());
+        form_signals.account_id.set(Some(edit_subscription.account_id));
+        form_signals.category_id.set(Some(edit_subscription.category_id));
+        form_signals.active.set(edit_subscription.is_active);
+        form_signals.error.set(String::new());
+        form_signals.saving.set(false);
+        form_signals.editing.set(Some(id));
+        form_signals.open.set(true);
+        let dialog_currency = currency.clone();
+        let modal = actions.modal;
+        actions.modal.open(move || {
+            form(
+                data,
+                form_signals,
+                server,
+                token,
+                dialog_currency.clone(),
+                modal,
+            )
+            .into_element()
+        });
     };
     let toggle = {
         move || {

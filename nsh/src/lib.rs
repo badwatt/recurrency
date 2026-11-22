@@ -123,6 +123,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     };
     let auth_signal = signal(auth);
     let compact = signal(false);
+    let modal = ui::ModalHost::new();
     view()
         .relative()
         .flex_1()
@@ -152,17 +153,17 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 .otherwise(move || {
                                     when(
                                         move || route.get() == Route::Subscriptions,
-                                        move || subscriptions::subscriptions(auth_signal.get()),
+                                        move || subscriptions::subscriptions(auth_signal.get(), modal),
                                     )
                                     .otherwise(move || {
                                         when(
                                             move || route.get() == Route::Transactions,
-                                            move || transactions::transactions(auth_signal.get()),
+                                            move || transactions::transactions(auth_signal.get(), modal),
                                         )
                                         .otherwise(move || {
                                             when(
                                                 move || route.get() == Route::Debts,
-                                                move || debts::debts(auth_signal.get()),
+                                                move || debts::debts(auth_signal.get(), modal),
                                             )
                                             .otherwise(move || {
                                                 when(
@@ -192,6 +193,10 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         )
         .child(
             when(move || compact.get(), move || ui::bottom_bar(route))
+                .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(move || modal.active(), move || ui::modal_overlay(modal))
                 .otherwise(|| view().h(px(0.0))),
         )
         .into_element()

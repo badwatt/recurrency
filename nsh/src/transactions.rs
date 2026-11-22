@@ -42,6 +42,7 @@ struct TxForm {
 #[derive(Clone, Copy)]
 struct TxActions {
     form: TxForm,
+    modal: ui::ModalHost,
     delete_confirm: Signal<Option<Uuid>>,
     busy: Signal<Option<Uuid>>,
     error: Signal<String>,
@@ -58,7 +59,7 @@ struct TransactionGroup {
 const TITLE: &str = "Transactions";
 const SUBTITLE: &str = "Track your one-time expenses";
 
-pub fn transactions(auth: AuthSession) -> AnyElement {
+pub fn transactions(auth: AuthSession, modal: ui::ModalHost) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -107,6 +108,7 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
     };
     let actions = TxActions {
         form: form_signals,
+        modal,
         delete_confirm,
         busy,
         error: action_error,
@@ -134,6 +136,18 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
         saving.set(false);
         editing.set(None);
         form_open.set(true);
+        let dialog_currency = currency.clone();
+        modal.open(move || {
+            form(
+                data,
+                form_signals,
+                server_signal,
+                token_signal,
+                dialog_currency.clone(),
+                modal,
+            )
+            .into_element()
+        });
     };
 
     view()
@@ -141,18 +155,6 @@ pub fn transactions(auth: AuthSession) -> AnyElement {
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form))
-        .child(
-            when(move || form_open.get(), move || {
-                form(
-                    data,
-                    form_signals,
-                    server_signal,
-                    token_signal,
-                    currency.clone(),
-                )
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
         .child(toolbar(data, search))
         .child(
             when(move || !actions.error.get().is_empty(), move || {
@@ -207,6 +209,7 @@ fn form(
     server: Signal<String>,
     token: Signal<String>,
     currency: String,
+    modal: ui::ModalHost,
 ) -> impl IntoElement {
     let TxForm {
         open: form_open,
@@ -269,6 +272,7 @@ fn form(
                     Ok(_) => {
                         form_open.set(false);
                         editing.set(None);
+                        modal.close();
                         data.refetch();
                     }
                     Err(message) => form_error.set(message),
@@ -386,6 +390,7 @@ fn form(
                         .on_press(move || {
                             form_open.set(false);
                             editing.set(None);
+                            modal.close();
                         })
                         .child(
                             text("Cancel")
@@ -627,6 +632,7 @@ fn row(
                     data,
                     server,
                     token,
+                    currency.clone(),
                 )),
         )
 }
@@ -637,20 +643,34 @@ fn transaction_actions(
     data: Resource<TransactionsData, String>,
     server: Signal<String>,
     token: Signal<String>,
+    currency: String,
 ) -> AnyElement {
     let id = transaction.id;
-    let form = actions.form;
+    let form_signals = actions.form;
     let edit_transaction = transaction.clone();
     let edit = move || {
-        form.name.set(edit_transaction.name.clone());
-        form.amount.set(edit_transaction.amount.to_string());
-        form.date.set(edit_transaction.date.to_string());
-        form.account_id.set(Some(edit_transaction.account_id));
-        form.category_id.set(Some(edit_transaction.category_id));
-        form.error.set(String::new());
-        form.saving.set(false);
-        form.editing.set(Some(id));
-        form.open.set(true);
+        form_signals.name.set(edit_transaction.name.clone());
+        form_signals.amount.set(edit_transaction.amount.to_string());
+        form_signals.date.set(edit_transaction.date.to_string());
+        form_signals.account_id.set(Some(edit_transaction.account_id));
+        form_signals.category_id.set(Some(edit_transaction.category_id));
+        form_signals.error.set(String::new());
+        form_signals.saving.set(false);
+        form_signals.editing.set(Some(id));
+        form_signals.open.set(true);
+        let dialog_currency = currency.clone();
+        let modal = actions.modal;
+        actions.modal.open(move || {
+            form(
+                data,
+                form_signals,
+                server,
+                token,
+                dialog_currency.clone(),
+                modal,
+            )
+            .into_element()
+        });
     };
     let delete = move || {
         actions.delete_confirm.set(None);
