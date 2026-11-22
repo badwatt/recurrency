@@ -517,7 +517,19 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .child(
                     when(
                         move || section.get() == Section::Data,
-                        move || data_card(data_server.get(), data_token.get(), backup_status),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_col()
+                                .gap(px(12.0))
+                                .child(data_card(
+                                    data_server.get(),
+                                    data_token.get(),
+                                    backup_status,
+                                ))
+                                .child(folder_sync_card(data_server.get(), data_token.get()))
+                                .into_element()
+                        },
                     )
                     .otherwise(|| view().h(px(0.0))),
                 )
@@ -1087,6 +1099,127 @@ fn general_card(
         )
         )
         .child(exchange_rates_card(rates_server, rates_token))
+}
+
+fn folder_sync_card(server: String, token: String) -> AnyElement {
+    if cfg!(target_arch = "wasm32") {
+        return view().h(px(0.0)).into_element();
+    }
+    let folder = signal(crate::folder_sync::folder());
+    let last_sync = signal(crate::folder_sync::last_sync());
+    let status = signal(String::new());
+    let choose = move || {
+        spawn(async move {
+            match pick_paths(
+                OpenDialog::folders()
+                    .title("Choose a sync folder")
+                    .button_label("Use folder"),
+            )
+            .await
+            {
+                Ok(Some(paths)) => {
+                    let Some(path) = paths.first() else { return };
+                    crate::folder_sync::set_folder(path);
+                    folder.set(Some(path.clone()));
+                    status.set("Sync folder connected.".to_string());
+                }
+                Ok(None) => {}
+                Err(error) => status.set(error),
+            }
+        });
+    };
+    let sync_now = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::folder_sync::sync(server, token).await {
+                    Ok(path) => {
+                        last_sync.set(crate::folder_sync::last_sync());
+                        status.set(format!("Backup written to {}", path.display()));
+                    }
+                    Err(error) => status.set(error),
+                }
+            });
+        }
+    };
+    let disconnect = move || {
+        crate::folder_sync::disconnect();
+        folder.set(None);
+        last_sync.set(String::new());
+        status.set("Sync folder disconnected.".to_string());
+    };
+    ui::surface()
+        .p(px(24.0))
+        .gap(px(10.0))
+        .child(text("Cloud folder sync").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
+        .child(
+            text("Write a validated backup into a folder managed by Drive, OneDrive, Dropbox or another document provider.")
+                .text_size(px(12.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .gap(px(10.0))
+                .p(px(12.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().background)
+                .child(image(asset!("icons/database.svg")).size(px(20.0)).tint_color(move || theme().primary))
+                .child(
+                    view()
+                        .flex_col()
+                        .flex_grow(1.0)
+                        .min_w(px(0.0))
+                        .child(
+                            text(move || folder.get().as_ref().map_or_else(
+                                || "No sync folder".to_string(),
+                                |path| format!("Folder connected · {}", crate::folder_sync::display_name(path)),
+                            ))
+                            .text_size(px(13.0))
+                            .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(move || {
+                                let last = last_sync.get();
+                                if last.is_empty() {
+                                    crate::folder_sync::BACKUP_FILE.to_string()
+                                } else {
+                                    format!("Last sync {last}")
+                                }
+                            })
+                            .text_size(px(10.0))
+                            .text_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+        .child(
+            view()
+                .flex_row()
+                .flex_wrap()
+                .items_center()
+                .gap(px(8.0))
+                .child(ui::action_button(
+                    if folder.get().is_some() { "Change folder" } else { "Choose folder" },
+                    false,
+                    choose,
+                ))
+                .child(ui::action_button("Sync now", false, sync_now))
+                .when(folder.get().is_some(), |view| {
+                    view.child(ui::action_button("Disconnect", true, disconnect))
+                }),
+        )
+        .child(
+            text(move || status.get())
+                .text_size(px(11.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .into_element()
 }
 
 fn data_card(server: String, token: String, status: Signal<String>) -> impl IntoElement {

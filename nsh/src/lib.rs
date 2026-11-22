@@ -14,6 +14,7 @@ mod dashboard;
 mod dashboard_data;
 mod debts;
 mod delivery;
+mod folder_sync;
 mod format;
 mod login;
 mod models;
