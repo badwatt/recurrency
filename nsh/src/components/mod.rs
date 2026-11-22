@@ -1,6 +1,7 @@
 //! Shared component library mirrored from `frontend/src/components`.
 //! Pages compose these primitives instead of painting raw views.
 
+pub mod avatar;
 pub mod badge;
 pub mod button;
 pub mod card;

@@ -18,6 +18,7 @@ rust_decimal = { version = "1", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 qrcode = { version = "0.14", default-features = false }
 base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 nsh-platform-linux = { version = "0.6.1", default-features = false, features = ["shader", "editor", "emoji-picker", "highlight", "math", "plot", "rich-editor", "term", "websocket", "updater", "svg", "net", "sound"] }

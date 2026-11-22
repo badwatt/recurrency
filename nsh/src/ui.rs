@@ -257,27 +257,14 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .clone()
         .filter(|name| !name.trim().is_empty())
         .unwrap_or_else(|| auth.user.email.clone());
-    let initial = name
-        .chars()
-        .find(|character| !character.is_whitespace())
-        .map(|character| character.to_uppercase().to_string())
-        .unwrap_or_else(|| "?".to_string());
     button()
         .items_center()
         .justify_center()
         .h(px(30.0))
         .w(px(30.0))
-        .items_center()
-        .justify_center()
         .rounded(px(999.0))
-        .bg(move || theme().primary)
         .on_press(move || route.set(Route::Settings))
-        .child(
-            text(initial)
-                .text_size(px(12.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().primary_foreground),
-        )
+        .child(crate::components::avatar::avatar_badge(30.0, &name, auth.user.avatar))
 }
 
 fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {

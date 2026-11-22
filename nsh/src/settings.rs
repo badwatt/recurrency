@@ -1,5 +1,6 @@
 //! Settings: account, appearance, server and about.
 
+use base64::Engine;
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use nsh_core::file_dialog::{FileFilter, OpenDialog, SaveDialog};
@@ -26,6 +27,8 @@ pub struct SettingsResponse {
 pub struct UpdateSettingsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
@@ -182,6 +185,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         }
     });
     let name = signal(auth.user.name.clone().unwrap_or_default());
+    let avatar = signal(auth.user.avatar.clone().unwrap_or_default());
     let currency = signal(auth.user.currency.clone());
     let error = signal(String::new());
     let saving = signal(false);
@@ -215,6 +219,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
             error.set(String::new());
             let request = UpdateSettingsRequest {
                 name: Some(name.get().trim().to_string()),
+                avatar: Some(avatar.get()),
                 currency: Some(currency.get().trim().to_uppercase()),
             };
             let server_value = server.clone();
@@ -369,6 +374,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             verified,
                             is_admin,
                             name,
+                            avatar,
                             error,
                             saving,
                             save.clone(),
@@ -434,11 +440,26 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .into_element()
 }
 
+fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
+    let image = image::load_from_memory(bytes)
+        .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
+    let resized = image.resize(256, 256, image::imageops::FilterType::Lanczos3).to_rgb8();
+    let mut output = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 86)
+        .encode_image(&resized)
+        .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
+    Ok(format!(
+        "data:image/jpeg;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(output)
+    ))
+}
+
 fn account_card(
     email: String,
     verified: bool,
     is_admin: bool,
     name: Signal<String>,
+    avatar: Signal<String>,
     error: Signal<String>,
     saving: Signal<bool>,
     save: impl Fn() + 'static,
@@ -449,12 +470,59 @@ fn account_card(
     server: Signal<String>,
     token: Signal<String>,
 ) -> impl IntoElement {
-    let initial = email
-        .chars()
-        .next()
-        .map(|value| value.to_uppercase().to_string())
-        .unwrap_or_else(|| "?".to_string());
     let email_value = signal(email.clone());
+    let pick_avatar = {
+        let server = server;
+        let token = token;
+        let avatar = avatar;
+        move || {
+            let server = server.get();
+            let session_token = token.get();
+            let token = session_token.clone();
+            let avatar = avatar;
+            spawn(async move {
+                match pick_paths(
+                    OpenDialog::files()
+                        .title("Choose a profile photo")
+                        .filter(FileFilter::new("Images", ["png", "jpg", "jpeg", "webp"])),
+                )
+                .await
+                {
+                    Ok(Some(paths)) => {
+                        let Some(path) = paths.first() else { return };
+                        match std::fs::read(path) {
+                            Ok(bytes) => match avatar_data_url(&bytes) {
+                                Ok(data_url) => {
+                                    let request = UpdateSettingsRequest {
+                                        name: None,
+                                        avatar: Some(data_url.clone()),
+                                        currency: None,
+                                    };
+                                    match crate::api::update_settings(server, token, &request).await {
+                                        Ok(response) => {
+                                            let next = AuthSession {
+                                                token: session_token.clone(),
+                                                user: response.user,
+                                                requires_verification: false,
+                                            };
+                                            crate::auth::store_session(&next);
+                                            avatar.set(data_url);
+                                            session.set(Session::SignedIn(next));
+                                        }
+                                        Err(message) => error.set(message),
+                                    }
+                                }
+                                Err(message) => error.set(message),
+                            },
+                            Err(problem) => error.set(format!("Could not read the photo: {problem}")),
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(problem) => error.set(problem),
+                }
+            });
+        }
+    };
     view()
         .w_full()
         .flex_col()
@@ -485,21 +553,11 @@ fn account_card(
                         .flex_row()
                         .items_center()
                         .gap(px(12.0))
-                        .child(
-                            view()
-                                .h(px(64.0))
-                                .w(px(64.0))
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(999.0))
-                                .bg(move || theme().primary)
-                                .child(
-                                    text(initial)
-                                        .text_size(px(22.0))
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_color(move || theme().primary_foreground),
-                                ),
-                        )
+                        .child(crate::components::avatar::avatar_badge(
+                            64.0,
+                            &email,
+                            (!avatar.get().is_empty()).then(|| avatar.get()),
+                        ))
                         .child(
                             button()
                                 .items_center()
@@ -510,7 +568,7 @@ fn account_card(
                                 .border(px(1.0))
                                 .border_color(move || theme().border)
                                 .bg(move || theme().background)
-                                .on_press(move || {})
+                                .on_press(move || pick_avatar())
                                 .child(
                                     text("Change photo")
                                         .text_size(px(12.0))
@@ -1657,27 +1715,32 @@ fn voice_card() -> impl IntoElement {
                     let active = mode.get() == option;
                     let hint = option.hint();
                     view()
-                        .min_w(px(210.0))
+                        .min_w(px(220.0))
+                        .max_w(px(330.0))
                         .flex_grow(1.0)
-                        .flex_col()
-                        .gap(px(2.0))
                         .child(
-                            shared_button(
-                                ButtonProps::new(option.label())
-                                    .variant(if active { ButtonVariant::Secondary } else { ButtonVariant::Ghost })
-                                    .size(ButtonSize::Sm)
-                                    .align(ButtonAlign::Start)
-                                    .full_width()
-                                    .disabled(!option.available())
-                                    .icon(asset!("icons/mic.svg"))
-                                    .on_press(move || {
-                                        mode.set(option);
-                                        crate::voice::save(option);
-                                    }),
-                            ),
+                            ui::surface()
+                                .p(px(10.0))
+                                .gap(px(4.0))
+                                .border_color(move || if active { theme().primary.opacity(0.5) } else { theme().border })
+                                .child(
+                                    shared_button(
+                                        ButtonProps::new(option.label())
+                                            .variant(if active { ButtonVariant::Secondary } else { ButtonVariant::Ghost })
+                                            .size(ButtonSize::Sm)
+                                            .align(ButtonAlign::Start)
+                                            .full_width()
+                                            .disabled(!option.available())
+                                            .icon(asset!("icons/mic.svg"))
+                                            .on_press(move || {
+                                                mode.set(option);
+                                                crate::voice::save(option);
+                                            }),
+                                    ),
+                                )
+                                .child(text(option.description()).text_size(px(10.0)).text_color(move || theme().muted_foreground))
+                                .when(!hint.is_empty(), |view| view.child(text(hint).text_size(px(10.0)).text_color(move || theme().destructive))),
                         )
-                        .child(text(option.description()).text_size(px(10.0)).text_color(move || theme().muted_foreground))
-                        .when(!hint.is_empty(), |view| view.child(text(hint).text_size(px(10.0)).text_color(move || theme().destructive)))
                 })),
         )
 }
@@ -2444,9 +2507,27 @@ mod tests {
     }
 
     #[test]
+    fn avatar_data_url_resizes_and_encodes_the_photo() {
+        let source = image::RgbImage::from_pixel(4, 4, image::Rgb([20, 40, 60]));
+        let mut bytes = Vec::new();
+        image::DynamicImage::ImageRgb8(source)
+            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .expect("fixture image encodes");
+        let data_url = avatar_data_url(&bytes).expect("avatar encodes");
+        assert!(data_url.starts_with("data:image/jpeg;base64,"));
+        assert!(data_url.len() <= 400_000);
+    }
+
+    #[test]
+    fn avatar_rejects_non_images() {
+        assert!(avatar_data_url(b"not an image").is_err());
+    }
+
+    #[test]
     fn update_request_skips_empty_fields() {
         let request = UpdateSettingsRequest {
             name: None,
+            avatar: None,
             currency: None,
         };
         let value = serde_json::to_value(request).expect("settings serializes");
