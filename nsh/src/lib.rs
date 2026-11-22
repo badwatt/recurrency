@@ -26,6 +26,7 @@ mod theme;
 mod transactions;
 mod ui;
 mod update_banner;
+mod voice;
 
 use auth::Session;
 use nsh_base::theme;

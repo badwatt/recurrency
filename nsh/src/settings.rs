@@ -9,6 +9,8 @@ use crate::models::AiSettings;
 
 use crate::auth::{self, AuthSession, AuthUser, Session};
 use uuid::Uuid;
+use crate::components::badge::{badge, BadgeProps, BadgeTone};
+use crate::components::button::{button as shared_button, ButtonAlign, ButtonProps, ButtonSize, ButtonVariant};
 use crate::components::toggle::toggle as shared_toggle;
 use crate::components::segmented::{segmented, SegmentOption};
 use crate::components::string_select::{string_select, StringSelectProps};
@@ -1607,6 +1609,59 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 ),
+        )
+        .child(voice_card())
+}
+
+fn voice_card() -> impl IntoElement {
+    let mode = signal(crate::voice::saved());
+    ui::surface()
+        .p(px(24.0))
+        .gap(px(12.0))
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    view()
+                        .flex_col()
+                        .child(text("Voice input").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
+                        .child(text("Dictate into the AI chat. Choose the engine that fits this device.").text_size(px(12.0)).text_color(move || theme().muted_foreground)),
+                )
+                .child(badge(BadgeProps::new("Private by choice").tone(BadgeTone::Outline))),
+        )
+        .child(
+            view()
+                .flex_row()
+                .flex_wrap()
+                .gap(px(8.0))
+                .children(crate::voice::VoiceMode::ALL.into_iter().map(|option| {
+                    let active = mode.get() == option;
+                    let hint = option.hint();
+                    view()
+                        .min_w(px(210.0))
+                        .flex_grow(1.0)
+                        .flex_col()
+                        .gap(px(2.0))
+                        .child(
+                            shared_button(
+                                ButtonProps::new(option.label())
+                                    .variant(if active { ButtonVariant::Secondary } else { ButtonVariant::Ghost })
+                                    .size(ButtonSize::Sm)
+                                    .align(ButtonAlign::Start)
+                                    .full_width()
+                                    .disabled(!option.available())
+                                    .icon(asset!("icons/mic.svg"))
+                                    .on_press(move || {
+                                        mode.set(option);
+                                        crate::voice::save(option);
+                                    }),
+                            ),
+                        )
+                        .child(text(option.description()).text_size(px(10.0)).text_color(move || theme().muted_foreground))
+                        .when(!hint.is_empty(), |view| view.child(text(hint).text_size(px(10.0)).text_color(move || theme().destructive)))
+                })),
         )
 }
 
