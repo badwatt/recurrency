@@ -28,6 +28,8 @@ pub struct UpdateSettingsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
@@ -186,12 +188,12 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     });
     let name = signal(auth.user.name.clone().unwrap_or_default());
     let avatar = signal(auth.user.avatar.clone().unwrap_or_default());
+    let email_signal = signal(auth.user.email.clone());
     let currency = signal(auth.user.currency.clone());
     let error = signal(String::new());
     let saving = signal(false);
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
-    let email = auth.user.email.clone();
     let verified = auth.user.verified;
     let is_admin = auth.user.is_admin;
     let backup_status = signal(String::new());
@@ -219,6 +221,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
             error.set(String::new());
             let request = UpdateSettingsRequest {
                 name: Some(name.get().trim().to_string()),
+                email: Some(email_signal.get().trim().to_string()),
                 avatar: Some(avatar.get()),
                 currency: Some(currency.get().trim().to_uppercase()),
             };
@@ -370,7 +373,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .child(
                     when(move || section.get() == Section::Account, move || {
                         account_card(
-                            email.clone(),
+                            email_signal,
                             verified,
                             is_admin,
                             name,
@@ -455,7 +458,7 @@ fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
 }
 
 fn account_card(
-    email: String,
+    email: Signal<String>,
     verified: bool,
     is_admin: bool,
     name: Signal<String>,
@@ -470,7 +473,6 @@ fn account_card(
     server: Signal<String>,
     token: Signal<String>,
 ) -> impl IntoElement {
-    let email_value = signal(email.clone());
     let pick_avatar = {
         let server = server;
         let token = token;
@@ -495,6 +497,7 @@ fn account_card(
                                 Ok(data_url) => {
                                     let request = UpdateSettingsRequest {
                                         name: None,
+                                        email: None,
                                         avatar: Some(data_url.clone()),
                                         currency: None,
                                     };
@@ -555,7 +558,7 @@ fn account_card(
                         .gap(px(12.0))
                         .child(crate::components::avatar::avatar_badge(
                             64.0,
-                            &email,
+                            &email.get(),
                             (!avatar.get().is_empty()).then(|| avatar.get()),
                         ))
                         .child(
@@ -584,8 +587,8 @@ fn account_card(
                         .child(ui::label("Email"))
                         .child(
                             input()
-                                .value(email_value)
-                                .readonly(true)
+                                .value(email)
+                                .on_change(move |next: &str| email.set(next.to_string()))
                                 .auto_fill(AutoFill::Off)
                                 .h(px(40.0))
                                 .w_full()
@@ -2527,6 +2530,7 @@ mod tests {
     fn update_request_skips_empty_fields() {
         let request = UpdateSettingsRequest {
             name: None,
+            email: None,
             avatar: None,
             currency: None,
         };
