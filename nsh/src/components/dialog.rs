@@ -51,3 +51,115 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
         .child(modal.render())
         .into_element()
 }
+
+/// Shared dialog chrome: title, subtitle, close button, scrollable body and
+/// a fixed footer. Every add/edit/notes/bulk form uses this shell so the
+/// spacing and behaviour cannot drift between pages.
+pub struct DialogProps {
+    pub title: String,
+    pub subtitle: String,
+    pub width: f32,
+    pub body: AnyElement,
+    pub footer: AnyElement,
+    pub on_close: Rc<dyn Fn()>,
+}
+
+impl DialogProps {
+    pub fn new(title: impl Into<String>, subtitle: impl Into<String>, on_close: impl Fn() + 'static) -> Self {
+        Self {
+            title: title.into(),
+            subtitle: subtitle.into(),
+            width: 508.0,
+            body: view().into_element(),
+            footer: view().into_element(),
+            on_close: Rc::new(on_close),
+        }
+    }
+
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = width;
+        self
+    }
+
+    pub fn body(mut self, body: AnyElement) -> Self {
+        self.body = body;
+        self
+    }
+
+    pub fn footer(mut self, footer: AnyElement) -> Self {
+        self.footer = footer;
+        self
+    }
+}
+
+pub fn dialog(dialog: DialogProps) -> impl IntoElement {
+    let DialogProps { title, subtitle, width, body, footer, on_close } = dialog;
+    let close = on_close.clone();
+    view()
+        .w(px(width))
+        .rounded(px(16.0))
+        .border(px(1.0))
+        .border_color(move || nsh_base::theme().border)
+        .bg(move || nsh_base::theme().card)
+        .overflow_hidden()
+        .max_h(px(700.0))
+        .flex_col()
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .pb(px(16.0))
+                .border_b(px(1.0))
+                .border_color(move || nsh_base::theme().border)
+                .gap(px(4.0))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            text(title)
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || nsh_base::theme().foreground),
+                        )
+                        .child(
+                            nsh_base::button()
+                                .items_center()
+                                .justify_center()
+                                .h(px(34.0))
+                                .w(px(34.0))
+                                .rounded(px(7.0))
+                                .border(px(1.0))
+                                .border_color(move || nsh_base::theme().border)
+                                .accessibility_label("Close dialog")
+                                .on_press(move || close())
+                                .child(
+                                    image(asset!("icons/x.svg"))
+                                        .size(px(15.0))
+                                        .tint_color(move || nsh_base::theme().muted_foreground),
+                                ),
+                        ),
+                )
+                .child(
+                    text(subtitle)
+                        .text_size(px(13.0))
+                        .text_color(move || nsh_base::theme().muted_foreground),
+                ),
+        )
+        .child(
+            scroll()
+                .max_h(px(480.0))
+                .child(body),
+        )
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .pt(px(16.0))
+                .border_t(px(1.0))
+                .border_color(move || nsh_base::theme().border)
+                .child(footer),
+        )
+}

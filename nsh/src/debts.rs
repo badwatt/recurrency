@@ -759,97 +759,104 @@ fn form(
         }
     };
 
-    view()
-        .w_full()
-        .w(px(672.0))
-        .rounded(px(16.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(24.0))
-        .gap(px(16.0))
-        .child(
+    let title = if editing.get().is_some() { "Edit debt" } else { "Add debt" };
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(title, "Manual balances or automatic payments.", move || {
+            form_open.set(false);
+            editing.set(None);
+            modal.close();
+        })
+        .width(672.0)
+        .body(
             view()
-                .flex_col()
-                .gap(px(2.0))
-                .child(
-                    text(move || if editing.get().is_some() { "Edit debt" } else { "Add debt" })
-                        .text_size(px(20.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("Manual balances or automatic payments.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .gap(px(12.0))
-                .child(ui::field("Name", name, "Car loan"))
-                .child(ui::field("Total owed", total, "12000")),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .gap(px(12.0))
-                .child(ui::date_field("First payment", start_date))
-                .child(ui::field("Monthly payment", monthly, "250")),
-        )
-        .child(
-            view()
-                .flex_col()
-                .gap(px(6.0))
-                .child(ui::label("Type"))
+                .p(px(24.0))
+                .gap(px(16.0))
                 .child(
                     view()
+                        .w_full()
                         .flex_row()
+                        .gap(px(12.0))
+                        .child(ui::field("Name", name, "Car loan"))
+                        .child(ui::field("Total owed", total, "12000")),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .gap(px(12.0))
+                        .child(ui::date_field("First payment", start_date))
+                        .child(ui::field("Monthly payment", monthly, "250")),
+                )
+                .child(
+                    view()
+                        .flex_col()
                         .gap(px(6.0))
-                        .child(type_chip("Manual", "manual", debt_type))
-                        .child(type_chip("Automatic", "automatic", debt_type)),
-                ),
+                        .child(ui::label("Type"))
+                        .child(
+                            view()
+                                .flex_row()
+                                .gap(px(6.0))
+                                .child(type_chip("Manual", "manual", debt_type))
+                                .child(type_chip("Automatic", "automatic", debt_type)),
+                        ),
+                )
+                .child(ui::choice_picker(
+                    "Account",
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .accounts
+                            .into_iter()
+                            .map(|account| (account.id, account.name))
+                            .collect()
+                    },
+                    account_id,
+                ))
+                .child(ui::choice_picker(
+                    "Category",
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .categories
+                            .into_iter()
+                            .map(|category| (category.id, category.name))
+                            .collect()
+                    },
+                    category_id,
+                ))
+                .child(
+                    when(move || !form_error.get().is_empty(), move || {
+                        text(move || form_error.get())
+                            .text_size(px(12.0))
+                            .text_color(move || theme().destructive)
+                    })
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .into_element(),
         )
-        .child(ui::choice_picker(
-            "Account",
-            move || {
-                data.get()
-                    .unwrap_or_default()
-                    .accounts
-                    .into_iter()
-                    .map(|account| (account.id, account.name))
-                    .collect()
-            },
-            account_id,
-        ))
-        .child(ui::choice_picker(
-            "Category",
-            move || {
-                data.get()
-                    .unwrap_or_default()
-                    .categories
-                    .into_iter()
-                    .map(|category| (category.id, category.name))
-                    .collect()
-            },
-            category_id,
-        ))
-        .child(
-            when(move || !form_error.get().is_empty(), move || {
-                text(move || form_error.get())
-                    .text_size(px(12.0))
-                    .text_color(move || theme().destructive)
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
-        .child(
+        .footer(
             view()
+                .w_full()
                 .flex_row()
-                .items_center()
+                .justify_end()
                 .gap(px(8.0))
+                .child(
+                    button()
+                        .items_center()
+                        .justify_center()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().card)
+                        .on_press(move || {
+                            form_open.set(false);
+                            editing.set(None);
+                            modal.close();
+                        })
+                        .child(text("Cancel").text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground)),
+                )
                 .child(
                     button()
                         .items_center()
@@ -868,29 +875,9 @@ fn form(
                                 .text_color(move || theme().primary_foreground),
                         ),
                 )
-                .child(
-                    button()
-                        .items_center()
-                        .justify_center()
-                        .h(px(36.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().card)
-                        .on_press(move || {
-                            form_open.set(false);
-                            editing.set(None);
-                            modal.close();
-                        })
-                        .child(
-                            text("Cancel")
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        ),
-                ),
-        )
+                .into_element(),
+        ),
+    )
 }
 
 fn type_chip(label_text: &'static str, value: &'static str, selected: Signal<String>) -> impl IntoElement {

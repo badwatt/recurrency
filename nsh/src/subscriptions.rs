@@ -347,64 +347,24 @@ fn form(
         }
     };
 
-    view()
-        .w(px(508.0))
-        .rounded(px(16.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .overflow_hidden()
-        .max_h(px(700.0))
-        .flex_col()
-        .child(
+    let title = if editing.get().is_some() { "Edit Subscription" } else { "Add Subscription" };
+    let subtitle = if editing.get().is_some() {
+        "Update the recurring expense or subscription."
+    } else {
+        "Add a new recurring expense or subscription."
+    };
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(title, subtitle, move || {
+            form_open.set(false);
+            editing.set(None);
+            modal.close();
+        })
+        .width(508.0)
+        .body(
             view()
-                .w_full()
                 .p(px(24.0))
-                .pb(px(16.0))
-                .border_b(px(1.0))
-                .border_color(move || theme().border)
-                .gap(px(4.0))
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .child(
-                            text(move || if editing.get().is_some() { "Edit Subscription" } else { "Add Subscription" })
-                                .text_size(px(18.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(ui::icon_button(
-                            asset!("icons/x.svg"),
-                            false,
-                            move || {
-                                form_open.set(false);
-                                editing.set(None);
-                                modal.close();
-                            },
-                        )),
-                )
-                .child(
-                    text(move || if editing.get().is_some() {
-                        "Update the recurring expense or subscription."
-                    } else {
-                        "Add a new recurring expense or subscription."
-                    })
-                        .text_size(px(13.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
-        )
-        .child(
-            scroll()
-                .max_h(px(480.0))
-                .child(
-                    view()
-                        .w_full()
-                        .p(px(24.0))
-                        .gap(px(16.0))
-                        .child(ui::field("Name", name, "Netflix, Spotify, etc."))
+                .gap(px(16.0))
+                .child(ui::field("Name", name, "Netflix, Spotify, etc."))
                 .child(
                     view()
                         .w_full()
@@ -499,16 +459,12 @@ fn form(
                             .text_color(move || theme().destructive)
                     })
                     .otherwise(|| view().h(px(0.0))),
-                ),
-            ),
+                )
+                .into_element(),
         )
-        .child(
+        .footer(
             view()
                 .w_full()
-                .p(px(24.0))
-                .pt(px(16.0))
-                .border_t(px(1.0))
-                .border_color(move || theme().border)
                 .flex_row()
                 .justify_end()
                 .gap(px(8.0))
@@ -559,9 +515,10 @@ fn form(
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().primary_foreground),
                         ),
-                ),
-        )
-
+                )
+                .into_element(),
+        ),
+    )
 }
 
 fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
@@ -1223,78 +1180,71 @@ fn bulk_modal(
         }).collect::<Vec<_>>()
     };
     let count = move || selected.get().len();
-    view()
-        .w(px(520.0))
-        .max_h(px(640.0))
-        .rounded(px(14.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(20.0))
-        .gap(px(10.0))
-        .child(
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(
+            "Bulk actions",
+            "Select subscriptions, then choose an action.",
+            move || modal.close(),
+        )
+        .width(520.0)
+        .body(
             view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
+                .p(px(20.0))
+                .gap(px(10.0))
                 .child(
                     view()
-                        .flex_col()
-                        .child(text("Bulk actions").text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                        .child(text(move || format!("{} selected", count())).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(8.0))
+                        .child(text(move || format!("{} selected", count())).text_size(px(12.0)).text_color(move || theme().muted_foreground))
+                        .child(
+                            view()
+                                .flex_row()
+                                .gap(px(8.0))
+                                .child(ui::action_button("Select all", false, select_all))
+                                .child(ui::action_button("Clear", false, clear)),
+                        ),
                 )
-                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_between()
-                .gap(px(8.0))
-                .child(ui::action_button("Select all", false, select_all))
-                .child(ui::action_button("Clear", false, clear)),
-        )
-        .child(
-            scroll()
-                .max_h(px(320.0))
-                .w_full()
-                .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
-        )
-        .child(ui::choice_picker(
-            "Move selected to category",
-            move || data.get().unwrap_or_default().categories.into_iter().map(|category| (category.id, category.name)).collect(),
-            bulk_category,
-        ))
-        .child(
-            when(move || confirm_delete.get(), move || {
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(8.0))
-                    .p(px(10.0))
-                    .rounded(px(7.0))
-                    .bg(move || theme().destructive.opacity(0.1))
-                    .child(text(move || format!("Delete {} subscriptions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
-                    .child(
+                .child(
+                    scroll()
+                        .max_h(px(300.0))
+                        .w_full()
+                        .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
+                )
+                .child(ui::choice_picker(
+                    "Move selected to category",
+                    move || data.get().unwrap_or_default().categories.into_iter().map(|category| (category.id, category.name)).collect(),
+                    bulk_category,
+                ))
+                .child(
+                    when(move || confirm_delete.get(), move || {
                         view()
+                            .w_full()
                             .flex_row()
-                            .gap(px(6.0))
-                            .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
-                            .child(ui::action_button("Delete", true, delete)),
-                    )
-                    .into_element()
-            })
-            .otherwise(|| view().h(px(0.0)).into_element()),
+                            .items_center()
+                            .justify_between()
+                            .gap(px(8.0))
+                            .p(px(10.0))
+                            .rounded(px(7.0))
+                            .bg(move || theme().destructive.opacity(0.1))
+                            .child(text(move || format!("Delete {} subscriptions?", count())).text_size(px(11.0)).text_color(move || theme().destructive))
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .gap(px(6.0))
+                                    .child(ui::action_button("Cancel", false, move || confirm_delete.set(false)))
+                                    .child(ui::action_button("Delete", true, delete)),
+                            )
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(text(move || error.get()).text_size(px(11.0)).text_color(move || theme().destructive))
+                .into_element(),
         )
-        .child(
-            text(move || error.get())
-                .text_size(px(11.0))
-                .text_color(move || theme().destructive),
-        )
-        .child(
+        .footer(
             view()
                 .w_full()
                 .flex_row()
@@ -1304,8 +1254,10 @@ fn bulk_modal(
                 .child(ui::action_button("Apply category", false, apply_category))
                 .child(ui::action_button("Activate", false, move || set_active(true)))
                 .child(ui::action_button("Pause", false, move || set_active(false)))
-                .child(ui::action_button("Delete", true, move || confirm_delete.set(true))),
-        )
+                .child(ui::action_button("Delete", true, move || confirm_delete.set(true)))
+                .into_element(),
+        ),
+    )
 }
 
 fn notes_form(
@@ -1336,54 +1288,52 @@ fn notes_form(
             saving.set(false);
         });
     };
-    view()
-        .w(px(440.0))
-        .rounded(px(14.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(22.0))
-        .gap(px(12.0))
-        .child(
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(
+            format!("Notes: {name}"),
+            "Add or update notes.",
+            move || modal.close(),
+        )
+        .width(440.0)
+        .body(
             view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .child(text(format!("Notes: {name}")).text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
+                .p(px(24.0))
+                .gap(px(12.0))
+                .child(
+                    input()
+                        .value(notes)
+                        .on_change(move |value: &str| notes.set(value.to_string()))
+                        .placeholder("Add notes…")
+                        .auto_fill(nsh_core::element::AutoFill::Off)
+                        .multiline(true)
+                        .h(px(120.0))
+                        .w_full()
+                        .p(px(10.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().input)
+                        .bg(move || theme().background)
+                        .text_size(px(13.0))
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
+                .into_element(),
         )
-        .child(
-            input()
-                .value(notes)
-                .on_change(move |value: &str| notes.set(value.to_string()))
-                .placeholder("Add notes…")
-                .auto_fill(nsh_core::element::AutoFill::Off)
-                .multiline(true)
-                .h(px(120.0))
-                .w_full()
-                .p(px(10.0))
-                .rounded(px(7.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().background)
-                .text_size(px(13.0))
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text(move || error.get())
-                .text_size(px(11.0))
-                .text_color(move || theme().destructive),
-        )
-        .child(
+        .footer(
             view()
                 .w_full()
                 .flex_row()
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Cancel", false, move || modal.close()))
-                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save)),
-        )
+                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save))
+                .into_element(),
+        ),
+    )
 }
 
 fn card_actions(

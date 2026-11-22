@@ -290,87 +290,90 @@ fn form(
         }
     };
 
-    view()
-        .w_full()
-        .w(px(672.0))
-        .rounded(px(16.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(24.0))
-        .gap(px(16.0))
-        .child(
+    let title = if editing.get().is_some() { "Edit transaction" } else { "New transaction" };
+    let subtitle = if editing.get().is_some() {
+        "Update the amount, date or account."
+    } else {
+        "Record a one-time expense."
+    };
+    let modal_for_close = modal;
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(title, subtitle, move || {
+            form_open.set(false);
+            editing.set(None);
+            modal_for_close.close();
+        })
+        .width(672.0)
+        .body(
             view()
-                .flex_col()
-                .gap(px(2.0))
+                .p(px(24.0))
+                .gap(px(16.0))
                 .child(
-                    text(move || if editing.get().is_some() { "Edit transaction" } else { "New transaction" })
-                        .text_size(px(20.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .gap(px(12.0))
+                        .child(ui::field("Name", name, "Groceries"))
+                        .child(ui::field("Amount", amount, "42.50")),
                 )
+                .child(ui::date_field("Date", date))
+                .child(ui::choice_picker(
+                    "Account",
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .accounts
+                            .into_iter()
+                            .map(|account| (account.id, account.name))
+                            .collect()
+                    },
+                    account_id,
+                ))
+                .child(ui::choice_picker(
+                    "Category",
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .categories
+                            .into_iter()
+                            .map(|category| (category.id, category.name))
+                            .collect()
+                    },
+                    category_id,
+                ))
                 .child(
-                    text(move || if editing.get().is_some() {
-                        "Update the amount, date or account."
-                    } else {
-                        "Record a one-time expense."
+                    when(move || !form_error.get().is_empty(), move || {
+                        text(move || form_error.get())
+                            .text_size(px(12.0))
+                            .text_color(move || theme().destructive)
                     })
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .into_element(),
         )
-        .child(
+        .footer(
             view()
                 .w_full()
                 .flex_row()
-                .gap(px(12.0))
-                .child(ui::field("Name", name, "Groceries"))
-                .child(ui::field("Amount", amount, "42.50")),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .gap(px(12.0))
-                .child(ui::date_field("Date", date)),
-        )
-        .child(ui::choice_picker(
-            "Account",
-            move || {
-                data.get()
-                    .unwrap_or_default()
-                    .accounts
-                    .into_iter()
-                    .map(|account| (account.id, account.name))
-                    .collect()
-            },
-            account_id,
-        ))
-        .child(ui::choice_picker(
-            "Category",
-            move || {
-                data.get()
-                    .unwrap_or_default()
-                    .categories
-                    .into_iter()
-                    .map(|category| (category.id, category.name))
-                    .collect()
-            },
-            category_id,
-        ))
-        .child(
-            when(move || !form_error.get().is_empty(), move || {
-                text(move || form_error.get())
-                    .text_size(px(12.0))
-                    .text_color(move || theme().destructive)
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
-        .child(
-            view()
-                .flex_row()
-                .items_center()
+                .justify_end()
                 .gap(px(8.0))
+                .child(
+                    button()
+                        .items_center()
+                        .justify_center()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().card)
+                        .on_press(move || {
+                            form_open.set(false);
+                            editing.set(None);
+                            modal.close();
+                        })
+                        .child(text("Cancel").text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground)),
+                )
                 .child(
                     button()
                         .items_center()
@@ -389,29 +392,9 @@ fn form(
                                 .text_color(move || theme().primary_foreground),
                         ),
                 )
-                .child(
-                    button()
-                        .items_center()
-                        .justify_center()
-                        .h(px(36.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().card)
-                        .on_press(move || {
-                            form_open.set(false);
-                            editing.set(None);
-                            modal.close();
-                        })
-                        .child(
-                            text("Cancel")
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        ),
-                ),
-        )
+                .into_element(),
+        ),
+    )
 }
 
 fn toolbar(
@@ -838,54 +821,52 @@ fn notes_form(
             saving.set(false);
         });
     };
-    view()
-        .w(px(440.0))
-        .rounded(px(14.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(22.0))
-        .gap(px(12.0))
-        .child(
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(
+            format!("Notes: {name}"),
+            "Add or update notes.",
+            move || modal.close(),
+        )
+        .width(440.0)
+        .body(
             view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .child(text(format!("Notes: {name}")).text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
+                .p(px(24.0))
+                .gap(px(12.0))
+                .child(
+                    input()
+                        .value(notes)
+                        .on_change(move |value: &str| notes.set(value.to_string()))
+                        .placeholder("Add notes…")
+                        .auto_fill(nsh_core::element::AutoFill::Off)
+                        .multiline(true)
+                        .h(px(120.0))
+                        .w_full()
+                        .p(px(10.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().input)
+                        .bg(move || theme().background)
+                        .text_size(px(13.0))
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive),
+                )
+                .into_element(),
         )
-        .child(
-            input()
-                .value(notes)
-                .on_change(move |value: &str| notes.set(value.to_string()))
-                .placeholder("Add notes…")
-                .auto_fill(nsh_core::element::AutoFill::Off)
-                .multiline(true)
-                .h(px(120.0))
-                .w_full()
-                .p(px(10.0))
-                .rounded(px(7.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().background)
-                .text_size(px(13.0))
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text(move || error.get())
-                .text_size(px(11.0))
-                .text_color(move || theme().destructive),
-        )
-        .child(
+        .footer(
             view()
                 .w_full()
                 .flex_row()
                 .justify_end()
                 .gap(px(8.0))
                 .child(ui::action_button("Cancel", false, move || modal.close()))
-                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save)),
-        )
+                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save))
+                .into_element(),
+        ),
+    )
 }
 
 fn transaction_actions(

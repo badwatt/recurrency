@@ -71,7 +71,8 @@ toolbar.
 | `page_header.rs` | `page_header.rs` | Ported |
 | `list_toolbar.rs` | `list_toolbar.rs` | Ported |
 | `toggle.rs` | `toggle.rs` | Ported |
-| `dialog.rs` / `select.rs` | `dialog.rs` (`DialogHost`) | Ported |
+| `dialog.rs` / `select.rs` | `dialog.rs` (`DialogHost` + `dialog` shell) | Ported |
+| Add/edit/notes/bulk forms | shared `dialog` shell | Ported (subscription, transaction, debt, notes, subscription bulk) |
 | `select_menu.rs` | `select_menu.rs` | Ported inline menu |
 | `date_picker.rs` | `date_picker.rs` | Ported custom calendar |
 | `checkbox.rs`, `segmented.rs`, `skeleton.rs` | same names | Ported |
