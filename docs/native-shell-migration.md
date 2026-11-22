@@ -80,4 +80,5 @@ toolbar.
 | `backup_restore_card.rs` | Settings data card | Ported |
 | `ai_chat.rs` | `ai_chat.rs` | Ported (text chat) |
 | Preferences (currency, dates, week start) | Settings General + `format.rs` | Ported |
+| Notes dialogs | subscription/transaction note modals | Ported |
 | `chart.rs`, `toast.rs`, `tooltip.rs` | page-local | Pending |

@@ -60,6 +60,8 @@ pub struct Subscription {
     pub next_billing_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
     pub is_active: bool,
+    #[serde(default)]
+    pub notes: Option<String>,
     pub logo_url: Option<String>,
 }
 
@@ -72,6 +74,8 @@ pub struct Transaction {
     pub amount: Decimal,
     pub currency: String,
     pub date: NaiveDate,
+    #[serde(default)]
+    pub notes: Option<String>,
     pub logo_url: Option<String>,
 }
 

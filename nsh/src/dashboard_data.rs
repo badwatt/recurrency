@@ -339,6 +339,7 @@ mod tests {
             next_billing_date: Some(next),
             end_date: None,
             is_active: true,
+            notes: None,
             logo_url: None,
         }
     }
@@ -382,6 +383,7 @@ mod tests {
             amount: Decimal::from(3),
             currency: "EUR".to_string(),
             date: date(2026, 11, 22),
+            notes: None,
             logo_url: None,
         };
         let budgets = build_account_budgets(
@@ -407,6 +409,7 @@ mod tests {
             amount: Decimal::from(900),
             currency: "EUR".to_string(),
             date: date(2026, 11, 23),
+            notes: None,
             logo_url: None,
         };
         let upcoming = upcoming_payments(

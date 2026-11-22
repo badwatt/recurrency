@@ -32,6 +32,8 @@ pub struct CreateSubscriptionRequest {
     pub category_id: Option<Uuid>,
     pub recurrence: Recurrence,
     pub is_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -55,6 +57,7 @@ struct FormSignals {
     error: Signal<String>,
     saving: Signal<bool>,
     active: Signal<bool>,
+    notes: Signal<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -107,6 +110,7 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
     let category_id = signal(None::<Uuid>);
     let form_error = signal(String::new());
     let saving = signal(false);
+    let notes = signal(String::new());
     let delete_confirm = signal(None::<Uuid>);
     let busy = signal(None::<Uuid>);
     let action_error = signal(String::new());
@@ -125,6 +129,7 @@ pub fn subscriptions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opt
         error: form_error,
         saving,
         active,
+        notes,
     };
     let actions = ListActions {
         form: form_signals,
@@ -240,6 +245,7 @@ fn form(
         error: form_error,
         saving,
         active,
+        notes,
     } = form;
     let save = {
         let currency = currency.clone();
@@ -297,6 +303,7 @@ fn form(
                 category_id: category_id.get(),
                 recurrence: recurrence_for(&unit_value, &day_values, start_value, interval_value),
                 is_active: active.get(),
+                notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -1074,6 +1081,84 @@ fn card(
         .child(card_actions(action_subscription, active, actions, data, server, token, currency.clone()))
 }
 
+fn notes_form(
+    id: Uuid,
+    name: String,
+    notes: Signal<String>,
+    saving: Signal<bool>,
+    error: Signal<String>,
+    server: Signal<String>,
+    token: Signal<String>,
+    data: Resource<SubscriptionsData, String>,
+    modal: ui::ModalHost,
+) -> impl IntoElement {
+    let save = move || {
+        saving.set(true);
+        error.set(String::new());
+        let value = notes.get();
+        let server = server.get();
+        let token = token.get();
+        spawn(async move {
+            match api::update_subscription(server, token, id, &serde_json::json!({ "notes": value })).await {
+                Ok(_) => {
+                    data.refetch();
+                    modal.close();
+                }
+                Err(message) => error.set(message),
+            }
+            saving.set(false);
+        });
+    };
+    view()
+        .w(px(440.0))
+        .rounded(px(14.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(22.0))
+        .gap(px(12.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(text(format!("Notes: {name}")).text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
+                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
+        )
+        .child(
+            input()
+                .value(notes)
+                .on_change(move |value: &str| notes.set(value.to_string()))
+                .placeholder("Add notes…")
+                .auto_fill(nsh_core::element::AutoFill::Off)
+                .multiline(true)
+                .h(px(120.0))
+                .w_full()
+                .p(px(10.0))
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || theme().input)
+                .bg(move || theme().background)
+                .text_size(px(13.0))
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text(move || error.get())
+                .text_size(px(11.0))
+                .text_color(move || theme().destructive),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .justify_end()
+                .gap(px(8.0))
+                .child(ui::action_button("Cancel", false, move || modal.close()))
+                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save)),
+        )
+}
+
 fn card_actions(
     subscription: Subscription,
     active: bool,
@@ -1106,6 +1191,7 @@ fn card_actions(
         form_signals.account_id.set(Some(edit_subscription.account_id));
         form_signals.category_id.set(Some(edit_subscription.category_id));
         form_signals.active.set(edit_subscription.is_active);
+        form_signals.notes.set(edit_subscription.notes.clone().unwrap_or_default());
         form_signals.error.set(String::new());
         form_signals.saving.set(false);
         form_signals.editing.set(Some(id));
@@ -1138,6 +1224,7 @@ fn card_actions(
                 category_id: Some(original.category_id),
                 recurrence: original.recurrence.clone(),
                 is_active: original.is_active,
+                notes: None,
             };
             let server_value = server.get();
             let token_value = token.get();
@@ -1166,6 +1253,30 @@ fn card_actions(
                 actions.busy.set(None);
             });
         }
+    };
+    let notes_value = subscription.notes.clone().unwrap_or_default();
+    let notes_name = subscription.name.clone();
+    let notes_signal = actions.form.notes;
+    let open_notes = move || {
+        notes_signal.set(notes_value.clone());
+        form_signals.error.set(String::new());
+        form_signals.saving.set(false);
+        let modal = actions.modal;
+        let dialog_name = notes_name.clone();
+        modal.open(move || {
+            notes_form(
+                id,
+                dialog_name.clone(),
+                notes_signal,
+                form_signals.saving,
+                form_signals.error,
+                server,
+                token,
+                data,
+                modal,
+            )
+            .into_element()
+        });
     };
     let confirm = actions.delete_confirm;
     let delete = {
@@ -1213,6 +1324,7 @@ fn card_actions(
         let edit = edit.clone();
         let toggle = toggle.clone();
         let duplicate = duplicate.clone();
+        let open_notes = open_notes.clone();
         view()
             .w_full()
             .flex_row()
@@ -1225,7 +1337,7 @@ fn card_actions(
             .child(ui::mini_icon_button(
                 asset!("icons/notes.svg"),
                 false,
-                edit.clone(),
+                open_notes,
             ))
             .child(ui::mini_icon_button(
                 if active { asset!("icons/pause.svg") } else { asset!("icons/play.svg") },
@@ -1328,6 +1440,7 @@ mod tests {
             next_billing_date: Some(date(2026, 11, 23)),
             end_date: None,
             is_active: active,
+            notes: None,
             logo_url: None,
         }
     }
@@ -1420,6 +1533,7 @@ mod tests {
             category_id: None,
             recurrence: recurrence_for("month", &[23], date(2026, 11, 22), 1),
             is_active: true,
+            notes: None,
         };
         let json = serde_json::to_value(request).expect("request serializes");
         assert_eq!(json["frequency"], "monthly");

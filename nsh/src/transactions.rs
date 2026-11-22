@@ -1,7 +1,7 @@
 //! Transactions: one-time expenses grouped by month.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::{button, theme};
+use nsh_base::{button, input, theme};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -26,6 +26,8 @@ pub struct CreateTransactionRequest {
     pub account_id: Uuid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -39,6 +41,7 @@ struct TxForm {
     category_id: Signal<Option<Uuid>>,
     error: Signal<String>,
     saving: Signal<bool>,
+    notes: Signal<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -94,6 +97,7 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
     let category_id = signal(None::<Uuid>);
     let form_error = signal(String::new());
     let saving = signal(false);
+    let notes = signal(String::new());
     let delete_confirm = signal(None::<Uuid>);
     let busy = signal(None::<Uuid>);
     let action_error = signal(String::new());
@@ -107,6 +111,7 @@ pub fn transactions(auth: AuthSession, modal: ui::ModalHost, intent: Signal<Opti
         category_id,
         error: form_error,
         saving,
+        notes,
     };
     let actions = TxActions {
         form: form_signals,
@@ -207,6 +212,7 @@ fn form(
         category_id,
         error: form_error,
         saving,
+        notes,
     } = form;
     let save = {
         let currency = currency.clone();
@@ -242,6 +248,7 @@ fn form(
                 date: date_value,
                 account_id: account_value,
                 category_id: category_id.get(),
+                notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -635,6 +642,84 @@ fn row(
         )
 }
 
+fn notes_form(
+    id: Uuid,
+    name: String,
+    notes: Signal<String>,
+    saving: Signal<bool>,
+    error: Signal<String>,
+    server: Signal<String>,
+    token: Signal<String>,
+    data: Resource<TransactionsData, String>,
+    modal: ui::ModalHost,
+) -> impl IntoElement {
+    let save = move || {
+        saving.set(true);
+        error.set(String::new());
+        let value = notes.get();
+        let server = server.get();
+        let token = token.get();
+        spawn(async move {
+            match api::update_transaction(server, token, id, &serde_json::json!({ "notes": value })).await {
+                Ok(_) => {
+                    data.refetch();
+                    modal.close();
+                }
+                Err(message) => error.set(message),
+            }
+            saving.set(false);
+        });
+    };
+    view()
+        .w(px(440.0))
+        .rounded(px(14.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .p(px(22.0))
+        .gap(px(12.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(text(format!("Notes: {name}")).text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
+                .child(ui::icon_button(asset!("icons/x.svg"), false, move || modal.close())),
+        )
+        .child(
+            input()
+                .value(notes)
+                .on_change(move |value: &str| notes.set(value.to_string()))
+                .placeholder("Add notes…")
+                .auto_fill(nsh_core::element::AutoFill::Off)
+                .multiline(true)
+                .h(px(120.0))
+                .w_full()
+                .p(px(10.0))
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || theme().input)
+                .bg(move || theme().background)
+                .text_size(px(13.0))
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text(move || error.get())
+                .text_size(px(11.0))
+                .text_color(move || theme().destructive),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .justify_end()
+                .gap(px(8.0))
+                .child(ui::action_button("Cancel", false, move || modal.close()))
+                .child(ui::action_button(if saving.get() { "Saving…" } else { "Save notes" }, false, save)),
+        )
+}
+
 fn transaction_actions(
     transaction: Transaction,
     actions: TxActions,
@@ -652,6 +737,7 @@ fn transaction_actions(
         form_signals.date.set(edit_transaction.date.to_string());
         form_signals.account_id.set(Some(edit_transaction.account_id));
         form_signals.category_id.set(Some(edit_transaction.category_id));
+        form_signals.notes.set(edit_transaction.notes.clone().unwrap_or_default());
         form_signals.error.set(String::new());
         form_signals.saving.set(false);
         form_signals.editing.set(Some(id));
@@ -685,6 +771,30 @@ fn transaction_actions(
         });
     };
     let confirm = actions.delete_confirm;
+    let notes_value = transaction.notes.clone().unwrap_or_default();
+    let notes_name = transaction.name.clone();
+    let notes_signal = actions.form.notes;
+    let open_notes = move || {
+        notes_signal.set(notes_value.clone());
+        actions.form.error.set(String::new());
+        actions.form.saving.set(false);
+        let modal = actions.modal;
+        let dialog_name = notes_name.clone();
+        modal.open(move || {
+            notes_form(
+                id,
+                dialog_name.clone(),
+                notes_signal,
+                actions.form.saving,
+                actions.form.error,
+                server,
+                token,
+                data,
+                modal,
+            )
+            .into_element()
+        });
+    };
     when(move || actions.delete_confirm.get() == Some(id), move || {
         let delete = delete.clone();
         view()
@@ -698,10 +808,11 @@ fn transaction_actions(
     })
     .otherwise(move || {
         let edit = edit.clone();
+        let open_notes = open_notes.clone();
         view()
             .flex_row()
             .gap(px(4.0))
-            .child(ui::mini_icon_button(asset!("icons/notes.svg"), false, edit.clone()))
+            .child(ui::mini_icon_button(asset!("icons/notes.svg"), false, open_notes))
             .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, edit))
             .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || {
                 confirm.set(Some(id));
@@ -854,6 +965,7 @@ mod tests {
             amount,
             currency: "EUR".to_string(),
             date: day,
+            notes: None,
             logo_url: None,
         }
     }
@@ -895,6 +1007,7 @@ mod tests {
             date: date(2026, 11, 22),
             account_id: Uuid::new_v4(),
             category_id: None,
+            notes: None,
         };
         let value = serde_json::to_value(request).expect("request serializes");
         assert_eq!(value["name"], json!("Groceries"));

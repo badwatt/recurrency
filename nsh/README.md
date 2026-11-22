@@ -53,3 +53,4 @@ and reuse it, matching the Dioxus component boundaries.
 - [x] Privacy mode masks every amount from the top-bar eye control.
 - [x] In-app BYOK AI chat dialog with action results.
 - [x] Date format and first day of week persisted and applied to lists, pickers and calendar.
+- [x] Notes editors for subscriptions and transactions.
