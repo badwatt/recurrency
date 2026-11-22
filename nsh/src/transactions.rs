@@ -11,9 +11,12 @@ use crate::api::{self, TransactionsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
-use crate::components::list_toolbar::{filter_button, list_toolbar};
+use crate::components::filter_menu::filter_menu;
+use crate::components::list_toolbar::list_toolbar;
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::sort_menu::{SortOption, sort_menu};
+use crate::components::string_select::{StringSelectProps, string_select};
+use crate::components::toggle::toggle;
 use crate::format::{format_currency, format_date};
 use crate::models::{Account, Rates, Transaction};
 use crate::theme as design;
@@ -189,6 +192,9 @@ pub fn transactions(
     let sort_desc = signal(true);
     let sort_field = signal("date".to_string());
     let month_only = signal(false);
+    let category_filter = signal(String::new());
+    let price_min = signal(String::new());
+    let price_max = signal(String::new());
     let list_view = signal(true);
     view()
         .w_full()
@@ -196,7 +202,15 @@ pub fn transactions(
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
         .child(toolbar(
-            search, list_view, month_only, sort_desc, sort_field,
+            data,
+            search,
+            list_view,
+            month_only,
+            sort_desc,
+            sort_field,
+            category_filter,
+            price_min,
+            price_max,
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -215,6 +229,9 @@ pub fn transactions(
                     month_only,
                     sort_desc,
                     sort_field,
+                    category_filter,
+                    price_min,
+                    price_max,
                 )
             })
         }))
@@ -539,12 +556,39 @@ fn form(
 }
 
 fn toolbar(
+    data: Resource<TransactionsData, String>,
     search: Signal<String>,
     list_view: Signal<bool>,
     month_only: Signal<bool>,
     sort_desc: Signal<bool>,
     sort_field: Signal<String>,
+    category_filter: Signal<String>,
+    price_min: Signal<String>,
+    price_max: Signal<String>,
 ) -> impl IntoElement {
+    let active = move || {
+        usize::from(!category_filter.get().is_empty())
+            + usize::from(!price_min.get().trim().is_empty())
+            + usize::from(!price_max.get().trim().is_empty())
+            + usize::from(month_only.get())
+    };
+    let clear = move || {
+        category_filter.set(String::new());
+        price_min.set(String::new());
+        price_max.set(String::new());
+        month_only.set(false);
+    };
+    let category_options = move || {
+        let mut options = vec![(String::new(), "All categories".to_string())];
+        options.extend(
+            data.get()
+                .unwrap_or_default()
+                .categories
+                .into_iter()
+                .map(|category| (category.id.to_string(), category.name)),
+        );
+        options
+    };
     list_toolbar(
         search,
         list_view,
@@ -552,7 +596,54 @@ fn toolbar(
             .flex_row()
             .items_center()
             .gap(px(8.0))
-            .child(filter_button(month_only))
+            .child(filter_menu(
+                active(),
+                view()
+                    .flex_col()
+                    .gap(px(10.0))
+                    .child(
+                        view()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                text("Filters")
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(ui::action_button("Clear", false, clear)),
+                    )
+                    .child(string_select(StringSelectProps::new(
+                        "Category",
+                        category_filter,
+                        category_options(),
+                    )))
+                    .child(
+                        view()
+                            .flex_row()
+                            .gap(px(8.0))
+                            .child(ui::field("Min", price_min, "0.00"))
+                            .child(ui::field("Max", price_max, "999.99")),
+                    )
+                    .child(
+                        view()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                text("This month only")
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(toggle(
+                                month_only.get(),
+                                "This month only".to_string(),
+                                move |value| month_only.set(value),
+                            )),
+                    )
+                    .into_element(),
+            ))
             .child(sort_menu(
                 sort_field,
                 sort_desc,
@@ -579,6 +670,9 @@ fn content(
     month_only: Signal<bool>,
     sort_desc: Signal<bool>,
     sort_field: Signal<String>,
+    category_filter: Signal<String>,
+    price_min: Signal<String>,
+    price_max: Signal<String>,
 ) -> AnyElement {
     let groups = move || {
         let snapshot = data.get().unwrap_or_default();
@@ -588,6 +682,11 @@ fn content(
             &snapshot.rates,
             &search.get(),
             sort_desc.get(),
+            (!category_filter.get().is_empty())
+                .then(|| Uuid::parse_str(&category_filter.get()).ok())
+                .flatten(),
+            price_min.get().parse::<Decimal>().ok(),
+            price_max.get().parse::<Decimal>().ok(),
         );
         if month_only.get() {
             let today = Local::now().date_naive();
@@ -1323,9 +1422,18 @@ fn group_transactions(
     rates: &Rates,
     query: &str,
     descending: bool,
+    category: Option<Uuid>,
+    price_min: Option<Decimal>,
+    price_max: Option<Decimal>,
 ) -> Vec<TransactionGroup> {
     let mut groups: Vec<TransactionGroup> = Vec::new();
     for transaction in filter_transactions(transactions, accounts, query) {
+        if category.is_some_and(|category| transaction.category_id != category)
+            || price_min.is_some_and(|minimum| transaction.amount < minimum)
+            || price_max.is_some_and(|maximum| transaction.amount > maximum)
+        {
+            continue;
+        }
         let key = format!(
             "{:04}-{:02}",
             transaction.date.year(),
@@ -1444,6 +1552,39 @@ mod tests {
     }
 
     #[test]
+    fn transaction_filters_respect_category_and_price_range() {
+        let account_id = Uuid::new_v4();
+        let category = Uuid::new_v4();
+        let mut cheap = transaction("Coffee", account_id, Decimal::from(3), date(2026, 11, 22));
+        cheap.category_id = category;
+        let expensive = transaction("Rent", account_id, Decimal::from(900), date(2026, 11, 1));
+        let items = vec![cheap, expensive];
+        let groups = group_transactions(
+            &items,
+            &[],
+            &Rates::default(),
+            "",
+            true,
+            Some(category),
+            None,
+            None,
+        );
+        assert_eq!(groups[0].items.len(), 1);
+        let groups = group_transactions(
+            &items,
+            &[],
+            &Rates::default(),
+            "",
+            true,
+            None,
+            Some(Decimal::from(100)),
+            None,
+        );
+        assert_eq!(groups[0].items.len(), 1);
+        assert_eq!(groups[0].items[0].name, "Rent");
+    }
+
+    #[test]
     fn transaction_sort_uses_amount_or_name() {
         let account_id = Uuid::new_v4();
         let mut items = vec![
@@ -1464,7 +1605,7 @@ mod tests {
             transaction("Rent", account_id, Decimal::from(900), date(2026, 10, 1)),
             transaction("Lunch", account_id, Decimal::from(12), date(2026, 11, 20)),
         ];
-        let groups = group_transactions(&items, &[], &Rates::default(), "", true);
+        let groups = group_transactions(&items, &[], &Rates::default(), "", true, None, None, None);
         assert_eq!(groups.len(), 2);
         assert_eq!(groups[0].label, "November 2026");
         assert_eq!(groups[0].items.len(), 2);
