@@ -1105,28 +1105,12 @@ fn list_card(
                 .gap(px(10.0))
                 .min_w(px(0.0))
                 .flex_1()
-                .child(
-                    view()
-                        .h(px(36.0))
-                        .w(px(36.0))
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(8.0))
-                        .bg(move || theme().muted)
-                        .child(
-                            when(logo.is_some(), move || {
-                                image(logo.clone().unwrap_or_default())
-                                    .size(px(18.0))
-                                    .into_element()
-                            })
-                            .otherwise(|| {
-                                image(asset!("icons/card.svg"))
-                                    .size(px(16.0))
-                                    .tint_color(move || theme().muted_foreground)
-                                    .into_element()
-                            }),
-                        ),
-                )
+                .child(crate::components::logo_avatar::logo_avatar(
+                    logo.clone(),
+                    asset!("icons/card.svg"),
+                    36.0,
+                    false,
+                ))
                 .child(
                     view()
                         .flex_col()
