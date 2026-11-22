@@ -298,6 +298,43 @@ pub async fn load_money_counts(
     Ok((accounts, categories))
 }
 
+#[derive(Serialize)]
+struct NameBody {
+    name: String,
+}
+
+pub async fn create_account(server: String, token: String, name: &str) -> Result<Account, String> {
+    Client::new(server, token)
+        .post("/api/accounts", &NameBody { name: name.to_string() })
+        .await
+}
+
+pub async fn update_account(server: String, token: String, id: uuid::Uuid, name: &str) -> Result<Account, String> {
+    Client::new(server, token)
+        .put(&format!("/api/accounts/{id}"), &NameBody { name: name.to_string() })
+        .await
+}
+
+pub async fn delete_account_by_id(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    Client::new(server, token).delete(&format!("/api/accounts/{id}")).await
+}
+
+pub async fn create_category(server: String, token: String, name: &str) -> Result<Category, String> {
+    Client::new(server, token)
+        .post("/api/categories", &NameBody { name: name.to_string() })
+        .await
+}
+
+pub async fn update_category(server: String, token: String, id: uuid::Uuid, name: &str) -> Result<Category, String> {
+    Client::new(server, token)
+        .put(&format!("/api/categories/{id}"), &NameBody { name: name.to_string() })
+        .await
+}
+
+pub async fn delete_category_by_id(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    Client::new(server, token).delete(&format!("/api/categories/{id}")).await
+}
+
 pub async fn load_admin_users(server: String, token: String) -> Result<Vec<AdminUser>, String> {
     Client::new(server, token).get("/api/admin/users").await
 }

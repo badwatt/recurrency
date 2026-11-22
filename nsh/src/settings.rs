@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::AiSettings;
 
 use crate::auth::{self, AuthSession, AuthUser, Session};
+use uuid::Uuid;
 use crate::components::toggle::toggle as shared_toggle;
 use crate::ui;
 
@@ -1147,6 +1148,94 @@ fn money_card(server: String, token: String) -> impl IntoElement {
             }
         },
     );
+    let account_name = signal(String::new());
+    let account_edit = signal(None::<Uuid>);
+    let account_open = signal(false);
+    let account_error = signal(String::new());
+    let account_busy = signal(false);
+    let category_name = signal(String::new());
+    let category_edit = signal(None::<Uuid>);
+    let category_open = signal(false);
+    let category_error = signal(String::new());
+    let category_busy = signal(false);
+
+    let start_account = {
+        move || {
+            account_name.set(String::new());
+            account_edit.set(None);
+            account_error.set(String::new());
+            account_open.set(true);
+        }
+    };
+    let save_account = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let name = account_name.get().trim().to_string();
+            if name.is_empty() {
+                account_error.set("Enter an account name.".to_string());
+                return;
+            }
+            let editing = account_edit.get();
+            let server = server.clone();
+            let token = token.clone();
+            account_busy.set(true);
+            spawn(async move {
+                let result = match editing {
+                    Some(id) => crate::api::update_account(server, token, id, &name).await.map(|_| ()),
+                    None => crate::api::create_account(server, token, &name).await.map(|_| ()),
+                };
+                match result {
+                    Ok(()) => {
+                        account_open.set(false);
+                        account_error.set(String::new());
+                        data.refetch();
+                    }
+                    Err(message) => account_error.set(message),
+                }
+                account_busy.set(false);
+            });
+        }
+    };
+    let start_category = {
+        move || {
+            category_name.set(String::new());
+            category_edit.set(None);
+            category_error.set(String::new());
+            category_open.set(true);
+        }
+    };
+    let save_category = {
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let name = category_name.get().trim().to_string();
+            if name.is_empty() {
+                category_error.set("Enter a category name.".to_string());
+                return;
+            }
+            let editing = category_edit.get();
+            let server = server.clone();
+            let token = token.clone();
+            category_busy.set(true);
+            spawn(async move {
+                let result = match editing {
+                    Some(id) => crate::api::update_category(server, token, id, &name).await.map(|_| ()),
+                    None => crate::api::create_category(server, token, &name).await.map(|_| ()),
+                };
+                match result {
+                    Ok(()) => {
+                        category_open.set(false);
+                        category_error.set(String::new());
+                        data.refetch();
+                    }
+                    Err(message) => category_error.set(message),
+                }
+                category_busy.set(false);
+            });
+        }
+    };
+
     view()
         .w_full()
         .flex_col()
@@ -1154,90 +1243,276 @@ fn money_card(server: String, token: String) -> impl IntoElement {
         .child(
             ui::surface()
                 .p(px(24.0))
-                .gap(px(16.0))
+                .gap(px(14.0))
                 .child(
-                    text("Accounts")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            text("Accounts")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(ui::action_button("Add account", false, start_account)),
                 )
                 .child(
                     view()
                         .flex_col()
                         .gap(px(6.0))
                         .child(each(
-                            move || {
-                                data.get()
-                                    .map_or_else(Vec::new, |(accounts, _)| accounts)
-                            },
+                            move || data.get().map_or_else(Vec::new, |(accounts, _)| accounts),
                             |item| item.account.id,
-                            move |item, _| {
-                                let item = item.get();
-                                view()
-                                    .w_full()
-                                    .flex_row()
-                                    .items_center()
-                                    .justify_between()
-                                    .py(px(7.0))
-                                    .border_b(px(1.0))
-                                    .border_color(move || theme().border)
-                                    .child(
-                                        text(item.account.name)
-                                            .text_size(px(13.0))
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .child(
-                                        text(format!(
-                                            "{} subscriptions · {} transactions",
-                                            item.subscription_count, item.transaction_count
-                                        ))
-                                        .text_size(px(10.0))
-                                        .text_color(move || theme().muted_foreground),
-                                    )
+                            {
+                                let delete_server = server.clone();
+                                let delete_token = token.clone();
+                                move |item, _| {
+                                    let item: crate::models::AccountWithCounts = item.get();
+                                    let id = item.account.id;
+                                    let row_name = item.account.name.clone();
+                                    let edit_name = row_name.clone();
+                                    let delete_server = delete_server.clone();
+                                    let delete_token = delete_token.clone();
+                                    let delete = move || {
+                                        let server = delete_server.clone();
+                                        let token = delete_token.clone();
+                                        spawn(async move {
+                                            match crate::api::delete_account_by_id(server, token, id).await {
+                                                Ok(()) => data.refetch(),
+                                                Err(message) => account_error.set(message),
+                                            }
+                                        });
+                                    };
+                                    view()
+                                        .w_full()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_between()
+                                        .gap(px(8.0))
+                                        .py(px(7.0))
+                                        .border_b(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .child(
+                                            view()
+                                                .flex_row()
+                                                .items_center()
+                                                .gap(px(7.0))
+                                                .child(
+                                                    text(row_name)
+                                                        .text_size(px(13.0))
+                                                        .text_color(move || theme().foreground),
+                                                )
+                                                .when(item.account.is_default, |row| {
+                                                    row.child(text("Default").text_size(px(9.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().primary))
+                                                }),
+                                        )
+                                        .child(
+                                            view()
+                                                .flex_row()
+                                                .items_center()
+                                                .gap(px(8.0))
+                                                .child(
+                                                    text(format!(
+                                                        "{} subscriptions · {} transactions",
+                                                        item.subscription_count, item.transaction_count
+                                                    ))
+                                                    .text_size(px(10.0))
+                                                    .text_color(move || theme().muted_foreground),
+                                                )
+                                                .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || {
+                                                    account_name.set(edit_name.clone());
+                                                    account_edit.set(Some(id));
+                                                    account_error.set(String::new());
+                                                    account_open.set(true);
+                                                }))
+                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete)),
+                                        )
+                                }
                             },
                         )),
                 )
                 .child(
-                    text("Categories")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
+                    when(move || account_open.get(), {
+                    let save = save_account.clone();
+                    move || {
+                        let save = save.clone();
+                        ui::surface()
+                            .p(px(14.0))
+                            .gap(px(10.0))
+                            .border_color(move || theme().primary.opacity(0.4))
+                            .bg(move || theme().muted.opacity(0.4))
+                            .child(
+                                text(move || if account_edit.get().is_some() { "Edit account" } else { "New account" })
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(ui::field("Name", account_name, "Main account"))
+                            .child(
+                                when(move || !account_error.get().is_empty(), move || {
+                                    text(move || account_error.get())
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().destructive)
+                                        .into_element()
+                                })
+                                .otherwise(|| view().h(px(0.0)).into_element()),
+                            )
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .justify_end()
+                                    .gap(px(8.0))
+                                    .child(ui::action_button("Cancel", false, move || account_open.set(false)))
+                                    .child(ui::action_button(
+                                        if account_busy.get() { "Saving..." } else { "Save" },
+                                        false,
+                                        save,
+                                    )),
+                            )
+                            .into_element()
+                    }
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    text("Accounts are required. Every subscription and transaction belongs to one.")
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            ui::surface()
+                .p(px(24.0))
+                .gap(px(14.0))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            text("Categories")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(ui::action_button("Add category", false, start_category)),
                 )
                 .child(
                     view()
                         .flex_col()
                         .gap(px(6.0))
                         .child(each(
-                            move || {
-                                data.get()
-                                    .map_or_else(Vec::new, |(_, categories)| categories)
-                            },
+                            move || data.get().map_or_else(Vec::new, |(_, categories)| categories),
                             |item| item.category.id,
-                            move |item, _| {
-                                let item = item.get();
-                                view()
-                                    .w_full()
-                                    .flex_row()
-                                    .items_center()
-                                    .justify_between()
-                                    .py(px(7.0))
-                                    .border_b(px(1.0))
-                                    .border_color(move || theme().border)
-                                    .child(
-                                        text(item.category.name)
-                                            .text_size(px(13.0))
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .child(
-                                        text(format!(
-                                            "{} subscriptions · {} transactions",
-                                            item.subscription_count, item.transaction_count
-                                        ))
-                                        .text_size(px(10.0))
-                                        .text_color(move || theme().muted_foreground),
-                                    )
+                            {
+                                let delete_server = server.clone();
+                                let delete_token = token.clone();
+                                move |item, _| {
+                                    let item: crate::models::CategoryWithCounts = item.get();
+                                    let id = item.category.id;
+                                    let row_name = item.category.name.clone();
+                                    let edit_name = row_name.clone();
+                                    let delete_server = delete_server.clone();
+                                    let delete_token = delete_token.clone();
+                                    let delete = move || {
+                                        let server = delete_server.clone();
+                                        let token = delete_token.clone();
+                                        spawn(async move {
+                                            match crate::api::delete_category_by_id(server, token, id).await {
+                                                Ok(()) => data.refetch(),
+                                                Err(message) => category_error.set(message),
+                                            }
+                                        });
+                                    };
+                                    view()
+                                        .w_full()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_between()
+                                        .gap(px(8.0))
+                                        .py(px(7.0))
+                                        .border_b(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .child(
+                                            text(row_name)
+                                                .text_size(px(13.0))
+                                                .text_color(move || theme().foreground),
+                                        )
+                                        .child(
+                                            view()
+                                                .flex_row()
+                                                .items_center()
+                                                .gap(px(8.0))
+                                                .child(
+                                                    text(format!(
+                                                        "{} subscriptions · {} transactions",
+                                                        item.subscription_count, item.transaction_count
+                                                    ))
+                                                    .text_size(px(10.0))
+                                                    .text_color(move || theme().muted_foreground),
+                                                )
+                                                .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || {
+                                                    category_name.set(edit_name.clone());
+                                                    category_edit.set(Some(id));
+                                                    category_error.set(String::new());
+                                                    category_open.set(true);
+                                                }))
+                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, delete)),
+                                        )
+                                }
                             },
                         )),
+                )
+                .child(
+                    when(move || category_open.get(), {
+                    let save = save_category.clone();
+                    move || {
+                        let save = save.clone();
+                        ui::surface()
+                            .p(px(14.0))
+                            .gap(px(10.0))
+                            .border_color(move || theme().primary.opacity(0.4))
+                            .bg(move || theme().muted.opacity(0.4))
+                            .child(
+                                text(move || if category_edit.get().is_some() { "Edit category" } else { "New category" })
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(ui::field("Name", category_name, "Entertainment"))
+                            .child(
+                                when(move || !category_error.get().is_empty(), move || {
+                                    text(move || category_error.get())
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().destructive)
+                                        .into_element()
+                                })
+                                .otherwise(|| view().h(px(0.0)).into_element()),
+                            )
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .justify_end()
+                                    .gap(px(8.0))
+                                    .child(ui::action_button("Cancel", false, move || category_open.set(false)))
+                                    .child(ui::action_button(
+                                        if category_busy.get() { "Saving..." } else { "Save" },
+                                        false,
+                                        save,
+                                    )),
+                            )
+                            .into_element()
+                    }
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    text("Categories are optional. Subscriptions and transactions can be uncategorized.")
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
                 ),
         )
 }
