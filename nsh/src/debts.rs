@@ -297,52 +297,58 @@ fn payment_form(
         });
     };
 
-    view()
-        .w_full()
-        .w(px(560.0))
-        .rounded(px(16.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(24.0))
-        .gap(px(16.0))
-        .child(
-            view()
-                .flex_col()
-                .gap(px(2.0))
-                .child(
-                    text("Record payment")
-                        .text_size(px(20.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("Reduce the remaining balance of this debt.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(
+            "Record payment",
+            "Reduce the remaining balance of this debt.",
+            move || {
+                pay_id.set(None);
+                modal.close();
+            },
         )
-        .child(
+        .width(560.0)
+        .body(
+            view()
+                .p(px(24.0))
+                .gap(px(16.0))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .gap(px(12.0))
+                        .child(ui::field("Amount", amount, "250"))
+                        .child(ui::date_field("Paid on", paid_on)),
+                )
+                .child(ui::field("Note", note, "November payment"))
+                .child(
+                    when(move || !error.get().is_empty(), move || {
+                        text(move || error.get())
+                            .text_size(px(12.0))
+                            .text_color(move || theme().destructive)
+                    })
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .into_element(),
+        )
+        .footer(
             view()
                 .w_full()
                 .flex_row()
-                .gap(px(12.0))
-                .child(ui::field("Amount", amount, "250"))
-                .child(ui::date_field("Paid on", paid_on)),
-        )
-        .child(ui::field("Note", note, "November payment"))
-        .child(
-            when(move || !error.get().is_empty(), move || {
-                text(move || error.get())
-                    .text_size(px(12.0))
-                    .text_color(move || theme().destructive)
-            })
-            .otherwise(|| view().h(px(0.0))),
-        )
-        .child(
-            view()
-                .flex_row()
+                .justify_end()
                 .gap(px(8.0))
+                .child(
+                    button()
+                        .items_center()
+                        .justify_center()
+                        .h(px(36.0))
+                        .px(px(14.0))
+                        .rounded(px(7.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().card)
+                        .on_press(move || { pay_id.set(None); modal.close(); })
+                        .child(text("Cancel").text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(move || theme().foreground)),
+                )
                 .child(
                     button()
                         .items_center()
@@ -361,25 +367,9 @@ fn payment_form(
                                 .text_color(move || theme().primary_foreground),
                         ),
                 )
-                .child(
-                    button()
-                        .items_center()
-                        .justify_center()
-                        .h(px(36.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().card)
-                        .on_press(move || { pay_id.set(None); modal.close(); })
-                        .child(
-                            text("Cancel")
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        ),
-                ),
-        )
+                .into_element(),
+        ),
+    )
 }
 
 fn history_panel(payments: DebtPayments, currency: String, modal: ui::ModalHost) -> impl IntoElement {
