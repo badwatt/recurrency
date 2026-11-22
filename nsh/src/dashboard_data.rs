@@ -363,6 +363,8 @@ mod tests {
             is_active: true,
             notes: None,
             logo_url: None,
+            created_at: None,
+            updated_at: None,
         }
     }
 
@@ -411,6 +413,8 @@ mod tests {
             date: date(2026, 11, 22),
             notes: None,
             logo_url: None,
+            created_at: None,
+            updated_at: None,
         };
         let budgets = build_account_budgets(
             &[account(account_id, "Main")],
@@ -437,6 +441,8 @@ mod tests {
             date: date(2026, 11, 23),
             notes: None,
             logo_url: None,
+            created_at: None,
+            updated_at: None,
         };
         let upcoming = upcoming_payments(
             &[subscription],

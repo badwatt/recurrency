@@ -1,6 +1,6 @@
 //! API response models shared by the native screens.
 
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -63,6 +63,10 @@ pub struct Subscription {
     #[serde(default)]
     pub notes: Option<String>,
     pub logo_url: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -77,6 +81,10 @@ pub struct Transaction {
     #[serde(default)]
     pub notes: Option<String>,
     pub logo_url: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]

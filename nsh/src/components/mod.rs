@@ -19,6 +19,7 @@ pub mod search_input;
 pub mod segmented;
 pub mod select_menu;
 pub mod skeleton;
+pub mod sort_menu;
 pub mod string_select;
 pub mod toggle;
 pub mod web_server_qr;

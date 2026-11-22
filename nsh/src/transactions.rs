@@ -1401,6 +1401,8 @@ mod tests {
             date: day,
             notes: None,
             logo_url: None,
+            created_at: None,
+            updated_at: None,
         }
     }
 

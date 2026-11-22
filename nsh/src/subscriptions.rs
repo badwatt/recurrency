@@ -14,8 +14,9 @@ use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
-use crate::components::list_toolbar::{filter_button, list_toolbar, sort_button};
+use crate::components::list_toolbar::{filter_button, list_toolbar};
 use crate::components::page_header::page_header as shared_page_header;
+use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::format::{format_currency, format_date};
 use crate::models::{AnnualDate, Recurrence, Subscription};
@@ -106,6 +107,7 @@ pub fn subscriptions(
     );
     let search = signal(String::new());
     let sort_desc = signal(false);
+    let sort_field = signal("next_billing_date".to_string());
     let list_view = signal(false);
     let active_only = signal(false);
     let form_open = signal(false);
@@ -215,7 +217,14 @@ pub fn subscriptions(
         .flex_col()
         .gap(px(24.0))
         .child(header(open_form, open_bulk))
-        .child(toolbar(data, search, sort_desc, list_view, active_only))
+        .child(toolbar(
+            data,
+            search,
+            sort_desc,
+            sort_field,
+            list_view,
+            active_only,
+        ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
             when(has_error, move || {
@@ -230,6 +239,7 @@ pub fn subscriptions(
                     server_signal,
                     token_signal,
                     sort_desc,
+                    sort_field,
                     list_view,
                     active_only,
                 )
@@ -780,10 +790,11 @@ fn toolbar(
     data: Resource<SubscriptionsData, String>,
     search: Signal<String>,
     sort_desc: Signal<bool>,
+    sort_field: Signal<String>,
     list_view: Signal<bool>,
     active_only: Signal<bool>,
 ) -> impl IntoElement {
-    let count = move || filtered(data, search, active_only, sort_desc).len();
+    let count = move || filtered(data, search, active_only, sort_desc, &sort_field.get()).len();
     view()
         .w_full()
         .flex_col()
@@ -796,7 +807,19 @@ fn toolbar(
                 .items_center()
                 .gap(px(8.0))
                 .child(filter_button(active_only))
-                .child(sort_button(sort_desc))
+                .child(sort_menu(
+                    sort_field,
+                    sort_desc,
+                    vec![
+                        SortOption::new("next_billing_date", "Upcoming date"),
+                        SortOption::new("amount", "Price"),
+                        SortOption::new("name", "Name"),
+                        SortOption::new("frequency", "Repeat"),
+                        SortOption::new("start_date", "Start date"),
+                        SortOption::new("created_at", "Created"),
+                        SortOption::new("updated_at", "Last modified"),
+                    ],
+                ))
                 .into_element(),
         ))
         .child(
@@ -814,17 +837,18 @@ fn content(
     server: Signal<String>,
     token: Signal<String>,
     sort_desc: Signal<bool>,
+    sort_field: Signal<String>,
     list_view: Signal<bool>,
     active_only: Signal<bool>,
 ) -> AnyElement {
     let active = move || {
-        filtered(data, search, active_only, sort_desc)
+        filtered(data, search, active_only, sort_desc, &sort_field.get())
             .into_iter()
             .filter(|subscription| subscription.is_active)
             .collect::<Vec<_>>()
     };
     let inactive = move || {
-        filtered(data, search, active_only, sort_desc)
+        filtered(data, search, active_only, sort_desc, &sort_field.get())
             .into_iter()
             .filter(|subscription| !subscription.is_active)
             .collect::<Vec<_>>()
@@ -960,6 +984,7 @@ fn filtered(
     search: Signal<String>,
     active_only: Signal<bool>,
     sort_desc: Signal<bool>,
+    sort_field: &str,
 ) -> Vec<Subscription> {
     let data = data.get().unwrap_or_default();
     filter_subscriptions(
@@ -968,6 +993,7 @@ fn filtered(
         &data.accounts,
         active_only.get(),
         sort_desc.get(),
+        sort_field,
     )
 }
 
@@ -977,6 +1003,7 @@ fn filter_subscriptions(
     accounts: &[crate::models::Account],
     active_only: bool,
     sort_desc: bool,
+    sort_field: &str,
 ) -> Vec<Subscription> {
     let query = query.trim().to_lowercase();
     let mut result: Vec<Subscription> = subscriptions
@@ -1003,13 +1030,22 @@ fn filter_subscriptions(
                 .next_billing_date
                 .map_or(i32::MAX, |date| date.num_days_from_ce())
         };
+        let ordering = match sort_field {
+            "amount" => a.amount.cmp(&b.amount),
+            "name" => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            "frequency" => a.recurrence.unit.cmp(&b.recurrence.unit),
+            "start_date" => a.start_date.cmp(&b.start_date),
+            "created_at" => a.created_at.cmp(&b.created_at),
+            "updated_at" => a.updated_at.cmp(&b.updated_at),
+            _ => date(a).cmp(&date(b)),
+        };
         b.is_active
             .cmp(&a.is_active)
             .then_with(|| {
                 if sort_desc {
-                    date(b).cmp(&date(a))
+                    ordering.reverse()
                 } else {
-                    date(a).cmp(&date(b))
+                    ordering
                 }
             })
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
@@ -1922,7 +1958,31 @@ mod tests {
             is_active: active,
             notes: None,
             logo_url: None,
+            created_at: None,
+            updated_at: None,
         }
+    }
+
+    #[test]
+    fn sorting_uses_the_selected_field_and_direction() {
+        let account_id = Uuid::new_v4();
+        let mut cheap = subscription("Cheap", account_id, true);
+        cheap.amount = Decimal::from(5);
+        let mut pricey = subscription("Pricey", account_id, true);
+        pricey.amount = Decimal::from(50);
+        let items = vec![cheap, pricey];
+        let ascending = filter_subscriptions(&items, "", &[], false, false, "amount");
+        assert_eq!(ascending[0].name, "Cheap");
+        let descending = filter_subscriptions(&items, "", &[], false, true, "amount");
+        assert_eq!(descending[0].name, "Pricey");
+    }
+
+    #[test]
+    fn sort_menu_exposes_every_sortable_field() {
+        let source = include_str!("components/sort_menu.rs");
+        assert!(source.contains("Sort by"));
+        assert!(source.contains("Ascending"));
+        assert!(source.contains("icons/sort.svg"));
     }
 
     #[test]
@@ -1940,15 +2000,24 @@ mod tests {
             subscription("Netflix", Uuid::new_v4(), true),
         ];
         assert_eq!(
-            filter_subscriptions(&items, "spot", &accounts, false, false)[0].name,
+            filter_subscriptions(&items, "spot", &accounts, false, false, "next_billing_date")[0]
+                .name,
             "Spotify"
         );
         assert_eq!(
-            filter_subscriptions(&items, "every", &accounts, false, false).len(),
+            filter_subscriptions(
+                &items,
+                "every",
+                &accounts,
+                false,
+                false,
+                "next_billing_date"
+            )
+            .len(),
             1
         );
         assert_eq!(
-            filter_subscriptions(&items, "", &accounts, false, false).len(),
+            filter_subscriptions(&items, "", &accounts, false, false, "next_billing_date").len(),
             2
         );
     }
@@ -1960,7 +2029,7 @@ mod tests {
             subscription("Aardvark", account_id, false),
             subscription("Zebra", account_id, true),
         ];
-        let filtered = filter_subscriptions(&items, "", &[], false, false);
+        let filtered = filter_subscriptions(&items, "", &[], false, false, "next_billing_date");
         assert_eq!(filtered[0].name, "Zebra");
         assert!(!filtered[1].is_active);
     }
