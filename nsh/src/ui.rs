@@ -13,6 +13,7 @@ thread_local! {
     static SETTINGS_INTENT: RefCell<Option<Signal<Option<String>>>> = const { RefCell::new(None) };
     static AI_CHAT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
     static ROUTE: RefCell<Option<Signal<Route>>> = const { RefCell::new(None) };
+    static NOTIFICATIONS: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -32,6 +33,32 @@ pub fn init_privacy() {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
             *slot = Some(signal(false));
+        }
+    });
+    NOTIFICATIONS.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(false));
+        }
+    });
+}
+
+pub fn notifications_open() -> bool {
+    NOTIFICATIONS.with(|slot| slot.borrow().map_or(false, |open| open.get()))
+}
+
+pub fn open_notifications() {
+    NOTIFICATIONS.with(|slot| {
+        if let Some(open) = *slot.borrow() {
+            open.set(true);
+        }
+    });
+}
+
+pub fn close_notifications() {
+    NOTIFICATIONS.with(|slot| {
+        if let Some(open) = *slot.borrow() {
+            open.set(false);
         }
     });
 }
@@ -149,7 +176,8 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                 )
                 .child(view().flex_1())
                 .child(ai_action(route, auth.clone()))
-                .child(privacy_action())
+                .child(notification_action())
+        .child(privacy_action())
                 .child(icon_action(route, asset!("icons/palette.svg"), "appearance"))
                 .child(avatar(route, auth)),
         )
@@ -190,6 +218,18 @@ fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
             });
         })
         .child(image(asset!("icons/sparkles.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground))
+}
+
+fn notification_action() -> impl IntoElement {
+    button()
+        .items_center()
+        .justify_center()
+        .h(px(30.0))
+        .w(px(30.0))
+        .rounded(px(6.0))
+        .accessibility_label("Notifications")
+        .on_press(open_notifications)
+        .child(image(asset!("icons/bell.svg")).size(px(17.0)).tint_color(move || theme().muted_foreground))
 }
 
 fn privacy_action() -> impl IntoElement {

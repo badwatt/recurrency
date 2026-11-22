@@ -16,6 +16,7 @@ mod dashboard_data;
 mod format;
 mod login;
 mod models;
+mod notifications;
 mod recurrence;
 mod reports;
 mod settings;
@@ -141,6 +142,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         }
     });
     let chat_auth = auth.clone();
+    let notification_auth = chat_auth.clone();
     let auth_signal = signal(auth);
     let compact = signal(false);
     let modal = ui::ModalHost::new();
@@ -255,6 +257,21 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .child(
             when(move || ui::ai_chat_open(), move || ai_chat::ai_chat(chat_auth.clone()))
                 .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(move || ui::notifications_open(), move || {
+                view()
+                    .absolute()
+                    .inset_0()
+                    .z_index(100)
+                    .items_center()
+                    .justify_center()
+                    .p(px(16.0))
+                    .bg(rgba(0x000000cc))
+                    .child(notifications::notifications_modal(notification_auth.clone()))
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0))),
         )
         .into_element()
 }

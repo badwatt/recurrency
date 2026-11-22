@@ -439,6 +439,48 @@ pub async fn admin_import_backup(server: String, token: String, value: &serde_js
     Client::new(server, token).post("/api/admin/backup/restore", value).await
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct Notification {
+    pub id: uuid::Uuid,
+    pub title: String,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub is_read: bool,
+    #[serde(default)]
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct NotificationList {
+    #[serde(default)]
+    pub notifications: Vec<Notification>,
+    #[serde(default)]
+    pub unread_count: i64,
+}
+
+pub async fn load_notifications(server: String, token: String) -> Result<NotificationList, String> {
+    Client::new(server, token).get("/api/notifications").await
+}
+
+pub async fn mark_notification_read(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    let _: serde_json::Value = Client::new(server, token)
+        .post(&format!("/api/notifications/{id}/read"), &serde_json::json!({}))
+        .await?;
+    Ok(())
+}
+
+pub async fn mark_all_notifications_read(server: String, token: String) -> Result<(), String> {
+    let _: serde_json::Value = Client::new(server, token)
+        .post("/api/notifications/read-all", &serde_json::json!({}))
+        .await?;
+    Ok(())
+}
+
+pub async fn delete_notification(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    Client::new(server, token).delete(&format!("/api/notifications/{id}")).await
+}
+
 pub async fn load_admin_users(server: String, token: String) -> Result<Vec<AdminUser>, String> {
     Client::new(server, token).get("/api/admin/users").await
 }
