@@ -4,11 +4,11 @@
 
 use crate::api::DeliveryChannel;
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
-use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, button};
+use crate::components::button::{ButtonProps, ButtonVariant, button};
 use crate::components::field::{FieldProps, field};
 use crate::components::input::text_input_value;
 use crate::components::toggle::toggle;
-use nsh_base::theme;
+use nsh_base::{button as raw_button, theme};
 use nsh_core::prelude::*;
 use serde_json::{Map, Value, json};
 
@@ -127,6 +127,22 @@ pub const PROVIDERS: &[ProviderSpec] = &[
         fields: SERVERCHAN_FIELDS,
     },
 ];
+
+fn provider_color(id: &str) -> u32 {
+    match id {
+        "email" => 0x6366f1ff,
+        "ntfy" => 0x22c55eff,
+        "telegram" => 0x0ea5e9ff,
+        "discord" => 0x5865f2ff,
+        "gotify" => 0xf59e0bff,
+        "webhook" => 0x8b5cf6ff,
+        "slack" => 0xe01e5aff,
+        "mattermost" => 0x0058ccff,
+        "pushover" => 0xe11d48ff,
+        "pushplus" => 0x14b8a6ff,
+        _ => 0x64748bff,
+    }
+}
 
 pub fn provider(id: &str) -> Option<&'static ProviderSpec> {
     PROVIDERS.iter().find(|provider| provider.id == id)
@@ -297,7 +313,8 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 .gap(px(6.0))
                 .children(PROVIDERS.iter().map(|spec| {
                     let id = spec.id;
-                    let active = selected.get() == id;
+                    let label = spec.label;
+                    let color = provider_color(id);
                     let is_enabled = data
                         .get()
                         .unwrap_or_default()
@@ -306,21 +323,49 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                     view()
                         .flex_row()
                         .items_center()
-                        .gap(px(4.0))
-                        .child(button(
-                            ButtonProps::new(spec.label)
-                                .variant(if active {
-                                    ButtonVariant::Secondary
-                                } else {
-                                    ButtonVariant::Ghost
+                        .gap(px(5.0))
+                        .child(
+                            raw_button()
+                                .h(px(26.0))
+                                .px(px(8.0))
+                                .flex_row()
+                                .items_center()
+                                .gap(px(6.0))
+                                .rounded(px(5.0))
+                                .border(px(1.0))
+                                .border_color(move || {
+                                    if selected.get() == id {
+                                        theme().primary
+                                    } else {
+                                        theme().border
+                                    }
                                 })
-                                .size(ButtonSize::Xs)
+                                .bg(move || {
+                                    if selected.get() == id {
+                                        theme().accent
+                                    } else {
+                                        theme().card
+                                    }
+                                })
                                 .on_press(move || {
                                     let channels = data.get().unwrap_or_default();
                                     load_from(id, &channels, values, enabled);
                                     selected.set(id.to_string());
-                                }),
-                        ))
+                                })
+                                .child(
+                                    view()
+                                        .h(px(7.0))
+                                        .w(px(7.0))
+                                        .rounded(px(2.0))
+                                        .bg(rgba(color)),
+                                )
+                                .child(
+                                    text(label)
+                                        .text_size(px(11.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                ),
+                        )
                         .when(is_enabled, |row| {
                             row.child(
                                 view()
