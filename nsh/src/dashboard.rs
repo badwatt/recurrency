@@ -373,6 +373,7 @@ fn hero(
                 .flex_grow(0.85)
                 .basis(px(300.0))
                 .p(px(32.0))
+                .pb(px(20.0))
                 .border_l(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().muted.opacity(0.2))
@@ -683,6 +684,7 @@ fn ledger_card(
         .child(
             view()
                 .p(px(20.0))
+                .pt(px(12.0))
                 .pb(px(8.0))
                 .gap(px(4.0))
                 .child(

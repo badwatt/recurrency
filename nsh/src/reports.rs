@@ -541,7 +541,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
 fn trend_label(period: &str) -> String {
     let mut parts = period.split('-');
     let year = parts.next().unwrap_or_default();
-    let month = parts.next().unwrap_or_default();
+    let month = parts.next().unwrap_or_default().trim_start_matches('0');
     let short_year = year.get(2..).unwrap_or(year);
     format!("{month}/{short_year}")
 }

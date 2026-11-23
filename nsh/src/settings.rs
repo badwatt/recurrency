@@ -318,7 +318,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .flex_row()
         .flex_wrap()
         .items_start()
-        .gap(move || if compact.get() { px(0.0) } else { px(36.0) })
+        .gap(px(0.0))
         .child(when(
             move || compact.get(),
             move || compact_nav(section, is_admin),
@@ -326,6 +326,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .child(
             view()
                 .w(move || if compact.get() { px(0.0) } else { px(200.0) })
+                .mr(move || if compact.get() { px(0.0) } else { px(36.0) })
                 .max_h(move || if compact.get() { px(0.0) } else { px(4000.0) })
                 .overflow_hidden()
                 .flex_col()
@@ -902,8 +903,9 @@ fn account_card(
         )
         .child(
             ui::surface()
+                .border_color(move || theme().destructive.opacity(0.3))
                 .p(px(24.0))
-                .gap(px(6.0))
+                .gap(px(12.0))
                 .child(
                     text("Delete account")
                         .text_size(px(20.0))
@@ -911,11 +913,52 @@ fn account_card(
                         .text_color(move || theme().destructive),
                 )
                 .child(
-                    text("Permanently remove your account and all of its data.")
+                    text("Permanently erase your account and all of its data")
                         .text_size(px(13.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(ui::action_button("Delete account", true, open_delete)),
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(12.0))
+                        .child(
+                            view()
+                                .flex_col()
+                                .min_w(px(0.0))
+                                .child(
+                                    text(move || email.get())
+                                        .text_size(px(13.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text("This cannot be undone.")
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
+                        )
+                        .child(
+                            button()
+                                .cursor_pointer()
+                                .items_center()
+                                .justify_center()
+                                .h(px(36.0))
+                                .px(px(14.0))
+                                .rounded(px(7.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().destructive.opacity(0.45))
+                                .on_press(move || open_delete())
+                                .child(
+                                    text("Delete account")
+                                        .text_size(px(13.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().destructive),
+                                ),
+                        ),
+                ),
         )
 }
 
