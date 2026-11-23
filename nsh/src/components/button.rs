@@ -54,7 +54,9 @@ impl ButtonSize {
             Self::Sm => 34.0,
             Self::Md => 40.0,
             Self::Lg => 48.0,
-            Self::Icon | Self::IconSm | Self::Unstyled => 0.0,
+            Self::Icon => 40.0,
+            Self::IconSm => 30.0,
+            Self::Unstyled => 0.0,
         }
     }
 
@@ -261,6 +263,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
                     .pointer_events(PointerEvents::None)
                     .tint_color(move || match variant {
                         ButtonVariant::Primary => theme().primary_foreground,
+                        ButtonVariant::Outline if !selected => theme().muted_foreground,
                         ButtonVariant::Destructive => theme().foreground,
                         _ => theme().foreground,
                     })
@@ -288,7 +291,7 @@ pub fn icon_button(
         ButtonProps::new("")
             .icon(icon)
             .size(ButtonSize::Icon)
-            .variant(ButtonVariant::Ghost)
+            .variant(ButtonVariant::Outline)
             .selected(active)
             .accessibility_label(label)
             .on_press(on_press),
@@ -313,5 +316,6 @@ mod tests {
         assert_eq!(ButtonSize::Xs.height(), 26.0);
         assert_eq!(ButtonSize::Md.height(), 40.0);
         assert_eq!(ButtonSize::Icon.width(), 40.0);
+        assert_eq!(ButtonSize::Icon.height(), 40.0);
     }
 }

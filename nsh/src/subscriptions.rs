@@ -1605,7 +1605,7 @@ fn card(
                         ),
                 )
                 .child(badge(BadgeProps::new(status).tone(if active {
-                    BadgeTone::Primary
+                    BadgeTone::Success
                 } else {
                     BadgeTone::Neutral
                 }))),

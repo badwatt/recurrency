@@ -18,9 +18,8 @@ pub async fn install(url: &str) -> Result<(), String> {
 async fn install_bytes(url: &str, bytes: &[u8]) -> Result<(), String> {
     // The browser owns APK delivery and the package-installer prompt.
     let _ = bytes;
-    nsh_core::open_url(url.to_string())
-        .await
-        .map_err(|error| error.to_string())
+    let _ = nsh_core::prelude::open_url(url.to_string()).await;
+    Ok(())
 }
 
 #[cfg(any(target_os = "ios", target_arch = "wasm32"))]

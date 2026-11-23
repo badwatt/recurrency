@@ -61,7 +61,7 @@ pub fn badge(props: BadgeProps) -> impl IntoElement {
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || match tone {
                     BadgeTone::Primary => theme().primary,
-                    BadgeTone::Success => theme().primary,
+                    BadgeTone::Success => crate::theme::success(),
                     BadgeTone::Destructive => theme().destructive,
                     _ => theme().muted_foreground,
                 }),
