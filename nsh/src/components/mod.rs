@@ -27,6 +27,7 @@ pub mod privacy_toggle;
 pub mod search_input;
 pub mod segmented;
 pub mod select_menu;
+pub mod selection_bar;
 pub mod skeleton;
 pub mod sort_menu;
 pub mod string_select;

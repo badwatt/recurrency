@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::api::{self, TransactionsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::checkbox::checkbox_action;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
@@ -189,8 +190,25 @@ pub fn transactions(
         open_form();
     }
 
+    let selection_mode = signal(false);
+    let selected = signal(Vec::<Uuid>::new());
     let open_bulk = move || {
-        modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
+        if selection_mode.get() {
+            modal.open(move || {
+                bulk_modal(
+                    data,
+                    server_signal,
+                    token_signal,
+                    modal,
+                    selected,
+                    selection_mode,
+                )
+                .into_element()
+            });
+        } else {
+            selected.set(Vec::new());
+            selection_mode.set(true);
+        }
     };
 
     let month_only = signal(false);
@@ -216,6 +234,42 @@ pub fn transactions(
             price_max,
             open_bulk,
         ))
+        .child(when(
+            move || selection_mode.get(),
+            move || {
+                crate::components::selection_bar::selection_bar(
+                    move || selected.get().len(),
+                    move || {
+                        let mut values = selected.get();
+                        for transaction in data.get().unwrap_or_default().transactions {
+                            if !values.contains(&transaction.id) {
+                                values.push(transaction.id);
+                            }
+                        }
+                        selected.set(values);
+                    },
+                    move || selected.set(Vec::new()),
+                    move || {
+                        modal.open(move || {
+                            bulk_modal(
+                                data,
+                                server_signal,
+                                token_signal,
+                                modal,
+                                selected,
+                                selection_mode,
+                            )
+                            .into_element()
+                        });
+                    },
+                    move || {
+                        selected.set(Vec::new());
+                        selection_mode.set(false);
+                    },
+                )
+                .into_element()
+            },
+        ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
             when(has_error, move || {
@@ -236,6 +290,8 @@ pub fn transactions(
                     category_filter,
                     price_min,
                     price_max,
+                    selection_mode,
+                    selected,
                 )
             })
         }))
@@ -628,6 +684,8 @@ fn content(
     category_filter: Signal<String>,
     price_min: Signal<String>,
     price_max: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> AnyElement {
     let list_key = format!("{}-{}", sort_field.get(), sort_desc.get());
     let groups = move || {
@@ -673,6 +731,8 @@ fn content(
                     server,
                     token,
                     grid,
+                    selection_mode,
+                    selected,
                 )
             },
         ))
@@ -687,6 +747,8 @@ fn group_card(
     server: Signal<String>,
     token: Signal<String>,
     grid: bool,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let count = ui::count_label(group.items.len(), "transaction", "transactions");
     let total = format_currency(group.total, &currency);
@@ -736,6 +798,8 @@ fn group_card(
                     actions,
                     server,
                     token,
+                    selection_mode,
+                    selected,
                 )
             },
         )))
@@ -748,6 +812,8 @@ fn row(
     actions: TxActions,
     server: Signal<String>,
     token: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let account = account_name(data, transaction.account_id);
     let action_transaction = transaction.clone();
@@ -757,6 +823,7 @@ fn row(
     let rates = data.get().unwrap_or_default().rates;
     let amount_value = transaction.amount;
     let amount_currency = transaction.currency.clone();
+    let select_id = transaction.id;
     view()
         .w_full()
         .flex_row()
@@ -776,6 +843,27 @@ fn row(
                 .gap(px(12.0))
                 .min_w(px(0.0))
                 .flex_1()
+                .child(when(
+                    move || selection_mode.get(),
+                    move || {
+                        checkbox_action(
+                            move || selected.get().contains(&select_id),
+                            "Select transaction".to_string(),
+                            move || {
+                                let mut values = selected.get();
+                                if let Some(index) =
+                                    values.iter().position(|value| *value == select_id)
+                                {
+                                    values.remove(index);
+                                } else {
+                                    values.push(select_id);
+                                }
+                                selected.set(values);
+                            },
+                        )
+                        .into_element()
+                    },
+                ))
                 .child(
                     view()
                         .h(px(40.0))
@@ -867,8 +955,9 @@ fn bulk_modal(
     server: Signal<String>,
     token: Signal<String>,
     modal: ui::ModalHost,
+    selected: Signal<Vec<Uuid>>,
+    selection_mode: Signal<bool>,
 ) -> impl IntoElement {
-    let selected = signal(Vec::<Uuid>::new());
     let busy = signal(false);
     let error = signal(String::new());
     let confirm_delete = signal(false);
@@ -926,6 +1015,7 @@ fn bulk_modal(
                     .await;
                 }
                 selected.set(Vec::new());
+                selection_mode.set(false);
                 data.refetch();
                 busy.set(false);
             });
@@ -945,6 +1035,7 @@ fn bulk_modal(
                 let _ = api::delete_transaction(server.clone(), token.clone(), id).await;
             }
             selected.set(Vec::new());
+            selection_mode.set(false);
             confirm_delete.set(false);
             data.refetch();
             busy.set(false);
