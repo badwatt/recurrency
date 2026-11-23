@@ -111,6 +111,7 @@ pub fn subscriptions(
     let sort_desc = signal(false);
     let sort_field = signal("next_billing_date".to_string());
     let list_view = signal(false);
+    let _ = (sort_field.get(), sort_desc.get());
     let status = signal("all".to_string());
     let frequency_filter = signal("all".to_string());
     let category_filter = signal("all".to_string());
@@ -1088,6 +1089,8 @@ fn content(
             server,
             token,
             list_view,
+            sort_field,
+            sort_desc,
         ))
         .when(has_inactive, move |page| {
             page.child(section(
@@ -1099,6 +1102,8 @@ fn content(
                 server,
                 token,
                 list_view,
+                sort_field,
+                sort_desc,
             ))
         })
         .into_element()
@@ -1113,6 +1118,8 @@ fn section(
     server: Signal<String>,
     token: Signal<String>,
     list_view: Signal<bool>,
+    sort_field: Signal<String>,
+    sort_desc: Signal<bool>,
 ) -> impl IntoElement {
     let count_items = items.clone();
     let list_items = items.clone();
@@ -1156,7 +1163,14 @@ fn section(
                         .gap(px(8.0))
                         .child(each(
                             list_items,
-                            |subscription| subscription.id,
+                            move |subscription| {
+                                format!(
+                                    "{}-{}-{}",
+                                    subscription.id,
+                                    sort_field.get(),
+                                    sort_desc.get()
+                                )
+                            },
                             move |subscription, _| {
                                 list_card(
                                     subscription.get(),
@@ -1181,7 +1195,14 @@ fn section(
                     .gap(px(16.0))
                     .child(each(
                         items,
-                        |subscription| subscription.id,
+                        move |subscription| {
+                            format!(
+                                "{}-{}-{}",
+                                subscription.id,
+                                sort_field.get(),
+                                sort_desc.get()
+                            )
+                        },
                         move |subscription, _| {
                             card(
                                 subscription.get(),

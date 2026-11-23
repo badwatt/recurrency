@@ -219,6 +219,7 @@ pub fn debts(
     let type_filter = signal("all".to_string());
     let sort_field = signal("name".to_string());
     let sort_desc = signal(false);
+    let _ = (sort_field.get(), sort_desc.get());
     let empty_open = open_form.clone();
     let open_bulk = move || {
         modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
@@ -1189,7 +1190,9 @@ fn content(
                             .gap(px(16.0))
                             .child(each(
                                 items,
-                                |debt| debt.id,
+                                move |debt| {
+                                    format!("{}-{}-{}", debt.id, sort_field.get(), sort_desc.get())
+                                },
                                 move |debt, _| {
                                     card(
                                         debt.get(),

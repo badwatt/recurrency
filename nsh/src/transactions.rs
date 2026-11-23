@@ -91,9 +91,12 @@ pub fn transactions(
     let load_currency = currency.clone();
     let resource_server = server.clone();
     let resource_token = token.clone();
+    let sort_desc = signal(true);
+    let sort_field = signal("date".to_string());
     let data = resource(
-        || Some(()),
-        move |(), _| {
+        move || Some((sort_field.get(), sort_desc.get())),
+        move |(field, descending), _| {
+            let _ = (field, descending);
             let server = resource_server.clone();
             let token = resource_token.clone();
             let currency = load_currency.clone();
@@ -190,14 +193,13 @@ pub fn transactions(
         modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
     };
 
-    let sort_desc = signal(true);
-    let sort_field = signal("date".to_string());
     let month_only = signal(false);
     let category_filter = signal(String::new());
     let price_min = signal(String::new());
     let price_max = signal(String::new());
     let list_view = signal(true);
     view()
+        .key(format!("{}-{}", sort_field.get(), sort_desc.get()))
         .w_full()
         .flex_col()
         .gap(px(24.0))
@@ -608,6 +610,7 @@ fn content(
     price_min: Signal<String>,
     price_max: Signal<String>,
 ) -> AnyElement {
+    let list_key = format!("{}-{}", sort_field.get(), sort_desc.get());
     let groups = move || {
         let snapshot = data.get().unwrap_or_default();
         let mut groups = group_transactions(
@@ -634,13 +637,14 @@ fn content(
     };
     let grid = list_view.get() == false;
     view()
+        .key(list_key)
         .w_full()
         .flex_col()
         .when(grid, |view| view.flex_row().flex_wrap().gap(px(16.0)))
         .when(!grid, |view| view.gap(px(16.0)))
         .child(each(
             groups,
-            |group| group.key.clone(),
+            move |group| format!("{}-{}-{}", group.key, sort_field.get(), sort_desc.get()),
             move |group, _| {
                 group_card(
                     group.get(),
