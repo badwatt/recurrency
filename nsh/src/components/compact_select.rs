@@ -1,7 +1,7 @@
 //! Compact overlay select for toolbars and page headers. Unlike the form
 //! `StringSelect`, it does not reserve a label or push the layout when open.
 
-use crate::components::button::{button, ButtonAlign, ButtonProps, ButtonSize, ButtonVariant};
+use crate::components::button::{ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button};
 use nsh_base::{button as raw_button, theme};
 use nsh_core::prelude::*;
 
@@ -67,7 +67,11 @@ pub fn compact_select(
                         let active = value.get() == option;
                         button(
                             ButtonProps::new(label)
-                                .variant(if active { ButtonVariant::Secondary } else { ButtonVariant::Ghost })
+                                .variant(if active {
+                                    ButtonVariant::Secondary
+                                } else {
+                                    ButtonVariant::Ghost
+                                })
                                 .size(ButtonSize::Sm)
                                 .align(ButtonAlign::Start)
                                 .full_width()

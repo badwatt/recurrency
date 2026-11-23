@@ -200,7 +200,7 @@ pub fn transactions(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(header(open_form, open_bulk))
+        .child(header(open_form))
         .child(toolbar(
             data,
             search,
@@ -211,6 +211,7 @@ pub fn transactions(
             category_filter,
             price_min,
             price_max,
+            open_bulk,
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -238,7 +239,7 @@ pub fn transactions(
         .into_element()
 }
 
-fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl IntoElement {
+fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
     shared_page_header(
         TITLE,
         SUBTITLE,
@@ -247,11 +248,6 @@ fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl Int
             .flex_wrap()
             .items_center()
             .gap(px(8.0))
-            .child(shared_button(
-                ButtonProps::new("Bulk actions")
-                    .variant(crate::components::button::ButtonVariant::Outline)
-                    .on_press(on_bulk),
-            ))
             .child(shared_button(
                 ButtonProps::new("Add Transaction")
                     .icon(asset!("icons/plus.svg"))
@@ -493,6 +489,7 @@ fn toolbar(
     category_filter: Signal<String>,
     price_min: Signal<String>,
     price_max: Signal<String>,
+    open_bulk: impl Fn() + 'static,
 ) -> impl IntoElement {
     let active = move || {
         usize::from(!category_filter.get().is_empty())
@@ -582,6 +579,12 @@ fn toolbar(
                     SortOption::new("created_at", "Created"),
                     SortOption::new("updated_at", "Last modified"),
                 ],
+            ))
+            .child(crate::components::button::icon_button(
+                asset!("icons/check.svg"),
+                "Select transactions",
+                false,
+                open_bulk,
             ))
             .into_element(),
     )

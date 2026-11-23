@@ -221,7 +221,7 @@ pub fn debts(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(header(open_form, open_bulk))
+        .child(header(open_form))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
             let empty_open = empty_open.clone();
@@ -238,6 +238,7 @@ pub fn debts(
                     server_signal,
                     token_signal,
                     empty_open,
+                    open_bulk,
                 )
             })
         }))
@@ -511,7 +512,7 @@ fn history_panel(
     )
 }
 
-fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl IntoElement {
+fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
     shared_page_header(
         TITLE,
         SUBTITLE,
@@ -520,11 +521,6 @@ fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl Int
             .flex_wrap()
             .items_center()
             .gap(px(8.0))
-            .child(shared_button(
-                ButtonProps::new("Bulk actions")
-                    .variant(crate::components::button::ButtonVariant::Outline)
-                    .on_press(on_bulk),
-            ))
             .child(shared_button(
                 ButtonProps::new("Add Debt")
                     .icon(asset!("icons/plus.svg"))
@@ -1069,11 +1065,16 @@ fn type_chip(
         )
 }
 
-fn toolbar(data: Resource<DebtsData, String>, search: Signal<String>) -> impl IntoElement {
+fn toolbar(
+    data: Resource<DebtsData, String>,
+    search: Signal<String>,
+    open_bulk: impl Fn() + 'static,
+) -> impl IntoElement {
     let count = move || filtered(data, search).len();
     view()
         .w_full()
         .flex_row()
+        .flex_wrap()
         .items_center()
         .gap(px(12.0))
         .child(search_input(search, "Search"))
@@ -1082,6 +1083,12 @@ fn toolbar(data: Resource<DebtsData, String>, search: Signal<String>) -> impl In
                 .text_size(px(13.0))
                 .text_color(move || theme().muted_foreground),
         )
+        .child(crate::components::button::icon_button(
+            asset!("icons/check.svg"),
+            "Select debts",
+            false,
+            open_bulk,
+        ))
 }
 
 fn content(
@@ -1092,6 +1099,7 @@ fn content(
     server: Signal<String>,
     token: Signal<String>,
     open_form: impl Fn() + Clone + 'static,
+    open_bulk: impl Fn() + Clone + 'static,
 ) -> AnyElement {
     let items = move || filtered(data, search);
     let empty = move || data.get().unwrap_or_default().debts.is_empty();
@@ -1118,11 +1126,12 @@ fn content(
             .otherwise(move || {
                 let open_search = search;
                 let card_currency = currency.clone();
+                let bulk = open_bulk.clone();
                 view()
                     .w_full()
                     .flex_col()
                     .gap(px(16.0))
-                    .child(toolbar(data, open_search))
+                    .child(toolbar(data, open_search, bulk))
                     .child(
                         view()
                             .w_full()

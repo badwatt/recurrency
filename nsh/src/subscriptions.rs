@@ -217,9 +217,9 @@ pub fn subscriptions(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(header(open_form, open_bulk))
+        .child(header(open_form))
         .child(toolbar(
-            data, search, sort_desc, sort_field, list_view, status,
+            data, search, sort_desc, sort_field, list_view, status, open_bulk,
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -244,7 +244,7 @@ pub fn subscriptions(
         .into_element()
 }
 
-fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl IntoElement {
+fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
     shared_page_header(
         TITLE,
         SUBTITLE,
@@ -253,11 +253,6 @@ fn header(on_add: impl Fn() + 'static, on_bulk: impl Fn() + 'static) -> impl Int
             .flex_wrap()
             .items_center()
             .gap(px(8.0))
-            .child(shared_button(
-                ButtonProps::new("Bulk actions")
-                    .variant(crate::components::button::ButtonVariant::Outline)
-                    .on_press(on_bulk),
-            ))
             .child(shared_button(
                 ButtonProps::new("Add Subscription")
                     .icon(asset!("icons/plus.svg"))
@@ -717,6 +712,7 @@ fn toolbar(
     sort_field: Signal<String>,
     list_view: Signal<bool>,
     status: Signal<String>,
+    open_bulk: impl Fn() + 'static,
 ) -> impl IntoElement {
     let count = move || filtered(data, search, status, sort_desc, &sort_field.get()).len();
     view()
@@ -756,6 +752,12 @@ fn toolbar(
                         SortOption::new("created_at", "Created"),
                         SortOption::new("updated_at", "Last modified"),
                     ],
+                ))
+                .child(crate::components::button::icon_button(
+                    asset!("icons/check.svg"),
+                    "Select subscriptions",
+                    false,
+                    open_bulk,
                 ))
                 .into_element(),
         ))

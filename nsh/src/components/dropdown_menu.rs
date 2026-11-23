@@ -1,6 +1,6 @@
 //! Generic labelled action menu, used by report exports.
 
-use crate::components::button::{button, ButtonAlign, ButtonProps, ButtonSize, ButtonVariant};
+use crate::components::button::{ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button};
 use nsh_base::theme;
 use nsh_core::prelude::*;
 use std::rc::Rc;
@@ -12,7 +12,10 @@ pub struct MenuAction {
 
 impl MenuAction {
     pub fn new(label: impl Into<String>, on_press: impl Fn() + 'static) -> Self {
-        Self { label: label.into(), on_press: Rc::new(on_press) }
+        Self {
+            label: label.into(),
+            on_press: Rc::new(on_press),
+        }
     }
 }
 

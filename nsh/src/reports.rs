@@ -11,7 +11,7 @@ use std::f32::consts::TAU;
 use crate::api::{self, ReportsData};
 use crate::auth::AuthSession;
 use crate::components::compact_select::compact_select;
-use crate::components::dropdown_menu::{dropdown_menu, MenuAction};
+use crate::components::dropdown_menu::{MenuAction, dropdown_menu};
 use crate::components::page_header::page_header as shared_page_header;
 use crate::format::format_currency;
 use crate::models::{Category, ReportResponse};
@@ -96,7 +96,6 @@ pub fn reports(auth: AuthSession) -> AnyElement {
         }))
         .into_element()
 }
-
 
 fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement {
     let report = move || data.get().unwrap_or_default().report;
@@ -242,10 +241,23 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
 
 fn month_name(month: u32) -> &'static str {
     const MONTHS: [&str; 12] = [
-        "January", "February", "March", "April", "May", "June", "July", "August",
-        "September", "October", "November", "December",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
     ];
-    MONTHS.get(month.saturating_sub(1) as usize).copied().unwrap_or("Month")
+    MONTHS
+        .get(month.saturating_sub(1) as usize)
+        .copied()
+        .unwrap_or("Month")
 }
 
 fn summary_card(
@@ -773,8 +785,6 @@ fn category_color(data: Resource<ReportsData, String>, name: &str) -> String {
 fn parse_hex(value: &str) -> u32 {
     u32::from_str_radix(value.trim_start_matches('#'), 16).unwrap_or(0x6b7280)
 }
-
-
 
 fn loading_card() -> AnyElement {
     ui::surface()
