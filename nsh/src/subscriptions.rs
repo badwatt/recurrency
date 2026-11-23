@@ -175,6 +175,8 @@ pub fn subscriptions(
     };
     let server_signal = signal(server.clone());
     let token_signal = signal(token.clone());
+    let requested_date = signal(None::<chrono::NaiveDate>);
+    let pending_edit = signal(None::<Uuid>);
     let loading = move || data.loading() && data.get().is_none() && !form_open.get();
     let has_error = move || data.error().is_some() && !form_open.get();
     let render_currency = currency.clone();
@@ -182,16 +184,18 @@ pub fn subscriptions(
     let open_form = move || {
         let snapshot = data.get().unwrap_or_default();
         let today = Local::now().date_naive();
+        let date = requested_date.get().unwrap_or(today);
+        requested_date.set(None);
         name.set(String::new());
         amount.set(String::new());
-        start_date.set(today.to_string());
+        start_date.set(date.to_string());
         form_currency.set(if auth.user.currency.is_empty() {
             "EUR".to_string()
         } else {
             auth.user.currency.clone()
         });
         interval.set("1".to_string());
-        days.set(vec![today.day() as u8]);
+        days.set(vec![date.day() as u8]);
         annual_dates.set(Vec::new());
         unit.set("month".to_string());
         account_id.set(
@@ -212,6 +216,41 @@ pub fn subscriptions(
             form(data, form_signals, server_signal, token_signal, modal).into_element()
         });
     };
+
+    if let Some(request) = crate::ui::take_subscription_intent() {
+        match request {
+            crate::ui::SubscriptionIntent::Create(date) => {
+                requested_date.set(Some(date));
+                open_form();
+            }
+            crate::ui::SubscriptionIntent::Edit(id) => {
+                pending_edit.set(Some(id));
+            }
+        }
+    }
+
+    effect(move || {
+        let Some(id) = pending_edit.get() else {
+            return;
+        };
+        if let Some(subscription) = data
+            .get()
+            .unwrap_or_default()
+            .subscriptions
+            .into_iter()
+            .find(|subscription| subscription.id == id)
+        {
+            pending_edit.set(None);
+            open_edit_subscription(
+                subscription,
+                form_signals,
+                data,
+                server_signal,
+                token_signal,
+                modal,
+            );
+        }
+    });
 
     if intent.get() == Some(crate::Route::Subscriptions) {
         intent.set(None);
@@ -341,6 +380,56 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
             ))
             .into_element(),
     )
+}
+
+fn open_edit_subscription(
+    subscription: Subscription,
+    form_signals: FormSignals,
+    data: Resource<SubscriptionsData, String>,
+    server: Signal<String>,
+    token: Signal<String>,
+    modal: ui::ModalHost,
+) {
+    let recurrence = &subscription.recurrence;
+    let days = if recurrence.unit == "year" {
+        recurrence
+            .dates
+            .iter()
+            .map(|date| date.day)
+            .collect::<Vec<_>>()
+    } else if recurrence.days.is_empty() {
+        vec![subscription.start_date.day() as u8]
+    } else {
+        recurrence.days.clone()
+    };
+    form_signals.name.set(subscription.name.clone());
+    form_signals.amount.set(subscription.amount.to_string());
+    form_signals
+        .start_date
+        .set(subscription.start_date.to_string());
+    form_signals.currency.set(subscription.currency.clone());
+    form_signals
+        .interval
+        .set(recurrence.interval.max(1).to_string());
+    form_signals.days.set(days);
+    form_signals.annual_dates.set(recurrence.dates.clone());
+    form_signals.unit.set(recurrence.unit.clone());
+    form_signals.account_id.set(Some(subscription.account_id));
+    form_signals.category_id.set(Some(subscription.category_id));
+    form_signals.active.set(subscription.is_active);
+    form_signals
+        .notes
+        .set(subscription.notes.clone().unwrap_or_default());
+    form_signals
+        .logo_url
+        .set(subscription.logo_url.clone().unwrap_or_default());
+    form_signals.logo_results.set(Vec::new());
+    form_signals.logo_error.set(String::new());
+    form_signals.error.set(String::new());
+    form_signals.saving.set(false);
+    form_signals.editing.set(Some(subscription.id));
+    form_signals.open.set(true);
+    modal.open(move || form(data, form_signals, server, token, modal).into_element());
 }
 
 fn form(

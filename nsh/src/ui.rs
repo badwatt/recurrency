@@ -3,6 +3,7 @@
 
 use crate::Route;
 use crate::auth::AuthSession;
+use chrono::NaiveDate;
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use std::cell::RefCell;
@@ -16,6 +17,7 @@ thread_local! {
     static NOTIFICATIONS: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
     static MENU_STATE: RefCell<Option<MenuState>> = const { RefCell::new(None) };
     static MENU_VERSION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
+    static SUBSCRIPTION_INTENT: RefCell<Option<Signal<Option<SubscriptionIntent>>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -50,6 +52,43 @@ pub fn init_privacy() {
             *slot = Some(signal(0));
         }
     });
+    SUBSCRIPTION_INTENT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(None));
+        }
+    });
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SubscriptionIntent {
+    Create(NaiveDate),
+    Edit(Uuid),
+}
+
+pub fn request_subscription_create(date: NaiveDate) {
+    SUBSCRIPTION_INTENT.with(|slot| {
+        if let Some(intent) = *slot.borrow() {
+            intent.set(Some(SubscriptionIntent::Create(date)));
+        }
+    });
+    navigate(Route::Subscriptions);
+}
+
+pub fn request_subscription_edit(id: Uuid) {
+    SUBSCRIPTION_INTENT.with(|slot| {
+        if let Some(intent) = *slot.borrow() {
+            intent.set(Some(SubscriptionIntent::Edit(id)));
+        }
+    });
+    navigate(Route::Subscriptions);
+}
+
+pub fn take_subscription_intent() -> Option<SubscriptionIntent> {
+    SUBSCRIPTION_INTENT.with(|slot| {
+        let intent = *slot.borrow();
+        intent.and_then(|signal| signal.get().take())
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

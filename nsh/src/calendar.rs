@@ -4,6 +4,7 @@ use chrono::{Datelike, Local, NaiveDate};
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
 use crate::api::{self, CalendarData};
 use crate::auth::AuthSession;
@@ -24,6 +25,7 @@ struct CalendarEntry {
     currency: String,
     date: NaiveDate,
     is_transaction: bool,
+    subscription_id: Option<Uuid>,
 }
 
 pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
@@ -400,6 +402,7 @@ fn mobile_section(
                     entry.date.format("%a, %b %e").to_string()
                 };
                 let amount = format_currency(entry.amount, &currency);
+                let subscription_id = entry.subscription_id;
                 let target = if entry.is_transaction {
                     crate::Route::Transactions
                 } else {
@@ -411,7 +414,13 @@ fn mobile_section(
                     .items_center()
                     .justify_between()
                     .cursor_pointer()
-                    .on_press(move || crate::ui::navigate(target))
+                    .on_press(move || {
+                        if let Some(id) = subscription_id {
+                            crate::ui::request_subscription_edit(id);
+                        } else {
+                            crate::ui::navigate(target);
+                        }
+                    })
                     .gap(px(10.0))
                     .p(px(12.0))
                     .rounded(px(8.0))
@@ -501,6 +510,7 @@ fn day_cell(
     let is_today = day.is_some_and(|day| {
         year.get() == today.year() && month.get() == today.month() && day == today.day()
     });
+    let cell_date = day.and_then(|day| NaiveDate::from_ymd_opt(year.get(), month.get(), day));
     view()
         .w_full()
         .min_h(px(100.0))
@@ -516,13 +526,31 @@ fn day_cell(
         .when(is_today, |cell| cell.bg(move || theme().accent))
         .when(day.is_some(), move |cell| {
             cell.cursor_pointer()
-                .on_press(move || crate::ui::navigate(crate::Route::Subscriptions))
+                .on_press(move || {
+                    let Some(date) = cell_date else { return };
+                    if let Some(id) = entries().iter().find_map(|entry| entry.subscription_id) {
+                        crate::ui::request_subscription_edit(id);
+                    } else {
+                        crate::ui::request_subscription_create(date);
+                    }
+                })
                 .child(
                     view()
                         .w_full()
                         .flex_row()
                         .items_center()
                         .justify_between()
+                        .cursor_pointer()
+                        .on_press(move || {
+                            let Some(date) = cell_date else { return };
+                            if let Some(id) =
+                                entries().iter().find_map(|entry| entry.subscription_id)
+                            {
+                                crate::ui::request_subscription_edit(id);
+                            } else {
+                                crate::ui::request_subscription_create(date);
+                            }
+                        })
                         .child(
                             text(move || day.map_or_else(String::new, |day| day.to_string()))
                                 .text_size(px(11.0))
@@ -544,7 +572,11 @@ fn day_cell(
                                 .justify_center()
                                 .rounded(px(4.0))
                                 .accessibility_label("Add subscription on this day")
-                                .on_press(move || crate::ui::navigate(crate::Route::Subscriptions))
+                                .on_press(move || {
+                                    if let Some(date) = cell_date {
+                                        crate::ui::request_subscription_create(date);
+                                    }
+                                })
                                 .child(
                                     image(asset!("icons/plus.svg"))
                                         .size(px(11.0))
@@ -636,6 +668,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
                 currency: item.currency.clone(),
                 date: item.billing_date,
                 is_transaction: false,
+                subscription_id: Some(item.subscription_id),
             });
         }
     }
@@ -648,6 +681,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
                 currency: transaction.currency.clone(),
                 date: transaction.date,
                 is_transaction: true,
+                subscription_id: None,
             });
         }
     }
