@@ -33,5 +33,6 @@ pub mod string_select;
 pub mod textarea;
 pub mod theme_picker;
 pub mod timezone_select;
+pub mod toast;
 pub mod toggle;
 pub mod web_server_qr;

@@ -17,6 +17,7 @@ thread_local! {
 }
 
 pub fn init_privacy() {
+    crate::components::toast::init();
     PRIVACY.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {

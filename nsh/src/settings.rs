@@ -264,10 +264,12 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             requires_verification: false,
                         };
                         auth::store_session(&next);
+                        crate::components::toast::success("Profile saved.");
                         saving.set(false);
                         session.set(Session::SignedIn(next));
                     }
                     Err(message) => {
+                        crate::components::toast::error(message.clone());
                         error.set(message);
                         saving.set(false);
                     }
@@ -1050,9 +1052,13 @@ fn folder_sync_card(server: String, token: String) -> AnyElement {
                 match crate::folder_sync::sync(server, token).await {
                     Ok(path) => {
                         last_sync.set(crate::folder_sync::last_sync());
+                        crate::components::toast::success("Backup synced to the folder.");
                         status.set(format!("Backup written to {}", path.display()));
                     }
-                    Err(error) => status.set(error),
+                    Err(error) => {
+                        crate::components::toast::error(error.clone());
+                        status.set(error);
+                    }
                 }
             });
         }
@@ -1061,6 +1067,7 @@ fn folder_sync_card(server: String, token: String) -> AnyElement {
         crate::folder_sync::disconnect();
         folder.set(None);
         last_sync.set(String::new());
+        crate::components::toast::success("Sync folder disconnected.");
         status.set("Sync folder disconnected.".to_string());
     };
     ui::surface()
@@ -2215,6 +2222,7 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
                     Ok(settings) => {
                         configured.set(settings.fixer_configured);
                         key.set(String::new());
+                        crate::components::toast::success("Exchange-rate settings saved.");
                         status.set("Exchange-rate settings saved.".to_string());
                         data.refetch();
                     }
@@ -2408,6 +2416,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                     Ok(()) => {
                         account_open.set(false);
                         account_error.set(String::new());
+                        crate::components::toast::success("Account saved.");
                         data.refetch();
                     }
                     Err(message) => account_error.set(message),
@@ -2467,6 +2476,7 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                     Ok(()) => {
                         category_open.set(false);
                         category_error.set(String::new());
+                        crate::components::toast::success("Category saved.");
                         data.refetch();
                     }
                     Err(message) => category_error.set(message),
