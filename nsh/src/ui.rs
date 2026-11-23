@@ -547,14 +547,21 @@ pub fn label(text_value: &'static str) -> impl IntoElement {
         .text_color(move || theme().foreground)
 }
 
+pub fn row_item(child: impl IntoElement) -> impl IntoElement {
+    view()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .min_w(px(0.0))
+        .child(child)
+}
+
 pub fn field(
     label_text: &'static str,
     value: Signal<String>,
     placeholder: &'static str,
 ) -> impl IntoElement {
     view()
-        .flex_grow(1.0)
-        .basis(px(0.0))
+        .w_full()
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))

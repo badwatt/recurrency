@@ -54,11 +54,11 @@ pub fn logo_search(
                 .flex_row()
                 .items_end()
                 .gap(px(8.0))
-                .child(crate::ui::field(
+                .child(crate::ui::row_item(crate::ui::field(
                     "Logo URL",
                     logo_url,
                     "https://example.com/logo.png",
-                ))
+                )))
                 .child(crate::ui::action_button(
                     if loading.get() {
                         "Searching…"
@@ -114,5 +114,6 @@ mod tests {
         assert!(source.contains("search_logos"));
         assert!(source.contains("thumbnail"));
         assert!(source.contains("Find logo"));
+        assert!(source.contains("row_item"));
     }
 }

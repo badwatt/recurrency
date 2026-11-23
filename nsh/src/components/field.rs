@@ -46,8 +46,7 @@ pub fn field(props: FieldProps, control: AnyElement) -> impl IntoElement {
     let has_error = !error.is_empty();
     let has_hint = has_error == false && !hint.is_empty();
     view()
-        .flex_grow(1.0)
-        .basis(px(0.0))
+        .w_full()
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))
@@ -90,6 +89,14 @@ pub fn field(props: FieldProps, control: AnyElement) -> impl IntoElement {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn column_fields_do_not_stretch_vertically() {
+        let source = include_str!("field.rs");
+        assert!(source.contains("w_full()"));
+        let stretch = format!("flex_{}", "grow(1.0)");
+        assert!(!source.contains(&stretch));
+    }
 
     #[test]
     fn field_defaults_to_optional_without_messages() {

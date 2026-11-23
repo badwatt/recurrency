@@ -2157,8 +2157,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                     view()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::field("Provider", provider, "openai"))
-                        .child(ui::field("Base URL", base_url, "https://api.openai.com/v1")),
+                        .child(ui::row_item(ui::field("Provider", provider, "openai")))
+                        .child(ui::row_item(ui::field("Base URL", base_url, "https://api.openai.com/v1"))),
                 )
                 .child(
                     view()
@@ -2176,8 +2176,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                     view()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::field("Model", model, "gpt-4o-mini"))
-                        .child(ui::field("API key", api_key, "sk-…")),
+                        .child(ui::row_item(ui::field("Model", model, "gpt-4o-mini")))
+                        .child(ui::row_item(ui::field("API key", api_key, "sk-…"))),
                 )
                 .child(
                     view()
@@ -2728,8 +2728,8 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(move || theme().foreground),
                             )
-                            .child(ui::field("Name", account_name, "Main account"))
-                            .child(ui::field("Icon name", account_icon, "wallet"))
+                            .child(ui::row_item(ui::field("Name", account_name, "Main account")))
+                            .child(ui::row_item(ui::field("Icon name", account_icon, "wallet")))
                             .child(
                                 view()
                                     .flex_col()
@@ -2895,8 +2895,8 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(move || theme().foreground),
                             )
-                            .child(ui::field("Name", category_name, "Entertainment"))
-                            .child(ui::field("Icon name", category_icon, "tag"))
+                            .child(ui::row_item(ui::field("Name", category_name, "Entertainment")))
+                            .child(ui::row_item(ui::field("Icon name", category_icon, "tag")))
                             .child(
                                 view()
                                     .flex_col()

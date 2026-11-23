@@ -349,8 +349,8 @@ fn payment_form(
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::field("Amount", amount, "250"))
-                        .child(ui::date_field("Paid on", paid_on)),
+                        .child(ui::row_item(ui::field("Amount", amount, "250")))
+                        .child(ui::row_item(ui::date_field("Paid on", paid_on))),
                 )
                 .child(ui::field("Note", note, "November payment"))
                 .child(
@@ -944,16 +944,16 @@ fn form(
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::field("Name", name, "Car loan"))
-                        .child(ui::field("Total owed", total, "12000")),
+                        .child(ui::row_item(ui::field("Name", name, "Car loan")))
+                        .child(ui::row_item(ui::field("Total owed", total, "12000"))),
                 )
                 .child(
                     view()
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::date_field("First payment", start_date))
-                        .child(ui::field("Monthly payment", monthly, "250")),
+                        .child(ui::row_item(ui::date_field("First payment", start_date)))
+                        .child(ui::row_item(ui::field("Monthly payment", monthly, "250"))),
                 )
                 .child(
                     view()
