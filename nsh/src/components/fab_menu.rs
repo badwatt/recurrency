@@ -34,6 +34,7 @@ pub fn fab_menu(open: Signal<bool>, actions: Vec<FabAction>) -> impl IntoElement
         .z_index(60)
         .child(
             popover()
+                .key(crate::ui::popover_generation().to_string())
                 .placement(Placement::Top)
                 .align(Align::End)
                 .offset(px(8.0))

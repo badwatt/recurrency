@@ -25,6 +25,7 @@ pub fn sort_menu(
     let open = signal(false);
     let panel_options = options.clone();
     popover()
+        .key(crate::ui::popover_generation().to_string())
         .placement(Placement::Bottom)
         .align(Align::End)
         .offset(px(6.0))
@@ -76,6 +77,7 @@ pub fn sort_menu(
                             .full_width()
                             .on_press(move || {
                                 field.set(option.id.to_string());
+                                crate::ui::reset_popovers();
                             }),
                     )
                 }))

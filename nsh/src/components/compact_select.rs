@@ -20,6 +20,7 @@ pub fn compact_select(
             .map_or_else(|| current.clone(), |(_, label)| label.clone())
     };
     popover()
+        .key(crate::ui::popover_generation().to_string())
         .placement(Placement::Bottom)
         .align(Align::End)
         .offset(px(6.0))
@@ -66,7 +67,10 @@ pub fn compact_select(
                             .size(ButtonSize::Sm)
                             .align(ButtonAlign::Start)
                             .full_width()
-                            .on_press(move || value.set(option.clone())),
+                            .on_press(move || {
+                                value.set(option.clone());
+                                crate::ui::reset_popovers();
+                            }),
                     )
                 })),
         )

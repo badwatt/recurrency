@@ -14,6 +14,7 @@ thread_local! {
     static AI_CHAT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
     static ROUTE: RefCell<Option<Signal<Route>>> = const { RefCell::new(None) };
     static NOTIFICATIONS: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
+    static POPOVER_GENERATION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -40,6 +41,25 @@ pub fn init_privacy() {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
             *slot = Some(signal(false));
+        }
+    });
+    POPOVER_GENERATION.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(0));
+        }
+    });
+}
+
+pub fn popover_generation() -> u64 {
+    POPOVER_GENERATION.with(|slot| slot.borrow().map_or(0, |generation| generation.get()))
+}
+
+/// Remount every menu and popover, closing the one whose action just ran.
+pub fn reset_popovers() {
+    POPOVER_GENERATION.with(|slot| {
+        if let Some(generation) = *slot.borrow() {
+            generation.set(generation.get().wrapping_add(1));
         }
     });
 }

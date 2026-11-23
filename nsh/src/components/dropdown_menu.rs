@@ -29,6 +29,7 @@ pub fn dropdown_menu(
 ) -> impl IntoElement {
     let panel_actions = actions.clone();
     popover()
+        .key(crate::ui::popover_generation().to_string())
         .placement(Placement::Bottom)
         .align(Align::End)
         .offset(px(6.0))
@@ -51,7 +52,10 @@ pub fn dropdown_menu(
                             .size(ButtonSize::Sm)
                             .align(ButtonAlign::Start)
                             .full_width()
-                            .on_press(move || press()),
+                            .on_press(move || {
+                                crate::ui::reset_popovers();
+                                press();
+                            }),
                     )
                 })),
         )
