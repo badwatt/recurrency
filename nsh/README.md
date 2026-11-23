@@ -114,3 +114,4 @@ the Dioxus component boundaries.
 - [x] Shared color palette, entity icons and multiline textarea; account/category colors persist and render in the lists.
 - [x] Shared privacy toggle, logo avatar, entity icon and color palette components.
 - [x] Multiple annual billing dates with optional per-date amounts.
+- [x] Device-local mode: accounts, categories, subscriptions, transactions, debts, calendar, reports, backups and local profile without a server.
