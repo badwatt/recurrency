@@ -61,7 +61,7 @@ pub fn reports(auth: AuthSession) -> AnyElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(28.0))
+        .gap(px(24.0))
         .child(shared_page_header(
             TITLE,
             SUBTITLE,
@@ -285,7 +285,7 @@ fn summary_card(
                 .flex_row()
                 .items_center()
                 .justify_between()
-                .pb(px(8.0))
+                .pb(px(10.0))
                 .child(
                     text(label)
                         .text_size(px(14.0))
@@ -308,6 +308,7 @@ fn summary_card(
             })
             .text_size(px(24.0))
             .line_height(px(32.0))
+            .letter_spacing(px(-0.6))
             .font_family(design::MONO)
             .font_weight(FontWeight::BOLD)
             .text_color(move || theme().foreground),
@@ -423,6 +424,7 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .child(
                                         text(name)
                                             .text_size(px(14.0))
+                                            .line_height(px(20.0))
                                             .text_color(move || theme().muted_foreground),
                                     ),
                             )
@@ -481,7 +483,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                 view()
                                     .flex_row()
                                     .items_center()
-                                    .gap(px(10.0))
+                                    .gap(px(14.0))
                                     .child(
                                         view()
                                             .h(px(32.0))
@@ -505,7 +507,8 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     )
                                     .child(
                                         text(category.category_name.clone())
-                                            .text_size(px(14.0))
+                                            .text_size(px(16.0))
+                                            .line_height(px(24.0))
                                             .font_weight(FontWeight::MEDIUM)
                                             .text_color(move || theme().foreground),
                                     ),
@@ -518,6 +521,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .child(
                                         text(ui::count_label(count as usize, "item", "items"))
                                             .text_size(px(14.0))
+                                            .line_height(px(20.0))
                                             .text_color(move || theme().muted_foreground),
                                     )
                                     .child(
@@ -528,7 +532,9 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                                 amount.clone()
                                             }
                                         })
-                                        .text_size(px(14.0))
+                                        .text_size(px(16.0))
+                                        .line_height(px(24.0))
+                                        .letter_spacing(px(-0.3))
                                         .font_weight(FontWeight::BOLD)
                                         .text_color(move || theme().foreground),
                                     ),
@@ -591,21 +597,20 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                 trends.reverse();
                 let w = width.get().max(1.0);
                 let h: f32 = 220.0;
-                let left = 60.0;
-                let right = 16.0;
+                let chart_w: f32 = 500.0;
+                let offset = ((w - chart_w) / 2.0).max(0.0);
+                let left = offset + 60.0;
+                let right = offset + 16.0;
                 let top: f32 = 16.0;
                 let bottom: f32 = 32.0;
-                let plot_w = (w - left - right).max(1.0);
+                let plot_w = (chart_w - 60.0 - 16.0).max(1.0);
                 let plot_h: f32 = (h - top - bottom).max(1.0);
-                let max = trends
+                let max_trend = trends
                     .iter()
                     .map(|trend| trend.total)
                     .max()
-                    .unwrap_or(Decimal::ZERO)
-                    .to_string()
-                    .parse::<f32>()
-                    .unwrap_or(0.0)
-                    .max(1.0);
+                    .unwrap_or(Decimal::ZERO);
+                let max = max_trend.to_string().parse::<f32>().unwrap_or(0.0).max(1.0);
                 let mut painter = Painter::new();
                 for step in 0..=4 {
                     let value = max * step as f32 / 4.0;
@@ -615,7 +620,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                         .line_width(1.0)
                         .begin_path()
                         .move_to(left, y)
-                        .line_to(w - right, y)
+                        .line_to(right + plot_w, y)
                         .stroke()
                         .fill_color(rgb(0x949AB3))
                         .font("10px Cabinet Grotesk")
@@ -659,15 +664,16 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                 for (index, trend) in trends.iter().enumerate() {
                     let cx = x(index);
                     let cy = y(trend.total);
+                    let radius = if trend.total == max_trend { 5.5 } else { 3.5 };
                     painter = painter
                         .fill_color(rgb(0x6366F1))
                         .begin_path()
-                        .arc(cx, cy, 3.5, 0.0, TAU)
+                        .arc(cx, cy, radius, 0.0, TAU)
                         .fill()
                         .fill_color(rgb(0x949AB3))
                         .font("10px Cabinet Grotesk")
                         .text_align(CanvasTextAlign::Center)
-                        .fill_text(&trend_label(&trend.period), cx, h - 8.0);
+                        .fill_text(&trend_label(&trend.period), cx, h - 13.0);
                 }
                 painter
             })

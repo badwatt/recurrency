@@ -261,7 +261,7 @@ fn toggle_privacy() {
 pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -> impl IntoElement {
     let auth_for_ai = auth.clone();
     view()
-        .h(px(56.0))
+        .h(px(57.0))
         .w_full()
         .flex_row()
         .items_center()
@@ -278,16 +278,16 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                 .items_center()
                 .gap(px(4.0))
                 .pl(px(24.0))
-                .pr(px(37.0))
+                .pr(px(24.0))
                 .child(
                     view()
                         .flex_row()
                         .items_center()
                         .gap(px(8.0))
-                        .mr(px(16.0))
+                        .mr(px(18.0))
                         .child(
                             image(crate::LOGO)
-                                .size(px(20.0))
+                                .size(px(24.0))
                                 .tint_color(move || theme().primary),
                         )
                         .child(
@@ -305,7 +305,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                             view()
                                 .flex_row()
                                 .items_center()
-                                .gap(px(2.0))
+                                .gap(px(4.0))
                                 .children(Route::NAV.iter().map(|item| nav_item(*item, route)))
                                 .into_element()
                         },
@@ -332,8 +332,8 @@ fn theme_action() -> impl IntoElement {
         .cursor_pointer()
         .items_center()
         .justify_center()
-        .h(px(34.0))
-        .w(px(34.0))
+        .h(px(36.0))
+        .w(px(36.0))
         .rounded(px(6.0))
         .accessibility_label("Choose color theme")
         .on_press(move || {
@@ -354,8 +354,8 @@ fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .cursor_pointer()
         .items_center()
         .justify_center()
-        .h(px(34.0))
-        .w(px(34.0))
+        .h(px(35.0))
+        .w(px(35.0))
         .rounded(px(6.0))
         .accessibility_label("AI assistant")
         .on_press(move || open_ai(route, auth.clone()))
@@ -394,13 +394,14 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .cursor_pointer()
         .items_center()
         .justify_center()
-        .h(px(34.0))
-        .w(px(34.0))
+        .h(px(36.0))
+        .w(px(36.0))
         .rounded(px(999.0))
         .on_press(move || route.set(Route::Settings))
         .child(crate::components::avatar::avatar_badge(
-            34.0,
+            32.0,
             &name,
+            &auth.user.email,
             auth.user.avatar,
         ))
 }
@@ -412,9 +413,9 @@ fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
         .cursor_pointer()
         .items_center()
         .justify_center()
-        .h(px(36.0))
+        .h(px(32.0))
         .px(px(12.0))
-        .rounded(px(8.0))
+        .rounded(px(6.0))
         .flex_row()
         .items_center()
         .gap(px(8.0))
@@ -422,7 +423,7 @@ fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
             if active() {
                 theme().accent
             } else {
-                theme().card
+                theme().card.opacity(0.0)
             }
         })
         .active(|s| s.bg(move || theme().muted))
@@ -542,7 +543,8 @@ pub fn count_label(count: usize, singular: &str, plural: &str) -> String {
 
 pub fn label(text_value: &'static str) -> impl IntoElement {
     text(text_value)
-        .text_size(px(13.0))
+        .text_size(px(14.0))
+        .line_height(px(20.0))
         .font_weight(FontWeight::MEDIUM)
         .text_color(move || theme().foreground)
 }

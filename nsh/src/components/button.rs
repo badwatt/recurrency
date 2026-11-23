@@ -93,7 +93,7 @@ impl ButtonRadius {
         match self {
             Self::None => 0.0,
             Self::Sm => 5.0,
-            Self::Md => 7.0,
+            Self::Md => 6.0,
             Self::Lg => 10.0,
             Self::Full => 999.0,
         }

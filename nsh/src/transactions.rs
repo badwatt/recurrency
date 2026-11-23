@@ -20,7 +20,6 @@ use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle;
 use crate::format::{format_currency, format_date};
 use crate::models::{Account, Rates, Transaction};
-use crate::theme as design;
 use crate::ui;
 
 #[derive(Serialize)]
@@ -320,6 +319,7 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
             .child(shared_button(
                 ButtonProps::new("Add Transaction")
                     .icon(asset!("icons/plus.svg"))
+                    .min_width(155.0)
                     .on_press(on_add),
             ))
             .into_element(),
@@ -780,7 +780,7 @@ fn group_card(
         .w_full()
         .when(grid, |view| view.w(px(360.0)).flex_grow(1.0))
         .flex_col()
-        .gap(px(11.0))
+        .gap(px(5.0))
         .child(
             view()
                 .w_full()
@@ -788,7 +788,7 @@ fn group_card(
                 .items_center()
                 .justify_between()
                 .px(px(16.0))
-                .py(px(7.0))
+                .py(px(10.0))
                 .rounded(px(8.0))
                 .bg(move || theme().muted.opacity(0.5))
                 .child(
@@ -807,8 +807,7 @@ fn group_card(
                         }
                     })
                     .text_size(px(14.0))
-                    .font_family(design::MONO)
-                    .font_weight(FontWeight::SEMIBOLD)
+                    .font_weight(FontWeight::BOLD)
                     .text_color(move || theme().foreground),
                 ),
         )
@@ -960,7 +959,7 @@ fn row(
                 .flex_row()
                 .items_center()
                 .gap(px(12.0))
-                .child(converted_amount(
+                .child(view().mt(px(2.0)).child(converted_amount(
                     amount_value,
                     &amount_currency,
                     &currency,
@@ -968,7 +967,7 @@ fn row(
                     16.0,
                     FontWeight::MEDIUM,
                     true,
-                ))
+                )))
                 .child(when(
                     move || !selection_mode.get(),
                     move || {

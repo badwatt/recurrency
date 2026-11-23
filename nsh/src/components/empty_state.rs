@@ -13,8 +13,8 @@ pub fn empty_state(
         .w_full()
         .flex_col()
         .items_center()
-        .gap(px(0.0))
-        .min_h(px(216.0))
+        .gap(px(16.0))
+        .min_h(px(226.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -22,23 +22,25 @@ pub fn empty_state(
         .p(px(32.0))
         .child(
             image(icon)
-                .size(px(24.0))
+                .size(px(40.0))
                 .tint_color(move || theme().muted_foreground),
         )
         .child(
             view()
                 .flex_col()
                 .items_center()
-                .gap(px(4.0))
+                .gap(px(0.0))
                 .child(
                     text(title)
-                        .text_size(px(16.0))
+                        .text_size(px(18.0))
+                        .line_height(px(28.0))
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(move || theme().foreground),
                 )
                 .child(
                     text(description)
-                        .text_size(px(13.0))
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .text_color(move || theme().muted_foreground),
                 ),
         )
@@ -47,7 +49,7 @@ pub fn empty_state(
                 .w_full()
                 .flex_row()
                 .justify_center()
-                .mt(px(12.0))
+                .mt(px(0.0))
                 .child(action),
         )
 }

@@ -6,7 +6,7 @@ use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
 
-const CARD_WIDTH: f32 = 448.0;
+const CARD_WIDTH: f32 = 446.0;
 
 pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
     let registering = signal(false);
@@ -99,7 +99,9 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
         .items_center()
         .justify_center()
         .bg(move || theme().background)
-        .p(px(16.0))
+        .pl(px(16.0))
+        .pr(px(26.0))
+        .py(px(16.0))
         .child(
             view()
                 .w_full()
@@ -193,7 +195,7 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                 ),
                         )
                         .child(
-                            view().mb(px(16.0)).child(form_field(
+                            view().mb(px(11.0)).child(form_field(
                                 "Email",
                                 "email@example.com",
                                 "email",
@@ -222,6 +224,7 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                                     "Sign in"
                                 })
                                 .full_width()
+                                .size(crate::components::button::ButtonSize::Sm)
                                 .disabled(busy.get())
                                 .on_press(move || submit()),
                             )),
@@ -552,7 +555,7 @@ fn form_field(
 ) -> impl IntoElement {
     view()
         .w_full()
-        .gap(px(6.0))
+        .gap(px(15.0))
         .child(
             view()
                 .flex_row()
@@ -589,10 +592,10 @@ fn form_field(
                 })
                 .return_key_type(ReturnKeyType::Done)
                 .text_size(px(14.0))
-                .h(px(40.0))
+                .h(px(38.0))
                 .w_full()
                 .px(px(12.0))
-                .rounded(px(6.0))
+                .rounded(px(7.0))
                 .border(px(1.0))
                 .border_color(move || theme().input)
                 .bg(move || theme().background)

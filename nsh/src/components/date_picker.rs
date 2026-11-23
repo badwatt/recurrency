@@ -125,7 +125,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                 .child(
                     text(move || {
                         parse_date(&value.get())
-                            .map_or_else(|| "Select date".to_string(), crate::format::format_date)
+                            .map_or_else(|| "dd/mm/aaaa".to_string(), crate::format::format_date)
                     })
                     .text_size(px(14.0))
                     .line_height(px(20.0))

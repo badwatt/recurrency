@@ -58,7 +58,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(28.0))
+        .gap(px(24.0))
         .child(header())
         .child(when(loading, || loading_card()).otherwise(move || {
             let currency = render_currency.clone();
@@ -80,56 +80,46 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
         .flex_row()
         .items_center()
         .justify_between()
-        .px(px(14.0))
-        .py(px(9.0))
+        .p(px(16.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
         .child(
             view()
                 .flex_row()
                 .items_center()
-                .gap(px(6.0))
-                .child(ui::icon_button(
-                    asset!("icons/chevron-left.svg"),
-                    false,
-                    move || {
-                        let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
-                        year.set(next_year);
-                        month.set(next_month);
-                    },
-                ))
+                .h(px(36.0))
+                .gap(px(12.0))
+                .child(nav_arrow(asset!("icons/chevron-left.svg"), move || {
+                    let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
+                    year.set(next_year);
+                    month.set(next_month);
+                }))
                 .child(
                     text(move || month_label(year.get(), month.get()))
                         .w(px(200.0))
-                        .mt(px(-11.0))
                         .text_size(px(20.0))
                         .line_height(px(28.0))
-                        .font_weight(FontWeight::BOLD)
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().foreground),
                 )
-                .child(ui::icon_button(
-                    asset!("icons/chevron-right.svg"),
-                    false,
-                    move || {
-                        let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
-                        year.set(next_year);
-                        month.set(next_month);
-                    },
-                )),
+                .child(nav_arrow(asset!("icons/chevron-right.svg"), move || {
+                    let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
+                    year.set(next_year);
+                    month.set(next_month);
+                })),
         )
         .child(
             button()
                 .cursor_pointer()
                 .cursor_pointer()
-                .mt(px(-11.0))
                 .items_center()
                 .justify_center()
-                .h(px(40.0))
-                .px(px(14.0))
-                .rounded(px(8.0))
+                .h(px(32.0))
+                .px(px(12.0))
+                .rounded(px(6.0))
                 .border(px(1.0))
                 .border_color(move || theme().border)
-                .bg(move || theme().card)
+                .bg(move || theme().background)
                 .on_press(move || {
                     year.set(today.year());
                     month.set(today.month());
@@ -210,7 +200,7 @@ fn content(
                     .child(
                         view()
                             .w_full()
-                            .pt(px(25.0))
+                            .mt(px(16.0))
                             .px(px(16.0))
                             .pb(px(16.0))
                             .grid()
@@ -273,6 +263,7 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
             })
             .text_size(px(24.0))
             .line_height(px(32.0))
+            .letter_spacing(px(-0.6))
             .font_family(design::MONO)
             .font_weight(FontWeight::BOLD)
             .text_color(move || theme().foreground)
@@ -288,7 +279,7 @@ fn weekday_header(label: &'static str) -> impl IntoElement {
         .child(
             text(label)
                 .text_size(px(14.0))
-                .font_weight(FontWeight::SEMIBOLD)
+                .font_weight(FontWeight::MEDIUM)
                 .text_color(move || theme().muted_foreground),
         )
 }
@@ -487,6 +478,25 @@ fn mobile_section(
         )))
 }
 
+fn nav_arrow(icon: ImageAsset, on_press: impl Fn() + 'static) -> impl IntoElement {
+    button()
+        .cursor_pointer()
+        .items_center()
+        .justify_center()
+        .h(px(32.0))
+        .w(px(32.0))
+        .rounded(px(6.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .on_press(on_press)
+        .child(
+            image(icon)
+                .size(px(16.0))
+                .tint_color(move || theme().foreground),
+        )
+}
+
 fn day_cell(
     day: Option<u32>,
     data: Resource<CalendarData, String>,
@@ -520,9 +530,7 @@ fn day_cell(
     view()
         .w_full()
         .min_h(px(100.0))
-        .p(px(6.0))
-        .pt(px(0.0))
-        .gap(px(2.0))
+        .p(px(8.0))
         .bg(move || {
             if day.is_some() {
                 theme().card
@@ -564,17 +572,28 @@ fn day_cell(
                             }
                         })
                         .child(
-                            text(move || day.map_or_else(String::new, |day| day.to_string()))
-                                .text_size(px(11.0))
-                                .line_height(px(12.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || {
-                                    if is_today {
-                                        theme().primary
-                                    } else {
-                                        theme().muted_foreground
-                                    }
-                                }),
+                            view()
+                                .h(px(28.0))
+                                .w(px(28.0))
+                                .mb(px(4.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(999.0))
+                                .child(
+                                    text(move || {
+                                        day.map_or_else(String::new, |day| day.to_string())
+                                    })
+                                    .text_size(px(12.0))
+                                    .line_height(px(16.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || {
+                                        if is_today {
+                                            theme().primary
+                                        } else {
+                                            theme().muted_foreground
+                                        }
+                                    }),
+                                ),
                         )
                         .child(
                             button()
@@ -601,8 +620,7 @@ fn day_cell(
                 .child(
                     view()
                         .flex_col()
-                        .gap(px(1.0))
-                        .mt(px(18.0))
+                        .gap(px(4.0))
                         .child(each(
                             truncated,
                             |entry| entry.key.clone(),
@@ -627,18 +645,30 @@ fn day_cell(
                                     .items_center()
                                     .justify_between()
                                     .gap(px(4.0))
+                                    .px(px(4.0))
+                                    .py(px(2.0))
+                                    .rounded(px(4.0))
+                                    .bg(move || theme().primary.opacity(0.1))
                                     .cursor_pointer()
                                     .on_press(move || crate::ui::navigate(target))
                                     .child(
-                                        image(asset!("icons/card.svg"))
-                                            .size(px(12.0))
-                                            .tint_color(move || theme().muted_foreground),
-                                    )
-                                    .child(
-                                        text(entry.name)
-                                            .text_size(px(12.0))
-                                            .text_color(move || theme().foreground)
-                                            .number_of_lines(1),
+                                        view()
+                                            .flex_row()
+                                            .items_center()
+                                            .gap(px(4.0))
+                                            .min_w(px(0.0))
+                                            .child(
+                                                image(asset!("icons/card.svg"))
+                                                    .size(px(16.0))
+                                                    .tint_color(move || theme().muted_foreground),
+                                            )
+                                            .child(
+                                                text(entry.name)
+                                                    .text_size(px(12.0))
+                                                    .line_height(px(16.0))
+                                                    .text_color(move || theme().foreground)
+                                                    .number_of_lines(1),
+                                            ),
                                     )
                                     .child(
                                         text(move || {
@@ -649,6 +679,7 @@ fn day_cell(
                                             }
                                         })
                                         .text_size(px(12.0))
+                                        .line_height(px(16.0))
                                         .font_family(design::MONO)
                                         .text_color(move || theme().muted_foreground),
                                     )
@@ -660,6 +691,7 @@ fn day_cell(
                                 move || {
                                     text(format!("+{} more", entries().len().saturating_sub(3)))
                                         .text_size(px(9.0))
+                                        .line_height(px(16.0))
                                         .text_color(move || theme().muted_foreground)
                                 },
                             )

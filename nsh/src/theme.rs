@@ -273,14 +273,9 @@ pub fn apply(id: &str) {
     tokens.set_color("popover-foreground", fg);
     tokens.set_color("primary", primary);
     tokens.set_color("primary-foreground", on_primary);
-    tokens.set_color("secondary", fg.opacity(0.08));
     tokens.set_color("secondary-foreground", fg);
-    tokens.set_color("muted", fg.opacity(0.06));
     tokens.set_color("muted-foreground", fg.opacity(0.66));
-    tokens.set_color("accent", fg.opacity(0.10));
     tokens.set_color("accent-foreground", fg);
-    tokens.set_color("border", fg.opacity(0.18));
-    tokens.set_color("input", fg.opacity(0.22));
     tokens.set_color("ring", primary);
     nsh_core::element::set_tokens(tokens);
 }

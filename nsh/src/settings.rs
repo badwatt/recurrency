@@ -309,7 +309,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     view()
         .relative()
         .w_full()
-        .pt(px(14.0))
+        .pt(px(8.0))
         .on_layout(
             move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
                 compact.set(bounds.size.width.0 < 900.0);
@@ -326,7 +326,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .child(
             view()
                 .w(move || if compact.get() { px(0.0) } else { px(208.0) })
-                .mr(move || if compact.get() { px(0.0) } else { px(34.0) })
+                .mr(move || if compact.get() { px(0.0) } else { px(40.0) })
                 .max_h(move || if compact.get() { px(0.0) } else { px(4000.0) })
                 .overflow_hidden()
                 .flex_col()
@@ -336,8 +336,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                         .text_size(px(12.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground)
-                        .px(px(12.0))
-                        .mb(px(16.0)),
+                        .mb(px(10.0)),
                 )
                 .children(
                     [
@@ -365,15 +364,18 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                     .map(|(group, items)| {
                         view()
                             .flex_col()
-                            .gap(px(6.0))
-                            .mb(px(16.0))
+                            .gap(px(9.0))
+                            .mb(if group == "PERSONAL" {
+                                px(15.0)
+                            } else {
+                                px(2.0)
+                            })
                             .child(
                                 text(group)
                                     .text_size(px(10.0))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(move || theme().muted_foreground)
-                                    .px(px(12.0))
-                                    .mb(px(4.0)),
+                                    .mb(px(2.0)),
                             )
                             .children(
                                 items
@@ -391,7 +393,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                             .justify_start()
                                             .w_full()
                                             .rounded(px(8.0))
-                                            .px(px(12.0))
+                                            .px(px(18.0))
                                             .py(px(10.0))
                                             .bg(move || {
                                                 if active() {
@@ -448,6 +450,34 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                     }),
                             )
                     }),
+                )
+                .child(
+                    view().w_full().mt(px(45.0)).child(
+                        button()
+                            .cursor_pointer()
+                            .w_full()
+                            .h(px(40.0))
+                            .px(px(18.0))
+                            .rounded(px(6.0))
+                            .flex_row()
+                            .items_center()
+                            .gap(px(8.0))
+                            .on_press(move || {
+                                crate::auth::clear_session();
+                                session.set(Session::SignedOut);
+                            })
+                            .child(
+                                image(asset!("icons/logout.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().muted_foreground),
+                            )
+                            .child(
+                                text("Log out")
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                    ),
                 ),
         )
         .child(
@@ -455,16 +485,17 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .flex_1()
                 .min_w(px(320.0))
                 .flex_col()
-                .mt(px(-5.0))
-                .gap(px(25.0))
+                .mt(px(0.0))
+                .gap(px(24.0))
                 .child(
                     view()
                         .flex_col()
-                        .gap(px(4.0))
+                        .gap(px(0.0))
                         .child(
                             text(move || section.get().title())
                                 .text_size(px(48.0))
                                 .line_height(px(48.0))
+                                .letter_spacing(px(-2.4))
                                 .font_weight(FontWeight::BOLD)
                                 .text_color(move || theme().foreground),
                         )
@@ -772,8 +803,6 @@ fn account_card(
                 .child(
                     view()
                         .p(px(24.0))
-                        .pt(px(14.0))
-                        .pb(px(34.0))
                         .border_b(px(1.0))
                         .border_color(move || theme().border)
                         .flex_col()
@@ -794,8 +823,9 @@ fn account_card(
                 )
                 .child(
                     view()
-                        .p(px(24.0))
-                        .pb(px(52.0))
+                        .px(px(49.0))
+                        .pt(px(24.0))
+                        .pb(px(45.0))
                         .gap(px(16.0))
                         .flex_col()
                         .child(
@@ -803,9 +833,10 @@ fn account_card(
                                 .mt(px(24.0))
                                 .flex_row()
                                 .items_center()
-                                .gap(px(12.0))
+                                .gap(px(16.0))
                                 .child(crate::components::avatar::avatar_badge(
                                     64.0,
+                                    &name.get(),
                                     &email.get(),
                                     (!avatar.get().is_empty()).then(|| avatar.get()),
                                 ))
@@ -814,16 +845,17 @@ fn account_card(
                                         .cursor_pointer()
                                         .items_center()
                                         .justify_center()
-                                        .h(px(34.0))
-                                        .px(px(12.0))
-                                        .rounded(px(7.0))
+                                        .h(px(36.0))
+                                        .w(px(110.0))
+                                        .px(px(11.0))
+                                        .rounded(px(6.0))
                                         .border(px(1.0))
                                         .border_color(move || theme().border)
                                         .bg(move || theme().background)
                                         .on_press(move || pick_avatar())
                                         .child(
                                             text("Change photo")
-                                                .text_size(px(12.0))
+                                                .text_size(px(14.0))
                                                 .font_weight(FontWeight::MEDIUM)
                                                 .text_color(move || theme().foreground),
                                         ),
@@ -858,8 +890,9 @@ fn account_card(
                                     .items_center()
                                     .justify_center()
                                     .h(px(40.0))
+                                    .min_w(px(115.0))
                                     .px(px(16.0))
-                                    .rounded(px(7.0))
+                                    .rounded(px(6.0))
                                     .bg(move || theme().primary)
                                     .disabled(move || saving.get())
                                     .disabled_style(|state| state.opacity(0.5))
@@ -872,8 +905,8 @@ fn account_card(
                                                 "Save changes"
                                             }
                                         })
-                                        .text_size(px(13.0))
-                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_size(px(14.0))
+                                        .font_weight(FontWeight::MEDIUM)
                                         .text_color(move || theme().primary_foreground),
                                     ),
                             ),
@@ -884,7 +917,6 @@ fn account_card(
             ui::surface()
                 .border_color(move || theme().destructive.opacity(0.3))
                 .p(px(24.0))
-                .pt(px(8.0))
                 .pb(px(35.0))
                 .gap(px(12.0))
                 .child(
@@ -896,7 +928,8 @@ fn account_card(
                 )
                 .child(
                     text("Permanently erase your account and all of its data")
-                        .text_size(px(13.0))
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
@@ -906,14 +939,15 @@ fn account_card(
                         .items_center()
                         .justify_between()
                         .gap(px(12.0))
-                        .mt(px(62.0))
+                        .pr(px(25.0))
+                        .mt(px(56.0))
                         .child(
                             view()
                                 .flex_col()
                                 .min_w(px(0.0))
                                 .child(
                                     text(move || email.get())
-                                        .text_size(px(13.0))
+                                        .text_size(px(14.0))
                                         .font_weight(FontWeight::MEDIUM)
                                         .text_color(move || theme().foreground),
                                 )
@@ -928,15 +962,17 @@ fn account_card(
                                 .cursor_pointer()
                                 .items_center()
                                 .justify_center()
-                                .h(px(36.0))
+                                .h(px(40.0))
+                                .min_w(px(126.0))
                                 .px(px(14.0))
-                                .rounded(px(7.0))
+                                .rounded(px(6.0))
                                 .border(px(1.0))
-                                .border_color(move || theme().destructive.opacity(0.45))
+                                .border_color(move || theme().border)
+                                .bg(move || theme().background)
                                 .on_press(move || open_delete())
                                 .child(
                                     text("Delete account")
-                                        .text_size(px(13.0))
+                                        .text_size(px(14.0))
                                         .font_weight(FontWeight::MEDIUM)
                                         .text_color(move || theme().destructive),
                                 ),

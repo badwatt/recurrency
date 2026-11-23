@@ -14,7 +14,7 @@ pub fn page_header(
         .flex_wrap()
         .items_end()
         .justify_between()
-        .gap(px(16.0))
+        .gap(px(12.0))
         .child(
             view()
                 .min_w(px(0.0))
@@ -23,6 +23,7 @@ pub fn page_header(
                     text(title)
                         .text_size(px(48.0))
                         .line_height(px(48.0))
+                        .letter_spacing(px(-2.4))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
                 )

@@ -50,6 +50,7 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
         .items_center()
         .justify_center()
         .p(px(24.0))
+        .pr(px(30.0))
         .bg(rgba(0x00000080))
         .child(modal.render())
         .into_element()

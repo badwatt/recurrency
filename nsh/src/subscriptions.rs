@@ -382,6 +382,7 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
             .child(shared_button(
                 ButtonProps::new("Add Subscription")
                     .icon(asset!("icons/plus.svg"))
+                    .min_width(160.0)
                     .on_press(on_add),
             ))
             .into_element(),
@@ -850,7 +851,6 @@ fn form(
                 .child(
                     view()
                         .w_full()
-                        .mt(px(6.0))
                         .flex_row()
                         .gap(px(12.0))
                         .child(
@@ -1461,7 +1461,7 @@ fn section(
     view()
         .w_full()
         .flex_col()
-        .gap(px(10.0))
+        .gap(px(17.0))
         .child(
             view()
                 .flex_row()
@@ -1470,6 +1470,7 @@ fn section(
                 .child(
                     text(label)
                         .text_size(px(12.0))
+                        .letter_spacing(px(0.7))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground),
                 )
@@ -1802,7 +1803,8 @@ fn card(
         .relative()
         .overflow_hidden()
         .cursor_pointer()
-        .w(px(295.0))
+        .w(px(296.0))
+        .min_h(px(266.0))
         .p(px(20.0))
         .pb(px(16.0))
         .gap(px(12.0))

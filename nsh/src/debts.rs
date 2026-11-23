@@ -244,7 +244,7 @@ pub fn debts(
     view()
         .w_full()
         .flex_col()
-        .gap(px(28.0))
+        .gap(px(24.0))
         .child(header(open_form))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -556,6 +556,7 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
             .child(shared_button(
                 ButtonProps::new("Add Debt")
                     .icon(asset!("icons/plus.svg"))
+                    .min_width(113.0)
                     .on_press(on_add),
             ))
             .into_element(),
@@ -1198,6 +1199,7 @@ fn content(
                     shared_button(
                         ButtonProps::new("Add Debt")
                             .icon(asset!("icons/plus.svg"))
+                            .min_width(113.0)
                             .on_press(move || open_form()),
                     )
                     .into_element(),

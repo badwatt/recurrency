@@ -133,7 +133,7 @@ fn loading_screen() -> AnyElement {
         )
         .child(
             text("Recurrency")
-                .text_size(px(18.0))
+                .text_size(px(19.0))
                 .font_weight(FontWeight::BOLD)
                 .text_color(move || theme().foreground),
         )
@@ -173,6 +173,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
             },
         )
         .bg(move || theme().background)
+        .pr(px(10.0))
         .font_family(theme::SANS)
         .text_color(move || theme().foreground)
         .child(ui::top_bar(route, auth_signal.get(), compact))
@@ -187,34 +188,32 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                         } else {
                             "public"
                         })
-                        .max_w(px(1240.0))
+                        .max_w(px(1242.0))
                         .pl(move || {
                             if compact.get() {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
-                                px(7.0)
+                                px(13.0)
                             } else {
-                                px(0.0)
+                                px(5.0)
                             }
                         })
                         .pr(move || {
                             if compact.get() {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
-                                px(19.0)
-                            } else if route.get() == Route::Settings {
-                                px(2.0)
+                                px(13.0)
                             } else {
-                                px(10.0)
+                                px(5.0)
                             }
                         })
                         .py(move || {
                             if compact.get() {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
-                                px(32.0)
+                                px(31.0)
                             } else {
-                                px(21.0)
+                                px(24.0)
                             }
                         })
                         .child(
