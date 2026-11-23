@@ -207,6 +207,11 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
     let height = size.height();
     let padding = size.padding();
     let label_size = size.text();
+    let icon_size = match size {
+        ButtonSize::Icon => 18.0,
+        ButtonSize::IconSm => 16.0,
+        _ => label_size + 3.0,
+    };
     let label_color = move || match variant {
         ButtonVariant::Primary => theme().primary_foreground,
         ButtonVariant::Destructive => theme().foreground,
@@ -259,7 +264,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
             || view().into_element(),
             |icon| {
                 image(icon)
-                    .size(px(label_size + 3.0))
+                    .size(px(icon_size))
                     .pointer_events(PointerEvents::None)
                     .tint_color(move || match variant {
                         ButtonVariant::Primary => theme().primary_foreground,
