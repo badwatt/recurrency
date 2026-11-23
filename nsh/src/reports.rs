@@ -323,6 +323,7 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .p(px(20.0))
+        .min_h(px(310.0))
         .gap(px(12.0))
         .child(
             text("By Category")
@@ -333,10 +334,10 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .child(
             view().w_full().items_center().child(
                 canvas(move || {
-                    let size = 240.0_f32;
+                    let size = 180.0_f32;
                     let center = size / 2.0;
-                    let radius = size * 0.34;
-                    let mut painter = Painter::new().line_width(size * 0.11);
+                    let radius = size * 0.36;
+                    let mut painter = Painter::new().line_width(18.0);
                     let categories = data.get().unwrap_or_default().report.category_breakdown;
                     if categories.is_empty() {
                         return painter
@@ -375,49 +376,56 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                     }
                     painter
                 })
-                .h(px(240.0))
-                .w(px(240.0)),
+                .h(px(180.0))
+                .w(px(180.0)),
             ),
         )
-        .child(view().flex_col().gap(px(6.0)).child(each(
-            move || data.get().unwrap_or_default().report.category_breakdown,
-            |category| category.category_name.clone(),
-            move |category, _| {
-                let category = category.get();
-                let color = category_color(data, &category.category_name);
-                let name = category.category_name.clone();
-                let percentage = format!("{:.0}%", category.percentage);
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
-                    .child(
+        .child(
+            view()
+                .w_full()
+                .grid()
+                .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
+                .gap(px(6.0))
+                .child(each(
+                    move || data.get().unwrap_or_default().report.category_breakdown,
+                    |category| category.category_name.clone(),
+                    move |category, _| {
+                        let category = category.get();
+                        let color = category_color(data, &category.category_name);
+                        let name = category.category_name.clone();
+                        let percentage = format!("{:.0}%", category.percentage);
                         view()
+                            .w_full()
                             .flex_row()
                             .items_center()
-                            .gap(px(6.0))
+                            .justify_between()
                             .child(
                                 view()
-                                    .h(px(8.0))
-                                    .w(px(8.0))
-                                    .rounded(px(999.0))
-                                    .bg(move || rgb(parse_hex(&color))),
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(6.0))
+                                    .child(
+                                        view()
+                                            .h(px(8.0))
+                                            .w(px(8.0))
+                                            .rounded(px(999.0))
+                                            .bg(move || rgb(parse_hex(&color))),
+                                    )
+                                    .child(
+                                        text(name)
+                                            .text_size(px(12.0))
+                                            .text_color(move || theme().foreground),
+                                    ),
                             )
                             .child(
-                                text(name)
+                                text(percentage)
                                     .text_size(px(12.0))
-                                    .text_color(move || theme().foreground),
-                            ),
-                    )
-                    .child(
-                        text(percentage)
-                            .text_size(px(12.0))
-                            .font_family(design::MONO)
-                            .text_color(move || theme().muted_foreground),
-                    )
-            },
-        )))
+                                    .font_family(design::MONO)
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                    },
+                )),
+        )
 }
 
 fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
@@ -429,112 +437,112 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .p(px(20.0))
-        .gap(px(10.0))
+        .gap(px(16.0))
         .child(
             text("Category Breakdown")
                 .text_size(px(16.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .py(px(8.0))
-                .border_b(px(1.0))
-                .border_color(move || theme().border)
-                .child(
-                    text("CATEGORY")
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground)
-                        .flex_grow(2.0),
-                )
-                .child(
-                    text("ITEMS")
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground)
-                        .flex_grow(1.0),
-                )
-                .child(
-                    text("SHARE")
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground)
-                        .flex_grow(1.0),
-                )
-                .child(
-                    text("AMOUNT")
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground)
-                        .flex_grow(1.0),
-                ),
-        )
-        .child(view().flex_col().child(each(
+        .child(view().flex_col().gap(px(16.0)).child(each(
             move || data.get().unwrap_or_default().report.category_breakdown,
             |category| category.category_name.clone(),
             move |category, _| {
                 let category = category.get();
                 let color = category_color(data, &category.category_name);
+                let color_bg = color.clone();
+                let color_dot = color.clone();
+                let color_bar = color;
                 let amount = format_currency(category.total, &currency);
-                let name = category.category_name.clone();
                 let count = category.count;
-                let share = format!("{:.1}%", category.percentage);
+                let percentage = category.percentage.max(0.0) as f32;
                 view()
                     .w_full()
-                    .flex_row()
-                    .items_center()
-                    .py(px(9.0))
-                    .border_b(px(1.0))
-                    .border_color(move || theme().border)
+                    .flex_col()
+                    .gap(px(8.0))
                     .child(
                         view()
-                            .flex_grow(2.0)
+                            .w_full()
                             .flex_row()
                             .items_center()
-                            .gap(px(6.0))
+                            .justify_between()
                             .child(
                                 view()
-                                    .h(px(8.0))
-                                    .w(px(8.0))
-                                    .rounded(px(999.0))
-                                    .bg(move || rgb(parse_hex(&color))),
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(10.0))
+                                    .child(
+                                        view()
+                                            .h(px(32.0))
+                                            .w(px(32.0))
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(999.0))
+                                            .bg(move || rgba((parse_hex(&color_bg) << 8) | 0x20))
+                                            .child(
+                                                view()
+                                                    .h(px(16.0))
+                                                    .w(px(16.0))
+                                                    .rounded(px(999.0))
+                                                    .bg(move || rgb(parse_hex(&color_dot))),
+                                            ),
+                                    )
+                                    .child(
+                                        text(category.category_name.clone())
+                                            .text_size(px(14.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().foreground),
+                                    ),
                             )
                             .child(
-                                text(name)
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().foreground),
+                                view()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(16.0))
+                                    .child(
+                                        text(ui::count_label(count as usize, "item", "items"))
+                                            .text_size(px(13.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    )
+                                    .child(
+                                        text(move || {
+                                            if crate::ui::privacy_active() {
+                                                "••••".to_string()
+                                            } else {
+                                                amount.clone()
+                                            }
+                                        })
+                                        .text_size(px(14.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().foreground),
+                                    ),
                             ),
                     )
                     .child(
-                        text(count.to_string())
-                            .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground)
-                            .flex_grow(1.0),
+                        view()
+                            .h(px(8.0))
+                            .w_full()
+                            .rounded(px(999.0))
+                            .overflow_hidden()
+                            .bg(move || theme().muted)
+                            .child(
+                                view()
+                                    .h_full()
+                                    .flex_grow(percentage.max(0.01))
+                                    .bg(move || rgb(parse_hex(&color_bar))),
+                            ),
                     )
-                    .child(
-                        text(share)
-                            .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground)
-                            .flex_grow(1.0),
-                    )
-                    .child(
-                        text(move || {
-                            if crate::ui::privacy_active() {
-                                "••••".to_string()
-                            } else {
-                                amount.clone()
-                            }
-                        })
-                        .text_size(px(12.0))
-                        .font_family(design::MONO)
-                        .text_color(move || theme().foreground)
-                        .flex_grow(1.0),
-                    )
+                    .into_element()
             },
         )))
+}
+
+fn trend_label(period: &str) -> String {
+    let mut parts = period.split('-');
+    let year = parts.next().unwrap_or_default();
+    let month = parts.next().unwrap_or_default();
+    let short_year = year.get(2..).unwrap_or(year);
+    format!("{month}/{short_year}")
 }
 
 fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
@@ -548,6 +556,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .p(px(20.0))
+        .min_h(px(310.0))
         .gap(px(12.0))
         .child(
             text("Spending Trends")
@@ -557,8 +566,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
         )
         .child(
             canvas(move || {
-                let mut trends = data.get().unwrap_or_default().report.recent_trends;
-                trends.reverse();
+                let trends = data.get().unwrap_or_default().report.recent_trends;
                 let w = width.get().max(1.0);
                 let h: f32 = 220.0;
                 let left = 34.0;
@@ -637,7 +645,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                         .fill_color(rgb(0x949AB3))
                         .font("10px Cabinet Grotesk")
                         .text_align(CanvasTextAlign::Center)
-                        .fill_text(&trend.period, cx, h - 8.0);
+                        .fill_text(&trend_label(&trend.period), cx, h - 8.0);
                 }
                 painter
             })

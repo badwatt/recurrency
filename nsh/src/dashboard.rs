@@ -376,6 +376,7 @@ fn hero(
                 .border_l(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().muted.opacity(0.2))
+                .flex_col()
                 .child(
                     text("PENDING FROM TODAY")
                         .text_size(px(12.0))
@@ -396,6 +397,7 @@ fn hero(
                         .text_color(move || theme().muted_foreground)
                         .mt(px(8.0)),
                 )
+                .child(view().flex_grow(1.0))
                 .child(
                     view()
                         .h(px(8.0))
@@ -671,20 +673,18 @@ fn ledger_card(
     let account_count = move || data.get().unwrap_or_default().accounts.len();
     let category_count = move || data.get().unwrap_or_default().categories.len();
     view()
-        .flex_grow(1.0)
-        .basis(px(460.0))
-        .max_w(px(520.0))
-        .min_w(px(0.0))
-        .rounded(px(12.0))
+        .w(px(460.0))
+        .flex_shrink(0.0)
+        .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .overflow_hidden()
         .child(
             view()
-                .p(px(24.0))
-                .pb(px(14.0))
-                .gap(px(10.0))
+                .p(px(20.0))
+                .pb(px(12.0))
+                .gap(px(8.0))
                 .child(
                     view()
                         .w_full()
@@ -709,7 +709,7 @@ fn ledger_card(
                             "Actual charges this month and pending from today.".to_string()
                         }
                     })
-                    .text_size(px(14.0))
+                    .text_size(px(13.0))
                     .text_color(move || theme().muted_foreground),
                 )
                 .child(
@@ -735,14 +735,14 @@ fn ledger_card(
                             )
                         }
                     })
-                    .text_size(px(12.0))
+                    .text_size(px(11.0))
                     .text_color(move || theme().muted_foreground),
                 ),
         )
         .child(
             view()
                 .flex_row()
-                .px(px(24.0))
+                .px(px(20.0))
                 .py(px(10.0))
                 .border_y(px(1.0))
                 .border_color(move || theme().border)
@@ -859,7 +859,7 @@ fn account_row(
         .w_full()
         .flex_row()
         .items_center()
-        .px(px(24.0))
+        .px(px(20.0))
         .py(px(16.0))
         .bg(move || {
             if hovered.get() == Some(id) {
@@ -974,7 +974,7 @@ fn category_row(
         .w_full()
         .flex_row()
         .items_center()
-        .px(px(24.0))
+        .px(px(20.0))
         .py(px(16.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
@@ -1053,7 +1053,7 @@ fn ledger_footer(
         .w_full()
         .flex_row()
         .items_center()
-        .px(px(24.0))
+        .px(px(20.0))
         .py(px(16.0))
         .bg(move || theme().muted.opacity(0.35))
         .border_t(px(1.0))
@@ -1153,7 +1153,7 @@ fn tab_fill(
         .flex_grow(1.0)
         .items_center()
         .justify_center()
-        .h(px(32.0))
+        .h(px(28.0))
         .rounded(px(5.0))
         .bg(move || {
             if active_bg() {
@@ -1173,7 +1173,7 @@ fn tab_fill(
         .on_press(on_press)
         .child(
             text(label)
-                .text_size(px(13.0))
+                .text_size(px(12.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || {
                     if active_text() {

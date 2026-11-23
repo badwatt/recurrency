@@ -189,11 +189,12 @@ pub fn subscriptions(
     let open_form = move || {
         let snapshot = data.get().unwrap_or_default();
         let today = Local::now().date_naive();
-        let date = requested_date.get().unwrap_or(today);
+        let requested = requested_date.get();
         requested_date.set(None);
+        let date = requested.unwrap_or(today);
         name.set(String::new());
         amount.set(String::new());
-        start_date.set(date.to_string());
+        start_date.set(requested.map(|date| date.to_string()).unwrap_or_default());
         end_date.set(String::new());
         form_currency.set(if auth.user.currency.is_empty() {
             "EUR".to_string()
@@ -1742,7 +1743,7 @@ fn card(
         .cursor_pointer()
         .w(px(292.0))
         .min_w(px(230.0))
-        .h(px(260.0))
+        .h(px(230.0))
         .p(px(20.0))
         .rounded(px(12.0))
         .border(px(1.0))
@@ -1803,16 +1804,16 @@ fn card(
                 .justify_between()
                 .child(
                     view()
-                        .h(px(40.0))
-                        .w(px(40.0))
+                        .h(px(48.0))
+                        .w(px(48.0))
                         .items_center()
                         .justify_center()
-                        .rounded(px(8.0))
+                        .rounded(px(10.0))
                         .bg(move || theme().muted)
                         .child(
                             when(logo.is_some(), move || {
                                 image(logo.clone().unwrap_or_default())
-                                    .size(px(24.0))
+                                    .size(px(28.0))
                                     .into_element()
                             })
                             .otherwise(|| {

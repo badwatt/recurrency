@@ -1310,7 +1310,6 @@ fn card(
     let badge = if automatic { "Automatic" } else { "Manual" };
     let total = format_currency(debt.total_amount, &currency);
     let remaining = format_currency(debt.remaining_amount, &currency);
-    let paid = format_currency(debt.paid_amount, &currency);
     let progress = progress(debt.total_amount, debt.remaining_amount);
     let monthly = debt.monthly_payment.map_or_else(
         || "Manual".to_string(),
@@ -1326,7 +1325,11 @@ fn card(
 
     view()
         .cursor_pointer()
-        .w_full()
+        .basis(px(600.0))
+        .flex_grow(1.0)
+        .max_w(px(604.0))
+        .min_w(px(0.0))
+        .flex_shrink(1.0)
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || {
@@ -1350,8 +1353,8 @@ fn card(
                 selected.set(values);
             }
         })
-        .p(px(20.0))
-        .gap(px(14.0))
+        .p(px(16.0))
+        .gap(px(12.0))
         .child(
             view()
                 .w_full()
@@ -1384,45 +1387,53 @@ fn card(
                                 .flex_col()
                                 .min_w(px(0.0))
                                 .child(
-                                    text(name)
-                                        .text_size(px(15.0))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(move || theme().foreground)
-                                        .number_of_lines(1),
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(6.0))
+                                        .child(
+                                            text(name)
+                                                .text_size(px(14.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .text_color(move || theme().foreground)
+                                                .number_of_lines(1),
+                                        )
+                                        .child(
+                                            text(badge)
+                                                .text_size(px(10.0))
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(move || {
+                                                    if automatic {
+                                                        theme().primary
+                                                    } else {
+                                                        theme().muted_foreground
+                                                    }
+                                                })
+                                                .px(px(6.0))
+                                                .py(px(1.0))
+                                                .rounded(px(999.0))
+                                                .bg(move || {
+                                                    if automatic {
+                                                        theme().primary.opacity(0.12)
+                                                    } else {
+                                                        theme().muted
+                                                    }
+                                                }),
+                                        ),
                                 )
                                 .child(
-                                    text(format!("{account} · {next}"))
+                                    text(account.clone())
                                         .text_size(px(11.0))
                                         .text_color(move || theme().muted_foreground),
                                 ),
                         ),
                 )
                 .child(
-                    text(badge)
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground)
-                        .px(px(7.0))
-                        .py(px(2.0))
-                        .rounded(px(4.0))
-                        .bg(move || theme().muted),
-                ),
-        )
-        .child(
-            view()
-                .flex_col()
-                .gap(px(4.0))
-                .child(
                     text(remaining)
-                        .text_size(px(28.0))
+                        .text_size(px(18.0))
                         .font_family(design::MONO)
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
-                )
-                .child(
-                    text(format!("{paid} paid of {total}"))
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
                 ),
         )
         .child(
@@ -1453,7 +1464,7 @@ fn card(
                 .items_center()
                 .justify_between()
                 .child(
-                    text(monthly)
+                    text(format!("of {total} · {monthly} · {next}"))
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 )
@@ -1594,13 +1605,17 @@ fn card_actions(
         let edit = edit.clone();
         view()
             .flex_row()
-            .gap(px(4.0))
+            .gap(px(6.0))
             .child(ui::action_button("Pay", false, pay.clone()))
-            .child(ui::action_button("History", false, history.clone()))
             .child(ui::action_button("Edit", false, edit))
-            .child(ui::action_button("Delete", true, move || {
-                confirm.set(Some(id));
-            }))
+            .child(ui::action_button("History", false, history.clone()))
+            .child(ui::mini_icon_button(
+                asset!("icons/trash.svg"),
+                true,
+                move || {
+                    confirm.set(Some(id));
+                },
+            ))
             .into_element()
     })
     .into_element()

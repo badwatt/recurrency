@@ -781,9 +781,9 @@ fn group_card(
                 .flex_row()
                 .items_center()
                 .justify_between()
-                .px(px(20.0))
-                .py(px(12.0))
-                .rounded(px(8.0))
+                .px(px(16.0))
+                .py(px(6.0))
+                .rounded(px(6.0))
                 .bg(move || theme().muted)
                 .child(
                     text(format!("{} · {count}", group.label))
@@ -849,8 +849,8 @@ fn row(
         .flex_row()
         .items_center()
         .justify_between()
-        .p(px(16.0))
-        .min_h(px(128.0))
+        .p(px(14.0))
+        .min_h(px(88.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || {
@@ -911,13 +911,13 @@ fn row(
                         .min_w(px(0.0))
                         .child(
                             text(name)
-                                .text_size(px(15.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
                             text(date)
-                                .text_size(px(13.0))
+                                .text_size(px(12.0))
                                 .text_color(move || theme().muted_foreground),
                         )
                         .child(
