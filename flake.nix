@@ -143,8 +143,8 @@
 
           RUST_BACKTRACE = "1";
           shellHook = ''
-            export ANDROID_HOME="${ANDROID_HOME:-$HOME/.android-sdk}"
-            export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/r27d}"
+            export ANDROID_HOME="''${ANDROID_HOME:-$HOME/.android-sdk}"
+            export ANDROID_NDK_HOME="''${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/r27d}"
             export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           '';
           OPENSSL_NO_VENDOR = "1";
