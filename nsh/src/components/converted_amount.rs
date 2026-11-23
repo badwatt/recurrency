@@ -43,8 +43,6 @@ pub fn converted_amount(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn conversion_only_shows_the_original_when_currencies_differ() {
         let source = include_str!("converted_amount.rs");
