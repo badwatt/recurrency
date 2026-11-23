@@ -14,7 +14,8 @@ thread_local! {
     static AI_CHAT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
     static ROUTE: RefCell<Option<Signal<Route>>> = const { RefCell::new(None) };
     static NOTIFICATIONS: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
-    static POPOVER_GENERATION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
+    static MENU_STATE: RefCell<Option<MenuState>> = const { RefCell::new(None) };
+    static MENU_VERSION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
 }
 
 pub fn init_privacy() {
@@ -43,7 +44,7 @@ pub fn init_privacy() {
             *slot = Some(signal(false));
         }
     });
-    POPOVER_GENERATION.with(|slot| {
+    MENU_VERSION.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
             *slot = Some(signal(0));
@@ -51,17 +52,84 @@ pub fn init_privacy() {
     });
 }
 
-pub fn popover_generation() -> u64 {
-    POPOVER_GENERATION.with(|slot| slot.borrow().map_or(0, |generation| generation.get()))
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuPlacement {
+    TopRight,
+    BottomRight,
 }
 
-/// Remount every menu and popover, closing the one whose action just ran.
-pub fn reset_popovers() {
-    POPOVER_GENERATION.with(|slot| {
-        if let Some(generation) = *slot.borrow() {
-            generation.set(generation.get().wrapping_add(1));
+struct MenuState {
+    placement: MenuPlacement,
+    build: std::rc::Rc<dyn Fn() -> AnyElement>,
+}
+
+pub fn open_menu(placement: MenuPlacement, build: impl Fn() -> AnyElement + 'static) {
+    MENU_STATE.with(|slot| {
+        *slot.borrow_mut() = Some(MenuState {
+            placement,
+            build: std::rc::Rc::new(build),
+        });
+    });
+    MENU_VERSION.with(|slot| {
+        if let Some(version) = *slot.borrow() {
+            version.set(version.get().wrapping_add(1));
         }
     });
+}
+
+pub fn close_menu() {
+    MENU_STATE.with(|slot| {
+        *slot.borrow_mut() = None;
+    });
+    MENU_VERSION.with(|slot| {
+        if let Some(version) = *slot.borrow() {
+            version.set(version.get().wrapping_add(1));
+        }
+    });
+}
+
+pub fn menu_overlay() -> AnyElement {
+    when(
+        move || {
+            MENU_VERSION.with(|slot| {
+                let _ = slot.borrow().map(|version| version.get());
+            });
+            MENU_STATE.with(|slot| slot.borrow().is_some())
+        },
+        move || {
+            let (placement, build) = MENU_STATE.with(|slot| {
+                slot.borrow().as_ref().map_or_else(
+                    || {
+                        (
+                            MenuPlacement::TopRight,
+                            std::rc::Rc::new(|| view().into_element())
+                                as std::rc::Rc<dyn Fn() -> AnyElement>,
+                        )
+                    },
+                    |menu| (menu.placement, menu.build.clone()),
+                )
+            });
+            view()
+                .absolute()
+                .inset_0()
+                .z_index(130)
+                .child(view().absolute().inset_0().on_press(close_menu))
+                .child(
+                    view()
+                        .absolute()
+                        .when(placement == MenuPlacement::TopRight, |panel| {
+                            panel.top(px(64.0)).right(px(24.0))
+                        })
+                        .when(placement == MenuPlacement::BottomRight, |panel| {
+                            panel.bottom(px(140.0)).right(px(18.0))
+                        })
+                        .child(build()),
+                )
+                .into_element()
+        },
+    )
+    .otherwise(|| view().h(px(0.0)).into_element())
+    .into_element()
 }
 
 pub fn notifications_open() -> bool {

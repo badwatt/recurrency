@@ -79,66 +79,76 @@ fn dismiss(id: u64) {
 
 pub fn toast_overlay() -> AnyElement {
     init();
-    let items = TOASTS.with(|slot| slot.borrow().map_or_else(Vec::new, |toasts| toasts.get()));
-    if items.is_empty() {
-        return view().h(px(0.0)).into_element();
-    }
-    view()
-        .absolute()
-        .right(px(20.0))
-        .bottom(px(20.0))
-        .z_index(140)
-        .flex_col()
-        .items_end()
-        .gap(px(8.0))
-        .children(items.into_iter().map(|toast| {
-            let id = toast.id;
-            let color = match toast.tone {
-                ToastTone::Success => crate::theme::success(),
-                ToastTone::Error => theme().destructive,
-                ToastTone::Info => theme().primary,
-            };
+    when(
+        move || {
+            TOASTS.with(|slot| {
+                slot.borrow()
+                    .map_or(false, |toasts| !toasts.get().is_empty())
+            })
+        },
+        move || {
+            let items =
+                TOASTS.with(|slot| slot.borrow().map_or_else(Vec::new, |toasts| toasts.get()));
             view()
-                .max_w(px(360.0))
-                .flex_row()
-                .items_center()
-                .gap(px(10.0))
-                .p(px(12.0))
-                .rounded(px(9.0))
-                .border(px(1.0))
-                .border_color(move || color.opacity(0.4))
-                .bg(move || theme().card)
-                .child(
+                .absolute()
+                .right(px(20.0))
+                .bottom(px(20.0))
+                .z_index(140)
+                .flex_col()
+                .items_end()
+                .gap(px(8.0))
+                .children(items.into_iter().map(|toast| {
+                    let id = toast.id;
+                    let color = match toast.tone {
+                        ToastTone::Success => crate::theme::success(),
+                        ToastTone::Error => theme().destructive,
+                        ToastTone::Info => theme().primary,
+                    };
                     view()
-                        .h(px(8.0))
-                        .w(px(8.0))
-                        .rounded(px(999.0))
-                        .bg(move || color),
-                )
-                .child(
-                    text(toast.message)
-                        .flex_grow(1.0)
-                        .text_size(px(12.0))
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    button()
-                        .h(px(22.0))
-                        .w(px(22.0))
+                        .max_w(px(360.0))
+                        .flex_row()
                         .items_center()
-                        .justify_center()
-                        .rounded(px(5.0))
-                        .accessibility_label("Dismiss notification")
-                        .on_press(move || dismiss(id))
+                        .gap(px(10.0))
+                        .p(px(12.0))
+                        .rounded(px(9.0))
+                        .border(px(1.0))
+                        .border_color(move || color.opacity(0.4))
+                        .bg(move || theme().card)
                         .child(
-                            image(asset!("icons/x.svg"))
-                                .size(px(12.0))
-                                .tint_color(move || theme().muted_foreground),
-                        ),
-                )
+                            view()
+                                .h(px(8.0))
+                                .w(px(8.0))
+                                .rounded(px(999.0))
+                                .bg(move || color),
+                        )
+                        .child(
+                            text(toast.message)
+                                .flex_grow(1.0)
+                                .text_size(px(12.0))
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            button()
+                                .h(px(22.0))
+                                .w(px(22.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(5.0))
+                                .accessibility_label("Dismiss notification")
+                                .on_press(move || dismiss(id))
+                                .child(
+                                    image(asset!("icons/x.svg"))
+                                        .size(px(12.0))
+                                        .tint_color(move || theme().muted_foreground),
+                                ),
+                        )
+                        .into_element()
+                }))
                 .into_element()
-        }))
-        .into_element()
+        },
+    )
+    .otherwise(|| view().h(px(0.0)).into_element())
+    .into_element()
 }
 
 #[cfg(test)]

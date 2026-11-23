@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::components::button::{ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button};
 use crate::components::card::card;
-use nsh_base::popover;
 use nsh_core::prelude::*;
 
 #[derive(Clone)]
@@ -27,46 +26,49 @@ pub fn dropdown_menu(
     icon: Option<ImageAsset>,
     actions: Vec<MenuAction>,
 ) -> impl IntoElement {
+    let actions = Rc::new(actions);
     let panel_actions = actions.clone();
-    popover()
-        .key(crate::ui::popover_generation().to_string())
-        .placement(Placement::Bottom)
-        .align(Align::End)
-        .offset(px(6.0))
-        .trigger(button(
-            ButtonProps::new(label)
-                .variant(ButtonVariant::Outline)
-                .size(ButtonSize::Sm)
-                .icon_opt(icon),
-        ))
-        .child(
-            card()
-                .w(px(170.0))
-                .p(px(4.0))
-                .gap(px(2.0))
-                .children(panel_actions.into_iter().map(|action| {
-                    let press = action.on_press.clone();
-                    button(
-                        ButtonProps::new(action.label)
-                            .variant(ButtonVariant::Ghost)
-                            .size(ButtonSize::Sm)
-                            .align(ButtonAlign::Start)
-                            .full_width()
-                            .on_press(move || {
-                                crate::ui::reset_popovers();
-                                press();
-                            }),
-                    )
-                })),
-        )
+    let build = move || {
+        let actions = panel_actions.clone();
+        card()
+            .w(px(180.0))
+            .p(px(4.0))
+            .gap(px(2.0))
+            .children(actions.iter().map(|action| {
+                let press = action.on_press.clone();
+                let label = action.label.clone();
+                button(
+                    ButtonProps::new(label)
+                        .variant(ButtonVariant::Ghost)
+                        .size(ButtonSize::Sm)
+                        .align(ButtonAlign::Start)
+                        .full_width()
+                        .on_press(move || {
+                            crate::ui::close_menu();
+                            press();
+                        }),
+                )
+            }))
+            .into_element()
+    };
+    button(
+        ButtonProps::new(label)
+            .variant(ButtonVariant::Outline)
+            .size(ButtonSize::Sm)
+            .icon_opt(icon)
+            .on_press(move || {
+                let build = build.clone();
+                crate::ui::open_menu(crate::ui::MenuPlacement::TopRight, build);
+            }),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn the_dropdown_is_an_overlay_popover() {
+    fn the_dropdown_uses_the_shared_menu_host() {
         let source = include_str!("dropdown_menu.rs");
-        assert!(source.contains("popover()"));
-        assert!(source.contains("open.set(false)"));
+        assert!(source.contains("open_menu"));
+        assert!(source.contains("close_menu"));
     }
 }

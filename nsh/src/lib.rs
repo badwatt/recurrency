@@ -378,5 +378,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
             )
             .otherwise(|| view().h(px(0.0))),
         )
+        .child(ui::menu_overlay())
+        .child(crate::components::toast::toast_overlay())
         .into_element()
 }
