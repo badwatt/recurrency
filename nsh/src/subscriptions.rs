@@ -649,57 +649,70 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || theme().muted_foreground),
         )
-        .child(each(
-            move || dates.get().into_iter().enumerate().collect::<Vec<_>>(),
-            |(index, _)| *index,
-            move |entry, _| {
-                let (index, date) = entry.get();
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_end()
-                    .gap(px(6.0))
-                    .child(annual_field(
-                        "Month",
-                        date.month.to_string(),
-                        move |value| {
-                            let mut next = dates.get();
-                            if let Some(slot) = next.get_mut(index) {
-                                slot.month = value.parse().unwrap_or(0);
-                            }
-                            dates.set(next);
+        .child(
+            view()
+                .w_full()
+                .flex_col()
+                .gap(px(6.0))
+                .children((0..12).map(|index| {
+                    when(
+                        move || dates.get().len() > index,
+                        move || {
+                            let date = dates.get().get(index).cloned().unwrap_or(AnnualDate {
+                                month: 1,
+                                day: 1,
+                                amount: None,
+                            });
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .items_end()
+                                .gap(px(6.0))
+                                .child(annual_field(
+                                    "Month",
+                                    date.month.to_string(),
+                                    move |value| {
+                                        let mut next = dates.get();
+                                        if let Some(slot) = next.get_mut(index) {
+                                            slot.month = value.parse().unwrap_or(0);
+                                        }
+                                        dates.set(next);
+                                    },
+                                ))
+                                .child(annual_field("Day", date.day.to_string(), move |value| {
+                                    let mut next = dates.get();
+                                    if let Some(slot) = next.get_mut(index) {
+                                        slot.day = value.parse().unwrap_or(0);
+                                    }
+                                    dates.set(next);
+                                }))
+                                .child(annual_field(
+                                    "Amount (optional)",
+                                    date.amount
+                                        .map(|value| value.to_string())
+                                        .unwrap_or_default(),
+                                    move |value| {
+                                        let mut next = dates.get();
+                                        if let Some(slot) = next.get_mut(index) {
+                                            slot.amount = value.trim().parse::<Decimal>().ok();
+                                        }
+                                        dates.set(next);
+                                    },
+                                ))
+                                .child(ui::action_button("Remove", true, move || {
+                                    let mut next = dates.get();
+                                    if index < next.len() {
+                                        next.remove(index);
+                                    }
+                                    dates.set(next);
+                                }))
+                                .into_element()
                         },
-                    ))
-                    .child(annual_field("Day", date.day.to_string(), move |value| {
-                        let mut next = dates.get();
-                        if let Some(slot) = next.get_mut(index) {
-                            slot.day = value.parse().unwrap_or(0);
-                        }
-                        dates.set(next);
-                    }))
-                    .child(annual_field(
-                        "Amount (optional)",
-                        date.amount
-                            .map(|value| value.to_string())
-                            .unwrap_or_default(),
-                        move |value| {
-                            let mut next = dates.get();
-                            if let Some(slot) = next.get_mut(index) {
-                                slot.amount = value.trim().parse::<Decimal>().ok();
-                            }
-                            dates.set(next);
-                        },
-                    ))
-                    .child(ui::action_button("Remove", true, move || {
-                        let mut next = dates.get();
-                        if index < next.len() {
-                            next.remove(index);
-                        }
-                        dates.set(next);
-                    }))
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element())
                     .into_element()
-            },
-        ))
+                })),
+        )
         .child(ui::action_button("Add annual date", false, move || {
             let mut next = dates.get();
             next.push(AnnualDate {
