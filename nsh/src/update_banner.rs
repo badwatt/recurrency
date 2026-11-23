@@ -98,6 +98,21 @@ pub fn update_banner() -> AnyElement {
                     .gap(px(10.0))
                     .child(
                         view()
+                            .h(px(36.0))
+                            .w(px(36.0))
+                            .flex_shrink(0.0)
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(8.0))
+                            .bg(move || theme().primary.opacity(0.15))
+                            .child(
+                                image(asset!("icons/download.svg"))
+                                    .size(px(18.0))
+                                    .tint_color(move || theme().primary),
+                            ),
+                    )
+                    .child(
+                        view()
                             .flex_col()
                             .flex_grow(1.0)
                             .min_w(px(0.0))
@@ -228,5 +243,17 @@ mod tests {
             assets: Vec::new(),
         };
         assert!(preferred_asset(&release).is_none());
+    }
+}
+
+#[cfg(test)]
+mod preference_tests {
+    use super::*;
+
+    #[test]
+    fn newer_versions_are_detected_and_prereleases_do_not_regress() {
+        assert!(newer("0.56.0", "v0.57.0"));
+        assert!(!newer("0.56.0", "v0.56.0"));
+        assert!(!newer("0.56.0", "0.56.0-beta.1"));
     }
 }
