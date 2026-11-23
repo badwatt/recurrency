@@ -69,10 +69,9 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 .flex_row()
                 .flex_wrap()
                 .items_center()
-                .gap(px(12.0))
                 .mr(px(-8.0))
                 .child(
-                    view().mr(px(5.0)).child(compact_select(
+                    view().w(px(144.0)).mr(px(11.0)).child(compact_select(
                         month_choice,
                         (1..=12)
                             .map(|month| (month.to_string(), month_name(month).to_string()))
@@ -81,7 +80,7 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                     )),
                 )
                 .child(
-                    view().mr(px(15.0)).child(compact_select(
+                    view().w(px(98.0)).mr(px(16.0)).child(compact_select(
                         year_choice,
                         (today.year() - 2..=today.year())
                             .map(|year| (year.to_string(), year.to_string()))

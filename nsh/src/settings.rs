@@ -884,6 +884,8 @@ fn account_card(
             ui::surface()
                 .border_color(move || theme().destructive.opacity(0.3))
                 .p(px(24.0))
+                .pt(px(8.0))
+                .pb(px(35.0))
                 .gap(px(12.0))
                 .child(
                     text("Delete account")
@@ -904,6 +906,7 @@ fn account_card(
                         .items_center()
                         .justify_between()
                         .gap(px(12.0))
+                        .mt(px(62.0))
                         .child(
                             view()
                                 .flex_col()
