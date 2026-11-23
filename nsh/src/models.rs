@@ -130,6 +130,10 @@ pub struct Debt {
     pub is_active: bool,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]

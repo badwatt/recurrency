@@ -12,8 +12,11 @@ use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
+use crate::components::filter_menu::filter_menu;
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::search_input::search_input;
+use crate::components::sort_menu::{SortOption, sort_menu};
+use crate::components::string_select::{StringSelectProps, string_select};
 use crate::format::{format_currency, format_date};
 use crate::models::{Debt, DebtPayment};
 use crate::theme as design;
@@ -213,6 +216,9 @@ pub fn debts(
         open_form();
     }
 
+    let type_filter = signal("all".to_string());
+    let sort_field = signal("name".to_string());
+    let sort_desc = signal(false);
     let empty_open = open_form.clone();
     let open_bulk = move || {
         modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
@@ -239,6 +245,9 @@ pub fn debts(
                     token_signal,
                     empty_open,
                     open_bulk,
+                    type_filter,
+                    sort_field,
+                    sort_desc,
                 )
             })
         }))
@@ -1069,8 +1078,11 @@ fn toolbar(
     data: Resource<DebtsData, String>,
     search: Signal<String>,
     open_bulk: impl Fn() + 'static,
+    type_filter: Signal<String>,
+    sort_field: Signal<String>,
+    sort_desc: Signal<bool>,
 ) -> impl IntoElement {
-    let count = move || filtered(data, search).len();
+    let count = move || filtered(data, search, type_filter, sort_field, sort_desc).len();
     view()
         .w_full()
         .flex_row()
@@ -1083,6 +1095,31 @@ fn toolbar(
                 .text_size(px(13.0))
                 .text_color(move || theme().muted_foreground),
         )
+        .child(filter_menu(
+            usize::from(type_filter.get() != "all"),
+            view()
+                .child(string_select(StringSelectProps::new(
+                    "Type",
+                    type_filter,
+                    vec![
+                        ("all".to_string(), "All debts".to_string()),
+                        ("manual".to_string(), "Manual".to_string()),
+                        ("automatic".to_string(), "Automatic".to_string()),
+                    ],
+                )))
+                .into_element(),
+        ))
+        .child(sort_menu(
+            sort_field,
+            sort_desc,
+            vec![
+                SortOption::new("name", "Name"),
+                SortOption::new("remaining", "Remaining"),
+                SortOption::new("next", "Next payment"),
+                SortOption::new("created_at", "Created"),
+                SortOption::new("updated_at", "Last modified"),
+            ],
+        ))
         .child(crate::components::button::icon_button(
             asset!("icons/check.svg"),
             "Select debts",
@@ -1100,8 +1137,11 @@ fn content(
     token: Signal<String>,
     open_form: impl Fn() + Clone + 'static,
     open_bulk: impl Fn() + Clone + 'static,
+    type_filter: Signal<String>,
+    sort_field: Signal<String>,
+    sort_desc: Signal<bool>,
 ) -> AnyElement {
-    let items = move || filtered(data, search);
+    let items = move || filtered(data, search, type_filter, sort_field, sort_desc);
     let empty = move || data.get().unwrap_or_default().debts.is_empty();
     view()
         .w_full()
@@ -1131,7 +1171,14 @@ fn content(
                     .w_full()
                     .flex_col()
                     .gap(px(16.0))
-                    .child(toolbar(data, open_search, bulk))
+                    .child(toolbar(
+                        data,
+                        open_search,
+                        bulk,
+                        type_filter,
+                        sort_field,
+                        sort_desc,
+                    ))
                     .child(
                         view()
                             .w_full()
@@ -1439,16 +1486,39 @@ fn card_actions(
     .into_element()
 }
 
-fn filtered(data: Resource<DebtsData, String>, search: Signal<String>) -> Vec<Debt> {
+fn filtered(
+    data: Resource<DebtsData, String>,
+    search: Signal<String>,
+    type_filter: Signal<String>,
+    sort_field: Signal<String>,
+    sort_desc: Signal<bool>,
+) -> Vec<Debt> {
     let snapshot = data.get().unwrap_or_default();
-    filter_debts(&snapshot.debts, &snapshot.accounts, &search.get())
+    filter_debts(
+        &snapshot.debts,
+        &snapshot.accounts,
+        &search.get(),
+        &type_filter.get(),
+        &sort_field.get(),
+        sort_desc.get(),
+    )
 }
 
-fn filter_debts(debts: &[Debt], accounts: &[crate::models::Account], query: &str) -> Vec<Debt> {
+fn filter_debts(
+    debts: &[Debt],
+    accounts: &[crate::models::Account],
+    query: &str,
+    type_filter: &str,
+    sort_field: &str,
+    sort_desc: bool,
+) -> Vec<Debt> {
     let query = query.trim().to_lowercase();
     let mut result: Vec<Debt> = debts
         .iter()
         .filter(|debt| {
+            if type_filter != "all" && debt.debt_type != type_filter {
+                return false;
+            }
             if query.is_empty() {
                 return true;
             }
@@ -1460,7 +1530,16 @@ fn filter_debts(debts: &[Debt], accounts: &[crate::models::Account], query: &str
         })
         .cloned()
         .collect();
-    result.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    result.sort_by(|a, b| {
+        let order = match sort_field {
+            "remaining" => a.remaining_amount.cmp(&b.remaining_amount),
+            "next" => a.next_payment_date.cmp(&b.next_payment_date),
+            "created_at" => a.created_at.cmp(&b.created_at),
+            "updated_at" => a.updated_at.cmp(&b.updated_at),
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        };
+        if sort_desc { order.reverse() } else { order }
+    });
     result
 }
 
@@ -1574,6 +1653,8 @@ mod tests {
             is_active: true,
             notes: None,
             logo_url: None,
+            created_at: None,
+            updated_at: None,
         }
     }
 
@@ -1585,13 +1666,30 @@ mod tests {
     }
 
     #[test]
+    fn debt_filters_and_sorts_by_type_and_remaining() {
+        let mut manual = debt("Alpha", Decimal::from(100), Decimal::from(80));
+        manual.debt_type = "manual".to_string();
+        let mut automatic = debt("Beta", Decimal::from(100), Decimal::from(20));
+        automatic.debt_type = "automatic".to_string();
+        let debts = vec![manual, automatic];
+        let automatic_only = filter_debts(&debts, &[], "", "automatic", "name", false);
+        assert_eq!(automatic_only.len(), 1);
+        assert_eq!(automatic_only[0].name, "Beta");
+        let by_remaining = filter_debts(&debts, &[], "", "all", "remaining", true);
+        assert_eq!(by_remaining[0].name, "Alpha");
+    }
+
+    #[test]
     fn debt_search_matches_name_and_account() {
         let debts = vec![
             debt("Car loan", Decimal::from(12000), Decimal::from(9000)),
             debt("Mortgage", Decimal::from(200000), Decimal::from(180000)),
         ];
-        assert_eq!(filter_debts(&debts, &[], "car").len(), 1);
-        assert_eq!(filter_debts(&debts, &[], "").len(), 2);
+        assert_eq!(
+            filter_debts(&debts, &[], "car", "all", "name", false).len(),
+            1
+        );
+        assert_eq!(filter_debts(&debts, &[], "", "all", "name", false).len(), 2);
     }
 
     #[test]
