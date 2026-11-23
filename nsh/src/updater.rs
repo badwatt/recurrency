@@ -3,9 +3,7 @@
 //! the operating system instead of replacing application files in place.
 
 pub async fn install(url: &str) -> Result<(), String> {
-    if !url.starts_with("https://github.com/badwatt/recurrency/") {
-        return Err("The update URL is not trusted".to_string());
-    }
+    validate_url(url)?;
     let response = nsh_core::element::fetch(nsh_core::element::HttpRequest::get(url))
         .await
         .map_err(|error| error.to_string())?;
@@ -72,4 +70,26 @@ async fn install_bytes(url: &str, bytes: &[u8]) -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|error| error.to_string())
+}
+
+fn validate_url(url: &str) -> Result<(), String> {
+    if url.starts_with("https://github.com/badwatt/recurrency/") {
+        Ok(())
+    } else {
+        Err("The update URL is not trusted".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_url;
+
+    #[test]
+    fn trusted_update_url_is_required() {
+        assert!(validate_url("https://github.com/badwatt/recurrency/releases/latest").is_ok());
+        assert_eq!(
+            validate_url("https://example.com/Recurrency.apk"),
+            Err("The update URL is not trusted".to_string())
+        );
+    }
 }
