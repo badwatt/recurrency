@@ -12,7 +12,7 @@ fn preferred_asset<'a>(release: &'a crate::api::Release) -> Option<&'a crate::ap
     } else if cfg!(target_os = "macos") {
         [".dmg"].as_slice()
     } else {
-        [".appimage", ".deb"].as_slice()
+        [".appimage", ".deb", ".tar.gz"].as_slice()
     };
     release.assets.iter().find(|asset| {
         let name = asset.name.to_ascii_lowercase();

@@ -16,10 +16,11 @@ pub async fn install(url: &str) -> Result<(), String> {
 
 #[cfg(target_os = "android")]
 async fn install_bytes(url: &str, bytes: &[u8]) -> Result<(), String> {
-    // Android can only install an APK after the user confirms the package
-    // installer; open the download so that prompt is available.
-    let _ = (url, bytes);
-    Err("The Android installer is not available in this build".to_string())
+    // The browser owns APK delivery and the package-installer prompt.
+    let _ = bytes;
+    nsh_core::open_url(url.to_string())
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(any(target_os = "ios", target_arch = "wasm32"))]
