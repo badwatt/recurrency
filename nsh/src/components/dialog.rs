@@ -110,7 +110,8 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
     } = dialog;
     let close = on_close.clone();
     view()
-        .w(px(width))
+        .w_full()
+        .max_w(px(width))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || nsh_base::theme().border)
@@ -172,4 +173,15 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                 .border_color(move || nsh_base::theme().border)
                 .child(footer),
         )
+}
+
+
+#[cfg(test)]
+mod width_tests {
+    #[test]
+    fn dialogs_never_exceed_their_max_width() {
+        let source = include_str!("dialog.rs");
+        assert!(source.contains("max_w(px(width))"));
+        assert!(source.contains("w_full()"));
+    }
 }
