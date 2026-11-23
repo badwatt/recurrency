@@ -149,83 +149,127 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                 .child(
                     view()
                         .p(px(24.0))
-                        .gap(px(16.0))
                         .child(
-                            when(move || !error.get().is_empty(), move || error_box(error))
-                                .otherwise(|| view().h(px(0.0))),
+                            view()
+                                .mb(move || {
+                                    if error.get().is_empty() {
+                                        px(0.0)
+                                    } else {
+                                        px(16.0)
+                                    }
+                                })
+                                .child(
+                                    when(move || !error.get().is_empty(), move || error_box(error))
+                                        .otherwise(|| view().h(px(0.0))),
+                                ),
                         )
                         .child(
-                            when(
-                                move || registering.get(),
-                                move || {
-                                    form_field("Name", "Alex", "name", false, name, move || {
-                                        submit()
-                                    })
-                                    .into_element()
-                                },
-                            )
-                            .otherwise(|| view().h(px(0.0)).into_element()),
+                            view()
+                                .mb(move || {
+                                    if registering.get() {
+                                        px(16.0)
+                                    } else {
+                                        px(0.0)
+                                    }
+                                })
+                                .child(
+                                    when(
+                                        move || registering.get(),
+                                        move || {
+                                            form_field(
+                                                "Name",
+                                                "Alex",
+                                                "name",
+                                                false,
+                                                name,
+                                                move || {
+                                                    submit()
+                                                },
+                                            )
+                                            .into_element()
+                                        },
+                                    )
+                                    .otherwise(|| view().h(px(0.0)).into_element()),
+                                ),
                         )
-                        .child(form_field(
-                            "Email",
-                            "email@example.com",
-                            "email",
-                            false,
-                            email,
-                            move || submit(),
-                        ))
-                        .child(form_field(
-                            "Password",
-                            "",
-                            "current-password",
-                            true,
-                            password,
-                            move || submit(),
-                        ))
-                        .child(shared_button(
-                            ButtonProps::new(if busy.get() {
-                                "Please wait..."
-                            } else if registering.get() {
-                                "Create account"
-                            } else {
-                                "Sign in"
-                            })
-                            .full_width()
-                            .disabled(busy.get())
-                            .on_press(move || submit()),
-                        ))
+                        .child(
+                            view().mb(px(16.0)).child(form_field(
+                                "Email",
+                                "email@example.com",
+                                "email",
+                                false,
+                                email,
+                                move || submit(),
+                            )),
+                        )
+                        .child(
+                            view().mb(px(16.0)).child(form_field(
+                                "Password",
+                                "",
+                                "current-password",
+                                true,
+                                password,
+                                move || submit(),
+                            )),
+                        )
+                        .child(
+                            view().mb(px(16.0)).child(shared_button(
+                                ButtonProps::new(if busy.get() {
+                                    "Please wait..."
+                                } else if registering.get() {
+                                    "Create account"
+                                } else {
+                                    "Sign in"
+                                })
+                                .full_width()
+                                .disabled(busy.get())
+                                .on_press(move || submit()),
+                            )),
+                        )
                         .when(!cfg!(target_arch = "wasm32"), |form| {
-                            form.child(shared_button(
-                                ButtonProps::new("Use this device only")
-                                    .variant(crate::components::button::ButtonVariant::Outline)
-                                    .full_width()
-                                    .on_press(move || {
-                                        crate::local::enable();
-                                        let local_session = crate::local::session();
-                                        crate::auth::store_session(&local_session);
-                                        session.set(Session::SignedIn(local_session));
-                                    }),
-                            ))
-                        })
-                        .child(
-                            when(
-                                move || demo_enabled.get(),
-                                move || {
-                                    shared_button(
-                                        ButtonProps::new(if demo_loading.get() {
-                                            "Loading..."
-                                        } else {
-                                            "Demo account"
-                                        })
+                            form.child(
+                                view().mb(px(16.0)).child(shared_button(
+                                    ButtonProps::new("Use this device only")
                                         .variant(crate::components::button::ButtonVariant::Outline)
                                         .full_width()
-                                        .disabled(demo_loading.get())
-                                        .on_press(move || demo()),
-                                    )
-                                    .into_element()
-                                },
+                                        .on_press(move || {
+                                            crate::local::enable();
+                                            let local_session = crate::local::session();
+                                            crate::auth::store_session(&local_session);
+                                            session.set(Session::SignedIn(local_session));
+                                        }),
+                                )),
                             )
-                            .otherwise(|| view().h(px(0.0))),
+                        })
+                        .child(
+                            view()
+                                .mb(move || {
+                                    if demo_enabled.get() {
+                                        px(16.0)
+                                    } else {
+                                        px(0.0)
+                                    }
+                                })
+                                .child(
+                                    when(
+                                        move || demo_enabled.get(),
+                                        move || {
+                                            shared_button(
+                                                ButtonProps::new(if demo_loading.get() {
+                                                    "Loading..."
+                                                } else {
+                                                    "Demo account"
+                                                })
+                                                .variant(crate::components::button::ButtonVariant::Outline)
+                                                .full_width()
+                                                .disabled(demo_loading.get())
+                                                .on_press(move || demo()),
+                                            )
+                                            .into_element()
+                                        },
+                                    )
+                                    .otherwise(|| view().h(px(0.0))),
+                                ),
                         )
                         .child(
                             button()

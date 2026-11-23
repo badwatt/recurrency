@@ -58,7 +58,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(24.0))
+        .gap(px(28.0))
         .child(header())
         .child(when(loading, || loading_card()).otherwise(move || {
             let currency = render_currency.clone();
@@ -80,15 +80,15 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
         .flex_row()
         .items_center()
         .justify_between()
-        .px(px(16.0))
-        .py(px(12.0))
+        .px(px(14.0))
+        .py(px(14.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
         .child(
             view()
                 .flex_row()
                 .items_center()
-                .gap(px(8.0))
+                .gap(px(6.0))
                 .child(ui::icon_button(
                     asset!("icons/chevron-left.svg"),
                     false,
@@ -100,7 +100,9 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
                 ))
                 .child(
                     text(move || month_label(year.get(), month.get()))
-                        .text_size(px(18.0))
+                        .w(px(200.0))
+                        .text_size(px(20.0))
+                        .line_height(px(28.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
                 )
@@ -120,8 +122,8 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
                 .cursor_pointer()
                 .items_center()
                 .justify_center()
-                .h(px(38.0))
-                .px(px(12.0))
+                .h(px(40.0))
+                .px(px(14.0))
                 .rounded(px(8.0))
                 .border(px(1.0))
                 .border_color(move || theme().border)
@@ -172,7 +174,7 @@ fn content(
     view()
         .w_full()
         .flex_col()
-        .gap(px(32.0))
+        .gap(px(24.0))
         .child(
             view()
                 .w_full()
@@ -206,7 +208,7 @@ fn content(
                     .child(
                         view()
                             .w_full()
-                            .pt(px(32.0))
+                            .pt(px(15.0))
                             .px(px(16.0))
                             .pb(px(16.0))
                             .grid()
@@ -254,8 +256,9 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
         .p(px(16.0))
         .child(
             text(label.to_string())
-                .text_size(px(11.0))
-                .font_weight(FontWeight::SEMIBOLD)
+                .text_size(px(12.0))
+                .line_height(px(16.0))
+                .font_weight(FontWeight::MEDIUM)
                 .text_color(move || theme().muted_foreground),
         )
         .child(
@@ -266,23 +269,23 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
                     value()
                 }
             })
-            .text_size(px(26.0))
+            .text_size(px(24.0))
+            .line_height(px(32.0))
             .font_family(design::MONO)
             .font_weight(FontWeight::BOLD)
             .text_color(move || theme().foreground)
-            .mt(px(4.0)),
+            .mt(px(8.0)),
         )
 }
 
 fn weekday_header(label: &'static str) -> impl IntoElement {
     view()
-        .h(px(42.0))
-        .py(px(8.0))
+        .h(px(36.0))
         .items_center()
-        .bg(move || theme().muted)
+        .bg(move || theme().muted.opacity(0.5))
         .child(
             text(label)
-                .text_size(px(10.0))
+                .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().muted_foreground),
         )

@@ -285,7 +285,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                 .flex_row()
                 .items_center()
                 .gap(px(4.0))
-                .px(px(28.0))
+                .px(px(12.0))
                 .child(
                     view()
                         .flex_row()
@@ -663,6 +663,28 @@ pub fn icon_button(
     crate::components::button::icon_button(icon, "Action", active, on_press)
 }
 
+pub fn row_icon_button(
+    icon: ImageAsset,
+    destructive: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .cursor_pointer()
+        .items_center()
+        .justify_center()
+        .h(px(36.0))
+        .w(px(36.0))
+        .rounded(px(6.0))
+        .on_press(on_press)
+        .child(image(icon).size(px(16.0)).tint_color(move || {
+            if destructive {
+                theme().destructive
+            } else {
+                theme().muted_foreground
+            }
+        }))
+}
+
 pub fn mini_icon_button(
     icon: ImageAsset,
     destructive: bool,
@@ -673,11 +695,11 @@ pub fn mini_icon_button(
         .cursor_pointer()
         .items_center()
         .justify_center()
-        .h(px(26.0))
-        .w(px(26.0))
-        .rounded(px(5.0))
+        .h(px(32.0))
+        .w(px(32.0))
+        .rounded(px(8.0))
         .on_press(on_press)
-        .child(image(icon).size(px(15.0)).tint_color(move || {
+        .child(image(icon).size(px(14.0)).tint_color(move || {
             if destructive {
                 theme().destructive
             } else {

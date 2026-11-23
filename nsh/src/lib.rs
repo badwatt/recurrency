@@ -187,23 +187,24 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                         } else {
                             "public"
                         })
-                        .max_w(px(1280.0))
-                        .px(move || {
+                        .max_w(px(1240.0))
+                        .pl(move || {
                             if compact.get() {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
-                                px(28.0)
+                                px(10.0)
                             } else {
-                                px(24.0)
+                                px(0.0)
                             }
                         })
+                        .pr(move || if compact.get() { px(16.0) } else { px(10.0) })
                         .py(move || {
                             if compact.get() {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
                                 px(32.0)
                             } else {
-                                px(24.0)
+                                px(21.0)
                             }
                         })
                         .child(

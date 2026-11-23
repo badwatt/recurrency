@@ -774,7 +774,7 @@ fn group_card(
         .w_full()
         .when(grid, |view| view.w(px(360.0)).flex_grow(1.0))
         .flex_col()
-        .gap(px(8.0))
+        .gap(px(16.0))
         .child(
             view()
                 .w_full()
@@ -782,13 +782,13 @@ fn group_card(
                 .items_center()
                 .justify_between()
                 .px(px(16.0))
-                .py(px(6.0))
-                .rounded(px(6.0))
-                .bg(move || theme().muted)
+                .py(px(8.0))
+                .rounded(px(8.0))
+                .bg(move || theme().muted.opacity(0.5))
                 .child(
                     text(format!("{} · {count}", group.label))
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::MEDIUM)
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
@@ -834,6 +834,10 @@ fn row(
     selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let account = account_name(data, transaction.account_id);
+    let accent = account_color(data, transaction.account_id);
+    let accent_badge = accent.clone();
+    let accent_text = accent.clone();
+    let accent_icon = accent.clone();
     let action_transaction = transaction.clone();
     let logo = transaction.logo_url.clone();
     let name = transaction.name;
@@ -849,9 +853,8 @@ fn row(
         .flex_row()
         .items_center()
         .justify_between()
-        .p(px(14.0))
-        .min_h(px(88.0))
-        .rounded(px(12.0))
+        .p(px(16.0))
+        .rounded(px(8.0))
         .border(px(1.0))
         .border_color(move || {
             if selected.get().contains(&select_id) {
@@ -874,12 +877,12 @@ fn row(
                 selected.set(values);
             }
         })
-        .gap(px(12.0))
+        .gap(px(16.0))
         .child(
             view()
                 .flex_row()
                 .items_center()
-                .gap(px(12.0))
+                .gap(px(16.0))
                 .min_w(px(0.0))
                 .flex_1()
                 .child(
@@ -898,7 +901,7 @@ fn row(
                             })
                             .otherwise(|| {
                                 image(asset!("icons/receipt.svg"))
-                                    .size(px(17.0))
+                                    .size(px(16.0))
                                     .tint_color(move || theme().muted_foreground)
                                     .into_element()
                             }),
@@ -907,17 +910,18 @@ fn row(
                 .child(
                     view()
                         .flex_col()
-                        .gap(px(3.0))
                         .min_w(px(0.0))
                         .child(
                             text(name)
-                                .text_size(px(14.0))
+                                .text_size(px(16.0))
+                                .line_height(px(24.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
                             text(date)
                                 .text_size(px(12.0))
+                                .line_height(px(16.0))
                                 .text_color(move || theme().muted_foreground),
                         )
                         .child(
@@ -925,21 +929,22 @@ fn row(
                                 .self_start()
                                 .flex_row()
                                 .items_center()
-                                .gap(px(5.0))
-                                .px(px(7.0))
-                                .py(px(2.0))
-                                .rounded(px(5.0))
-                                .bg(move || theme().muted)
+                                .gap(px(4.0))
+                                .mt(px(4.0))
+                                .px(px(8.0))
+                                .h(px(20.0))
+                                .rounded(px(4.0))
+                                .bg(move || {
+                                    rgb(crate::theme::parse_hex(&accent_badge)).opacity(0.13)
+                                })
                                 .child(
-                                    image(asset!("icons/card.svg"))
-                                        .size(px(11.0))
-                                        .tint_color(move || theme().muted_foreground),
+                                    image(asset!("icons/card.svg")).size(px(16.0)).tint_color(
+                                        move || rgb(crate::theme::parse_hex(&accent_icon)),
+                                    ),
                                 )
-                                .child(
-                                    text(account)
-                                        .text_size(px(10.0))
-                                        .text_color(move || theme().muted_foreground),
-                                ),
+                                .child(text(account).text_size(px(12.0)).text_color(move || {
+                                    rgb(crate::theme::parse_hex(&accent_text))
+                                })),
                         ),
                 ),
         )
@@ -953,8 +958,8 @@ fn row(
                     &amount_currency,
                     &currency,
                     &rates,
-                    15.0,
-                    FontWeight::SEMIBOLD,
+                    16.0,
+                    FontWeight::MEDIUM,
                     true,
                 ))
                 .child(when(
@@ -1392,17 +1397,13 @@ fn transaction_actions(
         view()
             .flex_row()
             .gap(px(4.0))
-            .child(ui::mini_icon_button(
+            .child(ui::row_icon_button(
                 asset!("icons/notes.svg"),
                 false,
                 open_notes,
             ))
-            .child(ui::mini_icon_button(
-                asset!("icons/pencil.svg"),
-                false,
-                edit,
-            ))
-            .child(ui::mini_icon_button(
+            .child(ui::row_icon_button(asset!("icons/pencil.svg"), false, edit))
+            .child(ui::row_icon_button(
                 asset!("icons/trash.svg"),
                 true,
                 move || {
@@ -1508,6 +1509,18 @@ fn account_name(data: Resource<TransactionsData, String>, account_id: Uuid) -> S
         .into_iter()
         .find(|account| account.id == account_id)
         .map_or_else(|| "No account".to_string(), |account| account.name)
+}
+
+fn account_color(data: Resource<TransactionsData, String>, account_id: Uuid) -> String {
+    data.get()
+        .unwrap_or_default()
+        .accounts
+        .into_iter()
+        .find(|account| account.id == account_id)
+        .map_or_else(
+            || "#6b7280".to_string(),
+            |account| account.color.unwrap_or_else(|| "#6b7280".to_string()),
+        )
 }
 
 fn loading_card() -> AnyElement {

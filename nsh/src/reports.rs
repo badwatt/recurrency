@@ -61,7 +61,7 @@ pub fn reports(auth: AuthSession) -> AnyElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(24.0))
+        .gap(px(28.0))
         .child(shared_page_header(
             TITLE,
             SUBTITLE,
@@ -131,10 +131,10 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
         .child(
             view()
                 .w_full()
-                .mb(px(16.0))
+                .mb(px(6.0))
                 .flex_row()
                 .flex_wrap()
-                .gap(px(12.0))
+                .gap(px(16.0))
                 .child(summary_card(
                     "Total Spending",
                     asset!("icons/wallet.svg"),
@@ -270,18 +270,18 @@ fn summary_card(
     view()
         .flex_grow(1.0)
         .min_w(px(200.0))
-        .rounded(px(12.0))
+        .rounded(px(8.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(18.0))
-        .gap(px(4.0))
+        .border_color(move || theme().border.opacity(0.4))
+        .bg(move || theme().card.opacity(0.8))
+        .p(px(24.0))
         .child(
             view()
                 .w_full()
                 .flex_row()
                 .items_center()
                 .justify_between()
+                .pb(px(8.0))
                 .child(
                     text(label)
                         .text_size(px(14.0))
@@ -303,6 +303,7 @@ fn summary_card(
                 }
             })
             .text_size(px(24.0))
+            .line_height(px(32.0))
             .font_family(design::MONO)
             .font_weight(FontWeight::BOLD)
             .text_color(move || theme().foreground),
@@ -310,6 +311,7 @@ fn summary_card(
         .child(
             text(caption)
                 .text_size(px(12.0))
+                .line_height(px(16.0))
                 .text_color(move || theme().muted_foreground),
         )
 }
@@ -319,16 +321,16 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
     view()
         .flex_grow(1.0)
         .min_w(px(320.0))
-        .rounded(px(12.0))
+        .rounded(px(8.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(20.0))
+        .border_color(move || theme().border.opacity(0.4))
+        .bg(move || theme().card.opacity(0.8))
+        .p(px(24.0))
         .min_h(px(310.0))
-        .gap(px(12.0))
+        .gap(px(16.0))
         .child(
             text("By Category")
-                .text_size(px(16.0))
+                .text_size(px(18.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
@@ -337,23 +339,18 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                 canvas(move || {
                     let size = 180.0_f32;
                     let center = size / 2.0;
-                    let radius = size * 0.36;
-                    let mut painter = Painter::new().line_width(18.0);
+                    let radius = 72.0;
+                    let mut painter = Painter::new()
+                        .stroke_color(rgb(0x454759))
+                        .line_width(25.2)
+                        .begin_path()
+                        .arc(center, center, radius, 0.0, TAU)
+                        .stroke()
+                        .line_width(21.6);
                     let categories = data.get().unwrap_or_default().report.category_breakdown;
-                    if categories.is_empty() {
-                        return painter
-                            .stroke_color(rgb(0x454759))
-                            .begin_path()
-                            .arc(center, center, radius, 0.0, TAU)
-                            .stroke();
-                    }
                     let total: f64 = categories.iter().map(|category| category.percentage).sum();
-                    if total <= 0.0 {
-                        return painter
-                            .stroke_color(rgb(0x454759))
-                            .begin_path()
-                            .arc(center, center, radius, 0.0, TAU)
-                            .stroke();
+                    if categories.is_empty() || total <= 0.0 {
+                        return painter;
                     }
                     if categories.len() == 1 {
                         let color = category_color(data, &categories[0].category_name);
@@ -407,22 +404,27 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .gap(px(6.0))
                                     .child(
                                         view()
-                                            .h(px(8.0))
-                                            .w(px(8.0))
+                                            .h(px(10.0))
+                                            .w(px(10.0))
                                             .rounded(px(999.0))
                                             .bg(move || rgb(parse_hex(&color))),
                                     )
                                     .child(
+                                        image(asset!("icons/tag.svg"))
+                                            .size(px(16.0))
+                                            .tint_color(move || theme().muted_foreground),
+                                    )
+                                    .child(
                                         text(name)
-                                            .text_size(px(12.0))
-                                            .text_color(move || theme().foreground),
+                                            .text_size(px(14.0))
+                                            .text_color(move || theme().muted_foreground),
                                     ),
                             )
                             .child(
                                 text(percentage)
-                                    .text_size(px(12.0))
-                                    .font_family(design::MONO)
-                                    .text_color(move || theme().muted_foreground),
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || theme().foreground),
                             )
                     },
                 )),
@@ -433,15 +435,15 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
     let currency = currency.to_string();
     view()
         .w_full()
-        .rounded(px(12.0))
+        .rounded(px(8.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(20.0))
+        .border_color(move || theme().border.opacity(0.4))
+        .bg(move || theme().card.opacity(0.8))
+        .p(px(24.0))
         .gap(px(16.0))
         .child(
             text("Category Breakdown")
-                .text_size(px(16.0))
+                .text_size(px(18.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
@@ -489,6 +491,11 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                             ),
                                     )
                                     .child(
+                                        image(asset!("icons/tag.svg"))
+                                            .size(px(16.0))
+                                            .tint_color(move || theme().muted_foreground),
+                                    )
+                                    .child(
                                         text(category.category_name.clone())
                                             .text_size(px(14.0))
                                             .font_weight(FontWeight::MEDIUM)
@@ -502,7 +509,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .gap(px(16.0))
                                     .child(
                                         text(ui::count_label(count as usize, "item", "items"))
-                                            .text_size(px(13.0))
+                                            .text_size(px(14.0))
                                             .text_color(move || theme().muted_foreground),
                                     )
                                     .child(
@@ -552,16 +559,16 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
     view()
         .flex_grow(1.0)
         .min_w(px(320.0))
-        .rounded(px(12.0))
+        .rounded(px(8.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .p(px(20.0))
+        .border_color(move || theme().border.opacity(0.4))
+        .bg(move || theme().card.opacity(0.8))
+        .p(px(24.0))
         .min_h(px(310.0))
-        .gap(px(12.0))
+        .gap(px(16.0))
         .child(
             text("Spending Trends")
-                .text_size(px(16.0))
+                .text_size(px(18.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
@@ -570,10 +577,10 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                 let trends = data.get().unwrap_or_default().report.recent_trends;
                 let w = width.get().max(1.0);
                 let h: f32 = 220.0;
-                let left = 34.0;
-                let right = 8.0;
-                let top: f32 = 10.0;
-                let bottom: f32 = 28.0;
+                let left = 60.0;
+                let right = 16.0;
+                let top: f32 = 16.0;
+                let bottom: f32 = 32.0;
                 let plot_w = (w - left - right).max(1.0);
                 let plot_h: f32 = (h - top - bottom).max(1.0);
                 let max = trends
@@ -627,7 +634,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                     .close_path()
                     .fill()
                     .stroke_color(rgb(0xB4BEFE))
-                    .line_width(2.0)
+                    .line_width(2.5)
                     .line_join(LineJoin::Round)
                     .begin_path()
                     .move_to(x(0), y(trends[0].total));
@@ -641,7 +648,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                     painter = painter
                         .fill_color(rgb(0xB4BEFE))
                         .begin_path()
-                        .arc(cx, cy, 3.0, 0.0, TAU)
+                        .arc(cx, cy, 3.5, 0.0, TAU)
                         .fill()
                         .fill_color(rgb(0x949AB3))
                         .font("10px Cabinet Grotesk")
@@ -782,6 +789,9 @@ fn average_trend(report: &ReportResponse) -> Decimal {
 }
 
 fn category_color(data: Resource<ReportsData, String>, name: &str) -> String {
+    if name == "Uncategorized" {
+        return "#6b7280".to_string();
+    }
     data.get()
         .unwrap_or_default()
         .categories

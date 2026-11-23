@@ -37,9 +37,9 @@ pub fn badge(props: BadgeProps) -> impl IntoElement {
     view()
         .items_center()
         .justify_center()
-        .h(px(20.0))
-        .px(px(7.0))
-        .rounded(px(5.0))
+        .h(px(22.0))
+        .px(px(8.0))
+        .rounded(px(6.0))
         .border(px(1.0))
         .border_color(move || match tone {
             BadgeTone::Outline => theme().border,
@@ -57,7 +57,7 @@ pub fn badge(props: BadgeProps) -> impl IntoElement {
         })
         .child(
             text(props.label)
-                .text_size(px(10.0))
+                .text_size(px(11.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || match tone {
                     BadgeTone::Primary => theme().primary,

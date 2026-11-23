@@ -56,6 +56,7 @@ pub fn dropdown_menu(
             .variant(ButtonVariant::Outline)
             .size(ButtonSize::Sm)
             .icon_opt(icon)
+            .trailing_icon(asset!("icons/chevron-down.svg"))
             .on_press(move || {
                 let build = build.clone();
                 crate::ui::open_menu(crate::ui::MenuPlacement::TopRight, build);

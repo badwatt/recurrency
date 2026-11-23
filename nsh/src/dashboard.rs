@@ -340,7 +340,8 @@ fn hero(
                 )
                 .child(
                     text(move || format_currency(budget(), &currency_budget))
-                        .text_size(px(56.0))
+                        .text_size(px(60.0))
+                        .line_height(px(60.0))
                         .font_family(crate::theme::MONO)
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
@@ -356,16 +357,10 @@ fn hero(
                         .flex_row()
                         .flex_wrap()
                         .gap(px(20.0))
-                        .mt(px(22.0))
-                        .child(stat(move || {
-                            ui::count_label(count(), "account", "accounts")
-                        }))
-                        .child(stat(move || {
-                            ui::count_label(active(), "active subscription", "active subscriptions")
-                        }))
-                        .child(stat(move || {
-                            ui::count_label(manual_count(), "manual payment", "manual payments")
-                        })),
+                        .mt(px(24.0))
+                        .child(stat_dot(move || format!("{} accounts", count())))
+                        .child(stat(move || format!("{} active subscriptions", active())))
+                        .child(stat(move || format!("{} manual payments", manual_count()))),
                 ),
         )
         .child(
@@ -373,7 +368,6 @@ fn hero(
                 .flex_grow(0.85)
                 .basis(px(300.0))
                 .p(px(32.0))
-                .pb(px(20.0))
                 .border_l(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().muted.opacity(0.2))
@@ -387,10 +381,11 @@ fn hero(
                 .child(
                     text(move || format_currency(pending(), &currency_pending))
                         .text_size(px(36.0))
+                        .line_height(px(40.0))
                         .font_family(crate::theme::MONO)
                         .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground)
-                        .mt(px(18.0)),
+                        .text_color(move || theme().muted_foreground)
+                        .mt(px(20.0)),
                 )
                 .child(
                     text(pending_note)
@@ -398,13 +393,12 @@ fn hero(
                         .text_color(move || theme().muted_foreground)
                         .mt(px(8.0)),
                 )
-                .child(view().flex_grow(1.0))
                 .child(
                     view()
                         .h(px(8.0))
                         .w_full()
                         .rounded(px(999.0))
-                        .bg(move || theme().border)
+                        .bg(move || theme().muted)
                         .overflow_hidden()
                         .flex_row()
                         .mt(px(20.0))
@@ -433,6 +427,21 @@ fn stat(label: impl Fn() -> String + 'static) -> impl IntoElement {
     text(label)
         .text_size(px(12.0))
         .text_color(move || theme().muted_foreground)
+}
+
+fn stat_dot(label: impl Fn() -> String + 'static) -> impl IntoElement {
+    view()
+        .flex_row()
+        .items_center()
+        .gap(px(6.0))
+        .child(
+            view()
+                .w(px(6.0))
+                .h(px(6.0))
+                .rounded(px(999.0))
+                .bg(move || theme().primary),
+        )
+        .child(stat(label))
 }
 
 fn upcoming_card(

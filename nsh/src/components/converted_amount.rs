@@ -28,6 +28,7 @@ pub fn converted_amount(
         .child(
             text(main)
                 .text_size(px(size))
+                .line_height(px(size * 4.0 / 3.0))
                 .font_weight(weight)
                 .when(mono, |text| text.font_family(crate::theme::MONO))
                 .text_color(move || theme().foreground),

@@ -309,7 +309,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     view()
         .relative()
         .w_full()
-        .pt(px(10.0))
+        .pt(px(14.0))
         .on_layout(
             move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
                 compact.set(bounds.size.width.0 < 900.0);
@@ -325,18 +325,19 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         ))
         .child(
             view()
-                .w(move || if compact.get() { px(0.0) } else { px(200.0) })
-                .mr(move || if compact.get() { px(0.0) } else { px(36.0) })
+                .w(move || if compact.get() { px(0.0) } else { px(208.0) })
+                .mr(move || if compact.get() { px(0.0) } else { px(44.0) })
                 .max_h(move || if compact.get() { px(0.0) } else { px(4000.0) })
                 .overflow_hidden()
                 .flex_col()
                 .gap(px(4.0))
                 .child(
                     text("SETTINGS")
-                        .text_size(px(11.0))
+                        .text_size(px(12.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground)
-                        .mb(px(8.0)),
+                        .px(px(12.0))
+                        .mb(px(16.0)),
                 )
                 .children(
                     [
@@ -364,32 +365,20 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                     .map(|(group, items)| {
                         view()
                             .flex_col()
-                            .gap(px(2.0))
-                            .mb(px(8.0))
+                            .gap(px(6.0))
+                            .mb(px(16.0))
                             .child(
                                 text(group)
-                                    .text_size(px(9.0))
+                                    .text_size(px(10.0))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(move || theme().muted_foreground)
-                                    .px(px(10.0))
-                                    .mb(px(2.0)),
+                                    .px(px(12.0))
+                                    .mb(px(4.0)),
                             )
                             .children(
                                 items
                                     .iter()
-                                    .filter(|item| {
-                                        (**item != Section::Admin || is_admin)
-                                            && (!crate::local::enabled()
-                                                || matches!(
-                                                    item,
-                                                    Section::Account
-                                                        | Section::Appearance
-                                                        | Section::General
-                                                        | Section::Money
-                                                        | Section::Data
-                                                        | Section::About
-                                                ))
-                                    })
+                                    .filter(|item| **item != Section::Admin || is_admin)
                                     .map(|item| {
                                         let item = *item;
                                         let active = move || section.get() == item;
@@ -399,7 +388,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                             .justify_start()
                                             .w_full()
                                             .rounded(px(8.0))
-                                            .px(px(10.0))
+                                            .px(px(12.0))
                                             .py(px(10.0))
                                             .bg(move || {
                                                 if active() {
@@ -427,12 +416,12 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                                         view()
                                                             .flex_col()
                                                             .w_full()
-                                                            .gap(px(1.0))
+                                                            .gap(px(2.0))
                                                             .flex_grow(1.0)
                                                             .min_w(px(0.0))
                                                             .child(
                                                                 text(item.label())
-                                                                    .text_size(px(13.0))
+                                                                    .text_size(px(14.0))
                                                                     .font_weight(FontWeight::MEDIUM)
                                                                     .text_color(move || {
                                                                         if active() {
@@ -446,7 +435,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                                                 text(item.description())
                                                                     .w_full()
                                                                     .number_of_lines(2)
-                                                                    .text_size(px(10.0))
+                                                                    .text_size(px(12.0))
                                                                     .text_color(move || {
                                                                         theme().muted_foreground
                                                                     }),

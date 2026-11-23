@@ -51,7 +51,7 @@ impl ButtonSize {
     fn height(self) -> f32 {
         match self {
             Self::Xs => 26.0,
-            Self::Sm => 34.0,
+            Self::Sm => 38.0,
             Self::Md => 40.0,
             Self::Lg => 48.0,
             Self::Icon => 40.0,
@@ -71,8 +71,8 @@ impl ButtonSize {
     fn padding(self) -> f32 {
         match self {
             Self::Xs => 8.0,
-            Self::Sm => 10.0,
-            Self::Md => 14.0,
+            Self::Sm => 12.0,
+            Self::Md => 16.0,
             Self::Lg => 18.0,
             Self::Icon | Self::IconSm | Self::Unstyled => 0.0,
         }
@@ -80,9 +80,10 @@ impl ButtonSize {
 
     fn text(self) -> f32 {
         match self {
-            Self::Xs | Self::Sm => 12.0,
+            Self::Xs => 12.0,
+            Self::Sm => 14.0,
             Self::Lg => 15.0,
-            _ => 13.0,
+            _ => 14.0,
         }
     }
 }
@@ -108,6 +109,7 @@ pub struct ButtonProps {
     pub align: ButtonAlign,
     pub radius: ButtonRadius,
     pub icon: Option<ImageAsset>,
+    pub trailing_icon: Option<ImageAsset>,
     pub disabled: bool,
     pub selected: bool,
     pub selected_when: Option<Rc<dyn Fn() -> bool>>,
@@ -125,6 +127,7 @@ impl ButtonProps {
             align: ButtonAlign::Center,
             radius: ButtonRadius::Md,
             icon: None,
+            trailing_icon: None,
             disabled: false,
             selected: false,
             selected_when: None,
@@ -141,6 +144,11 @@ impl ButtonProps {
 
     pub fn icon_opt(mut self, icon: Option<ImageAsset>) -> Self {
         self.icon = icon;
+        self
+    }
+
+    pub fn trailing_icon(mut self, icon: ImageAsset) -> Self {
+        self.trailing_icon = Some(icon);
         self
     }
 
@@ -203,6 +211,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         align: _align,
         radius,
         icon,
+        trailing_icon,
         disabled,
         selected,
         selected_when,
@@ -300,6 +309,20 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
                     .text_color(label_color),
             )
         })
+        .child(trailing_icon.map_or_else(
+            || view().into_element(),
+            |icon| {
+                image(icon)
+                    .size(px(icon_size))
+                    .ml(px(6.0))
+                    .pointer_events(PointerEvents::None)
+                    .tint_color(move || match variant {
+                        ButtonVariant::Primary => theme().primary_foreground,
+                        _ => theme().muted_foreground,
+                    })
+                    .into_element()
+            },
+        ))
 }
 
 pub fn icon_button(

@@ -19,7 +19,6 @@ pub fn page_header(
             view()
                 .min_w(px(0.0))
                 .flex_col()
-                .gap(px(4.0))
                 .child(
                     text(title)
                         .text_size(px(48.0))

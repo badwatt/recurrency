@@ -1721,6 +1721,10 @@ fn card(
     let account = account_name(data, subscription.account_id);
     let accent = account_color(data, subscription.account_id);
     let accent_bg = accent.clone();
+    let accent_border = accent.clone();
+    let accent_fill = accent.clone();
+    let accent_icon = accent.clone();
+    let accent_text = accent.clone();
     let action_subscription = subscription.clone();
     let action_card = action_subscription.clone();
     let logo = subscription.logo_url.clone();
@@ -1741,20 +1745,20 @@ fn card(
         .relative()
         .overflow_hidden()
         .cursor_pointer()
-        .w(px(292.0))
         .min_w(px(230.0))
-        .h(px(230.0))
         .p(px(20.0))
+        .pb(px(16.0))
+        .gap(px(12.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || {
             if selected.get().contains(&select_id) {
                 theme().primary.opacity(0.55)
             } else {
-                theme().border
+                theme().border.opacity(0.4)
             }
         })
-        .bg(move || theme().card)
+        .bg(move || theme().card.opacity(0.8))
         .on_press(move || {
             if selection_mode.get() {
                 let mut values = selected.get();
@@ -1795,7 +1799,6 @@ fn card(
                 .bg(move || rgb(crate::theme::parse_hex(&accent_bg))),
         )
         .flex_col()
-        .justify_between()
         .child(
             view()
                 .w_full()
@@ -1808,17 +1811,18 @@ fn card(
                         .w(px(48.0))
                         .items_center()
                         .justify_center()
-                        .rounded(px(10.0))
-                        .bg(move || theme().muted)
+                        .rounded(px(12.0))
+                        .overflow_hidden()
                         .child(
                             when(logo.is_some(), move || {
                                 image(logo.clone().unwrap_or_default())
-                                    .size(px(28.0))
+                                    .size(px(48.0))
+                                    .object_fit(ResizeMode::Cover)
                                     .into_element()
                             })
                             .otherwise(|| {
                                 image(asset!("icons/card.svg"))
-                                    .size(px(18.0))
+                                    .size(px(22.0))
                                     .tint_color(move || theme().muted_foreground)
                                     .into_element()
                             }),
@@ -1836,14 +1840,15 @@ fn card(
                 .gap(px(4.0))
                 .child(
                     text(name)
-                        .text_size(px(15.0))
+                        .text_size(px(14.0))
+                        .line_height(px(18.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().foreground)
                         .number_of_lines(1),
                 )
                 .child(
                     text(next)
-                        .text_size(px(11.0))
+                        .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 ),
         )
@@ -1853,7 +1858,7 @@ fn card(
             &currency,
             &rates,
             24.0,
-            FontWeight::BOLD,
+            FontWeight::EXTRA_BOLD,
             false,
         ))
         .child(
@@ -1865,16 +1870,18 @@ fn card(
                 .px(px(8.0))
                 .py(px(4.0))
                 .rounded(px(6.0))
-                .bg(move || theme().muted)
+                .border(px(1.0))
+                .border_color(move || rgb(crate::theme::parse_hex(&accent_border)).opacity(0.15))
+                .bg(move || rgb(crate::theme::parse_hex(&accent_fill)).opacity(0.08))
                 .child(
                     image(asset!("icons/card.svg"))
-                        .size(px(12.0))
-                        .tint_color(move || theme().muted_foreground),
+                        .size(px(16.0))
+                        .tint_color(move || rgb(crate::theme::parse_hex(&accent_icon))),
                 )
                 .child(
                     text(account)
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
+                        .text_size(px(12.0))
+                        .text_color(move || rgb(crate::theme::parse_hex(&accent_text))),
                 ),
         )
         .child(when(
@@ -2427,7 +2434,8 @@ fn card_actions(
         view()
             .w_full()
             .flex_row()
-            .gap(px(4.0))
+            .gap(px(2.0))
+            .pt(px(4.0))
             .child(ui::mini_icon_button(
                 asset!("icons/copy.svg"),
                 false,

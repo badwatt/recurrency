@@ -244,7 +244,7 @@ pub fn debts(
     view()
         .w_full()
         .flex_col()
-        .gap(px(24.0))
+        .gap(px(28.0))
         .child(header(open_form))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
