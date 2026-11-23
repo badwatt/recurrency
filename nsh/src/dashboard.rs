@@ -89,7 +89,14 @@ fn body(
                 .flex_wrap()
                 .gap(px(16.0))
                 .items_start()
-                .child(upcoming_card(data, &currency, route, today, hovered))
+                .child(upcoming_card(
+                    data,
+                    &currency,
+                    route,
+                    today,
+                    hovered,
+                    hovered_category,
+                ))
                 .child(ledger_card(data, &currency, hovered, hovered_category)),
         )
         .into_element()
@@ -431,6 +438,7 @@ fn upcoming_card(
     route: Signal<Route>,
     today: chrono::NaiveDate,
     hovered: Signal<Option<Uuid>>,
+    hovered_category: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let total = move || data.get().unwrap_or_default().upcoming.len();
@@ -495,7 +503,14 @@ fn upcoming_card(
                 |payment| payment.id,
                 move |payment, _| {
                     let payment = payment.get();
-                    upcoming_row(payment, data, currency.clone(), today, hovered)
+                    upcoming_row(
+                        payment,
+                        data,
+                        currency.clone(),
+                        today,
+                        hovered,
+                        hovered_category,
+                    )
                 },
             )))
         })
@@ -507,6 +522,7 @@ fn upcoming_row(
     currency: String,
     today: chrono::NaiveDate,
     hovered: Signal<Option<Uuid>>,
+    hovered_category: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
     let converted = {
         let rates = data.get().unwrap_or_default().rates;
@@ -517,6 +533,7 @@ fn upcoming_row(
     let days = days_text(payment.date, today);
     let is_transaction = payment.is_transaction;
     let account_id = payment.account_id;
+    let category_id = payment.category_id;
     let name = payment.name;
     let account = payment.account_name;
     let amount = format_currency(converted, &currency);
@@ -532,15 +549,21 @@ fn upcoming_row(
         .gap(px(12.0))
         .rounded(px(8.0))
         .bg(move || {
-            if hovered.get() == Some(account_id) {
+            if hovered.get() == Some(account_id) || hovered_category.get() == Some(category_id) {
                 theme().accent
             } else {
                 theme().card
             }
         })
         .cursor_pointer()
-        .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(account_id)))
-        .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
+        .on_mouse_enter(move |_: &MouseEvent| {
+            hovered.set(Some(account_id));
+            hovered_category.set(Some(category_id));
+        })
+        .on_mouse_leave(move |_: &MouseEvent| {
+            hovered.set(None);
+            hovered_category.set(None);
+        })
         .child(
             view()
                 .flex_row()

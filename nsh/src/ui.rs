@@ -584,11 +584,23 @@ pub fn field(
 ) -> impl IntoElement {
     view()
         .flex_grow(1.0)
+        .basis(px(0.0))
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))
         .child(label(label_text))
         .child(crate::components::input::text_input(value, placeholder))
+}
+
+pub fn required_field(
+    label_text: &'static str,
+    value: Signal<String>,
+    placeholder: &'static str,
+) -> impl IntoElement {
+    crate::components::field::field(
+        crate::components::field::FieldProps::new(label_text).required(),
+        crate::components::input::text_input(value, placeholder).into_element(),
+    )
 }
 
 pub fn date_field(label_text: &'static str, value: Signal<String>) -> impl IntoElement {

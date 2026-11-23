@@ -47,6 +47,7 @@ pub fn field(props: FieldProps, control: AnyElement) -> impl IntoElement {
     let has_hint = has_error == false && !hint.is_empty();
     view()
         .flex_grow(1.0)
+        .basis(px(0.0))
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))

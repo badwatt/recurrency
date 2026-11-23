@@ -50,6 +50,7 @@ pub struct UpcomingPayment {
     pub account_id: Uuid,
     pub account_name: String,
     pub account_color: String,
+    pub category_id: Uuid,
     pub date: NaiveDate,
     pub is_transaction: bool,
 }
@@ -262,6 +263,7 @@ pub fn upcoming_payments(
                 account_id: subscription.account_id,
                 account_name: account_name(accounts, subscription.account_id),
                 account_color: account_color(accounts, subscription.account_id),
+                category_id: subscription.category_id,
                 date,
                 is_transaction: false,
             });
@@ -279,6 +281,7 @@ pub fn upcoming_payments(
             account_id: transaction.account_id,
             account_name: account_name(accounts, transaction.account_id),
             account_color: account_color(accounts, transaction.account_id),
+            category_id: transaction.category_id,
             date: transaction.date,
             is_transaction: true,
         });

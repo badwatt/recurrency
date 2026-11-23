@@ -31,6 +31,8 @@ pub struct CreateSubscriptionRequest {
     pub currency: String,
     pub frequency: String,
     pub start_date: NaiveDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<NaiveDate>,
     pub account_id: Uuid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Uuid>,
@@ -54,6 +56,7 @@ struct FormSignals {
     name: Signal<String>,
     amount: Signal<String>,
     start_date: Signal<String>,
+    end_date: Signal<String>,
     currency: Signal<String>,
     interval: Signal<String>,
     days: Signal<Vec<u8>>,
@@ -123,6 +126,7 @@ pub fn subscriptions(
     let name = signal(String::new());
     let amount = signal(String::new());
     let start_date = signal(String::new());
+    let end_date = signal(String::new());
     let form_currency = signal(if auth.user.currency.is_empty() {
         "EUR".to_string()
     } else {
@@ -150,6 +154,7 @@ pub fn subscriptions(
         name,
         amount,
         start_date,
+        end_date,
         currency: form_currency,
         interval,
         days,
@@ -189,6 +194,7 @@ pub fn subscriptions(
         name.set(String::new());
         amount.set(String::new());
         start_date.set(date.to_string());
+        end_date.set(String::new());
         form_currency.set(if auth.user.currency.is_empty() {
             "EUR".to_string()
         } else {
@@ -445,6 +451,7 @@ fn form(
         name,
         amount,
         start_date,
+        end_date,
         currency,
         interval,
         days,
@@ -545,12 +552,25 @@ fn form(
                 form_error.set("Select at least one charge day.".to_string());
                 return;
             }
+            let end_value = if end_date.get().trim().is_empty() {
+                None
+            } else {
+                match NaiveDate::parse_from_str(end_date.get().trim(), "%Y-%m-%d") {
+                    Ok(date) => Some(date),
+                    Err(_) => {
+                        form_error.set("Enter a valid end date.".to_string());
+                        saving.set(false);
+                        return;
+                    }
+                }
+            };
             let request = CreateSubscriptionRequest {
                 name: name_value,
                 amount: amount_value,
                 currency: currency_value.clone(),
                 frequency: frequency_for(&unit_value).to_string(),
                 start_date: start_value,
+                end_date: end_value,
                 account_id: account_id_value,
                 category_id: category_id.get(),
                 recurrence: recurrence_for(
@@ -614,15 +634,15 @@ fn form(
             view()
                 .p(px(24.0))
                 .gap(px(16.0))
-                .child(ui::field("Name", name, "Netflix, Spotify, etc."))
+                .child(ui::required_field("Name", name, "Netflix, Spotify, etc."))
                 .child(
                     view()
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::field("Amount", amount, "9.99"))
+                        .child(ui::required_field("Amount", amount, "9.99"))
                         .child(string_select(StringSelectProps::new(
-                            "Currency",
+                            "Currency *",
                             currency,
                             crate::currencies::CURRENCIES
                                 .iter()
@@ -640,18 +660,36 @@ fn form(
                         .p(px(14.0))
                         .gap(px(10.0))
                         .child(
-                            text("Billing schedule")
+                            text("Billing schedule *")
                                 .text_size(px(13.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
                         )
-                        .child(ui::date_field("First charge", start_date))
+                        .child(
+                            text(move || {
+                                let interval_value = interval.get();
+                                let unit_value = unit.get();
+                                let first = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
+                                    .map(crate::format::format_date)
+                                    .unwrap_or_else(|_| "today".to_string());
+                                format!(
+                                    "Charges every {interval_value} {unit_value}. First charge {first}."
+                                )
+                            })
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground),
+                        )
                         .child(
                             view()
                                 .w_full()
                                 .flex_row()
                                 .items_center()
                                 .gap(px(8.0))
+                                .child(
+                                    text("Every")
+                                        .text_size(px(12.0))
+                                        .text_color(move || theme().foreground),
+                                )
                                 .child(
                                     view().w(px(64.0)).child(
                                         input()
@@ -671,10 +709,20 @@ fn form(
                                             .text_color(move || theme().foreground),
                                     ),
                                 )
-                                .child(unit_chip("Day", "day", unit))
-                                .child(unit_chip("Week", "week", unit))
-                                .child(unit_chip("Month", "month", unit))
-                                .child(unit_chip("Year", "year", unit)),
+                                .child(
+                                    view().w(px(140.0)).child(string_select(
+                                        StringSelectProps::new(
+                                            "",
+                                            unit,
+                                            vec![
+                                                ("day".to_string(), "day".to_string()),
+                                                ("week".to_string(), "week".to_string()),
+                                                ("month".to_string(), "month".to_string()),
+                                                ("year".to_string(), "year".to_string()),
+                                            ],
+                                        ),
+                                    )),
+                                ),
                         )
                         .child(
                             when(
@@ -687,18 +735,90 @@ fn form(
                                     .flex_col()
                                     .gap(px(6.0))
                                     .child(
-                                        text("Charge on these days")
-                                            .text_size(px(12.0))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .text_color(move || theme().muted_foreground),
+                                        view()
+                                            .w_full()
+                                            .flex_row()
+                                            .items_center()
+                                            .justify_between()
+                                            .child(
+                                                text("Charge on these days")
+                                                    .text_size(px(12.0))
+                                                    .font_weight(FontWeight::MEDIUM)
+                                                    .text_color(move || theme().muted_foreground),
+                                            )
+                                            .child(
+                                                view()
+                                                    .flex_row()
+                                                    .items_center()
+                                                    .gap(px(8.0))
+                                                    .child(
+                                                        button()
+                                                            .cursor_pointer()
+                                                            .h(px(24.0))
+                                                            .px(px(6.0))
+                                                            .rounded(px(4.0))
+                                                            .on_press(move || {
+                                                                days.set((1u8..=31).collect())
+                                                            })
+                                                            .child(
+                                                                text("Select all")
+                                                                    .text_size(px(11.0))
+                                                                    .text_color(move || theme().primary),
+                                                            ),
+                                                    )
+                                                    .child(
+                                                        button()
+                                                            .cursor_pointer()
+                                                            .h(px(24.0))
+                                                            .px(px(6.0))
+                                                            .rounded(px(4.0))
+                                                            .on_press(move || days.set(Vec::new()))
+                                                            .child(
+                                                                text("Clear")
+                                                                    .text_size(px(11.0))
+                                                                    .text_color(move || theme().primary),
+                                                            ),
+                                                    ),
+                                            ),
                                     )
                                     .child(day_grid(days))
+                                    .child(
+                                        text("Days 29-31 use 'last day' for short months. Each selected day is a separate charge.")
+                                            .text_size(px(10.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    )
                                     .into_element()
                             }),
                         ),
                 )
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .gap(px(12.0))
+                        .child(
+                            view().flex_grow(1.0).min_w(px(0.0)).child(
+                                crate::components::field::field(
+                                    crate::components::field::FieldProps::new("Start date")
+                                        .hint("Leave empty to start from today."),
+                                    crate::components::date_picker::date_picker(start_date)
+                                        .into_element(),
+                                ),
+                            ),
+                        )
+                        .child(
+                            view().flex_grow(1.0).min_w(px(0.0)).child(
+                                crate::components::field::field(
+                                    crate::components::field::FieldProps::new("End date")
+                                        .hint("Last billing date (inclusive)."),
+                                    crate::components::date_picker::date_picker(end_date)
+                                        .into_element(),
+                                ),
+                            ),
+                        ),
+                )
                 .child(ui::choice_picker(
-                    "Account",
+                    "Account *",
                     move || {
                         data.get()
                             .unwrap_or_default()
@@ -721,6 +841,12 @@ fn form(
                     },
                     category_id,
                 ))
+                .child(
+                    crate::components::field::field(
+                        crate::components::field::FieldProps::new("Notes"),
+                        crate::components::textarea::text_area(notes, "Add notes…").into_element(),
+                    ),
+                )
                 .child(crate::components::logo_search::logo_search(
                     name,
                     logo_url,
@@ -2230,6 +2356,7 @@ fn card_actions(
                 currency: currency.clone(),
                 frequency: frequency_for(&original.recurrence.unit).to_string(),
                 start_date: original.start_date,
+                end_date: original.end_date,
                 account_id: original.account_id,
                 category_id: Some(original.category_id),
                 recurrence: original.recurrence.clone(),
@@ -2709,6 +2836,7 @@ mod tests {
             currency: "EUR".to_string(),
             frequency: "monthly".to_string(),
             start_date: date(2026, 11, 22),
+            end_date: None,
             account_id: Uuid::new_v4(),
             category_id: None,
             recurrence: recurrence_for("month", &[23], &[], date(2026, 11, 22), 1),

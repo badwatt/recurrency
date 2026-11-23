@@ -44,6 +44,7 @@ struct TxForm {
     editing: Signal<Option<Uuid>>,
     name: Signal<String>,
     amount: Signal<String>,
+    currency: Signal<String>,
     date: Signal<String>,
     account_id: Signal<Option<Uuid>>,
     category_id: Signal<Option<Uuid>>,
@@ -110,6 +111,11 @@ pub fn transactions(
     let editing = signal(None::<Uuid>);
     let name = signal(String::new());
     let amount = signal(String::new());
+    let form_currency = signal(if auth.user.currency.is_empty() {
+        "EUR".to_string()
+    } else {
+        auth.user.currency.clone()
+    });
     let today = Local::now().date_naive();
     let date = signal(today.to_string());
     let account_id = signal(None::<Uuid>);
@@ -129,6 +135,7 @@ pub fn transactions(
         editing,
         name,
         amount,
+        currency: form_currency,
         date,
         account_id,
         category_id,
@@ -156,6 +163,7 @@ pub fn transactions(
         let today = Local::now().date_naive();
         name.set(String::new());
         amount.set(String::new());
+        form_currency.set(currency.clone());
         date.set(today.to_string());
         account_id.set(
             snapshot
@@ -332,6 +340,7 @@ fn form(
         editing,
         name,
         amount,
+        currency: form_currency,
         date,
         account_id,
         category_id,
@@ -392,7 +401,7 @@ fn form(
             let request = CreateTransactionRequest {
                 name: name_value,
                 amount: amount_value,
-                currency: currency.clone(),
+                currency: form_currency.get(),
                 date: date_value,
                 account_id: account_value,
                 category_id: category_id.get(),
@@ -446,17 +455,25 @@ fn form(
             view()
                 .p(px(24.0))
                 .gap(px(16.0))
+                .child(ui::required_field("Name", name, "Groceries"))
                 .child(
                     view()
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::field("Name", name, "Groceries"))
-                        .child(ui::field("Amount", amount, "42.50")),
+                        .child(ui::required_field("Amount", amount, "42.50"))
+                        .child(string_select(StringSelectProps::new(
+                            "Currency *",
+                            form_currency,
+                            crate::currencies::CURRENCIES
+                                .iter()
+                                .map(|(code, label)| ((*code).to_string(), (*label).to_string()))
+                                .collect(),
+                        ))),
                 )
-                .child(ui::date_field("Date", date))
+                .child(ui::date_field("Date *", date))
                 .child(ui::choice_picker(
-                    "Account",
+                    "Account *",
                     move || {
                         data.get()
                             .unwrap_or_default()
@@ -478,6 +495,10 @@ fn form(
                             .collect()
                     },
                     category_id,
+                ))
+                .child(crate::components::field::field(
+                    crate::components::field::FieldProps::new("Notes"),
+                    crate::components::textarea::text_area(notes, "Add notes…").into_element(),
                 ))
                 .child(crate::components::logo_search::logo_search(
                     name,
@@ -1274,6 +1295,7 @@ fn transaction_actions(
     let edit = move || {
         form_signals.name.set(edit_transaction.name.clone());
         form_signals.amount.set(edit_transaction.amount.to_string());
+        form_signals.currency.set(edit_transaction.currency.clone());
         form_signals.date.set(edit_transaction.date.to_string());
         form_signals
             .account_id
