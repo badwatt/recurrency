@@ -175,7 +175,6 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         )
 }
 
-
 #[cfg(test)]
 mod width_tests {
     #[test]

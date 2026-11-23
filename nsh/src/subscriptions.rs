@@ -57,6 +57,7 @@ struct FormSignals {
     currency: Signal<String>,
     interval: Signal<String>,
     days: Signal<Vec<u8>>,
+    annual_dates: Signal<Vec<AnnualDate>>,
     unit: Signal<String>,
     account_id: Signal<Option<Uuid>>,
     category_id: Signal<Option<Uuid>>,
@@ -124,6 +125,7 @@ pub fn subscriptions(
     });
     let interval = signal("1".to_string());
     let days = signal(Vec::<u8>::new());
+    let annual_dates = signal(Vec::<AnnualDate>::new());
     let unit = signal("month".to_string());
     let account_id = signal(None::<Uuid>);
     let category_id = signal(None::<Uuid>);
@@ -146,6 +148,7 @@ pub fn subscriptions(
         currency: form_currency,
         interval,
         days,
+        annual_dates,
         unit,
         account_id,
         category_id,
@@ -184,6 +187,7 @@ pub fn subscriptions(
         });
         interval.set("1".to_string());
         days.set(vec![today.day() as u8]);
+        annual_dates.set(Vec::new());
         unit.set("month".to_string());
         account_id.set(
             snapshot
@@ -278,6 +282,7 @@ fn form(
         currency,
         interval,
         days,
+        annual_dates,
         unit,
         account_id,
         category_id,
@@ -331,12 +336,30 @@ fn form(
                 form_error.set("Interval must be a positive number.".to_string());
                 return;
             }
+            let unit_value = unit.get();
             let day_values = days.get();
-            if day_values.is_empty() {
+            let mut annual_values = annual_dates.get();
+            if unit_value == "year" {
+                if annual_values.is_empty() {
+                    form_error.set("Add at least one annual date.".to_string());
+                    saving.set(false);
+                    return;
+                }
+                if annual_values
+                    .iter()
+                    .any(|date| !(1..=12).contains(&date.month) || !(1..=31).contains(&date.day))
+                {
+                    form_error.set("Check the annual dates.".to_string());
+                    saving.set(false);
+                    return;
+                }
+                annual_values.sort_by_key(|date| (date.month, date.day));
+                annual_values.dedup_by_key(|date| (date.month, date.day));
+            }
+            if unit_value != "year" && day_values.is_empty() {
                 form_error.set("Select at least one charge day.".to_string());
                 return;
             }
-            let unit_value = unit.get();
             let request = CreateSubscriptionRequest {
                 name: name_value,
                 amount: amount_value,
@@ -345,7 +368,13 @@ fn form(
                 start_date: start_value,
                 account_id: account_id_value,
                 category_id: category_id.get(),
-                recurrence: recurrence_for(&unit_value, &day_values, start_value, interval_value),
+                recurrence: recurrence_for(
+                    &unit_value,
+                    &day_values,
+                    &annual_values,
+                    start_value,
+                    interval_value,
+                ),
                 is_active: active.get(),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
                 logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
@@ -464,7 +493,12 @@ fn form(
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().muted_foreground),
                         )
-                        .child(day_grid(days)),
+                        .when(unit.get() == "year", move |panel| {
+                            panel.child(annual_dates_editor(annual_dates))
+                        })
+                        .when(unit.get() != "year", move |panel| {
+                            panel.child(day_grid(days))
+                        }),
                 )
                 .child(ui::choice_picker(
                     "Account",
@@ -573,6 +607,99 @@ fn form(
     )
 }
 
+fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
+    let rows = move || {
+        dates
+            .get()
+            .into_iter()
+            .enumerate()
+            .map(|(index, entry)| {
+                let month = entry.month.to_string();
+                let day = entry.day.to_string();
+                let amount = entry
+                    .amount
+                    .map(|value| value.to_string())
+                    .unwrap_or_default();
+                view()
+                    .key(index.to_string())
+                    .w_full()
+                    .flex_row()
+                    .items_end()
+                    .gap(px(6.0))
+                    .child(annual_field("Month", month, move |value| {
+                        let mut next = dates.get();
+                        if let Some(date) = next.get_mut(index) {
+                            date.month = value.parse().unwrap_or(0);
+                        }
+                        dates.set(next);
+                    }))
+                    .child(annual_field("Day", day, move |value| {
+                        let mut next = dates.get();
+                        if let Some(date) = next.get_mut(index) {
+                            date.day = value.parse().unwrap_or(0);
+                        }
+                        dates.set(next);
+                    }))
+                    .child(annual_field("Amount (optional)", amount, move |value| {
+                        let mut next = dates.get();
+                        if let Some(date) = next.get_mut(index) {
+                            date.amount = value.trim().parse::<Decimal>().ok();
+                        }
+                        dates.set(next);
+                    }))
+                    .child(ui::action_button("Remove", true, move || {
+                        let mut next = dates.get();
+                        if index < next.len() {
+                            next.remove(index);
+                        }
+                        dates.set(next);
+                    }))
+                    .into_element()
+            })
+            .collect::<Vec<_>>()
+    };
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .child(
+            text("Annual dates")
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground),
+        )
+        .children(rows())
+        .child(ui::action_button("Add annual date", false, move || {
+            let mut next = dates.get();
+            next.push(AnnualDate {
+                month: 1,
+                day: 1,
+                amount: None,
+            });
+            dates.set(next);
+        }))
+}
+
+fn annual_field(
+    label: &'static str,
+    value: String,
+    on_change: impl Fn(String) + 'static,
+) -> impl IntoElement {
+    view()
+        .flex_grow(1.0)
+        .min_w(px(0.0))
+        .flex_col()
+        .gap(px(4.0))
+        .child(
+            text(label)
+                .text_size(px(10.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(crate::components::input::text_input_value(
+            value, "", on_change,
+        ))
+}
+
 fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
     view()
         .w_full()
@@ -678,7 +805,13 @@ fn frequency_for(unit: &str) -> &'static str {
     }
 }
 
-fn recurrence_for(unit: &str, days: &[u8], start: NaiveDate, interval: u16) -> Recurrence {
+fn recurrence_for(
+    unit: &str,
+    days: &[u8],
+    annual: &[AnnualDate],
+    start: NaiveDate,
+    interval: u16,
+) -> Recurrence {
     let mut recurrence = Recurrence {
         interval,
         unit: unit.to_string(),
@@ -686,14 +819,15 @@ fn recurrence_for(unit: &str, days: &[u8], start: NaiveDate, interval: u16) -> R
     };
     match unit {
         "year" => {
-            recurrence.dates = days
-                .iter()
-                .map(|day| AnnualDate {
+            recurrence.dates = if annual.is_empty() {
+                vec![AnnualDate {
                     month: start.month() as u8,
-                    day: *day,
+                    day: start.day() as u8,
                     amount: None,
-                })
-                .collect();
+                }]
+            } else {
+                annual.to_vec()
+            };
         }
         "week" => {
             recurrence.weekdays = vec![start.weekday().number_from_monday() as u8];
@@ -1613,6 +1747,7 @@ fn card_actions(
             .interval
             .set(recurrence.interval.max(1).to_string());
         form_signals.days.set(days);
+        form_signals.annual_dates.set(recurrence.dates.clone());
         form_signals.unit.set(recurrence.unit.clone());
         form_signals
             .account_id
@@ -1961,7 +2096,7 @@ mod tests {
 
     #[test]
     fn monthly_recurrence_uses_the_chosen_day() {
-        let recurrence = recurrence_for("month", &[15], date(2026, 11, 22), 1);
+        let recurrence = recurrence_for("month", &[15], &[], date(2026, 11, 22), 1);
         assert_eq!(recurrence.unit, "month");
         assert_eq!(recurrence.days, vec![15]);
         assert!(recurrence.dates.is_empty());
@@ -1969,8 +2104,26 @@ mod tests {
     }
 
     #[test]
+    fn yearly_recurrence_preserves_multiple_annual_dates() {
+        let dates = vec![
+            AnnualDate {
+                month: 3,
+                day: 5,
+                amount: Some(Decimal::from(5)),
+            },
+            AnnualDate {
+                month: 9,
+                day: 20,
+                amount: None,
+            },
+        ];
+        let recurrence = recurrence_for("year", &[], &dates, date(2026, 11, 22), 1);
+        assert_eq!(recurrence.dates, dates);
+    }
+
+    #[test]
     fn yearly_recurrence_uses_a_single_annual_date() {
-        let recurrence = recurrence_for("year", &[5], date(2026, 11, 22), 1);
+        let recurrence = recurrence_for("year", &[5], &[], date(2026, 11, 22), 1);
         assert_eq!(recurrence.unit, "year");
         assert_eq!(
             recurrence.dates,
@@ -1985,7 +2138,7 @@ mod tests {
 
     #[test]
     fn weekly_recurrence_uses_the_start_weekday() {
-        let recurrence = recurrence_for("week", &[1], date(2026, 11, 22), 1);
+        let recurrence = recurrence_for("week", &[1], &[], date(2026, 11, 22), 1);
         assert_eq!(recurrence.weekdays, vec![7]);
         assert_eq!(frequency_for("week"), "weekly");
     }
@@ -2008,7 +2161,7 @@ mod tests {
             start_date: date(2026, 11, 22),
             account_id: Uuid::new_v4(),
             category_id: None,
-            recurrence: recurrence_for("month", &[23], date(2026, 11, 22), 1),
+            recurrence: recurrence_for("month", &[23], &[], date(2026, 11, 22), 1),
             is_active: true,
             notes: None,
             logo_url: None,
