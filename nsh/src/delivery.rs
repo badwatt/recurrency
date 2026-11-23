@@ -12,7 +12,7 @@ use nsh_base::theme;
 use nsh_core::prelude::*;
 use serde_json::{Map, Value, json};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct ChannelField {
     pub key: &'static str,
     pub label: &'static str,
@@ -362,17 +362,23 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                             },
                         ))),
                 )
-                .child(view().flex_row().flex_wrap().gap(px(10.0)).children(
-                    (0..fields().len()).map(|index| {
-                        let field_spec = fields()[index];
+                .child(view().flex_row().flex_wrap().gap(px(10.0)).child(each(
+                    move || fields().to_vec(),
+                    |entry| entry.key,
+                    move |entry, _| {
+                        let field_spec = entry.get();
+                        let key = field_spec.key;
                         let current_value = values
                             .get()
-                            .get(index)
-                            .map_or_else(String::new, |(_, value)| value.clone());
+                            .into_iter()
+                            .find(|(name, _)| name == key)
+                            .map_or_else(String::new, |(_, value)| value);
                         let control =
                             text_input_value(current_value, field_spec.placeholder, move |next| {
                                 let mut next_values = values.get();
-                                if let Some(slot) = next_values.get_mut(index) {
+                                if let Some(slot) =
+                                    next_values.iter_mut().find(|(name, _)| name == key)
+                                {
                                     slot.1 = next;
                                 }
                                 values.set(next_values);
@@ -381,8 +387,8 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                             FieldProps::new(field_spec.label),
                             control.into_element(),
                         ))
-                    }),
-                ))
+                    },
+                )))
                 .child(
                     view()
                         .flex_row()
