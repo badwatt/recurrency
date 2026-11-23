@@ -1129,9 +1129,12 @@ fn folder_sync_card(server: String, token: String) -> AnyElement {
                     choose,
                 ))
                 .child(ui::action_button("Sync now", false, sync_now))
-                .when(folder.get().is_some(), |view| {
-                    view.child(ui::action_button("Disconnect", true, disconnect))
-                }),
+                .child(
+                    when(move || folder.get().is_some(), move || {
+                        ui::action_button("Disconnect", true, disconnect).into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                ),
         )
         .child(
             text(move || status.get())
@@ -1430,23 +1433,29 @@ fn about_card() -> impl IntoElement {
                             move || show_notes.set(!show_notes.get()),
                         )),
                 )
-                .when(show_notes.get(), move |panel| {
-                    panel
-                        .child(
-                            scroll().max_h(px(240.0)).child(
-                                text(notes())
-                                    .text_size(px(11.0))
-                                    .line_height(px(17.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                        )
-                        .child(ui::action_button("Open release on GitHub", false, move || {
-                            let url = release_url();
-                            spawn(async move {
-                                let _ = open_url(url).await;
-                            });
-                        }))
-                })
+                .child(
+                    when(move || show_notes.get(), move || {
+                        view()
+                            .flex_col()
+                            .gap(px(10.0))
+                            .child(
+                                scroll().max_h(px(240.0)).child(
+                                    text(notes())
+                                        .text_size(px(11.0))
+                                        .line_height(px(17.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
+                            )
+                            .child(ui::action_button("Open release on GitHub", false, move || {
+                                let url = release_url();
+                                spawn(async move {
+                                    let _ = open_url(url).await;
+                                });
+                            }))
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .child(ui::action_button("★ Star on GitHub", false, move || {
                     let url = REPO_URL.to_string();
                     spawn(async move {
@@ -1812,32 +1821,42 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         SegmentOption::new("monthly", "Monthly"),
                     ],
                 ))
-                .when(summary_frequency.get() == "weekly", |panel| {
-                    panel.child(string_select(StringSelectProps::new(
-                        "Weekday",
-                        summary_weekday,
-                        vec![
-                            ("1".to_string(), "Monday".to_string()),
-                            ("2".to_string(), "Tuesday".to_string()),
-                            ("3".to_string(), "Wednesday".to_string()),
-                            ("4".to_string(), "Thursday".to_string()),
-                            ("5".to_string(), "Friday".to_string()),
-                            ("6".to_string(), "Saturday".to_string()),
-                            ("7".to_string(), "Sunday".to_string()),
-                        ],
-                    )))
-                })
-                .when(summary_frequency.get() == "monthly", |panel| {
-                    let mut days = (1..=31)
-                        .map(|day| (day.to_string(), day.to_string()))
-                        .collect::<Vec<_>>();
-                    days.push(("0".to_string(), "Last day".to_string()));
-                    panel.child(string_select(StringSelectProps::new(
-                        "Day of month",
-                        summary_day,
-                        days,
-                    )))
-                })
+                .child(
+                    when(
+                        move || summary_frequency.get() == "weekly",
+                        move || {
+                            string_select(StringSelectProps::new(
+                                "Weekday",
+                                summary_weekday,
+                                vec![
+                                    ("1".to_string(), "Monday".to_string()),
+                                    ("2".to_string(), "Tuesday".to_string()),
+                                    ("3".to_string(), "Wednesday".to_string()),
+                                    ("4".to_string(), "Thursday".to_string()),
+                                    ("5".to_string(), "Friday".to_string()),
+                                    ("6".to_string(), "Saturday".to_string()),
+                                    ("7".to_string(), "Sunday".to_string()),
+                                ],
+                            ))
+                            .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    when(
+                        move || summary_frequency.get() == "monthly",
+                        move || {
+                            let mut days = (1..=31)
+                                .map(|day| (day.to_string(), day.to_string()))
+                                .collect::<Vec<_>>();
+                            days.push(("0".to_string(), "Last day".to_string()));
+                            string_select(StringSelectProps::new("Day of month", summary_day, days))
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .child(string_select(StringSelectProps::new(
                     "Report period",
                     summary_period,
@@ -1870,13 +1889,18 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                     .text_size(px(10.0))
                     .text_color(move || theme().muted_foreground),
                 )
-                .when(!summary_error.get().is_empty(), |panel| {
-                    panel.child(
-                        text(move || format!("Last attempt failed: {}", summary_error.get()))
-                            .text_size(px(10.0))
-                            .text_color(move || theme().destructive),
+                .child(
+                    when(
+                        move || !summary_error.get().is_empty(),
+                        move || {
+                            text(move || format!("Last attempt failed: {}", summary_error.get()))
+                                .text_size(px(10.0))
+                                .text_color(move || theme().destructive)
+                                .into_element()
+                        },
                     )
-                })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .child(
                     text(move || summary_status.get())
                         .text_size(px(11.0))
@@ -2252,6 +2276,7 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
             });
         }
     };
+    let clear_key = std::rc::Rc::new(clear_key);
     ui::surface()
         .p(px(24.0))
         .gap(px(12.0))
@@ -2280,17 +2305,24 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
                 ),
             ],
         )))
-        .when(provider.get() == "fixer", |view| {
-            view.child(ui::field(
-                if configured.get() {
-                    "Fixer API key (saved — enter a new key to replace it)"
-                } else {
-                    "Fixer API key"
+        .child(
+            when(
+                move || provider.get() == "fixer",
+                move || {
+                    ui::field(
+                        if configured.get() {
+                            "Fixer API key (saved — enter a new key to replace it)"
+                        } else {
+                            "Fixer API key"
+                        },
+                        key,
+                        "Paste your Fixer API key",
+                    )
+                    .into_element()
                 },
-                key,
-                "Paste your Fixer API key",
-            ))
-        })
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(
             view()
                 .flex_row()
@@ -2298,9 +2330,17 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
                 .items_center()
                 .gap(px(8.0))
                 .child(ui::action_button("Save rates", false, save))
-                .when(configured.get(), |view| {
-                    view.child(ui::action_button("Remove key", true, clear_key))
-                }),
+                .child(
+                    when(
+                        move || configured.get(),
+                        move || {
+                            let clear_key = clear_key.clone();
+                            ui::action_button("Remove key", true, move || clear_key())
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                ),
         )
         .child(
             text(move || status.get())

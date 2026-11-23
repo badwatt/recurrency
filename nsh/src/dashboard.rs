@@ -699,38 +699,51 @@ fn ledger_card(
                 .child(column_header("BUDGET", 1.0))
                 .child(column_header("PENDING", 1.0)),
         )
-        .when(!show_categories.get(), move |card| {
-            card.child(account_rows(data, &currency_accounts, hovered))
-                .child(ledger_footer(
-                    move || ui::count_label(account_count(), "account", "accounts"),
-                    move || total_budget(&data.get().unwrap_or_default().accounts),
-                    move || total_pending(&data.get().unwrap_or_default().accounts),
-                    &currency_accounts,
-                ))
-        })
-        .when(show_categories.get(), move |card| {
-            card.child(category_rows(data, &currency_categories))
-                .child(ledger_footer(
-                    move || ui::count_label(category_count(), "category", "categories"),
-                    move || {
-                        data.get()
-                            .unwrap_or_default()
-                            .categories
-                            .iter()
-                            .map(|entry| entry.amount)
-                            .sum()
-                    },
-                    move || {
-                        data.get()
-                            .unwrap_or_default()
-                            .categories
-                            .iter()
-                            .map(|entry| entry.pending)
-                            .sum()
-                    },
-                    &currency_categories,
-                ))
-        })
+        .child(
+            when(
+                move || show_categories.get(),
+                move || {
+                    view()
+                        .w_full()
+                        .flex_col()
+                        .child(category_rows(data, &currency_categories))
+                        .child(ledger_footer(
+                            move || ui::count_label(category_count(), "category", "categories"),
+                            move || {
+                                data.get()
+                                    .unwrap_or_default()
+                                    .categories
+                                    .iter()
+                                    .map(|entry| entry.amount)
+                                    .sum()
+                            },
+                            move || {
+                                data.get()
+                                    .unwrap_or_default()
+                                    .categories
+                                    .iter()
+                                    .map(|entry| entry.pending)
+                                    .sum()
+                            },
+                            &currency_categories,
+                        ))
+                        .into_element()
+                },
+            )
+            .otherwise(move || {
+                view()
+                    .w_full()
+                    .flex_col()
+                    .child(account_rows(data, &currency_accounts, hovered))
+                    .child(ledger_footer(
+                        move || ui::count_label(account_count(), "account", "accounts"),
+                        move || total_budget(&data.get().unwrap_or_default().accounts),
+                        move || total_pending(&data.get().unwrap_or_default().accounts),
+                        &currency_accounts,
+                    ))
+                    .into_element()
+            }),
+        )
 }
 
 fn account_rows(

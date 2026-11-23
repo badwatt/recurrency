@@ -1,66 +1,89 @@
 //! Filter trigger and popover shell. Pages supply the fields; the trigger keeps
 //! the shared icon, active count and panel chrome.
 
-use crate::components::button::icon_button;
-use nsh_base::theme;
+use std::rc::Rc;
+
+use crate::components::card::card;
+use nsh_base::{popover, theme};
 use nsh_core::prelude::*;
 
-pub fn filter_menu(active: usize, body: AnyElement) -> impl IntoElement {
-    let open = signal(false);
-    view()
-        .relative()
-        .child(icon_button(
-            asset!("icons/filter.svg"),
-            "Filters",
-            active > 0,
-            move || open.set(!open.get()),
-        ))
-        .when(active > 0, |badge| {
-            badge.child(
-                view()
-                    .absolute()
-                    .top(px(1.0))
-                    .right(px(1.0))
-                    .h(px(13.0))
-                    .min_w(px(13.0))
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(999.0))
-                    .bg(move || theme().primary)
-                    .child(
-                        text(active.to_string())
-                            .text_size(px(8.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(move || theme().primary_foreground),
-                    ),
-            )
-        })
-        .when(open.get(), move |panel| {
-            panel.child(
-                view()
-                    .absolute()
-                    .top(px(38.0))
-                    .right(px(0.0))
-                    .z_index(80)
-                    .w(px(280.0))
-                    .p(px(12.0))
-                    .rounded(px(9.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border)
-                    .bg(move || theme().card)
-                    .gap(px(10.0))
-                    .child(body),
-            )
-        })
+pub fn filter_menu(
+    active: impl Fn() -> usize + 'static,
+    body: impl Fn() -> AnyElement + 'static,
+) -> impl IntoElement {
+    let active = Rc::new(active);
+    let active_border = active.clone();
+    let active_icon = active.clone();
+    let badge_active = active.clone();
+    let badge_condition = active.clone();
+    popover()
+        .placement(Placement::Bottom)
+        .align(Align::End)
+        .offset(px(6.0))
+        .trigger(
+            view()
+                .relative()
+                .h(px(30.0))
+                .w(px(30.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(6.0))
+                .border(px(1.0))
+                .border_color(move || {
+                    if active_border() > 0 {
+                        theme().primary
+                    } else {
+                        theme().border
+                    }
+                })
+                .bg(move || theme().card)
+                .child(
+                    image(asset!("icons/filter.svg"))
+                        .size(px(16.0))
+                        .pointer_events(PointerEvents::None)
+                        .tint_color(move || {
+                            if active_icon() > 0 {
+                                theme().primary
+                            } else {
+                                theme().muted_foreground
+                            }
+                        }),
+                )
+                .child(
+                    when(
+                        move || badge_condition() > 0,
+                        move || {
+                            view()
+                                .absolute()
+                                .top(px(-4.0))
+                                .right(px(-4.0))
+                                .h(px(14.0))
+                                .min_w(px(14.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(999.0))
+                                .bg(move || theme().primary)
+                                .child(
+                                    text(badge_active().to_string())
+                                        .text_size(px(8.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().primary_foreground),
+                                )
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                ),
+        )
+        .child(card().w(px(280.0)).p(px(12.0)).gap(px(10.0)).child(body()))
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn the_filter_shell_keeps_the_shared_trigger_and_badge() {
+    fn the_filter_shell_is_an_overlay_popover() {
         let source = include_str!("filter_menu.rs");
-        assert!(source.contains("icons/filter.svg"));
-        assert!(source.contains("active > 0"));
-        assert!(source.contains("z_index(80)"));
+        assert!(source.contains("popover()"));
+        assert!(source.contains("active() > 0"));
     }
 }

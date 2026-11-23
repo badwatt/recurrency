@@ -510,17 +510,25 @@ fn form(
                                 .child(unit_chip("Year", "year", unit)),
                         )
                         .child(
-                            text("Charge on these days")
-                                .text_size(px(12.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().muted_foreground),
-                        )
-                        .when(unit.get() == "year", move |panel| {
-                            panel.child(annual_dates_editor(annual_dates))
-                        })
-                        .when(unit.get() != "year", move |panel| {
-                            panel.child(day_grid(days))
-                        }),
+                            when(
+                                move || unit.get() == "year",
+                                move || annual_dates_editor(annual_dates).into_element(),
+                            )
+                            .otherwise(move || {
+                                view()
+                                    .w_full()
+                                    .flex_col()
+                                    .gap(px(6.0))
+                                    .child(
+                                        text("Charge on these days")
+                                            .text_size(px(12.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().muted_foreground),
+                                    )
+                                    .child(day_grid(days))
+                                    .into_element()
+                            }),
+                        ),
                 )
                 .child(ui::choice_picker(
                     "Account",
@@ -935,56 +943,58 @@ fn toolbar(
                 .items_center()
                 .gap(px(8.0))
                 .child(filter_menu(
-                    filter_count(),
-                    view()
-                        .flex_col()
-                        .gap(px(10.0))
-                        .child(
-                            view()
-                                .flex_row()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    text("Filters")
-                                        .text_size(px(13.0))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(move || theme().foreground),
-                                )
-                                .child(ui::action_button("Clear all", false, clear_filters)),
-                        )
-                        .child(string_select(StringSelectProps::new(
-                            "Status",
-                            status,
-                            vec![
-                                ("all".to_string(), "All".to_string()),
-                                ("active".to_string(), "Active".to_string()),
-                                ("inactive".to_string(), "Inactive".to_string()),
-                            ],
-                        )))
-                        .child(string_select(StringSelectProps::new(
-                            "Repeats every",
-                            frequency_filter,
-                            vec![
-                                ("all".to_string(), "All units".to_string()),
-                                ("day".to_string(), "Day".to_string()),
-                                ("week".to_string(), "Week".to_string()),
-                                ("month".to_string(), "Month".to_string()),
-                                ("year".to_string(), "Year".to_string()),
-                            ],
-                        )))
-                        .child(string_select(StringSelectProps::new(
-                            "Category",
-                            category_filter,
-                            category_options(),
-                        )))
-                        .child(
-                            view()
-                                .flex_row()
-                                .gap(px(8.0))
-                                .child(ui::field("Min", price_min, "0.00"))
-                                .child(ui::field("Max", price_max, "999.99")),
-                        )
-                        .into_element(),
+                    move || filter_count(),
+                    move || {
+                        view()
+                            .flex_col()
+                            .gap(px(10.0))
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .items_center()
+                                    .justify_between()
+                                    .child(
+                                        text("Filters")
+                                            .text_size(px(13.0))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(ui::action_button("Clear all", false, clear_filters)),
+                            )
+                            .child(string_select(StringSelectProps::new(
+                                "Status",
+                                status,
+                                vec![
+                                    ("all".to_string(), "All".to_string()),
+                                    ("active".to_string(), "Active".to_string()),
+                                    ("inactive".to_string(), "Inactive".to_string()),
+                                ],
+                            )))
+                            .child(string_select(StringSelectProps::new(
+                                "Repeats every",
+                                frequency_filter,
+                                vec![
+                                    ("all".to_string(), "All units".to_string()),
+                                    ("day".to_string(), "Day".to_string()),
+                                    ("week".to_string(), "Week".to_string()),
+                                    ("month".to_string(), "Month".to_string()),
+                                    ("year".to_string(), "Year".to_string()),
+                                ],
+                            )))
+                            .child(string_select(StringSelectProps::new(
+                                "Category",
+                                category_filter,
+                                category_options(),
+                            )))
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .gap(px(8.0))
+                                    .child(ui::field("Min", price_min, "0.00"))
+                                    .child(ui::field("Max", price_max, "999.99")),
+                            )
+                            .into_element()
+                    },
                 ))
                 .child(sort_menu(
                     sort_field,

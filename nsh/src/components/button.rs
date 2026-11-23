@@ -258,6 +258,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
             |icon| {
                 image(icon)
                     .size(px(label_size + 3.0))
+                    .pointer_events(PointerEvents::None)
                     .tint_color(move || match variant {
                         ButtonVariant::Primary => theme().primary_foreground,
                         ButtonVariant::Destructive => theme().foreground,

@@ -523,52 +523,54 @@ fn toolbar(
             .items_center()
             .gap(px(8.0))
             .child(filter_menu(
-                active(),
-                view()
-                    .flex_col()
-                    .gap(px(10.0))
-                    .child(
-                        view()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .child(
-                                text("Filters")
-                                    .text_size(px(13.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(ui::action_button("Clear", false, clear)),
-                    )
-                    .child(string_select(StringSelectProps::new(
-                        "Category",
-                        category_filter,
-                        category_options(),
-                    )))
-                    .child(
-                        view()
-                            .flex_row()
-                            .gap(px(8.0))
-                            .child(ui::field("Min", price_min, "0.00"))
-                            .child(ui::field("Max", price_max, "999.99")),
-                    )
-                    .child(
-                        view()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .child(
-                                text("This month only")
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(toggle(
-                                month_only.get(),
-                                "This month only".to_string(),
-                                move |value| month_only.set(value),
-                            )),
-                    )
-                    .into_element(),
+                move || active(),
+                move || {
+                    view()
+                        .flex_col()
+                        .gap(px(10.0))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .child(
+                                    text("Filters")
+                                        .text_size(px(13.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(ui::action_button("Clear", false, clear)),
+                        )
+                        .child(string_select(StringSelectProps::new(
+                            "Category",
+                            category_filter,
+                            category_options(),
+                        )))
+                        .child(
+                            view()
+                                .flex_row()
+                                .gap(px(8.0))
+                                .child(ui::field("Min", price_min, "0.00"))
+                                .child(ui::field("Max", price_max, "999.99")),
+                        )
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .child(
+                                    text("This month only")
+                                        .text_size(px(12.0))
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(toggle(
+                                    month_only.get(),
+                                    "This month only".to_string(),
+                                    move |value| month_only.set(value),
+                                )),
+                        )
+                        .into_element()
+                },
             ))
             .child(sort_menu(
                 sort_field,

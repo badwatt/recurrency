@@ -69,30 +69,35 @@ pub fn logo_search(
                     find_logo,
                 )),
         )
-        .when(!results.get().is_empty(), move |panel| {
-            panel.child(
-                view()
-                    .w_full()
-                    .flex_row()
-                    .flex_wrap()
-                    .gap(px(6.0))
-                    .children(results.get().into_iter().map(|(url, thumbnail)| {
-                        let value = url.clone();
-                        button()
-                            .h(px(38.0))
-                            .w(px(38.0))
-                            .items_center()
-                            .justify_center()
-                            .rounded(px(6.0))
-                            .border(px(1.0))
-                            .border_color(move || theme().border)
-                            .bg(move || theme().background)
-                            .on_press(move || logo_url.set(value.clone()))
-                            .child(image(thumbnail).size(px(28.0)))
-                            .into_element()
-                    })),
+        .child(
+            when(
+                move || !results.get().is_empty(),
+                move || {
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .flex_wrap()
+                        .gap(px(6.0))
+                        .children(results.get().into_iter().map(|(url, thumbnail)| {
+                            let value = url.clone();
+                            button()
+                                .h(px(38.0))
+                                .w(px(38.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(6.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .bg(move || theme().background)
+                                .on_press(move || logo_url.set(value.clone()))
+                                .child(image(thumbnail).size(px(28.0)))
+                                .into_element()
+                        }))
+                        .into_element()
+                },
             )
-        })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(
             text(move || error.get())
                 .text_size(px(11.0))

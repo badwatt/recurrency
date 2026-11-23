@@ -1096,18 +1096,20 @@ fn toolbar(
                 .text_color(move || theme().muted_foreground),
         )
         .child(filter_menu(
-            usize::from(type_filter.get() != "all"),
-            view()
-                .child(string_select(StringSelectProps::new(
-                    "Type",
-                    type_filter,
-                    vec![
-                        ("all".to_string(), "All debts".to_string()),
-                        ("manual".to_string(), "Manual".to_string()),
-                        ("automatic".to_string(), "Automatic".to_string()),
-                    ],
-                )))
-                .into_element(),
+            move || usize::from(type_filter.get() != "all"),
+            move || {
+                view()
+                    .child(string_select(StringSelectProps::new(
+                        "Type",
+                        type_filter,
+                        vec![
+                            ("all".to_string(), "All debts".to_string()),
+                            ("manual".to_string(), "Manual".to_string()),
+                            ("automatic".to_string(), "Automatic".to_string()),
+                        ],
+                    )))
+                    .into_element()
+            },
         ))
         .child(sort_menu(
             sort_field,

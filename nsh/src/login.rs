@@ -154,11 +154,18 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                             when(move || !error.get().is_empty(), move || error_box(error))
                                 .otherwise(|| view().h(px(0.0))),
                         )
-                        .when(registering.get(), move |form| {
-                            form.child(form_field("Name", "Alex", "name", false, name, move || {
-                                submit()
-                            }))
-                        })
+                        .child(
+                            when(
+                                move || registering.get(),
+                                move || {
+                                    form_field("Name", "Alex", "name", false, name, move || {
+                                        submit()
+                                    })
+                                    .into_element()
+                                },
+                            )
+                            .otherwise(|| view().h(px(0.0)).into_element()),
+                        )
                         .child(form_field(
                             "Email",
                             "email@example.com",
@@ -434,28 +441,33 @@ fn server_row(
                         ),
                 ),
         )
-        .when(edit_server.get(), |row| {
-            row.child(
-                input()
-                    .value(server)
-                    .on_change(move |value: &str| {
-                        server.set(value.to_string());
-                        error.set(String::new());
-                    })
-                    .placeholder("https://recurrency.example.com")
-                    .keyboard_type(KeyboardType::Url)
-                    .auto_fill(AutoFill::Off)
-                    .text_size(px(13.0))
-                    .h(px(34.0))
-                    .px(px(10.0))
-                    .rounded(px(6.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().input)
-                    .bg(move || theme().background)
-                    .text_color(move || theme().foreground)
-                    .placeholder_color(move || theme().muted_foreground.dark),
+        .child(
+            when(
+                move || edit_server.get(),
+                move || {
+                    input()
+                        .value(server)
+                        .on_change(move |value: &str| {
+                            server.set(value.to_string());
+                            error.set(String::new());
+                        })
+                        .placeholder("https://recurrency.example.com")
+                        .keyboard_type(KeyboardType::Url)
+                        .auto_fill(AutoFill::Off)
+                        .text_size(px(13.0))
+                        .h(px(34.0))
+                        .px(px(10.0))
+                        .rounded(px(6.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().input)
+                        .bg(move || theme().background)
+                        .text_color(move || theme().foreground)
+                        .placeholder_color(move || theme().muted_foreground.dark)
+                        .into_element()
+                },
             )
-        })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
 }
 
 fn error_box(error: Signal<String>) -> impl IntoElement {
