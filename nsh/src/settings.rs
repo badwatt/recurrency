@@ -13,6 +13,7 @@ use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{
     ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button as shared_button,
 };
+use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::segmented::{SegmentOption, segmented};
 use crate::components::string_select::{StringSelectProps, string_select};
@@ -955,6 +956,8 @@ fn general_card(
 ) -> impl IntoElement {
     let date_format = signal(crate::format::date_format());
     let first_day = signal(crate::format::first_day());
+    let show_updates = signal(crate::update_banner::show_updates());
+    effect(move || crate::update_banner::set_show_updates(show_updates.get()));
     let first_server = server.clone();
     let first_token = token.clone();
     let rates_server = server.clone();
@@ -1025,6 +1028,28 @@ fn general_card(
                 SegmentOption::new("sunday", "Sunday"),
             ],
         ))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(12.0))
+                .p(px(12.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    checkbox(
+                        show_updates,
+                        "Show update notices".to_string(),
+                    ),
+                )
+                .child(
+                    text("Check for new Recurrency releases and show a dismissible banner.")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
         .child(
             text("Amounts and dates use these defaults across the app.")
                 .text_size(px(12.0))

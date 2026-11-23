@@ -2,6 +2,7 @@
 
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
+use nsh_core::storage::Storage;
 
 fn preferred_asset<'a>(release: &'a crate::api::Release) -> Option<&'a crate::api::ReleaseAsset> {
     let suffix = if cfg!(target_os = "android") {
@@ -17,6 +18,28 @@ fn preferred_asset<'a>(release: &'a crate::api::Release) -> Option<&'a crate::ap
         let name = asset.name.to_ascii_lowercase();
         suffix.iter().any(|suffix| name.ends_with(suffix))
     })
+}
+
+const SHOW_UPDATES_KEY: &str = "recurrency.show-updates";
+const DISMISSED_KEY: &str = "recurrency.update-dismissed";
+
+pub fn show_updates() -> bool {
+    Storage::get_item(SHOW_UPDATES_KEY)
+        .as_deref()
+        .map(str::trim)
+        .map_or(true, |value| value != "false")
+}
+
+pub fn set_show_updates(value: bool) {
+    let _ = Storage::set_item(SHOW_UPDATES_KEY, if value { "true" } else { "false" });
+}
+
+fn dismissed_version(version: &str) -> bool {
+    Storage::get_item(DISMISSED_KEY).as_deref() == Some(version)
+}
+
+fn dismiss_version(version: &str) {
+    let _ = Storage::set_item(DISMISSED_KEY, version);
 }
 
 fn newer(current: &str, latest: &str) -> bool {
@@ -38,13 +61,16 @@ pub fn update_banner() -> AnyElement {
         |(), _| async { Ok::<_, String>(crate::api::latest_release().await) },
     );
     let dismissed = signal(false);
+    let updating = signal(false);
     let visible = move || {
-        !dismissed.get()
+        show_updates()
+            && !dismissed.get()
             && release
                 .get()
                 .flatten()
                 .is_some_and(|info: crate::api::Release| {
                     newer(env!("CARGO_PKG_VERSION"), &info.tag_name)
+                        && !dismissed_version(&info.tag_name)
                 })
     };
     when(visible, move || {
@@ -87,21 +113,50 @@ pub fn update_banner() -> AnyElement {
                                     .text_color(move || theme().muted_foreground),
                             ),
                     )
-                    .child(crate::ui::action_button("View release", false, move || {
-                        let url = url.clone();
-                        spawn(async move {
-                            let _ = open_url(url).await;
-                        });
-                    }))
-                    .when(download.is_some(), |view| {
-                        let download = download.clone();
-                        view.child(crate::ui::action_button("Download", false, move || {
-                            let Some(url) = download.clone() else { return };
+                    .when(cfg!(target_arch = "wasm32"), |view| {
+                        view.child(crate::ui::action_button("View release", false, move || {
+                            let url = url.clone();
                             spawn(async move {
                                 let _ = open_url(url).await;
                             });
                         }))
                     })
+                    .when(
+                        !cfg!(target_arch = "wasm32") && download.is_some(),
+                        |view| {
+                            let download = download.clone();
+                            view.child(crate::ui::action_button(
+                                if updating.get() {
+                                    "Starting…"
+                                } else {
+                                    "Update"
+                                },
+                                false,
+                                move || {
+                                    let Some(url) = download.clone() else { return };
+                                    if updating.get() {
+                                        return;
+                                    }
+                                    updating.set(true);
+                                    spawn(async move {
+                                        match crate::updater::install(&url).await {
+                                            Ok(()) => crate::components::toast::success(
+                                                "Downloading update. Follow the installer."
+                                                    .to_string(),
+                                            ),
+                                            Err(error) => {
+                                                crate::components::toast::error(format!(
+                                                    "Could not start the update: {error}"
+                                                ));
+                                                let _ = open_url(url).await;
+                                            }
+                                        }
+                                        updating.set(false);
+                                    });
+                                },
+                            ))
+                        },
+                    )
                     .child(
                         button()
                             .items_center()
@@ -109,7 +164,12 @@ pub fn update_banner() -> AnyElement {
                             .h(px(26.0))
                             .w(px(26.0))
                             .rounded(px(5.0))
-                            .on_press(move || dismissed.set(true))
+                            .on_press(move || {
+                                if let Some(info) = release.get().flatten() {
+                                    dismiss_version(&info.tag_name);
+                                }
+                                dismissed.set(true);
+                            })
                             .child(
                                 image(asset!("icons/x.svg"))
                                     .size(px(13.0))

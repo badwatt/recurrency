@@ -29,6 +29,7 @@ mod theme;
 mod transactions;
 mod ui;
 mod update_banner;
+mod updater;
 mod voice;
 
 use auth::Session;
