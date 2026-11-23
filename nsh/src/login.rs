@@ -194,17 +194,19 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                             .disabled(busy.get())
                             .on_press(move || submit()),
                         ))
-                        .child(shared_button(
-                            ButtonProps::new("Use this device only")
-                                .variant(crate::components::button::ButtonVariant::Outline)
-                                .full_width()
-                                .on_press(move || {
-                                    crate::local::enable();
-                                    let local_session = crate::local::session();
-                                    crate::auth::store_session(&local_session);
-                                    session.set(Session::SignedIn(local_session));
-                                }),
-                        ))
+                        .when(!cfg!(target_arch = "wasm32"), |form| {
+                            form.child(shared_button(
+                                ButtonProps::new("Use this device only")
+                                    .variant(crate::components::button::ButtonVariant::Outline)
+                                    .full_width()
+                                    .on_press(move || {
+                                        crate::local::enable();
+                                        let local_session = crate::local::session();
+                                        crate::auth::store_session(&local_session);
+                                        session.set(Session::SignedIn(local_session));
+                                    }),
+                            ))
+                        })
                         .child(
                             when(
                                 move || demo_enabled.get(),

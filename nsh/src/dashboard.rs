@@ -683,8 +683,8 @@ fn ledger_card(
         .child(
             view()
                 .p(px(20.0))
-                .pb(px(12.0))
-                .gap(px(8.0))
+                .pb(px(8.0))
+                .gap(px(4.0))
                 .child(
                     view()
                         .w_full()

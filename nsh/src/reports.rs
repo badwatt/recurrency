@@ -127,10 +127,11 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
     view()
         .w_full()
         .flex_col()
-        .gap(px(20.0))
+        .gap(px(24.0))
         .child(
             view()
                 .w_full()
+                .mb(px(16.0))
                 .flex_row()
                 .flex_wrap()
                 .gap(px(12.0))

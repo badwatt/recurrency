@@ -172,7 +172,7 @@ fn content(
     view()
         .w_full()
         .flex_col()
-        .gap(px(20.0))
+        .gap(px(32.0))
         .child(
             view()
                 .w_full()
@@ -251,7 +251,7 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
         .border(px(1.0))
         .border_color(move || theme().border)
         .bg(move || theme().card)
-        .p(px(18.0))
+        .p(px(16.0))
         .child(
             text(label.to_string())
                 .text_size(px(11.0))
@@ -266,11 +266,11 @@ fn summary(label: &str, value: impl Fn() -> String + 'static) -> impl IntoElemen
                     value()
                 }
             })
-            .text_size(px(28.0))
+            .text_size(px(26.0))
             .font_family(design::MONO)
             .font_weight(FontWeight::BOLD)
             .text_color(move || theme().foreground)
-            .mt(px(6.0)),
+            .mt(px(4.0)),
         )
 }
 
