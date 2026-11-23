@@ -11,6 +11,7 @@ use crate::api::{self, TransactionsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
+use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
 use crate::components::page_header::page_header as shared_page_header;
@@ -728,13 +729,9 @@ fn row(
     let logo = transaction.logo_url.clone();
     let name = transaction.name;
     let date = format_date(transaction.date);
-    let amount = {
-        let rates = data.get().unwrap_or_default().rates;
-        format_currency(
-            rates.convert(transaction.amount, &transaction.currency),
-            &currency,
-        )
-    };
+    let rates = data.get().unwrap_or_default().rates;
+    let amount_value = transaction.amount;
+    let amount_currency = transaction.currency.clone();
     view()
         .w_full()
         .flex_row()
@@ -820,19 +817,15 @@ fn row(
                 .flex_row()
                 .items_center()
                 .gap(px(12.0))
-                .child(
-                    text(move || {
-                        if crate::ui::privacy_active() {
-                            "••••".to_string()
-                        } else {
-                            amount.clone()
-                        }
-                    })
-                    .text_size(px(15.0))
-                    .font_family(design::MONO)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(move || theme().foreground),
-                )
+                .child(converted_amount(
+                    amount_value,
+                    &amount_currency,
+                    &currency,
+                    &rates,
+                    15.0,
+                    FontWeight::SEMIBOLD,
+                    true,
+                ))
                 .child(transaction_actions(
                     action_transaction,
                     actions,

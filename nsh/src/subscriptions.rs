@@ -14,14 +14,14 @@ use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
+use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
-use crate::format::{format_currency, format_date};
+use crate::format::format_date;
 use crate::models::{AnnualDate, Recurrence, Subscription};
-use crate::theme as design;
 use crate::ui;
 
 #[derive(Serialize)]
@@ -1299,13 +1299,9 @@ fn list_card(
         || "No next date".to_string(),
         |date| format!("Next: {}", format_date(date)),
     );
-    let amount = {
-        let rates = data.get().unwrap_or_default().rates;
-        format_currency(
-            rates.convert(subscription.amount, &subscription.currency),
-            &currency,
-        )
-    };
+    let rates = data.get().unwrap_or_default().rates;
+    let amount_value = subscription.amount;
+    let amount_currency = subscription.currency.clone();
     view()
         .w_full()
         .flex_row()
@@ -1352,19 +1348,15 @@ fn list_card(
                 .flex_row()
                 .items_center()
                 .gap(px(12.0))
-                .child(
-                    text(move || {
-                        if crate::ui::privacy_active() {
-                            "••••".to_string()
-                        } else {
-                            amount.clone()
-                        }
-                    })
-                    .text_size(px(14.0))
-                    .font_family(design::MONO)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(move || theme().foreground),
-                )
+                .child(converted_amount(
+                    amount_value,
+                    &amount_currency,
+                    &currency,
+                    &rates,
+                    14.0,
+                    FontWeight::SEMIBOLD,
+                    true,
+                ))
                 .child(card_actions(
                     action_subscription,
                     subscription.is_active,
@@ -1389,13 +1381,9 @@ fn card(
     let action_subscription = subscription.clone();
     let logo = subscription.logo_url.clone();
     let name = subscription.name;
-    let amount = {
-        let rates = data.get().unwrap_or_default().rates;
-        format_currency(
-            rates.convert(subscription.amount, &subscription.currency),
-            &currency,
-        )
-    };
+    let rates = data.get().unwrap_or_default().rates;
+    let amount_value = subscription.amount;
+    let amount_currency = subscription.currency.clone();
     let next = subscription.next_billing_date.map_or_else(
         || "No next date".to_string(),
         |date| format!("Next: {}", format_date(date)),
@@ -1465,19 +1453,15 @@ fn card(
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(
-            text(move || {
-                if crate::ui::privacy_active() {
-                    "••••".to_string()
-                } else {
-                    amount.clone()
-                }
-            })
-            .text_size(px(24.0))
-            .font_family(design::MONO)
-            .font_weight(FontWeight::BOLD)
-            .text_color(move || theme().foreground),
-        )
+        .child(converted_amount(
+            amount_value,
+            &amount_currency,
+            &currency,
+            &rates,
+            24.0,
+            FontWeight::BOLD,
+            false,
+        ))
         .child(
             view()
                 .self_start()

@@ -9,6 +9,7 @@ pub mod checkbox;
 pub mod color_picker;
 pub mod compact_select;
 pub mod confirm;
+pub mod converted_amount;
 pub mod date_picker;
 pub mod dialog;
 pub mod dropdown_menu;
