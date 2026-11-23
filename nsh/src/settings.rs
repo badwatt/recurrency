@@ -156,6 +156,18 @@ fn compact_nav(section: Signal<Section>, is_admin: bool) -> impl IntoElement {
         .children(
             Section::ALL
                 .iter()
+                .filter(|item| {
+                    !crate::local::enabled()
+                        || matches!(
+                            item,
+                            Section::Account
+                                | Section::Appearance
+                                | Section::General
+                                | Section::Money
+                                | Section::Data
+                                | Section::About
+                        )
+                })
                 .filter(|item| **item != Section::Admin || is_admin)
                 .map(|item| {
                     let item = *item;
@@ -208,7 +220,19 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     effect(move || {
         if let Some(key) = crate::ui::settings_intent() {
             if let Some(requested) = Section::from_key(&key) {
-                section.set(requested);
+                if !crate::local::enabled()
+                    || matches!(
+                        requested,
+                        Section::Account
+                            | Section::Appearance
+                            | Section::General
+                            | Section::Money
+                            | Section::Data
+                            | Section::About
+                    )
+                {
+                    section.set(requested);
+                }
             }
             crate::ui::clear_settings_intent();
         }
@@ -350,7 +374,19 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             .children(
                                 items
                                     .iter()
-                                    .filter(|item| **item != Section::Admin || is_admin)
+                                    .filter(|item| {
+                                        (**item != Section::Admin || is_admin)
+                                            && (!crate::local::enabled()
+                                                || matches!(
+                                                    item,
+                                                    Section::Account
+                                                        | Section::Appearance
+                                                        | Section::General
+                                                        | Section::Money
+                                                        | Section::Data
+                                                        | Section::About
+                                                ))
+                                    })
                                     .map(|item| {
                                         let item = *item;
                                         let active = move || section.get() == item;

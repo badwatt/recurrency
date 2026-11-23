@@ -111,6 +111,33 @@ pub async fn load_dashboard(
     token: String,
     currency: String,
 ) -> Result<DashboardData, String> {
+    if crate::local::enabled() {
+        let accounts = crate::local::accounts();
+        let subscriptions = crate::local::subscriptions();
+        let transactions = crate::local::transactions();
+        let categories = crate::local::categories();
+        let rates = crate::local::rates();
+        let today = Local::now().date_naive();
+        return Ok(DashboardData {
+            accounts: build_account_budgets(
+                &accounts,
+                &subscriptions,
+                &transactions,
+                today,
+                &rates,
+            ),
+            categories: build_category_budgets(
+                &categories,
+                &subscriptions,
+                &transactions,
+                today,
+                &rates,
+            ),
+            upcoming: upcoming_payments(&subscriptions, &transactions, &accounts, today),
+            rates,
+            active_subscriptions: subscriptions.iter().filter(|item| item.is_active).count(),
+        });
+    }
     let api = Client::new(server, token);
     let accounts: Vec<Account> = api.get("/api/accounts").await?;
     let subscriptions: Vec<Subscription> = api.get("/api/subscriptions").await?;
@@ -152,6 +179,14 @@ pub async fn load_transactions(
     token: String,
     currency: String,
 ) -> Result<TransactionsData, String> {
+    if crate::local::enabled() {
+        return Ok(TransactionsData {
+            transactions: crate::local::transactions(),
+            accounts: crate::local::accounts(),
+            categories: crate::local::categories(),
+            rates: crate::local::rates(),
+        });
+    }
     let api = Client::new(server, token);
     let transactions: Vec<Transaction> = api.get("/api/transactions").await?;
     let accounts: Vec<Account> = api.get("/api/accounts").await?;
@@ -170,6 +205,9 @@ pub async fn create_transaction(
     token: String,
     request: &CreateTransactionRequest,
 ) -> Result<Transaction, String> {
+    if crate::local::enabled() {
+        return crate::local::create_transaction(request);
+    }
     Client::new(server, token)
         .post("/api/transactions", request)
         .await
@@ -181,6 +219,10 @@ pub async fn update_transaction<B: Serialize>(
     id: uuid::Uuid,
     request: &B,
 ) -> Result<Transaction, String> {
+    if crate::local::enabled() {
+        let patch = serde_json::to_value(request).map_err(|error| error.to_string())?;
+        return crate::local::update_entity("transactions", id, &patch);
+    }
     Client::new(server, token)
         .put(&format!("/api/transactions/{id}"), request)
         .await
@@ -191,6 +233,14 @@ pub async fn delete_transaction(
     token: String,
     id: uuid::Uuid,
 ) -> Result<(), String> {
+    if crate::local::enabled() {
+        let name = match "delete_transaction" {
+            "delete_transaction" => "transactions",
+            "delete_subscription" => "subscriptions",
+            _ => "debts",
+        };
+        return crate::local::delete_entity(name, id);
+    }
     Client::new(server, token)
         .delete(&format!("/api/transactions/{id}"))
         .await
@@ -209,6 +259,14 @@ pub async fn load_debts(
     token: String,
     currency: String,
 ) -> Result<DebtsData, String> {
+    if crate::local::enabled() {
+        return Ok(DebtsData {
+            debts: crate::local::debts(),
+            accounts: crate::local::accounts(),
+            categories: crate::local::categories(),
+            rates: crate::local::rates(),
+        });
+    }
     let api = Client::new(server, token);
     let debts: Vec<Debt> = api.get("/api/debts").await?;
     let accounts: Vec<Account> = api.get("/api/accounts").await?;
@@ -227,6 +285,9 @@ pub async fn create_debt(
     token: String,
     request: &CreateDebtRequest,
 ) -> Result<Debt, String> {
+    if crate::local::enabled() {
+        return crate::local::create_debt(request);
+    }
     Client::new(server, token).post("/api/debts", request).await
 }
 
@@ -236,6 +297,10 @@ pub async fn update_debt<B: Serialize>(
     id: uuid::Uuid,
     request: &B,
 ) -> Result<Debt, String> {
+    if crate::local::enabled() {
+        let patch = serde_json::to_value(request).map_err(|error| error.to_string())?;
+        return crate::local::update_entity("debts", id, &patch);
+    }
     Client::new(server, token)
         .put(&format!("/api/debts/{id}"), request)
         .await
@@ -252,6 +317,12 @@ pub async fn load_debt_payments(
     token: String,
     debt_id: uuid::Uuid,
 ) -> Result<Vec<DebtPayment>, String> {
+    if crate::local::enabled() {
+        return Ok(crate::local::payments()
+            .into_iter()
+            .filter(|payment| payment.debt_id == debt_id)
+            .collect());
+    }
     Client::new(server, token)
         .get(&format!("/api/debts/{debt_id}/payments"))
         .await
@@ -263,6 +334,9 @@ pub async fn record_debt_payment(
     debt_id: uuid::Uuid,
     request: &RecordDebtPaymentRequest,
 ) -> Result<DebtPayment, String> {
+    if crate::local::enabled() {
+        return crate::local::record_payment(debt_id, request);
+    }
     Client::new(server, token)
         .post(&format!("/api/debts/{debt_id}/payments"), request)
         .await
@@ -318,6 +392,9 @@ pub async fn load_money_counts(
     server: String,
     token: String,
 ) -> Result<(Vec<AccountWithCounts>, Vec<CategoryWithCounts>), String> {
+    if crate::local::enabled() {
+        return Ok(crate::local::money_counts());
+    }
     let api = Client::new(server, token);
     let accounts: Vec<AccountWithCounts> = api.get("/api/accounts/with-counts").await?;
     let categories: Vec<CategoryWithCounts> = api.get("/api/categories/with-counts").await?;
@@ -331,6 +408,9 @@ pub async fn create_account(
     icon: Option<&str>,
     color: Option<&str>,
 ) -> Result<Account, String> {
+    if crate::local::enabled() {
+        return crate::local::create_account(name, icon, color);
+    }
     Client::new(server, token)
         .post(
             "/api/accounts",
@@ -347,6 +427,10 @@ pub async fn update_account(
     icon: Option<&str>,
     color: Option<&str>,
 ) -> Result<Account, String> {
+    if crate::local::enabled() {
+        let patch = serde_json::json!({ "name": name, "icon": icon, "color": color });
+        return crate::local::update_entity("accounts", id, &patch);
+    }
     let mut body = serde_json::Map::new();
     body.insert("name".to_string(), serde_json::json!(name));
     if let Some(icon) = icon {
@@ -368,6 +452,9 @@ pub async fn delete_account_by_id(
     token: String,
     id: uuid::Uuid,
 ) -> Result<(), String> {
+    if crate::local::enabled() {
+        return crate::local::delete_entity("accounts", id);
+    }
     Client::new(server, token)
         .delete(&format!("/api/accounts/{id}"))
         .await
@@ -380,6 +467,9 @@ pub async fn create_category(
     icon: Option<&str>,
     color: Option<&str>,
 ) -> Result<Category, String> {
+    if crate::local::enabled() {
+        return crate::local::create_category(name, icon, color);
+    }
     Client::new(server, token)
         .post(
             "/api/categories",
@@ -396,6 +486,10 @@ pub async fn update_category(
     icon: Option<&str>,
     color: Option<&str>,
 ) -> Result<Category, String> {
+    if crate::local::enabled() {
+        let patch = serde_json::json!({ "name": name, "icon": icon, "color": color });
+        return crate::local::update_entity("categories", id, &patch);
+    }
     let mut body = serde_json::Map::new();
     body.insert("name".to_string(), serde_json::json!(name));
     if let Some(icon) = icon {
@@ -417,6 +511,9 @@ pub async fn delete_category_by_id(
     token: String,
     id: uuid::Uuid,
 ) -> Result<(), String> {
+    if crate::local::enabled() {
+        return crate::local::delete_entity("categories", id);
+    }
     Client::new(server, token)
         .delete(&format!("/api/categories/{id}"))
         .await
@@ -928,12 +1025,20 @@ pub async fn import_backup(
     token: String,
     backup: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
+    if crate::local::enabled() {
+        crate::local::import_backup(backup)?;
+        return Ok(backup.clone());
+    }
     Client::new(server, token)
         .post("/api/backup/import", backup)
         .await
 }
 
 pub async fn export_backup(server: String, token: String) -> Result<String, String> {
+    if crate::local::enabled() {
+        return serde_json::to_string_pretty(&crate::local::export_backup())
+            .map_err(|error| error.to_string());
+    }
     let request = HttpRequest::get(format!("{}/api/backup", server.trim_end_matches('/')))
         .header("Authorization", format!("Bearer {token}"));
     let response = fetch(request).await?;
@@ -945,6 +1050,11 @@ pub async fn export_backup(server: String, token: String) -> Result<String, Stri
 }
 
 pub async fn delete_account(server: String, token: String, password: String) -> Result<(), String> {
+    if crate::local::enabled() {
+        let _ = password;
+        crate::local::reset();
+        return Ok(());
+    }
     Client::new(server, token)
         .post(
             "/api/settings/account",
@@ -958,6 +1068,23 @@ pub async fn update_settings(
     token: String,
     request: &UpdateSettingsRequest,
 ) -> Result<SettingsResponse, String> {
+    if crate::local::enabled() {
+        let mut session = crate::local::session();
+        if let Some(name) = request.name.clone() {
+            session.user.name = Some(name);
+        }
+        if let Some(email) = request.email.clone() {
+            session.user.email = email;
+        }
+        if let Some(currency) = request.currency.clone() {
+            session.user.currency = currency;
+        }
+        if let Some(avatar) = request.avatar.clone() {
+            session.user.avatar = (!avatar.is_empty()).then_some(avatar);
+        }
+        crate::auth::store_session(&session);
+        return Ok(SettingsResponse { user: session.user });
+    }
     Client::new(server, token)
         .put("/api/settings", request)
         .await
@@ -969,6 +1096,12 @@ pub async fn load_report(
     year: i32,
     month: u32,
 ) -> Result<ReportsData, String> {
+    if crate::local::enabled() {
+        return Ok(ReportsData {
+            report: crate::local::report(year, month),
+            categories: crate::local::categories(),
+        });
+    }
     let api = Client::new(server, token);
     let report: ReportResponse = api
         .get(&format!("/api/reports/summary?year={year}&month={month}"))
@@ -984,6 +1117,14 @@ pub async fn load_calendar(
     year: i32,
     month: u32,
 ) -> Result<CalendarData, String> {
+    if crate::local::enabled() {
+        let (items, transactions) = crate::local::calendar(year, month);
+        return Ok(CalendarData {
+            items,
+            transactions,
+            rates: crate::local::rates(),
+        });
+    }
     let api = Client::new(server, token);
     let items: Vec<CalendarItem> = api
         .get(&format!(
@@ -1004,6 +1145,14 @@ pub async fn load_subscriptions(
     token: String,
     currency: String,
 ) -> Result<SubscriptionsData, String> {
+    if crate::local::enabled() {
+        return Ok(SubscriptionsData {
+            subscriptions: crate::local::subscriptions(),
+            accounts: crate::local::accounts(),
+            categories: crate::local::categories(),
+            rates: crate::local::rates(),
+        });
+    }
     let api = Client::new(server, token);
     let subscriptions: Vec<Subscription> = api.get("/api/subscriptions").await?;
     let accounts: Vec<Account> = api.get("/api/accounts").await?;
@@ -1022,6 +1171,9 @@ pub async fn create_subscription(
     token: String,
     request: &CreateSubscriptionRequest,
 ) -> Result<Subscription, String> {
+    if crate::local::enabled() {
+        return crate::local::create_subscription(request);
+    }
     Client::new(server, token)
         .post("/api/subscriptions", request)
         .await
@@ -1033,6 +1185,10 @@ pub async fn update_subscription<B: Serialize>(
     id: uuid::Uuid,
     request: &B,
 ) -> Result<Subscription, String> {
+    if crate::local::enabled() {
+        let patch = serde_json::to_value(request).map_err(|error| error.to_string())?;
+        return crate::local::update_entity("subscriptions", id, &patch);
+    }
     Client::new(server, token)
         .put(&format!("/api/subscriptions/{id}"), request)
         .await
@@ -1043,6 +1199,14 @@ pub async fn delete_subscription(
     token: String,
     id: uuid::Uuid,
 ) -> Result<(), String> {
+    if crate::local::enabled() {
+        let name = match "delete_subscription" {
+            "delete_transaction" => "transactions",
+            "delete_subscription" => "subscriptions",
+            _ => "debts",
+        };
+        return crate::local::delete_entity(name, id);
+    }
     Client::new(server, token)
         .delete(&format!("/api/subscriptions/{id}"))
         .await

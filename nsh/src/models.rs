@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Account {
     pub id: Uuid,
     pub name: String,
@@ -15,7 +15,7 @@ pub struct Account {
     pub is_default: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Category {
     pub id: Uuid,
     pub name: String,
@@ -47,7 +47,7 @@ pub struct Recurrence {
     pub dates: Vec<AnnualDate>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Subscription {
     pub id: Uuid,
     pub account_id: Uuid,
@@ -69,7 +69,7 @@ pub struct Subscription {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Transaction {
     pub id: Uuid,
     pub account_id: Uuid,
@@ -87,7 +87,7 @@ pub struct Transaction {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub struct Rates {
     pub base: String,
     #[serde(default)]
@@ -109,7 +109,7 @@ impl Rates {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Debt {
     pub id: Uuid,
     pub account_id: Uuid,
@@ -136,7 +136,7 @@ pub struct Debt {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct DebtPayment {
     pub id: Uuid,
     pub debt_id: Uuid,
@@ -168,7 +168,7 @@ pub struct MonthlySummary {
     pub transactions_count: i64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct CategoryBreakdown {
     pub category_id: Option<String>,
     pub category_name: String,
@@ -217,14 +217,14 @@ pub struct AiSettings {
     pub configured: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct AccountWithCounts {
     pub account: Account,
     pub subscription_count: i64,
     pub transaction_count: i64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct CategoryWithCounts {
     pub category: Category,
     pub subscription_count: i64,

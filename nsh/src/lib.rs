@@ -16,6 +16,7 @@ mod debts;
 mod delivery;
 mod folder_sync;
 mod format;
+mod local;
 mod login;
 mod mic;
 mod models;

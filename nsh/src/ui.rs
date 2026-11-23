@@ -220,6 +220,7 @@ fn toggle_privacy() {
 }
 
 pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -> impl IntoElement {
+    let auth_for_ai = auth.clone();
     view()
         .h(px(56.0))
         .w_full()
@@ -271,8 +272,20 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                     .otherwise(|| view().h(px(0.0))),
                 )
                 .child(view().flex_1())
-                .child(ai_action(route, auth.clone()))
-                .child(notification_action())
+                .child(
+                    when(
+                        move || !crate::local::enabled(),
+                        move || ai_action(route, auth_for_ai.clone()).into_element(),
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(
+                    when(
+                        move || !crate::local::enabled(),
+                        move || notification_action().into_element(),
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .child(privacy_action())
                 .child(icon_action(
                     route,

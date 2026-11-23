@@ -84,6 +84,9 @@ pub fn store_session(session: &AuthSession) {
 }
 
 pub fn clear_session() {
+    if crate::local::enabled() {
+        crate::local::disable();
+    }
     Storage::remove_item(TOKEN_KEY);
     Storage::remove_item(USER_KEY);
 }
@@ -94,6 +97,11 @@ pub fn has_stored_session() -> bool {
 }
 
 pub async fn restore_session() -> Session {
+    if crate::local::enabled() {
+        let session = crate::local::session();
+        store_session(&session);
+        return Session::SignedIn(session);
+    }
     let Some(token) = Storage::get_item(TOKEN_KEY).filter(|token| !token.is_empty()) else {
         return Session::SignedOut;
     };
