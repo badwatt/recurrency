@@ -1,7 +1,7 @@
 //! Monthly reports: summary, category split and recent trends.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::{button, theme};
+use nsh_base::theme;
 use nsh_core::canvas::{CanvasTextAlign, LineJoin};
 use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
@@ -10,6 +10,8 @@ use std::f32::consts::TAU;
 
 use crate::api::{self, ReportsData};
 use crate::auth::AuthSession;
+use crate::components::compact_select::compact_select;
+use crate::components::dropdown_menu::{dropdown_menu, MenuAction};
 use crate::components::page_header::page_header as shared_page_header;
 use crate::format::format_currency;
 use crate::models::{Category, ReportResponse};
@@ -30,6 +32,18 @@ pub fn reports(auth: AuthSession) -> AnyElement {
     let today = Local::now().date_naive();
     let year = signal(today.year());
     let month = signal(today.month());
+    let month_choice = signal(today.month().to_string());
+    let year_choice = signal(today.year().to_string());
+    effect(move || {
+        if let Ok(value) = month_choice.get().parse::<u32>() {
+            month.set(value);
+        }
+    });
+    effect(move || {
+        if let Ok(value) = year_choice.get().parse::<i32>() {
+            year.set(value);
+        }
+    });
     let resource_server = server.clone();
     let resource_token = token.clone();
     let data = resource(
@@ -56,9 +70,21 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 .flex_wrap()
                 .items_center()
                 .gap(px(8.0))
-                .child(navigation(year, month, today))
-                .child(export_button(data, &currency))
-                .child(export_pdf_button(data, &currency))
+                .child(compact_select(
+                    month_choice,
+                    (1..=12)
+                        .map(|month| (month.to_string(), month_name(month).to_string()))
+                        .collect(),
+                    132.0,
+                ))
+                .child(compact_select(
+                    year_choice,
+                    (today.year() - 2..=today.year())
+                        .map(|year| (year.to_string(), year.to_string()))
+                        .collect(),
+                    96.0,
+                ))
+                .child(export_menu(data, &currency))
                 .into_element(),
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
@@ -71,32 +97,6 @@ pub fn reports(auth: AuthSession) -> AnyElement {
         .into_element()
 }
 
-fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl IntoElement {
-    view()
-        .flex_row()
-        .items_center()
-        .gap(px(8.0))
-        .child(ui::action_button("Previous", false, move || {
-            let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
-            year.set(next_year);
-            month.set(next_month);
-        }))
-        .child(
-            text(move || month_label(year.get(), month.get()))
-                .text_size(px(20.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(ui::action_button("Next", false, move || {
-            let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
-            year.set(next_year);
-            month.set(next_month);
-        }))
-        .child(ui::action_button("Today", false, move || {
-            year.set(today.year());
-            month.set(today.month());
-        }))
-}
 
 fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement {
     let report = move || data.get().unwrap_or_default().report;
@@ -192,76 +192,59 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
         .into_element()
 }
 
-fn export_button(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
-    let currency = currency.to_string();
-    button()
-        .items_center()
-        .justify_center()
-        .h(px(38.0))
-        .px(px(12.0))
-        .rounded(px(8.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .on_press(move || {
-            let Some(snapshot) = data.get() else {
-                return;
-            };
-            let csv = build_csv(&snapshot.report, &currency);
-            spawn(async move {
-                if let Ok(Some(path)) = pick_save_path(
-                    SaveDialog::new()
-                        .file_name("recurrency-report.csv")
-                        .filter(FileFilter::new("CSV", ["csv"])),
-                )
-                .await
-                {
-                    let _ = std::fs::write(path, csv);
-                }
-            });
-        })
-        .child(
-            text("Export CSV")
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().foreground),
-        )
+fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+    let csv_currency = currency.to_string();
+    let pdf_currency = currency.to_string();
+    let csv_data = data;
+    let csv = move || {
+        let Some(snapshot) = csv_data.get() else {
+            return;
+        };
+        let csv = build_csv(&snapshot.report, &csv_currency);
+        spawn(async move {
+            if let Ok(Some(path)) = pick_save_path(
+                SaveDialog::new()
+                    .file_name("recurrency-report.csv")
+                    .filter(FileFilter::new("CSV", ["csv"])),
+            )
+            .await
+            {
+                let _ = std::fs::write(path, csv);
+            }
+        });
+    };
+    let pdf = move || {
+        let Some(snapshot) = data.get() else {
+            return;
+        };
+        let pdf = build_pdf(&snapshot.report, &pdf_currency);
+        spawn(async move {
+            if let Ok(Some(path)) = pick_save_path(
+                SaveDialog::new()
+                    .file_name("recurrency-report.pdf")
+                    .filter(FileFilter::new("PDF", ["pdf"])),
+            )
+            .await
+            {
+                let _ = std::fs::write(path, pdf);
+            }
+        });
+    };
+    dropdown_menu(
+        "Export",
+        vec![
+            MenuAction::new("Export CSV", csv),
+            MenuAction::new("Export PDF", pdf),
+        ],
+    )
 }
 
-fn export_pdf_button(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
-    let currency = currency.to_string();
-    button()
-        .items_center()
-        .justify_center()
-        .h(px(38.0))
-        .px(px(12.0))
-        .rounded(px(8.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .on_press(move || {
-            let Some(snapshot) = data.get() else {
-                return;
-            };
-            let pdf = build_pdf(&snapshot.report, &currency);
-            spawn(async move {
-                if let Ok(Some(path)) = pick_save_path(
-                    SaveDialog::new()
-                        .file_name("recurrency-report.pdf")
-                        .filter(FileFilter::new("PDF", ["pdf"])),
-                )
-                .await
-                {
-                    let _ = std::fs::write(path, pdf);
-                }
-            });
-        })
-        .child(
-            text("Export PDF")
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().foreground),
-        )
+fn month_name(month: u32) -> &'static str {
+    const MONTHS: [&str; 12] = [
+        "January", "February", "March", "April", "May", "June", "July", "August",
+        "September", "October", "November", "December",
+    ];
+    MONTHS.get(month.saturating_sub(1) as usize).copied().unwrap_or("Month")
 }
 
 fn summary_card(
@@ -790,15 +773,7 @@ fn parse_hex(value: &str) -> u32 {
     u32::from_str_radix(value.trim_start_matches('#'), 16).unwrap_or(0x6b7280)
 }
 
-fn shift_month(year: i32, month: u32, delta: i32) -> (i32, u32) {
-    let total = year * 12 + month as i32 - 1 + delta;
-    (total.div_euclid(12), (total.rem_euclid(12) + 1) as u32)
-}
 
-fn month_label(year: i32, month: u32) -> String {
-    NaiveDate::from_ymd_opt(year, month, 1)
-        .map_or_else(String::new, |date| date.format("%B %Y").to_string())
-}
 
 fn loading_card() -> AnyElement {
     ui::surface()
@@ -887,9 +862,10 @@ mod tests {
     }
 
     #[test]
-    fn month_navigation_crosses_years() {
-        assert_eq!(shift_month(2026, 1, -1), (2025, 12));
-        assert_eq!(shift_month(2026, 12, 1), (2027, 1));
-        assert_eq!(month_label(2026, 11), "November 2026");
+    fn month_names_are_one_based_and_fall_back_safely() {
+        assert_eq!(month_name(1), "January");
+        assert_eq!(month_name(12), "December");
+        assert_eq!(month_name(0), "January");
+        assert_eq!(month_name(13), "Month");
     }
 }
