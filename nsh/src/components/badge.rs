@@ -44,14 +44,14 @@ pub fn badge(props: BadgeProps) -> impl IntoElement {
         .border_color(move || match tone {
             BadgeTone::Outline => theme().border,
             BadgeTone::Primary => theme().primary.opacity(0.35),
-            BadgeTone::Success => theme().primary.opacity(0.35),
+            BadgeTone::Success => crate::theme::success().opacity(0.35),
             BadgeTone::Destructive => theme().destructive.opacity(0.35),
             BadgeTone::Neutral => theme().border.opacity(0.0),
         })
         .bg(move || match tone {
             BadgeTone::Neutral => theme().muted,
             BadgeTone::Primary => theme().primary.opacity(0.12),
-            BadgeTone::Success => theme().primary.opacity(0.12),
+            BadgeTone::Success => crate::theme::success().opacity(0.12),
             BadgeTone::Destructive => theme().destructive.opacity(0.12),
             BadgeTone::Outline => theme().card,
         })
