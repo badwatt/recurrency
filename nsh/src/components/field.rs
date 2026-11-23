@@ -57,14 +57,14 @@ pub fn field(props: FieldProps, control: AnyElement) -> impl IntoElement {
                 .gap(px(4.0))
                 .child(
                     text(label)
-                        .text_size(px(12.0))
+                        .text_size(px(13.0))
                         .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().muted_foreground),
+                        .text_color(move || theme().foreground),
                 )
                 .when(required, |view| {
                     view.child(
                         text("*")
-                            .text_size(px(12.0))
+                            .text_size(px(13.0))
                             .text_color(move || theme().destructive),
                     )
                 }),

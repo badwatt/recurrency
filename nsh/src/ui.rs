@@ -52,9 +52,10 @@ pub fn init_privacy() {
     });
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MenuPlacement {
     TopRight,
+    ToolbarRight,
     BottomRight,
 }
 
@@ -119,6 +120,9 @@ pub fn menu_overlay() -> AnyElement {
                         .absolute()
                         .when(placement == MenuPlacement::TopRight, |panel| {
                             panel.top(px(64.0)).right(px(24.0))
+                        })
+                        .when(placement == MenuPlacement::ToolbarRight, |panel| {
+                            panel.top(px(232.0)).right(px(24.0))
                         })
                         .when(placement == MenuPlacement::BottomRight, |panel| {
                             panel.bottom(px(140.0)).right(px(18.0))
@@ -287,25 +291,26 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
                 .child(privacy_action())
-                .child(icon_action(
-                    route,
-                    asset!("icons/palette.svg"),
-                    "appearance",
-                ))
+                .child(theme_action())
                 .child(avatar(route, auth)),
         )
 }
 
-fn icon_action(route: Signal<Route>, icon: ImageAsset, section: &'static str) -> impl IntoElement {
+fn theme_action() -> impl IntoElement {
     button()
         .items_center()
         .justify_center()
         .h(px(34.0))
         .w(px(34.0))
         .rounded(px(6.0))
-        .on_press(move || request_settings(route, section))
+        .accessibility_label("Choose color theme")
+        .on_press(move || {
+            open_menu(MenuPlacement::TopRight, || {
+                crate::components::theme_picker::theme_menu()
+            });
+        })
         .child(
-            image(icon)
+            image(asset!("icons/palette.svg"))
                 .size(px(19.0))
                 .tint_color(move || theme().muted_foreground),
         )
@@ -512,9 +517,9 @@ pub fn count_label(count: usize, singular: &str, plural: &str) -> String {
 
 pub fn label(text_value: &'static str) -> impl IntoElement {
     text(text_value)
-        .text_size(px(12.0))
+        .text_size(px(13.0))
         .font_weight(FontWeight::MEDIUM)
-        .text_color(move || theme().muted_foreground)
+        .text_color(move || theme().foreground)
 }
 
 pub fn field(

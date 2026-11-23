@@ -50,7 +50,7 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
         .items_center()
         .justify_center()
         .p(px(24.0))
-        .bg(rgba(0x000000cc))
+        .bg(rgba(0x00000080))
         .child(modal.render())
         .into_element()
 }
@@ -112,10 +112,16 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
     view()
         .w_full()
         .max_w(px(width))
-        .rounded(px(16.0))
+        .rounded(px(8.0))
         .border(px(1.0))
         .border_color(move || nsh_base::theme().border)
         .bg(move || nsh_base::theme().card)
+        .shadow([BoxShadow {
+            offset_y: px(12.0),
+            blur: px(32.0),
+            color: rgba(0x00000033).into(),
+            ..BoxShadow::default()
+        }])
         .overflow_hidden()
         .max_h(px(700.0))
         .flex_col()
@@ -146,24 +152,33 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                                 .h(px(34.0))
                                 .w(px(34.0))
                                 .rounded(px(7.0))
-                                .border(px(1.0))
-                                .border_color(move || nsh_base::theme().border)
                                 .accessibility_label("Close dialog")
                                 .on_press(move || close())
                                 .child(
                                     image(asset!("icons/x.svg"))
-                                        .size(px(15.0))
+                                        .size(px(18.0))
                                         .tint_color(move || nsh_base::theme().muted_foreground),
                                 ),
                         ),
-                )
-                .child(
-                    text(subtitle)
-                        .text_size(px(13.0))
-                        .text_color(move || nsh_base::theme().muted_foreground),
                 ),
         )
-        .child(scroll().max_h(px(480.0)).child(body))
+        .child(
+            scroll().max_h(px(480.0)).child(
+                view()
+                    .w_full()
+                    .when(!subtitle.is_empty(), |panel| {
+                        let subtitle = subtitle.clone();
+                        panel.child(
+                            view().px(px(24.0)).pt(px(16.0)).child(
+                                text(subtitle)
+                                    .text_size(px(13.0))
+                                    .text_color(move || nsh_base::theme().muted_foreground),
+                            ),
+                        )
+                    })
+                    .child(body),
+            ),
+        )
         .child(
             view()
                 .w_full()

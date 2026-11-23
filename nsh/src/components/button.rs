@@ -110,6 +110,7 @@ pub struct ButtonProps {
     pub icon: Option<ImageAsset>,
     pub disabled: bool,
     pub selected: bool,
+    pub selected_when: Option<Rc<dyn Fn() -> bool>>,
     pub full_width: bool,
     pub accessibility_label: Option<String>,
     pub on_press: Option<Rc<dyn Fn()>>,
@@ -126,6 +127,7 @@ impl ButtonProps {
             icon: None,
             disabled: false,
             selected: false,
+            selected_when: None,
             full_width: false,
             accessibility_label: None,
             on_press: None,
@@ -172,6 +174,11 @@ impl ButtonProps {
         self
     }
 
+    pub fn selected_when(mut self, selected: impl Fn() -> bool + 'static) -> Self {
+        self.selected_when = Some(Rc::new(selected));
+        self
+    }
+
     pub fn accessibility_label(mut self, label: impl Into<String>) -> Self {
         self.accessibility_label = Some(label.into());
         self
@@ -198,6 +205,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         icon,
         disabled,
         selected,
+        selected_when,
         full_width,
         accessibility_label,
         on_press,
@@ -212,6 +220,9 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         ButtonSize::IconSm => 16.0,
         _ => label_size + 3.0,
     };
+    let selected_border = selected_when.clone();
+    let selected_fill = selected_when.clone();
+    let selected_icon = selected_when;
     let label_color = move || match variant {
         ButtonVariant::Primary => theme().primary_foreground,
         ButtonVariant::Destructive => theme().foreground,
@@ -230,7 +241,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         .rounded(px(radius.value()))
         .border(px(1.0))
         .border_color(move || {
-            if selected {
+            if selected_border.as_ref().map_or(selected, |check| check()) {
                 theme().primary
             } else {
                 match variant {
@@ -240,7 +251,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
             }
         })
         .bg(move || {
-            if selected {
+            if selected_fill.as_ref().map_or(selected, |check| check()) {
                 theme().accent
             } else {
                 match variant {
@@ -268,7 +279,11 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
                     .pointer_events(PointerEvents::None)
                     .tint_color(move || match variant {
                         ButtonVariant::Primary => theme().primary_foreground,
-                        ButtonVariant::Outline if !selected => theme().muted_foreground,
+                        ButtonVariant::Outline
+                            if !selected_icon.as_ref().map_or(selected, |check| check()) =>
+                        {
+                            theme().muted_foreground
+                        }
                         ButtonVariant::Destructive => theme().foreground,
                         _ => theme().foreground,
                     })
@@ -298,6 +313,23 @@ pub fn icon_button(
             .size(ButtonSize::Icon)
             .variant(ButtonVariant::Outline)
             .selected(active)
+            .accessibility_label(label)
+            .on_press(on_press),
+    )
+}
+
+pub fn icon_button_when(
+    icon: ImageAsset,
+    label: &'static str,
+    active: impl Fn() -> bool + 'static,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button(
+        ButtonProps::new("")
+            .icon(icon)
+            .size(ButtonSize::Icon)
+            .variant(ButtonVariant::Outline)
+            .selected_when(active)
             .accessibility_label(label)
             .on_press(on_press),
     )

@@ -642,39 +642,35 @@ fn ledger_card(
     let account_count = move || data.get().unwrap_or_default().accounts.len();
     let category_count = move || data.get().unwrap_or_default().categories.len();
     view()
-        .w(px(460.0))
-        .flex_shrink(0.0)
-        .rounded(px(16.0))
+        .flex_grow(1.0)
+        .basis(px(460.0))
+        .max_w(px(520.0))
+        .min_w(px(0.0))
+        .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .overflow_hidden()
         .child(
             view()
-                .p(px(22.0))
-                .pb(px(12.0))
-                .gap(px(8.0))
+                .p(px(24.0))
+                .pb(px(14.0))
+                .gap(px(10.0))
                 .child(
                     view()
+                        .w_full()
                         .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .child(section_title("TRANSFER BY ACCOUNT"))
-                        .child(
-                            view()
-                                .flex_row()
-                                .p(px(2.0))
-                                .rounded(px(7.0))
-                                .bg(move || theme().muted)
-                                .child(tab("Accounts", !show_categories.get(), {
-                                    let show_categories = show_categories;
-                                    move || show_categories.set(false)
-                                }))
-                                .child(tab("Categories", show_categories.get(), {
-                                    let show_categories = show_categories;
-                                    move || show_categories.set(true)
-                                })),
-                        ),
+                        .p(px(2.0))
+                        .rounded(px(7.0))
+                        .bg(move || theme().muted)
+                        .child(tab_fill("Accounts", move || !show_categories.get(), {
+                            let show_categories = show_categories;
+                            move || show_categories.set(false)
+                        }))
+                        .child(tab_fill("Categories", move || show_categories.get(), {
+                            let show_categories = show_categories;
+                            move || show_categories.set(true)
+                        })),
                 )
                 .child(
                     text(move || {
@@ -684,6 +680,32 @@ fn ledger_card(
                             "Actual charges this month and pending from today.".to_string()
                         }
                     })
+                    .text_size(px(14.0))
+                    .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    text(move || {
+                        if show_categories.get() {
+                            ui::count_label(
+                                category_count(),
+                                "category with activity",
+                                "categories with activity",
+                            )
+                        } else {
+                            let pending = data
+                                .get()
+                                .unwrap_or_default()
+                                .accounts
+                                .iter()
+                                .filter(|account| account.pending_count > 0)
+                                .count();
+                            ui::count_label(
+                                pending,
+                                "account with pending payments",
+                                "accounts with pending payments",
+                            )
+                        }
+                    })
                     .text_size(px(12.0))
                     .text_color(move || theme().muted_foreground),
                 ),
@@ -691,13 +713,32 @@ fn ledger_card(
         .child(
             view()
                 .flex_row()
-                .px(px(22.0))
-                .py(px(8.0))
-                .border_b(px(1.0))
+                .px(px(24.0))
+                .py(px(10.0))
+                .border_y(px(1.0))
                 .border_color(move || theme().border)
-                .child(column_header("ACCOUNT", 1.6))
-                .child(column_header("BUDGET", 1.0))
-                .child(column_header("PENDING", 1.0)),
+                .bg(move || theme().muted.opacity(0.2))
+                .child(column_header(
+                    move || {
+                        if show_categories.get() {
+                            "CATEGORY".to_string()
+                        } else {
+                            "ACCOUNT".to_string()
+                        }
+                    },
+                    1.0,
+                ))
+                .child(column_header_fixed(
+                    move || {
+                        if show_categories.get() {
+                            "AMOUNT".to_string()
+                        } else {
+                            "BUDGET".to_string()
+                        }
+                    },
+                    96.0,
+                ))
+                .child(column_header_fixed(move || "PENDING".to_string(), 96.0)),
         )
         .child(
             when(
@@ -708,6 +749,8 @@ fn ledger_card(
                         .flex_col()
                         .child(category_rows(data, &currency_categories))
                         .child(ledger_footer(
+                            "THIS MONTH",
+                            "AMOUNT",
                             move || ui::count_label(category_count(), "category", "categories"),
                             move || {
                                 data.get()
@@ -736,6 +779,8 @@ fn ledger_card(
                     .flex_col()
                     .child(account_rows(data, &currency_accounts, hovered))
                     .child(ledger_footer(
+                        "MONTH TOTAL",
+                        "BUDGET",
                         move || ui::count_label(account_count(), "account", "accounts"),
                         move || total_budget(&data.get().unwrap_or_default().accounts),
                         move || total_pending(&data.get().unwrap_or_default().accounts),
@@ -765,10 +810,17 @@ fn account_row(
     hovered: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
     let name = entry.name;
-    let counts = format!(
-        "{} subscriptions · {} manual",
-        entry.subscription_count, entry.manual_count
-    );
+    let color = entry.color;
+    let color_bg = color.clone();
+    let color_icon = color;
+    let counts = if entry.manual_count > 0 {
+        format!(
+            "{} subscriptions · {} manual",
+            entry.subscription_count, entry.manual_count
+        )
+    } else {
+        format!("{} subscriptions", entry.subscription_count)
+    };
     let budget = format_currency(entry.budget, &currency);
     let pending = format_currency(entry.pending, &currency);
     let pending_count = entry.pending_count;
@@ -778,8 +830,8 @@ fn account_row(
         .w_full()
         .flex_row()
         .items_center()
-        .px(px(22.0))
-        .py(px(12.0))
+        .px(px(24.0))
+        .py(px(16.0))
         .bg(move || {
             if hovered.get() == Some(id) {
                 theme().accent
@@ -800,16 +852,16 @@ fn account_row(
                 .min_w(px(0.0))
                 .child(
                     view()
-                        .h(px(36.0))
-                        .w(px(36.0))
+                        .h(px(40.0))
+                        .w(px(40.0))
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || theme().muted)
+                        .bg(move || rgba((crate::theme::parse_hex(&color_bg) << 8) | 0x20))
                         .child(
                             image(asset!("icons/card.svg"))
                                 .size(px(16.0))
-                                .tint_color(move || theme().muted_foreground),
+                                .tint_color(move || rgb(crate::theme::parse_hex(&color_icon))),
                         ),
                 )
                 .child(
@@ -818,27 +870,50 @@ fn account_row(
                         .min_w(px(0.0))
                         .child(
                             text(name)
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::MEDIUM)
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
                             text(counts)
-                                .text_size(px(10.0))
+                                .text_size(px(12.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
                 ),
         )
-        .child(amount_value(budget, 1.0))
         .child(
             view()
-                .flex_grow(1.0)
+                .w(px(96.0))
+                .items_end()
+                .child(amount_value(budget, 1.0))
+                .child(
+                    text(move || {
+                        if crate::ui::privacy_active() {
+                            "•••• recurring".to_string()
+                        } else {
+                            format!(
+                                "{} recurring",
+                                format_currency(entry.subscriptions, &currency)
+                            )
+                        }
+                    })
+                    .text_size(px(10.0))
+                    .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            view()
+                .w(px(96.0))
                 .items_end()
                 .child(amount_value(pending, 1.0))
                 .child(
-                    text(format!("{pending_count} payments"))
-                        .text_size(px(10.0))
-                        .text_color(move || theme().muted_foreground),
+                    text(if pending_count == 0 {
+                        "Up to date".to_string()
+                    } else {
+                        ui::count_label(pending_count, "payment", "payments")
+                    })
+                    .text_size(px(10.0))
+                    .text_color(move || theme().muted_foreground),
                 ),
         )
 }
@@ -861,21 +936,21 @@ fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
         .w_full()
         .flex_row()
         .items_center()
-        .px(px(22.0))
-        .py(px(12.0))
+        .px(px(24.0))
+        .py(px(16.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
         .child(
             view()
-                .flex_grow(1.6)
+                .flex_grow(1.0)
                 .flex_row()
                 .items_center()
                 .gap(px(10.0))
                 .min_w(px(0.0))
                 .child(
                     view()
-                        .h(px(36.0))
-                        .w(px(36.0))
+                        .h(px(40.0))
+                        .w(px(40.0))
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
@@ -892,8 +967,8 @@ fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
                         .min_w(px(0.0))
                         .child(
                             text(name)
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::MEDIUM)
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
@@ -903,11 +978,23 @@ fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
                         ),
                 ),
         )
-        .child(amount_value(amount, 1.0))
-        .child(amount_value(pending, 1.0))
+        .child(
+            view()
+                .w(px(96.0))
+                .items_end()
+                .child(amount_value(amount, 0.0)),
+        )
+        .child(
+            view()
+                .w(px(96.0))
+                .items_end()
+                .child(amount_value(pending, 0.0)),
+        )
 }
 
 fn ledger_footer(
+    title: &'static str,
+    amount_label: &'static str,
     label: impl Fn() -> String + 'static,
     budget: impl Fn() -> rust_decimal::Decimal + 'static,
     pending: impl Fn() -> rust_decimal::Decimal + 'static,
@@ -919,33 +1006,57 @@ fn ledger_footer(
         .w_full()
         .flex_row()
         .items_center()
-        .px(px(22.0))
-        .py(px(14.0))
-        .bg(move || theme().muted)
+        .px(px(24.0))
+        .py(px(16.0))
+        .bg(move || theme().muted.opacity(0.35))
+        .border_t(px(1.0))
+        .border_color(move || theme().border)
         .child(
             view()
-                .flex_grow(1.6)
+                .flex_grow(1.0)
                 .flex_col()
                 .child(
-                    text("MONTH TOTAL")
-                        .text_size(px(11.0))
+                    text(title)
+                        .text_size(px(12.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
                     text(label)
-                        .text_size(px(10.0))
+                        .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(amount_cell(
-            move || format_currency(budget(), &currency),
-            1.0,
-        ))
-        .child(amount_cell(
-            move || format_currency(pending(), &pending_currency),
-            1.0,
-        ))
+        .child(
+            view()
+                .w(px(96.0))
+                .items_end()
+                .child(
+                    text(amount_label)
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(amount_cell(
+                    move || format_currency(budget(), &currency),
+                    0.0,
+                )),
+        )
+        .child(
+            view()
+                .w(px(96.0))
+                .items_end()
+                .child(
+                    text("PENDING")
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(amount_cell(
+                    move || format_currency(pending(), &pending_currency),
+                    0.0,
+                )),
+        )
 }
 
 fn amount_value(amount: String, grow: f32) -> impl IntoElement {
@@ -957,7 +1068,7 @@ fn amount_value(amount: String, grow: f32) -> impl IntoElement {
                 amount.clone()
             }
         })
-        .text_size(px(13.0))
+        .text_size(px(14.0))
         .font_family(crate::theme::MONO)
         .font_weight(FontWeight::SEMIBOLD)
         .text_color(move || theme().foreground),
@@ -973,28 +1084,50 @@ fn amount_cell(amount: impl Fn() -> String + 'static, grow: f32) -> impl IntoEle
                 amount()
             }
         })
-        .text_size(px(13.0))
+        .text_size(px(14.0))
         .font_family(crate::theme::MONO)
         .font_weight(FontWeight::SEMIBOLD)
         .text_color(move || theme().foreground),
     )
 }
 
-fn tab(label: &'static str, active: bool, on_press: impl Fn() + 'static) -> impl IntoElement {
+fn tab_fill(
+    label: &'static str,
+    active: impl Fn() -> bool + 'static,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    let active = std::rc::Rc::new(active);
+    let active_bg = active.clone();
+    let active_border = active.clone();
+    let active_text = active;
     button()
+        .flex_grow(1.0)
         .items_center()
         .justify_center()
-        .h(px(26.0))
-        .px(px(9.0))
+        .h(px(32.0))
         .rounded(px(5.0))
-        .bg(move || if active { theme().card } else { theme().muted })
+        .bg(move || {
+            if active_bg() {
+                theme().card
+            } else {
+                theme().muted
+            }
+        })
+        .border(px(1.0))
+        .border_color(move || {
+            if active_border() {
+                theme().muted_foreground.opacity(0.28)
+            } else {
+                theme().border.opacity(0.0)
+            }
+        })
         .on_press(on_press)
         .child(
             text(label)
-                .text_size(px(11.0))
+                .text_size(px(13.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || {
-                    if active {
+                    if active_text() {
                         theme().foreground
                     } else {
                         theme().muted_foreground
@@ -1003,9 +1136,18 @@ fn tab(label: &'static str, active: bool, on_press: impl Fn() + 'static) -> impl
         )
 }
 
-fn column_header(label: &'static str, grow: f32) -> impl IntoElement {
-    view().flex_grow(grow).items_end().child(
-        text(label)
+fn column_header_fixed(label: impl Fn() -> String + 'static, width: f32) -> impl IntoElement {
+    view().w(px(width)).items_end().child(
+        text(move || label())
+            .text_size(px(10.0))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(move || theme().muted_foreground),
+    )
+}
+
+fn column_header(label: impl Fn() -> String + 'static, grow: f32) -> impl IntoElement {
+    view().flex_grow(grow).items_start().child(
+        text(move || label())
             .text_size(px(10.0))
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(move || theme().muted_foreground),

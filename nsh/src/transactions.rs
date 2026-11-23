@@ -426,9 +426,9 @@ fn form(
     };
 
     let title = if editing.get().is_some() {
-        "Edit transaction"
+        "Edit Transaction"
     } else {
-        "New transaction"
+        "Add Transaction"
     };
     let subtitle = if editing.get().is_some() {
         "Update the amount, date or account."
@@ -442,7 +442,7 @@ fn form(
             editing.set(None);
             modal_for_close.close();
         })
-        .width(672.0)
+        .width(508.0)
         .body(
             view()
                 .p(px(24.0))
@@ -543,16 +543,10 @@ fn form(
                         .disabled_style(|state| state.opacity(0.5))
                         .on_press(move || save())
                         .child(
-                            text(move || {
-                                if saving.get() {
-                                    "Saving..."
-                                } else {
-                                    "Save transaction"
-                                }
-                            })
-                            .text_size(px(13.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(move || theme().primary_foreground),
+                            text(move || if saving.get() { "Saving..." } else { "Save" })
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
                         ),
                 )
                 .into_element(),

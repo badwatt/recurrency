@@ -9,6 +9,11 @@ pub const MONO: &str = "JetBrains Mono";
 pub const PAGE_GAP: f32 = 24.0;
 pub const CARD_RADIUS: f32 = 12.0;
 
+/// Parse an account/category `#rrggbb` color, falling back to the muted gray.
+pub fn parse_hex(value: &str) -> u32 {
+    u32::from_str_radix(value.trim_start_matches('#'), 16).unwrap_or(0x6b7280)
+}
+
 /// Success badges (active states) use the `success` token when the theme
 /// defines it; the primary color is the fallback.
 pub fn success() -> nsh_core::element::AdaptiveColor {

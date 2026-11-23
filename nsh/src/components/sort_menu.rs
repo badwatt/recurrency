@@ -68,22 +68,22 @@ pub fn sort_menu(
             .into_element()
     };
     raw_button()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(40.0))
+        .w(px(40.0))
         .items_center()
         .justify_center()
-        .rounded(px(6.0))
+        .rounded(px(7.0))
         .border(px(1.0))
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .accessibility_label("Sort")
         .on_press(move || {
             let build = build.clone();
-            crate::ui::open_menu(crate::ui::MenuPlacement::TopRight, build);
+            crate::ui::open_menu(crate::ui::MenuPlacement::ToolbarRight, build);
         })
         .child(
             image(asset!("icons/sort.svg"))
-                .size(px(16.0))
+                .size(px(18.0))
                 .pointer_events(PointerEvents::None)
                 .tint_color(move || theme().muted_foreground),
         )

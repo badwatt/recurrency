@@ -1,6 +1,6 @@
 //! Compact list toolbar: shared search, extra actions and view switch.
 
-use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, icon_button};
+use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, icon_button_when};
 use crate::components::search_input::search_input;
 use nsh_base::theme;
 use nsh_core::prelude::*;
@@ -36,16 +36,16 @@ pub fn list_toolbar(
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().muted.opacity(0.4))
-                        .child(icon_button(
+                        .child(icon_button_when(
                             asset!("icons/grid.svg"),
                             "Grid view",
-                            !list_view.get(),
+                            move || !list_view.get(),
                             move || list_view.set(false),
                         ))
-                        .child(icon_button(
+                        .child(icon_button_when(
                             asset!("icons/list.svg"),
                             "List view",
-                            list_view.get(),
+                            move || list_view.get(),
                             move || list_view.set(true),
                         )),
                 ),
@@ -53,19 +53,19 @@ pub fn list_toolbar(
 }
 
 pub fn filter_button(active: Signal<bool>) -> impl IntoElement {
-    icon_button(
+    icon_button_when(
         asset!("icons/filter.svg"),
         "Filter active",
-        active.get(),
+        move || active.get(),
         move || active.set(!active.get()),
     )
 }
 
 pub fn sort_button(descending: Signal<bool>) -> impl IntoElement {
-    icon_button(
+    icon_button_when(
         asset!("icons/sort.svg"),
         "Sort newest first",
-        descending.get(),
+        move || descending.get(),
         move || descending.set(!descending.get()),
     )
 }

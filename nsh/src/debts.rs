@@ -340,7 +340,7 @@ fn payment_form(
                 modal.close();
             },
         )
-        .width(560.0)
+        .width(508.0)
         .body(
             view()
                 .p(px(24.0))
@@ -930,9 +930,9 @@ fn form(
     };
 
     let title = if editing.get().is_some() {
-        "Edit debt"
+        "Edit Debt"
     } else {
-        "Add debt"
+        "Add Debt"
     };
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(
@@ -944,7 +944,7 @@ fn form(
                 modal.close();
             },
         )
-        .width(672.0)
+        .width(508.0)
         .body(
             view()
                 .p(px(24.0))
@@ -1058,8 +1058,10 @@ fn form(
                             text(move || {
                                 if saving.get() {
                                     "Saving..."
+                                } else if editing.get().is_some() {
+                                    "Save changes"
                                 } else {
-                                    "Save debt"
+                                    "Add Debt"
                                 }
                             })
                             .text_size(px(13.0))

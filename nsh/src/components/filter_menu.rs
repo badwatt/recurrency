@@ -28,11 +28,11 @@ pub fn filter_menu(
     };
     raw_button()
         .relative()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(40.0))
+        .w(px(40.0))
         .items_center()
         .justify_center()
-        .rounded(px(6.0))
+        .rounded(px(7.0))
         .border(px(1.0))
         .border_color(move || {
             if active_border() > 0 {
@@ -45,11 +45,11 @@ pub fn filter_menu(
         .accessibility_label("Filters")
         .on_press(move || {
             let build = build.clone();
-            crate::ui::open_menu(crate::ui::MenuPlacement::TopRight, build);
+            crate::ui::open_menu(crate::ui::MenuPlacement::ToolbarRight, build);
         })
         .child(
             image(asset!("icons/filter.svg"))
-                .size(px(16.0))
+                .size(px(18.0))
                 .pointer_events(PointerEvents::None)
                 .tint_color(move || {
                     if active_icon() > 0 {
