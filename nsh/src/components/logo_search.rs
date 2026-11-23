@@ -81,6 +81,7 @@ pub fn logo_search(
                         .children(results.get().into_iter().map(|(url, thumbnail)| {
                             let value = url.clone();
                             button()
+                                .cursor_pointer()
                                 .h(px(38.0))
                                 .w(px(38.0))
                                 .items_center()

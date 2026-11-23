@@ -65,6 +65,8 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .w_full()
                 .h(px(38.0))
                 .px(px(10.0))
@@ -124,6 +126,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                                 let press_value = value.clone();
                                 let active = selected.get() == value;
                                 button()
+                                    .cursor_pointer()
                                     .w_full()
                                     .h(px(28.0))
                                     .px(px(7.0))

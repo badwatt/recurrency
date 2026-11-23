@@ -114,6 +114,8 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(38.0))
@@ -408,6 +410,7 @@ fn mobile_section(
                     .flex_row()
                     .items_center()
                     .justify_between()
+                    .cursor_pointer()
                     .on_press(move || crate::ui::navigate(target))
                     .gap(px(10.0))
                     .p(px(12.0))
@@ -512,84 +515,110 @@ fn day_cell(
         })
         .when(is_today, |cell| cell.bg(move || theme().accent))
         .when(day.is_some(), move |cell| {
-            cell.child(
-                text(move || day.map_or_else(String::new, |day| day.to_string()))
-                    .text_size(px(11.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(move || {
-                        if is_today {
-                            theme().primary
-                        } else {
-                            theme().muted_foreground
-                        }
-                    }),
-            )
-            .child(
-                view()
-                    .flex_col()
-                    .gap(px(1.0))
-                    .child(each(
-                        truncated,
-                        |entry| entry.key.clone(),
-                        move |entry, _| {
-                            let entry = entry.get();
-                            let amount = format_currency(
-                                data.get()
-                                    .unwrap_or_default()
-                                    .rates
-                                    .convert(entry.amount, &entry.currency),
-                                &currency,
-                            );
-                            let target = if entry.is_transaction {
-                                crate::Route::Transactions
-                            } else {
-                                crate::Route::Subscriptions
-                            };
-                            view()
-                                .w_full()
-                                .h(px(20.0))
-                                .flex_row()
-                                .items_center()
-                                .justify_between()
-                                .gap(px(4.0))
-                                .on_press(move || crate::ui::navigate(target))
-                                .child(
-                                    image(asset!("icons/card.svg"))
-                                        .size(px(12.0))
-                                        .tint_color(move || theme().muted_foreground),
-                                )
-                                .child(
-                                    text(entry.name)
-                                        .text_size(px(12.0))
-                                        .text_color(move || theme().foreground)
-                                        .number_of_lines(1),
-                                )
-                                .child(
-                                    text(move || {
-                                        if crate::ui::privacy_active() {
-                                            "••••".to_string()
-                                        } else {
-                                            amount.clone()
-                                        }
-                                    })
-                                    .text_size(px(12.0))
-                                    .font_family(design::MONO)
-                                    .text_color(move || theme().muted_foreground),
-                                )
-                        },
-                    ))
-                    .child(
-                        when(
-                            move || entries().len() > 3,
-                            move || {
-                                text(format!("+{} more", entries().len().saturating_sub(3)))
-                                    .text_size(px(9.0))
-                                    .text_color(move || theme().muted_foreground)
-                            },
+            cell.cursor_pointer()
+                .on_press(move || crate::ui::navigate(crate::Route::Subscriptions))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            text(move || day.map_or_else(String::new, |day| day.to_string()))
+                                .text_size(px(11.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || {
+                                    if is_today {
+                                        theme().primary
+                                    } else {
+                                        theme().muted_foreground
+                                    }
+                                }),
                         )
-                        .otherwise(|| view().h(px(0.0))),
-                    ),
-            )
+                        .child(
+                            button()
+                                .cursor_pointer()
+                                .h(px(16.0))
+                                .w(px(16.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(4.0))
+                                .accessibility_label("Add subscription on this day")
+                                .on_press(move || crate::ui::navigate(crate::Route::Subscriptions))
+                                .child(
+                                    image(asset!("icons/plus.svg"))
+                                        .size(px(11.0))
+                                        .tint_color(move || theme().muted_foreground),
+                                ),
+                        ),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(1.0))
+                        .child(each(
+                            truncated,
+                            |entry| entry.key.clone(),
+                            move |entry, _| {
+                                let entry = entry.get();
+                                let amount = format_currency(
+                                    data.get()
+                                        .unwrap_or_default()
+                                        .rates
+                                        .convert(entry.amount, &entry.currency),
+                                    &currency,
+                                );
+                                let target = if entry.is_transaction {
+                                    crate::Route::Transactions
+                                } else {
+                                    crate::Route::Subscriptions
+                                };
+                                view()
+                                    .w_full()
+                                    .h(px(20.0))
+                                    .flex_row()
+                                    .items_center()
+                                    .justify_between()
+                                    .gap(px(4.0))
+                                    .cursor_pointer()
+                                    .on_press(move || crate::ui::navigate(target))
+                                    .child(
+                                        image(asset!("icons/card.svg"))
+                                            .size(px(12.0))
+                                            .tint_color(move || theme().muted_foreground),
+                                    )
+                                    .child(
+                                        text(entry.name)
+                                            .text_size(px(12.0))
+                                            .text_color(move || theme().foreground)
+                                            .number_of_lines(1),
+                                    )
+                                    .child(
+                                        text(move || {
+                                            if crate::ui::privacy_active() {
+                                                "••••".to_string()
+                                            } else {
+                                                amount.clone()
+                                            }
+                                        })
+                                        .text_size(px(12.0))
+                                        .font_family(design::MONO)
+                                        .text_color(move || theme().muted_foreground),
+                                    )
+                            },
+                        ))
+                        .child(
+                            when(
+                                move || entries().len() > 3,
+                                move || {
+                                    text(format!("+{} more", entries().len().saturating_sub(3)))
+                                        .text_size(px(9.0))
+                                        .text_color(move || theme().muted_foreground)
+                                },
+                            )
+                            .otherwise(|| view().h(px(0.0))),
+                        ),
+                )
         })
 }
 
@@ -688,6 +717,8 @@ fn error_card(message: &str, data: Resource<CalendarData, String>) -> AnyElement
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(34.0))

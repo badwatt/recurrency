@@ -227,6 +227,7 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
                         )
                         .child(
                             button()
+                                .cursor_pointer()
                                 .items_center()
                                 .justify_center()
                                 .w_full()
@@ -435,6 +436,7 @@ fn server_row(
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(32.0))

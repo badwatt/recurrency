@@ -174,6 +174,7 @@ fn compact_nav(section: Signal<Section>, is_admin: bool) -> impl IntoElement {
                     let item = *item;
                     let active = move || section.get() == item;
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(32.0))
@@ -392,6 +393,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                         let item = *item;
                                         let active = move || section.get() == item;
                                         button()
+                                            .cursor_pointer()
                                             .items_center()
                                             .justify_start()
                                             .w_full()
@@ -798,6 +800,7 @@ fn account_card(
                         ))
                         .child(
                             button()
+                                .cursor_pointer()
                                 .items_center()
                                 .justify_center()
                                 .h(px(34.0))
@@ -872,6 +875,7 @@ fn account_card(
                 .child(
                     view().w_full().flex_row().justify_end().gap(px(8.0)).child(
                         button()
+                            .cursor_pointer()
                             .items_center()
                             .justify_center()
                             .h(px(40.0))
@@ -1056,7 +1060,7 @@ fn general_card(
                 .text_color(move || theme().muted_foreground),
         )
         .child(
-            button()
+            button().cursor_pointer()
                 .items_center()
                 .justify_center()
                 .self_start()
@@ -1780,6 +1784,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                     .gap(px(6.0))
                                     .child(
                                         button()
+                                            .cursor_pointer()
                                             .h(px(24.0))
                                             .w(px(24.0))
                                             .items_center()
@@ -1801,6 +1806,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                     )
                                     .child(
                                         button()
+                                            .cursor_pointer()
                                             .h(px(24.0))
                                             .w(px(24.0))
                                             .items_center()
@@ -2157,7 +2163,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .child(ui::action_button(if clear_key.get() { "Keep key" } else { "Clear stored key" }, clear_key.get(), move || clear_key.set(!clear_key.get())))
                         .children(models.get().into_iter().map(|name| {
                             let value = name.clone();
-                            button()
+                            button().cursor_pointer()
                                 .h(px(24.0))
                                 .px(px(7.0))
                                 .rounded(px(5.0))
@@ -2179,7 +2185,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .gap(px(8.0))
                         .child(ui::action_button("Save", false, configure))
                         .child(
-                            button()
+                            button().cursor_pointer()
                                 .items_center()
                                 .justify_center()
                                 .h(px(26.0))

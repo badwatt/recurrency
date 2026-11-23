@@ -13,7 +13,6 @@ use crate::auth::AuthSession;
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::checkbox::checkbox;
-use crate::components::checkbox::checkbox_mark;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
@@ -665,6 +664,7 @@ fn form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(40.0))
@@ -687,6 +687,7 @@ fn form(
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(40.0))
@@ -831,6 +832,8 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
         .children((1u8..=31).map(|day| {
             let active = move || days.get().contains(&day);
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(30.0))
@@ -883,6 +886,8 @@ fn unit_chip(
 ) -> impl IntoElement {
     let active = move || unit.get() == value;
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(30.0))
@@ -1443,7 +1448,9 @@ fn list_card(
     let rates = data.get().unwrap_or_default().rates;
     let amount_value = subscription.amount;
     let amount_currency = subscription.currency.clone();
+    let action_list = action_subscription.clone();
     view()
+        .cursor_pointer()
         .w_full()
         .flex_row()
         .items_center()
@@ -1452,8 +1459,21 @@ fn list_card(
         .p(px(14.0))
         .rounded(px(12.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
+        .border_color(move || {
+            if selected.get().contains(&select_id) {
+                theme().primary.opacity(0.55)
+            } else {
+                theme().border
+            }
+        })
         .bg(move || theme().card)
+        .on_press(move || {
+            if selection_mode.get() {
+                let mut values = selected.get();
+                crate::components::selection_bar::toggle(&mut values, select_id);
+                selected.set(values);
+            }
+        })
         .child(
             view()
                 .flex_row()
@@ -1461,21 +1481,6 @@ fn list_card(
                 .gap(px(10.0))
                 .min_w(px(0.0))
                 .flex_1()
-                .child(when(
-                    move || selection_mode.get(),
-                    move || {
-                        checkbox_mark(
-                            move || selected.get().contains(&select_id),
-                            "Select subscription".to_string(),
-                            move || {
-                                let mut values = selected.get();
-                                crate::components::selection_bar::toggle(&mut values, select_id);
-                                selected.set(values);
-                            },
-                        )
-                        .into_element()
-                    },
-                ))
                 .child(crate::components::logo_avatar::logo_avatar(
                     logo.clone(),
                     asset!("icons/card.svg"),
@@ -1513,14 +1518,20 @@ fn list_card(
                     FontWeight::SEMIBOLD,
                     true,
                 ))
-                .child(card_actions(
-                    action_subscription,
-                    subscription.is_active,
-                    actions,
-                    data,
-                    server,
-                    token,
-                    currency,
+                .child(when(
+                    move || !selection_mode.get(),
+                    move || {
+                        card_actions(
+                            action_list.clone(),
+                            subscription.is_active,
+                            actions,
+                            data,
+                            server,
+                            token,
+                            currency.clone(),
+                        )
+                        .into_element()
+                    },
                 )),
         )
 }
@@ -1536,8 +1547,12 @@ fn card(
     selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let account = account_name(data, subscription.account_id);
+    let accent = account_color(data, subscription.account_id);
+    let accent_bg = accent.clone();
     let action_subscription = subscription.clone();
+    let action_card = action_subscription.clone();
     let logo = subscription.logo_url.clone();
+    let wash_logo = logo.clone();
     let name = subscription.name;
     let rates = data.get().unwrap_or_default().rates;
     let amount_value = subscription.amount;
@@ -1551,14 +1566,62 @@ fn card(
     let status = if active { "Active" } else { "Inactive" };
 
     view()
+        .relative()
+        .overflow_hidden()
+        .cursor_pointer()
         .w(px(292.0))
         .min_w(px(230.0))
         .h(px(260.0))
         .p(px(20.0))
         .rounded(px(12.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
+        .border_color(move || {
+            if selected.get().contains(&select_id) {
+                theme().primary.opacity(0.55)
+            } else {
+                theme().border
+            }
+        })
         .bg(move || theme().card)
+        .on_press(move || {
+            if selection_mode.get() {
+                let mut values = selected.get();
+                crate::components::selection_bar::toggle(&mut values, select_id);
+                selected.set(values);
+            }
+        })
+        .when(logo.is_some(), |card| {
+            card.child(
+                image(wash_logo.clone().unwrap_or_default())
+                    .absolute()
+                    .inset(px(0.0))
+                    .w_full()
+                    .h_full()
+                    .object_fit(ResizeMode::Cover)
+                    .pointer_events(PointerEvents::None)
+                    .opacity(0.28)
+                    .blur(px(52.0))
+                    .saturate(1.7)
+                    .scale(1.35),
+            )
+            .child(
+                view()
+                    .absolute()
+                    .inset(px(0.0))
+                    .pointer_events(PointerEvents::None)
+                    .bg(move || theme().card.opacity(0.75)),
+            )
+        })
+        .child(
+            view()
+                .absolute()
+                .top(px(0.0))
+                .left(px(0.0))
+                .right(px(0.0))
+                .h(px(3.0))
+                .pointer_events(PointerEvents::None)
+                .bg(move || rgb(crate::theme::parse_hex(&accent_bg))),
+        )
         .flex_col()
         .justify_between()
         .child(
@@ -1567,21 +1630,6 @@ fn card(
                 .flex_row()
                 .items_start()
                 .justify_between()
-                .child(when(
-                    move || selection_mode.get(),
-                    move || {
-                        checkbox_mark(
-                            move || selected.get().contains(&select_id),
-                            "Select subscription".to_string(),
-                            move || {
-                                let mut values = selected.get();
-                                crate::components::selection_bar::toggle(&mut values, select_id);
-                                selected.set(values);
-                            },
-                        )
-                        .into_element()
-                    },
-                ))
                 .child(
                     view()
                         .h(px(40.0))
@@ -1657,14 +1705,20 @@ fn card(
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(card_actions(
-            action_subscription,
-            active,
-            actions,
-            data,
-            server,
-            token,
-            currency.clone(),
+        .child(when(
+            move || !selection_mode.get(),
+            move || {
+                card_actions(
+                    action_card.clone(),
+                    active,
+                    actions,
+                    data,
+                    server,
+                    token,
+                    currency.clone(),
+                )
+                .into_element()
+            },
         ))
 }
 
@@ -1805,6 +1859,7 @@ fn bulk_modal(
                             theme().card.opacity(0.0)
                         }
                     })
+                    .cursor_pointer()
                     .on_press(move || toggle(id))
                     .child(
                         view()
@@ -1819,18 +1874,6 @@ fn bulk_modal(
                                     .text_size(px(10.0))
                                     .text_color(move || theme().muted_foreground),
                             ),
-                    )
-                    .child(
-                        when(
-                            move || is_selected,
-                            move || {
-                                image(asset!("icons/check.svg"))
-                                    .size(px(14.0))
-                                    .tint_color(move || theme().primary)
-                                    .into_element()
-                            },
-                        )
-                        .otherwise(|| view().h(px(0.0)).into_element()),
                     )
                     .into_element()
             })
@@ -2255,6 +2298,16 @@ fn account_name(data: Resource<SubscriptionsData, String>, account_id: Uuid) -> 
         .map_or_else(|| "No account".to_string(), |account| account.name)
 }
 
+fn account_color(data: Resource<SubscriptionsData, String>, account_id: Uuid) -> String {
+    data.get()
+        .unwrap_or_default()
+        .accounts
+        .into_iter()
+        .find(|account| account.id == account_id)
+        .and_then(|account| account.color)
+        .unwrap_or_else(|| "#6b7280".to_string())
+}
+
 fn loading_card() -> AnyElement {
     ui::surface()
         .p(px(28.0))
@@ -2284,6 +2337,8 @@ fn error_card(message: &str, data: Resource<SubscriptionsData, String>) -> AnyEl
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(34.0))

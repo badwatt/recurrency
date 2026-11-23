@@ -10,7 +10,6 @@ use uuid::Uuid;
 use crate::api::{self, TransactionsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
-use crate::components::checkbox::checkbox_mark;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
@@ -511,6 +510,7 @@ fn form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(36.0))
@@ -533,6 +533,7 @@ fn form(
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(36.0))
@@ -821,7 +822,9 @@ fn row(
     let amount_value = transaction.amount;
     let amount_currency = transaction.currency.clone();
     let select_id = transaction.id;
+    let action_selected = action_transaction.clone();
     view()
+        .cursor_pointer()
         .w_full()
         .flex_row()
         .items_center()
@@ -830,8 +833,27 @@ fn row(
         .min_h(px(128.0))
         .rounded(px(12.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
+        .border_color(move || {
+            if selected.get().contains(&select_id) {
+                theme().primary.opacity(0.55)
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || {
+            if selected.get().contains(&select_id) {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
+        .on_press(move || {
+            if selection_mode.get() {
+                let mut values = selected.get();
+                crate::components::selection_bar::toggle(&mut values, select_id);
+                selected.set(values);
+            }
+        })
         .gap(px(12.0))
         .child(
             view()
@@ -840,21 +862,6 @@ fn row(
                 .gap(px(12.0))
                 .min_w(px(0.0))
                 .flex_1()
-                .child(when(
-                    move || selection_mode.get(),
-                    move || {
-                        checkbox_mark(
-                            move || selected.get().contains(&select_id),
-                            "Select transaction".to_string(),
-                            move || {
-                                let mut values = selected.get();
-                                crate::components::selection_bar::toggle(&mut values, select_id);
-                                selected.set(values);
-                            },
-                        )
-                        .into_element()
-                    },
-                ))
                 .child(
                     view()
                         .h(px(40.0))
@@ -930,13 +937,19 @@ fn row(
                     FontWeight::SEMIBOLD,
                     true,
                 ))
-                .child(transaction_actions(
-                    action_transaction,
-                    actions,
-                    data,
-                    server,
-                    token,
-                    currency.clone(),
+                .child(when(
+                    move || !selection_mode.get(),
+                    move || {
+                        transaction_actions(
+                            action_selected.clone(),
+                            actions,
+                            data,
+                            server,
+                            token,
+                            currency.clone(),
+                        )
+                        .into_element()
+                    },
                 )),
         )
 }
@@ -1053,6 +1066,7 @@ fn bulk_modal(
                             theme().card.opacity(0.0)
                         }
                     })
+                    .cursor_pointer()
                     .on_press(move || toggle(id))
                     .child(
                         view()
@@ -1067,18 +1081,6 @@ fn bulk_modal(
                                     .text_size(px(10.0))
                                     .text_color(move || theme().muted_foreground),
                             ),
-                    )
-                    .child(
-                        when(
-                            move || is_selected,
-                            move || {
-                                image(asset!("icons/check.svg"))
-                                    .size(px(14.0))
-                                    .tint_color(move || theme().primary)
-                                    .into_element()
-                            },
-                        )
-                        .otherwise(|| view().h(px(0.0)).into_element()),
                     )
                     .into_element()
             })
@@ -1516,6 +1518,8 @@ fn error_card(message: &str, data: Resource<TransactionsData, String>) -> AnyEle
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(34.0))

@@ -76,6 +76,7 @@ fn body(
     let days_left =
         crate::recurrence::days_in_month(today.year(), today.month()).saturating_sub(today.day());
     let hovered = signal(None::<Uuid>);
+    let hovered_category = signal(None::<Uuid>);
     view()
         .w_full()
         .flex_col()
@@ -89,7 +90,7 @@ fn body(
                 .gap(px(16.0))
                 .items_start()
                 .child(upcoming_card(data, &currency, route, today, hovered))
-                .child(ledger_card(data, &currency, hovered)),
+                .child(ledger_card(data, &currency, hovered, hovered_category)),
         )
         .into_element()
 }
@@ -198,6 +199,8 @@ fn action(
     icon: ImageAsset,
 ) -> impl IntoElement {
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(40.0))
@@ -458,6 +461,7 @@ fn upcoming_card(
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(28.0))
@@ -512,7 +516,7 @@ fn upcoming_row(
     let date = short_date(payment.date);
     let days = days_text(payment.date, today);
     let is_transaction = payment.is_transaction;
-    let id = payment.id;
+    let account_id = payment.account_id;
     let name = payment.name;
     let account = payment.account_name;
     let amount = format_currency(converted, &currency);
@@ -528,13 +532,14 @@ fn upcoming_row(
         .gap(px(12.0))
         .rounded(px(8.0))
         .bg(move || {
-            if hovered.get() == Some(id) {
+            if hovered.get() == Some(account_id) {
                 theme().accent
             } else {
                 theme().card
             }
         })
-        .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(id)))
+        .cursor_pointer()
+        .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(account_id)))
         .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
         .child(
             view()
@@ -634,6 +639,7 @@ fn ledger_card(
     data: Resource<DashboardData, String>,
     currency: &str,
     hovered: Signal<Option<Uuid>>,
+    hovered_category: Signal<Option<Uuid>>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let currency_accounts = currency.clone();
@@ -747,7 +753,7 @@ fn ledger_card(
                     view()
                         .w_full()
                         .flex_col()
-                        .child(category_rows(data, &currency_categories))
+                        .child(category_rows(data, &currency_categories, hovered_category))
                         .child(ledger_footer(
                             "THIS MONTH",
                             "AMOUNT",
@@ -918,16 +924,25 @@ fn account_row(
         )
 }
 
-fn category_rows(data: Resource<DashboardData, String>, currency: &str) -> impl IntoElement {
+fn category_rows(
+    data: Resource<DashboardData, String>,
+    currency: &str,
+    hovered: Signal<Option<Uuid>>,
+) -> impl IntoElement {
     let currency = currency.to_string();
     view().flex_col().child(each(
         move || data.get().unwrap_or_default().categories,
         |entry| entry.category_id,
-        move |entry, _| category_row(entry.get(), currency.clone()),
+        move |entry, _| category_row(entry.get(), currency.clone(), hovered),
     ))
 }
 
-fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
+fn category_row(
+    entry: CategoryBudget,
+    currency: String,
+    hovered: Signal<Option<Uuid>>,
+) -> impl IntoElement {
+    let id = entry.category_id;
     let name = entry.name;
     let count = format!("{} charges", entry.charge_count);
     let amount = format_currency(entry.amount, &currency);
@@ -940,6 +955,15 @@ fn category_row(entry: CategoryBudget, currency: String) -> impl IntoElement {
         .py(px(16.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
+        .bg(move || {
+            if hovered.get() == Some(id) {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
+        .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(id)))
+        .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
         .child(
             view()
                 .flex_grow(1.0)
@@ -1101,6 +1125,8 @@ fn tab_fill(
     let active_border = active.clone();
     let active_text = active;
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .flex_grow(1.0)
         .items_center()
         .justify_center()
@@ -1190,6 +1216,8 @@ fn error_screen(message: &str, data: Resource<DashboardData, String>) -> AnyElem
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(34.0))

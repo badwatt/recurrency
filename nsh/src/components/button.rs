@@ -229,6 +229,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         _ => theme().foreground,
     };
     base_button()
+        .cursor_pointer()
         .flex_row()
         .items_center()
         .justify_center()

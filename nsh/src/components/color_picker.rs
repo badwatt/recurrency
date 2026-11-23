@@ -26,6 +26,7 @@ pub fn color_picker(value: Signal<String>) -> impl IntoElement {
                     let color = *color;
                     let active = value.get().eq_ignore_ascii_case(color);
                     button()
+                        .cursor_pointer()
                         .h(px(24.0))
                         .w(px(24.0))
                         .rounded(px(999.0))

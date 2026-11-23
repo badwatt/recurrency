@@ -10,7 +10,6 @@ use uuid::Uuid;
 use crate::api::{self, DebtsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
-use crate::components::checkbox::checkbox_mark;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
@@ -375,6 +374,7 @@ fn payment_form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(36.0))
@@ -396,6 +396,7 @@ fn payment_form(
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(36.0))
@@ -673,6 +674,7 @@ fn bulk_modal(
                             theme().card.opacity(0.0)
                         }
                     })
+                    .cursor_pointer()
                     .on_press(move || toggle(id))
                     .child(
                         view()
@@ -688,18 +690,6 @@ fn bulk_modal(
                                     .font_family(design::MONO)
                                     .text_color(move || theme().muted_foreground),
                             ),
-                    )
-                    .child(
-                        when(
-                            move || is_selected,
-                            move || {
-                                image(asset!("icons/check.svg"))
-                                    .size(px(14.0))
-                                    .tint_color(move || theme().primary)
-                                    .into_element()
-                            },
-                        )
-                        .otherwise(|| view().h(px(0.0)).into_element()),
                     )
                     .into_element()
             })
@@ -1023,6 +1013,7 @@ fn form(
                 .gap(px(8.0))
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(36.0))
@@ -1045,6 +1036,7 @@ fn form(
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(36.0))
@@ -1081,6 +1073,8 @@ fn type_chip(
 ) -> impl IntoElement {
     let active = move || selected.get() == value;
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(30.0))
@@ -1328,13 +1322,34 @@ fn card(
     );
     let progress_width = progress.max(0.01) as f32;
     let select_id = debt.id;
+    let action_selected = action_debt.clone();
 
     view()
+        .cursor_pointer()
         .w_full()
         .rounded(px(12.0))
         .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
+        .border_color(move || {
+            if selected.get().contains(&select_id) {
+                theme().primary.opacity(0.55)
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || {
+            if selected.get().contains(&select_id) {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
+        .on_press(move || {
+            if selection_mode.get() {
+                let mut values = selected.get();
+                crate::components::selection_bar::toggle(&mut values, select_id);
+                selected.set(values);
+            }
+        })
         .p(px(20.0))
         .gap(px(14.0))
         .child(
@@ -1350,24 +1365,6 @@ fn card(
                         .items_center()
                         .gap(px(10.0))
                         .min_w(px(0.0))
-                        .child(when(
-                            move || selection_mode.get(),
-                            move || {
-                                checkbox_mark(
-                                    move || selected.get().contains(&select_id),
-                                    "Select debt".to_string(),
-                                    move || {
-                                        let mut values = selected.get();
-                                        crate::components::selection_bar::toggle(
-                                            &mut values,
-                                            select_id,
-                                        );
-                                        selected.set(values);
-                                    },
-                                )
-                                .into_element()
-                            },
-                        ))
                         .child(
                             view()
                                 .h(px(38.0))
@@ -1460,13 +1457,19 @@ fn card(
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 )
-                .child(card_actions(
-                    action_debt,
-                    actions,
-                    data,
-                    server,
-                    token,
-                    currency.clone(),
+                .child(when(
+                    move || !selection_mode.get(),
+                    move || {
+                        card_actions(
+                            action_selected.clone(),
+                            actions,
+                            data,
+                            server,
+                            token,
+                            currency.clone(),
+                        )
+                        .into_element()
+                    },
                 )),
         )
 }
@@ -1726,6 +1729,8 @@ fn error_card(message: &str, data: Resource<DebtsData, String>) -> AnyElement {
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(34.0))

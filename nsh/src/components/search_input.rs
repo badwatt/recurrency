@@ -43,6 +43,7 @@ pub fn search_input(value: Signal<String>, placeholder: &'static str) -> impl In
                 move || !value.get().is_empty(),
                 move || {
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(24.0))

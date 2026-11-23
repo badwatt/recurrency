@@ -174,6 +174,7 @@ pub fn update_banner() -> AnyElement {
                     )
                     .child(
                         button()
+                            .cursor_pointer()
                             .items_center()
                             .justify_center()
                             .h(px(26.0))

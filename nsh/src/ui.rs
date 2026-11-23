@@ -211,6 +211,10 @@ pub fn clear_settings_intent() {
     });
 }
 
+pub fn privacy_signal() -> Signal<bool> {
+    PRIVACY.with(|slot| slot.borrow().unwrap_or_else(|| signal(false)))
+}
+
 pub fn privacy_active() -> bool {
     PRIVACY.with(|slot| slot.borrow().map_or(false, |privacy| privacy.get()))
 }
@@ -298,6 +302,8 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
 
 fn theme_action() -> impl IntoElement {
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(34.0))
@@ -318,6 +324,8 @@ fn theme_action() -> impl IntoElement {
 
 fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(34.0))
@@ -346,6 +354,8 @@ pub fn open_ai(route: Signal<Route>, auth: AuthSession) {
 
 fn notification_action() -> impl IntoElement {
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(34.0))
@@ -361,7 +371,7 @@ fn notification_action() -> impl IntoElement {
 }
 
 fn privacy_action() -> impl IntoElement {
-    crate::components::privacy_toggle::privacy_toggle(privacy_active(), toggle_privacy)
+    crate::components::privacy_toggle::privacy_toggle(privacy_signal(), toggle_privacy)
 }
 
 fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
@@ -372,6 +382,8 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .filter(|name| !name.trim().is_empty())
         .unwrap_or_else(|| auth.user.email.clone());
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(34.0))
@@ -388,6 +400,8 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
 fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
     let active = move || route.get() == item;
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(36.0))
@@ -440,6 +454,8 @@ pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
             let item = *item;
             let active = move || route.get() == item;
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(48.0))
@@ -602,6 +618,8 @@ pub fn mini_icon_button(
     on_press: impl Fn() + 'static,
 ) -> impl IntoElement {
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(26.0))

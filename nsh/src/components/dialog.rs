@@ -147,6 +147,8 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                         )
                         .child(
                             nsh_base::button()
+                                .cursor_pointer()
+                                .cursor_pointer()
                                 .items_center()
                                 .justify_center()
                                 .h(px(34.0))

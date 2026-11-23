@@ -55,6 +55,8 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
             let is_today = date == today;
             items.push(
                 button()
+                    .cursor_pointer()
+                    .cursor_pointer()
                     .h(px(28.0))
                     .w_full()
                     .items_center()
@@ -114,6 +116,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                 .gap(px(6.0))
                 .child(
                     button()
+                        .cursor_pointer()
                         .h(px(38.0))
                         .basis(px(0.0))
                         .flex_grow(1.0)
@@ -137,6 +140,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                 )
                 .child(
                     button()
+                        .cursor_pointer()
                         .items_center()
                         .justify_center()
                         .h(px(34.0))
@@ -173,6 +177,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                             .justify_between()
                             .child(
                                 button()
+                                    .cursor_pointer()
                                     .h(px(26.0))
                                     .w(px(26.0))
                                     .items_center()
@@ -193,6 +198,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                             )
                             .child(
                                 button()
+                                    .cursor_pointer()
                                     .h(px(26.0))
                                     .w(px(26.0))
                                     .items_center()
@@ -256,6 +262,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                             .border_color(move || theme().border)
                             .child(
                                 button()
+                                    .cursor_pointer()
                                     .h(px(24.0))
                                     .px(px(6.0))
                                     .rounded(px(5.0))
@@ -271,6 +278,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                             )
                             .child(
                                 button()
+                                    .cursor_pointer()
                                     .h(px(24.0))
                                     .px(px(6.0))
                                     .rounded(px(5.0))

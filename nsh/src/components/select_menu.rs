@@ -74,6 +74,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         )
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .w_full()
                 .h(px(34.0))
                 .px(px(10.0))
@@ -113,6 +115,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                         let id = option.value;
                         let active = selected.get() == Some(id);
                         button()
+                            .cursor_pointer()
                             .w_full()
                             .h(px(30.0))
                             .px(px(8.0))

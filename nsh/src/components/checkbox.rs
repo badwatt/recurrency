@@ -11,6 +11,8 @@ pub fn checkbox(checked: Signal<bool>, label: String) -> impl IntoElement {
         .gap(px(8.0))
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .h(px(16.0))
                 .w(px(16.0))
                 .items_center()
@@ -65,6 +67,8 @@ pub fn checkbox_mark(
     let checked_fill = checked.clone();
     let checked_icon = checked.clone();
     button()
+        .cursor_pointer()
+        .cursor_pointer()
         .h(px(16.0))
         .w(px(16.0))
         .flex_shrink(0.0)

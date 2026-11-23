@@ -25,6 +25,8 @@ pub fn toggle(
         })
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .h(px(16.0))
                 .w(px(16.0))
                 .rounded(px(999.0))

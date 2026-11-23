@@ -129,6 +129,7 @@ pub fn toast_overlay() -> AnyElement {
                         )
                         .child(
                             button()
+                                .cursor_pointer()
                                 .h(px(22.0))
                                 .w(px(22.0))
                                 .items_center()

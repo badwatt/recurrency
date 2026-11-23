@@ -273,6 +273,7 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
                                 )
                                 .child(
                                     button()
+                                        .cursor_pointer()
                                         .items_center()
                                         .justify_center()
                                         .h(px(28.0))

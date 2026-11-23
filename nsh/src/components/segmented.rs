@@ -36,6 +36,8 @@ pub fn segmented(selected: Signal<String>, options: Vec<SegmentOption>) -> impl 
             let bg_value = value.clone();
             let text_value = value.clone();
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .h(px(28.0))
                 .px(px(10.0))
                 .items_center()

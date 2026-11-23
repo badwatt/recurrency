@@ -57,6 +57,8 @@ pub fn fab_menu(_open: Signal<bool>, actions: Vec<FabAction>) -> impl IntoElemen
         .z_index(60)
         .child(
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .items_center()
                 .justify_center()
                 .h(px(52.0))

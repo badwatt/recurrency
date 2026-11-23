@@ -3,8 +3,9 @@
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
-pub fn privacy_toggle(active: bool, on_press: impl Fn() + 'static) -> impl IntoElement {
+pub fn privacy_toggle(active: Signal<bool>, on_press: impl Fn() + 'static) -> impl IntoElement {
     button()
+        .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(34.0))
@@ -13,15 +14,21 @@ pub fn privacy_toggle(active: bool, on_press: impl Fn() + 'static) -> impl IntoE
         .accessibility_label("Toggle privacy mode")
         .on_press(on_press)
         .child(
-            image(asset!("icons/eye.svg"))
-                .size(px(19.0))
-                .tint_color(move || {
-                    if active {
-                        theme().primary
-                    } else {
-                        theme().muted_foreground
-                    }
-                }),
+            when(
+                move || active.get(),
+                move || {
+                    image(asset!("icons/eye-off.svg"))
+                        .size(px(19.0))
+                        .tint_color(move || theme().primary)
+                        .into_element()
+                },
+            )
+            .otherwise(move || {
+                image(asset!("icons/eye.svg"))
+                    .size(px(19.0))
+                    .tint_color(move || theme().muted_foreground)
+                    .into_element()
+            }),
         )
 }
 

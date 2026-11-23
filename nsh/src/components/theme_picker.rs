@@ -16,6 +16,8 @@ pub fn theme_picker(selected: Signal<String>, server: String, token: String) -> 
             let card_token = token.clone();
             let active = move || selected.get() == id;
             button()
+                .cursor_pointer()
+                .cursor_pointer()
                 .w_full()
                 .flex_row()
                 .items_center()
@@ -179,6 +181,7 @@ pub fn theme_menu() -> AnyElement {
                                                     let id = definition.id;
                                                     let active = move || selected.get() == id;
                                                     button()
+                                                        .cursor_pointer()
                                                         .w_full()
                                                         .flex_row()
                                                         .items_center()
