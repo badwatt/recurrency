@@ -1048,7 +1048,9 @@ fn general_card(
                 ),
         )
         )
-        .child(exchange_rates_card(rates_server, rates_token))
+        .when(!crate::local::enabled(), |view| {
+            view.child(exchange_rates_card(rates_server, rates_token))
+        })
 }
 
 fn folder_sync_card(server: String, token: String) -> AnyElement {
