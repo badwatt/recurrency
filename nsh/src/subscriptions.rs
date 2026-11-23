@@ -1094,50 +1094,6 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
         }))
 }
 
-fn unit_chip(
-    label_text: &'static str,
-    value: &'static str,
-    unit: Signal<String>,
-) -> impl IntoElement {
-    let active = move || unit.get() == value;
-    button()
-        .cursor_pointer()
-        .cursor_pointer()
-        .items_center()
-        .justify_center()
-        .h(px(30.0))
-        .px(px(10.0))
-        .rounded(px(6.0))
-        .border(px(1.0))
-        .border_color(move || {
-            if active() {
-                theme().primary
-            } else {
-                theme().border
-            }
-        })
-        .bg(move || {
-            if active() {
-                theme().accent
-            } else {
-                theme().card
-            }
-        })
-        .on_press(move || unit.set(value.to_string()))
-        .child(
-            text(label_text)
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || {
-                    if active() {
-                        theme().foreground
-                    } else {
-                        theme().muted_foreground
-                    }
-                }),
-        )
-}
-
 fn frequency_for(unit: &str) -> &'static str {
     match unit {
         "year" => "yearly",

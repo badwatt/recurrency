@@ -332,7 +332,7 @@ fn form(
     form: TxForm,
     server: Signal<String>,
     token: Signal<String>,
-    currency: String,
+    _currency: String,
     modal: ui::ModalHost,
 ) -> impl IntoElement {
     let TxForm {
@@ -372,7 +372,6 @@ fn form(
         }
     });
     let save = {
-        let currency = currency.clone();
         move || {
             if saving.get() {
                 return;
