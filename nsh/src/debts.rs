@@ -1450,8 +1450,14 @@ fn card_actions(
         let token_value = token.get();
         spawn(async move {
             match api::delete_debt(server_value, token_value, id).await {
-                Ok(()) => data.refetch(),
-                Err(message) => actions.error.set(message),
+                Ok(()) => {
+                    crate::components::toast::success("Debt deleted.");
+                    data.refetch();
+                }
+                Err(message) => {
+                    crate::components::toast::error(message.clone());
+                    actions.error.set(message);
+                }
             }
             actions.busy.set(None);
         });

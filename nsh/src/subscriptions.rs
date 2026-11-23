@@ -413,9 +413,13 @@ fn form(
                         form_open.set(false);
                         editing.set(None);
                         modal.close();
+                        crate::components::toast::success("Subscription saved.");
                         data.refetch();
                     }
-                    Err(message) => form_error.set(message),
+                    Err(message) => {
+                        crate::components::toast::error(message.clone());
+                        form_error.set(message);
+                    }
                 }
                 saving.set(false);
             });
@@ -1955,8 +1959,14 @@ fn card_actions(
             let request = ToggleSubscriptionRequest { is_active: !active };
             spawn(async move {
                 match api::update_subscription(server_value, token_value, id, &request).await {
-                    Ok(_) => data.refetch(),
-                    Err(message) => actions.error.set(message),
+                    Ok(_) => {
+                        crate::components::toast::success("Subscription updated.");
+                        data.refetch();
+                    }
+                    Err(message) => {
+                        crate::components::toast::error(message.clone());
+                        actions.error.set(message);
+                    }
                 }
                 actions.busy.set(None);
             });
@@ -1996,8 +2006,14 @@ fn card_actions(
             let token_value = token.get();
             spawn(async move {
                 match api::delete_subscription(server_value, token_value, id).await {
-                    Ok(()) => data.refetch(),
-                    Err(message) => actions.error.set(message),
+                    Ok(()) => {
+                        crate::components::toast::success("Subscription deleted.");
+                        data.refetch();
+                    }
+                    Err(message) => {
+                        crate::components::toast::error(message.clone());
+                        actions.error.set(message);
+                    }
                 }
                 actions.busy.set(None);
             });

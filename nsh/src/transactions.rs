@@ -1210,8 +1210,14 @@ fn transaction_actions(
         let token_value = token.get();
         spawn(async move {
             match api::delete_transaction(server_value, token_value, id).await {
-                Ok(()) => data.refetch(),
-                Err(message) => actions.error.set(message),
+                Ok(()) => {
+                    crate::components::toast::success("Transaction deleted.");
+                    data.refetch();
+                }
+                Err(message) => {
+                    crate::components::toast::error(message.clone());
+                    actions.error.set(message);
+                }
             }
             actions.busy.set(None);
         });
