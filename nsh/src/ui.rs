@@ -603,7 +603,7 @@ pub fn mini_icon_button(
         .w(px(26.0))
         .rounded(px(5.0))
         .on_press(on_press)
-        .child(image(icon).size(px(13.0)).tint_color(move || {
+        .child(image(icon).size(px(15.0)).tint_color(move || {
             if destructive {
                 theme().destructive
             } else {
