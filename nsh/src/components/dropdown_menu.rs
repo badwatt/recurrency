@@ -16,7 +16,11 @@ impl MenuAction {
     }
 }
 
-pub fn dropdown_menu(label: &'static str, actions: Vec<MenuAction>) -> impl IntoElement {
+pub fn dropdown_menu(
+    label: &'static str,
+    icon: Option<ImageAsset>,
+    actions: Vec<MenuAction>,
+) -> impl IntoElement {
     let open = signal(false);
     view()
         .relative()
@@ -25,6 +29,7 @@ pub fn dropdown_menu(label: &'static str, actions: Vec<MenuAction>) -> impl Into
                 ButtonProps::new(label)
                     .variant(ButtonVariant::Outline)
                     .size(ButtonSize::Sm)
+                    .icon_opt(icon)
                     .on_press(move || open.set(!open.get())),
             )
             .into_element(),

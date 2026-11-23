@@ -173,7 +173,7 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                     },
                 ))
                 .child(summary_card(
-                    "Avg / month",
+                    "Avg / Month",
                     asset!("icons/trending.svg"),
                     average,
                     move || format!("over {} months", report().recent_trends.len()),
@@ -232,6 +232,7 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
     };
     dropdown_menu(
         "Export",
+        Some(asset!("icons/download.svg")),
         vec![
             MenuAction::new("Export CSV", csv),
             MenuAction::new("Export PDF", pdf),

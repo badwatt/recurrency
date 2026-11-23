@@ -135,6 +135,11 @@ impl ButtonProps {
         self
     }
 
+    pub fn icon_opt(mut self, icon: Option<ImageAsset>) -> Self {
+        self.icon = icon;
+        self
+    }
+
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
         self
