@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::api::{self, DebtsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::checkbox::checkbox_action;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
@@ -221,8 +222,25 @@ pub fn debts(
     let sort_desc = signal(false);
     let _ = (sort_field.get(), sort_desc.get());
     let empty_open = open_form.clone();
+    let selection_mode = signal(false);
+    let selected = signal(Vec::<Uuid>::new());
     let open_bulk = move || {
-        modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
+        if selection_mode.get() {
+            modal.open(move || {
+                bulk_modal(
+                    data,
+                    server_signal,
+                    token_signal,
+                    modal,
+                    selected,
+                    selection_mode,
+                )
+                .into_element()
+            });
+        } else {
+            selected.set(Vec::new());
+            selection_mode.set(true);
+        }
     };
     view()
         .w_full()
@@ -249,6 +267,9 @@ pub fn debts(
                     type_filter,
                     sort_field,
                     sort_desc,
+                    selection_mode,
+                    selected,
+                    modal,
                 )
             })
         }))
@@ -545,8 +566,9 @@ fn bulk_modal(
     server: Signal<String>,
     token: Signal<String>,
     modal: ui::ModalHost,
+    selected: Signal<Vec<Uuid>>,
+    selection_mode: Signal<bool>,
 ) -> impl IntoElement {
-    let selected = signal(Vec::<Uuid>::new());
     let busy = signal(false);
     let error = signal(String::new());
     let confirm_delete = signal(false);
@@ -604,6 +626,7 @@ fn bulk_modal(
                     .await;
                 }
                 selected.set(Vec::new());
+                selection_mode.set(false);
                 data.refetch();
                 busy.set(false);
             });
@@ -623,6 +646,7 @@ fn bulk_modal(
                 let _ = api::delete_debt(server.clone(), token.clone(), id).await;
             }
             selected.set(Vec::new());
+            selection_mode.set(false);
             confirm_delete.set(false);
             data.refetch();
             busy.set(false);
@@ -1162,6 +1186,9 @@ fn content(
     type_filter: Signal<String>,
     sort_field: Signal<String>,
     sort_desc: Signal<bool>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
+    modal: ui::ModalHost,
 ) -> AnyElement {
     let items = move || filtered(data, search, type_filter, sort_field, sort_desc);
     let empty = move || data.get().unwrap_or_default().debts.is_empty();
@@ -1201,6 +1228,42 @@ fn content(
                         sort_field,
                         sort_desc,
                     ))
+                    .child(when(
+                        move || selection_mode.get(),
+                        move || {
+                            crate::components::selection_bar::selection_bar(
+                                move || selected.get().len(),
+                                move || {
+                                    let mut values = selected.get();
+                                    for debt in data.get().unwrap_or_default().debts {
+                                        if !values.contains(&debt.id) {
+                                            values.push(debt.id);
+                                        }
+                                    }
+                                    selected.set(values);
+                                },
+                                move || selected.set(Vec::new()),
+                                move || {
+                                    modal.open(move || {
+                                        bulk_modal(
+                                            data,
+                                            server,
+                                            token,
+                                            modal,
+                                            selected,
+                                            selection_mode,
+                                        )
+                                        .into_element()
+                                    });
+                                },
+                                move || {
+                                    selected.set(Vec::new());
+                                    selection_mode.set(false);
+                                },
+                            )
+                            .into_element()
+                        },
+                    ))
                     .child(
                         view()
                             .w_full()
@@ -1220,6 +1283,8 @@ fn content(
                                         actions,
                                         server,
                                         token,
+                                        selection_mode,
+                                        selected,
                                     )
                                 },
                             )),
@@ -1237,6 +1302,8 @@ fn card(
     actions: DebtActions,
     server: Signal<String>,
     token: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let color = account_color(data, debt.account_id);
     let account = account_name(data, debt.account_id);
@@ -1259,6 +1326,7 @@ fn card(
         |date| format!("Next: {}", format_date(date)),
     );
     let progress_width = progress.max(0.01) as f32;
+    let select_id = debt.id;
 
     view()
         .w_full()
@@ -1281,6 +1349,27 @@ fn card(
                         .items_center()
                         .gap(px(10.0))
                         .min_w(px(0.0))
+                        .child(when(
+                            move || selection_mode.get(),
+                            move || {
+                                checkbox_action(
+                                    move || selected.get().contains(&select_id),
+                                    "Select debt".to_string(),
+                                    move || {
+                                        let mut values = selected.get();
+                                        if let Some(index) =
+                                            values.iter().position(|value| *value == select_id)
+                                        {
+                                            values.remove(index);
+                                        } else {
+                                            values.push(select_id);
+                                        }
+                                        selected.set(values);
+                                    },
+                                )
+                                .into_element()
+                            },
+                        ))
                         .child(
                             view()
                                 .h(px(38.0))
