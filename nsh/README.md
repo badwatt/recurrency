@@ -76,6 +76,7 @@ Verify with `apksigner verify --print-certs target/nsh-android-release/Recurrenc
 - [ ] Desktop/mobile/web packaging and CI.
 
 Reference captures of the Dioxus interface live in `design/native-shell/`.
+The component tiers and reuse rules are documented in `COMPONENTS.md`.
 
 
 ## Components
