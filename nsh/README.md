@@ -27,7 +27,30 @@ nsh package nsh --target web --out target/nsh-web \
 
 The web package is a static site; under a Content-Security-Policy it needs
 `script-src 'self' 'wasm-unsafe-eval'` and `img-src 'self' blob: data:`.
-Android packaging needs the Rust Android targets and NDK in the shell.
+Android packaging uses the separate `nsh-android` shell, which provides a
+Rust toolchain with the Android targets, JDK 17, GTK/GStreamer host build
+dependencies and the SDK/NDK environment. It requires SDK platform 35 and
+Build Tools 35 (`sdkmanager "platforms;android-35" "build-tools;35.0.0"`).
+
+```sh
+nix develop .#nsh-android -c nsh package nsh --target android --abi arm64-v8a \
+  --out target/nsh-android --name Recurrency --id com.badwatt.recurrency \
+  --app-version 0.56.0 --build 5600 \
+  --icon frontend/assets/icons/clock-1024.png
+```
+
+For a store/release APK add the project keystore:
+
+```sh
+nix develop .#nsh-android -c nsh package nsh --target android --abi arm64-v8a \
+  --out target/nsh-android-release --name Recurrency \
+  --id com.badwatt.recurrency --app-version 0.56.0 --build 5600 \
+  --icon frontend/assets/icons/clock-1024.png \
+  --keystore recurrency-release.jks --key-alias recurrency \
+  --keystore-password "$ANDROID_KEYSTORE_PASSWORD"
+```
+
+Verify with `apksigner verify --print-certs target/nsh-android-release/Recurrency.apk`.
 
 ## Status
 
