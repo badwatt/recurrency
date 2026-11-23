@@ -111,3 +111,52 @@ pub fn checkbox_action(
                 .text_color(move || theme().foreground),
         )
 }
+
+/// Checkbox without an inline label, for cards and rows whose title already
+/// explains the target.
+pub fn checkbox_mark(
+    checked: impl Fn() -> bool + 'static,
+    label: String,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    let checked = Rc::new(checked);
+    let checked_border = checked.clone();
+    let checked_fill = checked.clone();
+    let checked_icon = checked.clone();
+    button()
+        .h(px(16.0))
+        .w(px(16.0))
+        .flex_shrink(0.0)
+        .items_center()
+        .justify_center()
+        .rounded(px(4.0))
+        .border(px(1.0))
+        .border_color(move || {
+            if checked_border() {
+                theme().primary
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || {
+            if checked_fill() {
+                theme().primary
+            } else {
+                theme().card
+            }
+        })
+        .accessibility_label(label)
+        .on_press(move || on_press())
+        .child(
+            when(
+                move || checked_icon(),
+                move || {
+                    image(asset!("icons/check.svg"))
+                        .size(px(11.0))
+                        .tint_color(move || theme().primary_foreground)
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+}

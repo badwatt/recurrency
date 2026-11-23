@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::api::{self, TransactionsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
-use crate::components::checkbox::checkbox_action;
+use crate::components::checkbox::checkbox_mark;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
@@ -846,7 +846,7 @@ fn row(
                 .child(when(
                     move || selection_mode.get(),
                     move || {
-                        checkbox_action(
+                        checkbox_mark(
                             move || selected.get().contains(&select_id),
                             "Select transaction".to_string(),
                             move || {

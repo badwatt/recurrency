@@ -13,6 +13,7 @@ use crate::auth::AuthSession;
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::checkbox::checkbox;
+use crate::components::checkbox::checkbox_mark;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
@@ -218,8 +219,25 @@ pub fn subscriptions(
         open_form();
     }
 
+    let selection_mode = signal(false);
+    let selected = signal(Vec::<Uuid>::new());
     let open_bulk = move || {
-        modal.open(move || bulk_modal(data, server_signal, token_signal, modal).into_element());
+        if selection_mode.get() {
+            modal.open(move || {
+                bulk_modal(
+                    data,
+                    server_signal,
+                    token_signal,
+                    modal,
+                    selected,
+                    selection_mode,
+                )
+                .into_element()
+            });
+        } else {
+            selected.set(Vec::new());
+            selection_mode.set(true);
+        }
     };
 
     view()
@@ -239,6 +257,42 @@ pub fn subscriptions(
             price_min,
             price_max,
             open_bulk,
+        ))
+        .child(when(
+            move || selection_mode.get(),
+            move || {
+                crate::components::selection_bar::selection_bar(
+                    move || selected.get().len(),
+                    move || {
+                        let mut values = selected.get();
+                        for subscription in data.get().unwrap_or_default().subscriptions {
+                            if !values.contains(&subscription.id) {
+                                values.push(subscription.id);
+                            }
+                        }
+                        selected.set(values);
+                    },
+                    move || selected.set(Vec::new()),
+                    move || {
+                        modal.open(move || {
+                            bulk_modal(
+                                data,
+                                server_signal,
+                                token_signal,
+                                modal,
+                                selected,
+                                selection_mode,
+                            )
+                            .into_element()
+                        });
+                    },
+                    move || {
+                        selected.set(Vec::new());
+                        selection_mode.set(false);
+                    },
+                )
+                .into_element()
+            },
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -261,6 +315,8 @@ pub fn subscriptions(
                     category_filter,
                     price_min,
                     price_max,
+                    selection_mode,
+                    selected,
                 )
             })
         }))
@@ -1072,6 +1128,8 @@ fn content(
     category_filter: Signal<String>,
     price_min: Signal<String>,
     price_max: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> AnyElement {
     let active = move || {
         filtered(
@@ -1123,6 +1181,8 @@ fn content(
             list_view,
             sort_field,
             sort_desc,
+            selection_mode,
+            selected,
         ))
         .when(has_inactive, move |page| {
             page.child(section(
@@ -1136,6 +1196,8 @@ fn content(
                 list_view,
                 sort_field,
                 sort_desc,
+                selection_mode,
+                selected,
             ))
         })
         .into_element()
@@ -1152,6 +1214,8 @@ fn section(
     list_view: Signal<bool>,
     sort_field: Signal<String>,
     sort_desc: Signal<bool>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let count_items = items.clone();
     let list_items = items.clone();
@@ -1211,6 +1275,8 @@ fn section(
                                     actions,
                                     server,
                                     token,
+                                    selection_mode,
+                                    selected,
                                 )
                             },
                         ))
@@ -1243,6 +1309,8 @@ fn section(
                                 actions,
                                 server,
                                 token,
+                                selection_mode,
+                                selected,
                             )
                         },
                     ))
@@ -1357,11 +1425,14 @@ fn list_card(
     actions: ListActions,
     server: Signal<String>,
     token: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let account = account_name(data, subscription.account_id);
     let action_subscription = subscription.clone();
     let logo = subscription.logo_url.clone();
     let name = subscription.name;
+    let select_id = subscription.id;
     let next = subscription.next_billing_date.map_or_else(
         || "No next date".to_string(),
         |date| format!("Next: {}", format_date(date)),
@@ -1387,6 +1458,27 @@ fn list_card(
                 .gap(px(10.0))
                 .min_w(px(0.0))
                 .flex_1()
+                .child(when(
+                    move || selection_mode.get(),
+                    move || {
+                        checkbox_mark(
+                            move || selected.get().contains(&select_id),
+                            "Select subscription".to_string(),
+                            move || {
+                                let mut values = selected.get();
+                                if let Some(index) =
+                                    values.iter().position(|value| *value == select_id)
+                                {
+                                    values.remove(index);
+                                } else {
+                                    values.push(select_id);
+                                }
+                                selected.set(values);
+                            },
+                        )
+                        .into_element()
+                    },
+                ))
                 .child(crate::components::logo_avatar::logo_avatar(
                     logo.clone(),
                     asset!("icons/card.svg"),
@@ -1443,6 +1535,8 @@ fn card(
     actions: ListActions,
     server: Signal<String>,
     token: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let account = account_name(data, subscription.account_id);
     let action_subscription = subscription.clone();
@@ -1451,6 +1545,7 @@ fn card(
     let rates = data.get().unwrap_or_default().rates;
     let amount_value = subscription.amount;
     let amount_currency = subscription.currency.clone();
+    let select_id = subscription.id;
     let next = subscription.next_billing_date.map_or_else(
         || "No next date".to_string(),
         |date| format!("Next: {}", format_date(date)),
@@ -1475,6 +1570,27 @@ fn card(
                 .flex_row()
                 .items_start()
                 .justify_between()
+                .child(when(
+                    move || selection_mode.get(),
+                    move || {
+                        checkbox_mark(
+                            move || selected.get().contains(&select_id),
+                            "Select subscription".to_string(),
+                            move || {
+                                let mut values = selected.get();
+                                if let Some(index) =
+                                    values.iter().position(|value| *value == select_id)
+                                {
+                                    values.remove(index);
+                                } else {
+                                    values.push(select_id);
+                                }
+                                selected.set(values);
+                            },
+                        )
+                        .into_element()
+                    },
+                ))
                 .child(
                     view()
                         .h(px(40.0))
@@ -1566,8 +1682,9 @@ fn bulk_modal(
     server: Signal<String>,
     token: Signal<String>,
     modal: ui::ModalHost,
+    selected: Signal<Vec<Uuid>>,
+    selection_mode: Signal<bool>,
 ) -> impl IntoElement {
-    let selected = signal(Vec::<Uuid>::new());
     let busy = signal(false);
     let error = signal(String::new());
     let confirm_delete = signal(false);
@@ -1619,6 +1736,7 @@ fn bulk_modal(
                 .await;
             }
             selected.set(Vec::new());
+            selection_mode.set(false);
             data.refetch();
             busy.set(false);
         });
@@ -1649,6 +1767,7 @@ fn bulk_modal(
                     .await;
                 }
                 selected.set(Vec::new());
+                selection_mode.set(false);
                 data.refetch();
                 busy.set(false);
             });
@@ -1668,6 +1787,7 @@ fn bulk_modal(
                 let _ = api::delete_subscription(server.clone(), token.clone(), id).await;
             }
             selected.set(Vec::new());
+            selection_mode.set(false);
             confirm_delete.set(false);
             data.refetch();
             busy.set(false);
