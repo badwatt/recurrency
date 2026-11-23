@@ -528,8 +528,11 @@ fn day_cell(
             cell.cursor_pointer()
                 .on_press(move || {
                     let Some(date) = cell_date else { return };
-                    if let Some(id) = entries().iter().find_map(|entry| entry.subscription_id) {
+                    let entries = entries();
+                    if let Some(id) = entries.iter().find_map(|entry| entry.subscription_id) {
                         crate::ui::request_subscription_edit(id);
+                    } else if entries.iter().any(|entry| entry.is_transaction) {
+                        crate::ui::navigate(crate::Route::Transactions);
                     } else {
                         crate::ui::request_subscription_create(date);
                     }

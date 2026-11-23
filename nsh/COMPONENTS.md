@@ -11,7 +11,6 @@ design. Pages never paint new chrome; they compose the modules in `src/component
 | `badge` | neutral/primary/success/destructive status label |
 | `button` | every press target, variants/sizes/alignment/radius |
 | `checkbox` | labelled binary control |
-| `checkbox_mark` | compact box for card/row selection |
 | `color_picker` | account/category palette and hex value |
 | `entity_icon` | stored icon name + color, dot fallback |
 | `input` | single-line field and dynamic-row value input |
@@ -56,7 +55,7 @@ design. Pages never paint new chrome; they compose the modules in `src/component
 ## Rules
 
 - New page chrome starts as a component; only one instance is allowed to own a visual decision.
-- Money lists enter selection mode in place and use `selection_bar` plus `checkbox_mark`; the bulk dialog reuses the same selected ids.
+- Money lists enter selection mode in place; pressing a card or row toggles it, and `selection_bar` owns the count, select-all, clear and bulk actions.
 - Add/edit/notes/bulk forms use `dialog`; destructive confirmations use `confirm_row`.
 - Catalogues use `string_select`; entity pickers use `select_menu`.
 - Amounts go through `format_currency`, which honours privacy mode.
