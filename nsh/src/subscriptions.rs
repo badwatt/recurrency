@@ -314,6 +314,25 @@ fn form(
         logo_loading,
         logo_error,
     } = form;
+    effect(move || {
+        if account_id.get().is_none() {
+            if let Some(account) = data
+                .get()
+                .unwrap_or_default()
+                .accounts
+                .into_iter()
+                .find(|account| account.is_default)
+                .or_else(|| data.get().unwrap_or_default().accounts.into_iter().next())
+            {
+                account_id.set(Some(account.id));
+            }
+        }
+        if category_id.get().is_none() {
+            if let Some(category) = data.get().unwrap_or_default().categories.into_iter().next() {
+                category_id.set(Some(category.id));
+            }
+        }
+    });
     let save = {
         let currency = currency.clone();
         move || {
