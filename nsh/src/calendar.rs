@@ -547,6 +547,7 @@ fn day_cell(
                             };
                             view()
                                 .w_full()
+                                .h(px(20.0))
                                 .flex_row()
                                 .items_center()
                                 .justify_between()
@@ -554,7 +555,7 @@ fn day_cell(
                                 .on_press(move || crate::ui::navigate(target))
                                 .child(
                                     image(asset!("icons/card.svg"))
-                                        .size(px(10.0))
+                                        .size(px(12.0))
                                         .tint_color(move || theme().muted_foreground),
                                 )
                                 .child(
@@ -571,7 +572,7 @@ fn day_cell(
                                             amount.clone()
                                         }
                                     })
-                                    .text_size(px(11.0))
+                                    .text_size(px(12.0))
                                     .font_family(design::MONO)
                                     .text_color(move || theme().muted_foreground),
                                 )
