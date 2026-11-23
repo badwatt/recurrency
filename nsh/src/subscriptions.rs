@@ -112,6 +112,10 @@ pub fn subscriptions(
     let sort_field = signal("next_billing_date".to_string());
     let list_view = signal(false);
     let status = signal("all".to_string());
+    let frequency_filter = signal("all".to_string());
+    let category_filter = signal("all".to_string());
+    let price_min = signal(String::new());
+    let price_max = signal(String::new());
     let form_open = signal(false);
     let editing = signal(None::<Uuid>);
     let active = signal(true);
@@ -223,7 +227,17 @@ pub fn subscriptions(
         .gap(px(24.0))
         .child(header(open_form))
         .child(toolbar(
-            data, search, sort_desc, sort_field, list_view, status, open_bulk,
+            data,
+            search,
+            sort_desc,
+            sort_field,
+            list_view,
+            status,
+            frequency_filter,
+            category_filter,
+            price_min,
+            price_max,
+            open_bulk,
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -242,6 +256,10 @@ pub fn subscriptions(
                     sort_field,
                     list_view,
                     status,
+                    frequency_filter,
+                    category_filter,
+                    price_min,
+                    price_max,
                 )
             })
         }))
@@ -856,9 +874,51 @@ fn toolbar(
     sort_field: Signal<String>,
     list_view: Signal<bool>,
     status: Signal<String>,
+    frequency_filter: Signal<String>,
+    category_filter: Signal<String>,
+    price_min: Signal<String>,
+    price_max: Signal<String>,
     open_bulk: impl Fn() + 'static,
 ) -> impl IntoElement {
-    let count = move || filtered(data, search, status, sort_desc, &sort_field.get()).len();
+    let count = move || {
+        filtered(
+            data,
+            search,
+            status,
+            sort_desc,
+            &sort_field.get(),
+            frequency_filter,
+            category_filter,
+            price_min,
+            price_max,
+        )
+        .len()
+    };
+    let clear_filters = move || {
+        status.set("all".to_string());
+        frequency_filter.set("all".to_string());
+        category_filter.set("all".to_string());
+        price_min.set(String::new());
+        price_max.set(String::new());
+    };
+    let filter_count = move || {
+        usize::from(status.get() != "all")
+            + usize::from(frequency_filter.get() != "all")
+            + usize::from(category_filter.get() != "all")
+            + usize::from(!price_min.get().trim().is_empty())
+            + usize::from(!price_max.get().trim().is_empty())
+    };
+    let category_options = move || {
+        let mut options = vec![("all".to_string(), "All categories".to_string())];
+        options.extend(
+            data.get()
+                .unwrap_or_default()
+                .categories
+                .into_iter()
+                .map(|category| (category.id.to_string(), category.name)),
+        );
+        options
+    };
     view()
         .w_full()
         .flex_col()
@@ -871,8 +931,23 @@ fn toolbar(
                 .items_center()
                 .gap(px(8.0))
                 .child(filter_menu(
-                    usize::from(status.get() != "all"),
+                    filter_count(),
                     view()
+                        .flex_col()
+                        .gap(px(10.0))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .child(
+                                    text("Filters")
+                                        .text_size(px(13.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(ui::action_button("Clear all", false, clear_filters)),
+                        )
                         .child(string_select(StringSelectProps::new(
                             "Status",
                             status,
@@ -882,6 +957,29 @@ fn toolbar(
                                 ("inactive".to_string(), "Inactive".to_string()),
                             ],
                         )))
+                        .child(string_select(StringSelectProps::new(
+                            "Repeats every",
+                            frequency_filter,
+                            vec![
+                                ("all".to_string(), "All units".to_string()),
+                                ("day".to_string(), "Day".to_string()),
+                                ("week".to_string(), "Week".to_string()),
+                                ("month".to_string(), "Month".to_string()),
+                                ("year".to_string(), "Year".to_string()),
+                            ],
+                        )))
+                        .child(string_select(StringSelectProps::new(
+                            "Category",
+                            category_filter,
+                            category_options(),
+                        )))
+                        .child(
+                            view()
+                                .flex_row()
+                                .gap(px(8.0))
+                                .child(ui::field("Min", price_min, "0.00"))
+                                .child(ui::field("Max", price_max, "999.99")),
+                        )
                         .into_element(),
                 ))
                 .child(sort_menu(
@@ -923,18 +1021,42 @@ fn content(
     sort_field: Signal<String>,
     list_view: Signal<bool>,
     status: Signal<String>,
+    frequency_filter: Signal<String>,
+    category_filter: Signal<String>,
+    price_min: Signal<String>,
+    price_max: Signal<String>,
 ) -> AnyElement {
     let active = move || {
-        filtered(data, search, status, sort_desc, &sort_field.get())
-            .into_iter()
-            .filter(|subscription| subscription.is_active)
-            .collect::<Vec<_>>()
+        filtered(
+            data,
+            search,
+            status,
+            sort_desc,
+            &sort_field.get(),
+            frequency_filter,
+            category_filter,
+            price_min,
+            price_max,
+        )
+        .into_iter()
+        .filter(|subscription| subscription.is_active)
+        .collect::<Vec<_>>()
     };
     let inactive = move || {
-        filtered(data, search, status, sort_desc, &sort_field.get())
-            .into_iter()
-            .filter(|subscription| !subscription.is_active)
-            .collect::<Vec<_>>()
+        filtered(
+            data,
+            search,
+            status,
+            sort_desc,
+            &sort_field.get(),
+            frequency_filter,
+            category_filter,
+            price_min,
+            price_max,
+        )
+        .into_iter()
+        .filter(|subscription| !subscription.is_active)
+        .collect::<Vec<_>>()
     };
     let has_inactive = !inactive().is_empty();
 
@@ -1068,6 +1190,10 @@ fn filtered(
     status: Signal<String>,
     sort_desc: Signal<bool>,
     sort_field: &str,
+    frequency_filter: Signal<String>,
+    category_filter: Signal<String>,
+    price_min: Signal<String>,
+    price_max: Signal<String>,
 ) -> Vec<Subscription> {
     let data = data.get().unwrap_or_default();
     filter_subscriptions(
@@ -1077,6 +1203,10 @@ fn filtered(
         &status.get(),
         sort_desc.get(),
         sort_field,
+        &frequency_filter.get(),
+        &category_filter.get(),
+        price_min.get().parse::<Decimal>().ok(),
+        price_max.get().parse::<Decimal>().ok(),
     )
 }
 
@@ -1087,6 +1217,10 @@ fn filter_subscriptions(
     status: &str,
     sort_desc: bool,
     sort_field: &str,
+    frequency: &str,
+    category: &str,
+    price_min: Option<Decimal>,
+    price_max: Option<Decimal>,
 ) -> Vec<Subscription> {
     let query = query.trim().to_lowercase();
     let mut result: Vec<Subscription> = subscriptions
@@ -1094,6 +1228,17 @@ fn filter_subscriptions(
         .filter(|subscription| {
             if (status == "active" && !subscription.is_active)
                 || (status == "inactive" && subscription.is_active)
+            {
+                return false;
+            }
+            if frequency != "all" && subscription.recurrence.unit != frequency {
+                return false;
+            }
+            if category != "all" && subscription.category_id.to_string() != category {
+                return false;
+            }
+            if price_min.is_some_and(|minimum| subscription.amount < minimum)
+                || price_max.is_some_and(|maximum| subscription.amount > maximum)
             {
                 return false;
             }
@@ -2025,9 +2170,31 @@ mod tests {
         let mut pricey = subscription("Pricey", account_id, true);
         pricey.amount = Decimal::from(50);
         let items = vec![cheap, pricey];
-        let ascending = filter_subscriptions(&items, "", &[], "all", false, "amount");
+        let ascending = filter_subscriptions(
+            &items,
+            "",
+            &[],
+            "all",
+            false,
+            "amount",
+            "all",
+            "all",
+            None,
+            None,
+        );
         assert_eq!(ascending[0].name, "Cheap");
-        let descending = filter_subscriptions(&items, "", &[], "all", true, "amount");
+        let descending = filter_subscriptions(
+            &items,
+            "",
+            &[],
+            "all",
+            true,
+            "amount",
+            "all",
+            "all",
+            None,
+            None,
+        );
         assert_eq!(descending[0].name, "Pricey");
     }
 
@@ -2054,8 +2221,19 @@ mod tests {
             subscription("Netflix", Uuid::new_v4(), true),
         ];
         assert_eq!(
-            filter_subscriptions(&items, "spot", &accounts, "all", false, "next_billing_date")[0]
-                .name,
+            filter_subscriptions(
+                &items,
+                "spot",
+                &accounts,
+                "all",
+                false,
+                "next_billing_date",
+                "all",
+                "all",
+                None,
+                None
+            )[0]
+            .name,
             "Spotify"
         );
         assert_eq!(
@@ -2065,13 +2243,29 @@ mod tests {
                 &accounts,
                 "all",
                 false,
-                "next_billing_date"
+                "next_billing_date",
+                "all",
+                "all",
+                None,
+                None
             )
             .len(),
             1
         );
         assert_eq!(
-            filter_subscriptions(&items, "", &accounts, "all", false, "next_billing_date").len(),
+            filter_subscriptions(
+                &items,
+                "",
+                &accounts,
+                "all",
+                false,
+                "next_billing_date",
+                "all",
+                "all",
+                None,
+                None
+            )
+            .len(),
             2
         );
     }
@@ -2083,11 +2277,32 @@ mod tests {
             subscription("Active", account_id, true),
             subscription("Paused", account_id, false),
         ];
-        let active = filter_subscriptions(&items, "", &[], "active", false, "next_billing_date");
+        let active = filter_subscriptions(
+            &items,
+            "",
+            &[],
+            "active",
+            false,
+            "next_billing_date",
+            "all",
+            "all",
+            None,
+            None,
+        );
         assert_eq!(active.len(), 1);
         assert_eq!(active[0].name, "Active");
-        let inactive =
-            filter_subscriptions(&items, "", &[], "inactive", false, "next_billing_date");
+        let inactive = filter_subscriptions(
+            &items,
+            "",
+            &[],
+            "inactive",
+            false,
+            "next_billing_date",
+            "all",
+            "all",
+            None,
+            None,
+        );
         assert_eq!(inactive.len(), 1);
         assert_eq!(inactive[0].name, "Paused");
     }
@@ -2099,7 +2314,18 @@ mod tests {
             subscription("Aardvark", account_id, false),
             subscription("Zebra", account_id, true),
         ];
-        let filtered = filter_subscriptions(&items, "", &[], "all", false, "next_billing_date");
+        let filtered = filter_subscriptions(
+            &items,
+            "",
+            &[],
+            "all",
+            false,
+            "next_billing_date",
+            "all",
+            "all",
+            None,
+            None,
+        );
         assert_eq!(filtered[0].name, "Zebra");
         assert!(!filtered[1].is_active);
     }
