@@ -300,13 +300,13 @@ fn icon_action(route: Signal<Route>, icon: ImageAsset, section: &'static str) ->
     button()
         .items_center()
         .justify_center()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(34.0))
+        .w(px(34.0))
         .rounded(px(6.0))
         .on_press(move || request_settings(route, section))
         .child(
             image(icon)
-                .size(px(17.0))
+                .size(px(19.0))
                 .tint_color(move || theme().muted_foreground),
         )
 }
@@ -315,14 +315,14 @@ fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
     button()
         .items_center()
         .justify_center()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(34.0))
+        .w(px(34.0))
         .rounded(px(6.0))
         .accessibility_label("AI assistant")
         .on_press(move || open_ai(route, auth.clone()))
         .child(
             image(asset!("icons/sparkles.svg"))
-                .size(px(17.0))
+                .size(px(19.0))
                 .tint_color(move || theme().muted_foreground),
         )
 }
@@ -343,14 +343,14 @@ fn notification_action() -> impl IntoElement {
     button()
         .items_center()
         .justify_center()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(34.0))
+        .w(px(34.0))
         .rounded(px(6.0))
         .accessibility_label("Notifications")
         .on_press(open_notifications)
         .child(
             image(asset!("icons/bell.svg"))
-                .size(px(17.0))
+                .size(px(19.0))
                 .tint_color(move || theme().muted_foreground),
         )
 }
@@ -369,12 +369,12 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
     button()
         .items_center()
         .justify_center()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(34.0))
+        .w(px(34.0))
         .rounded(px(999.0))
         .on_press(move || route.set(Route::Settings))
         .child(crate::components::avatar::avatar_badge(
-            30.0,
+            34.0,
             &name,
             auth.user.avatar,
         ))

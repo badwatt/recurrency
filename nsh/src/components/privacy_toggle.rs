@@ -7,14 +7,14 @@ pub fn privacy_toggle(active: bool, on_press: impl Fn() + 'static) -> impl IntoE
     button()
         .items_center()
         .justify_center()
-        .h(px(30.0))
-        .w(px(30.0))
+        .h(px(34.0))
+        .w(px(34.0))
         .rounded(px(6.0))
         .accessibility_label("Toggle privacy mode")
         .on_press(on_press)
         .child(
             image(asset!("icons/eye.svg"))
-                .size(px(17.0))
+                .size(px(19.0))
                 .tint_color(move || {
                     if active {
                         theme().primary
