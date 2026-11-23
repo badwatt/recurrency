@@ -131,7 +131,6 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
         .child(
             view()
                 .w_full()
-                .mb(px(6.0))
                 .flex_row()
                 .flex_wrap()
                 .gap(px(16.0))
@@ -184,7 +183,7 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                 .w_full()
                 .flex_row()
                 .items_start()
-                .gap(px(16.0))
+                .gap(px(24.0))
                 .child(trend_chart(data, &trend_currency))
                 .child(category_donut(data, &category_currency)),
         )
@@ -270,6 +269,7 @@ fn summary_card(
     view()
         .flex_grow(1.0)
         .min_w(px(200.0))
+        .min_h(px(126.0))
         .rounded(px(8.0))
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.4))
@@ -326,11 +326,12 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .border_color(move || theme().border.opacity(0.4))
         .bg(move || theme().card.opacity(0.8))
         .p(px(24.0))
-        .min_h(px(310.0))
+        .min_h(px(314.0))
         .gap(px(16.0))
         .child(
             text("By Category")
                 .text_size(px(18.0))
+                .line_height(px(28.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
@@ -435,6 +436,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
     let currency = currency.to_string();
     view()
         .w_full()
+        .min_h(px(142.0))
         .rounded(px(8.0))
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.4))
@@ -444,6 +446,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .child(
             text("Category Breakdown")
                 .text_size(px(18.0))
+                .line_height(px(28.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )
@@ -564,11 +567,12 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
         .border_color(move || theme().border.opacity(0.4))
         .bg(move || theme().card.opacity(0.8))
         .p(px(24.0))
-        .min_h(px(310.0))
+        .min_h(px(314.0))
         .gap(px(16.0))
         .child(
             text("Spending Trends")
                 .text_size(px(18.0))
+                .line_height(px(28.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || theme().foreground),
         )

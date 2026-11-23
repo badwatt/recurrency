@@ -1288,7 +1288,7 @@ fn toolbar(
         ))
         .child(
             text(move || ui::count_label(count(), "subscription", "subscriptions"))
-                .text_size(px(13.0))
+                .text_size(px(14.0))
                 .text_color(move || theme().muted_foreground),
         )
 }

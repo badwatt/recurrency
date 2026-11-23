@@ -359,6 +359,24 @@ pub fn icon_button_when(
     )
 }
 
+pub fn icon_button_when_sized(
+    icon: ImageAsset,
+    label: &'static str,
+    size: ButtonSize,
+    active: impl Fn() -> bool + 'static,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button(
+        ButtonProps::new("")
+            .icon(icon)
+            .size(size)
+            .variant(ButtonVariant::Outline)
+            .selected_when(active)
+            .accessibility_label(label)
+            .on_press(on_press),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

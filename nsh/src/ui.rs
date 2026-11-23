@@ -285,13 +285,13 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                 .flex_row()
                 .items_center()
                 .gap(px(4.0))
-                .px(px(12.0))
+                .px(px(24.0))
                 .child(
                     view()
                         .flex_row()
                         .items_center()
                         .gap(px(8.0))
-                        .mr(px(4.0))
+                        .mr(px(16.0))
                         .child(
                             image(crate::LOGO)
                                 .size(px(20.0))
@@ -300,6 +300,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                         .child(
                             text("Recurrency")
                                 .text_size(px(16.0))
+                                .line_height(px(24.0))
                                 .font_weight(FontWeight::BOLD)
                                 .text_color(move || theme().foreground),
                         ),
@@ -468,6 +469,7 @@ fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
         .child(
             text(item.label())
                 .text_size(px(14.0))
+                .line_height(px(20.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || {
                     if active() {

@@ -774,7 +774,7 @@ fn group_card(
         .w_full()
         .when(grid, |view| view.w(px(360.0)).flex_grow(1.0))
         .flex_col()
-        .gap(px(16.0))
+        .gap(px(8.0))
         .child(
             view()
                 .w_full()
@@ -788,6 +788,7 @@ fn group_card(
                 .child(
                     text(format!("{} · {count}", group.label))
                         .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground),
                 )

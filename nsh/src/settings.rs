@@ -326,7 +326,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .child(
             view()
                 .w(move || if compact.get() { px(0.0) } else { px(208.0) })
-                .mr(move || if compact.get() { px(0.0) } else { px(44.0) })
+                .mr(move || if compact.get() { px(0.0) } else { px(34.0) })
                 .max_h(move || if compact.get() { px(0.0) } else { px(4000.0) })
                 .overflow_hidden()
                 .flex_col()
@@ -378,7 +378,10 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                             .children(
                                 items
                                     .iter()
-                                    .filter(|item| **item != Section::Admin || is_admin)
+                                    .filter(|item| {
+                                        **item != Section::Admin
+                                            || (is_admin && !crate::local::enabled())
+                                    })
                                     .map(|item| {
                                         let item = *item;
                                         let active = move || section.get() == item;
@@ -452,7 +455,8 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .flex_1()
                 .min_w(px(320.0))
                 .flex_col()
-                .gap(px(20.0))
+                .mt(px(-5.0))
+                .gap(px(25.0))
                 .child(
                     view()
                         .flex_col()
@@ -602,8 +606,8 @@ fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
 
 fn account_card(
     email: Signal<String>,
-    verified: bool,
-    is_admin: bool,
+    _verified: bool,
+    _is_admin: bool,
     name: Signal<String>,
     avatar: Signal<String>,
     error: Signal<String>,
@@ -756,138 +760,124 @@ fn account_card(
     view()
         .w_full()
         .flex_col()
-        .gap(px(16.0))
+        .gap(px(24.0))
         .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(16.0))
+            view()
+                .w_full()
+                .rounded(px(12.0))
+                .border(px(1.0))
+                .border_color(move || theme().border.opacity(0.4))
+                .bg(move || theme().card.opacity(0.8))
+                .flex_col()
                 .child(
                     view()
+                        .p(px(24.0))
+                        .pt(px(14.0))
+                        .pb(px(34.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
                         .flex_col()
-                        .gap(px(2.0))
+                        .gap(px(4.0))
                         .child(
                             text("Personal information")
-                                .text_size(px(20.0))
+                                .text_size(px(18.0))
+                                .line_height(px(28.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
                             text("Your email identifies you; your name is how we greet you.")
                                 .text_size(px(14.0))
+                                .line_height(px(20.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
                     view()
-                        .mt(px(32.0))
-                        .flex_row()
-                        .items_center()
-                        .gap(px(12.0))
-                        .child(crate::components::avatar::avatar_badge(
-                            64.0,
-                            &email.get(),
-                            (!avatar.get().is_empty()).then(|| avatar.get()),
-                        ))
+                        .p(px(24.0))
+                        .pb(px(52.0))
+                        .gap(px(16.0))
+                        .flex_col()
                         .child(
-                            button()
-                                .cursor_pointer()
+                            view()
+                                .mt(px(24.0))
+                                .flex_row()
                                 .items_center()
-                                .justify_center()
-                                .h(px(34.0))
-                                .px(px(12.0))
-                                .rounded(px(7.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().border)
-                                .bg(move || theme().background)
-                                .on_press(move || pick_avatar())
+                                .gap(px(12.0))
+                                .child(crate::components::avatar::avatar_badge(
+                                    64.0,
+                                    &email.get(),
+                                    (!avatar.get().is_empty()).then(|| avatar.get()),
+                                ))
                                 .child(
-                                    text("Change photo")
-                                        .text_size(px(12.0))
-                                        .font_weight(FontWeight::MEDIUM)
+                                    button()
+                                        .cursor_pointer()
+                                        .items_center()
+                                        .justify_center()
+                                        .h(px(34.0))
+                                        .px(px(12.0))
+                                        .rounded(px(7.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .bg(move || theme().background)
+                                        .on_press(move || pick_avatar())
+                                        .child(
+                                            text("Change photo")
+                                                .text_size(px(12.0))
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(move || theme().foreground),
+                                        ),
+                                ),
+                        )
+                        .child(
+                            view()
+                                .flex_col()
+                                .gap(px(6.0))
+                                .child(ui::label("Email"))
+                                .child(
+                                    input()
+                                        .value(email)
+                                        .on_change(move |next: &str| email.set(next.to_string()))
+                                        .auto_fill(AutoFill::Off)
+                                        .h(px(42.0))
+                                        .w_full()
+                                        .px(px(12.0))
+                                        .rounded(px(7.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().input)
+                                        .bg(move || theme().background)
+                                        .text_size(px(14.0))
                                         .text_color(move || theme().foreground),
                                 ),
-                        ),
-                )
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(6.0))
-                        .child(ui::label("Email"))
-                        .child(
-                            input()
-                                .value(email)
-                                .on_change(move |next: &str| email.set(next.to_string()))
-                                .auto_fill(AutoFill::Off)
-                                .h(px(40.0))
-                                .w_full()
-                                .px(px(12.0))
-                                .rounded(px(7.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().input)
-                                .bg(move || theme().background)
-                                .text_size(px(14.0))
-                                .text_color(move || theme().foreground),
-                        ),
-                )
-                .child(ui::field("Name", name, "Your name"))
-                .child(
-                    view()
-                        .flex_row()
-                        .gap(px(8.0))
-                        .child(
-                            text(if verified {
-                                "Email verified"
-                            } else {
-                                "Email not verified"
-                            })
-                            .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground),
                         )
-                        .when(is_admin, |row| {
-                            row.child(
-                                text("Administrator")
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().primary),
-                            )
-                        }),
-                )
-                .child(
-                    when(
-                        move || !error.get().is_empty(),
-                        move || {
-                            text(move || error.get())
-                                .text_size(px(12.0))
-                                .text_color(move || theme().destructive)
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0))),
-                )
-                .child(
-                    view().w_full().flex_row().justify_end().gap(px(8.0)).child(
-                        button()
-                            .cursor_pointer()
-                            .items_center()
-                            .justify_center()
-                            .h(px(40.0))
-                            .px(px(16.0))
-                            .rounded(px(7.0))
-                            .bg(move || theme().primary)
-                            .disabled(move || saving.get())
-                            .disabled_style(|state| state.opacity(0.5))
-                            .on_press(move || save())
-                            .child(
-                                text(move || {
-                                    if saving.get() {
-                                        "Saving..."
-                                    } else {
-                                        "Save changes"
-                                    }
-                                })
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
+                        .child(ui::field("Name", name, "Your name"))
+                        .child(
+                            view().w_full().flex_row().justify_end().gap(px(8.0)).child(
+                                button()
+                                    .cursor_pointer()
+                                    .items_center()
+                                    .justify_center()
+                                    .h(px(40.0))
+                                    .px(px(16.0))
+                                    .rounded(px(7.0))
+                                    .bg(move || theme().primary)
+                                    .disabled(move || saving.get())
+                                    .disabled_style(|state| state.opacity(0.5))
+                                    .on_press(move || save())
+                                    .child(
+                                        text(move || {
+                                            if saving.get() {
+                                                "Saving..."
+                                            } else {
+                                                "Save changes"
+                                            }
+                                        })
+                                        .text_size(px(13.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().primary_foreground),
+                                    ),
                             ),
-                    ),
+                        ),
                 ),
         )
         .child(
@@ -897,7 +887,8 @@ fn account_card(
                 .gap(px(12.0))
                 .child(
                     text("Delete account")
-                        .text_size(px(20.0))
+                        .text_size(px(18.0))
+                        .line_height(px(28.0))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().destructive),
                 )

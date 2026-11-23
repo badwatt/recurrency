@@ -1,6 +1,8 @@
 //! Compact list toolbar: shared search, extra actions and view switch.
 
-use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, icon_button_when};
+use crate::components::button::{
+    ButtonProps, ButtonSize, ButtonVariant, icon_button_when, icon_button_when_sized,
+};
 use crate::components::search_input::search_input;
 use nsh_base::theme;
 use nsh_core::prelude::*;
@@ -15,36 +17,38 @@ pub fn list_toolbar(
         .flex_row()
         .flex_wrap()
         .items_center()
-        .gap(px(8.0))
+        .gap(px(12.0))
         .child(search_input(search, "Search"))
         .child(
             view()
                 .flex_row()
                 .flex_wrap()
                 .items_center()
-                .gap(px(8.0))
+                .gap(px(10.0))
                 .child(actions)
                 .child(
                     view()
                         .flex_row()
                         .items_center()
                         .flex_shrink_0()
-                        .w(px(88.0))
+                        .w(px(68.0))
                         .gap(px(2.0))
                         .p(px(2.0))
                         .rounded(px(8.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().muted.opacity(0.4))
-                        .child(icon_button_when(
+                        .child(icon_button_when_sized(
                             asset!("icons/grid.svg"),
                             "Grid view",
+                            ButtonSize::IconSm,
                             move || !list_view.get(),
                             move || list_view.set(false),
                         ))
-                        .child(icon_button_when(
+                        .child(icon_button_when_sized(
                             asset!("icons/list.svg"),
                             "List view",
+                            ButtonSize::IconSm,
                             move || list_view.get(),
                             move || list_view.set(true),
                         )),

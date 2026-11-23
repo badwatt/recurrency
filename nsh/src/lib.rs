@@ -192,7 +192,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             if compact.get() {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
-                                px(10.0)
+                                px(7.0)
                             } else {
                                 px(0.0)
                             }
