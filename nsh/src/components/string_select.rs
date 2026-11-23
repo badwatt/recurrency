@@ -61,7 +61,8 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         .min_w(px(0.0))
         .child(
             text(label)
-                .text_size(px(12.0))
+                .text_size(px(14.0))
+                .line_height(px(20.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || theme().muted_foreground),
         )
@@ -70,8 +71,8 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                 .cursor_pointer()
                 .cursor_pointer()
                 .w_full()
-                .h(px(38.0))
-                .px(px(10.0))
+                .h(px(40.0))
+                .px(px(12.0))
                 .flex_row()
                 .items_center()
                 .justify_between()
@@ -84,7 +85,8 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                 .child(
                     text(move || selected_label())
                         .number_of_lines(1)
-                        .text_size(px(13.0))
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .text_color(move || theme().foreground),
                 )
                 .child(

@@ -339,7 +339,7 @@ fn payment_form(
                 modal.close();
             },
         )
-        .width(508.0)
+        .width(512.0)
         .body(
             view()
                 .p(px(24.0))
@@ -934,7 +934,7 @@ fn form(
                 modal.close();
             },
         )
-        .width(508.0)
+        .width(512.0)
         .body(
             view()
                 .p(px(24.0))

@@ -123,7 +123,7 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
             ..BoxShadow::default()
         }])
         .overflow_hidden()
-        .max_h(px(700.0))
+        .max_h(px(764.0))
         .flex_col()
         .child(
             view()
@@ -165,15 +165,16 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                 ),
         )
         .child(
-            scroll().max_h(px(480.0)).child(
+            scroll().max_h(px(607.0)).child(
                 view()
                     .w_full()
                     .when(!subtitle.is_empty(), |panel| {
                         let subtitle = subtitle.clone();
                         panel.child(
-                            view().px(px(24.0)).pt(px(16.0)).child(
+                            view().px(px(24.0)).pt(px(28.0)).child(
                                 text(subtitle)
-                                    .text_size(px(13.0))
+                                    .text_size(px(14.0))
+                                    .line_height(px(20.0))
                                     .text_color(move || nsh_base::theme().muted_foreground),
                             ),
                         )
@@ -185,7 +186,7 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
             view()
                 .w_full()
                 .p(px(24.0))
-                .pt(px(16.0))
+                .pt(px(0.0))
                 .border_t(px(1.0))
                 .border_color(move || nsh_base::theme().border)
                 .child(footer),

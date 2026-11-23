@@ -70,7 +70,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         .min_w(px(0.0))
         .child(
             text(label)
-                .text_size(px(12.0))
+                .text_size(px(14.0))
+                .line_height(px(20.0))
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(move || theme().muted_foreground),
         )
@@ -79,8 +80,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .cursor_pointer()
                 .cursor_pointer()
                 .w_full()
-                .h(px(34.0))
-                .px(px(10.0))
+                .h(px(40.0))
+                .px(px(12.0))
                 .flex_row()
                 .items_center()
                 .justify_between()
@@ -91,15 +92,56 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .bg(move || theme().card)
                 .on_press(move || open.set(!open.get()))
                 .child(
-                    text(move || selected_label())
-                        .number_of_lines(1)
-                        .text_size(px(13.0))
-                        .text_color(move || theme().foreground),
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(6.0))
+                        .min_w(px(0.0))
+                        .child(
+                            view()
+                                .h(px(8.0))
+                                .w(px(8.0))
+                                .flex_shrink_0()
+                                .opacity(move || {
+                                    if selected.get().is_some() {
+                                        1.0_f32
+                                    } else {
+                                        0.0_f32
+                                    }
+                                })
+                                .rounded(px(999.0))
+                                .bg(move || theme().muted_foreground),
+                        )
+                        .child(
+                            text(move || selected_label())
+                                .number_of_lines(1)
+                                .text_size(px(13.0))
+                                .text_color(move || theme().foreground),
+                        ),
                 )
                 .child(
-                    image(asset!("icons/chevron-down.svg"))
-                        .size(px(13.0))
-                        .tint_color(move || theme().muted_foreground),
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(4.0))
+                        .flex_shrink_0()
+                        .child(
+                            image(asset!("icons/x.svg"))
+                                .size(px(12.0))
+                                .opacity(move || {
+                                    if selected.get().is_some() {
+                                        1.0_f32
+                                    } else {
+                                        0.0_f32
+                                    }
+                                })
+                                .tint_color(move || theme().muted_foreground),
+                        )
+                        .child(
+                            image(asset!("icons/chevron-down.svg"))
+                                .size(px(13.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
                 ),
         )
         .child(

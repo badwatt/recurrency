@@ -111,7 +111,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
             button()
                 .cursor_pointer()
                 .w_full()
-                .h(px(38.0))
+                .h(px(40.0))
                 .px(px(12.0))
                 .flex_row()
                 .items_center()
@@ -127,7 +127,8 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                         parse_date(&value.get())
                             .map_or_else(|| "Select date".to_string(), crate::format::format_date)
                     })
-                    .text_size(px(13.0))
+                    .text_size(px(14.0))
+                    .line_height(px(20.0))
                     .text_color(move || theme().foreground),
                 )
                 .child(

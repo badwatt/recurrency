@@ -2,6 +2,7 @@
 //! subscription and transaction forms.
 
 use nsh_base::{button, theme};
+use nsh_core::file_dialog::{FileFilter, OpenDialog};
 use nsh_core::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -44,6 +45,30 @@ pub fn logo_search(
             loading.set(false);
         });
     };
+    let upload = move || {
+        spawn(async move {
+            match pick_paths(
+                OpenDialog::files()
+                    .title("Choose a logo")
+                    .filter(FileFilter::new("Images", ["png", "jpg", "jpeg", "webp"])),
+            )
+            .await
+            {
+                Ok(Some(paths)) => {
+                    let Some(path) = paths.first() else { return };
+                    match std::fs::read(path)
+                        .map_err(|problem| format!("Could not read the image: {problem}"))
+                        .and_then(|bytes| crate::settings::avatar_data_url(&bytes))
+                    {
+                        Ok(data_url) => logo_url.set(data_url),
+                        Err(message) => error.set(message),
+                    }
+                }
+                Ok(None) => {}
+                Err(message) => error.set(message),
+            }
+        });
+    };
     let remove = move || logo_url.set(String::new());
     let use_url = move || {
         let value = logo_url.get().trim().to_string();
@@ -60,7 +85,8 @@ pub fn logo_search(
                 .gap(px(6.0))
                 .child(
                     text("Logo")
-                        .text_size(px(13.0))
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(move || theme().foreground),
                 )
@@ -89,12 +115,20 @@ pub fn logo_search(
                                 },
                             )
                             .variant(crate::components::button::ButtonVariant::Outline)
+                            .size(crate::components::button::ButtonSize::Sm)
                             .on_press(find_logo),
+                        ))
+                        .child(crate::components::button::button(
+                            crate::components::button::ButtonProps::new("Upload image")
+                                .variant(crate::components::button::ButtonVariant::Outline)
+                                .size(crate::components::button::ButtonSize::Sm)
+                                .on_press(upload),
                         ))
                         .when(!logo_url.get().trim().is_empty(), move |row| {
                             row.child(crate::components::button::button(
                                 crate::components::button::ButtonProps::new("Remove")
                                     .variant(crate::components::button::ButtonVariant::Outline)
+                                    .size(crate::components::button::ButtonSize::Sm)
                                     .on_press(remove),
                             ))
                         }),
@@ -117,9 +151,15 @@ pub fn logo_search(
                 )),
         )
         .child(
-            text(move || error.get())
-                .text_size(px(11.0))
-                .text_color(move || theme().destructive),
+            when(
+                move || !error.get().is_empty(),
+                move || {
+                    text(move || error.get())
+                        .text_size(px(11.0))
+                        .text_color(move || theme().destructive)
+                },
+            )
+            .otherwise(|| view().h(px(0.0))),
         )
         .child(
             when(

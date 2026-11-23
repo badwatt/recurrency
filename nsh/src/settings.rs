@@ -588,7 +588,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .into_element()
 }
 
-fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
+pub(crate) fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
     let image = image::load_from_memory(bytes)
         .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
     let resized = image
@@ -839,7 +839,7 @@ fn account_card(
                                         .value(email)
                                         .on_change(move |next: &str| email.set(next.to_string()))
                                         .auto_fill(AutoFill::Off)
-                                        .h(px(42.0))
+                                        .h(px(40.0))
                                         .w_full()
                                         .px(px(12.0))
                                         .rounded(px(7.0))

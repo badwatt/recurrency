@@ -12,7 +12,6 @@ use crate::api::{self, SubscriptionsData};
 use crate::auth::AuthSession;
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, button as shared_button};
-use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
@@ -630,11 +629,12 @@ fn form(
             editing.set(None);
             modal.close();
         })
-        .width(508.0)
+        .width(512.0)
         .body(
             view()
                 .p(px(24.0))
-                .gap(px(16.0))
+                .pt(px(2.0))
+                .gap(px(10.0))
                 .child(ui::required_field("Name", name, "Netflix, Spotify, etc."))
                 .child(
                     view()
@@ -662,31 +662,77 @@ fn form(
                 .child(
                     view()
                         .w_full()
+                        .mt(px(-13.0))
+                        .min_h(px(319.0))
                         .rounded(px(10.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().muted.opacity(0.15))
                         .p(px(14.0))
-                        .gap(px(10.0))
+                        .gap(px(4.0))
                         .child(
                             text("Billing schedule *")
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
-                            text(move || {
-                                let interval_value = interval.get();
-                                let unit_value = unit.get();
-                                let first = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
-                                    .map(crate::format::format_date)
-                                    .unwrap_or_else(|_| "today".to_string());
-                                format!(
-                                    "Charges every {interval_value} {unit_value}. First charge {first}."
+                            view()
+                                .flex_col()
+                                .gap(px(2.0))
+                                .child(
+                                    text(move || {
+                                        let interval_value = interval.get();
+                                        let unit_value = unit.get();
+                                        let today = Local::now().date_naive();
+                                        let selected = days.get();
+                                        if unit_value == "month" && interval_value == "1" {
+                                            let mut values = selected.clone();
+                                            if values.is_empty() {
+                                                values.push(today.day() as u8);
+                                            }
+                                            values.sort_unstable();
+                                            values.dedup();
+                                            if values.len() == 1 {
+                                                format!(
+                                                    "Charges monthly on day {}.",
+                                                    values[0]
+                                                )
+                                            } else {
+                                                let list = values
+                                                    .iter()
+                                                    .map(u8::to_string)
+                                                    .collect::<Vec<_>>()
+                                                    .join(", ");
+                                                format!("Charges monthly on days {list}.")
+                                            }
+                                        } else {
+                                            format!(
+                                                "Charges every {interval_value} {unit_value}."
+                                            )
+                                        }
+                                    })
+                                    .text_size(px(12.0))
+                                    .line_height(px(16.0))
+                                    .text_color(move || theme().muted_foreground),
                                 )
-                            })
-                            .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground),
+                                .child(
+                                    text(move || {
+                                        let first = NaiveDate::parse_from_str(
+                                            start_date.get().trim(),
+                                            "%Y-%m-%d",
+                                        )
+                                        .unwrap_or_else(|_| Local::now().date_naive());
+                                        format!(
+                                            "First charge: {}",
+                                            crate::format::format_date(first)
+                                        )
+                                    })
+                                    .text_size(px(11.0))
+                                    .line_height(px(16.0))
+                                    .text_color(move || theme().muted_foreground),
+                                ),
                         )
                         .child(
                             view()
@@ -696,7 +742,8 @@ fn form(
                                 .gap(px(8.0))
                                 .child(
                                     text("Every")
-                                        .text_size(px(12.0))
+                                        .text_size(px(14.0))
+                                        .line_height(px(20.0))
                                         .text_color(move || theme().foreground),
                                 )
                                 .child(
@@ -803,6 +850,7 @@ fn form(
                 .child(
                     view()
                         .w_full()
+                        .mt(px(6.0))
                         .flex_row()
                         .gap(px(12.0))
                         .child(
@@ -810,8 +858,10 @@ fn form(
                                 crate::components::field::field(
                                     crate::components::field::FieldProps::new("Start date")
                                         .hint("Leave empty to start from today."),
-                                    crate::components::date_picker::date_picker(start_date)
-                                        .into_element(),
+                                    view().w(px(155.0)).child(
+                                        crate::components::date_picker::date_picker(start_date),
+                                    )
+                                    .into_element(),
                                 ),
                             ),
                         )
@@ -820,8 +870,10 @@ fn form(
                                 crate::components::field::field(
                                     crate::components::field::FieldProps::new("End date")
                                         .hint("Last billing date (inclusive)."),
-                                    crate::components::date_picker::date_picker(end_date)
-                                        .into_element(),
+                                    view().w(px(155.0)).child(
+                                        crate::components::date_picker::date_picker(end_date),
+                                    )
+                                    .into_element(),
                                 ),
                             ),
                         ),
@@ -850,12 +902,6 @@ fn form(
                     },
                     category_id,
                 ))
-                .child(
-                    crate::components::field::field(
-                        crate::components::field::FieldProps::new("Notes"),
-                        crate::components::textarea::text_area(notes, "Add notes…").into_element(),
-                    ),
-                )
                 .child(crate::components::logo_search::logo_search(
                     name,
                     logo_url,
@@ -866,7 +912,10 @@ fn form(
                         error: logo_error,
                     },
                 ))
-                .child(checkbox(active, "Active subscription".to_string()))
+                .child(crate::components::field::field(
+                    crate::components::field::FieldProps::new("Notes"),
+                    crate::components::textarea::text_area(notes, "Additional notes...").into_element(),
+                ))
                 .child(
                     when(
                         move || !form_error.get().is_empty(),
@@ -892,7 +941,7 @@ fn form(
                         .items_center()
                         .justify_center()
                         .h(px(40.0))
-                        .px(px(16.0))
+                        .px(px(17.0))
                         .rounded(px(7.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
@@ -904,7 +953,7 @@ fn form(
                         })
                         .child(
                             text("Cancel")
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         ),
@@ -915,7 +964,7 @@ fn form(
                         .items_center()
                         .justify_center()
                         .h(px(40.0))
-                        .px(px(16.0))
+                        .px(px(14.0))
                         .rounded(px(7.0))
                         .bg(move || theme().primary)
                         .disabled(move || saving.get())
@@ -931,7 +980,7 @@ fn form(
                                     "Add Subscription"
                                 }
                             })
-                            .text_size(px(13.0))
+                            .text_size(px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(move || theme().primary_foreground),
                         ),
@@ -1051,7 +1100,7 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
     view()
         .w_full()
         .grid()
-        .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
+        .grid_template_columns(SharedString::from("repeat(11, minmax(0, 1fr))"))
         .gap(px(4.0))
         .children((1u8..=31).map(|day| {
             let active = move || days.get().contains(&day);
@@ -1060,9 +1109,9 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                 .cursor_pointer()
                 .items_center()
                 .justify_center()
-                .h(px(30.0))
+                .h(px(28.0))
                 .w_full()
-                .rounded(px(5.0))
+                .rounded(px(6.0))
                 .border(px(1.0))
                 .border_color(move || {
                     if active() {
@@ -1090,7 +1139,7 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                 })
                 .child(
                     text(day.to_string())
-                        .text_size(px(11.0))
+                        .text_size(px(12.0))
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(move || {
                             if active() {

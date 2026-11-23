@@ -449,7 +449,7 @@ fn form(
             editing.set(None);
             modal_for_close.close();
         })
-        .width(508.0)
+        .width(512.0)
         .body(
             view()
                 .p(px(24.0))

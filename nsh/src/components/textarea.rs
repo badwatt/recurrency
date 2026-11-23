@@ -11,7 +11,7 @@ pub fn text_area(value: Signal<String>, placeholder: &'static str) -> impl IntoE
         .placeholder(placeholder)
         .auto_fill(AutoFill::Off)
         .multiline(true)
-        .h(px(120.0))
+        .h(px(80.0))
         .w_full()
         .p(px(10.0))
         .rounded(px(7.0))

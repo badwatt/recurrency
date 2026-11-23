@@ -589,7 +589,7 @@ fn form_field(
                 })
                 .return_key_type(ReturnKeyType::Done)
                 .text_size(px(14.0))
-                .h(px(42.0))
+                .h(px(40.0))
                 .w_full()
                 .px(px(12.0))
                 .rounded(px(6.0))
