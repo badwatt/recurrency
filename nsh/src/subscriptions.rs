@@ -265,11 +265,14 @@ pub fn subscriptions(
                     move || selected.get().len(),
                     move || {
                         let mut values = selected.get();
-                        for subscription in data.get().unwrap_or_default().subscriptions {
-                            if !values.contains(&subscription.id) {
-                                values.push(subscription.id);
-                            }
-                        }
+                        crate::components::selection_bar::add_all(
+                            &mut values,
+                            data.get()
+                                .unwrap_or_default()
+                                .subscriptions
+                                .into_iter()
+                                .map(|item| item.id),
+                        );
                         selected.set(values);
                     },
                     move || selected.set(Vec::new()),
@@ -1466,13 +1469,7 @@ fn list_card(
                             "Select subscription".to_string(),
                             move || {
                                 let mut values = selected.get();
-                                if let Some(index) =
-                                    values.iter().position(|value| *value == select_id)
-                                {
-                                    values.remove(index);
-                                } else {
-                                    values.push(select_id);
-                                }
+                                crate::components::selection_bar::toggle(&mut values, select_id);
                                 selected.set(values);
                             },
                         )
@@ -1578,13 +1575,7 @@ fn card(
                             "Select subscription".to_string(),
                             move || {
                                 let mut values = selected.get();
-                                if let Some(index) =
-                                    values.iter().position(|value| *value == select_id)
-                                {
-                                    values.remove(index);
-                                } else {
-                                    values.push(select_id);
-                                }
+                                crate::components::selection_bar::toggle(&mut values, select_id);
                                 selected.set(values);
                             },
                         )
@@ -1691,11 +1682,7 @@ fn bulk_modal(
     let bulk_category = signal(None::<Uuid>);
     let toggle = move |id: Uuid| {
         let mut values = selected.get();
-        if let Some(index) = values.iter().position(|value| *value == id) {
-            values.remove(index);
-        } else {
-            values.push(id);
-        }
+        crate::components::selection_bar::toggle(&mut values, id);
         selected.set(values);
     };
     let all_ids = move || {

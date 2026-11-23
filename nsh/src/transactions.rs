@@ -241,11 +241,14 @@ pub fn transactions(
                     move || selected.get().len(),
                     move || {
                         let mut values = selected.get();
-                        for transaction in data.get().unwrap_or_default().transactions {
-                            if !values.contains(&transaction.id) {
-                                values.push(transaction.id);
-                            }
-                        }
+                        crate::components::selection_bar::add_all(
+                            &mut values,
+                            data.get()
+                                .unwrap_or_default()
+                                .transactions
+                                .into_iter()
+                                .map(|item| item.id),
+                        );
                         selected.set(values);
                     },
                     move || selected.set(Vec::new()),
@@ -851,13 +854,7 @@ fn row(
                             "Select transaction".to_string(),
                             move || {
                                 let mut values = selected.get();
-                                if let Some(index) =
-                                    values.iter().position(|value| *value == select_id)
-                                {
-                                    values.remove(index);
-                                } else {
-                                    values.push(select_id);
-                                }
+                                crate::components::selection_bar::toggle(&mut values, select_id);
                                 selected.set(values);
                             },
                         )
@@ -964,11 +961,7 @@ fn bulk_modal(
     let bulk_category = signal(None::<Uuid>);
     let toggle = move |id: Uuid| {
         let mut values = selected.get();
-        if let Some(index) = values.iter().position(|value| *value == id) {
-            values.remove(index);
-        } else {
-            values.push(id);
-        }
+        crate::components::selection_bar::toggle(&mut values, id);
         selected.set(values);
     };
     let all_ids = move || {
