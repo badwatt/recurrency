@@ -3,8 +3,7 @@
 //! so the app owns the calendar instead of the OS popup.
 
 use chrono::{Datelike, Local, NaiveDate};
-use nsh_base::{button, input, theme};
-use nsh_core::element::AutoFill;
+use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
 const WEEKDAYS: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -95,12 +94,14 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
         }
         items
     };
-    let open_calendar = move || {
+    let open_calendar = std::rc::Rc::new(move || {
         if let Some(date) = parse_date(&value.get()) {
             month.set(month_start(date));
         }
         open.set(!open.get());
-    };
+    });
+    let open_field = open_calendar.clone();
+    let open_button = open_calendar;
     view()
         .w_full()
         .flex_col()
@@ -112,12 +113,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                 .items_center()
                 .gap(px(6.0))
                 .child(
-                    input()
-                        .value(value)
-                        .on_change(move |next: &str| value.set(next.to_string()))
-                        .placeholder("YYYY-MM-DD")
-                        .auto_fill(AutoFill::Off)
-                        .readonly(true)
+                    button()
                         .h(px(38.0))
                         .basis(px(0.0))
                         .flex_grow(1.0)
@@ -127,8 +123,17 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                         .border(px(1.0))
                         .border_color(move || theme().input)
                         .bg(move || theme().card)
-                        .text_size(px(13.0))
-                        .text_color(move || theme().foreground),
+                        .on_press(move || open_field())
+                        .child(
+                            text(move || {
+                                parse_date(&value.get()).map_or_else(
+                                    || "Select date".to_string(),
+                                    crate::format::format_date,
+                                )
+                            })
+                            .text_size(px(13.0))
+                            .text_color(move || theme().foreground),
+                        ),
                 )
                 .child(
                     button()
@@ -141,7 +146,7 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
                         .border(px(1.0))
                         .border_color(move || theme().input)
                         .bg(move || theme().card)
-                        .on_press(open_calendar)
+                        .on_press(move || open_button())
                         .child(
                             image(asset!("icons/calendar.svg"))
                                 .size(px(15.0))
