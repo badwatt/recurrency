@@ -13,8 +13,8 @@ pub fn empty_state(
         .w_full()
         .flex_col()
         .items_center()
-        .justify_center()
-        .gap(px(14.0))
+        .gap(px(0.0))
+        .min_h(px(216.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -22,7 +22,7 @@ pub fn empty_state(
         .p(px(32.0))
         .child(
             image(icon)
-                .size(px(28.0))
+                .size(px(24.0))
                 .tint_color(move || theme().muted_foreground),
         )
         .child(
@@ -42,5 +42,12 @@ pub fn empty_state(
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(action)
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .justify_center()
+                .mt(px(12.0))
+                .child(action),
+        )
 }

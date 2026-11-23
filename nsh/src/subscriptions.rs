@@ -1203,7 +1203,7 @@ fn toolbar(
     view()
         .w_full()
         .flex_col()
-        .gap(px(14.0))
+        .gap(px(27.0))
         .child(list_toolbar(
             search,
             list_view,
@@ -1349,7 +1349,7 @@ fn content(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .mt(px(11.0))
+        .mt(px(0.0))
         .child(section(
             "ACTIVE",
             active,
@@ -1404,7 +1404,7 @@ fn section(
     view()
         .w_full()
         .flex_col()
-        .gap(px(12.0))
+        .gap(px(10.0))
         .child(
             view()
                 .flex_row()
@@ -1745,7 +1745,7 @@ fn card(
         .relative()
         .overflow_hidden()
         .cursor_pointer()
-        .min_w(px(230.0))
+        .w(px(295.0))
         .p(px(20.0))
         .pb(px(16.0))
         .gap(px(12.0))

@@ -87,7 +87,7 @@ fn body(
                 .w_full()
                 .flex_row()
                 .flex_wrap()
-                .gap(px(16.0))
+                .gap(px(18.0))
                 .items_start()
                 .child(upcoming_card(
                     data,
@@ -392,7 +392,7 @@ fn hero(
                     text(pending_note)
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground)
-                        .mt(px(8.0)),
+                        .mt(px(12.0)),
                 )
                 .child(
                     view()
@@ -419,7 +419,7 @@ fn hero(
                     text(ratio_label)
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground)
-                        .mt(px(8.0)),
+                        .mt(px(12.0)),
                 ),
         )
 }
@@ -465,23 +465,25 @@ fn upcoming_card(
         .child(
             view()
                 .p(px(24.0))
-                .pb(px(8.0))
+                .pb(px(20.0))
                 .flex_row()
                 .items_start()
                 .justify_between()
                 .child(
                     view()
                         .flex_col()
-                        .gap(px(2.0))
+                        .gap(px(4.0))
                         .child(
                             text("UPCOMING PAYMENTS")
                                 .text_size(px(14.0))
+                                .line_height(px(20.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().muted_foreground),
                         )
                         .child(
                             text("Subscriptions and one-time payments.")
                                 .text_size(px(12.0))
+                                .line_height(px(20.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
                 )
@@ -512,7 +514,7 @@ fn upcoming_card(
             )
         })
         .when(total() > 0, |card| {
-            card.child(view().px(px(24.0)).pb(px(12.0)).child(each(
+            card.child(view().px(px(24.0)).pb(px(24.0)).child(each(
                 move || {
                     let mut upcoming = data.get().unwrap_or_default().upcoming;
                     upcoming.truncate(5);
@@ -619,6 +621,7 @@ fn upcoming_row(
                                 .flex_row()
                                 .items_center()
                                 .gap(px(6.0))
+                                .h(px(20.0))
                                 .child(
                                     text(format!("{account} · {date}"))
                                         .text_size(px(12.0))
@@ -692,7 +695,7 @@ fn ledger_card(
     let account_count = move || data.get().unwrap_or_default().accounts.len();
     let category_count = move || data.get().unwrap_or_default().categories.len();
     view()
-        .w(px(460.0))
+        .w(px(456.0))
         .flex_shrink(0.0)
         .rounded(px(16.0))
         .border(px(1.0))

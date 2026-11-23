@@ -197,7 +197,17 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 px(0.0)
                             }
                         })
-                        .pr(move || if compact.get() { px(16.0) } else { px(10.0) })
+                        .pr(move || {
+                            if compact.get() {
+                                px(16.0)
+                            } else if route.get() == Route::Dashboard {
+                                px(19.0)
+                            } else if route.get() == Route::Settings {
+                                px(2.0)
+                            } else {
+                                px(10.0)
+                            }
+                        })
                         .py(move || {
                             if compact.get() {
                                 px(16.0)

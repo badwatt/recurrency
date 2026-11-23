@@ -179,14 +179,6 @@ pub fn notifications_open() -> bool {
     NOTIFICATIONS.with(|slot| slot.borrow().map_or(false, |open| open.get()))
 }
 
-pub fn open_notifications() {
-    NOTIFICATIONS.with(|slot| {
-        if let Some(open) = *slot.borrow() {
-            open.set(true);
-        }
-    });
-}
-
 pub fn close_notifications() {
     NOTIFICATIONS.with(|slot| {
         if let Some(open) = *slot.borrow() {
@@ -285,7 +277,8 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                 .flex_row()
                 .items_center()
                 .gap(px(4.0))
-                .px(px(24.0))
+                .pl(px(24.0))
+                .pr(px(37.0))
                 .child(
                     view()
                         .flex_row()
@@ -324,13 +317,6 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                     when(
                         move || !crate::local::enabled(),
                         move || ai_action(route, auth_for_ai.clone()).into_element(),
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    when(
-                        move || !crate::local::enabled(),
-                        move || notification_action().into_element(),
                     )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
@@ -390,24 +376,6 @@ pub fn open_ai(route: Signal<Route>, auth: AuthSession) {
             _ => request_settings(route, "ai"),
         }
     });
-}
-
-fn notification_action() -> impl IntoElement {
-    button()
-        .cursor_pointer()
-        .cursor_pointer()
-        .items_center()
-        .justify_center()
-        .h(px(34.0))
-        .w(px(34.0))
-        .rounded(px(6.0))
-        .accessibility_label("Notifications")
-        .on_press(open_notifications)
-        .child(
-            image(asset!("icons/bell.svg"))
-                .size(px(19.0))
-                .tint_color(move || theme().muted_foreground),
-        )
 }
 
 fn privacy_action() -> impl IntoElement {

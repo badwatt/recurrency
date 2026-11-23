@@ -114,6 +114,7 @@ pub struct ButtonProps {
     pub selected: bool,
     pub selected_when: Option<Rc<dyn Fn() -> bool>>,
     pub full_width: bool,
+    pub min_width: Option<f32>,
     pub accessibility_label: Option<String>,
     pub on_press: Option<Rc<dyn Fn()>>,
 }
@@ -132,6 +133,7 @@ impl ButtonProps {
             selected: false,
             selected_when: None,
             full_width: false,
+            min_width: None,
             accessibility_label: None,
             on_press: None,
         }
@@ -197,6 +199,11 @@ impl ButtonProps {
         self
     }
 
+    pub fn min_width(mut self, width: f32) -> Self {
+        self.min_width = Some(width);
+        self
+    }
+
     pub fn on_press(mut self, handler: impl Fn() + 'static) -> Self {
         self.on_press = Some(Rc::new(handler));
         self
@@ -216,6 +223,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         selected,
         selected_when,
         full_width,
+        min_width,
         accessibility_label,
         on_press,
     } = props;
@@ -247,6 +255,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
         .h(px(height))
         .when(width > 0.0, |button| button.w(px(width)))
         .when(full_width, |button| button.w_full())
+        .when_some(min_width, |button, width| button.min_w(px(width)))
         .px(px(padding))
         .rounded(px(radius.value()))
         .border(px(1.0))

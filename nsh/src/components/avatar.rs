@@ -5,11 +5,20 @@ use nsh_base::theme;
 use nsh_core::prelude::*;
 
 pub fn avatar_badge(size: f32, name: &str, avatar: Option<String>) -> impl IntoElement {
-    let initial = name
-        .chars()
-        .find(|character| !character.is_whitespace())
-        .map(|character| character.to_uppercase().to_string())
-        .unwrap_or_else(|| "?".to_string());
+    let words: Vec<&str> = name.split_whitespace().collect();
+    let initial = match words.as_slice() {
+        [] => "?".to_string(),
+        [single] => single
+            .chars()
+            .next()
+            .map(|character| character.to_uppercase().to_string())
+            .unwrap_or_else(|| "?".to_string()),
+        [first, .., last] => {
+            let first = first.chars().next().unwrap_or('?');
+            let last = last.chars().next().unwrap_or('?');
+            format!("{}{}", first.to_uppercase(), last.to_uppercase())
+        }
+    };
     let avatar = avatar.filter(|value| !value.trim().is_empty());
     let has_avatar = avatar.is_some();
     view()

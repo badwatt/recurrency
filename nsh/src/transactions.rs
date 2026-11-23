@@ -227,7 +227,7 @@ pub fn transactions(
         .key(format!("{}-{}", sort_field.get(), sort_desc.get()))
         .w_full()
         .flex_col()
-        .gap(px(24.0))
+        .gap(px(22.0))
         .child(header(open_form))
         .child(toolbar(
             data,
@@ -774,7 +774,7 @@ fn group_card(
         .w_full()
         .when(grid, |view| view.w(px(360.0)).flex_grow(1.0))
         .flex_col()
-        .gap(px(8.0))
+        .gap(px(11.0))
         .child(
             view()
                 .w_full()
@@ -782,7 +782,7 @@ fn group_card(
                 .items_center()
                 .justify_between()
                 .px(px(16.0))
-                .py(px(8.0))
+                .py(px(7.0))
                 .rounded(px(8.0))
                 .bg(move || theme().muted.opacity(0.5))
                 .child(

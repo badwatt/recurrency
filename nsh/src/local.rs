@@ -69,14 +69,14 @@ fn seed() {
             id: Uuid::from_u128(1),
             name: "General".to_string(),
             icon: Some("wallet".to_string()),
-            color: Some("#8b5cf6".to_string()),
+            color: Some("#6b7280".to_string()),
             is_default: true,
         };
         let category = Category {
             id: Uuid::from_u128(2),
             name: "Uncategorized".to_string(),
             icon: Some("tag".to_string()),
-            color: Some("#8b5cf6".to_string()),
+            color: Some("#6b7280".to_string()),
         };
         let _ = save("accounts", &[account]);
         let _ = save("categories", &[category]);
@@ -102,7 +102,7 @@ pub fn accounts() -> Vec<Account> {
             id: Uuid::from_u128(1),
             name: "General".to_string(),
             icon: Some("wallet".to_string()),
-            color: Some("#8b5cf6".to_string()),
+            color: Some("#6b7280".to_string()),
             is_default: true,
         };
         let _ = save("accounts", &[account.clone()]);
@@ -119,7 +119,7 @@ pub fn categories() -> Vec<Category> {
             id: Uuid::from_u128(2),
             name: "Uncategorized".to_string(),
             icon: Some("tag".to_string()),
-            color: Some("#8b5cf6".to_string()),
+            color: Some("#6b7280".to_string()),
         };
         let _ = save("categories", &[category.clone()]);
         vec![category]
@@ -589,7 +589,7 @@ mod tests {
             id: Uuid::from_u128(1),
             name: "General".to_string(),
             icon: Some("wallet".to_string()),
-            color: Some("#8b5cf6".to_string()),
+            color: Some("#6b7280".to_string()),
             is_default: true,
         };
         let json = serde_json::to_string(&[account.clone()]).expect("account serializes");

@@ -81,7 +81,7 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
         .items_center()
         .justify_between()
         .px(px(14.0))
-        .py(px(14.0))
+        .py(px(9.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
         .child(
@@ -101,6 +101,7 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
                 .child(
                     text(move || month_label(year.get(), month.get()))
                         .w(px(200.0))
+                        .mt(px(-11.0))
                         .text_size(px(20.0))
                         .line_height(px(28.0))
                         .font_weight(FontWeight::BOLD)
@@ -120,6 +121,7 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
             button()
                 .cursor_pointer()
                 .cursor_pointer()
+                .mt(px(-11.0))
                 .items_center()
                 .justify_center()
                 .h(px(40.0))
@@ -208,7 +210,7 @@ fn content(
                     .child(
                         view()
                             .w_full()
-                            .pt(px(15.0))
+                            .pt(px(25.0))
                             .px(px(16.0))
                             .pb(px(16.0))
                             .grid()
@@ -514,10 +516,12 @@ fn day_cell(
         year.get() == today.year() && month.get() == today.month() && day == today.day()
     });
     let cell_date = day.and_then(|day| NaiveDate::from_ymd_opt(year.get(), month.get(), day));
+    let hovered = signal(false);
     view()
         .w_full()
         .min_h(px(100.0))
         .p(px(6.0))
+        .pt(px(0.0))
         .gap(px(2.0))
         .bg(move || {
             if day.is_some() {
@@ -529,6 +533,8 @@ fn day_cell(
         .when(is_today, |cell| cell.bg(move || theme().accent))
         .when(day.is_some(), move |cell| {
             cell.cursor_pointer()
+                .on_mouse_enter(move |_: &MouseEvent| hovered.set(true))
+                .on_mouse_leave(move |_: &MouseEvent| hovered.set(false))
                 .on_press(move || {
                     let Some(date) = cell_date else { return };
                     let entries = entries();
@@ -560,6 +566,7 @@ fn day_cell(
                         .child(
                             text(move || day.map_or_else(String::new, |day| day.to_string()))
                                 .text_size(px(11.0))
+                                .line_height(px(12.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || {
                                     if is_today {
@@ -572,6 +579,7 @@ fn day_cell(
                         .child(
                             button()
                                 .cursor_pointer()
+                                .opacity(move || if hovered.get() { 1.0_f32 } else { 0.0_f32 })
                                 .h(px(16.0))
                                 .w(px(16.0))
                                 .items_center()
@@ -594,6 +602,7 @@ fn day_cell(
                     view()
                         .flex_col()
                         .gap(px(1.0))
+                        .mt(px(18.0))
                         .child(each(
                             truncated,
                             |entry| entry.key.clone(),

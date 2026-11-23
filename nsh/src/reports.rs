@@ -69,21 +69,26 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 .flex_row()
                 .flex_wrap()
                 .items_center()
-                .gap(px(8.0))
-                .child(compact_select(
-                    month_choice,
-                    (1..=12)
-                        .map(|month| (month.to_string(), month_name(month).to_string()))
-                        .collect(),
-                    132.0,
-                ))
-                .child(compact_select(
-                    year_choice,
-                    (today.year() - 2..=today.year())
-                        .map(|year| (year.to_string(), year.to_string()))
-                        .collect(),
-                    96.0,
-                ))
+                .gap(px(12.0))
+                .mr(px(-8.0))
+                .child(
+                    view().mr(px(5.0)).child(compact_select(
+                        month_choice,
+                        (1..=12)
+                            .map(|month| (month.to_string(), month_name(month).to_string()))
+                            .collect(),
+                        132.0,
+                    )),
+                )
+                .child(
+                    view().mr(px(15.0)).child(compact_select(
+                        year_choice,
+                        (today.year() - 2..=today.year())
+                            .map(|year| (year.to_string(), year.to_string()))
+                            .collect(),
+                        96.0,
+                    )),
+                )
                 .child(export_menu(data, &currency))
                 .into_element(),
         ))
@@ -133,7 +138,7 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                 .w_full()
                 .flex_row()
                 .flex_wrap()
-                .gap(px(16.0))
+                .gap(px(13.0))
                 .child(summary_card(
                     "Total Spending",
                     asset!("icons/wallet.svg"),
@@ -320,6 +325,7 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
     let _currency = currency.to_string();
     view()
         .flex_grow(1.0)
+        .basis(px(0.0))
         .min_w(px(320.0))
         .rounded(px(8.0))
         .border(px(1.0))
@@ -549,6 +555,9 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
 }
 
 fn trend_label(period: &str) -> String {
+    if period.contains('/') {
+        return period.to_string();
+    }
     let mut parts = period.split('-');
     let year = parts.next().unwrap_or_default();
     let month = parts.next().unwrap_or_default().trim_start_matches('0');
@@ -561,6 +570,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
     let width = signal(0.0_f32);
     view()
         .flex_grow(1.0)
+        .basis(px(0.0))
         .min_w(px(320.0))
         .rounded(px(8.0))
         .border(px(1.0))
@@ -578,7 +588,8 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
         )
         .child(
             canvas(move || {
-                let trends = data.get().unwrap_or_default().report.recent_trends;
+                let mut trends = data.get().unwrap_or_default().report.recent_trends;
+                trends.reverse();
                 let w = width.get().max(1.0);
                 let h: f32 = 220.0;
                 let left = 60.0;
@@ -637,7 +648,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                     .line_to(x(trends.len() - 1), top + plot_h)
                     .close_path()
                     .fill()
-                    .stroke_color(rgb(0xB4BEFE))
+                    .stroke_color(rgb(0x6366F1))
                     .line_width(2.5)
                     .line_join(LineJoin::Round)
                     .begin_path()
@@ -650,7 +661,7 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                     let cx = x(index);
                     let cy = y(trend.total);
                     painter = painter
-                        .fill_color(rgb(0xB4BEFE))
+                        .fill_color(rgb(0x6366F1))
                         .begin_path()
                         .arc(cx, cy, 3.5, 0.0, TAU)
                         .fill()
