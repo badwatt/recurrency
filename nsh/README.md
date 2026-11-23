@@ -6,6 +6,15 @@ JavaScript runtime.
 This directory is an independent Cargo workspace; the existing `frontend/` stays
 in place until every screen reaches visual parity.
 
+## Parity target
+
+Parity is defined as matching layout, component sizes, spacing, colours, tokens
+and data. NSH paints native views while Dioxus paints DOM/CSS, so text hinting
+and antialiasing can still differ by 1–2 px; that rasterisation difference is
+accepted. Pixel-identical output would require embedding the Dioxus frontend in
+a WebView instead of using native views. The six main screens and the shared
+component library are compared against the same demo account in both apps.
+
 ## Run
 
 ```sh
