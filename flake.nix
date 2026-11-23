@@ -4,14 +4,16 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
             inherit system;
             overlays = [
+              (import rust-overlay)
               (final: prev: {
                 wasm-bindgen-cli = final.rustPlatform.buildRustPackage rec {
                   pname = "wasm-bindgen-cli";
@@ -25,6 +27,13 @@
               })
             ];
           };
+        rustAndroid = pkgs.rust-bin.stable.latest.default.override {
+          targets = [
+            "aarch64-linux-android"
+            "armv7-linux-androideabi"
+            "x86_64-linux-android"
+          ];
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -107,6 +116,37 @@
             echo "Rust: $(rustc --version)"
             echo "Bun: $(bun --version)"
           '';
+        };
+
+        devShells.nsh-android = pkgs.mkShell {
+          packages = with pkgs; [
+            rustAndroid
+            pkg-config
+            openssl
+            cacert
+            dbus
+            glib
+            gtk3
+            gtk4
+            webkitgtk_6_0
+            pango
+            cairo
+            gdk-pixbuf
+            gst_all_1.gstreamer
+            gst_all_1.gst-plugins-base
+            graphene
+            libsoup_3
+            libxml2
+            libxslt
+            jdk17
+          ];
+
+          RUST_BACKTRACE = "1";
+          shellHook = ''
+            export ANDROID_HOME="$HOME/.android-sdk"
+            export ANDROID_NDK_HOME="$HOME/.android-sdk/ndk/r27d"
+          '';
+          OPENSSL_NO_VENDOR = "1";
         };
 
         devShells.android = pkgs.mkShell {
