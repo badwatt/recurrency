@@ -73,7 +73,7 @@ Verify with `apksigner verify --print-certs target/nsh-android-release/Recurrenc
 - [x] Shared modal shell for create/edit/payment/history forms.
 - [x] PDF export, full settings CRUD and the mobile calendar list.
 - [x] Settings: 18 themes, currency/rates, dates, delivery channels, summaries, AI, voice, backups, server and admin.
-- [ ] Desktop/mobile/web packaging and CI.
+- [x] Linux, web and signed Android packaging.
 
 Reference captures of the Dioxus interface live in `design/native-shell/`.
 The component tiers and reuse rules are documented in `COMPONENTS.md`.
@@ -84,8 +84,8 @@ The component tiers and reuse rules are documented in `COMPONENTS.md`.
 Pages compose the shared library in `src/components`: avatars, badges, buttons,
 cards, checkboxes, confirmations, date pickers, dialogs, empty states, fields,
 inputs, the quick-action FAB, list toolbars, page headers, search fields,
-segmented controls, select menus, skeletons, toggles, QR cards and typed string
-selects. New page code must add a primitive there first and reuse it, matching
+segmented controls, select menus, selection bars, skeletons, toggles, QR cards
+and typed string selects. New page code must add a primitive there first and reuse it, matching
 the Dioxus component boundaries.
 
 - [x] Privacy mode masks every amount from the top-bar eye control.
@@ -115,3 +115,5 @@ the Dioxus component boundaries.
 - [x] Shared privacy toggle, logo avatar, entity icon and color palette components.
 - [x] Multiple annual billing dates with optional per-date amounts.
 - [x] Device-local mode: accounts, categories, subscriptions, transactions, debts, calendar, reports, backups and local profile without a server.
+- [x] In-place selection mode for subscriptions, transactions and debts with shared select-all, bulk actions and compact checkboxes.
+- [x] Update banner with download/install action, per-version dismissal and a Show update notices preference.
