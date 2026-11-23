@@ -1108,7 +1108,7 @@ fn tab_fill(
         .rounded(px(5.0))
         .bg(move || {
             if active_bg() {
-                theme().card
+                theme().background
             } else {
                 theme().muted
             }
