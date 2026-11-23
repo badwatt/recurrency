@@ -461,14 +461,20 @@ fn form(
                         .flex_row()
                         .gap(px(12.0))
                         .child(ui::row_item(ui::required_field("Amount", amount, "42.50")))
-                        .child(string_select(StringSelectProps::new(
-                            "Currency *",
-                            form_currency,
-                            crate::currencies::CURRENCIES
-                                .iter()
-                                .map(|(code, label)| ((*code).to_string(), (*label).to_string()))
-                                .collect(),
-                        ))),
+                        .child(
+                            view().flex_grow(1.6).basis(px(0.0)).min_w(px(0.0)).child(
+                                string_select(StringSelectProps::new(
+                                    "Currency *",
+                                    form_currency,
+                                    crate::currencies::CURRENCIES
+                                        .iter()
+                                        .map(|(code, label)| {
+                                            ((*code).to_string(), (*label).to_string())
+                                        })
+                                        .collect(),
+                                )),
+                            ),
+                        ),
                 )
                 .child(ui::date_field("Date *", date))
                 .child(ui::choice_picker(

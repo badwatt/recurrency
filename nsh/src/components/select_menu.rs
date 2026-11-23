@@ -62,7 +62,9 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
             .map_or_else(|| placeholder.clone(), |option| option.label)
     };
     view()
-        .flex_grow(1.0)
+        .w_full()
+        .relative()
+        .z_index(move || if open.get() { 100 } else { 0 })
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))
@@ -89,7 +91,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .bg(move || theme().card)
                 .on_press(move || open.set(!open.get()))
                 .child(
-                    text(selected_label())
+                    text(move || selected_label())
                         .number_of_lines(1)
                         .text_size(px(13.0))
                         .text_color(move || theme().foreground),
@@ -103,11 +105,15 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         .child(
             when(open, move || {
                 view()
-                    .w_full()
+                    .absolute()
+                    .top(px(54.0))
+                    .left(px(0.0))
+                    .right(px(0.0))
+                    .z_index(90)
                     .flex_col()
                     .gap(px(1.0))
-                    .p(px(3.0))
-                    .rounded(px(7.0))
+                    .p(px(4.0))
+                    .rounded(px(8.0))
                     .border(px(1.0))
                     .border_color(move || theme().border)
                     .bg(move || theme().popover)
@@ -157,6 +163,14 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn options_float_above_the_form_instead_of_pushing_it() {
+        let source = include_str!("select_menu.rs");
+        assert!(source.contains(".absolute()"));
+        assert!(source.contains("z_index"));
+        assert!(source.contains("text(move || selected_label())"));
+    }
 
     #[test]
     fn select_option_keeps_value_and_label() {

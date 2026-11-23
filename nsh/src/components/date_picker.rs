@@ -103,59 +103,38 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
         open.set(!open.get());
     });
     let open_field = open_calendar.clone();
-    let open_button = open_calendar;
     view()
         .w_full()
         .flex_col()
         .gap(px(6.0))
         .child(
-            view()
+            button()
+                .cursor_pointer()
                 .w_full()
+                .h(px(38.0))
+                .px(px(12.0))
                 .flex_row()
                 .items_center()
-                .gap(px(6.0))
+                .justify_between()
+                .gap(px(8.0))
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || theme().input)
+                .bg(move || theme().card)
+                .on_press(move || open_field())
                 .child(
-                    button()
-                        .cursor_pointer()
-                        .h(px(38.0))
-                        .basis(px(0.0))
-                        .flex_grow(1.0)
-                        .min_w(px(0.0))
-                        .px(px(10.0))
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().input)
-                        .bg(move || theme().card)
-                        .on_press(move || open_field())
-                        .child(
-                            text(move || {
-                                parse_date(&value.get()).map_or_else(
-                                    || "Select date".to_string(),
-                                    crate::format::format_date,
-                                )
-                            })
-                            .text_size(px(13.0))
-                            .text_color(move || theme().foreground),
-                        ),
+                    text(move || {
+                        parse_date(&value.get())
+                            .map_or_else(|| "Select date".to_string(), crate::format::format_date)
+                    })
+                    .text_size(px(13.0))
+                    .text_color(move || theme().foreground),
                 )
                 .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(34.0))
-                        .w(px(34.0))
-                        .flex_shrink_0()
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().input)
-                        .bg(move || theme().card)
-                        .on_press(move || open_button())
-                        .child(
-                            image(asset!("icons/calendar.svg"))
-                                .size(px(15.0))
-                                .tint_color(move || theme().muted_foreground),
-                        ),
+                    image(asset!("icons/calendar.svg"))
+                        .size(px(15.0))
+                        .pointer_events(PointerEvents::None)
+                        .tint_color(move || theme().muted_foreground),
                 ),
         )
         .child(

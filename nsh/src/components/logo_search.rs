@@ -44,6 +44,11 @@ pub fn logo_search(
             loading.set(false);
         });
     };
+    let remove = move || logo_url.set(String::new());
+    let use_url = move || {
+        let value = logo_url.get().trim().to_string();
+        logo_url.set(value);
+    };
     view()
         .w_full()
         .flex_col()
@@ -51,23 +56,70 @@ pub fn logo_search(
         .child(
             view()
                 .w_full()
+                .flex_col()
+                .gap(px(6.0))
+                .child(
+                    text("Logo")
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(8.0))
+                        .when(!logo_url.get().trim().is_empty(), move |row| {
+                            row.child(
+                                image(logo_url.get())
+                                    .size(px(40.0))
+                                    .rounded(px(8.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().border),
+                            )
+                        })
+                        .child(crate::components::button::button(
+                            crate::components::button::ButtonProps::new(
+                                if logo_url.get().trim().is_empty() {
+                                    "Add logo"
+                                } else {
+                                    "Change"
+                                },
+                            )
+                            .variant(crate::components::button::ButtonVariant::Outline)
+                            .on_press(find_logo),
+                        ))
+                        .when(!logo_url.get().trim().is_empty(), move |row| {
+                            row.child(crate::components::button::button(
+                                crate::components::button::ButtonProps::new("Remove")
+                                    .variant(crate::components::button::ButtonVariant::Outline)
+                                    .on_press(remove),
+                            ))
+                        }),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
                 .flex_row()
-                .items_end()
+                .items_center()
                 .gap(px(8.0))
-                .child(crate::ui::row_item(crate::ui::field(
-                    "Logo URL",
-                    logo_url,
-                    "https://example.com/logo.png",
-                )))
-                .child(crate::ui::action_button(
-                    if loading.get() {
-                        "Searching…"
-                    } else {
-                        "Find logo"
-                    },
-                    false,
-                    find_logo,
+                .child(view().flex_grow(1.0).basis(px(0.0)).min_w(px(0.0)).child(
+                    crate::components::input::text_input(logo_url, "Paste logo URL (https://…)"),
+                ))
+                .child(crate::components::button::button(
+                    crate::components::button::ButtonProps::new("Use URL")
+                        .variant(crate::components::button::ButtonVariant::Outline)
+                        .size(crate::components::button::ButtonSize::Sm)
+                        .on_press(use_url),
                 )),
+        )
+        .child(
+            text(move || error.get())
+                .text_size(px(11.0))
+                .text_color(move || theme().destructive),
         )
         .child(
             when(
@@ -99,11 +151,6 @@ pub fn logo_search(
             )
             .otherwise(|| view().h(px(0.0)).into_element()),
         )
-        .child(
-            text(move || error.get())
-                .text_size(px(11.0))
-                .text_color(move || theme().destructive),
-        )
 }
 
 #[cfg(test)]
@@ -113,7 +160,7 @@ mod tests {
         let source = include_str!("logo_search.rs");
         assert!(source.contains("search_logos"));
         assert!(source.contains("thumbnail"));
-        assert!(source.contains("Find logo"));
-        assert!(source.contains("row_item"));
+        assert!(source.contains("Add logo"));
+        assert!(source.contains("Use URL"));
     }
 }

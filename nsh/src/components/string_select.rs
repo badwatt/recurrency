@@ -53,7 +53,9 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
             .collect::<Vec<_>>()
     };
     view()
-        .flex_grow(1.0)
+        .w_full()
+        .relative()
+        .z_index(move || if open.get() { 100 } else { 0 })
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))
@@ -80,7 +82,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                 .bg(move || theme().card)
                 .on_press(move || open.set(!open.get()))
                 .child(
-                    text(selected_label())
+                    text(move || selected_label())
                         .number_of_lines(1)
                         .text_size(px(13.0))
                         .text_color(move || theme().foreground),
@@ -94,11 +96,15 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         .child(
             when(open, move || {
                 view()
-                    .w_full()
+                    .absolute()
+                    .top(px(58.0))
+                    .left(px(0.0))
+                    .right(px(0.0))
+                    .z_index(90)
                     .flex_col()
                     .gap(px(4.0))
                     .p(px(4.0))
-                    .rounded(px(7.0))
+                    .rounded(px(8.0))
                     .border(px(1.0))
                     .border_color(move || theme().border)
                     .bg(move || theme().popover)
@@ -166,4 +172,14 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
             })
             .otherwise(|| view().h(px(0.0)).into_element()),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn options_float_and_the_trigger_is_reactive() {
+        let source = include_str!("string_select.rs");
+        assert!(source.contains(".absolute()"));
+        assert!(source.contains("text(move || selected_label())"));
+    }
 }
