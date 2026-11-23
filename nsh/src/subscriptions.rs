@@ -820,11 +820,21 @@ fn recurrence_for(
     match unit {
         "year" => {
             recurrence.dates = if annual.is_empty() {
-                vec![AnnualDate {
-                    month: start.month() as u8,
-                    day: start.day() as u8,
-                    amount: None,
-                }]
+                if days.is_empty() {
+                    vec![AnnualDate {
+                        month: start.month() as u8,
+                        day: start.day() as u8,
+                        amount: None,
+                    }]
+                } else {
+                    days.iter()
+                        .map(|day| AnnualDate {
+                            month: start.month() as u8,
+                            day: *day,
+                            amount: None,
+                        })
+                        .collect()
+                }
             } else {
                 annual.to_vec()
             };
