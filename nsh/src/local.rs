@@ -77,6 +77,8 @@ fn seed() {
             name: "Uncategorized".to_string(),
             icon: Some("tag".to_string()),
             color: Some("#6b7280".to_string()),
+            is_system: true,
+            is_default: true,
         };
         let _ = save("accounts", &[account]);
         let _ = save("categories", &[category]);
@@ -120,6 +122,8 @@ pub fn categories() -> Vec<Category> {
             name: "Uncategorized".to_string(),
             icon: Some("tag".to_string()),
             color: Some("#6b7280".to_string()),
+            is_system: true,
+            is_default: true,
         };
         let _ = save("categories", &[category.clone()]);
         vec![category]
@@ -299,6 +303,8 @@ pub fn create_category(
         name: name.to_string(),
         icon: icon.map(str::to_string),
         color: color.map(str::to_string),
+        is_system: false,
+        is_default: false,
     };
     let mut items = categories();
     items.push(item.clone());

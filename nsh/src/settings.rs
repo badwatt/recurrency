@@ -486,25 +486,39 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .min_w(px(320.0))
                 .flex_col()
                 .mt(px(0.0))
-                .gap(px(24.0))
+                .gap(px(0.0))
                 .child(
-                    view()
-                        .flex_col()
-                        .gap(px(0.0))
-                        .child(
-                            text(move || section.get().title())
-                                .text_size(px(48.0))
-                                .line_height(px(48.0))
-                                .letter_spacing(px(-2.4))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(move || section.get().subtitle())
-                                .text_size(px(16.0))
-                                .line_height(px(24.0))
-                                .text_color(move || theme().muted_foreground),
-                        ),
+                    when(
+                        move || section.get() != Section::Money,
+                        move || {
+                            view()
+                                .flex_col()
+                                .gap(px(0.0))
+                                .child(
+                                    text(move || section.get().title())
+                                        .text_size(px(48.0))
+                                        .line_height(px(48.0))
+                                        .letter_spacing(px(-2.4))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text(move || section.get().subtitle())
+                                        .text_size(px(16.0))
+                                        .line_height(px(24.0))
+                                        .text_color(move || theme().muted_foreground),
+                                )
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0))),
+                )
+                .child(
+                    when(
+                        move || section.get() != Section::Money,
+                        || view().h(px(24.0)),
+                    )
+                    .otherwise(|| view().h(px(0.0))),
                 )
                 .child(
                     when(
@@ -570,7 +584,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .child(
                     when(
                         move || section.get() == Section::Money,
-                        move || money_card(data_server.get(), data_token.get()),
+                        move || money_card(data_server.get(), data_token.get(), modal),
                     )
                     .otherwise(|| view().h(px(0.0))),
                 )
@@ -1603,18 +1617,6 @@ fn about_card() -> impl IntoElement {
 }
 
 #[derive(Serialize)]
-struct UpdateNotificationPreferencesRequest {
-    preferences: Vec<UpdateNotificationPreference>,
-}
-
-#[derive(Serialize)]
-struct UpdateNotificationPreference {
-    channel: String,
-    enabled: bool,
-    reminder_days_before: i32,
-}
-
-#[derive(Serialize)]
 struct UpdateAiSettingsRequest {
     enabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1629,18 +1631,6 @@ struct UpdateAiSettingsRequest {
 }
 
 fn notifications_card(server: String, token: String) -> impl IntoElement {
-    let data = resource(|| Some(()), {
-        let server = server.clone();
-        let token = token.clone();
-        move |(), _| {
-            let server = server.clone();
-            let token = token.clone();
-            async move { crate::api::load_notification_preferences(server, token).await }
-        }
-    });
-    let error = signal(String::new());
-    let channel_currency = server.clone();
-    let channel_token = token.clone();
     let summary_data = resource(|| Some(()), {
         let server = server.clone();
         let token = token.clone();
@@ -1748,161 +1738,6 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
         .w_full()
         .flex_col()
         .gap(px(12.0))
-        .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(10.0))
-                .child(
-                    text("Notifications")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("Choose which channels the server may use for reminders and summaries.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(view().flex_col().gap(px(6.0)).child(each(
-                    move || data.get().unwrap_or_default().preferences,
-                    |preference| preference.channel.clone(),
-                    move |preference, _| {
-                        let preference = preference.get();
-                        let channel = preference.channel.clone();
-                        let toggle_channel = channel.clone();
-                        let enabled = preference.enabled;
-                        let days = preference.reminder_days_before;
-                        let server = channel_currency.clone();
-                        let token = channel_token.clone();
-                        let data_toggle = data;
-                        let toggle = move || {
-                            let server = server.clone();
-                            let token = token.clone();
-                            let request = UpdateNotificationPreferencesRequest {
-                                preferences: vec![UpdateNotificationPreference {
-                                    channel: toggle_channel.clone(),
-                                    enabled: !enabled,
-                                    reminder_days_before: days,
-                                }],
-                            };
-                            spawn(async move {
-                                let _ = crate::api::update_notification_preferences(
-                                    server, token, &request,
-                                )
-                                .await;
-                                data_toggle.refetch();
-                            });
-                        };
-                        let adjust_channel = channel.clone();
-                        let adjust_server = channel_currency.clone();
-                        let adjust_token = channel_token.clone();
-                        let adjust = move |delta: i32| {
-                            let next_days = (days + delta).max(0).min(30);
-                            let server = adjust_server.clone();
-                            let token = adjust_token.clone();
-                            let request = UpdateNotificationPreferencesRequest {
-                                preferences: vec![UpdateNotificationPreference {
-                                    channel: adjust_channel.clone(),
-                                    enabled,
-                                    reminder_days_before: next_days,
-                                }],
-                            };
-                            spawn(async move {
-                                let _ = crate::api::update_notification_preferences(
-                                    server, token, &request,
-                                )
-                                .await;
-                                data.refetch();
-                            });
-                        };
-                        let decrement = adjust.clone();
-                        let increment = adjust;
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .py(px(8.0))
-                            .border_b(px(1.0))
-                            .border_color(move || theme().border)
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .child(
-                                        text(channel_label(&channel))
-                                            .text_size(px(13.0))
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .child(
-                                        text(format!("{days} days before"))
-                                            .text_size(px(10.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    ),
-                            )
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .items_center()
-                                    .gap(px(6.0))
-                                    .child(
-                                        button()
-                                            .cursor_pointer()
-                                            .h(px(24.0))
-                                            .w(px(24.0))
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(5.0))
-                                            .border(px(1.0))
-                                            .border_color(move || theme().border)
-                                            .on_press(move || decrement(-1))
-                                            .child(
-                                                text("−")
-                                                    .text_size(px(13.0))
-                                                    .text_color(move || theme().foreground),
-                                            ),
-                                    )
-                                    .child(
-                                        text(move || format!("{days} days"))
-                                            .text_size(px(10.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    )
-                                    .child(
-                                        button()
-                                            .cursor_pointer()
-                                            .h(px(24.0))
-                                            .w(px(24.0))
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(5.0))
-                                            .border(px(1.0))
-                                            .border_color(move || theme().border)
-                                            .on_press(move || increment(1))
-                                            .child(
-                                                text("+")
-                                                    .text_size(px(13.0))
-                                                    .text_color(move || theme().foreground),
-                                            ),
-                                    )
-                                    .child(shared_toggle(
-                                        enabled,
-                                        channel_label(&channel),
-                                        move |_| toggle(),
-                                    )),
-                            )
-                    },
-                )))
-                .child(
-                    when(
-                        move || !error.get().is_empty(),
-                        move || {
-                            text(move || error.get())
-                                .text_size(px(12.0))
-                                .text_color(move || theme().destructive)
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0))),
-                ),
-        )
         .child(crate::delivery::delivery_card(
             server.clone(),
             token.clone(),
@@ -2038,16 +1873,6 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-}
-
-fn channel_label(channel: &str) -> String {
-    match channel {
-        "email" => "Email".to_string(),
-        "push" => "Push".to_string(),
-        "in_app" | "in-app" => "In-app".to_string(),
-        "system" => "System".to_string(),
-        other => other.to_string(),
-    }
 }
 
 fn ai_card(server: String, token: String) -> impl IntoElement {
@@ -2480,7 +2305,7 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
         )
 }
 
-fn money_card(server: String, token: String) -> impl IntoElement {
+fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoElement {
     let data = resource(|| Some(()), {
         let server = server.clone();
         let token = token.clone();
@@ -2490,24 +2315,21 @@ fn money_card(server: String, token: String) -> impl IntoElement {
             async move { crate::api::load_money_counts(server, token).await }
         }
     });
+    let accounts_tab = signal(true);
     let account_name = signal(String::new());
     let account_icon = signal("wallet".to_string());
     let account_color = signal(crate::components::color_picker::DEFAULT_COLOR.to_string());
     let account_edit = signal(None::<Uuid>);
-    let account_open = signal(false);
     let account_error = signal(String::new());
     let account_busy = signal(false);
-    let account_delete = signal(None::<Uuid>);
     let category_name = signal(String::new());
     let category_icon = signal("tag".to_string());
     let category_color = signal(crate::components::color_picker::DEFAULT_COLOR.to_string());
     let category_edit = signal(None::<Uuid>);
-    let category_open = signal(false);
     let category_error = signal(String::new());
     let category_busy = signal(false);
-    let category_delete = signal(None::<Uuid>);
 
-    let remove_account = {
+    let remove_account: std::rc::Rc<dyn Fn(Uuid)> = std::rc::Rc::new({
         let server = server.clone();
         let token = token.clone();
         move |id: Uuid| {
@@ -2515,13 +2337,16 @@ fn money_card(server: String, token: String) -> impl IntoElement {
             let token = token.clone();
             spawn(async move {
                 match crate::api::delete_account_by_id(server, token, id).await {
-                    Ok(()) => data.refetch(),
-                    Err(message) => account_error.set(message),
+                    Ok(()) => {
+                        crate::components::toast::success("Account deleted.");
+                        data.refetch();
+                    }
+                    Err(message) => crate::components::toast::error(message),
                 }
             });
         }
-    };
-    let remove_category = {
+    });
+    let remove_category: std::rc::Rc<dyn Fn(Uuid)> = std::rc::Rc::new({
         let server = server.clone();
         let token = token.clone();
         move |id: Uuid| {
@@ -2529,23 +2354,15 @@ fn money_card(server: String, token: String) -> impl IntoElement {
             let token = token.clone();
             spawn(async move {
                 match crate::api::delete_category_by_id(server, token, id).await {
-                    Ok(()) => data.refetch(),
-                    Err(message) => category_error.set(message),
+                    Ok(()) => {
+                        crate::components::toast::success("Category deleted.");
+                        data.refetch();
+                    }
+                    Err(message) => crate::components::toast::error(message),
                 }
             });
         }
-    };
-
-    let start_account = {
-        move || {
-            account_name.set(String::new());
-            account_icon.set("wallet".to_string());
-            account_color.set(crate::components::color_picker::DEFAULT_COLOR.to_string());
-            account_edit.set(None);
-            account_error.set(String::new());
-            account_open.set(true);
-        }
-    };
+    });
     let save_account = {
         let server = server.clone();
         let token = token.clone();
@@ -2585,25 +2402,18 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                 };
                 match result {
                     Ok(()) => {
-                        account_open.set(false);
                         account_error.set(String::new());
+                        account_busy.set(false);
+                        modal.close();
                         crate::components::toast::success("Account saved.");
                         data.refetch();
                     }
-                    Err(message) => account_error.set(message),
+                    Err(message) => {
+                        account_error.set(message);
+                        account_busy.set(false);
+                    }
                 }
-                account_busy.set(false);
             });
-        }
-    };
-    let start_category = {
-        move || {
-            category_name.set(String::new());
-            category_icon.set("tag".to_string());
-            category_color.set(crate::components::color_picker::DEFAULT_COLOR.to_string());
-            category_edit.set(None);
-            category_error.set(String::new());
-            category_open.set(true);
         }
     };
     let save_category = {
@@ -2645,358 +2455,644 @@ fn money_card(server: String, token: String) -> impl IntoElement {
                 };
                 match result {
                     Ok(()) => {
-                        category_open.set(false);
                         category_error.set(String::new());
+                        category_busy.set(false);
+                        modal.close();
                         crate::components::toast::success("Category saved.");
                         data.refetch();
                     }
-                    Err(message) => category_error.set(message),
+                    Err(message) => {
+                        category_error.set(message);
+                        category_busy.set(false);
+                    }
                 }
-                category_busy.set(false);
             });
         }
     };
 
+    let open_account = {
+        let save = save_account.clone();
+        move || {
+            account_name.set(String::new());
+            account_icon.set("wallet".to_string());
+            account_color.set(crate::components::color_picker::DEFAULT_COLOR.to_string());
+            account_edit.set(None);
+            account_error.set(String::new());
+            let save = save.clone();
+            modal.open(move || {
+                account_dialog(
+                    "Add Account",
+                    account_name,
+                    account_icon,
+                    account_color,
+                    account_error,
+                    account_busy,
+                    save.clone(),
+                    modal,
+                )
+            });
+        }
+    };
+    let open_category = {
+        let save = save_category.clone();
+        move || {
+            category_name.set(String::new());
+            category_icon.set("tag".to_string());
+            category_color.set(crate::components::color_picker::DEFAULT_COLOR.to_string());
+            category_edit.set(None);
+            category_error.set(String::new());
+            let save = save.clone();
+            modal.open(move || {
+                category_dialog(
+                    "Add Category",
+                    category_name,
+                    category_icon,
+                    category_color,
+                    category_error,
+                    category_busy,
+                    save.clone(),
+                    modal,
+                )
+            });
+        }
+    };
+    let open_edit_account: std::rc::Rc<dyn Fn(Uuid, String, String, String)> = std::rc::Rc::new({
+        let save = save_account.clone();
+        move |id: Uuid, name: String, icon: String, color: String| {
+            account_name.set(name);
+            account_icon.set(icon);
+            account_color.set(color);
+            account_edit.set(Some(id));
+            account_error.set(String::new());
+            let save = save.clone();
+            modal.open(move || {
+                account_dialog(
+                    "Edit Account",
+                    account_name,
+                    account_icon,
+                    account_color,
+                    account_error,
+                    account_busy,
+                    save.clone(),
+                    modal,
+                )
+            });
+        }
+    });
+    let open_edit_category: std::rc::Rc<dyn Fn(Uuid, String, String, String)> = std::rc::Rc::new({
+        let save = save_category.clone();
+        move |id: Uuid, name: String, icon: String, color: String| {
+            category_name.set(name);
+            category_icon.set(icon);
+            category_color.set(color);
+            category_edit.set(Some(id));
+            category_error.set(String::new());
+            let save = save.clone();
+            modal.open(move || {
+                category_dialog(
+                    "Edit Category",
+                    category_name,
+                    category_icon,
+                    category_color,
+                    category_error,
+                    category_busy,
+                    save.clone(),
+                    modal,
+                )
+            });
+        }
+    });
+
+    let build_accounts: std::rc::Rc<dyn Fn() -> AnyElement> = std::rc::Rc::new(move || {
+        let open_edit = open_edit_account.clone();
+        let remove = remove_account.clone();
+        let data_for_accounts = data.clone();
+        view()
+            .w_full()
+            .grid()
+            .grid_template_columns(SharedString::from("repeat(4, minmax(0, 1fr))"))
+            .gap(px(16.0))
+            .child(each(
+                move || data_for_accounts.get().unwrap_or_default().0,
+                |item| item.account.id,
+                move |item, _| {
+                    let item = item.get();
+                    let account = item.account;
+                    let id = account.id;
+                    let name = account.name.clone();
+                    let icon = account.icon.clone().unwrap_or_else(|| "wallet".to_string());
+                    let color = account.color.clone().unwrap_or_else(|| {
+                        crate::components::color_picker::DEFAULT_COLOR.to_string()
+                    });
+                    let is_default = account.is_default;
+                    let subscriptions = item.subscription_count;
+                    let transactions = item.transaction_count;
+                    let edit_name = name.clone();
+                    let edit_icon = icon.clone();
+                    let edit_color = color.clone();
+                    let open_edit = open_edit.clone();
+                    view()
+                    .w_full()
+                    .rounded(px(12.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border.opacity(0.6))
+                    .bg(move || theme().card)
+                    .p(px(16.0))
+                    .gap(px(12.0))
+                    .child(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(12.0))
+                            .child(crate::components::entity_icon::entity_icon(
+                                &icon,
+                                crate::components::color_picker::color_value(&color),
+                                40.0,
+                            ))
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .min_w(px(0.0))
+                                    .child(
+                                        text(name)
+                                            .text_size(px(14.0))
+                                            .line_height(px(20.0))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .when(is_default, |column| {
+                                        column.child(
+                                            text("Default")
+                                                .text_size(px(12.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        )
+                                    }),
+                            ),
+                    )
+                    .child(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .pt(px(8.0))
+                            .border_t(px(1.0))
+                            .border_color(move || theme().border.opacity(0.4))
+                            .child(
+                                text(format!(
+                                    "{subscriptions} subscriptions · {transactions} transactions"
+                                ))
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
+                            )
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(4.0))
+                                    .child(ui::mini_icon_button(
+                                        asset!("icons/pencil.svg"),
+                                        false,
+                                        move || {
+                                            open_edit(
+                                                id,
+                                                edit_name.clone(),
+                                                edit_icon.clone(),
+                                                edit_color.clone(),
+                                            );
+                                        },
+                                    ))
+                                    .when(!is_default, |actions| {
+                                        let remove = remove.clone();
+                                        actions.child(ui::mini_icon_button(
+                                            asset!("icons/trash.svg"),
+                                            true,
+                                            move || remove(id),
+                                        ))
+                                    }),
+                            ),
+                    )
+                    .into_element()
+                },
+            ))
+            .into_element()
+    });
+    let build_categories: std::rc::Rc<dyn Fn() -> AnyElement> = std::rc::Rc::new(move || {
+        let open_edit = open_edit_category.clone();
+        let remove = remove_category.clone();
+        let data_for_categories = data.clone();
+        view()
+            .w_full()
+            .grid()
+            .grid_template_columns(SharedString::from("repeat(4, minmax(0, 1fr))"))
+            .gap(px(16.0))
+            .child(each(
+                move || data_for_categories.get().unwrap_or_default().1,
+                |item| item.category.id,
+                move |item, _| {
+                    let item = item.get();
+                    let category = item.category;
+                    let id = category.id;
+                    let name = category.name.clone();
+                    let icon = category.icon.clone().unwrap_or_else(|| "tag".to_string());
+                    let color = category.color.clone().unwrap_or_else(|| {
+                        crate::components::color_picker::DEFAULT_COLOR.to_string()
+                    });
+                    let is_system = category.is_system;
+                    let is_default = category.is_default;
+                    let subscriptions = item.subscription_count;
+                    let transactions = item.transaction_count;
+                    let edit_name = name.clone();
+                    let edit_icon = icon.clone();
+                    let edit_color = color.clone();
+                    let open_edit = open_edit.clone();
+                    view()
+                    .w_full()
+                    .rounded(px(12.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border.opacity(0.6))
+                    .bg(move || theme().card)
+                    .p(px(16.0))
+                    .gap(px(12.0))
+                    .child(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(12.0))
+                            .child(crate::components::entity_icon::entity_icon(
+                                &icon,
+                                crate::components::color_picker::color_value(&color),
+                                40.0,
+                            ))
+                            .child(
+                                view()
+                                    .flex_col()
+                                    .min_w(px(0.0))
+                                    .child(
+                                        text(name)
+                                            .text_size(px(14.0))
+                                            .line_height(px(20.0))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .when(is_default, |column| {
+                                        column.child(
+                                            text("Default")
+                                                .text_size(px(12.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        )
+                                    })
+                                    .when(is_system, |column| {
+                                        column.child(
+                                            text("System")
+                                                .text_size(px(10.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        )
+                                    }),
+                            ),
+                    )
+                    .child(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .pt(px(8.0))
+                            .border_t(px(1.0))
+                            .border_color(move || theme().border.opacity(0.4))
+                            .child(
+                                text(format!(
+                                    "{subscriptions} subscriptions · {transactions} transactions"
+                                ))
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
+                            )
+                            .when(!is_system, |actions| {
+                                let remove = remove.clone();
+                                actions.child(
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(4.0))
+                                        .child(ui::mini_icon_button(
+                                            asset!("icons/pencil.svg"),
+                                            false,
+                                            move || {
+                                                open_edit(
+                                                    id,
+                                                    edit_name.clone(),
+                                                    edit_icon.clone(),
+                                                    edit_color.clone(),
+                                                );
+                                            },
+                                        ))
+                                        .child(ui::mini_icon_button(
+                                            asset!("icons/trash.svg"),
+                                            true,
+                                            move || remove(id),
+                                        )),
+                                )
+                            }),
+                    )
+                    .into_element()
+                },
+            ))
+            .into_element()
+    });
+
     view()
         .w_full()
         .flex_col()
-        .gap(px(12.0))
+        .gap(px(24.0))
         .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(14.0))
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .child(
-                            text("Accounts")
-                                .text_size(px(18.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(ui::action_button("Add account", false, start_account)),
-                )
+            view()
+                .w_full()
+                .flex_row()
+                .items_end()
+                .justify_between()
+                .gap(px(24.0))
                 .child(
                     view()
                         .flex_col()
+                        .child(
+                            text("Accounts & categories")
+                                .text_size(px(48.0))
+                                .line_height(px(48.0))
+                                .letter_spacing(px(-2.4))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Accounts and categories that organize your money")
+                                .text_size(px(16.0))
+                                .line_height(px(24.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(40.0))
+                        .px(px(16.0))
+                        .flex_row()
+                        .items_center()
+                        .justify_center()
                         .gap(px(6.0))
-                        .child(each(
-                            move || data.get().map_or_else(Vec::new, |(accounts, _)| accounts),
-                            |item| item.account.id,
-                            {
-                                move |item, _| {
-                                    let item: crate::models::AccountWithCounts = item.get();
-                                    let id = item.account.id;
-                                    let row_name = item.account.name.clone();
-                                    let edit_name = row_name.clone();
-                                    let dot_color = item.account.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string());
-                                    view()
-                                        .w_full()
-                                        .flex_row()
-                                        .items_center()
-                                        .justify_between()
-                                        .gap(px(8.0))
-                                        .py(px(7.0))
-                                        .border_b(px(1.0))
-                                        .border_color(move || theme().border)
-                                        .child(
-                                            view()
-                                                .flex_row()
-                                                .items_center()
-                                                .gap(px(7.0))
-                                                .child(crate::components::entity_icon::entity_icon(
-                                                    &item.account.icon.clone().unwrap_or_else(|| "wallet".to_string()),
-                                                    crate::components::color_picker::color_value(&dot_color),
-                                                    14.0,
-                                                ))
-                                                .child(
-                                                    text(row_name)
-                                                        .text_size(px(13.0))
-                                                        .text_color(move || theme().foreground),
-                                                )
-                                                .when(item.account.is_default, |row| {
-                                                    row.child(text("Default").text_size(px(9.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().primary))
-                                                }),
-                                        )
-                                        .child(
-                                            view()
-                                                .flex_row()
-                                                .items_center()
-                                                .gap(px(8.0))
-                                                .child(
-                                                    text(format!(
-                                                        "{} subscriptions · {} transactions",
-                                                        item.subscription_count, item.transaction_count
-                                                    ))
-                                                    .text_size(px(10.0))
-                                                    .text_color(move || theme().muted_foreground),
-                                                )
-                                                .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || {
-                                                    account_name.set(edit_name.clone());
-                                                    account_icon.set(item.account.icon.clone().unwrap_or_else(|| "wallet".to_string()));
-                                                    account_color.set(item.account.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string()));
-                                                    account_edit.set(Some(id));
-                                                    account_error.set(String::new());
-                                                    account_open.set(true);
-                                                }))
-                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || account_delete.set(Some(id)))),
-                                        )
+                        .rounded(px(6.0))
+                        .bg(move || theme().primary)
+                        .on_press(move || {
+                            if accounts_tab.get() {
+                                open_account();
+                            } else {
+                                open_category();
+                            }
+                        })
+                        .child(
+                            image(asset!("icons/plus.svg"))
+                                .size(px(15.0))
+                                .tint_color(move || theme().primary_foreground),
+                        )
+                        .child(
+                            text(move || {
+                                if accounts_tab.get() {
+                                    "Add Account"
+                                } else {
+                                    "Add Category"
                                 }
-                            },
-                        )),
-                )
-                .child(
-                    when(move || account_open.get(), {
-                    let save = save_account.clone();
-                    move || {
-                        let save = save.clone();
-                        ui::surface()
-                            .p(px(14.0))
-                            .gap(px(10.0))
-                            .border_color(move || theme().primary.opacity(0.4))
-                            .bg(move || theme().muted.opacity(0.4))
-                            .child(
-                                text(move || if account_edit.get().is_some() { "Edit account" } else { "New account" })
-                                    .text_size(px(13.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(ui::row_item(ui::field("Name", account_name, "Main account")))
-                            .child(ui::row_item(ui::field("Icon name", account_icon, "wallet")))
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .gap(px(6.0))
-                                    .child(ui::label("Color"))
-                                    .child(crate::components::color_picker::color_picker(account_color)),
-                            )
-                            .child(
-                                when(move || !account_error.get().is_empty(), move || {
-                                    text(move || account_error.get())
-                                        .text_size(px(11.0))
-                                        .text_color(move || theme().destructive)
-                                        .into_element()
-                                })
-                                .otherwise(|| view().h(px(0.0)).into_element()),
-                            )
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .justify_end()
-                                    .gap(px(8.0))
-                                    .child(ui::action_button("Cancel", false, move || account_open.set(false)))
-                                    .child(ui::action_button(
-                                        if account_busy.get() { "Saving..." } else { "Save" },
-                                        false,
-                                        save,
-                                    )),
-                            )
-                            .into_element()
-                    }
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    when(move || !account_error.get().is_empty() && !account_open.get(), move || {
-                        text(move || account_error.get())
-                            .text_size(px(11.0))
-                            .text_color(move || theme().destructive)
-                            .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    when(move || account_delete.get().is_some(), move || {
-                        let id = account_delete.get().unwrap_or_default();
-                        let remove = remove_account.clone();
-                        confirm_row(ConfirmProps::new(
-                            "Delete this account?",
-                            "Delete",
-                            move || {
-                                account_delete.set(None);
-                                remove(id);
-                            },
-                            move || account_delete.set(None),
-                        ))
-                        .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    text("Accounts are required. Every subscription and transaction belongs to one.")
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
+                            })
+                            .text_size(px(14.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(move || theme().primary_foreground),
+                        ),
                 ),
         )
         .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(14.0))
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .child(
-                            text("Categories")
-                                .text_size(px(18.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(ui::action_button("Add category", false, start_category)),
-                )
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(6.0))
-                        .child(each(
-                            move || data.get().map_or_else(Vec::new, |(_, categories)| categories),
-                            |item| item.category.id,
-                            {
-                                move |item, _| {
-                                    let item: crate::models::CategoryWithCounts = item.get();
-                                    let id = item.category.id;
-                                    let row_name = item.category.name.clone();
-                                    let edit_name = row_name.clone();
-                                    let dot_color = item.category.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string());
-                                    view()
-                                        .w_full()
-                                        .flex_row()
-                                        .items_center()
-                                        .justify_between()
-                                        .gap(px(8.0))
-                                        .py(px(7.0))
-                                        .border_b(px(1.0))
-                                        .border_color(move || theme().border)
-                                        .child(
-                                            view()
-                                                .flex_row()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .child(crate::components::entity_icon::entity_icon(
-                                                    &item.category.icon.clone().unwrap_or_else(|| "tag".to_string()),
-                                                    crate::components::color_picker::color_value(&dot_color),
-                                                    14.0,
-                                                ))
-                                                .child(
-                                                    text(row_name)
-                                                        .text_size(px(13.0))
-                                                        .text_color(move || theme().foreground),
-                                                ),
-                                        )
-                                        .child(
-                                            view()
-                                                .flex_row()
-                                                .items_center()
-                                                .gap(px(8.0))
-                                                .child(
-                                                    text(format!(
-                                                        "{} subscriptions · {} transactions",
-                                                        item.subscription_count, item.transaction_count
-                                                    ))
-                                                    .text_size(px(10.0))
-                                                    .text_color(move || theme().muted_foreground),
-                                                )
-                                                .child(ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || {
-                                                    category_name.set(edit_name.clone());
-                                                    category_icon.set(item.category.icon.clone().unwrap_or_else(|| "tag".to_string()));
-                                                    category_color.set(item.category.color.clone().unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string()));
-                                                    category_edit.set(Some(id));
-                                                    category_error.set(String::new());
-                                                    category_open.set(true);
-                                                }))
-                                                .child(ui::mini_icon_button(asset!("icons/trash.svg"), true, move || category_delete.set(Some(id)))),
-                                        )
-                                }
-                            },
-                        )),
-                )
-                .child(
-                    when(move || category_open.get(), {
-                    let save = save_category.clone();
-                    move || {
-                        let save = save.clone();
-                        ui::surface()
-                            .p(px(14.0))
-                            .gap(px(10.0))
-                            .border_color(move || theme().primary.opacity(0.4))
-                            .bg(move || theme().muted.opacity(0.4))
-                            .child(
-                                text(move || if category_edit.get().is_some() { "Edit category" } else { "New category" })
-                                    .text_size(px(13.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(ui::row_item(ui::field("Name", category_name, "Entertainment")))
-                            .child(ui::row_item(ui::field("Icon name", category_icon, "tag")))
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .gap(px(6.0))
-                                    .child(ui::label("Color"))
-                                    .child(crate::components::color_picker::color_picker(category_color)),
-                            )
-                            .child(
-                                when(move || !category_error.get().is_empty(), move || {
-                                    text(move || category_error.get())
-                                        .text_size(px(11.0))
-                                        .text_color(move || theme().destructive)
-                                        .into_element()
-                                })
-                                .otherwise(|| view().h(px(0.0)).into_element()),
-                            )
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .justify_end()
-                                    .gap(px(8.0))
-                                    .child(ui::action_button("Cancel", false, move || category_open.set(false)))
-                                    .child(ui::action_button(
-                                        if category_busy.get() { "Saving..." } else { "Save" },
-                                        false,
-                                        save,
-                                    )),
-                            )
-                            .into_element()
+            view()
+                .w_full()
+                .flex_row()
+                .gap(px(24.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border)
+                .child(settings_tab("Accounts", true, accounts_tab, true))
+                .child(settings_tab("Categories", false, accounts_tab, true)),
+        )
+        .child(
+            when(move || accounts_tab.get(), {
+                let build = build_accounts.clone();
+                move || build()
+            })
+            .otherwise({
+                let build = build_categories.clone();
+                move || build()
+            }),
+        )
+        .child(
+            text(move || {
+                if accounts_tab.get() {
+                    "Accounts are required. Every subscription and transaction belongs to one."
+                } else {
+                    "Categories are optional. Subscriptions and transactions can be uncategorized."
+                }
+            })
+            .text_size(px(11.0))
+            .text_color(move || theme().muted_foreground),
+        )
+}
+
+fn settings_tab(
+    label: &'static str,
+    id: bool,
+    selected: Signal<bool>,
+    _active: bool,
+) -> impl IntoElement {
+    let active = move || selected.get() == id;
+    button()
+        .cursor_pointer()
+        .h(px(36.0))
+        .px(px(0.0))
+        .items_center()
+        .justify_center()
+        .border_b(px(2.0))
+        .border_color(move || {
+            if active() {
+                theme().primary
+            } else {
+                theme().card.opacity(0.0)
+            }
+        })
+        .on_press(move || selected.set(id))
+        .child(
+            text(label)
+                .text_size(px(14.0))
+                .font_weight(if active() {
+                    FontWeight::MEDIUM
+                } else {
+                    FontWeight::NORMAL
+                })
+                .text_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
                     }
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    when(move || !category_error.get().is_empty() && !category_open.get(), move || {
-                        text(move || category_error.get())
-                            .text_size(px(11.0))
-                            .text_color(move || theme().destructive)
-                            .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    when(move || category_delete.get().is_some(), move || {
-                        let id = category_delete.get().unwrap_or_default();
-                        let remove = remove_category.clone();
-                        confirm_row(ConfirmProps::new(
-                            "Delete this category?",
-                            "Delete",
+                }),
+        )
+}
+
+fn account_dialog(
+    title: &'static str,
+    name: Signal<String>,
+    icon: Signal<String>,
+    color: Signal<String>,
+    error: Signal<String>,
+    busy: Signal<bool>,
+    save: impl Fn() + 'static,
+    modal: ui::ModalHost,
+) -> AnyElement {
+    let close = move || modal.close();
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(title, "", close)
+            .width(512.0)
+            .body(
+                view()
+                    .p(px(24.0))
+                    .gap(px(16.0))
+                    .child(ui::required_field("Name", name, "Main account"))
+                    .child(ui::field("Icon", icon, "wallet"))
+                    .child(
+                        view()
+                            .flex_col()
+                            .gap(px(6.0))
+                            .child(ui::label("Color"))
+                            .child(crate::components::color_picker::color_picker(color)),
+                    )
+                    .child(
+                        when(
+                            move || !error.get().is_empty(),
                             move || {
-                                category_delete.set(None);
-                                remove(id);
+                                text(move || error.get())
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().destructive)
+                                    .into_element()
                             },
-                            move || category_delete.set(None),
-                        ))
-                        .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    text("Categories are optional. Subscriptions and transactions can be uncategorized.")
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .into_element(),
+            )
+            .footer(
+                view()
+                    .w_full()
+                    .flex_row()
+                    .justify_end()
+                    .gap(px(8.0))
+                    .child(dialog_button("Cancel", false, close))
+                    .child(dialog_button(
+                        if busy.get() { "Saving..." } else { "Save" },
+                        true,
+                        save,
+                    ))
+                    .into_element(),
+            ),
+    )
+    .into_element()
+}
+
+fn category_dialog(
+    title: &'static str,
+    name: Signal<String>,
+    icon: Signal<String>,
+    color: Signal<String>,
+    error: Signal<String>,
+    busy: Signal<bool>,
+    save: impl Fn() + 'static,
+    modal: ui::ModalHost,
+) -> AnyElement {
+    let close = move || modal.close();
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(title, "", close)
+            .width(512.0)
+            .body(
+                view()
+                    .p(px(24.0))
+                    .gap(px(16.0))
+                    .child(ui::required_field("Name", name, "Entertainment"))
+                    .child(ui::field("Icon", icon, "tag"))
+                    .child(
+                        view()
+                            .flex_col()
+                            .gap(px(6.0))
+                            .child(ui::label("Color"))
+                            .child(crate::components::color_picker::color_picker(color)),
+                    )
+                    .child(
+                        when(
+                            move || !error.get().is_empty(),
+                            move || {
+                                text(move || error.get())
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().destructive)
+                                    .into_element()
+                            },
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .into_element(),
+            )
+            .footer(
+                view()
+                    .w_full()
+                    .flex_row()
+                    .justify_end()
+                    .gap(px(8.0))
+                    .child(dialog_button("Cancel", false, close))
+                    .child(dialog_button(
+                        if busy.get() { "Saving..." } else { "Save" },
+                        true,
+                        save,
+                    ))
+                    .into_element(),
+            ),
+    )
+    .into_element()
+}
+
+fn dialog_button(
+    label: impl Into<String>,
+    primary: bool,
+    action: impl Fn() + 'static,
+) -> impl IntoElement {
+    let label = label.into();
+    button()
+        .cursor_pointer()
+        .h(px(40.0))
+        .px(px(16.0))
+        .items_center()
+        .justify_center()
+        .rounded(px(6.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || {
+            if primary {
+                theme().primary
+            } else {
+                theme().card
+            }
+        })
+        .on_press(action)
+        .child(
+            text(label)
+                .text_size(px(14.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || {
+                    if primary {
+                        theme().primary_foreground
+                    } else {
+                        theme().foreground
+                    }
+                }),
         )
 }
 

@@ -10,7 +10,7 @@ use crate::dashboard_data::{
 use crate::debts::{CreateDebtRequest, RecordDebtPaymentRequest};
 use crate::models::{
     Account, AccountWithCounts, AdminUser, AiSettings, CalendarItem, Category, CategoryWithCounts,
-    Debt, DebtPayment, NotificationPreferences, Rates, ReportResponse, Subscription, Transaction,
+    Debt, DebtPayment, Rates, ReportResponse, Subscription, Transaction,
 };
 use crate::settings::{SettingsResponse, UpdateSettingsRequest};
 use crate::subscriptions::CreateSubscriptionRequest;
@@ -353,25 +353,6 @@ pub struct CalendarData {
 pub struct ReportsData {
     pub report: ReportResponse,
     pub categories: Vec<Category>,
-}
-
-pub async fn load_notification_preferences(
-    server: String,
-    token: String,
-) -> Result<NotificationPreferences, String> {
-    Client::new(server, token)
-        .get("/api/settings/notifications")
-        .await
-}
-
-pub async fn update_notification_preferences<B: Serialize>(
-    server: String,
-    token: String,
-    request: &B,
-) -> Result<NotificationPreferences, String> {
-    Client::new(server, token)
-        .put("/api/settings/notifications", request)
-        .await
 }
 
 pub async fn load_ai_settings(server: String, token: String) -> Result<AiSettings, String> {

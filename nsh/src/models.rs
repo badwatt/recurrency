@@ -21,6 +21,10 @@ pub struct Category {
     pub name: String,
     pub icon: Option<String>,
     pub color: Option<String>,
+    #[serde(default)]
+    pub is_system: bool,
+    #[serde(default)]
+    pub is_default: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -188,19 +192,6 @@ pub struct ReportResponse {
     pub monthly_summary: MonthlySummary,
     pub category_breakdown: Vec<CategoryBreakdown>,
     pub recent_trends: Vec<SpendingTrend>,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq)]
-pub struct NotificationPreference {
-    pub channel: String,
-    pub enabled: bool,
-    pub reminder_days_before: i32,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
-pub struct NotificationPreferences {
-    #[serde(default)]
-    pub preferences: Vec<NotificationPreference>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
