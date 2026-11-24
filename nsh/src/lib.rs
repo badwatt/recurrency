@@ -212,8 +212,10 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 px(16.0)
                             } else if route.get() == Route::Dashboard {
                                 px(31.0)
-                            } else {
+                            } else if route.get() == Route::Settings {
                                 px(24.0)
+                            } else {
+                                px(29.0)
                             }
                         })
                         .child(

@@ -21,6 +21,7 @@ pub fn page_header(
                 .flex_col()
                 .child(
                     text(title)
+                        .h(px(48.0))
                         .text_size(px(48.0))
                         .line_height(px(48.0))
                         .letter_spacing(px(-2.4))
