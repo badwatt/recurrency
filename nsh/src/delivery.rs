@@ -276,26 +276,148 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
     };
     let current = move || provider(&selected.get()).map_or("Delivery", |provider| provider.label);
     let fields = move || provider(&selected.get()).map_or(&[][..], |provider| provider.fields);
-    crate::ui::surface()
+    let header = view()
         .w_full()
         .p(px(24.0))
-        .gap(px(12.0))
+        .pb(px(16.0))
+        .border_b(px(1.0))
+        .border_color(move || theme().border)
         .child(
             view()
+                .flex_col()
+                .child(
+                    text("Delivery channels")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("One summary, several destinations. Secrets stay encrypted.")
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .into_element();
+    let rail = view()
+        .w(px(190.0))
+        .flex_shrink_0()
+        .flex_col()
+        .gap(px(4.0))
+        .pr(px(16.0))
+        .border_r(px(1.0))
+        .border_color(move || theme().border.opacity(0.4))
+        .children(PROVIDERS.iter().map(|spec| {
+            let id = spec.id;
+            let label = spec.label;
+            let color = provider_color(id);
+            let is_enabled = data
+                .get()
+                .unwrap_or_default()
+                .iter()
+                .any(|channel| channel.provider == id && channel.enabled);
+            let active = move || selected.get() == id;
+            raw_button()
+                .w_full()
+                .h(px(36.0))
+                .px(px(10.0))
+                .flex_row()
+                .items_center()
+                .gap(px(10.0))
+                .rounded(px(8.0))
+                .bg(move || {
+                    if active() {
+                        theme().accent
+                    } else {
+                        theme().card.opacity(0.0)
+                    }
+                })
+                .on_press(move || {
+                    let channels = data.get().unwrap_or_default();
+                    load_from(id, &channels, values, enabled);
+                    selected.set(id.to_string());
+                })
+                .child(
+                    view()
+                        .h(px(28.0))
+                        .w(px(28.0))
+                        .flex_shrink_0()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(6.0))
+                        .bg(rgba(color))
+                        .child(
+                            text(label.chars().next().unwrap_or('?').to_string())
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().primary_foreground),
+                        ),
+                )
+                .child(
+                    text(label)
+                        .flex_grow(1.0)
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || {
+                            if active() {
+                                theme().foreground
+                            } else {
+                                theme().muted_foreground
+                            }
+                        }),
+                )
+                .when(is_enabled, |row| {
+                    row.child(
+                        view()
+                            .h(px(6.0))
+                            .w(px(6.0))
+                            .rounded(px(99.0))
+                            .bg(move || crate::theme::success()),
+                    )
+                })
+                .into_element()
+        }));
+    let form = view()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .min_w(px(0.0))
+        .flex_col()
+        .gap(px(14.0))
+        .child(
+            view()
+                .w_full()
                 .flex_row()
                 .items_center()
                 .justify_between()
+                .gap(px(12.0))
+                .pb(px(12.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border.opacity(0.4))
                 .child(
                     view()
                         .flex_col()
                         .child(
-                            text("Delivery channels")
-                                .text_size(px(18.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(8.0))
+                                .child(
+                                    text(move || current().to_string())
+                                        .text_size(px(14.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(badge(BadgeProps::new("Configured").tone(
+                                    if data.get().unwrap_or_default().iter().any(|channel| {
+                                        channel.provider == selected.get() && channel.configured
+                                    }) {
+                                        BadgeTone::Success
+                                    } else {
+                                        BadgeTone::Neutral
+                                    },
+                                ))),
                         )
                         .child(
-                            text("One summary, several destinations. Secrets stay encrypted.")
+                            text("Configure this delivery channel")
                                 .text_size(px(12.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
@@ -306,155 +428,67 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                     move |value| enabled.set(value),
                 )),
         )
+        .child(view().flex_row().flex_wrap().gap(px(10.0)).child(each(
+            move || fields().to_vec(),
+            |entry| entry.key,
+            move |entry, _| {
+                let field_spec = entry.get();
+                let key = field_spec.key;
+                let current_value = values
+                    .get()
+                    .into_iter()
+                    .find(|(name, _)| name == key)
+                    .map_or_else(String::new, |(_, value)| value);
+                let control =
+                    text_input_value(current_value, field_spec.placeholder, move |next| {
+                        let mut next_values = values.get();
+                        if let Some(slot) = next_values.iter_mut().find(|(name, _)| name == key) {
+                            slot.1 = next;
+                        }
+                        values.set(next_values);
+                    });
+                view().min_w(px(240.0)).flex_grow(1.0).child(field(
+                    FieldProps::new(field_spec.label),
+                    control.into_element(),
+                ))
+            },
+        )))
         .child(
             view()
                 .flex_row()
                 .flex_wrap()
-                .gap(px(6.0))
-                .children(PROVIDERS.iter().map(|spec| {
-                    let id = spec.id;
-                    let label = spec.label;
-                    let color = provider_color(id);
-                    let is_enabled = data
-                        .get()
-                        .unwrap_or_default()
-                        .iter()
-                        .any(|channel| channel.provider == id && channel.enabled);
-                    view()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(5.0))
-                        .child(
-                            raw_button()
-                                .h(px(26.0))
-                                .px(px(8.0))
-                                .flex_row()
-                                .items_center()
-                                .gap(px(6.0))
-                                .rounded(px(5.0))
-                                .border(px(1.0))
-                                .border_color(move || {
-                                    if selected.get() == id {
-                                        theme().primary
-                                    } else {
-                                        theme().border
-                                    }
-                                })
-                                .bg(move || {
-                                    if selected.get() == id {
-                                        theme().accent
-                                    } else {
-                                        theme().card
-                                    }
-                                })
-                                .on_press(move || {
-                                    let channels = data.get().unwrap_or_default();
-                                    load_from(id, &channels, values, enabled);
-                                    selected.set(id.to_string());
-                                })
-                                .child(
-                                    view()
-                                        .h(px(7.0))
-                                        .w(px(7.0))
-                                        .rounded(px(2.0))
-                                        .bg(rgba(color)),
-                                )
-                                .child(
-                                    text(label)
-                                        .text_size(px(11.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().foreground),
-                                ),
-                        )
-                        .when(is_enabled, |row| {
-                            row.child(
-                                view()
-                                    .h(px(5.0))
-                                    .w(px(5.0))
-                                    .rounded(px(99.0))
-                                    .bg(move || theme().primary),
-                            )
-                        })
-                })),
+                .items_center()
+                .gap(px(8.0))
+                .child(button(
+                    ButtonProps::new(format!("Save {}", current())).on_press(save),
+                ))
+                .child(button(
+                    ButtonProps::new("Send test")
+                        .variant(ButtonVariant::Outline)
+                        .on_press(send_test),
+                )),
         )
         .child(
-            view()
-                .flex_col()
-                .gap(px(10.0))
-                .p(px(16.0))
-                .rounded(px(9.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().card)
-                .child(
-                    view()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(8.0))
-                        .child(
-                            text(move || current().to_string())
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(badge(BadgeProps::new("Configured").tone(
-                            if data.get().unwrap_or_default().iter().any(|channel| {
-                                channel.provider == selected.get() && channel.configured
-                            }) {
-                                BadgeTone::Success
-                            } else {
-                                BadgeTone::Neutral
-                            },
-                        ))),
-                )
-                .child(view().flex_row().flex_wrap().gap(px(10.0)).child(each(
-                    move || fields().to_vec(),
-                    |entry| entry.key,
-                    move |entry, _| {
-                        let field_spec = entry.get();
-                        let key = field_spec.key;
-                        let current_value = values
-                            .get()
-                            .into_iter()
-                            .find(|(name, _)| name == key)
-                            .map_or_else(String::new, |(_, value)| value);
-                        let control =
-                            text_input_value(current_value, field_spec.placeholder, move |next| {
-                                let mut next_values = values.get();
-                                if let Some(slot) =
-                                    next_values.iter_mut().find(|(name, _)| name == key)
-                                {
-                                    slot.1 = next;
-                                }
-                                values.set(next_values);
-                            });
-                        view().min_w(px(180.0)).flex_grow(1.0).child(field(
-                            FieldProps::new(field_spec.label),
-                            control.into_element(),
-                        ))
-                    },
-                )))
-                .child(
-                    view()
-                        .flex_row()
-                        .flex_wrap()
-                        .items_center()
-                        .gap(px(8.0))
-                        .child(button(
-                            ButtonProps::new(format!("Save {}", current())).on_press(save),
-                        ))
-                        .child(button(
-                            ButtonProps::new("Send test")
-                                .variant(ButtonVariant::Outline)
-                                .on_press(send_test),
-                        )),
-                )
-                .child(
-                    text(move || status.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
+            text(move || status.get())
+                .text_size(px(11.0))
+                .text_color(move || theme().muted_foreground),
         )
+        .into_element();
+    crate::ui::surface()
+        .w_full()
+        .p(px(0.0))
+        .child(header)
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .flex_row()
+                .items_start()
+                .gap(px(24.0))
+                .child(rail)
+                .child(form),
+        )
+        .into_element()
 }
 
 #[cfg(test)]
