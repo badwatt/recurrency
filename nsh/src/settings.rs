@@ -2592,6 +2592,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
         .child(
             ui::surface()
                 .p(px(0.0))
+                .min_h(px(528.0))
                 .child(
                     view()
                         .w_full()
@@ -2736,11 +2737,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                         .text_color(move || theme().muted_foreground),
                                 ),
                         )
-                        .child(
-                            text(move || models_error.get())
-                                .text_size(px(11.0))
-                                .text_color(move || theme().destructive),
-                        )
+                        .child(view().w_full().flex_grow(1.0))
                         .child(
                             view()
                                 .w_full()
@@ -2748,16 +2745,30 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                 .items_center()
                                 .justify_between()
                                 .gap(px(8.0))
+                                .pt(px(16.0))
+                                .border_t(px(1.0))
+                                .border_color(move || theme().border.opacity(0.5))
                                 .child(
-                                    text(move || {
-                                        if configured() {
-                                            "Key configured. It is not shown after saving."
-                                        } else {
-                                            "Key not configured."
-                                        }
-                                    })
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().muted_foreground),
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(6.0))
+                                        .child(
+                                            image(asset!("icons/sparkles.svg"))
+                                                .size(px(13.0))
+                                                .tint_color(move || theme().muted_foreground),
+                                        )
+                                        .child(
+                                            text(move || {
+                                                if configured() {
+                                                    "Key stored".to_string()
+                                                } else {
+                                                    "Key not configured".to_string()
+                                                }
+                                            })
+                                            .text_size(px(12.0))
+                                            .text_color(move || theme().muted_foreground),
+                                        ),
                                 )
                                 .child(
                                     button()
@@ -2782,11 +2793,6 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                                 .text_color(move || theme().primary_foreground),
                                         ),
                                 ),
-                        )
-                        .child(
-                            text(move || status.get())
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
                         ),
                 ),
         )
