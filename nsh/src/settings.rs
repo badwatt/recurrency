@@ -10,9 +10,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::{self, AuthSession, AuthUser, Session};
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
-use crate::components::button::{
-    ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button as shared_button,
-};
 use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::segmented::{SegmentOption, segmented};

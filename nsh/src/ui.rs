@@ -753,28 +753,6 @@ pub fn modal_overlay(modal: ModalHost) -> AnyElement {
     crate::components::dialog::dialog_overlay(modal)
 }
 
-pub fn row_icon_button(
-    icon: ImageAsset,
-    destructive: bool,
-    on_press: impl Fn() + 'static,
-) -> impl IntoElement {
-    button()
-        .cursor_pointer()
-        .items_center()
-        .justify_center()
-        .h(px(36.0))
-        .w(px(36.0))
-        .rounded(px(6.0))
-        .on_press(on_press)
-        .child(image(icon).size(px(16.0)).tint_color(move || {
-            if destructive {
-                theme().destructive
-            } else {
-                theme().muted_foreground
-            }
-        }))
-}
-
 pub fn row_icon_button_labeled(
     icon: ImageAsset,
     label: &'static str,

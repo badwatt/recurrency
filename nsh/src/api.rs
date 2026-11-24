@@ -758,8 +758,6 @@ pub struct DeliveryChannel {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
-    pub configured: bool,
-    #[serde(default)]
     pub config: serde_json::Value,
 }
 
