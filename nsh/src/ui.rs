@@ -322,6 +322,8 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                         .items_center()
                         .gap(px(8.0))
                         .mr(px(18.0))
+                        .cursor_pointer()
+                        .on_press(move || route.set(Route::Dashboard))
                         .child(
                             image(crate::LOGO)
                                 .size(px(24.0))
@@ -394,7 +396,7 @@ fn ai_action(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .h(px(35.0))
         .w(px(35.0))
         .rounded(px(6.0))
-        .accessibility_label("AI assistant")
+        .accessibility_label("Configure AI assistant")
         .on_press(move || open_ai(route, auth.clone()))
         .child(
             image(asset!("icons/sparkles.svg"))
@@ -765,6 +767,54 @@ pub fn row_icon_button(
         .rounded(px(6.0))
         .on_press(on_press)
         .child(image(icon).size(px(16.0)).tint_color(move || {
+            if destructive {
+                theme().destructive
+            } else {
+                theme().muted_foreground
+            }
+        }))
+}
+
+pub fn row_icon_button_labeled(
+    icon: ImageAsset,
+    label: &'static str,
+    destructive: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .cursor_pointer()
+        .items_center()
+        .justify_center()
+        .accessibility_label(label)
+        .h(px(36.0))
+        .w(px(36.0))
+        .rounded(px(6.0))
+        .on_press(on_press)
+        .child(image(icon).size(px(16.0)).tint_color(move || {
+            if destructive {
+                theme().destructive
+            } else {
+                theme().muted_foreground
+            }
+        }))
+}
+
+pub fn mini_icon_button_labeled(
+    icon: ImageAsset,
+    label: &'static str,
+    destructive: bool,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    button()
+        .cursor_pointer()
+        .items_center()
+        .justify_center()
+        .accessibility_label(label)
+        .h(px(32.0))
+        .w(px(32.0))
+        .rounded(px(8.0))
+        .on_press(on_press)
+        .child(image(icon).size(px(14.0)).tint_color(move || {
             if destructive {
                 theme().destructive
             } else {

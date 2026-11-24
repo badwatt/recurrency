@@ -729,8 +729,8 @@ fn toolbar(
                 ],
             ))
             .child(crate::components::button::icon_button(
-                asset!("icons/check.svg"),
-                "Select transactions",
+                asset!("icons/square.svg"),
+                "Enter selection mode",
                 false,
                 open_bulk,
             ))
@@ -1448,14 +1448,21 @@ fn transaction_actions(
         view()
             .flex_row()
             .gap(px(4.0))
-            .child(ui::row_icon_button(
+            .child(ui::row_icon_button_labeled(
                 asset!("icons/notes.svg"),
+                "Notes",
                 false,
                 open_notes,
             ))
-            .child(ui::row_icon_button(asset!("icons/pencil.svg"), false, edit))
-            .child(ui::row_icon_button(
+            .child(ui::row_icon_button_labeled(
+                asset!("icons/pencil.svg"),
+                "Edit transaction",
+                false,
+                edit,
+            ))
+            .child(ui::row_icon_button_labeled(
                 asset!("icons/trash.svg"),
+                "Delete transaction",
                 true,
                 move || {
                     confirm.set(Some(id));

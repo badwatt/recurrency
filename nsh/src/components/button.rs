@@ -25,6 +25,7 @@ pub enum ButtonSize {
     Lg,
     Icon,
     IconSm,
+    Toolbar,
     Unstyled,
 }
 
@@ -56,6 +57,7 @@ impl ButtonSize {
             Self::Lg => 48.0,
             Self::Icon => 40.0,
             Self::IconSm => 30.0,
+            Self::Toolbar => 36.0,
             Self::Unstyled => 0.0,
         }
     }
@@ -64,6 +66,7 @@ impl ButtonSize {
         match self {
             Self::Icon => 40.0,
             Self::IconSm => 30.0,
+            Self::Toolbar => 36.0,
             _ => 0.0,
         }
     }
@@ -74,7 +77,7 @@ impl ButtonSize {
             Self::Sm => 12.0,
             Self::Md => 16.0,
             Self::Lg => 18.0,
-            Self::Icon | Self::IconSm | Self::Unstyled => 0.0,
+            Self::Icon | Self::IconSm | Self::Toolbar | Self::Unstyled => 0.0,
         }
     }
 
@@ -242,7 +245,7 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
     let label_size = size.text();
     let icon_size = match size {
         ButtonSize::Icon => 18.0,
-        ButtonSize::IconSm => 16.0,
+        ButtonSize::IconSm | ButtonSize::Toolbar => 16.0,
         _ => label_size + 3.0,
     };
     let selected_border = selected_when.clone();

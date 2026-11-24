@@ -1327,8 +1327,8 @@ fn toolbar(
             ],
         ))
         .child(crate::components::button::icon_button(
-            asset!("icons/check.svg"),
-            "Select debts",
+            asset!("icons/square.svg"),
+            "Enter selection mode",
             false,
             open_bulk,
         ))

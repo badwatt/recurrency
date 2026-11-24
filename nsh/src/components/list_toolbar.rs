@@ -24,16 +24,16 @@ pub fn list_toolbar(
                 .flex_row()
                 .flex_wrap()
                 .items_center()
-                .gap(px(10.0))
+                .gap(px(12.0))
                 .child(actions)
                 .child(
                     view()
                         .flex_row()
                         .items_center()
                         .flex_shrink_0()
-                        .w(px(68.0))
-                        .gap(px(2.0))
-                        .p(px(2.0))
+                        .w(px(72.0))
+                        .gap(px(0.0))
+                        .p(px(0.0))
                         .rounded(px(8.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
@@ -41,14 +41,14 @@ pub fn list_toolbar(
                         .child(icon_button_when_sized(
                             asset!("icons/grid.svg"),
                             "Grid view",
-                            ButtonSize::IconSm,
+                            ButtonSize::Toolbar,
                             move || !list_view.get(),
                             move || list_view.set(false),
                         ))
                         .child(icon_button_when_sized(
                             asset!("icons/list.svg"),
                             "List view",
-                            ButtonSize::IconSm,
+                            ButtonSize::Toolbar,
                             move || list_view.get(),
                             move || list_view.set(true),
                         )),

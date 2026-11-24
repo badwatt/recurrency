@@ -11,7 +11,7 @@ pub fn privacy_toggle(active: Signal<bool>, on_press: impl Fn() + 'static) -> im
         .h(px(36.0))
         .w(px(36.0))
         .rounded(px(6.0))
-        .accessibility_label("Toggle privacy mode")
+        .accessibility_label("Hide amounts")
         .on_press(on_press)
         .child(
             when(
@@ -38,6 +38,6 @@ mod tests {
     fn the_privacy_toggle_uses_the_shared_eye_icon() {
         let source = include_str!("privacy_toggle.rs");
         assert!(source.contains("icons/eye.svg"));
-        assert!(source.contains("Toggle privacy mode"));
+        assert!(source.contains("Hide amounts"));
     }
 }

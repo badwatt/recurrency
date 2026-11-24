@@ -1349,10 +1349,11 @@ fn toolbar(
                         SortOption::new("updated_at", "Last modified"),
                     ],
                 ))
-                .child(crate::components::button::icon_button(
-                    asset!("icons/check.svg"),
-                    "Select subscriptions",
-                    false,
+                .child(crate::components::button::icon_button_when_sized(
+                    asset!("icons/square.svg"),
+                    "Enter selection mode",
+                    crate::components::button::ButtonSize::Icon,
+                    || false,
                     open_bulk,
                 ))
                 .into_element(),
@@ -2510,32 +2511,41 @@ fn card_actions(
             .flex_row()
             .gap(px(2.0))
             .pt(px(4.0))
-            .child(ui::mini_icon_button(
+            .child(ui::mini_icon_button_labeled(
                 asset!("icons/copy.svg"),
+                "Duplicate subscription",
                 false,
                 duplicate,
             ))
-            .child(ui::mini_icon_button(
+            .child(ui::mini_icon_button_labeled(
                 asset!("icons/notes.svg"),
+                "Subscription notes",
                 false,
                 open_notes,
             ))
-            .child(ui::mini_icon_button(
+            .child(ui::mini_icon_button_labeled(
                 if active {
                     asset!("icons/pause.svg")
                 } else {
                     asset!("icons/play.svg")
                 },
+                if active {
+                    "Pause subscription"
+                } else {
+                    "Activate subscription"
+                },
                 false,
                 toggle,
             ))
-            .child(ui::mini_icon_button(
+            .child(ui::mini_icon_button_labeled(
                 asset!("icons/pencil.svg"),
+                "Edit subscription",
                 false,
                 edit,
             ))
-            .child(ui::mini_icon_button(
+            .child(ui::mini_icon_button_labeled(
                 asset!("icons/trash.svg"),
+                "Delete subscription",
                 true,
                 move || confirm.set(Some(id)),
             ))
