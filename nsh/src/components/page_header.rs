@@ -53,9 +53,11 @@ pub fn page_header(
                 .overflow_hidden()
                 .w(move || {
                     if collapse_actions && compact.get() {
-                        px(0.0)
+                        nsh_core::geometry::Length::from(px(0.0))
+                    } else if compact.get() {
+                        nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0))
                     } else {
-                        px(action_width)
+                        nsh_core::geometry::Length::from(px(action_width))
                     }
                 })
                 .opacity(move || {

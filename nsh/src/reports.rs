@@ -74,8 +74,10 @@ pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
             TITLE,
             SUBTITLE,
             view()
+                .w_full()
                 .flex_row()
                 .flex_wrap()
+                .justify_end()
                 .items_center()
                 .child(
                     view().w(px(144.0)).mr(px(8.0)).child(compact_select(
