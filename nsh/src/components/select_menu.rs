@@ -29,7 +29,7 @@ pub struct SelectMenuProps {
     pub selected: Signal<Option<Uuid>>,
     pub options: Rc<dyn Fn() -> Vec<SelectOption>>,
     pub height: f32,
-    pub create: Option<Rc<dyn Fn(String)>>,
+    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn()>)>>,
     pub search_placeholder: String,
 }
 
@@ -56,7 +56,7 @@ impl SelectMenuProps {
         self
     }
 
-    pub fn create(mut self, create: impl Fn(String) + 'static) -> Self {
+    pub fn create(mut self, create: impl Fn(String, Rc<dyn Fn()>) + 'static) -> Self {
         self.create = Some(Rc::new(create));
         self
     }
@@ -100,6 +100,10 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         should_offer_create(&exists_options(), &query.get(), create_for_check.is_some())
     });
     let create_for_panel = create.clone();
+    let done = Rc::new(move || {
+        query.set(String::new());
+        open.set(false);
+    });
     let selected_label = move || {
         let current = selected.get();
         options()
@@ -214,10 +218,12 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         .child(
             when(open, move || {
                 let create_for_panel = create_for_panel.clone();
+                let done_for_panel = done.clone();
                 let filtered = filtered.clone();
                 let show_create = show_create.clone();
                 let create_for_search = create_for_panel.clone();
                 let show_create_for_search = show_create.clone();
+                let done_for_search = done.clone();
                 view()
                     .absolute()
                     .top(px(height + 14.0))
@@ -239,10 +245,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                 .on_submit(move |_: &str| {
                                     if show_create_for_search() {
                                         if let Some(create) = create_for_search.clone() {
-                                            create(query.get());
+                                            create(query.get(), done_for_search.clone());
                                         }
-                                        query.set(String::new());
-                                        open.set(false);
                                     }
                                 })
                                 .placeholder(search_placeholder.clone())
@@ -308,6 +312,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                             move || show_create(),
                             move || {
                                 let create = create_for_panel.clone();
+                                let done = done_for_panel.clone();
                                 view()
                                     .w_full()
                                     .child(
@@ -322,11 +327,9 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                             .rounded(px(5.0))
                                             .bg(move || theme().popover)
                                             .on_press(move || {
-                                                if let Some(create) = create.clone() {
-                                                    create(query.get());
+                                                if let Some(call) = create.clone() {
+                                                    call(query.get(), done.clone());
                                                 }
-                                                query.set(String::new());
-                                                open.set(false);
                                             })
                                             .child(
                                                 image(asset!("icons/plus.svg"))

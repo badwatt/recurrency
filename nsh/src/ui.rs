@@ -632,7 +632,7 @@ pub fn editable_choice_picker(
             .map(|(id, name)| crate::components::select_menu::SelectOption::new(id, name))
             .collect()
     };
-    let create = move |name: String| {
+    let create = move |name: String, done: std::rc::Rc<dyn Fn()>| {
         let name = name.trim().to_string();
         if name.is_empty() {
             return;
@@ -662,8 +662,12 @@ pub fn editable_choice_picker(
                 Ok(id) => {
                     selected.set(Some(id));
                     on_created();
+                    done();
                 }
-                Err(message) => crate::components::toast::error(message),
+                Err(message) => {
+                    crate::components::toast::error(message);
+                    done();
+                }
             }
         });
     };
