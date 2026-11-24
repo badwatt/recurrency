@@ -13,24 +13,31 @@ pub fn text_area_with_height(
     placeholder: &'static str,
     height: f32,
 ) -> impl IntoElement {
-    input()
-        .value(value)
-        .on_change(move |next: &str| value.set(next.to_string()))
-        .placeholder(placeholder)
-        .auto_fill(AutoFill::Off)
-        .multiline(true)
-        .h(px(height))
-        .min_h(px(height))
+    view()
+        .w_full()
+        .h(px(height + 20.0))
         .flex_shrink_0()
         .mt(px(-13.0))
-        .w_full()
         .p(px(10.0))
         .rounded(px(7.0))
         .border(px(1.0))
         .border_color(move || theme().input)
         .bg(move || theme().background)
-        .text_size(px(13.0))
-        .text_color(move || theme().foreground)
+        .child(
+            input()
+                .value(value)
+                .on_change(move |next: &str| value.set(next.to_string()))
+                .placeholder(placeholder)
+                .auto_fill(AutoFill::Off)
+                .multiline(true)
+                .h(px(height))
+                .w_full()
+                .p(px(0.0))
+                .border(px(0.0))
+                .bg(move || theme().background.opacity(0.0))
+                .text_size(px(13.0))
+                .text_color(move || theme().foreground),
+        )
 }
 
 #[cfg(test)]
