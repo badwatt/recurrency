@@ -275,6 +275,23 @@ pub fn create_transaction(req: &CreateTransactionRequest) -> Result<Transaction,
     Ok(item)
 }
 
+pub fn set_default_account(id: Uuid) -> Result<Account, String> {
+    let mut items = accounts();
+    let mut found = None;
+    for account in &mut items {
+        account.is_default = account.id == id;
+        if account.id == id {
+            found = Some(account.clone());
+        }
+    }
+    if let Some(account) = found {
+        save("accounts", &items)?;
+        Ok(account)
+    } else {
+        Err("Account not found.".to_string())
+    }
+}
+
 pub fn create_account(
     name: &str,
     icon: Option<&str>,

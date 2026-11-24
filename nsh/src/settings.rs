@@ -1023,6 +1023,36 @@ fn appearance_card(server: String, token: String) -> impl IntoElement {
     )
 }
 
+fn settings_section(
+    title: &'static str,
+    description: &'static str,
+    content: AnyElement,
+) -> AnyElement {
+    ui::surface()
+        .p(px(0.0))
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .pb(px(16.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    text(title)
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(description)
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(view().w_full().p(px(24.0)).child(content))
+        .into_element()
+}
+
 fn general_card(
     currency: Signal<String>,
     save: impl Fn() + 'static,
@@ -1067,22 +1097,13 @@ fn general_card(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(
-            ui::surface()
+        .child(settings_section(
+            "Defaults",
+            "Applied to new entries and reports",
+            view()
                 .w_full()
-                .p(px(24.0))
+                .flex_col()
                 .gap(px(14.0))
-                .child(
-                    text("Defaults")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("Applied to new entries and reports")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                )
                 .child(string_select(StringSelectProps::new(
                     "Default Currency",
                     currency,
@@ -1126,8 +1147,9 @@ fn general_card(
                             .text_size(px(12.0))
                             .text_color(move || theme().muted_foreground),
                         ),
-                ),
-        )
+                )
+                .into_element(),
+        ))
         .when(!crate::local::enabled(), |view| {
             view.child(exchange_rates_card(rates_server, rates_token))
         })
@@ -2703,76 +2725,71 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
         }
     };
     let clear_key = std::rc::Rc::new(clear_key);
-    ui::surface()
-        .p(px(24.0))
-        .gap(px(12.0))
-        .child(
-            text("Exchange rates")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("Choose where automatic currency conversion gets its daily rates.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(string_select(StringSelectProps::new(
-            "Provider",
-            provider,
-            vec![
-                (
-                    "frankfurter".to_string(),
-                    "Frankfurter — free, no API key".to_string(),
-                ),
-                (
-                    "fixer".to_string(),
-                    "Fixer — requires an API key".to_string(),
-                ),
-            ],
-        )))
-        .child(
-            when(
-                move || provider.get() == "fixer",
-                move || {
-                    ui::field(
-                        if configured.get() {
-                            "Fixer API key (saved — enter a new key to replace it)"
-                        } else {
-                            "Fixer API key"
-                        },
-                        key,
-                        "Paste your Fixer API key",
-                    )
-                    .into_element()
-                },
+    settings_section(
+        "Exchange rates",
+        "Choose where automatic currency conversion gets its daily rates.",
+        view()
+            .w_full()
+            .flex_col()
+            .gap(px(12.0))
+            .child(string_select(StringSelectProps::new(
+                "Provider",
+                provider,
+                vec![
+                    (
+                        "frankfurter".to_string(),
+                        "Frankfurter — free, no API key".to_string(),
+                    ),
+                    (
+                        "fixer".to_string(),
+                        "Fixer — requires an API key".to_string(),
+                    ),
+                ],
+            )))
+            .child(
+                when(
+                    move || provider.get() == "fixer",
+                    move || {
+                        ui::field(
+                            if configured.get() {
+                                "Fixer API key (saved — enter a new key to replace it)"
+                            } else {
+                                "Fixer API key"
+                            },
+                            key,
+                            "Paste your Fixer API key",
+                        )
+                        .into_element()
+                    },
+                )
+                .otherwise(|| view().h(px(0.0)).into_element()),
             )
-            .otherwise(|| view().h(px(0.0)).into_element()),
-        )
-        .child(
-            view()
-                .flex_row()
-                .flex_wrap()
-                .items_center()
-                .gap(px(8.0))
-                .child(ui::action_button("Save rates", false, save))
-                .child(
-                    when(
-                        move || configured.get(),
-                        move || {
-                            let clear_key = clear_key.clone();
-                            ui::action_button("Remove key", true, move || clear_key())
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                ),
-        )
-        .child(
-            text(move || status.get())
-                .text_size(px(11.0))
-                .text_color(move || theme().muted_foreground),
-        )
+            .child(
+                view()
+                    .flex_row()
+                    .flex_wrap()
+                    .items_center()
+                    .gap(px(8.0))
+                    .child(ui::action_button("Save rates", false, save))
+                    .child(
+                        when(
+                            move || configured.get(),
+                            move || {
+                                let clear_key = clear_key.clone();
+                                ui::action_button("Remove key", true, move || clear_key())
+                                    .into_element()
+                            },
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    ),
+            )
+            .child(
+                text(move || status.get())
+                    .text_size(px(11.0))
+                    .text_color(move || theme().muted_foreground),
+            )
+            .into_element(),
+    )
 }
 
 fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoElement {
@@ -2811,6 +2828,20 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                         crate::components::toast::success("Account deleted.");
                         data.refetch();
                     }
+                    Err(message) => crate::components::toast::error(message),
+                }
+            });
+        }
+    });
+    let mark_default: std::rc::Rc<dyn Fn(Uuid)> = std::rc::Rc::new({
+        let server = server.clone();
+        let token = token.clone();
+        move |id: Uuid| {
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                match crate::api::set_default_account(server, token, id).await {
+                    Ok(_) => data.refetch(),
                     Err(message) => crate::components::toast::error(message),
                 }
             });
@@ -3036,6 +3067,7 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
     let build_accounts: std::rc::Rc<dyn Fn() -> AnyElement> = std::rc::Rc::new(move || {
         let open_edit = open_edit_account.clone();
         let remove = remove_account.clone();
+        let mark_default = mark_default.clone();
         let data_for_accounts = data.clone();
         view()
             .w_full()
@@ -3121,6 +3153,14 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                                     .flex_row()
                                     .items_center()
                                     .gap(px(4.0))
+                                    .when(!is_default, |actions| {
+                                        let mark_default = mark_default.clone();
+                                        actions.child(ui::mini_icon_button(
+                                            asset!("icons/star.svg"),
+                                            false,
+                                            move || mark_default(id),
+                                        ))
+                                    })
                                     .child(ui::mini_icon_button(
                                         asset!("icons/pencil.svg"),
                                         false,
@@ -3413,6 +3453,119 @@ fn settings_tab(
         )
 }
 
+const ENTITY_ICONS: &[&str] = &[
+    "wallet",
+    "tag",
+    "receipt",
+    "card",
+    "subscriptions",
+    "transactions",
+    "debts",
+    "calendar",
+    "reports",
+    "settings",
+    "database",
+    "bell",
+    "clock",
+    "trending",
+    "notes",
+];
+
+fn entity_icon_field(icon: Signal<String>, color: Signal<String>) -> AnyElement {
+    let open = signal(false);
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    text("Icon")
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                )
+                .child(ui::action_button(
+                    if open.get() {
+                        "Hide icons"
+                    } else {
+                        "Choose icon"
+                    },
+                    false,
+                    move || open.set(!open.get()),
+                )),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(10.0))
+                .child(crate::components::entity_icon::entity_icon(
+                    &icon.get(),
+                    crate::components::color_picker::color_value(&color.get()),
+                    32.0,
+                ))
+                .child(
+                    text(move || icon.get())
+                        .text_size(px(12.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            when(
+                move || open.get(),
+                move || {
+                    view()
+                        .w_full()
+                        .grid()
+                        .grid_template_columns(SharedString::from("repeat(8, minmax(0, 1fr))"))
+                        .gap(px(4.0))
+                        .p(px(6.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().background)
+                        .children(ENTITY_ICONS.iter().map(|name| {
+                            let value = (*name).to_string();
+                            let active_value = value.clone();
+                            let active = move || icon.get() == active_value;
+                            button()
+                                .cursor_pointer()
+                                .h(px(30.0))
+                                .w_full()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(5.0))
+                                .border(px(1.0))
+                                .border_color(move || {
+                                    if active() {
+                                        theme().primary
+                                    } else {
+                                        theme().border
+                                    }
+                                })
+                                .on_press(move || icon.set(value.clone()))
+                                .child(crate::components::entity_icon::entity_icon(
+                                    name,
+                                    crate::components::color_picker::color_value(&color.get()),
+                                    16.0,
+                                ))
+                                .into_element()
+                        }))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+        .into_element()
+}
+
 fn account_dialog(
     title: &'static str,
     name: Signal<String>,
@@ -3432,7 +3585,7 @@ fn account_dialog(
                     .p(px(24.0))
                     .gap(px(16.0))
                     .child(ui::required_field("Name", name, "Main account"))
-                    .child(ui::field("Icon", icon, "wallet"))
+                    .child(entity_icon_field(icon, color))
                     .child(
                         view()
                             .flex_col()
@@ -3491,7 +3644,7 @@ fn category_dialog(
                     .p(px(24.0))
                     .gap(px(16.0))
                     .child(ui::required_field("Name", name, "Entertainment"))
-                    .child(ui::field("Icon", icon, "tag"))
+                    .child(entity_icon_field(icon, color))
                     .child(
                         view()
                             .flex_col()

@@ -400,6 +400,19 @@ pub async fn create_account(
         .await
 }
 
+pub async fn set_default_account(
+    server: String,
+    token: String,
+    id: uuid::Uuid,
+) -> Result<Account, String> {
+    if crate::local::enabled() {
+        return crate::local::set_default_account(id);
+    }
+    Client::new(server, token)
+        .put("/api/accounts/default", &serde_json::json!({ "id": id }))
+        .await
+}
+
 pub async fn update_account(
     server: String,
     token: String,
