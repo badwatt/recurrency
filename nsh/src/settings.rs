@@ -995,34 +995,6 @@ fn account_card(
         )
 }
 
-fn appearance_card(server: String, token: String) -> impl IntoElement {
-    let selected = signal(crate::theme::saved());
-    view().w_full().flex_col().gap(px(12.0)).child(
-        ui::surface()
-            .p(px(24.0))
-            .gap(px(14.0))
-            .child(
-                view()
-                    .flex_col()
-                    .gap(px(3.0))
-                    .child(
-                        text("Color themes")
-                            .text_size(px(18.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(move || theme().foreground),
-                    )
-                    .child(
-                        text("Choose a palette. It applies immediately and syncs across devices when connected.")
-                            .text_size(px(12.0))
-                            .text_color(move || theme().muted_foreground),
-                    ),
-            )
-            .child(crate::components::theme_picker::theme_picker(
-                selected, server, token,
-            )),
-    )
-}
-
 fn settings_section(
     title: &'static str,
     description: &'static str,
@@ -1051,6 +1023,15 @@ fn settings_section(
         )
         .child(view().w_full().p(px(24.0)).child(content))
         .into_element()
+}
+
+fn appearance_card(server: String, token: String) -> impl IntoElement {
+    let selected = signal(crate::theme::saved());
+    settings_section(
+        "Color themes",
+        "Choose a palette. It applies immediately and syncs across devices when connected.",
+        crate::components::theme_picker::theme_picker(selected, server, token).into_element(),
+    )
 }
 
 fn general_card(
