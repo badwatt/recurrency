@@ -633,8 +633,10 @@ fn form(
         .width(512.0)
         .body(
             view()
-                .p(px(24.0))
+                .pl(px(22.0))
+                .pr(px(34.0))
                 .pt(px(2.0))
+                .pb(px(24.0))
                 .gap(px(10.0))
                 .child(ui::required_field("Name", name, "Netflix, Spotify, etc."))
                 .child(
@@ -663,14 +665,14 @@ fn form(
                 .child(
                     view()
                         .w_full()
-                        .mt(px(-13.0))
-                        .min_h(px(319.0))
+                        .mt(px(-8.0))
+                        .min_h(px(315.0))
                         .rounded(px(10.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().muted.opacity(0.15))
                         .p(px(14.0))
-                        .gap(px(4.0))
+                        .gap(px(0.0))
                         .child(
                             text("Billing schedule *")
                                 .text_size(px(14.0))
@@ -681,7 +683,7 @@ fn form(
                         .child(
                             view()
                                 .flex_col()
-                                .gap(px(2.0))
+                                .gap(px(0.0))
                                 .child(
                                     text(move || {
                                         let interval_value = interval.get();
@@ -741,6 +743,7 @@ fn form(
                                 .flex_row()
                                 .items_center()
                                 .gap(px(8.0))
+                                .mt(px(1.0))
                                 .child(
                                     text("Every")
                                         .text_size(px(14.0))
@@ -842,6 +845,7 @@ fn form(
                                     .child(
                                         text("Days 29-31 use 'last day' for short months. Each selected day is a separate charge.")
                                             .text_size(px(10.0))
+                                            .mt(px(9.0))
                                             .text_color(move || theme().muted_foreground),
                                     )
                                     .into_element()
@@ -851,6 +855,7 @@ fn form(
                 .child(
                     view()
                         .w_full()
+                        .mt(px(4.0))
                         .flex_row()
                         .gap(px(12.0))
                         .child(
@@ -1102,6 +1107,7 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
         .grid()
         .grid_template_columns(SharedString::from("repeat(11, minmax(0, 1fr))"))
         .gap(px(4.0))
+        .mt(px(-4.0))
         .children((1u8..=31).map(|day| {
             let active = move || days.get().contains(&day);
             button()
@@ -1109,7 +1115,7 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                 .cursor_pointer()
                 .items_center()
                 .justify_center()
-                .h(px(28.0))
+                .h(px(32.0))
                 .w_full()
                 .rounded(px(6.0))
                 .border(px(1.0))

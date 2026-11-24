@@ -606,7 +606,8 @@ pub fn choice_picker(
             "Select...",
             selected,
             options,
-        ),
+        )
+        .height(36.0),
     )
 }
 
@@ -632,14 +633,6 @@ pub use crate::components::dialog::DialogHost as ModalHost;
 
 pub fn modal_overlay(modal: ModalHost) -> AnyElement {
     crate::components::dialog::dialog_overlay(modal)
-}
-
-pub fn icon_button(
-    icon: ImageAsset,
-    active: bool,
-    on_press: impl Fn() + 'static,
-) -> impl IntoElement {
-    crate::components::button::icon_button(icon, "Action", active, on_press)
 }
 
 pub fn row_icon_button(

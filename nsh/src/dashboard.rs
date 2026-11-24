@@ -481,6 +481,7 @@ fn upcoming_card(
         .child(
             view()
                 .p(px(24.0))
+                .pt(px(22.0))
                 .pb(px(20.0))
                 .flex_row()
                 .items_center()
@@ -493,14 +494,15 @@ fn upcoming_card(
                             text("UPCOMING PAYMENTS")
                                 .text_size(px(14.0))
                                 .line_height(px(20.0))
-                                .letter_spacing(px(2.24))
+                                .letter_spacing(px(2.93))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().muted_foreground),
                         )
                         .child(
                             text("Subscriptions and one-time payments.")
                                 .text_size(px(12.0))
-                                .line_height(px(20.0))
+                                .line_height(px(16.0))
+                                .letter_spacing(px(-0.1))
                                 .text_color(move || theme().muted_foreground),
                         ),
                 )
@@ -511,7 +513,7 @@ fn upcoming_card(
                         .justify_center()
                         .h(px(28.0))
                         .px(px(8.0))
-                        .mt(px(-3.0))
+                        .mt(px(-10.0))
                         .rounded(px(6.0))
                         .on_press(move || route.set(Route::Calendar))
                         .child(
@@ -532,7 +534,7 @@ fn upcoming_card(
             )
         })
         .when(total() > 0, |card| {
-            card.child(view().px(px(24.0)).pb(px(24.0)).child(each(
+            card.child(view().px(px(16.0)).pb(px(24.0)).child(each(
                 move || {
                     let mut upcoming = data.get().unwrap_or_default().upcoming;
                     upcoming.truncate(5);
@@ -542,7 +544,7 @@ fn upcoming_card(
                 move |item, _| {
                     let (index, payment) = item.get();
                     view()
-                        .when(index == 1, |row| row.mt(px(4.0)))
+                        .when(index >= 2, |row| row.mt(px(4.0)))
                         .child(upcoming_row(
                             payment,
                             data,
@@ -586,6 +588,7 @@ fn upcoming_row(
         .items_center()
         .justify_between()
         .py(px(10.0))
+        .px(px(8.0))
         .gap(px(12.0))
         .rounded(px(8.0))
         .bg(move || {
@@ -618,12 +621,7 @@ fn upcoming_row(
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || theme().muted)
-                        .child(
-                            image(asset!("icons/card.svg"))
-                                .size(px(16.0))
-                                .tint_color(move || theme().muted_foreground),
-                        ),
+                        .bg(move || theme().muted.opacity(0.125)),
                 )
                 .child(
                     view()
@@ -641,7 +639,7 @@ fn upcoming_row(
                                 .flex_row()
                                 .items_center()
                                 .gap(px(6.0))
-                                .h(px(20.0))
+                                .h(px(16.0))
                                 .child(
                                     text(format!("{account} · {date}"))
                                         .text_size(px(12.0))

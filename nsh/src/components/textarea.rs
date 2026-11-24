@@ -5,13 +5,23 @@ use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
 
 pub fn text_area(value: Signal<String>, placeholder: &'static str) -> impl IntoElement {
+    text_area_with_height(value, placeholder, 80.0)
+}
+
+pub fn text_area_with_height(
+    value: Signal<String>,
+    placeholder: &'static str,
+    height: f32,
+) -> impl IntoElement {
     input()
         .value(value)
         .on_change(move |next: &str| value.set(next.to_string()))
         .placeholder(placeholder)
         .auto_fill(AutoFill::Off)
         .multiline(true)
-        .h(px(80.0))
+        .h(px(height))
+        .min_h(px(height))
+        .flex_shrink_0()
         .w_full()
         .p(px(10.0))
         .rounded(px(7.0))

@@ -10,7 +10,6 @@ pub fn avatar_badge(
     email: &str,
     avatar: Option<String>,
 ) -> impl IntoElement {
-    let words: Vec<&str> = name.split_whitespace().collect();
     let source = if name.trim().is_empty() {
         email.split('@').next().unwrap_or("?")
     } else {

@@ -50,7 +50,7 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
         .items_center()
         .justify_center()
         .p(px(24.0))
-        .pr(px(30.0))
+        .pr(px(28.0))
         .bg(rgba(0x00000080))
         .child(modal.render())
         .into_element()
@@ -129,8 +129,10 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         .child(
             view()
                 .w_full()
-                .p(px(24.0))
-                .pb(px(16.0))
+                .pl(px(22.0))
+                .pr(px(32.0))
+                .pt(px(24.0))
+                .pb(px(22.0))
                 .border_b(px(1.0))
                 .border_color(move || nsh_base::theme().border)
                 .gap(px(4.0))
@@ -166,13 +168,14 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                 ),
         )
         .child(
-            scroll().max_h(px(607.0)).child(
+            scroll().max_h(px(593.0)).child(
                 view()
                     .w_full()
+                    .flex_shrink_0()
                     .when(!subtitle.is_empty(), |panel| {
                         let subtitle = subtitle.clone();
                         panel.child(
-                            view().px(px(24.0)).pt(px(28.0)).child(
+                            view().px(px(22.0)).pt(px(28.0)).child(
                                 text(subtitle)
                                     .text_size(px(14.0))
                                     .line_height(px(20.0))
@@ -186,8 +189,10 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         .child(
             view()
                 .w_full()
-                .p(px(24.0))
-                .pt(px(0.0))
+                .px(px(24.0))
+                .pr(px(26.0))
+                .pt(px(24.0))
+                .pb(px(24.0))
                 .border_t(px(1.0))
                 .border_color(move || nsh_base::theme().border)
                 .child(footer),

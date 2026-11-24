@@ -437,11 +437,7 @@ fn form(
     } else {
         "Add Transaction"
     };
-    let subtitle = if editing.get().is_some() {
-        "Update the amount, date or account."
-    } else {
-        "Record a one-time expense."
-    };
+    let subtitle = "";
     let modal_for_close = modal;
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(title, subtitle, move || {
@@ -452,15 +448,18 @@ fn form(
         .width(512.0)
         .body(
             view()
-                .p(px(24.0))
+                .pl(px(22.0))
+                .pr(px(34.0))
+                .pt(px(24.0))
+                .pb(px(24.0))
                 .gap(px(16.0))
-                .child(ui::required_field("Name", name, "Groceries"))
+                .child(ui::required_field("Name", name, ""))
                 .child(
                     view()
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::row_item(ui::required_field("Amount", amount, "42.50")))
+                        .child(ui::row_item(ui::required_field("Amount", amount, "")))
                         .child(
                             view().flex_grow(1.6).basis(px(0.0)).min_w(px(0.0)).child(
                                 string_select(StringSelectProps::new(
@@ -476,7 +475,39 @@ fn form(
                             ),
                         ),
                 )
-                .child(ui::date_field("Date *", date))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_end()
+                        .gap(px(8.0))
+                        .child(
+                            view()
+                                .flex_grow(1.0)
+                                .min_w(px(0.0))
+                                .child(ui::date_field("Date *", date)),
+                        )
+                        .child(
+                            button()
+                                .cursor_pointer()
+                                .items_center()
+                                .justify_center()
+                                .h(px(32.0))
+                                .w(px(55.0))
+                                .mb(px(4.0))
+                                .rounded(px(6.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .bg(move || theme().card)
+                                .on_press(move || date.set(String::new()))
+                                .child(
+                                    text("Clear")
+                                        .text_size(px(12.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                ),
+                        ),
+                )
                 .child(ui::choice_picker(
                     "Account *",
                     move || {
@@ -503,7 +534,8 @@ fn form(
                 ))
                 .child(crate::components::field::field(
                     crate::components::field::FieldProps::new("Notes"),
-                    crate::components::textarea::text_area(notes, "Add notes…").into_element(),
+                    crate::components::textarea::text_area_with_height(notes, "", 120.0)
+                        .into_element(),
                 ))
                 .child(crate::components::logo_search::logo_search(
                     name,
@@ -539,9 +571,9 @@ fn form(
                         .cursor_pointer()
                         .items_center()
                         .justify_center()
-                        .h(px(36.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
+                        .h(px(40.0))
+                        .px(px(16.0))
+                        .rounded(px(6.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
@@ -552,7 +584,7 @@ fn form(
                         })
                         .child(
                             text("Cancel")
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         ),
@@ -562,16 +594,16 @@ fn form(
                         .cursor_pointer()
                         .items_center()
                         .justify_center()
-                        .h(px(36.0))
+                        .h(px(40.0))
                         .px(px(14.0))
-                        .rounded(px(7.0))
+                        .rounded(px(6.0))
                         .bg(move || theme().primary)
                         .disabled(move || saving.get())
                         .disabled_style(|state| state.opacity(0.5))
                         .on_press(move || save())
                         .child(
                             text(move || if saving.get() { "Saving..." } else { "Save" })
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().primary_foreground),
                         ),

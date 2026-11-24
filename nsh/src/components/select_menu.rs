@@ -27,6 +27,7 @@ pub struct SelectMenuProps {
     pub placeholder: String,
     pub selected: Signal<Option<Uuid>>,
     pub options: Rc<dyn Fn() -> Vec<SelectOption>>,
+    pub height: f32,
 }
 
 impl SelectMenuProps {
@@ -41,7 +42,13 @@ impl SelectMenuProps {
             placeholder: placeholder.into(),
             selected,
             options: Rc::new(options),
+            height: 40.0,
         }
+    }
+
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = height;
+        self
     }
 }
 
@@ -51,6 +58,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         placeholder,
         selected,
         options,
+        height,
     } = props;
     let open = signal(false);
     let option_rows = options.clone();
@@ -80,7 +88,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .cursor_pointer()
                 .cursor_pointer()
                 .w_full()
-                .h(px(40.0))
+                .h(px(height))
                 .px(px(12.0))
                 .flex_row()
                 .items_center()
@@ -148,7 +156,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
             when(open, move || {
                 view()
                     .absolute()
-                    .top(px(54.0))
+                    .top(px(height + 14.0))
                     .left(px(0.0))
                     .right(px(0.0))
                     .z_index(90)
