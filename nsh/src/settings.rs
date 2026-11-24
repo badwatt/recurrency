@@ -489,7 +489,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .gap(px(0.0))
                 .child(
                     when(
-                        move || section.get() != Section::Money,
+                        move || !matches!(section.get(), Section::Money | Section::Ai),
                         move || {
                             view()
                                 .flex_col()
@@ -515,7 +515,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 )
                 .child(
                     when(
-                        move || section.get() != Section::Money,
+                        move || !matches!(section.get(), Section::Money | Section::Ai),
                         || view().h(px(24.0)),
                     )
                     .otherwise(|| view().h(px(0.0))),
@@ -2199,6 +2199,88 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
         )
 }
 
+fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
+    ui::surface()
+        .p(px(24.0))
+        .gap(px(10.0))
+        .bg(move || theme().primary.opacity(0.06))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(14.0))
+                .child(
+                    view()
+                        .h(px(48.0))
+                        .w(px(48.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(12.0))
+                        .bg(move || theme().primary.opacity(0.16))
+                        .child(
+                            image(asset!("icons/sparkles.svg"))
+                                .size(px(22.0))
+                                .tint_color(move || theme().primary),
+                        ),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(3.0))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(8.0))
+                                .child(
+                                    text("AI assistant")
+                                        .text_size(px(24.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(badge(BadgeProps::new("BYOK").tone(BadgeTone::Outline))),
+                        )
+                        .child(
+                            text("Connect an OpenAI-compatible model to create and change your subscriptions, transactions and debts. Choose your provider, model and how you want to dictate.")
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+        .child(
+            view()
+                .flex_row()
+                .flex_wrap()
+                .gap(px(6.0))
+                .child(ai_chip(move || {
+                    if configured() {
+                        "Key configured".to_string()
+                    } else {
+                        "No key configured".to_string()
+                    }
+                }))
+                .child(ai_chip(|| "Automatic".to_string()))
+                .child(ai_chip(|| "Key encrypted at rest".to_string())),
+        )
+        .into_element()
+}
+
+fn ai_chip(label: impl Fn() -> String + 'static) -> impl IntoElement {
+    view()
+        .px(px(8.0))
+        .py(px(3.0))
+        .rounded(px(999.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .child(
+            text(label)
+                .text_size(px(11.0))
+                .text_color(move || theme().muted_foreground),
+        )
+}
+
 fn ai_card(server: String, token: String) -> impl IntoElement {
     let data = resource(|| Some(()), {
         let server = server.clone();
@@ -2209,15 +2291,33 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
             async move { crate::api::load_ai_settings(server, token).await }
         }
     });
-    let provider = signal(String::new());
-    let base_url = signal(String::new());
-    let model = signal(String::new());
+    let provider = signal("openai".to_string());
+    let base_url = signal("https://api.openai.com/v1".to_string());
+    let model = signal("gpt-4o-mini".to_string());
     let api_key = signal(String::new());
     let clear_key = signal(false);
     let models = signal(Vec::<String>::new());
     let models_loading = signal(false);
     let models_error = signal(String::new());
     let status = signal(String::new());
+    let loaded = signal(false);
+    effect(move || {
+        if loaded.get() {
+            return;
+        }
+        if let Some(settings) = data.get() {
+            if !settings.provider.trim().is_empty() {
+                provider.set(settings.provider);
+            }
+            if !settings.base_url.trim().is_empty() {
+                base_url.set(settings.base_url);
+            }
+            if !settings.model.trim().is_empty() {
+                model.set(settings.model);
+            }
+            loaded.set(true);
+        }
+    });
     let save = {
         let server = server.clone();
         let token = token.clone();
@@ -2290,136 +2390,182 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
             });
         }
     };
-    let preset = |provider_id: &'static str, url: &'static str| {
-        let provider = provider;
-        let base_url = base_url;
-        move || {
-            provider.set(provider_id.to_string());
-            base_url.set(url.to_string());
-        }
-    };
+    let configured = move || data.get().map_or(false, |settings| settings.configured);
     view()
         .w_full()
         .flex_col()
         .gap(px(12.0))
+        .child(ai_hero(configured))
         .child(
             ui::surface()
-                .p(px(24.0))
-                .gap(px(12.0))
+                .p(px(0.0))
                 .child(
                     view()
+                        .w_full()
+                        .p(px(24.0))
+                        .pb(px(16.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
                         .flex_row()
                         .items_center()
                         .justify_between()
+                        .gap(px(16.0))
                         .child(
-                            text("AI assistant")
-                                .text_size(px(18.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(12.0))
+                                .child(
+                                    view()
+                                        .h(px(40.0))
+                                        .w(px(40.0))
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(8.0))
+                                        .bg(move || theme().primary.opacity(0.14))
+                                        .child(
+                                            image(asset!("icons/sparkles.svg"))
+                                                .size(px(18.0))
+                                                .tint_color(move || theme().primary),
+                                        ),
+                                )
+                                .child(
+                                    view()
+                                        .flex_col()
+                                        .child(
+                                            view()
+                                                .flex_row()
+                                                .items_center()
+                                                .gap(px(8.0))
+                                                .child(
+                                                    text("Model connection")
+                                                        .text_size(px(16.0))
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .text_color(move || theme().foreground),
+                                                )
+                                                .child(badge(BadgeProps::new("Not configured").tone(BadgeTone::Outline))),
+                                        )
+                                        .child(
+                                            text("Bring your own key. Keys stay encrypted on the server and are never returned to this device.")
+                                                .text_size(px(12.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        ),
+                                ),
+                        )
+                        .child(shared_toggle(
+                            data.get().map_or(false, |settings| settings.enabled),
+                            "Enabled".to_string(),
+                            move |_| save(),
+                        )),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(24.0))
+                        .gap(px(12.0))
+                        .child(
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .gap(px(12.0))
+                                .child(
+                                    view()
+                                        .flex_grow(1.0)
+                                        .basis(px(0.0))
+                                        .min_w(px(0.0))
+                                        .child(string_select(StringSelectProps::new(
+                                            "Provider",
+                                            provider,
+                                            vec![
+                                                ("openai".to_string(), "OpenAI".to_string()),
+                                                ("groq".to_string(), "Groq".to_string()),
+                                                ("openrouter".to_string(), "OpenRouter".to_string()),
+                                                ("ollama".to_string(), "Ollama".to_string()),
+                                                ("lmstudio".to_string(), "LM Studio".to_string()),
+                                                ("custom".to_string(), "Custom".to_string()),
+                                            ],
+                                        ))),
+                                )
+                                .child(
+                                    view()
+                                        .flex_grow(1.0)
+                                        .basis(px(0.0))
+                                        .min_w(px(0.0))
+                                        .child(ui::field("API base URL", base_url, "https://api.openai.com/v1")),
+                                ),
                         )
                         .child(
-                            text(move || {
-                                data.get()
-                                    .map_or("Not configured".to_string(), |settings| {
-                                        if settings.configured {
-                                            "Configured".to_string()
-                                        } else {
-                                            "Not configured".to_string()
-                                        }
-                                    })
-                            })
-                            .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground),
-                        ),
-                )
-                .child(
-                    text("Bring your own key. The key is encrypted on the server and never shown again.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(ui::action_button("Open assistant", false, move || crate::ui::open_ai_chat()))
-                .child(
-                    view()
-                        .flex_row()
-                        .gap(px(12.0))
-                        .child(ui::row_item(ui::field("Provider", provider, "openai")))
-                        .child(ui::row_item(ui::field("Base URL", base_url, "https://api.openai.com/v1"))),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .flex_wrap()
-                        .gap(px(6.0))
-                        .child(ui::action_button("OpenAI", false, preset("openai", "https://api.openai.com/v1")))
-                        .child(ui::action_button("Groq", false, preset("groq", "https://api.groq.com/openai/v1")))
-                        .child(ui::action_button("OpenRouter", false, preset("openrouter", "https://openrouter.ai/api/v1")))
-                        .child(ui::action_button("Ollama", false, preset("ollama", "http://localhost:11434/v1")))
-                        .child(ui::action_button("LM Studio", false, preset("lmstudio", "http://localhost:1234/v1")))
-                        .child(ui::action_button("Custom", false, preset("custom", ""))),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .gap(px(12.0))
-                        .child(ui::row_item(ui::field("Model", model, "gpt-4o-mini")))
-                        .child(ui::row_item(ui::field("API key", api_key, "sk-…"))),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .flex_wrap()
-                        .items_center()
-                        .gap(px(6.0))
-                        .child(ui::action_button(if models_loading.get() { "Loading models…" } else { "Refresh models" }, false, refresh_models))
-                        .child(ui::action_button(if clear_key.get() { "Keep key" } else { "Clear stored key" }, clear_key.get(), move || clear_key.set(!clear_key.get())))
-                        .children(models.get().into_iter().map(|name| {
-                            let value = name.clone();
-                            button().cursor_pointer()
-                                .h(px(24.0))
-                                .px(px(7.0))
-                                .rounded(px(5.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().border)
-                                .on_press(move || model.set(value.clone()))
-                                .child(text(name).text_size(px(10.0)).text_color(move || theme().foreground))
-                                .into_element()
-                        })),
-                )
-                .child(
-                    text(move || models_error.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().destructive),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .gap(px(8.0))
-                        .child(ui::action_button("Save", false, configure))
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .items_end()
+                                .gap(px(8.0))
+                                .child(
+                                    view()
+                                        .flex_grow(1.0)
+                                        .basis(px(0.0))
+                                        .min_w(px(0.0))
+                                        .child(ui::field("Model", model, "gpt-4o-mini")),
+                                )
+                                .child(ui::action_button(
+                                    if models_loading.get() { "Loading models…" } else { "Refresh models" },
+                                    false,
+                                    refresh_models,
+                                )),
+                        )
+                        .child(ui::field("API key", api_key, "Paste your provider API key"))
                         .child(
-                            button().cursor_pointer()
+                            text(move || models_error.get())
+                                .text_size(px(11.0))
+                                .text_color(move || theme().destructive),
+                        )
+                        .child(
+                            view()
+                                .w_full()
+                                .flex_row()
                                 .items_center()
-                                .justify_center()
-                                .h(px(26.0))
-                                .px(px(8.0))
-                                .rounded(px(5.0))
-                                .bg(move || theme().card)
-                                .on_press(move || save())
+                                .justify_between()
+                                .gap(px(8.0))
                                 .child(
                                     text(move || {
-                                        data.get().map_or("Enable", |settings| {
-                                            if settings.enabled { "Disable" } else { "Enable" }
-                                        })
+                                        if configured() {
+                                            "Key configured. It is not shown after saving."
+                                        } else {
+                                            "Key not configured."
+                                        }
                                     })
                                     .text_size(px(11.0))
-                                    .font_weight(FontWeight::MEDIUM)
                                     .text_color(move || theme().muted_foreground),
+                                )
+                                .child(
+                                    button()
+                                        .cursor_pointer()
+                                        .h(px(40.0))
+                                        .px(px(14.0))
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(6.0))
+                                        .rounded(px(6.0))
+                                        .bg(move || theme().primary)
+                                        .on_press(move || configure())
+                                        .child(
+                                            image(asset!("icons/database.svg"))
+                                                .size(px(15.0))
+                                                .tint_color(move || theme().primary_foreground),
+                                        )
+                                        .child(
+                                            text("Save AI settings")
+                                                .text_size(px(14.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .text_color(move || theme().primary_foreground),
+                                        ),
                                 ),
+                        )
+                        .child(
+                            text(move || status.get())
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
                         ),
-                )
-                .child(
-                    text(move || status.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
                 ),
         )
         .child(voice_card())
