@@ -65,7 +65,7 @@ pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
         .gap(px(24.0))
         .pt(move || {
             if crate::ui::compact_active() {
-                px(10.0)
+                px(20.0)
             } else {
                 px(0.0)
             }

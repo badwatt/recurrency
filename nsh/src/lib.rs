@@ -194,11 +194,15 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                 view().w_full().items_center().child(
                     view()
                         .w_full()
-                        .key(if ui::privacy_active() {
-                            "private"
-                        } else {
-                            "public"
-                        })
+                        .key(format!(
+                            "{}-{}",
+                            if compact.get() { "compact" } else { "wide" },
+                            if ui::privacy_active() {
+                                "private"
+                            } else {
+                                "public"
+                            }
+                        ))
                         .max_w(px(1242.0))
                         .pl(move || {
                             if compact.get() {
