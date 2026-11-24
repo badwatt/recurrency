@@ -54,7 +54,7 @@ pub fn dashboard(
     view()
         .w_full()
         .flex_col()
-        .gap(px(26.0))
+        .gap(px(21.0))
         .child(header(&user_name, route, intent, compact))
         .child(when(loading, loading_card).otherwise(move || {
             let value = render_currency.clone();
