@@ -54,6 +54,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     let loading = move || data.loading() && data.get().is_none();
     let has_error = move || data.error().is_some();
     let render_currency = currency.clone();
+    let day_modal = ui::ModalHost::new();
 
     view()
         .w_full()
@@ -62,11 +63,32 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
         .child(header())
         .child(when(loading, || loading_card()).otherwise(move || {
             let currency = render_currency.clone();
+            let content_server = server.clone();
+            let content_token = token.clone();
             when(has_error, move || {
                 error_card(&data.error().unwrap_or_default(), data)
             })
-            .otherwise(move || content(data, year, month, currency.clone(), today, compact))
+            .otherwise(move || {
+                content(
+                    data,
+                    year,
+                    month,
+                    currency.clone(),
+                    today,
+                    compact,
+                    day_modal,
+                    content_server.clone(),
+                    content_token.clone(),
+                )
+            })
         }))
+        .child(
+            when(
+                move || day_modal.active(),
+                move || ui::modal_overlay(day_modal),
+            )
+            .otherwise(|| view().h(px(0.0))),
+        )
         .into_element()
 }
 
@@ -140,6 +162,9 @@ fn content(
     currency: String,
     today: NaiveDate,
     compact: Signal<bool>,
+    day_modal: ui::ModalHost,
+    server: String,
+    token: String,
 ) -> AnyElement {
     let total_currency = currency.clone();
     let total = move || {
@@ -189,6 +214,8 @@ fn content(
             )
             .otherwise(move || {
                 let desktop_currency = desktop_currency.clone();
+                let desktop_server = server.clone();
+                let desktop_token = token.clone();
                 view()
                     .w_full()
                     .rounded(px(12.0))
@@ -228,6 +255,9 @@ fn content(
                                         month,
                                         desktop_currency.clone(),
                                         today,
+                                        day_modal,
+                                        desktop_server.clone(),
+                                        desktop_token.clone(),
                                     )
                                 },
                             )),
@@ -497,6 +527,146 @@ fn nav_arrow(icon: ImageAsset, on_press: impl Fn() + 'static) -> impl IntoElemen
         )
 }
 
+fn open_day_dialog(
+    date: NaiveDate,
+    data: Resource<CalendarData, String>,
+    currency: String,
+    today: NaiveDate,
+    modal: ui::ModalHost,
+    server: String,
+    token: String,
+) {
+    modal.open(move || {
+        day_dialog(
+            date,
+            data,
+            currency.clone(),
+            today,
+            modal,
+            server.clone(),
+            token.clone(),
+        )
+    });
+}
+
+fn day_dialog(
+    date: NaiveDate,
+    data: Resource<CalendarData, String>,
+    currency: String,
+    today: NaiveDate,
+    modal: ui::ModalHost,
+    server: String,
+    token: String,
+) -> AnyElement {
+    let snapshot = data.get().unwrap_or_default();
+    let entries = calendar_entries(&snapshot, date.year(), date.month())
+        .into_iter()
+        .filter(|entry| entry.date == date)
+        .collect::<Vec<_>>();
+    let title = date.format("%B %e %Y").to_string();
+    let body = view()
+        .w_full()
+        .p(px(24.0))
+        .gap(px(12.0))
+        .flex_col()
+        .children(entries.into_iter().map(|entry| {
+            let past = entry.date < today;
+            let is_subscription = !entry.is_transaction;
+            let subscription_id = entry.subscription_id;
+            let amount = format_currency(
+                snapshot.rates.convert(entry.amount, &entry.currency),
+                &currency,
+            );
+            let edit_server = server.clone();
+            let edit_token = token.clone();
+            let delete_server = server.clone();
+            let delete_token = token.clone();
+            view()
+                .w_full()
+                .p(px(14.0))
+                .gap(px(8.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .when(past, |card| card.opacity(0.55))
+                .child(
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(12.0))
+                        .child(
+                            view()
+                                .flex_col()
+                                .min_w(px(0.0))
+                                .child(
+                                    text(entry.name.clone())
+                                        .text_size(px(14.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text(if entry.is_transaction {
+                                        "One-time"
+                                    } else {
+                                        "Subscription"
+                                    })
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground),
+                                ),
+                        )
+                        .child(
+                            text(amount)
+                                .text_size(px(16.0))
+                                .font_family(crate::theme::MONO)
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        ),
+                )
+                .when(is_subscription, move |card| {
+                    let edit_server = edit_server.clone();
+                    let edit_token = edit_token.clone();
+                    let delete_server = delete_server.clone();
+                    let delete_token = delete_token.clone();
+                    card.child(
+                        view()
+                            .flex_row()
+                            .gap(px(8.0))
+                            .pt(px(4.0))
+                            .child(ui::action_button("Edit", false, move || {
+                                let _ = (&edit_server, &edit_token);
+                                if let Some(id) = subscription_id {
+                                    crate::ui::request_subscription_edit(id);
+                                }
+                                modal.close();
+                            }))
+                            .child(ui::action_button("Delete", true, move || {
+                                if let Some(id) = subscription_id {
+                                    let server = delete_server.clone();
+                                    let token = delete_token.clone();
+                                    spawn(async move {
+                                        let _ = crate::api::delete_subscription(server, token, id)
+                                            .await;
+                                        data.refetch();
+                                        modal.close();
+                                    });
+                                }
+                            })),
+                    )
+                })
+                .into_element()
+        }))
+        .into_element();
+    crate::components::dialog::dialog(
+        crate::components::dialog::DialogProps::new(title, "", move || modal.close())
+            .width(512.0)
+            .footer_visible(false)
+            .body(body),
+    )
+    .into_element()
+}
+
 fn day_cell(
     day: Option<u32>,
     data: Resource<CalendarData, String>,
@@ -504,6 +674,9 @@ fn day_cell(
     month: Signal<u32>,
     currency: String,
     today: NaiveDate,
+    day_modal: ui::ModalHost,
+    server: String,
+    token: String,
 ) -> impl IntoElement {
     let entries = move || {
         let Some(day) = day else {
@@ -526,6 +699,12 @@ fn day_cell(
         year.get() == today.year() && month.get() == today.month() && day == today.day()
     });
     let cell_date = day.and_then(|day| NaiveDate::from_ymd_opt(year.get(), month.get(), day));
+    let press_currency_1 = currency.clone();
+    let press_server_1 = server.clone();
+    let press_token_1 = token.clone();
+    let press_currency_2 = currency.clone();
+    let press_server_2 = server.clone();
+    let press_token_2 = token.clone();
     let hovered = signal(false);
     view()
         .w_full()
@@ -544,13 +723,18 @@ fn day_cell(
                 .on_mouse_leave(move |_: &MouseEvent| hovered.set(false))
                 .on_press(move || {
                     let Some(date) = cell_date else { return };
-                    let entries = entries();
-                    if let Some(id) = entries.iter().find_map(|entry| entry.subscription_id) {
-                        crate::ui::request_subscription_edit(id);
-                    } else if entries.iter().any(|entry| entry.is_transaction) {
-                        crate::ui::navigate(crate::Route::Transactions);
-                    } else {
+                    if entries().is_empty() {
                         crate::ui::request_subscription_create(date);
+                    } else {
+                        open_day_dialog(
+                            date,
+                            data,
+                            press_currency_1.clone(),
+                            today,
+                            day_modal,
+                            press_server_1.clone(),
+                            press_token_1.clone(),
+                        );
                     }
                 })
                 .child(
@@ -562,12 +746,18 @@ fn day_cell(
                         .cursor_pointer()
                         .on_press(move || {
                             let Some(date) = cell_date else { return };
-                            if let Some(id) =
-                                entries().iter().find_map(|entry| entry.subscription_id)
-                            {
-                                crate::ui::request_subscription_edit(id);
-                            } else {
+                            if entries().is_empty() {
                                 crate::ui::request_subscription_create(date);
+                            } else {
+                                open_day_dialog(
+                                    date,
+                                    data,
+                                    press_currency_2.clone(),
+                                    today,
+                                    day_modal,
+                                    press_server_2.clone(),
+                                    press_token_2.clone(),
+                                );
                             }
                         })
                         .child(
