@@ -26,6 +26,7 @@ struct CalendarEntry {
     date: NaiveDate,
     is_transaction: bool,
     subscription_id: Option<Uuid>,
+    transaction_id: Option<Uuid>,
     frequency: String,
 }
 
@@ -50,6 +51,18 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
             let token = resource_token.clone();
             let currency = load_currency.clone();
             async move { api::load_calendar(server, token, currency, load_year, load_month).await }
+        },
+    );
+    let subs_currency = currency.clone();
+    let subs_server = server.clone();
+    let subs_token = token.clone();
+    let subscriptions = resource(
+        || Some(()),
+        move |(), _| {
+            let server = subs_server.clone();
+            let token = subs_token.clone();
+            let currency = subs_currency.clone();
+            async move { api::load_subscriptions(server, token, currency).await }
         },
     );
     let loading = move || data.loading() && data.get().is_none();
@@ -80,6 +93,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
                     day_modal,
                     content_server.clone(),
                     content_token.clone(),
+                    subscriptions,
                 )
             })
         }))
@@ -166,6 +180,7 @@ fn content(
     day_modal: ui::ModalHost,
     server: String,
     token: String,
+    subscriptions: Resource<crate::api::SubscriptionsData, String>,
 ) -> AnyElement {
     let total_currency = currency.clone();
     let total = move || {
@@ -259,6 +274,7 @@ fn content(
                                         day_modal,
                                         desktop_server.clone(),
                                         desktop_token.clone(),
+                                        subscriptions,
                                     )
                                 },
                             )),
@@ -536,6 +552,7 @@ fn open_day_dialog(
     modal: ui::ModalHost,
     server: String,
     token: String,
+    subscriptions: Resource<crate::api::SubscriptionsData, String>,
 ) {
     modal.open(move || {
         day_dialog(
@@ -546,6 +563,7 @@ fn open_day_dialog(
             modal,
             server.clone(),
             token.clone(),
+            subscriptions,
         )
     });
 }
@@ -558,8 +576,10 @@ fn day_dialog(
     modal: ui::ModalHost,
     server: String,
     token: String,
+    subscriptions: Resource<crate::api::SubscriptionsData, String>,
 ) -> AnyElement {
     let snapshot = data.get().unwrap_or_default();
+    let money = subscriptions.get().unwrap_or_default();
     let entries = calendar_entries(&snapshot, date.year(), date.month())
         .into_iter()
         .filter(|entry| entry.date == date)
@@ -578,6 +598,57 @@ fn day_dialog(
                 snapshot.rates.convert(entry.amount, &entry.currency),
                 &currency,
             );
+            let detail = if let Some(id) = entry.subscription_id {
+                money
+                    .subscriptions
+                    .iter()
+                    .find(|subscription| subscription.id == id)
+                    .map_or_else(
+                        || entry.frequency.clone(),
+                        |subscription| {
+                            let account = money
+                                .accounts
+                                .iter()
+                                .find(|account| account.id == subscription.account_id)
+                                .map_or_else(String::new, |account| account.name.clone());
+                            let category = money
+                                .categories
+                                .iter()
+                                .find(|category| category.id == subscription.category_id)
+                                .map_or_else(
+                                    || "Uncategorized".to_string(),
+                                    |category| category.name.clone(),
+                                );
+                            format!("{account} · {category} · {}", entry.frequency)
+                        },
+                    )
+            } else if let Some(id) = entry.transaction_id {
+                snapshot
+                    .transactions
+                    .iter()
+                    .find(|transaction| transaction.id == id)
+                    .map_or_else(
+                        || "One-time".to_string(),
+                        |transaction| {
+                            let account = money
+                                .accounts
+                                .iter()
+                                .find(|account| account.id == transaction.account_id)
+                                .map_or_else(String::new, |account| account.name.clone());
+                            let category = money
+                                .categories
+                                .iter()
+                                .find(|category| category.id == transaction.category_id)
+                                .map_or_else(
+                                    || "Uncategorized".to_string(),
+                                    |category| category.name.clone(),
+                                );
+                            format!("{account} · {category} · One-time")
+                        },
+                    )
+            } else {
+                entry.frequency.clone()
+            };
             let edit_server = server.clone();
             let edit_token = token.clone();
             let delete_server = server.clone();
@@ -608,13 +679,9 @@ fn day_dialog(
                                         .text_color(move || theme().foreground),
                                 )
                                 .child(
-                                    text(if entry.is_transaction {
-                                        "One-time"
-                                    } else {
-                                        "Subscription"
-                                    })
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().muted_foreground),
+                                    text(detail)
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().muted_foreground),
                                 ),
                         )
                         .child(
@@ -678,6 +745,7 @@ fn day_cell(
     day_modal: ui::ModalHost,
     server: String,
     token: String,
+    subscriptions: Resource<crate::api::SubscriptionsData, String>,
 ) -> impl IntoElement {
     let entries = move || {
         let Some(day) = day else {
@@ -735,6 +803,7 @@ fn day_cell(
                             day_modal,
                             press_server_1.clone(),
                             press_token_1.clone(),
+                            subscriptions,
                         );
                     }
                 })
@@ -758,6 +827,7 @@ fn day_cell(
                                     day_modal,
                                     press_server_2.clone(),
                                     press_token_2.clone(),
+                                    subscriptions,
                                 );
                             }
                         })
@@ -917,6 +987,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
                 date: item.billing_date,
                 is_transaction: false,
                 subscription_id: Some(item.subscription_id),
+                transaction_id: None,
                 frequency: item.frequency.clone(),
             });
         }
@@ -931,6 +1002,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
                 date: transaction.date,
                 is_transaction: true,
                 subscription_id: None,
+                transaction_id: Some(transaction.id),
                 frequency: "One-time".to_string(),
             });
         }
