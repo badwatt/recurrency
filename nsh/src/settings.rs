@@ -1381,7 +1381,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
         .flex_grow(1.0)
         .basis(px(0.0))
         .p(px(20.0))
-        .min_h(px(282.0))
+        .h(px(282.0))
         .gap(px(16.0))
         .child(
             view()
@@ -1423,6 +1423,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
         .child(
             view()
                 .w_full()
+                .h(px(60.0))
                 .p(px(12.0))
                 .flex_row()
                 .items_center()
@@ -1503,7 +1504,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
         .flex_grow(1.0)
         .basis(px(0.0))
         .p(px(20.0))
-        .min_h(px(282.0))
+        .h(px(282.0))
         .gap(px(16.0))
         .child(
             view()
@@ -1647,7 +1648,9 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                 .child(
                     view()
                         .w_full()
-                        .p(px(24.0))
+                        .px(px(24.0))
+                        .pt(px(18.0))
+                        .pb(px(24.0))
                         .border_b(px(1.0))
                         .border_color(move || theme().border)
                         .flex_row()
