@@ -14,7 +14,6 @@ use crate::auth::{self, AuthSession, AuthUser, Session};
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::checkbox::checkbox;
 use crate::components::confirm::{ConfirmProps, confirm_row};
-use crate::components::segmented::{SegmentOption, segmented};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle as shared_toggle;
 use crate::ui;
@@ -2039,6 +2038,75 @@ struct UpdateAiSettingsRequest {
     clear_api_key: bool,
 }
 
+fn summary_form(
+    frequency: Signal<String>,
+    weekday: Signal<String>,
+    day: Signal<String>,
+    period: Signal<String>,
+    time: Signal<String>,
+    timezone: Signal<String>,
+    second: Option<&'static str>,
+) -> AnyElement {
+    let mut items = vec![string_select(StringSelectProps::new(
+        "Frequency",
+        frequency,
+        vec![
+            ("daily".to_string(), "Daily".to_string()),
+            ("weekly".to_string(), "Weekly".to_string()),
+            ("monthly".to_string(), "Monthly".to_string()),
+        ],
+    ))
+    .into_element()];
+    match second {
+        Some("weekday") => items.push(
+            string_select(StringSelectProps::new(
+                "Weekday",
+                weekday,
+                vec![
+                    ("1".to_string(), "Monday".to_string()),
+                    ("2".to_string(), "Tuesday".to_string()),
+                    ("3".to_string(), "Wednesday".to_string()),
+                    ("4".to_string(), "Thursday".to_string()),
+                    ("5".to_string(), "Friday".to_string()),
+                    ("6".to_string(), "Saturday".to_string()),
+                    ("7".to_string(), "Sunday".to_string()),
+                ],
+            ))
+            .into_element(),
+        ),
+        Some("day") => {
+            let mut days = (1..=31)
+                .map(|value| (value.to_string(), value.to_string()))
+                .collect::<Vec<_>>();
+            days.push(("0".to_string(), "Last day".to_string()));
+            items.push(
+                string_select(StringSelectProps::new("Day of month", day, days)).into_element(),
+            );
+        }
+        _ => {}
+    }
+    items.push(
+        string_select(StringSelectProps::new(
+            "Report period",
+            period,
+            vec![
+                ("current".to_string(), "Current month".to_string()),
+                ("next".to_string(), "Next month".to_string()),
+            ],
+        ))
+        .into_element(),
+    );
+    items.push(ui::field("Time", time, "09:00").into_element());
+    items.push(crate::components::timezone_select::timezone_select(timezone).into_element());
+    view()
+        .w_full()
+        .grid()
+        .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
+        .gap(px(12.0))
+        .children(items)
+        .into_element()
+}
+
 fn notifications_card(server: String, token: String) -> impl IntoElement {
     let summary_data = resource(|| Some(()), {
         let server = server.clone();
@@ -2153,26 +2221,31 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
         ))
         .child(
             ui::surface()
-                .p(px(24.0))
-                .gap(px(12.0))
+                .p(px(0.0))
                 .child(
                     view()
                         .w_full()
+                        .p(px(24.0))
                         .flex_row()
-                        .items_center()
+                        .items_start()
                         .justify_between()
+                        .gap(px(12.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
                         .child(
                             view()
                                 .flex_col()
                                 .child(
                                     text("Dashboard summary")
                                         .text_size(px(18.0))
+                                        .line_height(px(28.0))
                                         .font_weight(FontWeight::BOLD)
                                         .text_color(move || theme().foreground),
                                 )
                                 .child(
-                                    text("Sent to every active delivery channel.")
-                                        .text_size(px(12.0))
+                                    text("Sent to every active delivery channel")
+                                        .text_size(px(14.0))
+                                        .line_height(px(20.0))
                                         .text_color(move || theme().muted_foreground),
                                 ),
                         )
@@ -2182,105 +2255,104 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                             move |value| summary_enabled.set(value),
                         )),
                 )
-                .child(view().w_full().h(px(1.0)).bg(move || theme().border))
-                .child(
-                    text("Frequency")
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(segmented(
-                    summary_frequency,
-                    vec![
-                        SegmentOption::new("daily", "Daily"),
-                        SegmentOption::new("weekly", "Weekly"),
-                        SegmentOption::new("monthly", "Monthly"),
-                    ],
-                ))
-                .child(
-                    when(
-                        move || summary_frequency.get() == "weekly",
-                        move || {
-                            string_select(StringSelectProps::new(
-                                "Weekday",
-                                summary_weekday,
-                                vec![
-                                    ("1".to_string(), "Monday".to_string()),
-                                    ("2".to_string(), "Tuesday".to_string()),
-                                    ("3".to_string(), "Wednesday".to_string()),
-                                    ("4".to_string(), "Thursday".to_string()),
-                                    ("5".to_string(), "Friday".to_string()),
-                                    ("6".to_string(), "Saturday".to_string()),
-                                    ("7".to_string(), "Sunday".to_string()),
-                                ],
-                            ))
-                            .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    when(
-                        move || summary_frequency.get() == "monthly",
-                        move || {
-                            let mut days = (1..=31)
-                                .map(|day| (day.to_string(), day.to_string()))
-                                .collect::<Vec<_>>();
-                            days.push(("0".to_string(), "Last day".to_string()));
-                            string_select(StringSelectProps::new("Day of month", summary_day, days))
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(string_select(StringSelectProps::new(
-                    "Report period",
-                    summary_period,
-                    vec![
-                        ("current".to_string(), "Current month".to_string()),
-                        ("next".to_string(), "Next month".to_string()),
-                    ],
-                )))
-                .child(ui::field("Time (HH:MM)", summary_time, "09:00"))
-                .child(crate::components::timezone_select::timezone_select(
-                    summary_timezone,
-                ))
                 .child(
                     view()
+                        .w_full()
+                        .p(px(24.0))
+                        .child(
+                            when(
+                                move || summary_frequency.get() == "monthly",
+                                move || summary_form(
+                                    summary_frequency,
+                                    summary_weekday,
+                                    summary_day,
+                                    summary_period,
+                                    summary_time,
+                                    summary_timezone,
+                                    Some("day"),
+                                ),
+                            )
+                            .otherwise(move || {
+                                when(
+                                    move || summary_frequency.get() == "weekly",
+                                    move || summary_form(
+                                        summary_frequency,
+                                        summary_weekday,
+                                        summary_day,
+                                        summary_period,
+                                        summary_time,
+                                        summary_timezone,
+                                        Some("weekday"),
+                                    ),
+                                )
+                                .otherwise(move || {
+                                    summary_form(
+                                        summary_frequency,
+                                        summary_weekday,
+                                        summary_day,
+                                        summary_period,
+                                        summary_time,
+                                        summary_timezone,
+                                        None,
+                                    )
+                                })
+                                .into_element()
+                            }),
+                        ),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .px(px(24.0))
+                        .pb(px(24.0))
                         .flex_row()
                         .flex_wrap()
-                        .gap(px(8.0))
-                        .child(ui::action_button("Save summary", false, save_summary))
-                        .child(ui::action_button("Send now", false, send_summary)),
-                )
-                .child(
-                    text(move || {
-                        let next = summary_next.get();
-                        if next.is_empty() {
-                            "No run scheduled".to_string()
-                        } else {
-                            format!("Next run: {next}")
-                        }
-                    })
-                    .text_size(px(10.0))
-                    .text_color(move || theme().muted_foreground),
-                )
-                .child(
-                    when(
-                        move || !summary_error.get().is_empty(),
-                        move || {
-                            text(move || format!("Last attempt failed: {}", summary_error.get()))
-                                .text_size(px(10.0))
-                                .text_color(move || theme().destructive)
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    text(move || summary_status.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground),
+                        .items_center()
+                        .justify_between()
+                        .gap(px(12.0))
+                        .child(
+                            view()
+                                .flex_col()
+                                .child(
+                                    text(move || {
+                                        let next = summary_next.get();
+                                        if next.is_empty() {
+                                            "No run scheduled".to_string()
+                                        } else {
+                                            format!("Next run: {next}")
+                                        }
+                                    })
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().muted_foreground),
+                                )
+                                .when(!summary_error.get().is_empty(), |col| {
+                                    col.child(
+                                        text(move || {
+                                            format!("Last attempt failed: {}", summary_error.get())
+                                        })
+                                        .text_size(px(12.0))
+                                        .text_color(move || theme().destructive),
+                                    )
+                                }),
+                        )
+                        .child(
+                            view()
+                                .flex_row()
+                                .flex_wrap()
+                                .items_center()
+                                .gap(px(8.0))
+                                .child(crate::components::button::button(
+                                    crate::components::button::ButtonProps::new("Send now")
+                                        .variant(crate::components::button::ButtonVariant::Outline)
+                                        .size(crate::components::button::ButtonSize::Md)
+                                        .on_press(send_summary),
+                                ))
+                                .child(crate::components::button::button(
+                                    crate::components::button::ButtonProps::new("Save schedule")
+                                        .size(crate::components::button::ButtonSize::Md)
+                                        .on_press(save_summary),
+                                )),
+                        ),
                 ),
         )
 }
