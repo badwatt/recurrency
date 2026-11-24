@@ -74,8 +74,8 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .pt(move || if compact.get() { px(10.0) } else { px(0.0) })
-        .child(header())
+        .pt(move || if compact.get() { px(20.0) } else { px(0.0) })
+        .child(header(compact))
         .child(when(loading, || loading_card()).otherwise(move || {
             let currency = render_currency.clone();
             let content_server = server.clone();
@@ -108,8 +108,8 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
         .into_element()
 }
 
-fn header() -> impl IntoElement {
-    shared_page_header(TITLE, SUBTITLE, view().into_element())
+fn header(compact: Signal<bool>) -> impl IntoElement {
+    shared_page_header(TITLE, SUBTITLE, view().into_element(), compact, false, 0.0)
 }
 
 fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl IntoElement {

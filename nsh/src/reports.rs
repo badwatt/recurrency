@@ -22,7 +22,7 @@ use crate::ui;
 const TITLE: &str = "Reports";
 const SUBTITLE: &str = "Analyze your spending patterns";
 
-pub fn reports(auth: AuthSession) -> AnyElement {
+pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -97,6 +97,9 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 )
                 .child(export_menu(data, &currency))
                 .into_element(),
+            compact,
+            false,
+            400.0,
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
             let currency = render_currency.clone();

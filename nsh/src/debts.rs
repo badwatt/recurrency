@@ -13,7 +13,7 @@ use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
-use crate::components::page_header::page_header_collapsible as shared_page_header;
+use crate::components::page_header::page_header as shared_page_header;
 use crate::components::search_input::search_input;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
@@ -99,6 +99,7 @@ pub fn debts(
     auth: AuthSession,
     modal: ui::ModalHost,
     intent: Signal<Option<crate::Route>>,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
@@ -272,7 +273,7 @@ pub fn debts(
                 px(0.0)
             }
         })
-        .child(header(open_form))
+        .child(header(open_form, compact))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
             let empty_open = empty_open.clone();
@@ -571,7 +572,7 @@ fn history_panel(
     )
 }
 
-fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
+fn header(on_add: impl Fn() + 'static, compact: Signal<bool>) -> impl IntoElement {
     shared_page_header(
         TITLE,
         SUBTITLE,
@@ -587,6 +588,8 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
                     .on_press(on_add),
             ))
             .into_element(),
+        compact,
+        true,
         140.0,
     )
 }

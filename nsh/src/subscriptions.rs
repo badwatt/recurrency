@@ -288,7 +288,7 @@ pub fn subscriptions(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .pt(move || if compact.get() { px(10.0) } else { px(0.0) })
+        .pt(move || if compact.get() { px(20.0) } else { px(0.0) })
         .child(header(open_form, compact))
         .child(toolbar(
             data,

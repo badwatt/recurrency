@@ -14,7 +14,7 @@ use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
-use crate::components::page_header::page_header_collapsible as shared_page_header;
+use crate::components::page_header::page_header as shared_page_header;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle;
@@ -80,6 +80,7 @@ pub fn transactions(
     auth: AuthSession,
     modal: ui::ModalHost,
     intent: Signal<Option<crate::Route>>,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
@@ -234,7 +235,7 @@ pub fn transactions(
                 px(0.0)
             }
         })
-        .child(header(open_form))
+        .child(header(open_form, compact))
         .child(toolbar(
             data,
             search,
@@ -318,7 +319,7 @@ pub fn transactions(
         .into_element()
 }
 
-fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
+fn header(on_add: impl Fn() + 'static, compact: Signal<bool>) -> impl IntoElement {
     shared_page_header(
         TITLE,
         SUBTITLE,
@@ -334,6 +335,8 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
                     .on_press(on_add),
             ))
             .into_element(),
+        compact,
+        true,
         180.0,
     )
 }

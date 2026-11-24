@@ -170,6 +170,11 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     let modal = ui::ModalHost::new();
     let create_intent = signal(None::<Route>);
     let fab_open = signal(false);
+    let page_scroll = element_ref();
+    effect(move || {
+        let _ = route.get();
+        page_scroll.scroll_to_offset(px(0.0), false);
+    });
     view()
         .relative()
         .flex_1()
@@ -185,7 +190,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .child(ui::top_bar(route, auth_signal.get(), compact))
         .child(update_banner::update_banner())
         .child(
-            scroll().flex_1().child(
+            scroll().flex_1().element_ref(&page_scroll).child(
                 view().w_full().items_center().child(
                     view()
                         .w_full()
@@ -256,6 +261,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                 auth_signal.get(),
                                                 modal,
                                                 create_intent,
+                                                compact,
                                             )
                                         },
                                     )
@@ -267,6 +273,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                     auth_signal.get(),
                                                     modal,
                                                     create_intent,
+                                                    compact,
                                                 )
                                             },
                                         )
@@ -284,7 +291,12 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                 .otherwise(move || {
                                                     when(
                                                         move || route.get() == Route::Reports,
-                                                        move || reports::reports(auth_signal.get()),
+                                                        move || {
+                                                            reports::reports(
+                                                                auth_signal.get(),
+                                                                compact,
+                                                            )
+                                                        },
                                                     )
                                                     .otherwise(move || {
                                                         when(
