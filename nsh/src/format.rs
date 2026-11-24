@@ -46,8 +46,10 @@ pub fn week_starts_sunday() -> bool {
 
 pub fn date_format() -> String {
     DATE_FORMAT.with(|slot| {
-        slot.borrow()
-            .map_or_else(|| "DD/MM/YYYY".to_string(), |format| format.get())
+        slot.borrow().map_or_else(
+            || "DD/MM/YYYY".to_string(),
+            |format| format.get().replace('-', "/"),
+        )
     })
 }
 

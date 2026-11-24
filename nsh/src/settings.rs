@@ -132,8 +132,8 @@ impl Section {
     fn description(self) -> &'static str {
         match self {
             Section::Account => "Profile, session and account removal",
-            Section::Appearance => "Color theme and palette",
-            Section::General => "Defaults, locale, exchange rates and app updates",
+            Section::Appearance => "Color themes and palette",
+            Section::General => "Currency, exchange rates, week start and dates",
             Section::Notifications => "Delivery channels and summaries",
             Section::Ai => "Model, voice input and privacy",
             Section::Money => "Accounts and categories",
@@ -1588,6 +1588,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
+                        .accessibility_label("Choose backup file")
                         .on_press(choose_restore)
                         .child(
                             text("Choose file")

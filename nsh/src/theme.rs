@@ -161,7 +161,7 @@ pub const THEMES: &[ThemeDefinition] = &[
     ThemeDefinition {
         id: "github-dark",
         label: "GitHub Dark",
-        description: "GitHub's dark canvas.",
+        description: "GitHub’s dark canvas.",
         is_dark: true,
         background: 0x0D1117,
         foreground: 0xE6EDF3,

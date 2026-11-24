@@ -126,11 +126,15 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
                 .items_center()
                 .h(px(36.0))
                 .gap(px(12.0))
-                .child(nav_arrow(asset!("icons/chevron-left.svg"), move || {
-                    let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
-                    year.set(next_year);
-                    month.set(next_month);
-                }))
+                .child(nav_arrow(
+                    asset!("icons/chevron-left.svg"),
+                    "Previous month",
+                    move || {
+                        let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
+                        year.set(next_year);
+                        month.set(next_month);
+                    },
+                ))
                 .child(
                     text(move || month_label(year.get(), month.get()))
                         .w(px(200.0))
@@ -139,11 +143,15 @@ fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl I
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().foreground),
                 )
-                .child(nav_arrow(asset!("icons/chevron-right.svg"), move || {
-                    let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
-                    year.set(next_year);
-                    month.set(next_month);
-                })),
+                .child(nav_arrow(
+                    asset!("icons/chevron-right.svg"),
+                    "Next month",
+                    move || {
+                        let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
+                        year.set(next_year);
+                        month.set(next_month);
+                    },
+                )),
         )
         .child(
             button()
@@ -525,9 +533,14 @@ fn mobile_section(
         )))
 }
 
-fn nav_arrow(icon: ImageAsset, on_press: impl Fn() + 'static) -> impl IntoElement {
+fn nav_arrow(
+    icon: ImageAsset,
+    label: &'static str,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
     button()
         .cursor_pointer()
+        .accessibility_label(label)
         .items_center()
         .justify_center()
         .h(px(32.0))
