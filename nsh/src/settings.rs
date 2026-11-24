@@ -2100,6 +2100,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                             move |value| summary_enabled.set(value),
                         )),
                 )
+                .child(view().w_full().h(px(1.0)).bg(move || theme().border))
                 .child(
                     text("Frequency")
                         .text_size(px(12.0))
