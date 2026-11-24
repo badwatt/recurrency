@@ -31,6 +31,8 @@ mod ui;
 mod update_banner;
 mod updater;
 mod voice;
+#[cfg(target_arch = "wasm32")]
+mod web_files;
 
 use auth::Session;
 use nsh_base::theme;

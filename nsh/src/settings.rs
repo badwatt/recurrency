@@ -4,7 +4,9 @@ use crate::models::AiSettings;
 use base64::Engine;
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
-use nsh_core::file_dialog::{FileFilter, OpenDialog, SaveDialog};
+use nsh_core::file_dialog::OpenDialog;
+#[cfg(not(target_arch = "wasm32"))]
+use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -630,6 +632,96 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
         .into_element()
 }
 
+async fn save_backup(name: &str, json: &str, status: Signal<String>) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        match crate::web_files::download_text(name, "application/json", json) {
+            Ok(()) => status.set("Backup downloaded.".to_string()),
+            Err(error) => status.set(error),
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        match pick_save_path(
+            SaveDialog::new()
+                .file_name(name)
+                .filter(FileFilter::new("JSON", ["json"])),
+        )
+        .await
+        {
+            Ok(Some(path)) => match std::fs::write(&path, json) {
+                Ok(()) => status.set(format!("Backup saved to {}", path.display())),
+                Err(error) => status.set(format!("Could not write the backup: {error}")),
+            },
+            Ok(None) => status.set(String::new()),
+            Err(error) => status.set(error),
+        }
+    }
+}
+
+async fn pick_backup_text() -> Result<Option<String>, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        crate::web_files::pick_text_file(".json,application/json").await
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        match pick_paths(
+            OpenDialog::files()
+                .title("Restore Recurrency backup")
+                .filter(FileFilter::new("JSON", ["json"])),
+        )
+        .await?
+        {
+            Some(paths) => match paths.first() {
+                Some(path) => std::fs::read_to_string(path)
+                    .map(Some)
+                    .map_err(|error| format!("Could not read the backup: {error}")),
+                None => Ok(None),
+            },
+            None => Ok(None),
+        }
+    }
+}
+
+pub(crate) async fn pick_image_data_url() -> Result<Option<String>, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let Some(data_url) =
+            crate::web_files::pick_data_url("image/png,image/jpeg,image/webp").await?
+        else {
+            return Ok(None);
+        };
+        let encoded = data_url
+            .split_once(";base64,")
+            .map(|(_, encoded)| encoded)
+            .ok_or_else(|| "Could not read the image.".to_string())?;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .map_err(|_| "Could not read the image.".to_string())?;
+        avatar_data_url(&bytes).map(Some)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        match pick_paths(
+            OpenDialog::files()
+                .title("Choose an image")
+                .filter(FileFilter::new("Images", ["png", "jpg", "jpeg", "webp"])),
+        )
+        .await?
+        {
+            Some(paths) => match paths.first() {
+                Some(path) => std::fs::read(path)
+                    .map_err(|error| format!("Could not read the image: {error}"))
+                    .and_then(|bytes| avatar_data_url(&bytes))
+                    .map(Some),
+                None => Ok(None),
+            },
+            None => Ok(None),
+        }
+    }
+}
+
 pub(crate) fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
     let image = image::load_from_memory(bytes)
         .map_err(|_| "Could not process that image. Try a PNG or JPEG.".to_string())?;
@@ -672,44 +764,26 @@ fn account_card(
             let token = session_token.clone();
             let avatar = avatar;
             spawn(async move {
-                match pick_paths(
-                    OpenDialog::files()
-                        .title("Choose a profile photo")
-                        .filter(FileFilter::new("Images", ["png", "jpg", "jpeg", "webp"])),
-                )
-                .await
-                {
-                    Ok(Some(paths)) => {
-                        let Some(path) = paths.first() else { return };
-                        match std::fs::read(path) {
-                            Ok(bytes) => match avatar_data_url(&bytes) {
-                                Ok(data_url) => {
-                                    let request = UpdateSettingsRequest {
-                                        name: None,
-                                        email: None,
-                                        avatar: Some(data_url.clone()),
-                                        currency: None,
-                                    };
-                                    match crate::api::update_settings(server, token, &request).await
-                                    {
-                                        Ok(response) => {
-                                            let next = AuthSession {
-                                                token: session_token.clone(),
-                                                user: response.user,
-                                                requires_verification: false,
-                                            };
-                                            crate::auth::store_session(&next);
-                                            avatar.set(data_url);
-                                            session.set(Session::SignedIn(next));
-                                        }
-                                        Err(message) => error.set(message),
-                                    }
-                                }
-                                Err(message) => error.set(message),
-                            },
-                            Err(problem) => {
-                                error.set(format!("Could not read the photo: {problem}"))
+                match pick_image_data_url().await {
+                    Ok(Some(data_url)) => {
+                        let request = UpdateSettingsRequest {
+                            name: None,
+                            email: None,
+                            avatar: Some(data_url.clone()),
+                            currency: None,
+                        };
+                        match crate::api::update_settings(server, token, &request).await {
+                            Ok(response) => {
+                                let next = AuthSession {
+                                    token: session_token.clone(),
+                                    user: response.user,
+                                    requires_verification: false,
+                                };
+                                crate::auth::store_session(&next);
+                                avatar.set(data_url);
+                                session.set(Session::SignedIn(next));
                             }
+                            Err(message) => error.set(message),
                         }
                     }
                     Ok(None) => {}
@@ -1294,22 +1368,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
             let token_value = token.clone();
             spawn(async move {
                 match crate::api::export_backup(server_value, token_value).await {
-                    Ok(json) => match pick_save_path(
-                        SaveDialog::new()
-                            .file_name("recurrency-backup.json")
-                            .filter(FileFilter::new("JSON", ["json"])),
-                    )
-                    .await
-                    {
-                        Ok(Some(path)) => match std::fs::write(&path, json) {
-                            Ok(()) => status.set(format!("Backup saved to {}", path.display())),
-                            Err(error) => {
-                                status.set(format!("Could not write the backup: {error}"))
-                            }
-                        },
-                        Ok(None) => status.set(String::new()),
-                        Err(error) => status.set(error),
-                    },
+                    Ok(json) => save_backup("recurrency-backup.json", &json, status).await,
                     Err(error) => status.set(error),
                 }
             });
@@ -1318,34 +1377,15 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
     let choose_restore = move || {
         status.set("Choose a backup…".to_string());
         spawn(async move {
-            match pick_paths(
-                OpenDialog::files()
-                    .title("Restore Recurrency backup")
-                    .filter(FileFilter::new("JSON", ["json"])),
-            )
-            .await
-            {
-                Ok(Some(paths)) => {
-                    let Some(path) = paths.first() else {
-                        status.set(String::new());
-                        return;
-                    };
-                    match std::fs::read_to_string(path) {
-                        Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-                            Ok(value) => {
-                                pending.set(Some(value));
-                                status.set(
-                                    "Backup loaded. Confirm to replace the current data."
-                                        .to_string(),
-                                );
-                            }
-                            Err(_) => {
-                                status.set("That file is not a Recurrency backup.".to_string())
-                            }
-                        },
-                        Err(error) => status.set(format!("Could not read the backup: {error}")),
+            match pick_backup_text().await {
+                Ok(Some(text)) => match serde_json::from_str::<serde_json::Value>(&text) {
+                    Ok(value) => {
+                        pending.set(Some(value));
+                        status
+                            .set("Backup loaded. Confirm to replace the current data.".to_string());
                     }
-                }
+                    Err(_) => status.set("That file is not a Recurrency backup.".to_string()),
+                },
                 Ok(None) => status.set(String::new()),
                 Err(error) => status.set(error),
             }
@@ -4077,23 +4117,9 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
             let token = token.clone();
             spawn(async move {
                 match crate::api::admin_export_backup(server, token).await {
-                    Ok(json) => match pick_save_path(
-                        SaveDialog::new()
-                            .file_name("recurrency-full-backup.json")
-                            .filter(FileFilter::new("JSON", ["json"])),
-                    )
-                    .await
-                    {
-                        Ok(Some(path)) => match std::fs::write(&path, json) {
-                            Ok(()) => backup_status
-                                .set(format!("Full backup saved to {}", path.display())),
-                            Err(error) => {
-                                backup_status.set(format!("Could not write the backup: {error}"))
-                            }
-                        },
-                        Ok(None) => backup_status.set(String::new()),
-                        Err(error) => backup_status.set(error),
-                    },
+                    Ok(json) => {
+                        save_backup("recurrency-full-backup.json", &json, backup_status).await
+                    }
                     Err(error) => backup_status.set(error),
                 }
             });
@@ -4101,32 +4127,17 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
     };
     let choose_backup = move || {
         spawn(async move {
-            match pick_paths(
-                OpenDialog::files()
-                    .title("Restore full Recurrency backup")
-                    .filter(FileFilter::new("JSON", ["json"])),
-            )
-            .await
-            {
-                Ok(Some(paths)) => {
-                    let Some(path) = paths.first() else { return };
-                    match std::fs::read_to_string(path) {
-                        Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-                            Ok(value) => {
-                                backup_pending.set(Some(value));
-                                backup_status.set(
-                                    "Full backup loaded. Confirm to restore all tables."
-                                        .to_string(),
-                                );
-                            }
-                            Err(_) => backup_status
-                                .set("That file is not a Recurrency backup.".to_string()),
-                        },
-                        Err(error) => {
-                            backup_status.set(format!("Could not read the backup: {error}"))
-                        }
+            match pick_backup_text().await {
+                Ok(Some(text)) => match serde_json::from_str::<serde_json::Value>(&text) {
+                    Ok(value) => {
+                        backup_pending.set(Some(value));
+                        backup_status
+                            .set("Full backup loaded. Confirm to restore all tables.".to_string());
                     }
-                }
+                    Err(_) => {
+                        backup_status.set("That file is not a Recurrency backup.".to_string())
+                    }
+                },
                 Ok(None) => backup_status.set(String::new()),
                 Err(error) => backup_status.set(error),
             }

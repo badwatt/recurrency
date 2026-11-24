@@ -2,9 +2,11 @@
 
 use std::rc::Rc;
 
+#[cfg(not(target_arch = "wasm32"))]
 use base64::Engine;
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
+#[cfg(not(target_arch = "wasm32"))]
 use nsh_core::file_dialog::{FileFilter, OpenDialog};
 use nsh_core::prelude::*;
 
@@ -98,41 +100,18 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
             error.set(String::new());
             transcribing.set(true);
             spawn(async move {
-                match pick_paths(OpenDialog::files().title("Transcribe a voice note").filter(
-                    FileFilter::new("Audio", ["wav", "mp3", "m4a", "ogg", "webm", "mp4"]),
-                ))
-                .await
-                {
-                    Ok(Some(paths)) => {
-                        let Some(path) = paths.first() else {
-                            transcribing.set(false);
-                            return;
-                        };
-                        match std::fs::read(path) {
-                            Ok(bytes) => {
-                                let audio = base64::engine::general_purpose::STANDARD.encode(bytes);
-                                match api::transcribe(
-                                    auth::stored_server(),
-                                    token,
-                                    &audio,
-                                    audio_mime(path),
-                                )
-                                .await
-                                {
-                                    Ok(text) => {
-                                        let mut next = draft.get();
-                                        if !next.trim().is_empty() {
-                                            next.push(' ');
-                                        }
-                                        next.push_str(text.trim());
-                                        draft.set(next);
-                                    }
-                                    Err(message) => error.set(message),
+                match pick_audio().await {
+                    Ok(Some((mime, audio))) => {
+                        match api::transcribe(auth::stored_server(), token, &audio, &mime).await {
+                            Ok(text) => {
+                                let mut next = draft.get();
+                                if !next.trim().is_empty() {
+                                    next.push(' ');
                                 }
+                                next.push_str(text.trim());
+                                draft.set(next);
                             }
-                            Err(problem) => {
-                                error.set(format!("Could not read the audio file: {problem}"))
-                            }
+                            Err(message) => error.set(message),
                         }
                     }
                     Ok(None) => {}
@@ -358,6 +337,45 @@ pub fn ai_chat(auth: AuthSession) -> AnyElement {
         .into_element()
 }
 
+async fn pick_audio() -> Result<Option<(String, String)>, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let Some(url) = crate::web_files::pick_data_url("audio/*,video/webm").await? else {
+            return Ok(None);
+        };
+        let (meta, encoded) = url
+            .split_once(',')
+            .ok_or_else(|| "Could not read the audio file.".to_string())?;
+        let mime = meta
+            .strip_prefix("data:")
+            .and_then(|value| value.split(';').next())
+            .filter(|value| !value.is_empty())
+            .unwrap_or("audio/webm")
+            .to_string();
+        Ok(Some((mime, encoded.to_string())))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        match pick_paths(OpenDialog::files().title("Transcribe a voice note").filter(
+            FileFilter::new("Audio", ["wav", "mp3", "m4a", "ogg", "webm", "mp4"]),
+        ))
+        .await?
+        {
+            Some(paths) => match paths.first() {
+                Some(path) => {
+                    let bytes = std::fs::read(path)
+                        .map_err(|problem| format!("Could not read the audio file: {problem}"))?;
+                    let audio = base64::engine::general_purpose::STANDARD.encode(bytes);
+                    Ok(Some((audio_mime(path).to_string(), audio)))
+                }
+                None => Ok(None),
+            },
+            None => Ok(None),
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn audio_mime(path: &std::path::Path) -> &'static str {
     match path
         .extension()

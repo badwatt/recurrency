@@ -5,7 +5,6 @@ use crate::components::dialog::{DialogProps, dialog};
 use crate::ui;
 use nsh_base::{button, input, theme};
 use nsh_core::element::AutoFill;
-use nsh_core::file_dialog::{FileFilter, OpenDialog};
 use nsh_core::prelude::*;
 
 const PAGE_SIZE: usize = 8;
@@ -74,23 +73,8 @@ pub fn logo_search(
     let page = signal(0usize);
     let upload = move || {
         spawn(async move {
-            match pick_paths(
-                OpenDialog::files()
-                    .title("Choose a logo")
-                    .filter(FileFilter::new("Images", ["png", "jpg", "jpeg", "webp"])),
-            )
-            .await
-            {
-                Ok(Some(paths)) => {
-                    let Some(path) = paths.first() else { return };
-                    match std::fs::read(path)
-                        .map_err(|problem| format!("Could not read the image: {problem}"))
-                        .and_then(|bytes| crate::settings::avatar_data_url(&bytes))
-                    {
-                        Ok(data_url) => logo_url.set(data_url),
-                        Err(message) => error.set(message),
-                    }
-                }
+            match crate::settings::pick_image_data_url().await {
+                Ok(Some(data_url)) => logo_url.set(data_url),
                 Ok(None) => {}
                 Err(message) => error.set(message),
             }

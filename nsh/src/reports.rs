@@ -3,6 +3,7 @@
 use chrono::{Datelike, Local, NaiveDate};
 use nsh_base::theme;
 use nsh_core::canvas::{CanvasTextAlign, LineJoin};
+#[cfg(not(target_arch = "wasm32"))]
 use nsh_core::file_dialog::{FileFilter, SaveDialog};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
@@ -204,14 +205,21 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
         };
         let csv = build_csv(&snapshot.report, &csv_currency);
         spawn(async move {
-            if let Ok(Some(path)) = pick_save_path(
-                SaveDialog::new()
-                    .file_name("recurrency-report.csv")
-                    .filter(FileFilter::new("CSV", ["csv"])),
-            )
-            .await
+            #[cfg(target_arch = "wasm32")]
             {
-                let _ = std::fs::write(path, csv);
+                let _ = crate::web_files::download_text("recurrency-report.csv", "text/csv", &csv);
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                if let Ok(Some(path)) = pick_save_path(
+                    SaveDialog::new()
+                        .file_name("recurrency-report.csv")
+                        .filter(FileFilter::new("CSV", ["csv"])),
+                )
+                .await
+                {
+                    let _ = std::fs::write(path, csv);
+                }
             }
         });
     };
@@ -221,14 +229,25 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
         };
         let pdf = build_pdf(&snapshot.report, &pdf_currency);
         spawn(async move {
-            if let Ok(Some(path)) = pick_save_path(
-                SaveDialog::new()
-                    .file_name("recurrency-report.pdf")
-                    .filter(FileFilter::new("PDF", ["pdf"])),
-            )
-            .await
+            #[cfg(target_arch = "wasm32")]
             {
-                let _ = std::fs::write(path, pdf);
+                let _ = crate::web_files::download_bytes(
+                    "recurrency-report.pdf",
+                    "application/pdf",
+                    &pdf,
+                );
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                if let Ok(Some(path)) = pick_save_path(
+                    SaveDialog::new()
+                        .file_name("recurrency-report.pdf")
+                        .filter(FileFilter::new("PDF", ["pdf"])),
+                )
+                .await
+                {
+                    let _ = std::fs::write(path, pdf);
+                }
             }
         });
     };
