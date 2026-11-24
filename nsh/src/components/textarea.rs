@@ -22,6 +22,7 @@ pub fn text_area_with_height(
         .h(px(height))
         .min_h(px(height))
         .flex_shrink_0()
+        .mt(px(-13.0))
         .w_full()
         .p(px(10.0))
         .rounded(px(7.0))
