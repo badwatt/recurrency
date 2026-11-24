@@ -1437,58 +1437,8 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
         )
 }
 
-fn server_card(server: String, session: Signal<Session>) -> impl IntoElement {
-    let qr_server = server.clone();
-    let draft = signal(server.clone());
-    let error = signal(String::new());
-    let save = move || {
-        let value = draft.get().trim().trim_end_matches('/').to_string();
-        if !value.starts_with("http://") && !value.starts_with("https://") {
-            error.set("Use an http:// or https:// URL.".to_string());
-            return;
-        }
-        crate::auth::store_server(&value);
-        crate::auth::clear_session();
-        session.set(Session::SignedOut);
-    };
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(12.0))
-        .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(8.0))
-                .child(
-                    text("Server")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text(server)
-                        .text_size(px(13.0))
-                        .font_family(crate::theme::MONO)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("The app connects to this server. Saving a new URL signs you out.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(ui::field(
-                    "Server URL",
-                    draft,
-                    "https://recurrency.example.com",
-                ))
-                .child(
-                    text(move || error.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().destructive),
-                )
-                .child(ui::action_button("Use this server", false, save)),
-        )
-        .child(crate::components::web_server_qr::web_server_qr(qr_server))
+fn server_card(server: String, _session: Signal<Session>) -> impl IntoElement {
+    crate::components::web_server_qr::web_server_qr(server)
 }
 
 const LATEST_APK_URL: &str =
@@ -2818,6 +2768,8 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                         .flex_col()
                         .child(
                             text("Accounts & categories")
+                                .mt(px(13.0))
+                                .mb(px(-13.0))
                                 .text_size(px(48.0))
                                 .line_height(px(48.0))
                                 .letter_spacing(px(-2.4))
