@@ -5,100 +5,158 @@ use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
 pub fn theme_picker(selected: Signal<String>, server: String, token: String) -> impl IntoElement {
+    let dark = crate::theme::THEMES
+        .iter()
+        .filter(|definition| definition.is_dark)
+        .collect::<Vec<_>>();
+    let light = crate::theme::THEMES
+        .iter()
+        .filter(|definition| !definition.is_dark)
+        .collect::<Vec<_>>();
     view()
         .w_full()
-        .grid()
-        .grid_template_columns(SharedString::from("repeat(3, minmax(0, 1fr))"))
+        .flex_col()
         .gap(px(12.0))
-        .children(crate::theme::THEMES.iter().map(|definition| {
-            let id = definition.id;
-            let card_server = server.clone();
-            let card_token = token.clone();
-            let active = move || selected.get() == id;
+        .child(theme_group(
+            "DARK",
+            dark,
+            selected,
+            server.clone(),
+            token.clone(),
+        ))
+        .child(theme_group("LIGHT", light, selected, server, token))
+}
+
+fn theme_group(
+    label: &'static str,
+    definitions: Vec<&'static crate::theme::ThemeDefinition>,
+    selected: Signal<String>,
+    server: String,
+    token: String,
+) -> impl IntoElement {
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(8.0))
+        .child(
+            text(label)
+                .text_size(px(10.0))
+                .letter_spacing(px(1.6))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
             view()
                 .w_full()
-                .flex_col()
+                .grid()
+                .grid_template_columns(SharedString::from("repeat(3, minmax(0, 1fr))"))
+                .gap(px(12.0))
+                .children(definitions.into_iter().map(|definition| {
+                    theme_card(definition, selected, server.clone(), token.clone())
+                })),
+        )
+}
+
+fn theme_card(
+    definition: &'static crate::theme::ThemeDefinition,
+    selected: Signal<String>,
+    server: String,
+    token: String,
+) -> AnyElement {
+    let id = definition.id;
+    let card_server = server;
+    let card_token = token;
+    let active = move || selected.get() == id;
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(8.0))
+        .p(px(12.0))
+        .rounded(px(10.0))
+        .border(px(1.0))
+        .border_color(move || {
+            if active() {
+                theme().primary
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || theme().background)
+        .cursor_pointer()
+        .on_press(move || {
+            crate::theme::apply(id);
+            crate::theme::save(id);
+            selected.set(id.to_string());
+            let server = card_server.clone();
+            let token = card_token.clone();
+            spawn(async move {
+                let _ = crate::api::save_theme(server, token, id).await;
+            });
+        })
+        .child(
+            view()
+                .w_full()
+                .h(px(24.0))
+                .flex_row()
+                .overflow_hidden()
+                .rounded(px(6.0))
+                .child(
+                    view()
+                        .flex_grow(1.0)
+                        .bg(rgba((definition.background << 8) | 0xff)),
+                )
+                .child(
+                    view()
+                        .flex_grow(1.0)
+                        .bg(rgba((definition.card << 8) | 0xff)),
+                )
+                .child(
+                    view()
+                        .flex_grow(1.0)
+                        .bg(rgba((definition.primary << 8) | 0xff)),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
                 .gap(px(8.0))
-                .p(px(12.0))
-                .rounded(px(10.0))
-                .border(px(1.0))
-                .border_color(move || {
-                    if active() {
-                        theme().primary
-                    } else {
-                        theme().border
-                    }
-                })
-                .bg(move || theme().background)
-                .cursor_pointer()
-                .on_press(move || {
-                    crate::theme::apply(id);
-                    crate::theme::save(id);
-                    selected.set(id.to_string());
-                    let server = card_server.clone();
-                    let token = card_token.clone();
-                    spawn(async move {
-                        let _ = crate::api::save_theme(server, token, id).await;
-                    });
-                })
                 .child(
-                    view()
-                        .w_full()
-                        .h(px(24.0))
-                        .flex_row()
-                        .overflow_hidden()
-                        .rounded(px(6.0))
-                        .child(
-                            view()
-                                .flex_grow(1.0)
-                                .bg(rgba((definition.background << 8) | 0xff)),
-                        )
-                        .child(
-                            view()
-                                .flex_grow(1.0)
-                                .bg(rgba((definition.card << 8) | 0xff)),
-                        )
-                        .child(
-                            view()
-                                .flex_grow(1.0)
-                                .bg(rgba((definition.primary << 8) | 0xff)),
-                        ),
+                    text(definition.label)
+                        .flex_grow(1.0)
+                        .number_of_lines(1)
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
                 )
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .gap(px(8.0))
-                        .child(
-                            text(definition.label)
-                                .flex_grow(1.0)
-                                .number_of_lines(1)
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        )
-                        .when(active(), |row| {
-                            row.child(
-                                image(asset!("icons/check.svg"))
-                                    .size(px(15.0))
-                                    .tint_color(move || theme().primary),
-                            )
-                        }),
-                )
-                .child(
-                    text(definition.description)
-                        .text_size(px(11.0))
-                        .line_height(px(16.0))
-                        .text_color(move || theme().muted_foreground),
-                )
-                .into_element()
-        }))
+                .when(active(), |row| {
+                    row.child(
+                        image(asset!("icons/check.svg"))
+                            .size(px(15.0))
+                            .tint_color(move || theme().primary),
+                    )
+                }),
+        )
+        .child(
+            text(definition.description)
+                .text_size(px(11.0))
+                .line_height(px(16.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .into_element()
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_picker_is_grouped_into_dark_and_light_sections() {
+        let source = include_str!("theme_picker.rs");
+        assert!(source.contains("\"DARK\""));
+        assert!(source.contains("\"LIGHT\""));
+    }
+
     #[test]
     fn every_theme_appears_in_the_picker() {
         assert_eq!(crate::theme::THEMES.len(), 18);

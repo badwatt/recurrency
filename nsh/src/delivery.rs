@@ -202,6 +202,22 @@ fn load_from(
     enabled.set(channel.is_some_and(|channel| channel.enabled));
 }
 
+fn provider_icon(id: &str) -> ImageAsset {
+    match id {
+        "email" => asset!("icons/mail.svg"),
+        "ntfy" => asset!("icons/bell.svg"),
+        "telegram" => asset!("icons/send.svg"),
+        "discord" => asset!("icons/gamepad.svg"),
+        "gotify" => asset!("icons/bell.svg"),
+        "webhook" => asset!("icons/webhook.svg"),
+        "slack" => asset!("icons/hash.svg"),
+        "mattermost" => asset!("icons/bot.svg"),
+        "pushover" => asset!("icons/smartphone.svg"),
+        "pushplus" => asset!("icons/plus.svg"),
+        _ => asset!("icons/server.svg"),
+    }
+}
+
 pub fn delivery_card(server: String, token: String) -> impl IntoElement {
     let data = resource(|| Some(()), {
         let server = server.clone();
@@ -346,10 +362,9 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                         .rounded(px(6.0))
                         .bg(rgba(color))
                         .child(
-                            text(label.chars().next().unwrap_or('?').to_string())
-                                .text_size(px(12.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().primary_foreground),
+                            image(provider_icon(id))
+                                .size(px(15.0))
+                                .tint_color(move || theme().primary_foreground),
                         ),
                 )
                 .child(
