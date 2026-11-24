@@ -41,6 +41,7 @@ pub fn page_header(
                 .flex_wrap()
                 .items_center()
                 .gap(px(8.0))
+                .mt(px(-5.0))
                 .child(actions),
         )
 }
