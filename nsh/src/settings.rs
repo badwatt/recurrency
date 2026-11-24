@@ -309,7 +309,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     view()
         .relative()
         .w_full()
-        .pt(px(8.0))
+        .pt(px(0.0))
         .on_layout(
             move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
                 compact.set(bounds.size.width.0 < 900.0);
@@ -452,7 +452,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                     }),
                 )
                 .child(
-                    view().w_full().mt(px(45.0)).child(
+                    view().w_full().mt(px(17.0)).child(
                         button()
                             .cursor_pointer()
                             .w_full()
