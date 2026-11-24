@@ -18,6 +18,7 @@ design. Pages never paint new chrome; they compose the modules in `src/component
 | `privacy_toggle` | eye control that masks every amount |
 | `skeleton` | loading placeholder |
 | `textarea` | multiline notes surface; `text_area_with_height` keeps the 80 px notes box in dialogs |
+| `debt_charge_days` | automatic-debt month-day grid with last-day handling |
 | `toggle` | switch control |
 
 ## Molecules
@@ -37,7 +38,7 @@ design. Pages never paint new chrome; they compose the modules in `src/component
 | `page_header` | title, subtitle and page actions |
 | `search_input` | search field with icon |
 | `segmented` | two-or-more exclusive options |
-| `select_menu` | searchable entity picker; `height(36)` for account/category rows |
+| `select_menu` | searchable entity picker with inline create; `height(36)` for account/category rows |
 | `sort_menu` | sort field and direction |
 | `string_select` | searchable catalogue picker |
 | `theme_picker` | 18-theme swatch grid |
