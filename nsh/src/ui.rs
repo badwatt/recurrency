@@ -18,6 +18,43 @@ thread_local! {
     static MENU_STATE: RefCell<Option<MenuState>> = const { RefCell::new(None) };
     static MENU_VERSION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
     static SUBSCRIPTION_INTENT: RefCell<Option<Signal<Option<SubscriptionIntent>>>> = const { RefCell::new(None) };
+    static LOGO_MODAL: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
+}
+
+pub fn init_logo_modal() {
+    LOGO_MODAL.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(crate::components::dialog::DialogHost::new());
+        }
+    });
+}
+
+pub fn open_logo_modal(build: impl Fn() -> AnyElement + 'static) {
+    LOGO_MODAL.with(|slot| {
+        if let Some(modal) = *slot.borrow() {
+            modal.open(build);
+        }
+    });
+}
+
+pub fn close_logo_modal() {
+    LOGO_MODAL.with(|slot| {
+        if let Some(modal) = *slot.borrow() {
+            modal.close();
+        }
+    });
+}
+
+pub fn logo_modal_active() -> bool {
+    LOGO_MODAL.with(|slot| slot.borrow().is_some_and(|modal| modal.active()))
+}
+
+pub fn logo_modal_overlay() -> AnyElement {
+    LOGO_MODAL.with(|slot| match *slot.borrow() {
+        Some(modal) => modal_overlay(modal),
+        None => view().h(px(0.0)).into_element(),
+    })
 }
 
 pub fn init_privacy() {

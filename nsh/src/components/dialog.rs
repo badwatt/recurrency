@@ -65,6 +65,7 @@ pub struct DialogProps {
     pub width: f32,
     pub body: AnyElement,
     pub footer: AnyElement,
+    pub show_footer: bool,
     pub on_close: Rc<dyn Fn()>,
 }
 
@@ -80,6 +81,7 @@ impl DialogProps {
             width: 508.0,
             body: view().into_element(),
             footer: view().into_element(),
+            show_footer: true,
             on_close: Rc::new(on_close),
         }
     }
@@ -98,6 +100,11 @@ impl DialogProps {
         self.footer = footer;
         self
     }
+
+    pub fn footer_visible(mut self, visible: bool) -> Self {
+        self.show_footer = visible;
+        self
+    }
 }
 
 pub fn dialog(dialog: DialogProps) -> impl IntoElement {
@@ -107,6 +114,7 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         width,
         body,
         footer,
+        show_footer,
         on_close,
     } = dialog;
     let close = on_close.clone();
@@ -186,17 +194,19 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                     .child(body),
             ),
         )
-        .child(
-            view()
-                .w_full()
-                .px(px(24.0))
-                .pr(px(26.0))
-                .pt(px(24.0))
-                .pb(px(24.0))
-                .border_t(px(1.0))
-                .border_color(move || nsh_base::theme().border)
-                .child(footer),
-        )
+        .when(show_footer, |card| {
+            card.child(
+                view()
+                    .w_full()
+                    .px(px(24.0))
+                    .pr(px(26.0))
+                    .pt(px(24.0))
+                    .pb(px(24.0))
+                    .border_t(px(1.0))
+                    .border_color(move || nsh_base::theme().border)
+                    .child(footer),
+            )
+        })
 }
 
 #[cfg(test)]

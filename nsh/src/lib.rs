@@ -95,6 +95,7 @@ pub fn App() -> impl IntoElement {
     crate::theme::apply(&crate::theme::saved());
     crate::format::init_date_format();
     ui::init_privacy();
+    ui::init_logo_modal();
     let route = signal(Route::Dashboard);
     ui::init_route(route);
     let stored = auth::has_stored_session();
@@ -387,6 +388,20 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                         .child(notifications::notifications_modal(
                             notification_auth.clone(),
                         ))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0))),
+        )
+        .child(
+            when(
+                move || ui::logo_modal_active(),
+                move || {
+                    view()
+                        .absolute()
+                        .inset_0()
+                        .z_index(110)
+                        .child(ui::logo_modal_overlay())
                         .into_element()
                 },
             )
