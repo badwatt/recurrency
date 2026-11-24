@@ -149,7 +149,9 @@ pub fn web_server_qr(server: String) -> impl IntoElement {
                 .w_full()
                 .flex_col()
                 .gap(px(4.0))
-                .p(px(24.0))
+                .px(px(24.0))
+                .pt(px(24.0))
+                .pb(px(12.0))
                 .border_b(px(1.0))
                 .border_color(move || theme().border)
                 .child(

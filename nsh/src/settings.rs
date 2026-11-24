@@ -1461,10 +1461,10 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         ),
                 ),
         )
-        .child(view().w_full().flex_grow(1.0))
         .child(
             view()
                 .w_full()
+                .flex_grow(1.0)
                 .flex_row()
                 .items_center()
                 .justify_between()
@@ -1799,7 +1799,7 @@ fn about_card() -> impl IntoElement {
                 .child(
                     view()
                         .px(px(20.0))
-                        .py(px(16.0))
+                        .py(px(20.0))
                         .gap(px(2.0))
                         .flex_shrink_0()
                         .rounded(px(12.0))
@@ -1844,7 +1844,7 @@ fn about_card() -> impl IntoElement {
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(ui::action_button(
+        .child(view().mt(px(9.0)).child(ui::action_button(
             if show_notes.get() {
                 "Hide notes"
             } else {
@@ -1852,7 +1852,7 @@ fn about_card() -> impl IntoElement {
             },
             false,
             move || show_notes.set(!show_notes.get()),
-        ))
+        )))
         .child(
             when(
                 move || show_notes.get(),
@@ -1936,6 +1936,7 @@ fn about_card() -> impl IntoElement {
                 .flex_row()
                 .items_center()
                 .gap(px(16.0))
+                .mt(px(13.0))
                 .pt(px(10.0))
                 .border_t(px(1.0))
                 .border_color(move || theme().border.opacity(0.4))
@@ -2246,6 +2247,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
 fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
     ui::surface()
         .p(px(32.0))
+        .pb(px(40.0))
         .rounded(px(16.0))
         .gap(px(16.0))
         .bg(move || theme().primary.opacity(0.06))
@@ -2259,6 +2261,7 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
                     view()
                         .h(px(64.0))
                         .w(px(64.0))
+                        .mt(px(-16.0))
                         .items_center()
                         .justify_center()
                         .rounded(px(16.0))
@@ -2299,6 +2302,7 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
             view()
                 .flex_row()
                 .flex_wrap()
+                .mt(px(4.0))
                 .gap(px(8.0))
                 .child(ai_chip(move || {
                     if configured() {
@@ -2441,7 +2445,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(12.0))
+        .gap(px(20.0))
         .child(ai_hero(configured))
         .child(
             ui::surface()
@@ -3407,10 +3411,11 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             view()
                 .w_full()
                 .flex_row()
-                .items_end()
+                .items_start()
                 .justify_between()
                 .gap(px(24.0))
                 .pb(px(2.0))
+                .mb(px(-6.0))
                 .child(
                     view()
                         .flex_col()
@@ -3428,6 +3433,7 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                         )
                         .child(
                             text("Accounts and categories that organize your money")
+                                .mt(px(6.0))
                                 .text_size(px(16.0))
                                 .line_height(px(24.0))
                                 .text_color(move || theme().muted_foreground),
