@@ -26,6 +26,7 @@ struct CalendarEntry {
     date: NaiveDate,
     is_transaction: bool,
     subscription_id: Option<Uuid>,
+    frequency: String,
 }
 
 pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
@@ -916,6 +917,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
                 date: item.billing_date,
                 is_transaction: false,
                 subscription_id: Some(item.subscription_id),
+                frequency: item.frequency.clone(),
             });
         }
     }
@@ -929,6 +931,7 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
                 date: transaction.date,
                 is_transaction: true,
                 subscription_id: None,
+                frequency: "One-time".to_string(),
             });
         }
     }

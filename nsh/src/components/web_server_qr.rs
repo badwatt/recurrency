@@ -64,10 +64,28 @@ pub fn qr_card(
         .p(px(24.0))
         .gap(px(14.0))
         .child(
-            text(title)
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .gap(px(12.0))
+                .child(
+                    text(title)
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("APK")
+                        .text_size(px(11.0))
+                        .px(px(8.0))
+                        .py(px(3.0))
+                        .rounded(px(999.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .text_color(move || theme().muted_foreground),
+                ),
         )
         .child(
             text(description)
