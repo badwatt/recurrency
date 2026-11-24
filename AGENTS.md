@@ -12,7 +12,7 @@
 | Versión | `[package] version` · `[workspace.package] version` + `version.workspace = true` | `env!("CARGO_PKG_VERSION")` |
 | Edición y MSRV | `[package] edition` · `[package] rust-version` | `Cargo.toml`, y el CI lo compila |
 | Tipo | `src/main.rs` (bin) · `src/lib.rs` (lib) · deps como `axum`/`clap` | lo que exista en el repo |
-| Entorno | `flake.nix` · `mise.toml` · `devcontainer.json` | el primero que exista |
+| Toolchain y herramientas | `flake.nix` + `rust-toolchain.toml` | el devShell del flake |
 | Cobertura mínima | configuración del CI o `[workspace.metadata]` | por defecto **90** |
 
 - ⛔ Archivo `VERSION`, literales repetidos (README, rustdoc, `--version`, User-Agent, títulos) y tags escritos a mano.
@@ -49,7 +49,9 @@ src/features/<feature>/    domain.rs · ports.rs (traits) · service.rs · adapt
 | Helpers de test que ignoran un `Result` | Que el test falle |
 | Valores hardcodeados (textos, URLs, timeouts, colores) | Constantes, configuración o tokens de tema |
 | Nombre o versión a mano | `env!("CARGO_PKG_NAME")`, `env!("CARGO_PKG_VERSION")` |
-| Dependencias injustificadas · herramientas instaladas en el sistema | Mínimo de deps, actualizadas; las herramientas se declaran en el repo, no en la máquina |
+| Dependencias injustificadas · inputs de flake que sobran | Mínimo de deps, actualizadas; cada input justifica su mantenimiento |
+| `cargo install`, `nix profile install`, `nix-env -i`, paquetes del sistema | Toda herramienta se declara en `flake.nix` |
+| `--impure`, `builtins.getEnv`, rutas absolutas del host | El resultado depende solo del flake |
 | Optimizar «por si acaso» | Benchmark o perfil primero |
 | Lógica repetida ×2 | Extraer a función, tipo o módulo |
 | Código muerto o comentado · `#[allow]` sin motivo | Borrar; el `allow` en el ítem, con motivo |
@@ -57,7 +59,15 @@ src/features/<feature>/    domain.rs · ports.rs (traits) · service.rs · adapt
 
 `Arc` cuesta (contador atómico): solo con propiedad compartida real. Si un `clone` no se explica solo, el motivo va en el código.
 
-## 4. TDD y cobertura
+## 4. Entorno Nix
+
+- `flake.nix` es el **único** sitio donde se declaran herramientas (toolchain de Rust, `cargo-llvm-cov`, `cargo-deny`, `act`).
+- `devShells.default` lleva solo herramientas de desarrollo; `packages.default` construye el binario. Sin duplicar dependencias entre ambos.
+- Uso diario: `nix develop` (o `direnv` + `use flake`). Un comando suelto: `nix develop -c <cmd>`.
+- `flake.lock` se commitea. Actualizar es una decisión explícita (`nix flake update`) revisando el diff de inputs.
+- La versión de Rust la fija `rust-toolchain.toml` dentro del shell; ⛔ `rustup default` global.
+
+## 5. TDD y cobertura
 
 Cada cambio empieza con un test en **rojo**, cada commit lleva sus tests, y nunca se avanza de feature con tests rojos.
 
@@ -85,7 +95,7 @@ fn validate_empty_name_fails() {
 | Funciones puras, serde, `Clone`/`Eq`, value objects | UI generada por macro, WASM y APIs de plataforma |
 | Traits y servicios con fakes | Async de DB sin doble, integración sin infraestructura |
 
-## 5. Inyección de dependencias
+## 6. Inyección de dependencias
 
 Todo servicio con efectos (I/O, DB, tiempo, red) expone un trait; el dominio depende del trait, nunca de la implementación.
 
@@ -135,9 +145,9 @@ impl ItemServiceTrait for FakeItemService {
 }
 ```
 
-## 6. Calidad y cierre
+## 7. Calidad y cierre
 
-Antes de cada commit, dentro del entorno de desarrollo del proyecto:
+Antes de cada commit, dentro del devShell (`nix develop`):
 
 ```bash
 cargo fmt --all -- --check
@@ -146,16 +156,17 @@ cargo test --all-features
 cargo doc --no-deps --document-private-items   # sin warnings
 ```
 
-Cobertura con `cargo llvm-cov`; cualquier workflow de CI se verifica en local con `act` antes del push.
+- `nix flake check` debe pasar: declara los checks de `fmt`, `clippy` y `test` en el flake para no duplicar la lógica que ya existe.
+- Cobertura con `cargo llvm-cov`; cualquier workflow de CI se verifica en local con `act`, ambos desde el flake.
 
-**Terminado** cuando: hay un test que falla sin el cambio y pasa con él · diff coverage 100% y global sin bajar · los cuatro comandos en verde · el código respeta las skills de Rust aplicables · no hay `unwrap`, `clone` ni dependencia nuevos sin justificar · README/rustdoc actualizados si cambió el comportamiento público · si cambió `version`, `CHANGELOG.md` al día y usuario avisado.
+**Terminado** cuando: hay un test que falla sin el cambio y pasa con él · diff coverage 100% y global sin bajar · los cuatro comandos y `nix flake check` en verde · el código respeta las skills de Rust aplicables · no hay `unwrap`, `clone` ni dependencia nuevos sin justificar · README/rustdoc actualizados si cambió el comportamiento público · si cambió `version`, `CHANGELOG.md` al día y usuario avisado.
 
-## 7. Release y versionado
+## 8. Release y versionado
 
 Un release se dispara por el **cambio de `version` en `Cargo.toml`**, nunca por un archivo aparte ni un tag manual. El workflow lo diseña el agente según el proyecto (artefactos, targets, publicación o no en crates.io); estos invariantes no se negocian:
 
 - Detecta la versión; si el tag `v<version>` ya existe → no-op en verde. **Idempotente**: re-ejecutar no duplica tags ni releases.
-- Verifica antes de publicar: `fmt`, `clippy -D warnings`, `test`, build del artefacto.
+- Verifica antes de publicar: `fmt`, `clippy -D warnings`, `test`, build del artefacto — cada paso dentro del shell, `nix develop -c …`.
 - ⛔ Bump desde el CI o commit de vuelta al repo · ⛔ tag a mano antes de que la versión esté en `Cargo.toml`.
 
 **Commits**: `type(scope): description` (`feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `perf`), un cambio coherente con sus tests. **Preguntar siempre** antes de `git push` y antes de tocar `name`/`version`. **Semver** `MAJOR.MINOR.PATCH`: `MAJOR` incompatible, `MINOR` funcionalidad compatible, `PATCH` corrección o refactor compatible (pre-1.0, misma regla sobre `0.MINOR.PATCH`).
