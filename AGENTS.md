@@ -42,20 +42,27 @@ src/features/<feature>/    domain.rs · ports.rs (traits) · service.rs · adapt
 | `unsafe`, punteros raw, `transmute`, `mem::forget`, `ManuallyDrop`, `MaybeUninit`, `Box::leak` | Cero tolerancia, sin excepciones |
 | `Rc` entre hilos | `Arc<dyn Trait>`, visible en `AppState` y callbacks |
 | `Arc` por reflejo · `clone()` para calmar al borrow checker | Préstamos (`&T`, `&str`, `&[T]`), mover valores, `Box<T>` si el dueño es único |
+| `String` donde basta `&str` · `Cow` sin necesidad | Préstamo por defecto; `Cow<'_, str>` solo si el ownership es condicional |
+| Struct con más de 5 parámetros o campos públicos por comodidad | Struct de config o builder; campos privados con accesores |
 | `.unwrap()` / `.expect()` en producción | `?`, `match` o fallback explícito |
 | Tragarse un error (`let _ =`, `ok()`) · `panic!` para flujo esperado | `Result` + `thiserror`; `Box<dyn Error + Send + Sync>` solo en `main`/CLI |
 | Mensajes que filtran secretos | Qué falló y con qué input, sin datos sensibles |
+| Secretos, tokens o PII en el código o en los logs | `.env` fuera de git, `secrecy` para el tipo, y nunca se loguean |
 | `unsafe` o env global mutado en tests · `unwrap` sin mensaje | Configuración inyectada u override thread-local; fixtures con mensaje de lo esperado |
 | Helpers de test que ignoran un `Result` | Que el test falle |
 | Valores hardcodeados (textos, URLs, timeouts, colores) | Constantes, configuración o tokens de tema |
 | Nombre o versión a mano | `env!("CARGO_PKG_NAME")`, `env!("CARGO_PKG_VERSION")` |
+| `_` como catch-all en un `match` sobre un enum propio | Brazos exhaustivos: un variante nueva debe romper la compilación |
+| `println!`/`dbg!` en el código entregado | Diagnóstico por `tracing` a stderr |
+| Trabajo CPU-bound dentro de un `async fn` | `spawn_blocking` o `rayon`, fuera del reactor |
 | Dependencias injustificadas · inputs de flake que sobran | Mínimo de deps, actualizadas; cada input justifica su mantenimiento |
 | `cargo install`, `nix profile install`, `nix-env -i`, paquetes del sistema | Toda herramienta se declara en `flake.nix` |
 | `--impure`, `builtins.getEnv`, rutas absolutas del host | El resultado depende solo del flake |
-| Optimizar «por si acaso» | Benchmark o perfil primero |
+| Optimizar «por si acaso» · afinar el benchmark para cumplir el requisito | Benchmark o perfil primero, y medición honesta |
 | Lógica repetida ×2 | Extraer a función, tipo o módulo |
 | Código muerto o comentado · `#[allow]` sin motivo | Borrar; el `allow` en el ítem, con motivo |
-| Warnings de `fmt`/`clippy`/`doc` | Cero: `-D warnings` |
+| Warnings de `fmt`/`clippy`/`doc` · `#![deny(warnings)]` en el código | Cero: `-D warnings` en el CI |
+| API pública sin documentar | `rustdoc` en todo `pub`, con `# Errors` si devuelve `Result` y `# Examples` si no es trivial |
 
 `Arc` cuesta (contador atómico): solo con propiedad compartida real. Si un `clone` no se explica solo, el motivo va en el código.
 
@@ -88,7 +95,7 @@ fn validate_empty_name_fails() {
 - **Diff coverage 100%** — toda línea y rama nueva o modificada.
 - **Global ≥ 90** (o el mínimo que declare el CI) — nunca decreciente.
 - Sin tests de relleno. Lo no testeable se justifica: `// No test: <motivo>. Cubierto por <integración | manual | N/A>`.
-- Test: `fn <verbo>_<sujeto>_<escenario>_<resultado>()` — un concepto, un `assert`, determinista (sin red, sin sleeps, sin timestamps reales). Junto al módulo o en `<feature>/tests/`; integración en `tests/`.
+- Test: `fn <verbo>_<sujeto>_<escenario>_<resultado>()` — un concepto, un `assert`, estructura Arrange-Act-Assert, determinista (sin red, sin sleeps, sin timestamps reales). Junto al módulo o en `<feature>/tests/`; integración en `tests/`.
 
 | Testeable ✅ | No testeable ⛔ → aislar en un adaptador fino y cubrir con integración |
 |---|---|
