@@ -334,11 +334,18 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                                 .tint_color(move || theme().primary),
                         )
                         .child(
-                            text("Recurrency")
-                                .text_size(px(16.0))
-                                .line_height(px(24.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().foreground),
+                            when(
+                                move || !compact.get(),
+                                move || {
+                                    text("Recurrency")
+                                        .text_size(px(16.0))
+                                        .line_height(px(24.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().foreground)
+                                        .into_element()
+                                },
+                            )
+                            .otherwise(|| view().h(px(0.0)).into_element()),
                         ),
                 )
                 .child(
@@ -526,13 +533,23 @@ pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
                         theme().muted_foreground
                     }
                 }))
-                .child(text(item.label()).text_size(px(9.0)).text_color(move || {
-                    if active() {
-                        theme().foreground
-                    } else {
-                        theme().muted_foreground
-                    }
-                }))
+                .child(
+                    text(match item {
+                        Route::Dashboard => "Home",
+                        Route::Subscriptions => "Subs",
+                        Route::Transactions => "Trans",
+                        Route::Calendar => "Cal",
+                        _ => item.label(),
+                    })
+                    .text_size(px(9.0))
+                    .text_color(move || {
+                        if active() {
+                            theme().foreground
+                        } else {
+                            theme().muted_foreground
+                        }
+                    }),
+                )
         }))
 }
 

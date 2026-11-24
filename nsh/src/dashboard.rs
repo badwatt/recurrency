@@ -119,7 +119,6 @@ fn header(
                     .flex_col()
                     .gap(px(12.0))
                     .child(title_block(mobile_name.clone()))
-                    .child(actions(route, intent))
                     .into_element()
             },
         )
