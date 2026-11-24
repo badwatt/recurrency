@@ -96,6 +96,7 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
     view()
         .flex_1()
         .w_full()
+        .h_full()
         .items_center()
         .justify_center()
         .bg(move || theme().background)
