@@ -13,7 +13,7 @@ use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
-use crate::components::page_header::page_header as shared_page_header;
+use crate::components::page_header::page_header_collapsible as shared_page_header;
 use crate::components::search_input::search_input;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
@@ -265,6 +265,13 @@ pub fn debts(
         .w_full()
         .flex_col()
         .gap(px(24.0))
+        .pt(move || {
+            if crate::ui::compact_active() {
+                px(10.0)
+            } else {
+                px(0.0)
+            }
+        })
         .child(header(open_form))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
@@ -580,6 +587,7 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
                     .on_press(on_add),
             ))
             .into_element(),
+        140.0,
     )
 }
 

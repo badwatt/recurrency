@@ -63,6 +63,13 @@ pub fn reports(auth: AuthSession) -> AnyElement {
         .w_full()
         .flex_col()
         .gap(px(24.0))
+        .pt(move || {
+            if crate::ui::compact_active() {
+                px(10.0)
+            } else {
+                px(0.0)
+            }
+        })
         .child(shared_page_header(
             TITLE,
             SUBTITLE,

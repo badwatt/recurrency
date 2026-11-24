@@ -14,7 +14,7 @@ use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
-use crate::components::page_header::page_header as shared_page_header;
+use crate::components::page_header::page_header_collapsible as shared_page_header;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle;
@@ -227,6 +227,13 @@ pub fn transactions(
         .w_full()
         .flex_col()
         .gap(px(24.0))
+        .pt(move || {
+            if crate::ui::compact_active() {
+                px(10.0)
+            } else {
+                px(0.0)
+            }
+        })
         .child(header(open_form))
         .child(toolbar(
             data,
@@ -327,6 +334,7 @@ fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
                     .on_press(on_add),
             ))
             .into_element(),
+        180.0,
     )
 }
 

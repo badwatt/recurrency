@@ -74,6 +74,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
         .w_full()
         .flex_col()
         .gap(px(24.0))
+        .pt(move || if compact.get() { px(10.0) } else { px(0.0) })
         .child(header())
         .child(when(loading, || loading_card()).otherwise(move || {
             let currency = render_currency.clone();
