@@ -5,7 +5,7 @@ use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
 
 pub fn text_area(value: Signal<String>, placeholder: &'static str) -> impl IntoElement {
-    text_area_with_height(value, placeholder, 80.0)
+    text_area_with_height(value, placeholder, 60.0)
 }
 
 pub fn text_area_with_height(

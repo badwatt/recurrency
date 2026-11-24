@@ -35,6 +35,10 @@ pub struct CreateDebtRequest {
     pub monthly_payment: Option<Decimal>,
     pub payment_days: Vec<u8>,
     pub start_date: Option<NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -46,6 +50,9 @@ struct DebtForm {
     monthly: Signal<String>,
     start_date: Signal<String>,
     debt_type: Signal<String>,
+    currency: Signal<String>,
+    notes: Signal<String>,
+    logo_url: Signal<String>,
     account_id: Signal<Option<Uuid>>,
     category_id: Signal<Option<Uuid>>,
     error: Signal<String>,
@@ -122,6 +129,9 @@ pub fn debts(
     let today = Local::now().date_naive();
     let start_date = signal(today.to_string());
     let debt_type = signal("manual".to_string());
+    let form_currency = signal(currency.clone());
+    let notes = signal(String::new());
+    let logo_url = signal(String::new());
     let account_id = signal(None::<Uuid>);
     let category_id = signal(None::<Uuid>);
     let form_error = signal(String::new());
@@ -159,6 +169,9 @@ pub fn debts(
         monthly,
         start_date,
         debt_type,
+        currency: form_currency,
+        notes,
+        logo_url,
         account_id,
         category_id,
         error: form_error,
@@ -184,6 +197,9 @@ pub fn debts(
         monthly.set(String::new());
         start_date.set(today.to_string());
         debt_type.set("manual".to_string());
+        form_currency.set(currency.clone());
+        notes.set(String::new());
+        logo_url.set(String::new());
         account_id.set(
             snapshot
                 .accounts
@@ -377,9 +393,9 @@ fn payment_form(
                         .cursor_pointer()
                         .items_center()
                         .justify_center()
-                        .h(px(36.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
+                        .h(px(40.0))
+                        .px(px(16.0))
+                        .rounded(px(6.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
@@ -389,7 +405,7 @@ fn payment_form(
                         })
                         .child(
                             text("Cancel")
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         ),
@@ -399,9 +415,9 @@ fn payment_form(
                         .cursor_pointer()
                         .items_center()
                         .justify_center()
-                        .h(px(36.0))
+                        .h(px(40.0))
                         .px(px(14.0))
-                        .rounded(px(7.0))
+                        .rounded(px(6.0))
                         .bg(move || theme().primary)
                         .disabled(move || saving.get())
                         .disabled_style(|state| state.opacity(0.5))
@@ -414,7 +430,7 @@ fn payment_form(
                                     "Record payment"
                                 }
                             })
-                            .text_size(px(13.0))
+                            .text_size(px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(move || theme().primary_foreground),
                         ),
@@ -805,7 +821,7 @@ fn form(
     form: DebtForm,
     server: Signal<String>,
     token: Signal<String>,
-    currency: String,
+    _currency: String,
     modal: ui::ModalHost,
 ) -> impl IntoElement {
     let DebtForm {
@@ -816,6 +832,9 @@ fn form(
         monthly,
         start_date,
         debt_type,
+        currency: form_currency,
+        notes,
+        logo_url,
         account_id,
         category_id,
         error: form_error,
@@ -840,8 +859,10 @@ fn form(
             }
         }
     });
+    let logo_results = signal(Vec::<(String, String)>::new());
+    let logo_loading = signal(false);
+    let logo_error = signal(String::new());
     let save = {
-        let currency = currency.clone();
         move || {
             if saving.get() {
                 return;
@@ -883,7 +904,7 @@ fn form(
             let request = CreateDebtRequest {
                 name: name_value,
                 total_amount: total_value,
-                currency: currency.clone(),
+                currency: form_currency.get(),
                 account_id: account_value,
                 category_id: category_id.get(),
                 debt_type: debt_type.get(),
@@ -894,6 +915,8 @@ fn form(
                     Vec::new()
                 },
                 start_date: Some(start_value),
+                notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
+                logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -926,51 +949,70 @@ fn form(
         "Add Debt"
     };
     crate::components::dialog::dialog(
-        crate::components::dialog::DialogProps::new(
-            title,
-            "Manual balances or automatic payments.",
-            move || {
-                form_open.set(false);
-                editing.set(None);
-                modal.close();
-            },
-        )
+        crate::components::dialog::DialogProps::new(title, "", move || {
+            form_open.set(false);
+            editing.set(None);
+            modal.close();
+        })
         .width(512.0)
         .body(
             view()
-                .p(px(24.0))
+                .pl(px(22.0))
+                .pr(px(34.0))
+                .pt(px(1.0))
+                .pb(px(24.0))
                 .gap(px(16.0))
+                .child(ui::required_field("Name", name, "Mortgage, car loan…"))
                 .child(
                     view()
                         .w_full()
                         .flex_row()
-                        .gap(px(12.0))
-                        .child(ui::row_item(ui::field("Name", name, "Car loan")))
-                        .child(ui::row_item(ui::field("Total owed", total, "12000"))),
+                        .gap(px(16.0))
+                        .child(ui::row_item(ui::required_field("Total owed", total, "")))
+                        .child(ui::row_item(string_select(StringSelectProps::new(
+                            "Currency *",
+                            form_currency,
+                            crate::currencies::CURRENCIES
+                                .iter()
+                                .map(|(code, label)| ((*code).to_string(), (*label).to_string()))
+                                .collect(),
+                        )))),
                 )
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .gap(px(12.0))
-                        .child(ui::row_item(ui::date_field("First payment", start_date)))
-                        .child(ui::row_item(ui::field("Monthly payment", monthly, "250"))),
-                )
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(6.0))
-                        .child(ui::label("Type"))
-                        .child(
-                            view()
-                                .flex_row()
-                                .gap(px(6.0))
-                                .child(type_chip("Manual", "manual", debt_type))
-                                .child(type_chip("Automatic", "automatic", debt_type)),
+                .child(string_select(StringSelectProps::new(
+                    "Type",
+                    debt_type,
+                    vec![
+                        (
+                            "manual".to_string(),
+                            "Manual — I record each payment".to_string(),
                         ),
+                        (
+                            "automatic".to_string(),
+                            "Automatic — paid month by month".to_string(),
+                        ),
+                    ],
+                )))
+                .child(
+                    when(
+                        move || debt_type.get() == "automatic",
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .gap(px(16.0))
+                                .child(ui::row_item(ui::required_field(
+                                    "Monthly payment",
+                                    monthly,
+                                    "",
+                                )))
+                                .child(ui::row_item(ui::date_field("First payment", start_date)))
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
                 )
                 .child(ui::choice_picker(
-                    "Account",
+                    "Account *",
                     move || {
                         data.get()
                             .unwrap_or_default()
@@ -992,6 +1034,20 @@ fn form(
                             .collect()
                     },
                     category_id,
+                ))
+                .child(crate::components::field::field(
+                    crate::components::field::FieldProps::new("Notes"),
+                    crate::components::textarea::text_area(notes, "").into_element(),
+                ))
+                .child(crate::components::logo_search::logo_search(
+                    name,
+                    logo_url,
+                    server,
+                    crate::components::logo_search::LogoSearchState {
+                        results: logo_results,
+                        loading: logo_loading,
+                        error: logo_error,
+                    },
                 ))
                 .child(
                     when(
@@ -1017,9 +1073,9 @@ fn form(
                         .cursor_pointer()
                         .items_center()
                         .justify_center()
-                        .h(px(36.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
+                        .h(px(40.0))
+                        .px(px(16.0))
+                        .rounded(px(6.0))
                         .border(px(1.0))
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
@@ -1030,7 +1086,7 @@ fn form(
                         })
                         .child(
                             text("Cancel")
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         ),
@@ -1040,9 +1096,9 @@ fn form(
                         .cursor_pointer()
                         .items_center()
                         .justify_center()
-                        .h(px(36.0))
+                        .h(px(40.0))
                         .px(px(14.0))
-                        .rounded(px(7.0))
+                        .rounded(px(6.0))
                         .bg(move || theme().primary)
                         .disabled(move || saving.get())
                         .disabled_style(|state| state.opacity(0.5))
@@ -1057,7 +1113,7 @@ fn form(
                                     "Add Debt"
                                 }
                             })
-                            .text_size(px(13.0))
+                            .text_size(px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(move || theme().primary_foreground),
                         ),
@@ -1065,50 +1121,6 @@ fn form(
                 .into_element(),
         ),
     )
-}
-
-fn type_chip(
-    label_text: &'static str,
-    value: &'static str,
-    selected: Signal<String>,
-) -> impl IntoElement {
-    let active = move || selected.get() == value;
-    button()
-        .cursor_pointer()
-        .cursor_pointer()
-        .items_center()
-        .justify_center()
-        .h(px(30.0))
-        .px(px(10.0))
-        .rounded(px(6.0))
-        .border(px(1.0))
-        .border_color(move || {
-            if active() {
-                theme().primary
-            } else {
-                theme().border
-            }
-        })
-        .bg(move || {
-            if active() {
-                theme().accent
-            } else {
-                theme().card
-            }
-        })
-        .on_press(move || selected.set(value.to_string()))
-        .child(
-            text(label_text)
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || {
-                    if active() {
-                        theme().foreground
-                    } else {
-                        theme().muted_foreground
-                    }
-                }),
-        )
 }
 
 fn toolbar(
@@ -1508,6 +1520,10 @@ fn card_actions(
         );
         form.start_date.set(edit_debt.start_date.to_string());
         form.debt_type.set(edit_debt.debt_type.clone());
+        form.currency.set(edit_debt.currency.clone());
+        form.notes.set(edit_debt.notes.clone().unwrap_or_default());
+        form.logo_url
+            .set(edit_debt.logo_url.clone().unwrap_or_default());
         form.account_id.set(Some(edit_debt.account_id));
         form.category_id.set(Some(edit_debt.category_id));
         form.error.set(String::new());
@@ -1855,6 +1871,8 @@ mod tests {
             monthly_payment: Some(Decimal::from(250)),
             payment_days: vec![22],
             start_date: Some(date(2026, 11, 22)),
+            notes: None,
+            logo_url: None,
         };
         let value = serde_json::to_value(request).expect("request serializes");
         assert_eq!(value["debt_type"], "automatic");
