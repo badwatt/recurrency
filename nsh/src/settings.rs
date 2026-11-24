@@ -1643,30 +1643,56 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                 move || {
                     view()
                         .w_full()
-                        .p(px(12.0))
+                        .mt(px(16.0))
+                        .p(px(16.0))
                         .gap(px(8.0))
                         .rounded(px(8.0))
                         .border(px(1.0))
                         .border_color(move || theme().destructive.opacity(0.4))
                         .bg(move || theme().destructive.opacity(0.08))
                         .child(
-                            text("This replaces the current data.")
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(8.0))
+                                .child(
+                                    image(asset!("icons/shield.svg"))
+                                        .size(px(16.0))
+                                        .tint_color(move || theme().destructive),
+                                )
+                                .child(
+                                    text("Restore this backup?")
+                                        .text_size(px(14.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().destructive),
+                                ),
+                        )
+                        .child(
+                            text("This replaces your current accounts, categories, subscriptions, transactions and debts.")
                                 .text_size(px(12.0))
-                                .text_color(move || theme().destructive),
+                                .line_height(px(16.0))
+                                .text_color(move || theme().muted_foreground),
                         )
                         .child(
                             view()
                                 .flex_row()
-                                .justify_end()
+                                .flex_wrap()
                                 .gap(px(8.0))
-                                .child(ui::action_button("Cancel", false, move || {
-                                    pending.set(None);
-                                    status.set(String::new());
-                                }))
-                                .child(ui::action_button(
-                                    "Restore now",
-                                    true,
-                                    confirm_restore.clone(),
+                                .mt(px(4.0))
+                                .child(crate::components::button::button(
+                                    crate::components::button::ButtonProps::new("Restore backup")
+                                        .variant(crate::components::button::ButtonVariant::Destructive)
+                                        .size(crate::components::button::ButtonSize::Sm)
+                                        .on_press(confirm_restore.clone()),
+                                ))
+                                .child(crate::components::button::button(
+                                    crate::components::button::ButtonProps::new("Cancel")
+                                        .variant(crate::components::button::ButtonVariant::Outline)
+                                        .size(crate::components::button::ButtonSize::Sm)
+                                        .on_press(move || {
+                                            pending.set(None);
+                                            status.set(String::new());
+                                        }),
                                 )),
                         )
                         .into_element()
@@ -4437,18 +4463,38 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
                             .rounded(px(7.0))
                             .bg(move || theme().destructive.opacity(0.1))
                             .child(
-                                text("Replace every table with this backup?")
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().destructive),
+                                view()
+                                    .flex_col()
+                                    .gap(px(4.0))
+                                    .child(
+                                        text("Restore this backup?")
+                                            .text_size(px(14.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().destructive),
+                                    )
+                                    .child(
+                                        text("All current users, financial data and server settings will be replaced.")
+                                            .text_size(px(12.0))
+                                            .line_height(px(16.0))
+                                            .text_color(move || theme().muted_foreground),
+                                    ),
                             )
                             .child(
                                 view()
                                     .flex_row()
-                                    .gap(px(6.0))
-                                    .child(ui::action_button("Cancel", false, move || {
-                                        backup_pending.set(None)
-                                    }))
-                                    .child(ui::action_button("Restore now", true, restore_backup)),
+                                    .gap(px(8.0))
+                                    .child(crate::components::button::button(
+                                        crate::components::button::ButtonProps::new("Restore backup")
+                                            .variant(crate::components::button::ButtonVariant::Destructive)
+                                            .size(crate::components::button::ButtonSize::Sm)
+                                            .on_press(restore_backup),
+                                    ))
+                                    .child(crate::components::button::button(
+                                        crate::components::button::ButtonProps::new("Cancel")
+                                            .variant(crate::components::button::ButtonVariant::Outline)
+                                            .size(crate::components::button::ButtonSize::Sm)
+                                            .on_press(move || backup_pending.set(None)),
+                                    )),
                             )
                             .into_element()
                     },
