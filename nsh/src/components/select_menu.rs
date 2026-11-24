@@ -31,6 +31,7 @@ pub struct SelectMenuProps {
     pub height: f32,
     pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn()>)>>,
     pub search_placeholder: String,
+    pub create_title: String,
 }
 
 impl SelectMenuProps {
@@ -48,6 +49,7 @@ impl SelectMenuProps {
             height: 40.0,
             create: None,
             search_placeholder: "Search...".to_string(),
+            create_title: "Create new".to_string(),
         }
     }
 
@@ -63,6 +65,11 @@ impl SelectMenuProps {
 
     pub fn search_placeholder(mut self, placeholder: impl Into<String>) -> Self {
         self.search_placeholder = placeholder.into();
+        self
+    }
+
+    pub fn create_title(mut self, title: impl Into<String>) -> Self {
+        self.create_title = title.into();
         self
     }
 }
@@ -83,9 +90,12 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         height,
         create,
         search_placeholder,
+        create_title,
     } = props;
     let open = signal(false);
     let query = signal(String::new());
+    let creating = signal(false);
+    let create_name = signal(String::new());
     let filtered_options = options.clone();
     let filtered: Rc<dyn Fn() -> Vec<SelectOption>> = Rc::new(move || {
         let needle = query.get().trim().to_lowercase();
@@ -221,9 +231,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 let done_for_panel = done.clone();
                 let filtered = filtered.clone();
                 let show_create = show_create.clone();
-                let create_for_search = create_for_panel.clone();
                 let show_create_for_search = show_create.clone();
-                let done_for_search = done.clone();
                 view()
                     .absolute()
                     .top(px(height + 14.0))
@@ -244,8 +252,10 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                 .on_change(move |next: &str| query.set(next.to_string()))
                                 .on_submit(move |_: &str| {
                                     if show_create_for_search() {
-                                        if let Some(create) = create_for_search.clone() {
-                                            create(query.get(), done_for_search.clone());
+                                        let name = query.get();
+                                        if !name.trim().is_empty() {
+                                            create_name.set(name);
+                                            creating.set(true);
                                         }
                                     }
                                 })
@@ -311,8 +321,6 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                         when(
                             move || show_create(),
                             move || {
-                                let create = create_for_panel.clone();
-                                let done = done_for_panel.clone();
                                 view()
                                     .w_full()
                                     .child(
@@ -327,8 +335,10 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                             .rounded(px(5.0))
                                             .bg(move || theme().popover)
                                             .on_press(move || {
-                                                if let Some(call) = create.clone() {
-                                                    call(query.get(), done.clone());
+                                                let name = query.get();
+                                                if !name.trim().is_empty() {
+                                                    create_name.set(name);
+                                                    creating.set(true);
                                                 }
                                             })
                                             .child(
@@ -345,6 +355,112 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                     .into_element()
                             },
                         )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .child(
+                        when(move || creating.get(), {
+                            let create = create_for_panel.clone();
+                            let done = done_for_panel.clone();
+                            let title = create_title.clone();
+                            move || {
+                                let create = create.clone();
+                                let done = done.clone();
+                                let title = title.clone();
+                                view()
+                                    .absolute()
+                                    .top(px(0.0))
+                                    .left(px(0.0))
+                                    .right(px(0.0))
+                                    .z_index(120)
+                                    .p(px(8.0))
+                                    .gap(px(8.0))
+                                    .rounded(px(8.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .bg(move || theme().popover)
+                                    .child(
+                                        text(title)
+                                            .text_size(px(14.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        input()
+                                            .value(create_name)
+                                            .on_change(move |next: &str| {
+                                                create_name.set(next.to_string())
+                                            })
+                                            .placeholder("Name")
+                                            .auto_fill(AutoFill::Off)
+                                            .auto_focus(true)
+                                            .h(px(30.0))
+                                            .w_full()
+                                            .px(px(8.0))
+                                            .rounded(px(5.0))
+                                            .border(px(1.0))
+                                            .border_color(move || theme().input)
+                                            .bg(move || theme().background)
+                                            .text_size(px(12.0))
+                                            .text_color(move || theme().foreground),
+                                    )
+                                    .child(
+                                        view()
+                                            .w_full()
+                                            .flex_row()
+                                            .justify_end()
+                                            .gap(px(6.0))
+                                            .child(
+                                                button()
+                                                    .cursor_pointer()
+                                                    .h(px(28.0))
+                                                    .px(px(10.0))
+                                                    .rounded(px(5.0))
+                                                    .border(px(1.0))
+                                                    .border_color(move || theme().border)
+                                                    .bg(move || theme().card)
+                                                    .on_press(move || {
+                                                        creating.set(false);
+                                                        create_name.set(String::new());
+                                                    })
+                                                    .child(
+                                                        text("Cancel")
+                                                            .text_size(px(12.0))
+                                                            .text_color(move || theme().foreground),
+                                                    ),
+                                            )
+                                            .child(
+                                                button()
+                                                    .cursor_pointer()
+                                                    .h(px(28.0))
+                                                    .px(px(10.0))
+                                                    .rounded(px(5.0))
+                                                    .bg(move || theme().primary)
+                                                    .disabled(move || {
+                                                        create_name.get().trim().is_empty()
+                                                    })
+                                                    .on_press(move || {
+                                                        let name =
+                                                            create_name.get().trim().to_string();
+                                                        if name.is_empty() {
+                                                            return;
+                                                        }
+                                                        if let Some(create) = create.clone() {
+                                                            create(name, done.clone());
+                                                        }
+                                                    })
+                                                    .child(
+                                                        text("Create")
+                                                            .text_size(px(12.0))
+                                                            .font_weight(FontWeight::SEMIBOLD)
+                                                            .text_color(move || {
+                                                                theme().primary_foreground
+                                                            }),
+                                                    ),
+                                            ),
+                                    )
+                                    .into_element()
+                            }
+                        })
                         .otherwise(|| view().h(px(0.0)).into_element()),
                     )
                     .into_element()

@@ -680,6 +680,10 @@ pub fn editable_choice_picker(
         )
         .height(36.0)
         .create(create)
+        .create_title(match kind {
+            EntityKind::Account => "Create new account",
+            EntityKind::Category => "Create new category",
+        })
         .search_placeholder(match kind {
             EntityKind::Account => "Search or create account...",
             EntityKind::Category => "Search or create category...",
