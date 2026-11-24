@@ -883,7 +883,7 @@ fn form(
                             ),
                         ),
                 )
-                .child(ui::choice_picker(
+                .child(ui::editable_choice_picker(
                     "Account *",
                     move || {
                         data.get()
@@ -894,8 +894,12 @@ fn form(
                             .collect()
                     },
                     account_id,
+                    ui::EntityKind::Account,
+                    server,
+                    token,
+                    move || data.refetch(),
                 ))
-                .child(ui::choice_picker(
+                .child(ui::editable_choice_picker(
                     "Category",
                     move || {
                         data.get()
@@ -906,6 +910,10 @@ fn form(
                             .collect()
                     },
                     category_id,
+                    ui::EntityKind::Category,
+                    server,
+                    token,
+                    move || data.refetch(),
                 ))
                 .child(crate::components::logo_search::logo_search(
                     name,

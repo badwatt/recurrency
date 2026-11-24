@@ -50,6 +50,7 @@ struct DebtForm {
     monthly: Signal<String>,
     start_date: Signal<String>,
     debt_type: Signal<String>,
+    payment_days: Signal<Vec<u8>>,
     currency: Signal<String>,
     notes: Signal<String>,
     logo_url: Signal<String>,
@@ -130,6 +131,7 @@ pub fn debts(
     let start_date = signal(today.to_string());
     let debt_type = signal("manual".to_string());
     let form_currency = signal(currency.clone());
+    let payment_days = signal(Vec::<u8>::new());
     let notes = signal(String::new());
     let logo_url = signal(String::new());
     let account_id = signal(None::<Uuid>);
@@ -169,6 +171,7 @@ pub fn debts(
         monthly,
         start_date,
         debt_type,
+        payment_days,
         currency: form_currency,
         notes,
         logo_url,
@@ -197,6 +200,7 @@ pub fn debts(
         monthly.set(String::new());
         start_date.set(today.to_string());
         debt_type.set("manual".to_string());
+        payment_days.set(Vec::new());
         form_currency.set(currency.clone());
         notes.set(String::new());
         logo_url.set(String::new());
@@ -832,6 +836,7 @@ fn form(
         monthly,
         start_date,
         debt_type,
+        payment_days,
         currency: form_currency,
         notes,
         logo_url,
@@ -856,6 +861,13 @@ fn form(
         if category_id.get().is_none() {
             if let Some(category) = data.get().unwrap_or_default().categories.into_iter().next() {
                 category_id.set(Some(category.id));
+            }
+        }
+    });
+    effect(move || {
+        if debt_type.get() == "automatic" && payment_days.get().is_empty() {
+            if let Ok(date) = NaiveDate::parse_from_str(&start_date.get(), "%Y-%m-%d") {
+                payment_days.set(vec![date.day() as u8]);
             }
         }
     });
@@ -890,6 +902,20 @@ fn form(
                 return;
             };
             let automatic = debt_type.get() == "automatic";
+            let mut days = if automatic {
+                let mut selected = payment_days.get();
+                if selected.is_empty() {
+                    selected.push(start_value.day() as u8);
+                }
+                selected.sort_unstable();
+                selected.dedup();
+                selected
+            } else {
+                Vec::new()
+            };
+            if automatic && days.is_empty() {
+                days.push(start_value.day() as u8);
+            }
             let monthly_value = if automatic {
                 match monthly.get().trim().parse::<Decimal>() {
                     Ok(value) if value > Decimal::ZERO => Some(value),
@@ -909,11 +935,7 @@ fn form(
                 category_id: category_id.get(),
                 debt_type: debt_type.get(),
                 monthly_payment: monthly_value,
-                payment_days: if automatic {
-                    vec![start_value.day() as u8]
-                } else {
-                    Vec::new()
-                },
+                payment_days: days,
                 start_date: Some(start_value),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
                 logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
@@ -1011,7 +1033,14 @@ fn form(
                     )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
-                .child(ui::choice_picker(
+                .child(
+                    when(
+                        move || debt_type.get() == "automatic",
+                        move || debt_charge_days(payment_days),
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
+                .child(ui::editable_choice_picker(
                     "Account *",
                     move || {
                         data.get()
@@ -1022,8 +1051,12 @@ fn form(
                             .collect()
                     },
                     account_id,
+                    ui::EntityKind::Account,
+                    server,
+                    token,
+                    move || data.refetch(),
                 ))
-                .child(ui::choice_picker(
+                .child(ui::editable_choice_picker(
                     "Category",
                     move || {
                         data.get()
@@ -1034,6 +1067,10 @@ fn form(
                             .collect()
                     },
                     category_id,
+                    ui::EntityKind::Category,
+                    server,
+                    token,
+                    move || data.refetch(),
                 ))
                 .child(crate::components::field::field(
                     crate::components::field::FieldProps::new("Notes"),
@@ -1121,6 +1158,124 @@ fn form(
                 .into_element(),
         ),
     )
+}
+
+fn debt_charge_days(payment_days: Signal<Vec<u8>>) -> AnyElement {
+    let selected = payment_days.get();
+    let mut grid = Vec::with_capacity(32);
+    for day in 1..=31u8 {
+        let active = selected.contains(&day);
+        grid.push(
+            button()
+                .cursor_pointer()
+                .h(px(28.0))
+                .w(px(28.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(6.0))
+                .bg(move || {
+                    if active {
+                        theme().primary
+                    } else {
+                        theme().card
+                    }
+                })
+                .border(px(1.0))
+                .border_color(move || {
+                    if active {
+                        theme().primary
+                    } else {
+                        theme().border
+                    }
+                })
+                .on_press(move || {
+                    let mut days = payment_days.get();
+                    if days.contains(&day) {
+                        days.retain(|value| *value != day);
+                    } else {
+                        days.push(day);
+                    }
+                    days.sort_unstable();
+                    payment_days.set(days);
+                })
+                .child(
+                    text(day.to_string())
+                        .text_size(px(12.0))
+                        .text_color(move || {
+                            if active {
+                                theme().primary_foreground
+                            } else {
+                                theme().foreground
+                            }
+                        }),
+                )
+                .into_element(),
+        );
+    }
+    grid.push(
+        button()
+            .cursor_pointer()
+            .h(px(28.0))
+            .px(px(8.0))
+            .items_center()
+            .justify_center()
+            .rounded(px(6.0))
+            .bg(move || {
+                if payment_days.get().contains(&0) {
+                    theme().primary
+                } else {
+                    theme().card
+                }
+            })
+            .border(px(1.0))
+            .border_color(move || theme().border)
+            .on_press(move || {
+                let mut days = payment_days.get();
+                if days.contains(&0) {
+                    days.retain(|value| *value != 0);
+                } else {
+                    days.retain(|value| *value < 29);
+                    days.push(0);
+                }
+                days.sort_unstable();
+                payment_days.set(days);
+            })
+            .child(
+                text("Last day")
+                    .text_size(px(11.0))
+                    .text_color(move || theme().foreground),
+            )
+            .into_element(),
+    );
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .child(
+            text("Charge days")
+                .text_size(px(14.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .flex_wrap()
+                .gap(px(4.0))
+                .children(grid),
+        )
+        .child(
+            text("Each selected day is a separate payment. Days 29-31 can use \"Last day\".")
+                .text_size(px(11.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            text("This also creates a monthly subscription for the payment.")
+                .text_size(px(11.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .into_element()
 }
 
 fn toolbar(
@@ -1520,6 +1675,7 @@ fn card_actions(
         );
         form.start_date.set(edit_debt.start_date.to_string());
         form.debt_type.set(edit_debt.debt_type.clone());
+        form.payment_days.set(edit_debt.payment_days.clone());
         form.currency.set(edit_debt.currency.clone());
         form.notes.set(edit_debt.notes.clone().unwrap_or_default());
         form.logo_url

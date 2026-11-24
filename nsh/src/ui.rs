@@ -268,7 +268,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
         .justify_center()
         .border_b(px(1.0))
         .border_color(move || theme().border)
-        .bg(move || theme().card)
+        .bg(move || theme().background)
         .child(
             view()
                 .h_full()
@@ -611,6 +611,77 @@ pub fn choice_picker(
     )
 }
 
+#[derive(Clone, Copy)]
+pub enum EntityKind {
+    Account,
+    Category,
+}
+
+pub fn editable_choice_picker(
+    label_text: &'static str,
+    items: impl Fn() -> Vec<(Uuid, String)> + Clone + 'static,
+    selected: Signal<Option<Uuid>>,
+    kind: EntityKind,
+    server: Signal<String>,
+    token: Signal<String>,
+    on_created: impl Fn() + Clone + 'static,
+) -> impl IntoElement {
+    let options = move || {
+        items()
+            .into_iter()
+            .map(|(id, name)| crate::components::select_menu::SelectOption::new(id, name))
+            .collect()
+    };
+    let create = move |name: String| {
+        let name = name.trim().to_string();
+        if name.is_empty() {
+            return;
+        }
+        let server = server.get();
+        let token = token.get();
+        let selected = selected;
+        let on_created = on_created.clone();
+        spawn(async move {
+            let result = match kind {
+                EntityKind::Account => crate::api::create_account(
+                    server,
+                    token,
+                    &name,
+                    Some("Wallet"),
+                    Some("#6b7280"),
+                )
+                .await
+                .map(|account| account.id),
+                EntityKind::Category => {
+                    crate::api::create_category(server, token, &name, None, None)
+                        .await
+                        .map(|category| category.id)
+                }
+            };
+            match result {
+                Ok(id) => {
+                    selected.set(Some(id));
+                    on_created();
+                }
+                Err(message) => crate::components::toast::error(message),
+            }
+        });
+    };
+    crate::components::select_menu::select_menu(
+        crate::components::select_menu::SelectMenuProps::new(
+            label_text,
+            "Select...",
+            selected,
+            options,
+        )
+        .height(36.0)
+        .create(create)
+        .search_placeholder(match kind {
+            EntityKind::Account => "Search or create account...",
+            EntityKind::Category => "Search or create category...",
+        }),
+    )
+}
 pub fn action_button(
     label: impl Into<String>,
     destructive: bool,

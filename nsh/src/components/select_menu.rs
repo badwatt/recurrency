@@ -2,7 +2,8 @@
 //! and the option rows are shared so every picker has the same height,
 //! border and selected state.
 
-use nsh_base::{button, theme};
+use nsh_base::{button, input, theme};
+use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
 use std::rc::Rc;
 use uuid::Uuid;
@@ -28,6 +29,8 @@ pub struct SelectMenuProps {
     pub selected: Signal<Option<Uuid>>,
     pub options: Rc<dyn Fn() -> Vec<SelectOption>>,
     pub height: f32,
+    pub create: Option<Rc<dyn Fn(String)>>,
+    pub search_placeholder: String,
 }
 
 impl SelectMenuProps {
@@ -43,6 +46,8 @@ impl SelectMenuProps {
             selected,
             options: Rc::new(options),
             height: 40.0,
+            create: None,
+            search_placeholder: "Search...".to_string(),
         }
     }
 
@@ -50,8 +55,25 @@ impl SelectMenuProps {
         self.height = height;
         self
     }
+
+    pub fn create(mut self, create: impl Fn(String) + 'static) -> Self {
+        self.create = Some(Rc::new(create));
+        self
+    }
+
+    pub fn search_placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.search_placeholder = placeholder.into();
+        self
+    }
 }
 
+fn should_offer_create(options: &[SelectOption], query: &str, can_create: bool) -> bool {
+    let needle = query.trim();
+    let exists = options
+        .iter()
+        .any(|option| option.label.eq_ignore_ascii_case(needle));
+    can_create && !needle.is_empty() && !exists
+}
 pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
     let SelectMenuProps {
         label,
@@ -59,9 +81,25 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         selected,
         options,
         height,
+        create,
+        search_placeholder,
     } = props;
     let open = signal(false);
-    let option_rows = options.clone();
+    let query = signal(String::new());
+    let filtered_options = options.clone();
+    let filtered: Rc<dyn Fn() -> Vec<SelectOption>> = Rc::new(move || {
+        let needle = query.get().trim().to_lowercase();
+        filtered_options()
+            .into_iter()
+            .filter(|option| needle.is_empty() || option.label.to_lowercase().contains(&needle))
+            .collect::<Vec<_>>()
+    });
+    let exists_options = options.clone();
+    let create_for_check = create.clone();
+    let show_create: Rc<dyn Fn() -> bool> = Rc::new(move || {
+        should_offer_create(&exists_options(), &query.get(), create_for_check.is_some())
+    });
+    let create_for_panel = create.clone();
     let selected_label = move || {
         let current = selected.get();
         options()
@@ -98,7 +136,14 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .border(px(1.0))
                 .border_color(move || theme().input)
                 .bg(move || theme().card)
-                .on_press(move || open.set(!open.get()))
+                .on_press(move || {
+                    if open.get() {
+                        open.set(false);
+                    } else {
+                        query.set(String::new());
+                        open.set(true);
+                    }
+                })
                 .child(
                     view()
                         .flex_row()
@@ -134,8 +179,13 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                         .gap(px(4.0))
                         .flex_shrink_0()
                         .child(
-                            image(asset!("icons/x.svg"))
-                                .size(px(12.0))
+                            view()
+                                .cursor_pointer()
+                                .h(px(20.0))
+                                .w(px(20.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(4.0))
                                 .opacity(move || {
                                     if selected.get().is_some() {
                                         1.0_f32
@@ -143,7 +193,16 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                         0.0_f32
                                     }
                                 })
-                                .tint_color(move || theme().muted_foreground),
+                                .on_press(move || {
+                                    selected.set(None);
+                                    open.set(false);
+                                })
+                                .child(
+                                    image(asset!("icons/x.svg"))
+                                        .size(px(12.0))
+                                        .pointer_events(PointerEvents::None)
+                                        .tint_color(move || theme().muted_foreground),
+                                ),
                         )
                         .child(
                             image(asset!("icons/chevron-down.svg"))
@@ -154,6 +213,11 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         )
         .child(
             when(open, move || {
+                let create_for_panel = create_for_panel.clone();
+                let filtered = filtered.clone();
+                let show_create = show_create.clone();
+                let create_for_search = create_for_panel.clone();
+                let show_create_for_search = show_create.clone();
                 view()
                     .absolute()
                     .top(px(height + 14.0))
@@ -167,43 +231,119 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                     .border(px(1.0))
                     .border_color(move || theme().border)
                     .bg(move || theme().popover)
-                    .children(option_rows().into_iter().map(|option| {
-                        let id = option.value;
-                        let active = selected.get() == Some(id);
-                        button()
-                            .cursor_pointer()
-                            .w_full()
-                            .h(px(30.0))
-                            .px(px(8.0))
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .rounded(px(5.0))
-                            .bg(move || {
-                                if active {
-                                    theme().accent
-                                } else {
-                                    theme().popover
-                                }
-                            })
-                            .on_press(move || {
-                                selected.set(Some(id));
-                                open.set(false);
-                            })
-                            .child(
-                                text(option.label)
-                                    .number_of_lines(1)
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().foreground),
-                            )
-                            .when(active, |row| {
-                                row.child(
-                                    image(asset!("icons/check.svg"))
-                                        .size(px(13.0))
-                                        .tint_color(move || theme().primary),
+                    .child(
+                        view().w_full().p(px(4.0)).child(
+                            input()
+                                .value(query)
+                                .on_change(move |next: &str| query.set(next.to_string()))
+                                .on_submit(move |_: &str| {
+                                    if show_create_for_search() {
+                                        if let Some(create) = create_for_search.clone() {
+                                            create(query.get());
+                                        }
+                                        query.set(String::new());
+                                        open.set(false);
+                                    }
+                                })
+                                .placeholder(search_placeholder.clone())
+                                .auto_fill(AutoFill::Off)
+                                .auto_focus(true)
+                                .h(px(30.0))
+                                .w_full()
+                                .px(px(8.0))
+                                .rounded(px(5.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().input)
+                                .bg(move || theme().background)
+                                .text_size(px(12.0))
+                                .text_color(move || theme().foreground),
+                        ),
+                    )
+                    .child(scroll().max_h(px(200.0)).w_full().flex_col().child(each(
+                        move || filtered(),
+                        |option| option.value,
+                        move |option, _| {
+                            let option = option.get();
+                            let id = option.value;
+                            let active = selected.get() == Some(id);
+                            button()
+                                .cursor_pointer()
+                                .w_full()
+                                .h(px(30.0))
+                                .px(px(8.0))
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .rounded(px(5.0))
+                                .bg(move || {
+                                    if active {
+                                        theme().accent
+                                    } else {
+                                        theme().popover
+                                    }
+                                })
+                                .on_press(move || {
+                                    selected.set(Some(id));
+                                    query.set(String::new());
+                                    open.set(false);
+                                })
+                                .child(
+                                    text(option.label)
+                                        .number_of_lines(1)
+                                        .text_size(px(13.0))
+                                        .text_color(move || theme().foreground),
                                 )
-                            })
-                    }))
+                                .when(active, |row| {
+                                    row.child(
+                                        image(asset!("icons/check.svg"))
+                                            .size(px(13.0))
+                                            .tint_color(move || theme().primary),
+                                    )
+                                })
+                                .into_element()
+                        },
+                    )))
+                    .child(
+                        when(
+                            move || show_create(),
+                            move || {
+                                let create = create_for_panel.clone();
+                                view()
+                                    .w_full()
+                                    .child(
+                                        view()
+                                            .cursor_pointer()
+                                            .w_full()
+                                            .h(px(30.0))
+                                            .px(px(8.0))
+                                            .flex_row()
+                                            .items_center()
+                                            .gap(px(6.0))
+                                            .rounded(px(5.0))
+                                            .bg(move || theme().popover)
+                                            .on_press(move || {
+                                                if let Some(create) = create.clone() {
+                                                    create(query.get());
+                                                }
+                                                query.set(String::new());
+                                                open.set(false);
+                                            })
+                                            .child(
+                                                image(asset!("icons/plus.svg"))
+                                                    .size(px(12.0))
+                                                    .tint_color(move || theme().primary),
+                                            )
+                                            .child(
+                                                text(move || format!("Create \"{}\"", query.get()))
+                                                    .text_size(px(13.0))
+                                                    .text_color(move || theme().primary),
+                                            ),
+                                    )
+                                    .into_element()
+                            },
+                        )
+                        .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
                     .into_element()
             })
             .otherwise(|| view().h(px(0.0)).mt(px(-6.0)).into_element()),
@@ -220,6 +360,24 @@ mod tests {
         assert!(source.contains(".absolute()"));
         assert!(source.contains("z_index"));
         assert!(source.contains("text(move || selected_label())"));
+    }
+
+    #[test]
+    fn create_is_offered_only_for_a_new_search_term() {
+        let options = vec![SelectOption::new(Uuid::nil(), "General")];
+        assert!(should_offer_create(&options, "Zed", true));
+        assert!(!should_offer_create(&options, "general", true));
+        assert!(!should_offer_create(&options, "", true));
+        assert!(!should_offer_create(&options, "Zed", false));
+    }
+
+    #[test]
+    fn entity_menu_exposes_search_create_and_focus() {
+        let source = include_str!("select_menu.rs");
+        assert!(source.contains("auto_focus(true)"));
+        assert!(source.contains("on_submit"));
+        assert!(source.contains("Create"));
+        assert!(source.contains("query.get()"));
     }
 
     #[test]
