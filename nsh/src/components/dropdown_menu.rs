@@ -60,7 +60,7 @@ pub fn dropdown_menu(
             .trailing_icon(asset!("icons/chevron-down.svg"))
             .on_press(move || {
                 let build = build.clone();
-                crate::ui::open_menu(crate::ui::MenuPlacement::TopRight, build);
+                crate::ui::open_menu(crate::ui::MenuPlacement::ReportRight, build);
             }),
     )
 }

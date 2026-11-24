@@ -2047,16 +2047,18 @@ fn summary_form(
     timezone: Signal<String>,
     second: Option<&'static str>,
 ) -> AnyElement {
-    let mut items = vec![string_select(StringSelectProps::new(
-        "Frequency",
-        frequency,
-        vec![
-            ("daily".to_string(), "Daily".to_string()),
-            ("weekly".to_string(), "Weekly".to_string()),
-            ("monthly".to_string(), "Monthly".to_string()),
-        ],
-    ))
-    .into_element()];
+    let mut items = vec![
+        string_select(StringSelectProps::new(
+            "Frequency",
+            frequency,
+            vec![
+                ("daily".to_string(), "Daily".to_string()),
+                ("weekly".to_string(), "Weekly".to_string()),
+                ("monthly".to_string(), "Monthly".to_string()),
+            ],
+        ))
+        .into_element(),
+    ];
     match second {
         Some("weekday") => items.push(
             string_select(StringSelectProps::new(
@@ -2256,13 +2258,11 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                         )),
                 )
                 .child(
-                    view()
-                        .w_full()
-                        .p(px(24.0))
-                        .child(
-                            when(
-                                move || summary_frequency.get() == "monthly",
-                                move || summary_form(
+                    view().w_full().p(px(24.0)).child(
+                        when(
+                            move || summary_frequency.get() == "monthly",
+                            move || {
+                                summary_form(
                                     summary_frequency,
                                     summary_weekday,
                                     summary_day,
@@ -2270,22 +2270,13 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                     summary_time,
                                     summary_timezone,
                                     Some("day"),
-                                ),
-                            )
-                            .otherwise(move || {
-                                when(
-                                    move || summary_frequency.get() == "weekly",
-                                    move || summary_form(
-                                        summary_frequency,
-                                        summary_weekday,
-                                        summary_day,
-                                        summary_period,
-                                        summary_time,
-                                        summary_timezone,
-                                        Some("weekday"),
-                                    ),
                                 )
-                                .otherwise(move || {
+                            },
+                        )
+                        .otherwise(move || {
+                            when(
+                                move || summary_frequency.get() == "weekly",
+                                move || {
                                     summary_form(
                                         summary_frequency,
                                         summary_weekday,
@@ -2293,12 +2284,24 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                         summary_period,
                                         summary_time,
                                         summary_timezone,
-                                        None,
+                                        Some("weekday"),
                                     )
-                                })
-                                .into_element()
-                            }),
-                        ),
+                                },
+                            )
+                            .otherwise(move || {
+                                summary_form(
+                                    summary_frequency,
+                                    summary_weekday,
+                                    summary_day,
+                                    summary_period,
+                                    summary_time,
+                                    summary_timezone,
+                                    None,
+                                )
+                            })
+                            .into_element()
+                        }),
+                    ),
                 )
                 .child(
                     view()

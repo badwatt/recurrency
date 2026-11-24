@@ -132,6 +132,7 @@ pub fn take_subscription_intent() -> Option<SubscriptionIntent> {
 pub enum MenuPlacement {
     TopRight,
     ToolbarRight,
+    ReportRight,
     BottomRight,
 }
 
@@ -199,6 +200,9 @@ pub fn menu_overlay() -> AnyElement {
                         })
                         .when(placement == MenuPlacement::ToolbarRight, |panel| {
                             panel.top(px(232.0)).right(px(24.0))
+                        })
+                        .when(placement == MenuPlacement::ReportRight, |panel| {
+                            panel.top(px(153.0)).right(px(24.0))
                         })
                         .when(placement == MenuPlacement::BottomRight, |panel| {
                             panel.bottom(px(140.0)).right(px(18.0))
