@@ -141,6 +141,7 @@ fn title_block(user_name: String) -> impl IntoElement {
     view()
         .flex_1()
         .min_w(px(0.0))
+        .pb(px(5.0))
         .flex_col()
         .gap(px(4.0))
         .child(
@@ -157,7 +158,7 @@ fn title_block(user_name: String) -> impl IntoElement {
                 .line_height(px(40.0))
                 .letter_spacing(px(-1.8))
                 .font_weight(FontWeight::BOLD)
-                .mt(px(4.0))
+                .mt(px(-1.0))
                 .text_color(move || theme().foreground),
         )
         .child(

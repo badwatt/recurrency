@@ -19,6 +19,8 @@ pub fn page_header(
         .child(
             view()
                 .min_w(px(0.0))
+                .mt(px(-10.0))
+                .pb(px(10.0))
                 .flex_col()
                 .child(
                     text(title)
