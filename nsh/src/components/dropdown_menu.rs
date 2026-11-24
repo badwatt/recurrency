@@ -44,8 +44,8 @@ pub fn dropdown_menu(
                         .align(ButtonAlign::Start)
                         .full_width()
                         .on_press(move || {
-                            crate::ui::close_menu();
                             press();
+                            crate::ui::close_menu();
                         }),
                 )
             }))

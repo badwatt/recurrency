@@ -204,13 +204,13 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
             return;
         };
         let csv = build_csv(&snapshot.report, &csv_currency);
-        spawn(async move {
-            #[cfg(target_arch = "wasm32")]
-            {
-                let _ = crate::web_files::download_text("recurrency-report.csv", "text/csv", &csv);
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = crate::web_files::download_text("recurrency-report.csv", "text/csv", &csv);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            spawn(async move {
                 if let Ok(Some(path)) = pick_save_path(
                     SaveDialog::new()
                         .file_name("recurrency-report.csv")
@@ -220,25 +220,22 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                 {
                     let _ = std::fs::write(path, csv);
                 }
-            }
-        });
+            });
+        }
     };
     let pdf = move || {
         let Some(snapshot) = data.get() else {
             return;
         };
         let pdf = build_pdf(&snapshot.report, &pdf_currency);
-        spawn(async move {
-            #[cfg(target_arch = "wasm32")]
-            {
-                let _ = crate::web_files::download_bytes(
-                    "recurrency-report.pdf",
-                    "application/pdf",
-                    &pdf,
-                );
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ =
+                crate::web_files::download_bytes("recurrency-report.pdf", "application/pdf", &pdf);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            spawn(async move {
                 if let Ok(Some(path)) = pick_save_path(
                     SaveDialog::new()
                         .file_name("recurrency-report.pdf")
@@ -248,8 +245,8 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                 {
                     let _ = std::fs::write(path, pdf);
                 }
-            }
-        });
+            });
+        }
     };
     dropdown_menu(
         "Export",
