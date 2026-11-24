@@ -121,14 +121,14 @@ impl Section {
         match self {
             Section::Account => "Your profile, session and account",
             Section::Appearance => "Color themes and palette",
-            Section::General => "Currency, exchange rates, week start and dates",
+            Section::General => "Defaults, locale, exchange rates and app updates",
             Section::Notifications => "Choose where your summary lands and when it leaves",
             Section::Ai => "Model, voice input and privacy",
             Section::Money => "Accounts and categories that organize your money",
             Section::Data => "Keep a copy of your data and sync devices",
             Section::Server => "Server connection and device pairing",
             Section::Admin => "Users, registration and full backups",
-            Section::About => "Version, release notes and Android app",
+            Section::About => "Recurrency, the people behind it, and what changed",
         }
     }
 
@@ -136,7 +136,7 @@ impl Section {
         match self {
             Section::Account => "Profile, session and account removal",
             Section::Appearance => "Color theme and palette",
-            Section::General => "Currency, exchange rates, week start and dates",
+            Section::General => "Defaults, locale, exchange rates and app updates",
             Section::Notifications => "Delivery channels and summaries",
             Section::Ai => "Model, voice input and privacy",
             Section::Money => "Accounts and categories",
@@ -1006,20 +1006,15 @@ fn appearance_card(server: String, token: String) -> impl IntoElement {
                     .flex_col()
                     .gap(px(3.0))
                     .child(
-                        text("Appearance")
+                        text("Color themes")
                             .text_size(px(18.0))
                             .font_weight(FontWeight::BOLD)
                             .text_color(move || theme().foreground),
                     )
                     .child(
-                        text(move || {
-                            crate::theme::theme_by_id(&selected.get()).map_or_else(
-                                || "Choose a palette".to_string(),
-                                |theme| format!("{} · {}", theme.label, theme.description),
-                            )
-                        })
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
+                        text("Choose a palette. It applies immediately and syncs across devices when connected.")
+                            .text_size(px(12.0))
+                            .text_color(move || theme().muted_foreground),
                     ),
             )
             .child(crate::components::theme_picker::theme_picker(
@@ -1060,98 +1055,78 @@ fn general_card(
             let _ = crate::api::save_date_format(server, token, &value).await;
         });
     });
+    let last_currency = signal(currency.get());
+    effect(move || {
+        let value = currency.get();
+        if value != last_currency.get() {
+            last_currency.set(value);
+            save();
+        }
+    });
     view()
         .w_full()
         .flex_col()
-        .gap(px(12.0))
+        .gap(px(24.0))
         .child(
             ui::surface()
                 .w_full()
                 .p(px(24.0))
                 .gap(px(14.0))
-        .child(
-            text("General")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(string_select(StringSelectProps::new("Display currency", currency, crate::currencies::CURRENCIES.iter().map(|(code, label)| ((*code).to_string(), (*label).to_string())).collect())))
-        .child(
-            text("Amounts are formatted in this currency. Exchange rates stay on the server.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(
-            text("Date format")
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(segmented(
-            date_format,
-            vec![
-                SegmentOption::new("DD/MM/YYYY", "DD/MM/YYYY"),
-                SegmentOption::new("MM/DD/YYYY", "MM/DD/YYYY"),
-                SegmentOption::new("YYYY/MM/DD", "YYYY/MM/DD"),
-            ],
-        ))
-        .child(
-            text("First day of week")
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(segmented(
-            first_day,
-            vec![
-                SegmentOption::new("monday", "Monday"),
-                SegmentOption::new("sunday", "Sunday"),
-            ],
-        ))
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .gap(px(12.0))
-                .p(px(12.0))
-                .rounded(px(8.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
                 .child(
-                    checkbox(
-                        show_updates,
-                        "Show update notices".to_string(),
-                    ),
+                    text("Defaults")
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
                 )
                 .child(
-                    text("Check for new Recurrency releases and show a dismissible banner.")
+                    text("Applied to new entries and reports")
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
-                ),
-        )
-        .child(
-            text("Amounts and dates use these defaults across the app.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(
-            button().cursor_pointer()
-                .items_center()
-                .justify_center()
-                .self_start()
-                .h(px(36.0))
-                .px(px(14.0))
-                .rounded(px(7.0))
-                .bg(move || theme().primary)
-                .on_press(move || save())
+                )
+                .child(string_select(StringSelectProps::new(
+                    "Default Currency",
+                    currency,
+                    crate::currencies::CURRENCIES
+                        .iter()
+                        .map(|(code, label)| ((*code).to_string(), (*label).to_string()))
+                        .collect(),
+                )))
+                .child(string_select(StringSelectProps::new(
+                    "First Day of Week",
+                    first_day,
+                    vec![
+                        ("monday".to_string(), "Monday".to_string()),
+                        ("sunday".to_string(), "Sunday".to_string()),
+                    ],
+                )))
+                .child(string_select(StringSelectProps::new(
+                    "Date format",
+                    date_format,
+                    vec![
+                        ("DD/MM/YYYY".to_string(), "DD/MM/YYYY".to_string()),
+                        ("MM/DD/YYYY".to_string(), "MM/DD/YYYY".to_string()),
+                        ("YYYY/MM/DD".to_string(), "YYYY/MM/DD".to_string()),
+                    ],
+                )))
                 .child(
-                    text("Save changes")
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().primary_foreground),
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(12.0))
+                        .p(px(12.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .child(checkbox(show_updates, "Show update notices".to_string()))
+                        .child(
+                            text(
+                                "Check for new Recurrency releases and show a dismissible banner.",
+                            )
+                            .text_size(px(12.0))
+                            .text_color(move || theme().muted_foreground),
+                        ),
                 ),
-        )
         )
         .when(!crate::local::enabled(), |view| {
             view.child(exchange_rates_card(rates_server, rates_token))
@@ -1378,63 +1353,324 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
             });
         }
     };
-    ui::surface()
-        .p(px(24.0))
-        .gap(px(10.0))
+    let save_card = ui::surface()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .p(px(16.0))
+        .gap(px(14.0))
         .child(
-            text("Data & backup")
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            text("Export a validated JSON backup, or restore one to replace the current data.")
-                .text_size(px(12.0))
-                .text_color(move || theme().muted_foreground),
+            view()
+                .w_full()
+                .flex_row()
+                .items_start()
+                .gap(px(12.0))
+                .child(
+                    view()
+                        .h(px(40.0))
+                        .w(px(40.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(8.0))
+                        .bg(move || theme().primary.opacity(0.14))
+                        .child(
+                            image(asset!("icons/download.svg"))
+                                .size(px(18.0))
+                                .tint_color(move || theme().primary),
+                        ),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .child(
+                            text("Save a copy")
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Download everything as one file.")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
         )
         .child(
             view()
+                .w_full()
+                .p(px(12.0))
                 .flex_row()
-                .flex_wrap()
-                .gap(px(8.0))
-                .child(ui::action_button("Export backup", false, export))
-                .child(ui::action_button("Restore backup", true, choose_restore)),
+                .items_center()
+                .gap(px(10.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().background)
+                .child(
+                    image(asset!("icons/database.svg"))
+                        .size(px(20.0))
+                        .tint_color(move || theme().muted_foreground),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .child(
+                            text("recurrency-backup.json")
+                                .text_size(px(13.0))
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Accounts, subscriptions, transactions and debts")
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
         )
         .child(
-            when(move || pending.get().is_some(), move || {
-                view()
-                    .w_full()
-                    .p(px(12.0))
-                    .gap(px(8.0))
-                    .rounded(px(8.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().destructive.opacity(0.4))
-                    .bg(move || theme().destructive.opacity(0.08))
-                    .child(
-                        text("This replaces your current accounts, categories, subscriptions, transactions and debts.")
-                            .text_size(px(12.0))
-                            .text_color(move || theme().destructive),
-                    )
-                    .child(
-                        view()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(ui::action_button("Cancel", false, move || {
-                                pending.set(None);
-                                status.set(String::new());
-                            }))
-                            .child(ui::action_button("Restore now", true, confirm_restore.clone())),
-                    )
-                    .into_element()
-            })
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .gap(px(8.0))
+                .child(
+                    text("Keep it private; it contains financial data.")
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(38.0))
+                        .px(px(14.0))
+                        .flex_row()
+                        .items_center()
+                        .gap(px(6.0))
+                        .rounded(px(6.0))
+                        .bg(move || theme().primary)
+                        .on_press(export)
+                        .child(
+                            image(asset!("icons/download.svg"))
+                                .size(px(14.0))
+                                .tint_color(move || theme().primary_foreground),
+                        )
+                        .child(
+                            text("Download backup")
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().primary_foreground),
+                        ),
+                ),
+        )
+        .into_element();
+    let restore_card = ui::surface()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .p(px(16.0))
+        .gap(px(14.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_start()
+                .gap(px(12.0))
+                .child(
+                    view()
+                        .h(px(40.0))
+                        .w(px(40.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(8.0))
+                        .bg(move || theme().primary.opacity(0.14))
+                        .child(
+                            image(asset!("icons/database.svg"))
+                                .size(px(18.0))
+                                .tint_color(move || theme().primary),
+                        ),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .child(
+                            text("Bring it back")
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Restore from a previous backup file.")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .h(px(120.0))
+                .items_center()
+                .justify_center()
+                .gap(px(6.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().background)
+                .child(
+                    image(asset!("icons/download.svg"))
+                        .size(px(20.0))
+                        .tint_color(move || theme().muted_foreground),
+                )
+                .child(
+                    text("Drop a backup here")
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("or choose a .json file")
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(32.0))
+                        .px(px(12.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(6.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border)
+                        .bg(move || theme().card)
+                        .on_press(choose_restore)
+                        .child(
+                            text("Choose file")
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        ),
+                ),
+        )
+        .child(
+            when(
+                move || pending.get().is_some(),
+                move || {
+                    view()
+                        .w_full()
+                        .p(px(12.0))
+                        .gap(px(8.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().destructive.opacity(0.4))
+                        .bg(move || theme().destructive.opacity(0.08))
+                        .child(
+                            text("This replaces the current data.")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().destructive),
+                        )
+                        .child(
+                            view()
+                                .flex_row()
+                                .justify_end()
+                                .gap(px(8.0))
+                                .child(ui::action_button("Cancel", false, move || {
+                                    pending.set(None);
+                                    status.set(String::new());
+                                }))
+                                .child(ui::action_button(
+                                    "Restore now",
+                                    true,
+                                    confirm_restore.clone(),
+                                )),
+                        )
+                        .into_element()
+                },
+            )
             .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+        .into_element();
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
+        .child(
+            ui::surface()
+                .p(px(0.0))
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(24.0))
+                        .pb(px(16.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(12.0))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(12.0))
+                                .child(
+                                    view()
+                                        .h(px(36.0))
+                                        .w(px(36.0))
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(8.0))
+                                        .bg(move || theme().primary.opacity(0.14))
+                                        .child(
+                                            image(asset!("icons/database.svg"))
+                                                .size(px(18.0))
+                                                .tint_color(move || theme().primary),
+                                        ),
+                                )
+                                .child(
+                                    view()
+                                        .flex_col()
+                                        .child(
+                                            text("Backup & restore")
+                                                .text_size(px(18.0))
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(move || theme().foreground),
+                                        )
+                                        .child(
+                                            text("Keep a portable copy of your data, or bring it back in one step.")
+                                                .text_size(px(12.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        ),
+                                ),
+                        )
+                        .child(
+                            text("JSON")
+                                .text_size(px(11.0))
+                                .px(px(8.0))
+                                .py(px(3.0))
+                                .rounded(px(999.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(24.0))
+                        .flex_row()
+                        .gap(px(16.0))
+                        .child(save_card)
+                        .child(restore_card),
+                ),
         )
         .child(
             text(move || status.get())
                 .text_size(px(11.0))
                 .text_color(move || theme().muted_foreground),
         )
+        .into_element()
 }
 
 fn server_card(server: String, _session: Signal<Session>) -> impl IntoElement {
@@ -1474,87 +1710,209 @@ fn about_card() -> impl IntoElement {
             .map(|release| release.tag_name.trim_start_matches('v').to_string())
             .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
     };
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(12.0))
+    let hero = ui::surface()
+        .p(px(24.0))
         .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(6.0))
-                .child(
-                    text("About")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("Every expense is a subscription.")
-                        .text_size(px(20.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
-                    text("A small, self-hosted tool for seeing what you keep paying for — and what you would subscribe to again today.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(
-                    text(format!("Installed version v{}", env!("CARGO_PKG_VERSION")))
-                        .text_size(px(14.0))
-                        .text_color(move || theme().foreground),
-                ),
-        )
-        .child(
-            ui::surface()
-                .p(px(24.0))
-                .gap(px(10.0))
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .gap(px(24.0))
                 .child(
                     view()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
+                        .flex_grow(1.0)
+                        .basis(px(0.0))
+                        .min_w(px(0.0))
+                        .flex_col()
+                        .gap(px(5.0))
                         .child(
-                            view()
-                                .flex_col()
-                                .child(text("What's new").text_size(px(16.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                                .child(text(move || format!("Release notes for v{}", version())).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                            text("RECURRENCY")
+                                .text_size(px(12.0))
+                                .letter_spacing(px(2.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().muted_foreground),
                         )
-                        .child(ui::action_button(
-                            if show_notes.get() { "Hide notes" } else { "Show changelog" },
-                            false,
-                            move || show_notes.set(!show_notes.get()),
-                        )),
+                        .child(
+                            text("Every expense is a subscription.")
+                                .text_size(px(24.0))
+                                .line_height(px(32.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("A small, self-hosted tool for seeing what you keep paying for — and what you would subscribe to again today.")
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
                 )
                 .child(
-                    when(move || show_notes.get(), move || {
-                        view()
-                            .flex_col()
-                            .gap(px(10.0))
-                            .child(
-                                scroll().max_h(px(240.0)).child(
-                                    text(notes())
-                                        .text_size(px(11.0))
-                                        .line_height(px(17.0))
-                                        .text_color(move || theme().muted_foreground),
-                                ),
-                            )
-                            .child(ui::action_button("Open release on GitHub", false, move || {
+                    view()
+                        .w(px(220.0))
+                        .p(px(16.0))
+                        .gap(px(2.0))
+                        .flex_shrink_0()
+                        .rounded(px(12.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border.opacity(0.6))
+                        .bg(move || theme().background)
+                        .child(
+                            text("INSTALLED VERSION")
+                                .text_size(px(11.0))
+                                .letter_spacing(px(1.6))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().muted_foreground),
+                        )
+                        .child(
+                            text(format!("v{}", env!("CARGO_PKG_VERSION")))
+                                .text_size(px(24.0))
+                                .line_height(px(32.0))
+                                .font_family(crate::theme::MONO)
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        ),
+                ),
+        )
+        .into_element();
+    let whats_new = ui::surface()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .p(px(24.0))
+        .gap(px(10.0))
+        .child(
+            view()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    view()
+                        .flex_col()
+                        .child(
+                            text("What's new")
+                                .text_size(px(16.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(move || format!("Release notes for v{}", version()))
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(ui::action_button(
+                    if show_notes.get() {
+                        "Hide notes"
+                    } else {
+                        "Show changelog"
+                    },
+                    false,
+                    move || show_notes.set(!show_notes.get()),
+                )),
+        )
+        .child(
+            when(
+                move || show_notes.get(),
+                move || {
+                    view()
+                        .flex_col()
+                        .gap(px(10.0))
+                        .child(
+                            scroll().max_h(px(240.0)).child(
+                                text(notes())
+                                    .text_size(px(11.0))
+                                    .line_height(px(17.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
+                        )
+                        .child(ui::action_button(
+                            "Open release on GitHub",
+                            false,
+                            move || {
                                 let url = release_url();
                                 spawn(async move {
                                     let _ = open_url(url).await;
                                 });
-                            }))
-                            .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(ui::action_button("★ Star on GitHub", false, move || {
+                            },
+                        ))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+        .into_element();
+    let enjoying = ui::surface()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .p(px(24.0))
+        .gap(px(10.0))
+        .child(
+            text("Enjoying Recurrency?")
+                .text_size(px(16.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(
+            text("A star helps other people find a quieter way to track their subscriptions.")
+                .text_size(px(14.0))
+                .line_height(px(20.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            button()
+                .cursor_pointer()
+                .self_start()
+                .h(px(40.0))
+                .px(px(14.0))
+                .flex_row()
+                .items_center()
+                .gap(px(6.0))
+                .rounded(px(6.0))
+                .bg(move || theme().primary)
+                .on_press(move || {
                     let url = REPO_URL.to_string();
                     spawn(async move {
                         let _ = open_url(url).await;
                     });
-                })),
+                })
+                .child(
+                    text("★")
+                        .text_size(px(14.0))
+                        .text_color(move || theme().primary_foreground),
+                )
+                .child(
+                    text("Star on GitHub")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().primary_foreground),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(16.0))
+                .pt(px(10.0))
+                .border_t(px(1.0))
+                .border_color(move || theme().border.opacity(0.4))
+                .child(about_link("Report an issue", format!("{REPO_URL}/issues")))
+                .child(about_link("Documentation", format!("{REPO_URL}#readme"))),
+        )
+        .into_element();
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
+        .child(hero)
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_stretch()
+                .gap(px(16.0))
+                .child(whats_new)
+                .child(enjoying),
         )
         .when(!cfg!(target_os = "android"), |view| {
             view.child(crate::components::web_server_qr::qr_card(
@@ -1564,6 +1922,22 @@ fn about_card() -> impl IntoElement {
                 "recurrency-aarch64.apk".to_string(),
             ))
         })
+}
+
+fn about_link(label: &'static str, url: String) -> impl IntoElement {
+    button()
+        .cursor_pointer()
+        .on_press(move || {
+            let url = url.clone();
+            spawn(async move {
+                let _ = open_url(url).await;
+            });
+        })
+        .child(
+            text(label)
+                .text_size(px(12.0))
+                .text_color(move || theme().muted_foreground),
+        )
 }
 
 #[derive(Serialize)]

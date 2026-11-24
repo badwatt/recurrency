@@ -8,22 +8,19 @@ pub fn theme_picker(selected: Signal<String>, server: String, token: String) -> 
     view()
         .w_full()
         .grid()
-        .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
-        .gap(px(8.0))
+        .grid_template_columns(SharedString::from("repeat(3, minmax(0, 1fr))"))
+        .gap(px(12.0))
         .children(crate::theme::THEMES.iter().map(|definition| {
             let id = definition.id;
             let card_server = server.clone();
             let card_token = token.clone();
             let active = move || selected.get() == id;
-            button()
-                .cursor_pointer()
-                .cursor_pointer()
+            view()
                 .w_full()
-                .flex_row()
-                .items_center()
-                .gap(px(10.0))
-                .p(px(10.0))
-                .rounded(px(9.0))
+                .flex_col()
+                .gap(px(8.0))
+                .p(px(12.0))
+                .rounded(px(10.0))
                 .border(px(1.0))
                 .border_color(move || {
                     if active() {
@@ -32,13 +29,8 @@ pub fn theme_picker(selected: Signal<String>, server: String, token: String) -> 
                         theme().border
                     }
                 })
-                .bg(move || {
-                    if active() {
-                        theme().accent
-                    } else {
-                        theme().background
-                    }
-                })
+                .bg(move || theme().background)
+                .cursor_pointer()
                 .on_press(move || {
                     crate::theme::apply(id);
                     crate::theme::save(id);
@@ -50,48 +42,56 @@ pub fn theme_picker(selected: Signal<String>, server: String, token: String) -> 
                     });
                 })
                 .child(
-                    text(definition.label)
-                        .flex_grow(1.0)
-                        .number_of_lines(1)
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
-                )
-                .child(
                     view()
+                        .w_full()
+                        .h(px(24.0))
                         .flex_row()
-                        .items_center()
-                        .gap(px(3.0))
+                        .overflow_hidden()
+                        .rounded(px(6.0))
                         .child(
                             view()
-                                .h(px(12.0))
-                                .w(px(12.0))
-                                .rounded(px(3.0))
+                                .flex_grow(1.0)
                                 .bg(rgba((definition.background << 8) | 0xff)),
                         )
                         .child(
                             view()
-                                .h(px(12.0))
-                                .w(px(12.0))
-                                .rounded(px(3.0))
+                                .flex_grow(1.0)
                                 .bg(rgba((definition.card << 8) | 0xff)),
                         )
                         .child(
                             view()
-                                .h(px(12.0))
-                                .w(px(12.0))
-                                .rounded(px(3.0))
+                                .flex_grow(1.0)
                                 .bg(rgba((definition.primary << 8) | 0xff)),
                         ),
                 )
                 .child(
-                    when(active, move || {
-                        image(asset!("icons/check.svg"))
-                            .size(px(13.0))
-                            .tint_color(move || theme().primary)
-                            .into_element()
-                    })
-                    .otherwise(|| view().h(px(0.0)).into_element()),
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(8.0))
+                        .child(
+                            text(definition.label)
+                                .flex_grow(1.0)
+                                .number_of_lines(1)
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        )
+                        .when(active(), |row| {
+                            row.child(
+                                image(asset!("icons/check.svg"))
+                                    .size(px(15.0))
+                                    .tint_color(move || theme().primary),
+                            )
+                        }),
+                )
+                .child(
+                    text(definition.description)
+                        .text_size(px(11.0))
+                        .line_height(px(16.0))
+                        .text_color(move || theme().muted_foreground),
                 )
                 .into_element()
         }))
