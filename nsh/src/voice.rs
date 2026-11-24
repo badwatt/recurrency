@@ -77,7 +77,7 @@ impl VoiceMode {
         match self {
             Self::Native if !cfg!(target_os = "android") => "Android only",
             Self::Browser if !cfg!(target_arch = "wasm32") => "Web build only",
-            Self::Local => "Not available in this build",
+            Self::Local => "Desktop app only",
             _ => "",
         }
     }

@@ -2648,64 +2648,291 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         ),
                 ),
         )
-        .child(voice_card())
-}
-
-fn voice_card() -> impl IntoElement {
-    let mode = signal(crate::voice::saved());
-    ui::surface()
-        .p(px(24.0))
-        .gap(px(12.0))
+        .child(voice_card(server.clone(), token.clone()))
         .child(
             view()
+                .w_full()
+                .p(px(16.0))
                 .flex_row()
-                .items_center()
-                .justify_between()
+                .items_start()
+                .gap(px(12.0))
+                .rounded(px(12.0))
+                .border(px(1.0))
+                .border_color(move || theme().border.opacity(0.4))
+                .bg(move || theme().muted.opacity(0.2))
+                .child(
+                    image(asset!("icons/sparkles.svg"))
+                        .size(px(14.0))
+                        .tint_color(move || theme().muted_foreground),
+                )
                 .child(
                     view()
                         .flex_col()
-                        .child(text("Voice input").text_size(px(18.0)).font_weight(FontWeight::BOLD).text_color(move || theme().foreground))
-                        .child(text("Dictate into the AI chat. Choose the engine that fits this device.").text_size(px(12.0)).text_color(move || theme().muted_foreground)),
+                        .child(
+                            text("Works with your data")
+                                .text_size(px(12.0))
+                                .line_height(px(16.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("The assistant receives a compact snapshot of your subscriptions, transactions, debts, accounts and categories. Actions run with your permissions.")
+                                .text_size(px(12.0))
+                                .line_height(px(16.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+}
+
+fn voice_card(server: String, token: String) -> impl IntoElement {
+    let mode = signal(crate::voice::saved());
+    let ai = resource(
+        || Some(()),
+        move |(), _| {
+            let server = server.clone();
+            let token = token.clone();
+            async move { crate::api::load_ai_settings(server, token).await }
+        },
+    );
+    let configured = move || ai.get().is_some_and(|settings| settings.configured);
+    let icon = |option: crate::voice::VoiceMode| -> ImageAsset {
+        match option {
+            crate::voice::VoiceMode::Auto => asset!("icons/sparkles.svg"),
+            crate::voice::VoiceMode::Native => asset!("icons/smartphone.svg"),
+            crate::voice::VoiceMode::Browser => asset!("icons/globe.svg"),
+            crate::voice::VoiceMode::Provider => asset!("icons/cloud.svg"),
+            crate::voice::VoiceMode::Local => asset!("icons/cpu.svg"),
+        }
+    };
+    ui::surface()
+        .p(px(0.0))
+        .rounded(px(16.0))
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .flex_row()
+                .flex_wrap()
+                .items_start()
+                .gap(px(16.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border.opacity(0.6))
+                .child(
+                    view()
+                        .h(px(48.0))
+                        .w(px(48.0))
+                        .flex_shrink_0()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(16.0))
+                        .bg(move || rgb(0x0ea5e9).opacity(0.10))
+                        .child(
+                            image(asset!("icons/mic.svg"))
+                                .size(px(24.0))
+                                .tint_color(move || rgb(0x38bdf8)),
+                        ),
                 )
-                .child(badge(BadgeProps::new("Private by choice").tone(BadgeTone::Outline))),
+                .child(
+                    view()
+                        .flex_grow(1.0)
+                        .basis(px(0.0))
+                        .min_w(px(0.0))
+                        .flex_col()
+                        .child(
+                            text("Voice input")
+                                .text_size(px(18.0))
+                                .line_height(px(28.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Dictate into the AI chat. Choose the engine that fits this device.")
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    view()
+                        .h(px(24.0))
+                        .px(px(10.0))
+                        .flex_row()
+                        .items_center()
+                        .gap(px(6.0))
+                        .rounded(px(999.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border.opacity(0.6))
+                        .child(
+                            image(asset!("icons/shield.svg"))
+                                .size(px(11.0))
+                                .tint_color(move || theme().muted_foreground),
+                        )
+                        .child(
+                            text("Private by choice")
+                                .text_size(px(10.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
         )
         .child(
             view()
-                .flex_row()
-                .flex_wrap()
-                .gap(px(8.0))
-                .children(crate::voice::VoiceMode::ALL.into_iter().map(|option| {
-                    let active = mode.get() == option;
-                    let hint = option.hint();
+                .w_full()
+                .p(px(24.0))
+                .flex_col()
+                .gap(px(20.0))
+                .child(
                     view()
-                        .min_w(px(220.0))
-                        .max_w(px(330.0))
-                        .flex_grow(1.0)
-                        .child(
-                            ui::surface()
-                                .p(px(10.0))
-                                .gap(px(4.0))
-                                .border_color(move || if active { theme().primary.opacity(0.5) } else { theme().border })
+                        .w_full()
+                        .grid()
+                        .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
+                        .gap(px(8.0))
+                        .children(crate::voice::VoiceMode::ALL.into_iter().map(move |option| {
+                            let active = mode.get() == option;
+                            let provider_missing = move || {
+                                option == crate::voice::VoiceMode::Provider && !configured()
+                            };
+                            let available = move || {
+                                option.available() && !provider_missing()
+                            };
+                            let hint = move || {
+                                if provider_missing() {
+                                    "Configure a model first".to_string()
+                                } else {
+                                    option.hint().to_string()
+                                }
+                            };
+                            view()
+                                .w_full()
+                                .cursor_pointer()
+                                .p(px(14.0))
+                                .flex_row()
+                                .items_start()
+                                .gap(px(12.0))
+                                .rounded(px(12.0))
+                                .border(px(1.0))
+                                .border_color(move || {
+                                    if active {
+                                        theme().primary.opacity(0.45)
+                                    } else {
+                                        theme().border.opacity(0.6)
+                                    }
+                                })
+                                .bg(move || {
+                                    if active {
+                                        theme().primary.opacity(0.05)
+                                    } else {
+                                        theme().background.opacity(0.35)
+                                    }
+                                })
+                                .opacity(move || if available() { 1.0_f32 } else { 0.55_f32 })
+                                .on_press(move || {
+                                    if available() {
+                                        mode.set(option);
+                                        crate::voice::save(option);
+                                    }
+                                })
                                 .child(
-                                    shared_button(
-                                        ButtonProps::new(option.label())
-                                            .variant(if active { ButtonVariant::Secondary } else { ButtonVariant::Ghost })
-                                            .size(ButtonSize::Sm)
-                                            .align(ButtonAlign::Start)
-                                            .full_width()
-                                            .disabled(!option.available())
-                                            .icon(asset!("icons/mic.svg"))
-                                            .on_press(move || {
-                                                mode.set(option);
-                                                crate::voice::save(option);
-                                            }),
-                                    ),
+                                    view()
+                                        .h(px(32.0))
+                                        .w(px(32.0))
+                                        .flex_shrink_0()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(8.0))
+                                        .bg(move || {
+                                            if active {
+                                                theme().primary.opacity(0.12)
+                                            } else {
+                                                theme().muted
+                                            }
+                                        })
+                                        .child(
+                                            image(icon(option))
+                                                .size(px(18.0))
+                                                .tint_color(move || {
+                                                    if active {
+                                                        theme().primary
+                                                    } else {
+                                                        theme().muted_foreground
+                                                    }
+                                                }),
+                                        ),
                                 )
-                                .child(text(option.description()).text_size(px(10.0)).text_color(move || theme().muted_foreground))
-                                .when(!hint.is_empty(), |view| view.child(text(hint).text_size(px(10.0)).text_color(move || theme().destructive))),
+                                .child(
+                                    view()
+                                        .flex_col()
+                                        .min_w(px(0.0))
+                                        .child(
+                                            view()
+                                                .flex_row()
+                                                .flex_wrap()
+                                                .items_center()
+                                                .gap(px(6.0))
+                                                .child(
+                                                    text(option.label())
+                                                        .text_size(px(14.0))
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .text_color(move || theme().foreground),
+                                                )
+                                                .when(option == crate::voice::VoiceMode::Auto, |row| {
+                                                    row.child(
+                                                        view()
+                                                            .px(px(6.0))
+                                                            .py(px(2.0))
+                                                            .rounded(px(999.0))
+                                                            .bg(move || crate::theme::success().opacity(0.12))
+                                                            .child(
+                                                                text("RECOMMENDED")
+                                                                    .text_size(px(9.0))
+                                                                    .font_weight(FontWeight::SEMIBOLD)
+                                                                    .letter_spacing(px(0.5))
+                                                                    .text_color(move || crate::theme::success()),
+                                                            ),
+                                                    )
+                                                }),
+                                        )
+                                        .child(
+                                            text(option.description())
+                                                .text_size(px(12.0))
+                                                .line_height(px(16.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        )
+                                        .child(
+                                            text(hint)
+                                                .text_size(px(10.0))
+                                                .text_color(move || rgb(0xd97706)),
+                                        ),
+                                )
+                                .into_element()
+                        })),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(12.0))
+                        .flex_row()
+                        .items_start()
+                        .gap(px(8.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border.opacity(0.4))
+                        .bg(move || theme().muted.opacity(0.2))
+                        .child(
+                            image(asset!("icons/cpu.svg"))
+                                .size(px(13.0))
+                                .tint_color(move || theme().muted_foreground),
                         )
-                })),
+                        .child(
+                            text("Provider transcription uses the same encrypted API key as chat. Browser and Android speech may use services provided by your operating system or browser.")
+                                .text_size(px(11.0))
+                                .line_height(px(16.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
         )
+        .into_element()
 }
 
 fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
