@@ -5,10 +5,10 @@ use nsh_base::theme;
 use nsh_core::prelude::*;
 use qrcode::{Color, QrCode};
 
-const QR_SIZE: f32 = 168.0;
+const QR_SIZE: f32 = 160.0;
+const SERVER_QR_SIZE: f32 = 144.0;
 
-fn paint_qr(payload: &str) -> Painter {
-    let size = QR_SIZE;
+fn paint_qr(payload: &str, size: f32) -> Painter {
     let Ok(code) = QrCode::new(payload.as_bytes()) else {
         return Painter::new();
     };
@@ -110,7 +110,7 @@ pub fn qr_card(
                         .child(
                             canvas({
                                 let payload = payload.clone();
-                                move || paint_qr(&payload)
+                                move || paint_qr(&payload, QR_SIZE)
                             })
                             .h(px(QR_SIZE))
                             .w(px(QR_SIZE)),
@@ -127,7 +127,10 @@ pub fn qr_card(
                                 .text_color(move || theme().foreground),
                         )
                         .child(
-                            text("This code always points to the latest release.")
+                            text(format!(
+                                "This QR always points to the latest release. Installed version: v{}.",
+                                env!("CARGO_PKG_VERSION")
+                            ))
                                 .number_of_lines(3)
                                 .text_size(px(11.0))
                                 .text_color(move || theme().muted_foreground),
@@ -137,14 +140,77 @@ pub fn qr_card(
 }
 
 pub fn web_server_qr(server: String) -> impl IntoElement {
-    let caption = server.clone();
     let payload = format!(r#"{{"type":"recurrency-server","url":"{server}"}}"#);
-    qr_card(
-        "Connect a device",
-        "Scan this code from the Recurrency app to use this server.",
-        payload,
-        caption,
-    )
+    let display = server.clone();
+    crate::ui::surface()
+        .p(px(0.0))
+        .child(
+            view()
+                .w_full()
+                .flex_col()
+                .gap(px(4.0))
+                .p(px(24.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    text("Connect a device")
+                        .text_size(px(18.0))
+                        .line_height(px(28.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("Scan this code from the Android app to use this server.")
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .flex_row()
+                .flex_wrap()
+                .items_center()
+                .gap(px(16.0))
+                .child(
+                    view()
+                        .h(px(SERVER_QR_SIZE + 16.0))
+                        .w(px(SERVER_QR_SIZE + 16.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(10.0))
+                        .bg(rgb(0xFFFFFF))
+                        .p(px(8.0))
+                        .child(
+                            canvas({
+                                let payload = payload.clone();
+                                move || paint_qr(&payload, SERVER_QR_SIZE)
+                            })
+                            .h(px(SERVER_QR_SIZE))
+                            .w(px(SERVER_QR_SIZE)),
+                        ),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .gap(px(4.0))
+                        .child(
+                            text("Server")
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(display)
+                                .text_size(px(12.0))
+                                .font_family(crate::theme::MONO)
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+        .into_element()
 }
 
 #[cfg(test)]

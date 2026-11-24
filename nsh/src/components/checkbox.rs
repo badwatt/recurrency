@@ -4,6 +4,9 @@ use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
 pub fn checkbox(checked: Signal<bool>, label: String) -> impl IntoElement {
+    let has_label = !label.is_empty();
+    let label_for_aria = label.clone();
+    let label_text = label.clone();
     view()
         .flex_row()
         .items_center()
@@ -32,7 +35,7 @@ pub fn checkbox(checked: Signal<bool>, label: String) -> impl IntoElement {
                         theme().card
                     }
                 })
-                .accessibility_label(label.clone())
+                .accessibility_label(label_for_aria)
                 .on_press(move || checked.set(!checked.get()))
                 .child(
                     when(
@@ -48,8 +51,15 @@ pub fn checkbox(checked: Signal<bool>, label: String) -> impl IntoElement {
                 ),
         )
         .child(
-            text(label)
-                .text_size(px(13.0))
-                .text_color(move || theme().foreground),
+            when(
+                move || has_label,
+                move || {
+                    text(label_text.clone())
+                        .text_size(px(13.0))
+                        .text_color(move || theme().foreground)
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
         )
 }

@@ -309,7 +309,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
     view()
         .relative()
         .w_full()
-        .pt(px(0.0))
+        .pt(px(11.0))
         .on_layout(
             move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
                 compact.set(bounds.size.width.0 < 900.0);
@@ -1005,23 +1005,33 @@ fn settings_section(
         .child(
             view()
                 .w_full()
-                .p(px(24.0))
-                .pb(px(16.0))
+                .flex_col()
+                .gap(px(4.0))
+                .px(px(24.0))
+                .pt(px(19.0))
+                .pb(px(25.0))
                 .border_b(px(1.0))
                 .border_color(move || theme().border)
                 .child(
                     text(title)
                         .text_size(px(18.0))
+                        .line_height(px(28.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
                 )
                 .child(
                     text(description)
-                        .text_size(px(12.0))
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(view().w_full().p(px(24.0)).child(content))
+        .child(
+            view()
+                .w_full()
+                .p(px(24.0))
+                .child(view().w_full().p(px(24.0)).child(content)),
+        )
         .into_element()
 }
 
@@ -1084,7 +1094,7 @@ fn general_card(
             view()
                 .w_full()
                 .flex_col()
-                .gap(px(14.0))
+                .gap(px(12.0))
                 .child(string_select(StringSelectProps::new(
                     "Default Currency",
                     currency,
@@ -1114,19 +1124,30 @@ fn general_card(
                     view()
                         .w_full()
                         .flex_row()
-                        .items_center()
+                        .items_start()
                         .gap(px(12.0))
-                        .p(px(12.0))
+                        .p(px(14.0))
                         .rounded(px(8.0))
                         .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .child(checkbox(show_updates, "Show update notices".to_string()))
+                        .border_color(move || theme().border.opacity(0.4))
+                        .child(checkbox(show_updates, String::new()))
                         .child(
-                            text(
-                                "Check for new Recurrency releases and show a dismissible banner.",
-                            )
-                            .text_size(px(12.0))
-                            .text_color(move || theme().muted_foreground),
+                            view()
+                                .flex_col()
+                                .gap(px(2.0))
+                                .child(
+                                    text("Show update notices")
+                                        .text_size(px(14.0))
+                                        .line_height(px(20.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text("Check for new Recurrency releases and show a dismissible banner.")
+                                        .text_size(px(12.0))
+                                        .line_height(px(16.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
                         ),
                 )
                 .into_element(),
@@ -1359,8 +1380,9 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
     let save_card = ui::surface()
         .flex_grow(1.0)
         .basis(px(0.0))
-        .p(px(16.0))
-        .gap(px(14.0))
+        .p(px(20.0))
+        .min_h(px(282.0))
+        .gap(px(16.0))
         .child(
             view()
                 .w_full()
@@ -1374,11 +1396,11 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || theme().primary.opacity(0.14))
+                        .bg(move || rgb(0x10b981).opacity(0.12))
                         .child(
                             image(asset!("icons/download.svg"))
-                                .size(px(18.0))
-                                .tint_color(move || theme().primary),
+                                .size(px(20.0))
+                                .tint_color(move || rgb(0x34d399)),
                         ),
                 )
                 .child(
@@ -1410,9 +1432,18 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                 .border_color(move || theme().border)
                 .bg(move || theme().background)
                 .child(
-                    image(asset!("icons/database.svg"))
-                        .size(px(20.0))
-                        .tint_color(move || theme().muted_foreground),
+                    view()
+                        .h(px(36.0))
+                        .w(px(36.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(6.0))
+                        .bg(move || theme().card)
+                        .child(
+                            image(asset!("icons/notes.svg"))
+                                .size(px(18.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
                 )
                 .child(
                     view()
@@ -1420,16 +1451,17 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         .min_w(px(0.0))
                         .child(
                             text("recurrency-backup.json")
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .text_color(move || theme().foreground),
                         )
                         .child(
                             text("Accounts, subscriptions, transactions and debts")
-                                .text_size(px(11.0))
+                                .text_size(px(12.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
                 ),
         )
+        .child(view().w_full().flex_grow(1.0))
         .child(
             view()
                 .w_full()
@@ -1470,8 +1502,9 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
     let restore_card = ui::surface()
         .flex_grow(1.0)
         .basis(px(0.0))
-        .p(px(16.0))
-        .gap(px(14.0))
+        .p(px(20.0))
+        .min_h(px(282.0))
+        .gap(px(16.0))
         .child(
             view()
                 .w_full()
@@ -1487,8 +1520,8 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         .rounded(px(8.0))
                         .bg(move || theme().primary.opacity(0.14))
                         .child(
-                            image(asset!("icons/database.svg"))
-                                .size(px(18.0))
+                            image(asset!("icons/upload.svg"))
+                                .size(px(20.0))
                                 .tint_color(move || theme().primary),
                         ),
                 )
@@ -1512,7 +1545,8 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
         .child(
             view()
                 .w_full()
-                .h(px(120.0))
+                .min_h(px(180.0))
+                .flex_grow(1.0)
                 .items_center()
                 .justify_center()
                 .gap(px(6.0))
@@ -1521,9 +1555,18 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                 .border_color(move || theme().border)
                 .bg(move || theme().background)
                 .child(
-                    image(asset!("icons/download.svg"))
-                        .size(px(20.0))
-                        .tint_color(move || theme().muted_foreground),
+                    view()
+                        .h(px(36.0))
+                        .w(px(36.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(999.0))
+                        .bg(move || theme().background)
+                        .child(
+                            image(asset!("icons/upload.svg"))
+                                .size(px(17.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
                 )
                 .child(
                     text("Drop a backup here")
@@ -1539,7 +1582,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                 .child(
                     button()
                         .cursor_pointer()
-                        .h(px(32.0))
+                        .h(px(36.0))
                         .px(px(12.0))
                         .items_center()
                         .justify_center()
@@ -1550,7 +1593,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         .on_press(choose_restore)
                         .child(
                             text("Choose file")
-                                .text_size(px(12.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(move || theme().foreground),
                         ),
@@ -1605,29 +1648,28 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                     view()
                         .w_full()
                         .p(px(24.0))
-                        .pb(px(16.0))
                         .border_b(px(1.0))
                         .border_color(move || theme().border)
                         .flex_row()
-                        .items_center()
+                        .items_start()
                         .justify_between()
                         .gap(px(12.0))
                         .child(
                             view()
                                 .flex_row()
-                                .items_center()
-                                .gap(px(12.0))
+                                .items_start()
+                                .gap(px(16.0))
                                 .child(
                                     view()
-                                        .h(px(36.0))
-                                        .w(px(36.0))
+                                        .h(px(44.0))
+                                        .w(px(44.0))
                                         .items_center()
                                         .justify_center()
-                                        .rounded(px(8.0))
-                                        .bg(move || theme().primary.opacity(0.14))
+                                        .rounded(px(12.0))
+                                        .bg(move || theme().primary.opacity(0.10))
                                         .child(
-                                            image(asset!("icons/database.svg"))
-                                                .size(px(18.0))
+                                            image(asset!("icons/shield.svg"))
+                                                .size(px(22.0))
                                                 .tint_color(move || theme().primary),
                                         ),
                                 )
@@ -1637,12 +1679,14 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                                         .child(
                                             text("Backup & restore")
                                                 .text_size(px(18.0))
+                                                .line_height(px(28.0))
                                                 .font_weight(FontWeight::BOLD)
                                                 .text_color(move || theme().foreground),
                                         )
                                         .child(
                                             text("Keep a portable copy of your data, or bring it back in one step.")
-                                                .text_size(px(12.0))
+                                                .text_size(px(14.0))
+                                                .line_height(px(20.0))
                                                 .text_color(move || theme().muted_foreground),
                                         ),
                                 ),
@@ -1714,7 +1758,8 @@ fn about_card() -> impl IntoElement {
             .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
     };
     let hero = ui::surface()
-        .p(px(24.0))
+        .p(px(32.0))
+        .rounded(px(16.0))
         .child(
             view()
                 .w_full()
@@ -1738,13 +1783,14 @@ fn about_card() -> impl IntoElement {
                         )
                         .child(
                             text("Every expense is a subscription.")
-                                .text_size(px(24.0))
-                                .line_height(px(32.0))
-                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_size(px(30.0))
+                                .line_height(px(36.0))
+                                .font_weight(FontWeight::BOLD)
                                 .text_color(move || theme().foreground),
                         )
                         .child(
                             text("A small, self-hosted tool for seeing what you keep paying for — and what you would subscribe to again today.")
+                                .max_w(px(576.0))
                                 .text_size(px(14.0))
                                 .line_height(px(20.0))
                                 .text_color(move || theme().muted_foreground),
@@ -1752,8 +1798,8 @@ fn about_card() -> impl IntoElement {
                 )
                 .child(
                     view()
-                        .w(px(220.0))
-                        .p(px(16.0))
+                        .px(px(20.0))
+                        .py(px(16.0))
                         .gap(px(2.0))
                         .flex_shrink_0()
                         .rounded(px(12.0))
@@ -1785,34 +1831,28 @@ fn about_card() -> impl IntoElement {
         .gap(px(10.0))
         .child(
             view()
-                .flex_row()
-                .items_center()
-                .justify_between()
+                .flex_col()
                 .child(
-                    view()
-                        .flex_col()
-                        .child(
-                            text("What's new")
-                                .text_size(px(16.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(move || format!("Release notes for v{}", version()))
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
-                        ),
+                    text("What's new")
+                        .text_size(px(16.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
                 )
-                .child(ui::action_button(
-                    if show_notes.get() {
-                        "Hide notes"
-                    } else {
-                        "Show changelog"
-                    },
-                    false,
-                    move || show_notes.set(!show_notes.get()),
-                )),
+                .child(
+                    text(move || format!("Release notes for v{}", version()))
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
         )
+        .child(ui::action_button(
+            if show_notes.get() {
+                "Hide notes"
+            } else {
+                "Show changelog"
+            },
+            false,
+            move || show_notes.set(!show_notes.get()),
+        ))
         .child(
             when(
                 move || show_notes.get(),
@@ -1865,8 +1905,8 @@ fn about_card() -> impl IntoElement {
             button()
                 .cursor_pointer()
                 .self_start()
-                .h(px(40.0))
-                .px(px(14.0))
+                .h(px(36.0))
+                .px(px(12.0))
                 .flex_row()
                 .items_center()
                 .gap(px(6.0))
@@ -1906,7 +1946,7 @@ fn about_card() -> impl IntoElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(12.0))
+        .gap(px(24.0))
         .child(hero)
         .child(
             view()
@@ -2064,7 +2104,7 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(12.0))
+        .gap(px(24.0))
         .child(crate::delivery::delivery_card(
             server.clone(),
             token.clone(),
@@ -2205,26 +2245,27 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
 
 fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
     ui::surface()
-        .p(px(24.0))
-        .gap(px(10.0))
+        .p(px(32.0))
+        .rounded(px(16.0))
+        .gap(px(16.0))
         .bg(move || theme().primary.opacity(0.06))
         .child(
             view()
                 .w_full()
                 .flex_row()
                 .items_center()
-                .gap(px(14.0))
+                .gap(px(16.0))
                 .child(
                     view()
-                        .h(px(48.0))
-                        .w(px(48.0))
+                        .h(px(64.0))
+                        .w(px(64.0))
                         .items_center()
                         .justify_center()
-                        .rounded(px(12.0))
+                        .rounded(px(16.0))
                         .bg(move || theme().primary.opacity(0.16))
                         .child(
                             image(asset!("icons/sparkles.svg"))
-                                .size(px(22.0))
+                                .size(px(28.0))
                                 .tint_color(move || theme().primary),
                         ),
                 )
@@ -2247,6 +2288,7 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
                         )
                         .child(
                             text("Connect an OpenAI-compatible model to create and change your subscriptions, transactions and debts. Choose your provider, model and how you want to dictate.")
+                                .max_w(px(680.0))
                                 .text_size(px(14.0))
                                 .line_height(px(20.0))
                                 .text_color(move || theme().muted_foreground),
@@ -2257,7 +2299,7 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
             view()
                 .flex_row()
                 .flex_wrap()
-                .gap(px(6.0))
+                .gap(px(8.0))
                 .child(ai_chip(move || {
                     if configured() {
                         "Key configured".to_string()
@@ -2273,8 +2315,9 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
 
 fn ai_chip(label: impl Fn() -> String + 'static) -> impl IntoElement {
     view()
-        .px(px(8.0))
-        .py(px(3.0))
+        .h(px(24.0))
+        .px(px(10.0))
+        .items_center()
         .rounded(px(999.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -2407,7 +2450,6 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                     view()
                         .w_full()
                         .p(px(24.0))
-                        .pb(px(16.0))
                         .border_b(px(1.0))
                         .border_color(move || theme().border)
                         .flex_row()
@@ -2421,15 +2463,15 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                 .gap(px(12.0))
                                 .child(
                                     view()
-                                        .h(px(40.0))
-                                        .w(px(40.0))
+                                        .h(px(48.0))
+                                        .w(px(48.0))
                                         .items_center()
                                         .justify_center()
-                                        .rounded(px(8.0))
+                                        .rounded(px(12.0))
                                         .bg(move || theme().primary.opacity(0.14))
                                         .child(
                                             image(asset!("icons/sparkles.svg"))
-                                                .size(px(18.0))
+                                                .size(px(22.0))
                                                 .tint_color(move || theme().primary),
                                         ),
                                 )
@@ -2443,7 +2485,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                                 .gap(px(8.0))
                                                 .child(
                                                     text("Model connection")
-                                                        .text_size(px(16.0))
+                                                        .text_size(px(18.0))
+                                                        .line_height(px(28.0))
                                                         .font_weight(FontWeight::SEMIBOLD)
                                                         .text_color(move || theme().foreground),
                                                 )
@@ -2451,7 +2494,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                         )
                                         .child(
                                             text("Bring your own key. Keys stay encrypted on the server and are never returned to this device.")
-                                                .text_size(px(12.0))
+                                                .text_size(px(14.0))
+                                                .line_height(px(20.0))
                                                 .text_color(move || theme().muted_foreground),
                                         ),
                                 ),
@@ -2477,6 +2521,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                         .flex_grow(1.0)
                                         .basis(px(0.0))
                                         .min_w(px(0.0))
+                                        .gap(px(4.0))
                                         .child(string_select(StringSelectProps::new(
                                             "Provider",
                                             provider,
@@ -2488,14 +2533,25 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                                 ("lmstudio".to_string(), "LM Studio".to_string()),
                                                 ("custom".to_string(), "Custom".to_string()),
                                             ],
-                                        ))),
+                                        )))
+                                        .child(
+                                            text("GPT models with your own key.")
+                                                .text_size(px(11.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        ),
                                 )
                                 .child(
                                     view()
                                         .flex_grow(1.0)
                                         .basis(px(0.0))
                                         .min_w(px(0.0))
-                                        .child(ui::field("API base URL", base_url, "https://api.openai.com/v1")),
+                                        .gap(px(4.0))
+                                        .child(ui::field("API base URL", base_url, "https://api.openai.com/v1"))
+                                        .child(
+                                            text("OpenAI")
+                                                .text_size(px(11.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        ),
                                 ),
                         )
                         .child(
@@ -2518,6 +2574,22 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                 )),
                         )
                         .child(ui::field("API key", api_key, "Paste your provider API key"))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(6.0))
+                                .child(
+                                    image(asset!("icons/shield.svg"))
+                                        .size(px(13.0))
+                                        .tint_color(move || theme().muted_foreground),
+                                )
+                                .child(
+                                    text("Encrypted at rest. Never sent back to the client.")
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
+                        )
                         .child(
                             text(move || models_error.get())
                                 .text_size(px(11.0))
@@ -2553,8 +2625,8 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                         .bg(move || theme().primary)
                                         .on_press(move || configure())
                                         .child(
-                                            image(asset!("icons/database.svg"))
-                                                .size(px(15.0))
+                                            image(asset!("icons/lock.svg"))
+                                                .size(px(14.0))
                                                 .tint_color(move || theme().primary_foreground),
                                         )
                                         .child(
@@ -2729,46 +2801,81 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
                 ],
             )))
             .child(
-                when(
-                    move || provider.get() == "fixer",
-                    move || {
-                        ui::field(
-                            if configured.get() {
-                                "Fixer API key (saved — enter a new key to replace it)"
-                            } else {
-                                "Fixer API key"
-                            },
-                            key,
-                            "Paste your Fixer API key",
-                        )
-                        .into_element()
-                    },
-                )
-                .otherwise(|| view().h(px(0.0)).into_element()),
-            )
-            .child(
                 view()
-                    .flex_row()
-                    .flex_wrap()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(ui::action_button("Save rates", false, save))
+                    .w_full()
+                    .flex_col()
+                    .gap(move || {
+                        if provider.get() == "fixer" {
+                            px(12.0)
+                        } else {
+                            px(0.0)
+                        }
+                    })
                     .child(
                         when(
-                            move || configured.get(),
+                            move || provider.get() == "fixer",
                             move || {
-                                let clear_key = clear_key.clone();
-                                ui::action_button("Remove key", true, move || clear_key())
-                                    .into_element()
+                                ui::field(
+                                    if configured.get() {
+                                        "Fixer API key (saved — enter a new key to replace it)"
+                                    } else {
+                                        "Fixer API key"
+                                    },
+                                    key,
+                                    "Paste your Fixer API key",
+                                )
+                                .into_element()
                             },
                         )
                         .otherwise(|| view().h(px(0.0)).into_element()),
+                    )
+                    .child(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .flex_wrap()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(8.0))
+                            .child(
+                                text("Rates are cached for six hours.")
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                            .child(
+                                view()
+                                    .flex_row()
+                                    .flex_wrap()
+                                    .items_center()
+                                    .gap(px(8.0))
+                                    .child(ui::action_button("Save rates", false, save))
+                                    .child(
+                                        when(
+                                            move || configured.get(),
+                                            move || {
+                                                let clear_key = clear_key.clone();
+                                                ui::action_button("Remove key", true, move || {
+                                                    clear_key()
+                                                })
+                                                .into_element()
+                                            },
+                                        )
+                                        .otherwise(|| view().h(px(0.0)).into_element()),
+                                    ),
+                            ),
                     ),
             )
             .child(
-                text(move || status.get())
-                    .text_size(px(11.0))
-                    .text_color(move || theme().muted_foreground),
+                when(
+                    move || !status.get().is_empty(),
+                    move || {
+                        text(move || status.get())
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground)
+                            .into_element()
+                    },
+                )
+                .otherwise(|| view().h(px(0.0)).into_element()),
             )
             .into_element(),
     )
@@ -3069,103 +3176,99 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                         crate::components::color_picker::DEFAULT_COLOR.to_string()
                     });
                     let is_default = account.is_default;
-                    let subscriptions = item.subscription_count;
-                    let transactions = item.transaction_count;
                     let edit_name = name.clone();
                     let edit_icon = icon.clone();
                     let edit_color = color.clone();
                     let open_edit = open_edit.clone();
                     view()
-                    .w_full()
-                    .rounded(px(12.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border.opacity(0.6))
-                    .bg(move || theme().card)
-                    .p(px(16.0))
-                    .gap(px(12.0))
-                    .child(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .gap(px(12.0))
-                            .child(crate::components::entity_icon::entity_icon(
-                                &icon,
-                                crate::components::color_picker::color_value(&color),
-                                40.0,
-                            ))
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .min_w(px(0.0))
-                                    .child(
-                                        text(name)
-                                            .text_size(px(14.0))
-                                            .line_height(px(20.0))
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .when(is_default, |column| {
-                                        column.child(
-                                            text("Default")
-                                                .text_size(px(12.0))
-                                                .text_color(move || theme().muted_foreground),
-                                        )
-                                    }),
-                            ),
-                    )
-                    .child(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .pt(px(8.0))
-                            .border_t(px(1.0))
-                            .border_color(move || theme().border.opacity(0.4))
-                            .child(
-                                text(format!(
-                                    "{subscriptions} subscriptions · {transactions} transactions"
+                        .w_full()
+                        .rounded(px(12.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border.opacity(0.6))
+                        .bg(move || theme().card)
+                        .p(px(16.0))
+                        .min_h(px(140.0))
+                        .gap(px(12.0))
+                        .child(
+                            view()
+                                .w_full()
+                                .min_h(px(44.0))
+                                .flex_row()
+                                .items_center()
+                                .gap(px(12.0))
+                                .child(crate::components::entity_icon::entity_icon(
+                                    &icon,
+                                    crate::components::color_picker::color_value(&color),
+                                    40.0,
                                 ))
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
-                            )
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .items_center()
-                                    .gap(px(4.0))
-                                    .when(!is_default, |actions| {
-                                        let mark_default = mark_default.clone();
-                                        actions.child(ui::mini_icon_button(
-                                            asset!("icons/star.svg"),
+                                .child(
+                                    view()
+                                        .flex_col()
+                                        .min_w(px(0.0))
+                                        .child(
+                                            text(name)
+                                                .text_size(px(14.0))
+                                                .line_height(px(20.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .text_color(move || theme().foreground),
+                                        )
+                                        .when(is_default, |column| {
+                                            column.child(
+                                                text("Default")
+                                                    .text_size(px(12.0))
+                                                    .text_color(move || theme().muted_foreground),
+                                            )
+                                        }),
+                                ),
+                        )
+                        .child(
+                            view()
+                                .w_full()
+                                .flex_row()
+                                .items_center()
+                                .justify_end()
+                                .pt(px(8.0))
+                                .border_t(px(1.0))
+                                .border_color(move || theme().border.opacity(0.4))
+                                .child(
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(4.0))
+                                        .when(!is_default, |actions| {
+                                            let mark_default = mark_default.clone();
+                                            actions.child(ui::row_icon_button_labeled(
+                                                asset!("icons/star.svg"),
+                                                "Set account as default",
+                                                false,
+                                                move || mark_default(id),
+                                            ))
+                                        })
+                                        .child(ui::row_icon_button_labeled(
+                                            asset!("icons/pencil.svg"),
+                                            "Edit account",
                                             false,
-                                            move || mark_default(id),
+                                            move || {
+                                                open_edit(
+                                                    id,
+                                                    edit_name.clone(),
+                                                    edit_icon.clone(),
+                                                    edit_color.clone(),
+                                                );
+                                            },
                                         ))
-                                    })
-                                    .child(ui::mini_icon_button(
-                                        asset!("icons/pencil.svg"),
-                                        false,
-                                        move || {
-                                            open_edit(
-                                                id,
-                                                edit_name.clone(),
-                                                edit_icon.clone(),
-                                                edit_color.clone(),
-                                            );
-                                        },
-                                    ))
-                                    .when(!is_default, |actions| {
-                                        let remove = remove.clone();
-                                        actions.child(ui::mini_icon_button(
-                                            asset!("icons/trash.svg"),
-                                            true,
-                                            move || remove(id),
-                                        ))
-                                    }),
-                            ),
-                    )
-                    .into_element()
+                                        .when(!is_default, |actions| {
+                                            let remove = remove.clone();
+                                            actions.child(ui::row_icon_button_labeled(
+                                                asset!("icons/trash.svg"),
+                                                "Delete account",
+                                                true,
+                                                move || remove(id),
+                                            ))
+                                        }),
+                                ),
+                        )
+                        .into_element()
                 },
             ))
             .into_element()
@@ -3206,10 +3309,12 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                     .border_color(move || theme().border.opacity(0.6))
                     .bg(move || theme().card)
                     .p(px(16.0))
+                    .min_h(px(140.0))
                     .gap(px(12.0))
                     .child(
                         view()
                             .w_full()
+                            .min_h(px(44.0))
                             .flex_row()
                             .items_center()
                             .gap(px(12.0))
@@ -3305,13 +3410,16 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                 .items_end()
                 .justify_between()
                 .gap(px(24.0))
+                .pb(px(2.0))
                 .child(
                     view()
                         .flex_col()
+                        .mt(px(-10.0))
+                        .pb(px(4.0))
                         .child(
                             text("Accounts & categories")
-                                .mt(px(13.0))
-                                .mb(px(-13.0))
+                                .h(px(48.0))
+                                .mb(px(-2.0))
                                 .text_size(px(48.0))
                                 .line_height(px(48.0))
                                 .letter_spacing(px(-2.4))
@@ -3366,7 +3474,7 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             view()
                 .w_full()
                 .flex_row()
-                .gap(px(24.0))
+                .gap(px(16.0))
                 .border_b(px(1.0))
                 .border_color(move || theme().border)
                 .child(settings_tab("Accounts", true, accounts_tab, true))
@@ -3382,17 +3490,6 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                 move || build()
             }),
         )
-        .child(
-            text(move || {
-                if accounts_tab.get() {
-                    "Accounts are required. Every subscription and transaction belongs to one."
-                } else {
-                    "Categories are optional. Subscriptions and transactions can be uncategorized."
-                }
-            })
-            .text_size(px(11.0))
-            .text_color(move || theme().muted_foreground),
-        )
 }
 
 fn settings_tab(
@@ -3405,7 +3502,7 @@ fn settings_tab(
     button()
         .cursor_pointer()
         .h(px(36.0))
-        .px(px(0.0))
+        .px(px(12.0))
         .items_center()
         .justify_center()
         .border_b(px(2.0))

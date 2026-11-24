@@ -3,7 +3,6 @@
 //! derived from that schema instead of duplicating one form per channel.
 
 use crate::api::DeliveryChannel;
-use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{ButtonProps, ButtonVariant, button};
 use crate::components::field::{FieldProps, field};
 use crate::components::input::text_input_value;
@@ -40,7 +39,7 @@ pub struct ProviderSpec {
 const EMAIL_FIELDS: &[ChannelField] = &[
     config_field("smtp_host", "SMTP host", "smtp.example.com"),
     config_field("smtp_port", "SMTP port", "587"),
-    config_field("encryption", "Encryption (tls/ssl/none)", "tls"),
+    config_field("encryption", "Encryption", "TLS / STARTTLS"),
     config_field("from_email", "From email", "hello@example.com"),
     config_field("smtp_username", "SMTP username", "username"),
     config_field("smtp_password", "SMTP password", "password"),
@@ -67,7 +66,12 @@ const PUSHOVER_FIELDS: &[ChannelField] = &[
     config_field("token", "Application token", ""),
     config_field("user_key", "User key", ""),
 ];
-const TOKEN_FIELDS: &[ChannelField] = &[config_field("token", "Token", "")];
+const TOKEN_FIELDS: &[ChannelField] = &[config_field("token", "PushPlus token", "")];
+const SLACK_FIELDS: &[ChannelField] = &[config_field(
+    "webhook_url",
+    "Incoming webhook URL",
+    "https://hooks.slack.com/services/...",
+)];
 const SERVERCHAN_FIELDS: &[ChannelField] = &[config_field("send_key", "SendKey", "")];
 
 pub const PROVIDERS: &[ProviderSpec] = &[
@@ -104,12 +108,12 @@ pub const PROVIDERS: &[ProviderSpec] = &[
     ProviderSpec {
         id: "slack",
         label: "Slack",
-        fields: WEBHOOK_FIELDS,
+        fields: SLACK_FIELDS,
     },
     ProviderSpec {
         id: "mattermost",
         label: "Mattermost",
-        fields: WEBHOOK_FIELDS,
+        fields: SLACK_FIELDS,
     },
     ProviderSpec {
         id: "pushover",
@@ -294,8 +298,9 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
     let fields = move || provider(&selected.get()).map_or(&[][..], |provider| provider.fields);
     let header = view()
         .w_full()
+        .flex_col()
+        .gap(px(4.0))
         .p(px(24.0))
-        .pb(px(16.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
         .child(
@@ -304,12 +309,14 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 .child(
                     text("Delivery channels")
                         .text_size(px(18.0))
+                        .line_height(px(28.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),
                 )
                 .child(
                     text("One summary, several destinations. Secrets stay encrypted.")
-                        .text_size(px(12.0))
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
                         .text_color(move || theme().muted_foreground),
                 ),
         )
@@ -334,7 +341,7 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
             let active = move || selected.get() == id;
             raw_button()
                 .w_full()
-                .h(px(36.0))
+                .h(px(44.0))
                 .px(px(10.0))
                 .flex_row()
                 .items_center()
@@ -396,7 +403,7 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
         .basis(px(0.0))
         .min_w(px(0.0))
         .flex_col()
-        .gap(px(14.0))
+        .gap(px(16.0))
         .child(
             view()
                 .w_full()
@@ -411,25 +418,10 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                     view()
                         .flex_col()
                         .child(
-                            view()
-                                .flex_row()
-                                .items_center()
-                                .gap(px(8.0))
-                                .child(
-                                    text(move || current().to_string())
-                                        .text_size(px(14.0))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(move || theme().foreground),
-                                )
-                                .child(badge(BadgeProps::new("Configured").tone(
-                                    if data.get().unwrap_or_default().iter().any(|channel| {
-                                        channel.provider == selected.get() && channel.configured
-                                    }) {
-                                        BadgeTone::Success
-                                    } else {
-                                        BadgeTone::Neutral
-                                    },
-                                ))),
+                            text(move || current().to_string())
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
                         )
                         .child(
                             text("Configure this delivery channel")
@@ -443,6 +435,19 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                     move |value| enabled.set(value),
                 )),
         )
+        .child(
+            when(
+                move || selected.get() == "email",
+                move || {
+                    text("Leave the SMTP fields empty to use the server-wide SMTP configuration.")
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
+                        .text_color(move || theme().muted_foreground)
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(view().flex_row().flex_wrap().gap(px(10.0)).child(each(
             move || fields().to_vec(),
             |entry| entry.key,
@@ -454,18 +459,58 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                     .into_iter()
                     .find(|(name, _)| name == key)
                     .map_or_else(String::new, |(_, value)| value);
-                let control =
-                    text_input_value(current_value, field_spec.placeholder, move |next| {
-                        let mut next_values = values.get();
+                if key == "encryption" {
+                    let initial = if current_value.is_empty() {
+                        "tls".to_string()
+                    } else {
+                        current_value
+                    };
+                    let encryption = signal(initial);
+                    let encryption_values = values;
+                    effect(move || {
+                        let next = encryption.get();
+                        let mut next_values = encryption_values.get();
                         if let Some(slot) = next_values.iter_mut().find(|(name, _)| name == key) {
                             slot.1 = next;
+                        } else {
+                            next_values.push((key.to_string(), next));
                         }
-                        values.set(next_values);
+                        encryption_values.set(next_values);
                     });
-                view().min_w(px(240.0)).flex_grow(1.0).child(field(
-                    FieldProps::new(field_spec.label),
-                    control.into_element(),
-                ))
+                    view()
+                        .min_w(px(240.0))
+                        .flex_grow(1.0)
+                        .child(crate::components::string_select::string_select(
+                            crate::components::string_select::StringSelectProps::new(
+                                "Encryption",
+                                encryption,
+                                vec![
+                                    ("tls".to_string(), "TLS / STARTTLS".to_string()),
+                                    ("ssl".to_string(), "SSL".to_string()),
+                                    ("none".to_string(), "None".to_string()),
+                                ],
+                            ),
+                        ))
+                        .into_element()
+                } else {
+                    let control =
+                        text_input_value(current_value, field_spec.placeholder, move |next| {
+                            let mut next_values = values.get();
+                            if let Some(slot) = next_values.iter_mut().find(|(name, _)| name == key)
+                            {
+                                slot.1 = next;
+                            }
+                            values.set(next_values);
+                        });
+                    view()
+                        .min_w(px(240.0))
+                        .flex_grow(1.0)
+                        .child(field(
+                            FieldProps::new(field_spec.label),
+                            control.into_element(),
+                        ))
+                        .into_element()
+                }
             },
         )))
         .child(
@@ -496,7 +541,7 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
         .child(
             view()
                 .w_full()
-                .p(px(24.0))
+                .p(px(48.0))
                 .flex_row()
                 .items_start()
                 .gap(px(24.0))

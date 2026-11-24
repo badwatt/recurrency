@@ -96,10 +96,12 @@ fn theme_card(
         .child(
             view()
                 .w_full()
-                .h(px(24.0))
+                .h(px(26.0))
                 .flex_row()
                 .overflow_hidden()
                 .rounded(px(6.0))
+                .border(px(1.0))
+                .border_color(move || theme().border.opacity(0.5))
                 .child(
                     view()
                         .flex_grow(1.0)
@@ -112,7 +114,8 @@ fn theme_card(
                 )
                 .child(
                     view()
-                        .flex_grow(1.0)
+                        .w(px(20.0))
+                        .flex_shrink_0()
                         .bg(rgba((definition.primary << 8) | 0xff)),
                 ),
         )
