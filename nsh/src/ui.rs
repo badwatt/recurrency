@@ -20,6 +20,9 @@ thread_local! {
     static SUBSCRIPTION_INTENT: RefCell<Option<Signal<Option<SubscriptionIntent>>>> = const { RefCell::new(None) };
     static LOGO_MODAL: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
 }
+thread_local! {
+    static COMPACT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
+}
 
 pub fn init_logo_modal() {
     LOGO_MODAL.with(|slot| {
@@ -297,6 +300,16 @@ fn toggle_privacy() {
             privacy.set(!privacy.get());
         }
     });
+}
+
+pub fn init_compact(compact: Signal<bool>) {
+    COMPACT.with(|slot| {
+        *slot.borrow_mut() = Some(compact);
+    });
+}
+
+pub fn compact_active() -> bool {
+    COMPACT.with(|slot| slot.borrow().map_or(false, |compact| compact.get()))
 }
 
 pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -> impl IntoElement {

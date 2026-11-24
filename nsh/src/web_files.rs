@@ -52,6 +52,21 @@ pub fn download_text(name: &str, mime: &str, text: &str) -> Result<(), String> {
     download_bytes(name, mime, text.as_bytes())
 }
 
+/// Mobile browsers overlay their scrollbar; keep the same full-width cards as
+/// the native app by hiding the reserved gutter below the compact breakpoint.
+pub fn install_layout_css() {
+    let Ok(document) = document() else { return };
+    let Ok(style) = document.create_element("style") else {
+        return;
+    };
+    style.set_text_content(Some(
+        "@media (max-width: 900px){*{scrollbar-width:none}*::-webkit-scrollbar{display:none}}",
+    ));
+    if let Some(body) = document.body() {
+        let _ = body.append_child(&style);
+    }
+}
+
 #[derive(Clone, Copy)]
 enum ReadMode {
     Text,

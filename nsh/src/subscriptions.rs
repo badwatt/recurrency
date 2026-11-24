@@ -16,7 +16,6 @@ use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
-use crate::components::page_header::page_header as shared_page_header;
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::format::format_date;
@@ -89,6 +88,7 @@ pub fn subscriptions(
     auth: AuthSession,
     modal: ui::ModalHost,
     intent: Signal<Option<crate::Route>>,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
@@ -288,7 +288,8 @@ pub fn subscriptions(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(header(open_form))
+        .pt(move || if compact.get() { px(10.0) } else { px(0.0) })
+        .child(header(open_form, compact))
         .child(toolbar(
             data,
             search,
@@ -364,29 +365,69 @@ pub fn subscriptions(
                     price_max,
                     selection_mode,
                     selected,
+                    compact,
                 )
             })
         }))
         .into_element()
 }
 
-fn header(on_add: impl Fn() + 'static) -> impl IntoElement {
-    shared_page_header(
-        TITLE,
-        SUBTITLE,
-        view()
-            .flex_row()
-            .flex_wrap()
-            .items_center()
-            .gap(px(8.0))
-            .child(shared_button(
-                ButtonProps::new("Add Subscription")
-                    .icon(asset!("icons/plus.svg"))
-                    .min_width(160.0)
-                    .on_press(on_add),
-            ))
-            .into_element(),
-    )
+fn header(on_add: impl Fn() + 'static, compact: Signal<bool>) -> impl IntoElement {
+    let on_add = std::rc::Rc::new(on_add);
+    view()
+        .w_full()
+        .flex_row()
+        .flex_wrap()
+        .items_end()
+        .justify_between()
+        .gap(px(12.0))
+        .pb(px(2.0))
+        .child(
+            view()
+                .min_w(px(0.0))
+                .mt(px(-10.0))
+                .pb(px(10.0))
+                .flex_col()
+                .child(
+                    text(TITLE)
+                        .h(move || if compact.get() { px(40.0) } else { px(48.0) })
+                        .mb(px(-8.0))
+                        .text_size(move || if compact.get() { px(36.0) } else { px(48.0) })
+                        .line_height(move || if compact.get() { px(40.0) } else { px(48.0) })
+                        .letter_spacing(px(-2.4))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(SUBTITLE)
+                        .text_size(px(16.0))
+                        .line_height(px(24.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            when(move || !compact.get(), {
+                let on_add = on_add.clone();
+                move || {
+                    let on_add = on_add.clone();
+                    view()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(8.0))
+                        .mt(px(1.0))
+                        .mb(px(-3.0))
+                        .child(shared_button(
+                            ButtonProps::new("Add Subscription")
+                                .icon(asset!("icons/plus.svg"))
+                                .min_width(160.0)
+                                .on_press(move || on_add()),
+                        ))
+                        .into_element()
+                }
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
 }
 
 fn open_edit_subscription(
@@ -1383,6 +1424,7 @@ fn content(
     price_max: Signal<String>,
     selection_mode: Signal<bool>,
     selected: Signal<Vec<Uuid>>,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let active = move || {
         filtered(
@@ -1436,6 +1478,7 @@ fn content(
             sort_desc,
             selection_mode,
             selected,
+            compact,
         ))
         .when(has_inactive, move |page| {
             page.child(section(
@@ -1451,6 +1494,7 @@ fn content(
                 sort_desc,
                 selection_mode,
                 selected,
+                compact,
             ))
         })
         .into_element()
@@ -1469,6 +1513,7 @@ fn section(
     sort_desc: Signal<bool>,
     selection_mode: Signal<bool>,
     selected: Signal<Vec<Uuid>>,
+    compact: Signal<bool>,
 ) -> impl IntoElement {
     let count_items = items.clone();
     let list_items = items.clone();
@@ -1565,6 +1610,7 @@ fn section(
                                 token,
                                 selection_mode,
                                 selected,
+                                compact,
                             )
                         },
                     ))
@@ -1791,6 +1837,7 @@ fn card(
     token: Signal<String>,
     selection_mode: Signal<bool>,
     selected: Signal<Vec<Uuid>>,
+    compact: Signal<bool>,
 ) -> impl IntoElement {
     let account = account_name(data, subscription.account_id);
     let accent = account_color(data, subscription.account_id);
@@ -1819,7 +1866,14 @@ fn card(
         .relative()
         .overflow_hidden()
         .cursor_pointer()
-        .w(px(296.0))
+        .w_full()
+        .max_w(move || {
+            if compact.get() {
+                px(10000.0)
+            } else {
+                px(296.0)
+            }
+        })
         .min_h(px(266.0))
         .p(px(20.0))
         .pb(px(16.0))

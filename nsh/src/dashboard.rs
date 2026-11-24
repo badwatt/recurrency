@@ -54,14 +54,14 @@ pub fn dashboard(
     view()
         .w_full()
         .flex_col()
-        .gap(px(21.0))
+        .gap(move || if compact.get() { px(6.0) } else { px(21.0) })
         .child(header(&user_name, route, intent, compact))
         .child(when(loading, loading_card).otherwise(move || {
             let value = render_currency.clone();
             when(has_error, move || {
                 error_screen(&data.error().unwrap_or_default(), data)
             })
-            .otherwise(move || body(data, value.clone(), route))
+            .otherwise(move || body(data, value.clone(), route, compact))
         }))
         .into_element()
 }
@@ -70,6 +70,7 @@ fn body(
     data: Resource<DashboardData, String>,
     currency: String,
     route: Signal<Route>,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let today = Local::now().date_naive();
     let month = month_label(today);
@@ -81,7 +82,7 @@ fn body(
         .w_full()
         .flex_col()
         .gap(px(26.0))
-        .child(hero(data, &currency, &month, days_left))
+        .child(hero(data, &currency, &month, days_left, compact))
         .child(
             view()
                 .w_full()
@@ -266,6 +267,7 @@ fn hero(
     currency: &str,
     month: &str,
     days_left: u32,
+    compact: Signal<bool>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let month = month.to_string();
@@ -337,7 +339,7 @@ fn hero(
             view()
                 .flex_grow(1.153)
                 .basis(px(400.0))
-                .p(px(32.0))
+                .p(move || if compact.get() { px(24.0) } else { px(32.0) })
                 .child(
                     text(format!("PLAN FOR {month}"))
                         .text_size(px(12.0))

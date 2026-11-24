@@ -24,10 +24,28 @@ pub fn page_header(
                 .flex_col()
                 .child(
                     text(title)
-                        .h(px(48.0))
+                        .h(move || {
+                            if crate::ui::compact_active() {
+                                px(40.0)
+                            } else {
+                                px(48.0)
+                            }
+                        })
                         .mb(px(-8.0))
-                        .text_size(px(48.0))
-                        .line_height(px(48.0))
+                        .text_size(move || {
+                            if crate::ui::compact_active() {
+                                px(36.0)
+                            } else {
+                                px(48.0)
+                            }
+                        })
+                        .line_height(move || {
+                            if crate::ui::compact_active() {
+                                px(40.0)
+                            } else {
+                                px(48.0)
+                            }
+                        })
                         .letter_spacing(px(-2.4))
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().foreground),

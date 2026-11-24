@@ -94,6 +94,8 @@ fn native(registry: &mut Registry) {
 /// Recurrency root component.
 #[component]
 pub fn App() -> impl IntoElement {
+    #[cfg(target_arch = "wasm32")]
+    crate::web_files::install_layout_css();
     crate::theme::apply(&crate::theme::saved());
     crate::format::init_date_format();
     ui::init_privacy();
@@ -164,6 +166,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     let notification_auth = chat_auth.clone();
     let auth_signal = signal(auth);
     let compact = signal(false);
+    ui::init_compact(compact);
     let modal = ui::ModalHost::new();
     let create_intent = signal(None::<Route>);
     let fab_open = signal(false);
@@ -241,6 +244,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                             auth_signal.get(),
                                             modal,
                                             create_intent,
+                                            compact,
                                         )
                                     },
                                 )
