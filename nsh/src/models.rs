@@ -230,4 +230,6 @@ pub struct AdminUser {
     pub currency: String,
     pub verified: bool,
     pub is_admin: bool,
+    #[serde(default)]
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
 }

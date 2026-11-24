@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use crate::auth::{self, AuthSession, AuthUser, Session};
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::checkbox::checkbox;
-use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle as shared_toggle;
 use crate::ui;
@@ -90,7 +89,7 @@ impl Section {
             Section::Money => asset!("icons/tag.svg"),
             Section::Data => asset!("icons/database.svg"),
             Section::Server => asset!("icons/monitor.svg"),
-            Section::Admin => asset!("icons/settings.svg"),
+            Section::Admin => asset!("icons/shield.svg"),
             Section::About => asset!("icons/info.svg"),
         }
     }
@@ -125,7 +124,7 @@ impl Section {
             Section::Money => "Accounts and categories that organize your money",
             Section::Data => "Keep a copy of your data and sync devices",
             Section::Server => "Server connection and device pairing",
-            Section::Admin => "Users, registration and full backups",
+            Section::Admin => "Users, registration and full installation backups",
             Section::About => "Recurrency, the people behind it, and what changed",
         }
     }
@@ -140,7 +139,7 @@ impl Section {
             Section::Money => "Accounts and categories",
             Section::Data => "Backups, restore and folder sync",
             Section::Server => "Server connection and device pairing",
-            Section::Admin => "Users and registration",
+            Section::Admin => "Users, registration and full backups",
             Section::About => "Version, release notes and Android app",
         }
     }
@@ -589,7 +588,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .child(
                     when(
                         move || section.get() == Section::Admin,
-                        move || admin_card(data_server.get(), data_token.get()),
+                        move || admin_card(data_server.get(), data_token.get(), modal),
                     )
                     .otherwise(|| view().h(px(0.0))),
                 )
@@ -605,6 +604,7 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                                     data_server.get(),
                                     data_token.get(),
                                     backup_status,
+                                    false,
                                 ))
                                 .child(folder_sync_card(data_server.get(), data_token.get()))
                                 .into_element()
@@ -1356,8 +1356,33 @@ fn folder_sync_card(server: String, token: String) -> AnyElement {
         .into_element()
 }
 
-fn data_card(server: String, token: String, status: Signal<String>) -> impl IntoElement {
+fn data_card(
+    server: String,
+    token: String,
+    status: Signal<String>,
+    admin: bool,
+) -> impl IntoElement {
     let pending = signal(None::<serde_json::Value>);
+    let file_name = if admin {
+        "recurrency-admin-backup.json"
+    } else {
+        "recurrency-backup.json"
+    };
+    let file_detail = if admin {
+        "Every table, including users, accounts and server settings"
+    } else {
+        "Accounts, subscriptions, transactions and debts"
+    };
+    let note = if admin {
+        "Keep it private; it contains every server table."
+    } else {
+        "Keep it private; it contains financial data."
+    };
+    let warning = if admin {
+        "All current users, financial data and server settings will be replaced."
+    } else {
+        "This replaces your current accounts, categories, subscriptions, transactions and debts."
+    };
     let export = {
         let server = server.clone();
         let token = token.clone();
@@ -1366,8 +1391,13 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
             let server_value = server.clone();
             let token_value = token.clone();
             spawn(async move {
-                match crate::api::export_backup(server_value, token_value).await {
-                    Ok(json) => save_backup("recurrency-backup.json", &json, status).await,
+                let exported = if admin {
+                    crate::api::admin_export_backup(server_value, token_value).await
+                } else {
+                    crate::api::export_backup(server_value, token_value).await
+                };
+                match exported {
+                    Ok(json) => save_backup(file_name, &json, status).await,
                     Err(error) => status.set(error),
                 }
             });
@@ -1401,7 +1431,12 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
             let token = token.clone();
             status.set("Restoring backup…".to_string());
             spawn(async move {
-                match crate::api::import_backup(server, token, &value).await {
+                let restored = if admin {
+                    crate::api::admin_import_backup(server, token, &value).await
+                } else {
+                    crate::api::import_backup(server, token, &value).await
+                };
+                match restored {
                     Ok(_) => {
                         pending.set(None);
                         status.set(
@@ -1487,12 +1522,12 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                         .flex_col()
                         .min_w(px(0.0))
                         .child(
-                            text("recurrency-backup.json")
+                            text(file_name)
                                 .text_size(px(14.0))
                                 .text_color(move || theme().foreground),
                         )
                         .child(
-                            text("Accounts, subscriptions, transactions and debts")
+                            text(file_detail)
                                 .text_size(px(12.0))
                                 .text_color(move || theme().muted_foreground),
                         ),
@@ -1507,7 +1542,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                 .justify_between()
                 .gap(px(8.0))
                 .child(
-                    text("Keep it private; it contains financial data.")
+                    text(note)
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 )
@@ -1668,7 +1703,7 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                                 ),
                         )
                         .child(
-                            text("This replaces your current accounts, categories, subscriptions, transactions and debts.")
+                            text(warning)
                                 .text_size(px(12.0))
                                 .line_height(px(16.0))
                                 .text_color(move || theme().muted_foreground),
@@ -1681,7 +1716,9 @@ fn data_card(server: String, token: String, status: Signal<String>) -> impl Into
                                 .mt(px(4.0))
                                 .child(crate::components::button::button(
                                     crate::components::button::ButtonProps::new("Restore backup")
-                                        .variant(crate::components::button::ButtonVariant::Destructive)
+                                        .variant(
+                                            crate::components::button::ButtonVariant::Destructive,
+                                        )
                                         .size(crate::components::button::ButtonSize::Sm)
                                         .on_press(confirm_restore.clone()),
                                 ))
@@ -4181,7 +4218,38 @@ fn dialog_button(
         )
 }
 
-fn admin_card(server: String, token: String) -> impl IntoElement {
+fn admin_stat(
+    label: &'static str,
+    value: impl Fn() -> String + 'static,
+    mono: bool,
+    small: bool,
+) -> AnyElement {
+    ui::surface()
+        .p(px(16.0))
+        .gap(px(8.0))
+        .child(
+            text(label)
+                .text_size(px(11.0))
+                .letter_spacing(px(1.4))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            text(value)
+                .text_size(if small { px(14.0) } else { px(24.0) })
+                .line_height(if small { px(20.0) } else { px(32.0) })
+                .font_family(if mono {
+                    crate::theme::MONO
+                } else {
+                    crate::theme::SANS
+                })
+                .font_weight(FontWeight::BOLD)
+                .text_color(move || theme().foreground),
+        )
+        .into_element()
+}
+
+fn admin_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoElement {
     let data = resource(|| Some(()), {
         let server = server.clone();
         let token = token.clone();
@@ -4201,8 +4269,35 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
         }
     });
     let backup_status = signal(String::new());
-    let backup_pending = signal(None::<serde_json::Value>);
-    let admin_delete = signal(None::<Uuid>);
+    let registration = signal(false);
+    let registration_loaded = signal(false);
+    let last_registration = signal(false);
+    effect(move || {
+        if !registration_loaded.get()
+            && let Some(settings) = settings_data.get()
+        {
+            registration.set(settings.registration_enabled);
+            last_registration.set(settings.registration_enabled);
+            registration_loaded.set(true);
+        }
+    });
+    effect({
+        let server = server.clone();
+        let token = token.clone();
+        move || {
+            let value = registration.get();
+            if !registration_loaded.get() || value == last_registration.get() {
+                return;
+            }
+            last_registration.set(value);
+            let server = server.clone();
+            let token = token.clone();
+            spawn(async move {
+                let _ = crate::api::update_admin_settings(server, token, value).await;
+                settings_data.refetch();
+            });
+        }
+    });
     let remove_user = {
         let server = server.clone();
         let token = token.clone();
@@ -4215,304 +4310,305 @@ fn admin_card(server: String, token: String) -> impl IntoElement {
             });
         }
     };
-    let export_backup = {
-        let server = server.clone();
-        let token = token.clone();
-        move || {
-            backup_status.set("Preparing full backup…".to_string());
-            let server = server.clone();
-            let token = token.clone();
-            spawn(async move {
-                match crate::api::admin_export_backup(server, token).await {
-                    Ok(json) => {
-                        save_backup("recurrency-full-backup.json", &json, backup_status).await
-                    }
-                    Err(error) => backup_status.set(error),
-                }
-            });
+    let users = move || data.get().unwrap_or_default();
+    let user_count = move || users().len().to_string();
+    let admin_count = move || {
+        users()
+            .iter()
+            .filter(|user| user.is_admin)
+            .count()
+            .to_string()
+    };
+    let registration_label = move || {
+        if registration.get() {
+            "Open".to_string()
+        } else {
+            "Closed".to_string()
         }
     };
-    let choose_backup = move || {
-        spawn(async move {
-            match pick_backup_text().await {
-                Ok(Some(text)) => match serde_json::from_str::<serde_json::Value>(&text) {
-                    Ok(value) => {
-                        backup_pending.set(Some(value));
-                        backup_status
-                            .set("Full backup loaded. Confirm to restore all tables.".to_string());
-                    }
-                    Err(_) => {
-                        backup_status.set("That file is not a Recurrency backup.".to_string())
-                    }
-                },
-                Ok(None) => backup_status.set(String::new()),
-                Err(error) => backup_status.set(error),
-            }
-        });
-    };
-    let restore_backup = {
-        let server = server.clone();
-        let token = token.clone();
-        move || {
-            let Some(value) = backup_pending.get() else {
-                return;
-            };
-            let server = server.clone();
-            let token = token.clone();
-            backup_status.set("Restoring full backup…".to_string());
-            spawn(async move {
-                match crate::api::admin_import_backup(server, token, &value).await {
-                    Ok(_) => {
-                        backup_pending.set(None);
-                        backup_status.set("Full backup restored.".to_string());
-                    }
-                    Err(error) => {
-                        backup_status.set(format!("Could not restore the backup: {error}"))
-                    }
-                }
-            });
-        }
-    };
-    let registration = {
-        let server = server.clone();
-        let token = token.clone();
-        move || {
-            let server = server.clone();
-            let token = token.clone();
-            let enabled = settings_data
-                .get()
-                .map_or(false, |settings: crate::api::AdminSettings| {
-                    settings.registration_enabled
-                });
-            spawn(async move {
-                let _ = crate::api::update_admin_settings(server, token, !enabled).await;
-                settings_data.refetch();
-            });
-        }
-    };
-    view().w_full().flex_col().gap(px(12.0)).child(
-        ui::surface()
-            .p(px(24.0))
-            .gap(px(12.0))
-            .child(
-                text("Administration")
-                    .text_size(px(18.0))
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(move || theme().foreground),
-            )
-            .child(
-                text("Users registered on this server.")
-                    .text_size(px(12.0))
-                    .text_color(move || theme().muted_foreground),
-            )
-            .child(
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
-                    .py(px(8.0))
-                    .border_b(px(1.0))
-                    .border_color(move || theme().border)
-                    .child(
-                        view()
-                            .flex_col()
-                            .child(
-                                text("Registration")
-                                    .text_size(px(13.0))
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(
-                                text("Allow new accounts to sign up.")
-                                    .text_size(px(10.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                    )
-                    .child(shared_toggle(
-                        settings_data
-                            .get()
-                            .map_or(false, |settings: crate::api::AdminSettings| {
-                                settings.registration_enabled
-                            }),
-                        "Registration".to_string(),
-                        move |_| registration(),
-                    )),
-            )
-            .child(view().flex_col().gap(px(6.0)).child(each(
-                move || data.get().unwrap_or_default(),
-                |user| user.id,
-                {
-                    let role_server = server.clone();
-                    let role_token = token.clone();
-                    move |user, _| {
-                        let user: crate::models::AdminUser = user.get();
-                        let id = user.id;
-                        let is_admin = user.is_admin;
-                        let row_name = user.name.clone().unwrap_or_else(|| user.email.clone());
-                        let row_email = user.email.clone();
-                        let role_server = role_server.clone();
-                        let role_token = role_token.clone();
-                        let role = move || {
-                            let server = role_server.clone();
-                            let token = role_token.clone();
-                            spawn(async move {
-                                let _ = crate::api::update_admin_role(server, token, id, !is_admin)
-                                    .await;
-                                data.refetch();
-                            });
-                        };
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .gap(px(8.0))
-                            .py(px(7.0))
-                            .border_b(px(1.0))
-                            .border_color(move || theme().border)
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .child(
-                                        text(row_name)
-                                            .text_size(px(13.0))
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .child(
-                                        text(row_email)
-                                            .text_size(px(10.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    ),
-                            )
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .items_center()
-                                    .gap(px(8.0))
-                                    .child(
-                                        text(if is_admin { "Admin" } else { "User" })
-                                            .text_size(px(10.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    )
-                                    .child(ui::action_button(
-                                        if is_admin {
-                                            "Remove admin"
-                                        } else {
-                                            "Make admin"
-                                        },
-                                        false,
-                                        role,
-                                    ))
-                                    .child(ui::mini_icon_button(
-                                        asset!("icons/trash.svg"),
-                                        true,
-                                        move || admin_delete.set(Some(id)),
-                                    )),
-                            )
-                    }
-                },
-            )))
-            .child(
-                when(
-                    move || admin_delete.get().is_some(),
-                    move || {
-                        let id = admin_delete.get().unwrap_or_default();
-                        let remove = remove_user.clone();
-                        confirm_row(ConfirmProps::new(
-                            "Delete this user?",
-                            "Delete",
-                            move || {
-                                admin_delete.set(None);
-                                remove(id);
-                            },
-                            move || admin_delete.set(None),
-                        ))
-                        .into_element()
-                    },
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(24.0))
+        .child(
+            view()
+                .w_full()
+                .grid()
+                .grid_template_columns(SharedString::from("repeat(3, minmax(0, 1fr))"))
+                .gap(px(12.0))
+                .child(admin_stat("USERS", user_count, true, false))
+                .child(admin_stat("ADMINISTRATORS", admin_count, true, false))
+                .child(admin_stat("REGISTRATION", registration_label, false, true)),
+        )
+        .child(
+            ui::surface()
+                .p(px(0.0))
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(24.0))
+                        .flex_row()
+                        .items_start()
+                        .gap(px(12.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
+                        .child(
+                            view()
+                                .h(px(40.0))
+                                .w(px(40.0))
+                                .flex_shrink_0()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(10.0))
+                                .bg(move || theme().primary.opacity(0.1))
+                                .child(
+                                    image(asset!("icons/shield.svg"))
+                                        .size(px(20.0))
+                                        .tint_color(move || theme().primary),
+                                ),
+                        )
+                        .child(
+                            view()
+                                .flex_col()
+                                .child(
+                                    text("Registration")
+                                        .text_size(px(18.0))
+                                        .line_height(px(28.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text("Control whether new accounts can be created from the login screen.")
+                                        .text_size(px(14.0))
+                                        .line_height(px(20.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
+                        ),
                 )
-                .otherwise(|| view().h(px(0.0)).into_element()),
-            )
-            .child(
-                text("Server backup")
-                    .text_size(px(14.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(move || theme().foreground),
-            )
-            .child(
-                view()
-                    .flex_row()
-                    .flex_wrap()
-                    .gap(px(8.0))
-                    .child(ui::action_button(
-                        "Export full backup",
-                        false,
-                        export_backup,
-                    ))
-                    .child(ui::action_button(
-                        "Restore full backup",
-                        true,
-                        choose_backup,
-                    )),
-            )
-            .child(
-                when(
-                    move || backup_pending.get().is_some(),
-                    move || {
-                        let restore_backup = restore_backup.clone();
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .gap(px(8.0))
-                            .p(px(10.0))
-                            .rounded(px(7.0))
-                            .bg(move || theme().destructive.opacity(0.1))
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .gap(px(4.0))
-                                    .child(
-                                        text("Restore this backup?")
-                                            .text_size(px(14.0))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .text_color(move || theme().destructive),
-                                    )
-                                    .child(
-                                        text("All current users, financial data and server settings will be replaced.")
-                                            .text_size(px(12.0))
-                                            .line_height(px(16.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    ),
-                            )
-                            .child(
-                                view()
-                                    .flex_row()
-                                    .gap(px(8.0))
-                                    .child(crate::components::button::button(
-                                        crate::components::button::ButtonProps::new("Restore backup")
-                                            .variant(crate::components::button::ButtonVariant::Destructive)
-                                            .size(crate::components::button::ButtonSize::Sm)
-                                            .on_press(restore_backup),
-                                    ))
-                                    .child(crate::components::button::button(
-                                        crate::components::button::ButtonProps::new("Cancel")
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(24.0))
+                        .flex_row()
+                        .items_start()
+                        .justify_between()
+                        .gap(px(16.0))
+                        .child(
+                            view()
+                                .flex_row()
+                                .items_start()
+                                .gap(px(12.0))
+                                .child(checkbox(registration, String::new()))
+                                .child(
+                                    view()
+                                        .flex_col()
+                                        .child(
+                                            text("Allow new registrations")
+                                                .text_size(px(14.0))
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(move || theme().foreground),
+                                        )
+                                        .child(
+                                            text("Existing accounts can always log in.")
+                                                .text_size(px(12.0))
+                                                .text_color(move || theme().muted_foreground),
+                                        ),
+                                ),
+                        ),
+                ),
+        )
+        .child(data_card(server.clone(), token.clone(), backup_status, true))
+        .child(
+            ui::surface()
+                .p(px(0.0))
+                .child(
+                    view()
+                        .w_full()
+                        .p(px(24.0))
+                        .border_b(px(1.0))
+                        .border_color(move || theme().border)
+                        .child(
+                            text("Users")
+                                .text_size(px(18.0))
+                                .line_height(px(28.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Accounts registered on this server.")
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    view()
+                        .w_full()
+                        .flex_col()
+                        .child(each(
+                            move || data.get().unwrap_or_default(),
+                            |user| user.id,
+                            {
+                                let role_server = server.clone();
+                                let role_token = token.clone();
+                                move |user, _| {
+                                    let user: crate::models::AdminUser = user.get();
+                                    let id = user.id;
+                                    let is_admin = user.is_admin;
+                                    let email = user.email.clone();
+                                    let name = user
+                                        .name
+                                        .clone()
+                                        .filter(|value| !value.trim().is_empty())
+                                        .unwrap_or_else(|| "No name".to_string());
+                                    let joined = user
+                                        .created_at
+                                        .map(|value| value.format("%Y-%m-%d").to_string())
+                                        .unwrap_or_default();
+                                    let role_server = role_server.clone();
+                                    let role_token = role_token.clone();
+                                    let role = move || {
+                                        let server = role_server.clone();
+                                        let token = role_token.clone();
+                                        spawn(async move {
+                                            let _ = crate::api::update_admin_role(
+                                                server, token, id, !is_admin,
+                                            )
+                                            .await;
+                                            data.refetch();
+                                        });
+                                    };
+                                    view()
+                                        .w_full()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(12.0))
+                                        .p(px(16.0))
+                                        .border_b(px(1.0))
+                                        .border_color(move || theme().border.opacity(0.6))
+                                        .child(
+                                            view()
+                                                .h(px(36.0))
+                                                .w(px(36.0))
+                                                .flex_shrink_0()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded(px(999.0))
+                                                .bg(move || theme().primary.opacity(0.1))
+                                                .child(
+                                                    image(asset!("icons/shield.svg"))
+                                                        .size(px(16.0))
+                                                        .tint_color(move || theme().primary),
+                                                ),
+                                        )
+                                        .child(
+                                            view()
+                                                .flex_grow(1.0)
+                                                .basis(px(0.0))
+                                                .min_w(px(0.0))
+                                                .child(
+                                                    text(email.clone())
+                                                        .number_of_lines(1)
+                                                        .text_size(px(14.0))
+                                                        .font_weight(FontWeight::MEDIUM)
+                                                        .text_color(move || theme().foreground),
+                                                )
+                                                .child(
+                                                    text(if joined.is_empty() {
+                                                        name
+                                                    } else {
+                                                        format!("{name} · {joined}")
+                                                    })
+                                                    .number_of_lines(1)
+                                                    .text_size(px(12.0))
+                                                    .text_color(move || theme().muted_foreground),
+                                                ),
+                                        )
+                                        .when(is_admin, |row| {
+                                            row.child(badge(
+                                                BadgeProps::new("Admin").tone(BadgeTone::Primary),
+                                            ))
+                                        })
+                                        .child(badge(
+                                            BadgeProps::new(if user.verified {
+                                                "Verified"
+                                            } else {
+                                                "Unverified"
+                                            })
+                                            .tone(if user.verified {
+                                                BadgeTone::Success
+                                            } else {
+                                                BadgeTone::Neutral
+                                            }),
+                                        ))
+                                        .child(crate::components::button::button(
+                                            crate::components::button::ButtonProps::new(
+                                                if is_admin {
+                                                    "Remove admin"
+                                                } else {
+                                                    "Make admin"
+                                                },
+                                            )
                                             .variant(crate::components::button::ButtonVariant::Outline)
                                             .size(crate::components::button::ButtonSize::Sm)
-                                            .on_press(move || backup_pending.set(None)),
-                                    )),
-                            )
-                            .into_element()
-                    },
-                )
-                .otherwise(|| view().h(px(0.0)).into_element()),
-            )
-            .child(
-                text(move || backup_status.get())
-                    .text_size(px(11.0))
-                    .text_color(move || theme().muted_foreground),
-            ),
-    )
+                                            .icon(asset!("icons/shield.svg"))
+                                            .on_press(role),
+                                        ))
+                                        .child(ui::row_icon_button_labeled(
+                                            asset!("icons/trash.svg"),
+                                            "Delete user",
+                                            true,
+                                            {
+                                                let email = email.clone();
+                                                let delete = remove_user.clone();
+                                                move || {
+                                                    let email = email.clone();
+                                                    let delete = delete.clone();
+                                                    modal.open(move || {
+                                                        let delete = delete.clone();
+                                                        crate::components::dialog::dialog(
+                                                            crate::components::dialog::DialogProps::new(
+                                                                format!("Delete {email}?"),
+                                                                "This permanently deletes the user and all of their accounts, categories, subscriptions, transactions, debts and settings.",
+                                                                move || modal.close(),
+                                                            )
+                                                            .width(420.0)
+                                                            .footer(
+                                                                view()
+                                                                    .w_full()
+                                                                    .flex_row()
+                                                                    .justify_end()
+                                                                    .gap(px(8.0))
+                                                                    .child(crate::components::button::button(
+                                                                        crate::components::button::ButtonProps::new("Delete user")
+                                                                            .variant(crate::components::button::ButtonVariant::Destructive)
+                                                                            .size(crate::components::button::ButtonSize::Sm)
+                                                                            .on_press(move || {
+                                                                                delete(id);
+                                                                                modal.close();
+                                                                            }),
+                                                                    ))
+                                                                    .child(crate::components::button::button(
+                                                                        crate::components::button::ButtonProps::new("Cancel")
+                                                                            .variant(crate::components::button::ButtonVariant::Outline)
+                                                                            .size(crate::components::button::ButtonSize::Sm)
+                                                                            .on_press(move || modal.close()),
+                                                                    ))
+                                                                    .into_element(),
+                                                            )
+                                                        )
+                                                        .into_element()
+                                                    });
+                                                }
+                                            },
+                                        ))
+                                        .into_element()
+                                }
+                            },
+                        )),
+                ),
+        )
+        .into_element()
 }
 
 #[cfg(test)]
