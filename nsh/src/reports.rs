@@ -61,6 +61,7 @@ pub fn reports(auth: AuthSession) -> AnyElement {
     view()
         .w_full()
         .flex_col()
+        .mt(px(-9.0))
         .gap(px(24.0))
         .child(shared_page_header(
             TITLE,

@@ -172,7 +172,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                     )
                     .into_element()
             })
-            .otherwise(|| view().h(px(0.0)).into_element()),
+            .otherwise(|| view().h(px(0.0)).mt(px(-6.0)).into_element()),
         )
 }
 

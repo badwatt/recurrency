@@ -58,6 +58,7 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     view()
         .w_full()
         .flex_col()
+        .mt(px(-9.0))
         .gap(px(24.0))
         .child(header())
         .child(when(loading, || loading_card()).otherwise(move || {
@@ -166,7 +167,7 @@ fn content(
     view()
         .w_full()
         .flex_col()
-        .gap(px(24.0))
+        .gap(px(6.0))
         .child(
             view()
                 .w_full()

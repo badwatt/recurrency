@@ -206,7 +206,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                     }))
                     .into_element()
             })
-            .otherwise(|| view().h(px(0.0)).into_element()),
+            .otherwise(|| view().h(px(0.0)).mt(px(-6.0)).into_element()),
         )
 }
 

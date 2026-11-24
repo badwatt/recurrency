@@ -665,7 +665,7 @@ fn form(
                 .child(
                     view()
                         .w_full()
-                        .mt(px(-8.0))
+                        .mt(px(-2.0))
                         .min_h(px(315.0))
                         .rounded(px(10.0))
                         .border(px(1.0))
