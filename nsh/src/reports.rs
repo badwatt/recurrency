@@ -69,18 +69,17 @@ pub fn reports(auth: AuthSession) -> AnyElement {
                 .flex_row()
                 .flex_wrap()
                 .items_center()
-                .mr(px(-8.0))
                 .child(
-                    view().w(px(144.0)).mr(px(11.0)).child(compact_select(
+                    view().w(px(144.0)).mr(px(8.0)).child(compact_select(
                         month_choice,
                         (1..=12)
                             .map(|month| (month.to_string(), month_name(month).to_string()))
                             .collect(),
-                        132.0,
+                        144.0,
                     )),
                 )
                 .child(
-                    view().w(px(98.0)).mr(px(16.0)).child(compact_select(
+                    view().w(px(98.0)).mr(px(10.0)).child(compact_select(
                         year_choice,
                         (today.year() - 2..=today.year())
                             .map(|year| (year.to_string(), year.to_string()))
@@ -520,8 +519,8 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .gap(px(16.0))
                                     .child(
                                         text(ui::count_label(count as usize, "item", "items"))
-                                            .text_size(px(14.0))
-                                            .line_height(px(20.0))
+                                            .text_size(px(16.0))
+                                            .line_height(px(24.0))
                                             .text_color(move || theme().muted_foreground),
                                     )
                                     .child(

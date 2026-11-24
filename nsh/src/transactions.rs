@@ -226,7 +226,7 @@ pub fn transactions(
         .key(format!("{}-{}", sort_field.get(), sort_desc.get()))
         .w_full()
         .flex_col()
-        .gap(px(22.0))
+        .gap(px(24.0))
         .child(header(open_form))
         .child(toolbar(
             data,
@@ -279,31 +279,35 @@ pub fn transactions(
                 .into_element()
             },
         ))
-        .child(when(loading, || loading_card()).otherwise(move || {
-            let value = render_currency.clone();
-            when(has_error, move || {
-                error_card(&data.error().unwrap_or_default(), data)
-            })
-            .otherwise(move || {
-                content(
-                    data,
-                    search,
-                    value.clone(),
-                    actions,
-                    server_signal,
-                    token_signal,
-                    list_view,
-                    month_only,
-                    sort_desc,
-                    sort_field,
-                    category_filter,
-                    price_min,
-                    price_max,
-                    selection_mode,
-                    selected,
-                )
-            })
-        }))
+        .child(
+            view()
+                .mt(px(2.5))
+                .child(when(loading, || loading_card()).otherwise(move || {
+                    let value = render_currency.clone();
+                    when(has_error, move || {
+                        error_card(&data.error().unwrap_or_default(), data)
+                    })
+                    .otherwise(move || {
+                        content(
+                            data,
+                            search,
+                            value.clone(),
+                            actions,
+                            server_signal,
+                            token_signal,
+                            list_view,
+                            month_only,
+                            sort_desc,
+                            sort_field,
+                            category_filter,
+                            price_min,
+                            price_max,
+                            selection_mode,
+                            selected,
+                        )
+                    })
+                })),
+        )
         .into_element()
 }
 
@@ -772,6 +776,7 @@ fn content(
     view()
         .key(list_key)
         .w_full()
+        .mt(px(-5.5))
         .flex_col()
         .when(grid, |view| view.flex_row().flex_wrap().gap(px(16.0)))
         .when(!grid, |view| view.gap(px(16.0)))
@@ -991,7 +996,7 @@ fn row(
                 .flex_row()
                 .items_center()
                 .gap(px(12.0))
-                .child(view().mt(px(2.0)).child(converted_amount(
+                .child(view().mt(px(7.0)).child(converted_amount(
                     amount_value,
                     &amount_currency,
                     &currency,

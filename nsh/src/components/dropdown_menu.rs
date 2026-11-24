@@ -54,8 +54,8 @@ pub fn dropdown_menu(
     button(
         ButtonProps::new(label)
             .variant(ButtonVariant::Outline)
-            .size(ButtonSize::Sm)
-            .fixed_width(113.0)
+            .size(ButtonSize::Md)
+            .fixed_width(121.0)
             .icon_opt(icon)
             .trailing_icon(asset!("icons/chevron-down.svg"))
             .on_press(move || {

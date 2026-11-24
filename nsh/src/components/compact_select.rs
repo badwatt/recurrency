@@ -52,16 +52,16 @@ pub fn compact_select(
     };
     view()
         .w(px(width))
-        .h(px(38.0))
-        .px(px(10.0))
+        .h(px(36.0))
+        .px(px(12.0))
         .flex_row()
         .items_center()
         .justify_between()
         .gap(px(8.0))
-        .rounded(px(8.0))
+        .rounded(px(6.0))
         .border(px(1.0))
         .border_color(move || theme().border)
-        .bg(move || theme().card)
+        .bg(move || theme().background)
         .on_press(move || {
             let build = build.clone();
             crate::ui::open_menu(crate::ui::MenuPlacement::TopRight, build);
@@ -69,7 +69,7 @@ pub fn compact_select(
         .child(
             text(label())
                 .number_of_lines(1)
-                .text_size(px(12.0))
+                .text_size(px(14.0))
                 .text_color(move || theme().foreground),
         )
         .child(

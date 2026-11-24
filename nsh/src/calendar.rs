@@ -275,7 +275,7 @@ fn weekday_header(label: &'static str) -> impl IntoElement {
     view()
         .h(px(36.0))
         .items_center()
-        .bg(move || theme().muted.opacity(0.5))
+        .bg(move || theme().muted)
         .child(
             text(label)
                 .text_size(px(14.0))
@@ -538,7 +538,6 @@ fn day_cell(
                 theme().muted.opacity(0.15)
             }
         })
-        .when(is_today, |cell| cell.bg(move || theme().accent))
         .when(day.is_some(), move |cell| {
             cell.cursor_pointer()
                 .on_mouse_enter(move |_: &MouseEvent| hovered.set(true))
@@ -579,18 +578,29 @@ fn day_cell(
                                 .items_center()
                                 .justify_center()
                                 .rounded(px(999.0))
+                                .bg(move || {
+                                    if is_today {
+                                        theme().primary
+                                    } else {
+                                        theme().card.opacity(0.0)
+                                    }
+                                })
                                 .child(
                                     text(move || {
                                         day.map_or_else(String::new, |day| day.to_string())
                                     })
-                                    .text_size(px(12.0))
-                                    .line_height(px(16.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_size(px(14.0))
+                                    .line_height(px(20.0))
+                                    .font_weight(if is_today {
+                                        FontWeight::BOLD
+                                    } else {
+                                        FontWeight::NORMAL
+                                    })
                                     .text_color(move || {
                                         if is_today {
-                                            theme().primary
+                                            theme().primary_foreground
                                         } else {
-                                            theme().muted_foreground
+                                            theme().foreground
                                         }
                                     }),
                                 ),

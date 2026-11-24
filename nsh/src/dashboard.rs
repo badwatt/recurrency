@@ -80,7 +80,7 @@ fn body(
     view()
         .w_full()
         .flex_col()
-        .gap(px(24.0))
+        .gap(px(26.0))
         .child(hero(data, &currency, &month, days_left))
         .child(
             view()
@@ -325,6 +325,7 @@ fn hero(
 
     view()
         .w_full()
+        .mt(px(6.0))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.6))
@@ -348,7 +349,7 @@ fn hero(
                     text("Transfer this month")
                         .text_size(px(14.0))
                         .text_color(move || theme().muted_foreground)
-                        .mt(px(20.0)),
+                        .mt(px(21.0)),
                 )
                 .child(
                     text(move || format_currency(budget(), &currency_budget))
@@ -364,14 +365,14 @@ fn hero(
                     text("Actual charges this month + manual payments.")
                         .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground)
-                        .mt(px(10.0)),
+                        .mt(px(12.0)),
                 )
                 .child(
                     view()
                         .flex_row()
                         .flex_wrap()
                         .gap(px(20.0))
-                        .mt(px(31.0))
+                        .mt(px(26.0))
                         .child(stat_dot(move || format!("{} accounts", count())))
                         .child(stat(move || format!("{} active subscriptions", active())))
                         .child(stat(move || format!("{} manual payments", manual_count()))),
@@ -401,14 +402,14 @@ fn hero(
                         .font_family(crate::theme::MONO)
                         .font_weight(FontWeight::BOLD)
                         .text_color(move || theme().muted_foreground)
-                        .mt(px(20.0)),
+                        .mt(px(25.0)),
                 )
                 .child(
                     text(pending_note)
                         .text_size(px(12.0))
                         .line_height(px(16.0))
                         .text_color(move || theme().muted_foreground)
-                        .mt(px(7.0)),
+                        .mt(px(3.0)),
                 )
                 .child(
                     view()
@@ -544,6 +545,8 @@ fn upcoming_card(
                 move |item, _| {
                     let (index, payment) = item.get();
                     view()
+                        .when(index == 0, |row| row.mt(px(4.0)))
+                        .when(index == 1, |row| row.mt(px(8.0)))
                         .when(index >= 2, |row| row.mt(px(4.0)))
                         .child(upcoming_row(
                             payment,
@@ -694,7 +697,7 @@ fn upcoming_row(
                 })
                 .child(
                     text(days)
-                        .text_size(px(11.0))
+                        .text_size(px(12.0))
                         .text_color(move || theme().muted_foreground),
                 ),
         )
@@ -723,6 +726,7 @@ fn ledger_card(
         .child(
             view()
                 .p(px(24.0))
+                .pt(px(22.5))
                 .pb(px(28.0))
                 .gap(px(10.0))
                 .child(
@@ -960,7 +964,7 @@ fn account_row(
         .child(
             view()
                 .w(px(96.0))
-                .items_end()
+                .items_start()
                 .child(amount_value(budget, 1.0))
                 .child(
                     text(move || {
@@ -981,7 +985,7 @@ fn account_row(
         .child(
             view()
                 .w(px(96.0))
-                .items_end()
+                .items_start()
                 .child(amount_value(pending, 1.0))
                 .child(
                     text(if pending_count == 0 {
@@ -1162,7 +1166,7 @@ fn ledger_footer(
 }
 
 fn amount_value(amount: String, grow: f32) -> impl IntoElement {
-    view().flex_grow(grow).items_end().child(
+    view().flex_grow(grow).items_start().child(
         text(move || {
             if crate::ui::privacy_active() {
                 "••••".to_string()
@@ -1207,6 +1211,7 @@ fn tab_fill(
         .cursor_pointer()
         .cursor_pointer()
         .flex_grow(1.0)
+        .basis(px(0.0))
         .items_center()
         .justify_center()
         .h(px(32.0))
@@ -1215,14 +1220,14 @@ fn tab_fill(
             if active_bg() {
                 theme().background
             } else {
-                theme().muted
+                theme().muted.opacity(0.0)
             }
         })
         .on_press(on_press)
         .child(
             text(label)
                 .text_size(px(14.0))
-                .font_weight(FontWeight::MEDIUM)
+                .font_weight(FontWeight::SEMIBOLD)
                 .text_color(move || {
                     if active_text() {
                         theme().foreground
@@ -1234,7 +1239,7 @@ fn tab_fill(
 }
 
 fn column_header_fixed(label: impl Fn() -> String + 'static, width: f32) -> impl IntoElement {
-    view().w(px(width)).items_end().child(
+    view().w(px(width)).items_start().child(
         text(move || label())
             .text_size(px(10.0))
             .line_height(px(16.0))

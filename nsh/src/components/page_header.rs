@@ -15,6 +15,7 @@ pub fn page_header(
         .items_end()
         .justify_between()
         .gap(px(12.0))
+        .pb(px(2.0))
         .child(
             view()
                 .min_w(px(0.0))
@@ -22,6 +23,7 @@ pub fn page_header(
                 .child(
                     text(title)
                         .h(px(48.0))
+                        .mb(px(-8.0))
                         .text_size(px(48.0))
                         .line_height(px(48.0))
                         .letter_spacing(px(-2.4))
@@ -41,7 +43,8 @@ pub fn page_header(
                 .flex_wrap()
                 .items_center()
                 .gap(px(8.0))
-                .mt(px(-5.0))
+                .mt(px(1.0))
+                .mb(px(-3.0))
                 .child(actions),
         )
 }

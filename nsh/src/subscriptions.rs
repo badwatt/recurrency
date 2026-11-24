@@ -1917,7 +1917,7 @@ fn card(
                         .text_color(move || theme().muted_foreground),
                 ),
         )
-        .child(converted_amount(
+        .child(view().mt(px(3.0)).child(converted_amount(
             amount_value,
             &amount_currency,
             &currency,
@@ -1925,7 +1925,7 @@ fn card(
             24.0,
             FontWeight::EXTRA_BOLD,
             false,
-        ))
+        )))
         .child(
             view()
                 .self_start()
