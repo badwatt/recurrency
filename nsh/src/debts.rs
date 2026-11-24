@@ -1871,11 +1871,13 @@ mod tests {
             monthly_payment: Some(Decimal::from(250)),
             payment_days: vec![22],
             start_date: Some(date(2026, 11, 22)),
-            notes: None,
-            logo_url: None,
+            notes: Some("Loan paperwork".to_string()),
+            logo_url: Some("https://example.test/logo.png".to_string()),
         };
         let value = serde_json::to_value(request).expect("request serializes");
         assert_eq!(value["debt_type"], "automatic");
         assert_eq!(value["payment_days"][0], 22);
+        assert_eq!(value["notes"], "Loan paperwork");
+        assert_eq!(value["logo_url"], "https://example.test/logo.png");
     }
 }
