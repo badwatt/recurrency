@@ -1597,8 +1597,10 @@ fn card(
             view()
                 .w_full()
                 .flex_row()
+                .flex_wrap()
                 .items_center()
                 .justify_between()
+                .gap(px(8.0))
                 .child(
                     text(format!("of {total} · {monthly} · {next}"))
                         .text_size(px(11.0))

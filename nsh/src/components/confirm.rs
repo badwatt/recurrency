@@ -38,6 +38,7 @@ pub fn confirm_row(props: ConfirmProps) -> impl IntoElement {
     view()
         .w_full()
         .flex_row()
+        .flex_wrap()
         .items_center()
         .justify_between()
         .gap(px(6.0))

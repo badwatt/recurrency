@@ -41,6 +41,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         show_label,
     } = props;
     let query = signal(String::new());
+    let origin = signal((0.0_f32, 0.0_f32, 0.0_f32));
     let option_rows = options.clone();
     let selected_label = move || {
         let current = selected.get();
@@ -170,13 +171,18 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                 .border(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().background)
-                .on_press(move |event: &PressEvent| {
+                .on_layout(
+                    move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                        origin.set((bounds.origin.x.0, bounds.origin.y.0, bounds.size.height.0));
+                    },
+                )
+                .on_press(move || {
                     let panel = panel.clone();
-                    let page = event.page_position;
+                    let (left, top, height) = origin.get();
                     crate::ui::open_menu(
                         crate::ui::MenuPlacement::At {
-                            top: page.y.0 + 28.0,
-                            left: (page.x.0 - 150.0).max(8.0),
+                            top: top + height + 4.0,
+                            left: left.max(8.0),
                         },
                         panel,
                     );
