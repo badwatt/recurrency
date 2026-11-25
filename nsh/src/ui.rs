@@ -4,6 +4,7 @@
 use crate::Route;
 use crate::auth::AuthSession;
 use nsh_base::{button, theme};
+use nsh_core::element::Owner;
 use nsh_core::prelude::*;
 use std::cell::RefCell;
 use uuid::Uuid;
@@ -28,6 +29,10 @@ thread_local! {
     static SELECT_COUNTER: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
+fn run_dialog(create: impl FnOnce()) {
+    Owner::detached().run(create);
+}
+
 thread_local! {
     static SUBSCRIPTION_CREATOR: RefCell<Option<std::rc::Rc<dyn Fn(Option<chrono::NaiveDate>)>>> =
         const { RefCell::new(None) };
@@ -49,7 +54,8 @@ pub fn init_transaction_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'st
 pub fn create_transaction(date: Option<chrono::NaiveDate>) {
     TRANSACTION_CREATOR.with(|slot| {
         if let Some(create) = slot.borrow().as_ref() {
-            create(date);
+            let create = create.clone();
+            run_dialog(move || create(date));
         }
     });
 }
@@ -63,7 +69,8 @@ pub fn init_debt_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'static) {
 pub fn create_debt(date: Option<chrono::NaiveDate>) {
     DEBT_CREATOR.with(|slot| {
         if let Some(create) = slot.borrow().as_ref() {
-            create(date);
+            let create = create.clone();
+            run_dialog(move || create(date));
         }
     });
 }
@@ -77,7 +84,8 @@ pub fn init_subscription_creator(create: impl Fn(Option<chrono::NaiveDate>) + 's
 pub fn create_subscription(date: Option<chrono::NaiveDate>) {
     SUBSCRIPTION_CREATOR.with(|slot| {
         if let Some(create) = slot.borrow().as_ref() {
-            create(date);
+            let create = create.clone();
+            run_dialog(move || create(date));
         }
     });
 }

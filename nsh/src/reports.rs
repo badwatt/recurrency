@@ -435,7 +435,44 @@ fn category_donut(
                         painter
                     })
                     .h(px(180.0))
-                    .w(px(180.0)),
+                    .w(px(180.0))
+                    .on_mouse_move(move |event: &MouseEvent| {
+                        let center = 90.0_f32;
+                        let x = event.position.x.0 - center;
+                        let y = event.position.y.0 - center;
+                        let distance = (x * x + y * y).sqrt();
+                        if !(55.0..=92.0).contains(&distance) {
+                            hovered.set(None);
+                            return;
+                        }
+                        let categories = data.get().unwrap_or_default().report.category_breakdown;
+                        if categories.is_empty() {
+                            hovered.set(None);
+                            return;
+                        }
+                        if categories.len() == 1 {
+                            hovered.set(Some(0));
+                            return;
+                        }
+                        let total: f64 =
+                            categories.iter().map(|category| category.percentage).sum();
+                        if total <= 0.0 {
+                            hovered.set(None);
+                            return;
+                        }
+                        let angle = (y.atan2(x) + TAU / 4.0).rem_euclid(TAU);
+                        let mut start = 0.0_f32;
+                        for (index, category) in categories.iter().enumerate() {
+                            let sweep = (category.percentage / total) as f32 * TAU;
+                            if angle >= start && angle < start + sweep {
+                                hovered.set(Some(index));
+                                return;
+                            }
+                            start += sweep;
+                        }
+                        hovered.set(None);
+                    })
+                    .on_mouse_leave(move |_: &MouseEvent| hovered.set(None)),
                 )
                 .child(when(
                     move || hovered.get().is_some(),

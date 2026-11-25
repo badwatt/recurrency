@@ -680,7 +680,7 @@ fn upcoming_row(
         .rounded(px(8.0))
         .bg(move || {
             if hovered.get() == Some(account_id) || hovered_category.get() == Some(category_id) {
-                theme().accent
+                theme().primary.opacity(0.05)
             } else {
                 theme().card
             }
@@ -1054,7 +1054,7 @@ fn account_row(
         .py(px(16.0))
         .bg(move || {
             if hovered.get() == Some(id) {
-                theme().accent
+                theme().primary.opacity(0.05)
             } else {
                 theme().card
             }
@@ -1238,10 +1238,16 @@ fn category_row(
         .px(if compact { px(20.0) } else { px(24.0) })
         .py(px(16.0))
         .border_b(px(1.0))
-        .border_color(move || theme().border)
+        .border_color(move || {
+            if hovered.get() == Some(id) {
+                theme().primary.opacity(0.2)
+            } else {
+                theme().border
+            }
+        })
         .bg(move || {
             if hovered.get() == Some(id) {
-                theme().accent
+                theme().primary.opacity(0.05)
             } else {
                 theme().card
             }

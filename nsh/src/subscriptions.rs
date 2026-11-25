@@ -554,6 +554,7 @@ fn form(
             }
         }
     });
+    let compact = crate::ui::compact_active();
     let save = {
         let currency = currency.clone();
         move || {
@@ -985,17 +986,26 @@ fn form(
                     view()
                         .w_full()
                         .mt(px(4.0))
-                        .flex_row()
+                        .flex_col()
                         .gap(px(12.0))
+                        .when(!compact, |row| row.flex_row())
                         .child(
                             view().flex_grow(1.0).min_w(px(0.0)).child(
                                 crate::components::field::field(
                                     crate::components::field::FieldProps::new("Start date")
                                         .hint("Leave empty to start from today."),
-                                    view().w(px(155.0)).child(
-                                        crate::components::date_picker::date_picker(start_date),
-                                    )
-                                    .into_element(),
+                                    view()
+                                        .w(if compact {
+                                            nsh_core::geometry::Length::from(
+                                                nsh_core::geometry::Percentage(1.0),
+                                            )
+                                        } else {
+                                            nsh_core::geometry::Length::from(px(155.0))
+                                        })
+                                        .child(
+                                            crate::components::date_picker::date_picker(start_date),
+                                        )
+                                        .into_element(),
                                 ),
                             ),
                         )
@@ -1004,10 +1014,18 @@ fn form(
                                 crate::components::field::field(
                                     crate::components::field::FieldProps::new("End date")
                                         .hint("Last billing date (inclusive)."),
-                                    view().w(px(155.0)).child(
-                                        crate::components::date_picker::date_picker(end_date),
-                                    )
-                                    .into_element(),
+                                    view()
+                                        .w(if compact {
+                                            nsh_core::geometry::Length::from(
+                                                nsh_core::geometry::Percentage(1.0),
+                                            )
+                                        } else {
+                                            nsh_core::geometry::Length::from(px(155.0))
+                                        })
+                                        .child(
+                                            crate::components::date_picker::date_picker(end_date),
+                                        )
+                                        .into_element(),
                                 ),
                             ),
                         ),

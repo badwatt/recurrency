@@ -74,8 +74,16 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
                 .inset_0()
                 .items_center()
                 .justify_center()
-                .p(px(24.0))
-                .pr(px(28.0))
+                .p(if crate::ui::compact_active() {
+                    px(0.0)
+                } else {
+                    px(24.0)
+                })
+                .pr(if crate::ui::compact_active() {
+                    px(0.0)
+                } else {
+                    px(28.0)
+                })
                 .pointer_events(PointerEvents::BoxNone)
                 .child(modal.render()),
         )
@@ -147,10 +155,21 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         *slot.borrow_mut() = Some(on_close.clone());
     });
     let close = on_close.clone();
+    let compact = crate::ui::compact_active();
+    let full = nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0));
     view()
         .w_full()
-        .max_w(px(width))
-        .rounded(px(8.0))
+        .max_w(if compact {
+            full
+        } else {
+            nsh_core::geometry::Length::from(px(width))
+        })
+        .h(if compact {
+            full
+        } else {
+            nsh_core::geometry::Length::Auto
+        })
+        .rounded(if compact { px(0.0) } else { px(8.0) })
         .border(px(1.0))
         .border_color(move || nsh_base::theme().border)
         .bg(move || nsh_base::theme().card)
@@ -161,15 +180,19 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
             ..BoxShadow::default()
         }])
         .overflow_hidden()
-        .max_h(px(764.0))
+        .max_h(if compact {
+            full
+        } else {
+            nsh_core::geometry::Length::from(px(764.0))
+        })
         .flex_col()
         .child(
             view()
                 .w_full()
-                .pl(px(22.0))
-                .pr(px(32.0))
-                .pt(px(24.0))
-                .pb(px(22.0))
+                .pl(if compact { px(16.0) } else { px(22.0) })
+                .pr(if compact { px(16.0) } else { px(32.0) })
+                .pt(if compact { px(16.0) } else { px(24.0) })
+                .pb(if compact { px(16.0) } else { px(22.0) })
                 .border_b(px(1.0))
                 .border_color(move || nsh_base::theme().border)
                 .gap(px(4.0))
@@ -205,32 +228,48 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                 ),
         )
         .child(
-            scroll().max_h(px(593.0)).child(
-                view()
-                    .w_full()
-                    .flex_shrink_0()
-                    .when(!subtitle.is_empty(), |panel| {
-                        let subtitle = subtitle.clone();
-                        panel.child(
-                            view().px(px(22.0)).pt(px(28.0)).child(
-                                text(subtitle)
-                                    .text_size(px(14.0))
-                                    .line_height(px(20.0))
-                                    .text_color(move || nsh_base::theme().muted_foreground),
-                            ),
-                        )
-                    })
-                    .child(body),
-            ),
+            scroll()
+                .flex_grow(1.0)
+                .basis(if compact {
+                    nsh_core::geometry::Length::from(px(0.0))
+                } else {
+                    nsh_core::geometry::Length::Auto
+                })
+                .min_h(px(0.0))
+                .max_h(if compact {
+                    nsh_core::geometry::Length::Auto
+                } else {
+                    nsh_core::geometry::Length::from(px(593.0))
+                })
+                .child(
+                    view()
+                        .w_full()
+                        .flex_shrink_0()
+                        .when(!subtitle.is_empty(), |panel| {
+                            let subtitle = subtitle.clone();
+                            panel.child(
+                                view()
+                                    .px(if compact { px(16.0) } else { px(22.0) })
+                                    .pt(if compact { px(16.0) } else { px(28.0) })
+                                    .child(
+                                        text(subtitle)
+                                            .text_size(px(14.0))
+                                            .line_height(px(20.0))
+                                            .text_color(move || nsh_base::theme().muted_foreground),
+                                    ),
+                            )
+                        })
+                        .child(body),
+                ),
         )
         .when(show_footer, |card| {
             card.child(
                 view()
                     .w_full()
-                    .px(px(24.0))
-                    .pr(px(26.0))
-                    .pt(px(24.0))
-                    .pb(px(24.0))
+                    .px(if compact { px(16.0) } else { px(24.0) })
+                    .pr(if compact { px(16.0) } else { px(26.0) })
+                    .pt(if compact { px(16.0) } else { px(24.0) })
+                    .pb(if compact { px(16.0) } else { px(24.0) })
                     .border_t(px(1.0))
                     .border_color(move || nsh_base::theme().border)
                     .child(footer),
