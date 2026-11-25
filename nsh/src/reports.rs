@@ -115,12 +115,16 @@ pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
             when(has_error, move || {
                 error_card(&data.error().unwrap_or_default(), data)
             })
-            .otherwise(move || content(data, currency.clone()))
+            .otherwise(move || content(data, currency.clone(), compact))
         }))
         .into_element()
 }
 
-fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement {
+fn content(
+    data: Resource<ReportsData, String>,
+    currency: String,
+    compact: Signal<bool>,
+) -> AnyElement {
     let report = move || data.get().unwrap_or_default().report;
     let total_currency = currency.clone();
     let subscriptions_currency = currency.clone();
@@ -201,16 +205,17 @@ fn content(data: Resource<ReportsData, String>, currency: String) -> AnyElement 
                     move || format!("over {} months", report().recent_trends.len()),
                 )),
         )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .items_start()
-                .gap(px(24.0))
+        .child({
+            let charts = if compact.get() {
+                view().w_full().flex_col().gap(px(16.0))
+            } else {
+                view().w_full().flex_row().items_start().gap(px(24.0))
+            };
+            charts
                 .child(trend_chart(data, &trend_currency))
-                .child(category_donut(data, &category_currency)),
-        )
-        .child(category_table(data, &currency))
+                .child(category_donut(data, &category_currency, compact))
+        })
+        .child(category_table(data, &currency, compact))
         .into_element()
 }
 
@@ -355,7 +360,11 @@ fn summary_card(
         )
 }
 
-fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+fn category_donut(
+    data: Resource<ReportsData, String>,
+    currency: &str,
+    compact: Signal<bool>,
+) -> impl IntoElement {
     let _currency = currency.to_string();
     let hovered = signal(None::<usize>);
     view()
@@ -366,7 +375,7 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.4))
         .bg(move || theme().card.opacity(0.8))
-        .p(px(24.0))
+        .p(move || if compact.get() { px(20.0) } else { px(24.0) })
         .min_h(px(314.0))
         .gap(px(16.0))
         .child(
@@ -464,7 +473,11 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
             view()
                 .w_full()
                 .grid()
-                .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
+                .grid_template_columns(if compact.get() {
+                    SharedString::from("repeat(1, minmax(0, 1fr))")
+                } else {
+                    SharedString::from("repeat(2, minmax(0, 1fr))")
+                })
                 .gap(px(6.0))
                 .child(each(
                     move || {
@@ -487,6 +500,7 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                             .flex_row()
                             .items_center()
                             .justify_between()
+                            .gap(px(8.0))
                             .px(px(4.0))
                             .py(px(2.0))
                             .rounded(px(4.0))
@@ -512,6 +526,8 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     .flex_row()
                                     .items_center()
                                     .gap(px(6.0))
+                                    .min_w(px(0.0))
+                                    .flex_grow(1.0)
                                     .child(
                                         view()
                                             .h(px(10.0))
@@ -526,6 +542,9 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     )
                                     .child(
                                         text(name)
+                                            .flex_grow(1.0)
+                                            .min_w(px(0.0))
+                                            .number_of_lines(1)
                                             .text_size(px(14.0))
                                             .line_height(px(20.0))
                                             .text_color(move || theme().muted_foreground),
@@ -533,6 +552,7 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                             )
                             .child(
                                 text(percentage)
+                                    .flex_shrink_0()
                                     .text_size(px(14.0))
                                     .font_weight(FontWeight::MEDIUM)
                                     .text_color(move || theme().foreground),
@@ -542,7 +562,11 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
         )
 }
 
-fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
+fn category_table(
+    data: Resource<ReportsData, String>,
+    currency: &str,
+    compact: Signal<bool>,
+) -> impl IntoElement {
     let currency = currency.to_string();
     view()
         .w_full()
@@ -551,7 +575,7 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.4))
         .bg(move || theme().card.opacity(0.8))
-        .p(px(24.0))
+        .p(move || if compact.get() { px(20.0) } else { px(24.0) })
         .gap(px(16.0))
         .child(
             text("Category Breakdown")
@@ -582,11 +606,14 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                             .flex_row()
                             .items_center()
                             .justify_between()
+                            .gap(px(10.0))
                             .child(
                                 view()
                                     .flex_row()
                                     .items_center()
-                                    .gap(px(14.0))
+                                    .gap(px(8.0))
+                                    .min_w(px(0.0))
+                                    .flex_grow(1.0)
                                     .child(
                                         view()
                                             .h(px(32.0))
@@ -610,6 +637,9 @@ fn category_table(data: Resource<ReportsData, String>, currency: &str) -> impl I
                                     )
                                     .child(
                                         text(category.category_name.clone())
+                                            .flex_grow(1.0)
+                                            .min_w(px(0.0))
+                                            .number_of_lines(1)
                                             .text_size(px(16.0))
                                             .line_height(px(24.0))
                                             .font_weight(FontWeight::MEDIUM)
