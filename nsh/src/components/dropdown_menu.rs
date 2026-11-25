@@ -51,25 +51,46 @@ pub fn dropdown_menu(
             }))
             .into_element()
     };
-    button(
-        ButtonProps::new(label)
-            .variant(ButtonVariant::Outline)
-            .size(ButtonSize::Md)
-            .fixed_width(121.0)
-            .icon_opt(icon)
-            .trailing_icon(asset!("icons/chevron-down.svg"))
-            .on_press(move |event: &PressEvent| {
-                let build = build.clone();
-                let page = event.page_position;
-                crate::ui::open_menu(
-                    crate::ui::MenuPlacement::At {
-                        top: page.y.0 + 28.0,
-                        left: (page.x.0 - 120.0).max(8.0),
-                    },
-                    build,
-                );
-            }),
-    )
+    view()
+        .cursor_pointer()
+        .h(px(40.0))
+        .w(px(121.0))
+        .px(px(12.0))
+        .flex_row()
+        .items_center()
+        .justify_center()
+        .gap(px(6.0))
+        .rounded(px(6.0))
+        .border(px(1.0))
+        .border_color(move || nsh_base::theme().border)
+        .bg(move || nsh_base::theme().card)
+        .on_press(move |event: &PressEvent| {
+            let build = build.clone();
+            let page = event.page_position;
+            crate::ui::open_menu(
+                crate::ui::MenuPlacement::At {
+                    top: page.y.0 + 28.0,
+                    left: (page.x.0 - 120.0).max(8.0),
+                },
+                build,
+            );
+        })
+        .child(
+            image(icon.unwrap_or_else(|| asset!("icons/download.svg")))
+                .size(px(15.0))
+                .tint_color(move || nsh_base::theme().muted_foreground),
+        )
+        .child(
+            text(label)
+                .text_size(px(14.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || nsh_base::theme().foreground),
+        )
+        .child(
+            image(asset!("icons/chevron-down.svg"))
+                .size(px(13.0))
+                .tint_color(move || nsh_base::theme().muted_foreground),
+        )
 }
 
 #[cfg(test)]
