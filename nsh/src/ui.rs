@@ -295,6 +295,13 @@ pub fn menu_overlay() -> AnyElement {
                         .when(placement == MenuPlacement::ReportRight, |panel| {
                             panel.top(px(153.0)).right(px(24.0))
                         })
+                        .when(placement == MenuPlacement::Center, |panel| {
+                            panel
+                                .inset_0()
+                                .items_center()
+                                .justify_center()
+                                .pointer_events(PointerEvents::BoxNone)
+                        })
                         .when(matches!(placement, MenuPlacement::At { .. }), |panel| {
                             if let MenuPlacement::At { top, left } = placement {
                                 panel.top(px(top)).left(px(left))
