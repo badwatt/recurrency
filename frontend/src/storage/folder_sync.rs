@@ -72,7 +72,10 @@ mod platform {
             dioxus.send(bridge && bridge.readAll ? bridge.readAll() : '[]');
             "#,
         );
-        let raw = eval.recv::<String>().await.unwrap_or_else(|_| "[]".to_string());
+        let raw = eval
+            .recv::<String>()
+            .await
+            .unwrap_or_else(|_| "[]".to_string());
         Ok(serde_json::from_str(&raw).unwrap_or_default())
     }
 
@@ -85,7 +88,10 @@ mod platform {
             "#,
         );
         let _ = eval.send(content.to_string());
-        let written = eval.recv::<String>().await.unwrap_or_else(|_| "false".to_string());
+        let written = eval
+            .recv::<String>()
+            .await
+            .unwrap_or_else(|_| "false".to_string());
         if written == "true" {
             Ok(())
         } else {
@@ -94,7 +100,11 @@ mod platform {
     }
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), feature = "desktop"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(target_os = "android"),
+    feature = "desktop"
+))]
 mod platform {
     use std::path::{Path, PathBuf};
 
@@ -150,8 +160,11 @@ mod platform {
             .ok_or_else(|| "No folder selected".to_string())?;
         let dir = app_dir().ok_or_else(|| "No data directory".to_string())?;
         std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
-        std::fs::write(dir.join(SYNC_FOLDER_FILE), folder.path().display().to_string())
-            .map_err(|error| error.to_string())
+        std::fs::write(
+            dir.join(SYNC_FOLDER_FILE),
+            folder.path().display().to_string(),
+        )
+        .map_err(|error| error.to_string())
     }
 
     pub async fn disconnect() {
@@ -189,7 +202,11 @@ mod platform {
     }
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), not(feature = "desktop")))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(target_os = "android"),
+    not(feature = "desktop")
+))]
 mod platform {
     pub async fn status() -> (bool, String) {
         (false, String::new())
@@ -310,7 +327,11 @@ mod tests {
         assert!(source.contains("AsyncFileDialog"));
         assert!(source.contains("cfg!(not(target_arch = \"wasm32\"))"));
     }
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), not(feature = "desktop")))]
+    #[cfg(all(
+        not(target_arch = "wasm32"),
+        not(target_os = "android"),
+        not(feature = "desktop")
+    ))]
     #[test]
     fn non_desktop_platform_returns_safe_defaults() {
         let result = tokio::runtime::Builder::new_current_thread()
@@ -332,5 +353,4 @@ mod tests {
         assert!(result.3.is_err());
         assert!(result.4.is_ok());
     }
-
 }

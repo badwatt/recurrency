@@ -1,9 +1,13 @@
 use dioxus::prelude::*;
 use lucide_dioxus::{
-    Activity, Baby, Banknote, Bell, Bike, Book, Box, Building, Bus, Cake, Camera, Compass, Cookie, Crown, DollarSign, Droplet, Flame, Globe, Hand, Headphones, Key, Landmark, Leaf, Lightbulb, MapPin, Mic, Mountain, Package, Palette, Percent, Phone, PiggyBank, Pizza, Printer, Rocket, Scissors, Shirt, ShoppingCart, Sparkles, Ticket, Trophy, Tv, Umbrella, Video, WavesHorizontal, Wrench, Beer, Briefcase, Car, Cloud, CloudRain, Coffee, CreditCard, Database,
-    Film, Flower, Gamepad2, Gift, GraduationCap, Heart, House, Laptop, Lock, Monitor, Moon,
-    EighthNotes, Pill, Plane, Server, Shield, ShoppingBag, Smartphone, Star, Stethoscope, Sun,
-    Tag, Thermometer, TreePine, Utensils, Wallet, Wifi, Wine, Zap,
+    Activity, Baby, Banknote, Beer, Bell, Bike, Book, Box, Briefcase, Building, Bus, Cake, Camera,
+    Car, Cloud, CloudRain, Coffee, Compass, Cookie, CreditCard, Crown, Database, DollarSign,
+    Droplet, EighthNotes, Film, Flame, Flower, Gamepad2, Gift, Globe, GraduationCap, Hand,
+    Headphones, Heart, House, Key, Landmark, Laptop, Leaf, Lightbulb, Lock, MapPin, Mic, Monitor,
+    Moon, Mountain, Package, Palette, Percent, Phone, PiggyBank, Pill, Pizza, Plane, Printer,
+    Rocket, Scissors, Server, Shield, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Star,
+    Stethoscope, Sun, Tag, Thermometer, Ticket, TreePine, Trophy, Tv, Umbrella, Utensils, Video,
+    Wallet, WavesHorizontal, Wifi, Wine, Wrench, Zap,
 };
 
 /// Available icon names (matching lucide-react icon names from original).

@@ -1,10 +1,10 @@
 use super::verify_email::VerifyEmailPage;
+use crate::Route;
 use crate::api::auth;
 use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::field::Field;
 use crate::components::input::Input;
 use crate::state::auth::AUTH;
-use crate::Route;
 use dioxus::prelude::*;
 
 #[component]
@@ -28,7 +28,8 @@ pub fn RegisterPage() -> Element {
         if crate::api::client::is_offline_mode() {
             match crate::storage::local_auth::register(&email(), &auth_field(), &name()) {
                 Ok(user) => {
-                    AUTH.write().set_authenticated("offline".into(), user, false);
+                    AUTH.write()
+                        .set_authenticated("offline".into(), user, false);
                     navigator().push(Route::Dashboard {});
                 }
                 Err(e) => error_msg.set(e),
@@ -176,7 +177,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "new@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("New User".into()),
             currency: "EUR".into(),
             verified,
@@ -252,7 +253,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "new@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("New".into()),
             currency: "EUR".into(),
             verified: true,
@@ -378,7 +379,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: None,
             currency: "USD".into(),
             verified: true,
@@ -423,7 +424,6 @@ mod tests {
         assert!(err.to_string().contains("unexpected end"));
     }
 }
-
 
 #[cfg(test)]
 mod signup_draft_tests {

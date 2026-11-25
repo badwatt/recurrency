@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_post, ApiError};
+use crate::api::client::{ApiError, api_get, api_post};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -127,28 +127,22 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn demo_endpoints_exchange_json() {
-        let status: DemoStatus = with_server(
-            r#"{"enabled":true,"email":"demo@test.com"}"#,
-            get_status(),
-        )
-        .await
-        .unwrap();
+        let status: DemoStatus =
+            with_server(r#"{"enabled":true,"email":"demo@test.com"}"#, get_status())
+                .await
+                .unwrap();
         assert!(status.enabled);
 
-        let init: DemoInitResponse = with_server(
-            r#"{"email":"demo@test.com","password":"secret"}"#,
-            init(),
-        )
-        .await
-        .unwrap();
+        let init: DemoInitResponse =
+            with_server(r#"{"email":"demo@test.com","password":"secret"}"#, init())
+                .await
+                .unwrap();
         assert_eq!(init.email, "demo@test.com");
 
-        let reset: DemoResetResponse = with_server(
-            r#"{"success":true,"message":"reset"}"#,
-            reset(),
-        )
-        .await
-        .unwrap();
+        let reset: DemoResetResponse =
+            with_server(r#"{"success":true,"message":"reset"}"#, reset())
+                .await
+                .unwrap();
         assert!(reset.success);
     }
 
@@ -163,5 +157,4 @@ mod tests {
         server.join().unwrap();
         assert_eq!(result.email, "demo@test.com");
     }
-
 }

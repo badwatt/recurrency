@@ -362,9 +362,17 @@ mod tests {
         assert!(!args[0].contains("secret"));
         let env: Vec<_> = command
             .get_envs()
-            .map(|(key, value)| (key.to_string_lossy().into_owned(), value.map(|v| v.to_string_lossy().into_owned())))
+            .map(|(key, value)| {
+                (
+                    key.to_string_lossy().into_owned(),
+                    value.map(|v| v.to_string_lossy().into_owned()),
+                )
+            })
             .collect();
-        assert!(env.iter().any(|(key, value)| key == "PGPASSWORD" && value.as_deref() == Some("secret")));
+        assert!(
+            env.iter()
+                .any(|(key, value)| key == "PGPASSWORD" && value.as_deref() == Some("secret"))
+        );
     }
 
     #[test]
@@ -379,10 +387,8 @@ mod tests {
 
     #[test]
     fn prune_removes_only_expired_recurrency_dumps() {
-        let directory = std::env::temp_dir().join(format!(
-            "recurrency-backup-test-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let directory =
+            std::env::temp_dir().join(format!("recurrency-backup-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&directory).unwrap();
         let dump = directory.join("recurrency-20260101-000000.dump");
         let other = directory.join("notes.txt");
@@ -399,5 +405,4 @@ mod tests {
         assert!(other.exists());
         let _ = std::fs::remove_dir_all(directory);
     }
-
 }

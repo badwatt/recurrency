@@ -139,8 +139,8 @@ pub fn launch() {
             crate::state::window::stored(),
             std::sync::atomic::Ordering::Relaxed,
         );
-        let stored_theme = crate::state::persistence::read("theme.txt")
-            .unwrap_or_else(|| "mocha".to_string());
+        let stored_theme =
+            crate::state::persistence::read("theme.txt").unwrap_or_else(|| "mocha".to_string());
         let (red, green, blue) = crate::theme::hooks::theme_rgb(stored_theme.trim());
         let mut window = WindowBuilder::new()
             .with_title("Recurrency")

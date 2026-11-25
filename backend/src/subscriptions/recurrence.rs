@@ -35,9 +35,10 @@ pub fn validate_recurrence(recurrence: &Recurrence) -> AppResult<()> {
         }
         "year" => {
             if recurrence.dates.is_empty()
-                || recurrence.dates.iter().any(|date| {
-                    !(1..=12).contains(&date.month) || date.day > 31
-                })
+                || recurrence
+                    .dates
+                    .iter()
+                    .any(|date| !(1..=12).contains(&date.month) || date.day > 31)
             {
                 return Err(AppError::BadRequest(
                     "Choose at least one valid annual date".to_string(),
@@ -108,11 +109,7 @@ pub fn occurrences_between(
     }
     let mut guard = 0usize;
     let mut push = |date: NaiveDate| {
-        if date >= start
-            && date >= from
-            && date <= to
-            && end_date.is_none_or(|end| date <= end)
-        {
+        if date >= start && date >= from && date <= to && end_date.is_none_or(|end| date <= end) {
             result.push((date, amount_for(date, recurrence, base_amount)));
         }
     };
@@ -220,8 +217,8 @@ pub fn occurrences_in_month(
     base_amount: Decimal,
 ) -> Vec<(NaiveDate, Decimal)> {
     let month_start = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
-    let month_end = NaiveDate::from_ymd_opt(year, month, days_in_month(year, month))
-        .unwrap_or_default();
+    let month_end =
+        NaiveDate::from_ymd_opt(year, month, days_in_month(year, month)).unwrap_or_default();
     occurrences_between(
         start,
         recurrence,
@@ -239,7 +236,9 @@ pub fn recurrence_from_legacy(
     month: Option<i16>,
 ) -> Recurrence {
     let fallback_day = start.day().min(31) as u8;
-    let day = day.map(|value| value.clamp(1, 31) as u8).unwrap_or(fallback_day);
+    let day = day
+        .map(|value| value.clamp(1, 31) as u8)
+        .unwrap_or(fallback_day);
     match frequency {
         "daily" => Recurrence {
             interval: 1,
@@ -289,7 +288,10 @@ pub fn legacy_from_recurrence(recurrence: &Recurrence) -> (String, Option<i16>, 
             None,
         ),
         "year" => {
-            let first = recurrence.dates.iter().min_by_key(|date| (date.month, date.day));
+            let first = recurrence
+                .dates
+                .iter()
+                .min_by_key(|date| (date.month, date.day));
             (
                 "yearly".into(),
                 first.map(|date| date.day as i16),
@@ -304,13 +306,10 @@ pub fn legacy_from_recurrence(recurrence: &Recurrence) -> (String, Option<i16>, 
             };
             (
                 frequency.into(),
-                recurrence.days.first().map(|day| {
-                    if *day == 0 {
-                        31
-                    } else {
-                        i16::from(*day)
-                    }
-                }),
+                recurrence
+                    .days
+                    .first()
+                    .map(|day| if *day == 0 { 31 } else { i16::from(*day) }),
                 None,
             )
         }
@@ -321,7 +320,7 @@ pub fn legacy_from_recurrence(recurrence: &Recurrence) -> (String, Option<i16>, 
 mod tests {
     use super::*;
     use chrono::NaiveDate;
-    
+
     fn date(year: i32, month: u32, day: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(year, month, day).unwrap()
     }
@@ -345,10 +344,7 @@ mod tests {
             1,
             Decimal::from(10),
         );
-        assert_eq!(
-            occurrences,
-            vec![(date(2026, 1, 15), Decimal::from(10))]
-        );
+        assert_eq!(occurrences, vec![(date(2026, 1, 15), Decimal::from(10))]);
         let occurrences = occurrences_in_month(
             date(2026, 1, 3),
             &monthly(vec![1, 15], 1),
@@ -359,7 +355,10 @@ mod tests {
         );
         assert_eq!(
             occurrences,
-            vec![(date(2026, 2, 1), Decimal::from(10)), (date(2026, 2, 15), Decimal::from(10))]
+            vec![
+                (date(2026, 2, 1), Decimal::from(10)),
+                (date(2026, 2, 15), Decimal::from(10))
+            ]
         );
     }
 
@@ -404,17 +403,39 @@ mod tests {
             interval: 1,
             unit: "year".into(),
             dates: vec![
-                AnnualDate { month: 5, day: 27, amount: None },
-                AnnualDate { month: 11, day: 11, amount: Some(Decimal::from(25)) },
+                AnnualDate {
+                    month: 5,
+                    day: 27,
+                    amount: None,
+                },
+                AnnualDate {
+                    month: 11,
+                    day: 11,
+                    amount: Some(Decimal::from(25)),
+                },
             ],
             ..Default::default()
         };
         assert_eq!(
-            occurrences_in_month(date(2026, 1, 1), &recurrence, None, 2026, 5, Decimal::from(10)),
+            occurrences_in_month(
+                date(2026, 1, 1),
+                &recurrence,
+                None,
+                2026,
+                5,
+                Decimal::from(10)
+            ),
             vec![(date(2026, 5, 27), Decimal::from(10))]
         );
         assert_eq!(
-            occurrences_in_month(date(2026, 1, 1), &recurrence, None, 2026, 11, Decimal::from(10)),
+            occurrences_in_month(
+                date(2026, 1, 1),
+                &recurrence,
+                None,
+                2026,
+                11,
+                Decimal::from(10)
+            ),
             vec![(date(2026, 11, 11), Decimal::from(25))]
         );
     }
@@ -482,7 +503,13 @@ mod tests {
         assert!(validate_recurrence(&monthly(vec![1], 0)).is_err());
         assert!(validate_recurrence(&monthly(vec![], 1)).is_err());
         assert!(validate_recurrence(&monthly(vec![32], 1)).is_err());
-        assert!(validate_recurrence(&Recurrence { unit: "year".into(), ..Default::default() }).is_err());
+        assert!(
+            validate_recurrence(&Recurrence {
+                unit: "year".into(),
+                ..Default::default()
+            })
+            .is_err()
+        );
     }
 
     #[test]
@@ -538,11 +565,37 @@ mod tests {
             ..Default::default()
         };
         assert!(validate_recurrence(&recurrence).is_err());
-        recurrence.dates = vec![AnnualDate { month: 0, day: 1, amount: None }];
+        recurrence.dates = vec![AnnualDate {
+            month: 0,
+            day: 1,
+            amount: None,
+        }];
         assert!(validate_recurrence(&recurrence).is_err());
-        recurrence.dates = vec![AnnualDate { month: 1, day: 1, amount: None }, AnnualDate { month: 1, day: 1, amount: None }];
+        recurrence.dates = vec![
+            AnnualDate {
+                month: 1,
+                day: 1,
+                amount: None,
+            },
+            AnnualDate {
+                month: 1,
+                day: 1,
+                amount: None,
+            },
+        ];
         assert!(validate_recurrence(&recurrence).is_err());
-        recurrence.dates = vec![AnnualDate { month: 1, day: 31, amount: None }, AnnualDate { month: 6, day: 15, amount: Some(Decimal::from(5)) }];
+        recurrence.dates = vec![
+            AnnualDate {
+                month: 1,
+                day: 31,
+                amount: None,
+            },
+            AnnualDate {
+                month: 6,
+                day: 15,
+                amount: Some(Decimal::from(5)),
+            },
+        ];
         assert!(validate_recurrence(&recurrence).is_ok());
 
         recurrence.unit = "hour".into();
@@ -552,37 +605,81 @@ mod tests {
     #[test]
     fn daily_and_weekly_occurrences_cover_skipped_and_empty_weekday_paths() {
         let start = date(2024, 1, 1);
-        let daily = Recurrence { interval: 2, unit: "day".into(), ..Default::default() };
-        let dates = occurrences_between(start, &daily, date(2024, 1, 2), date(2024, 1, 7), None, Decimal::ONE);
-        assert_eq!(dates.iter().map(|(date, _)| *date).collect::<Vec<_>>(), vec![date(2024,1,3), date(2024,1,5), date(2024,1,7)]);
+        let daily = Recurrence {
+            interval: 2,
+            unit: "day".into(),
+            ..Default::default()
+        };
+        let dates = occurrences_between(
+            start,
+            &daily,
+            date(2024, 1, 2),
+            date(2024, 1, 7),
+            None,
+            Decimal::ONE,
+        );
+        assert_eq!(
+            dates.iter().map(|(date, _)| *date).collect::<Vec<_>>(),
+            vec![date(2024, 1, 3), date(2024, 1, 5), date(2024, 1, 7)]
+        );
 
-        let weekly = Recurrence { interval: 1, unit: "week".into(), weekdays: Vec::new(), ..Default::default() };
-        let dates = occurrences_between(start, &weekly, start, date(2024, 1, 15), None, Decimal::ONE);
+        let weekly = Recurrence {
+            interval: 1,
+            unit: "week".into(),
+            weekdays: Vec::new(),
+            ..Default::default()
+        };
+        let dates =
+            occurrences_between(start, &weekly, start, date(2024, 1, 15), None, Decimal::ONE);
         assert_eq!(dates.len(), 3);
-        assert!(occurrences_between(date(2024,2,1), &weekly, start, date(2024,1,31), None, Decimal::ONE).is_empty());
+        assert!(
+            occurrences_between(
+                date(2024, 2, 1),
+                &weekly,
+                start,
+                date(2024, 1, 31),
+                None,
+                Decimal::ONE
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn legacy_conversion_covers_each_unit() {
         let start = date(2024, 3, 15);
         let daily = recurrence_from_legacy("daily", start, None, None);
-        assert_eq!(legacy_from_recurrence(&daily), ("daily".to_string(), None, None));
+        assert_eq!(
+            legacy_from_recurrence(&daily),
+            ("daily".to_string(), None, None)
+        );
 
         let weekly = recurrence_from_legacy("weekly", start, Some(5), None);
         assert_eq!(weekly.weekdays, vec![5]);
-        assert_eq!(legacy_from_recurrence(&weekly), ("weekly".to_string(), Some(5), None));
+        assert_eq!(
+            legacy_from_recurrence(&weekly),
+            ("weekly".to_string(), Some(5), None)
+        );
 
         let monthly = recurrence_from_legacy("monthly", start, Some(31), None);
         assert_eq!(monthly.days, vec![31]);
-        assert_eq!(legacy_from_recurrence(&monthly), ("monthly".to_string(), Some(31), None));
+        assert_eq!(
+            legacy_from_recurrence(&monthly),
+            ("monthly".to_string(), Some(31), None)
+        );
 
         let yearly = recurrence_from_legacy("yearly", start, Some(10), Some(6));
         assert_eq!(yearly.dates[0].month, 6);
-        assert_eq!(legacy_from_recurrence(&yearly), ("yearly".to_string(), Some(10), Some(6)));
+        assert_eq!(
+            legacy_from_recurrence(&yearly),
+            ("yearly".to_string(), Some(10), Some(6))
+        );
 
         let quarterly = recurrence_from_legacy("quarterly", start, Some(2), None);
         assert_eq!(quarterly.interval, 3);
-        assert_eq!(legacy_from_recurrence(&quarterly), ("quarterly".to_string(), Some(2), None));
+        assert_eq!(
+            legacy_from_recurrence(&quarterly),
+            ("quarterly".to_string(), Some(2), None)
+        );
     }
-
 }

@@ -5,7 +5,10 @@ fn no_fixed_sidebar_in_layout() {
     let layout = include_str!("../../layout/app_layout.rs");
     let prod = layout.split("#[cfg(test)]").next().unwrap_or(layout);
     let fixed_count = prod.matches("lg:fixed lg:inset-y-0").count();
-    assert_eq!(fixed_count, 0, "app_layout must NOT have fixed left sidebar");
+    assert_eq!(
+        fixed_count, 0,
+        "app_layout must NOT have fixed left sidebar"
+    );
     assert!(
         !prod.contains("lg:w-64"),
         "app_layout must NOT have 64-unit wide fixed sidebar"
@@ -20,10 +23,7 @@ fn top_navigation_bar_exists() {
         layout.contains("top-0") && layout.contains("sticky"),
         "app_layout must have sticky top navigation bar"
     );
-    assert!(
-        layout.contains("w-full"),
-        "top nav bar must be full width"
-    );
+    assert!(layout.contains("w-full"), "top nav bar must be full width");
 }
 
 #[test]
@@ -31,7 +31,10 @@ fn no_left_sidebar_padding_on_main() {
     let layout = include_str!("../../layout/app_layout.rs");
     // Main content must not have lg:pl-64 (the old sidebar padding)
     let count = layout.matches("lg:pl-64").count();
-    assert_eq!(count, 0, "main content must not have lg:pl-64 (no sidebar to offset)");
+    assert_eq!(
+        count, 0,
+        "main content must not have lg:pl-64 (no sidebar to offset)"
+    );
 }
 
 #[test]
@@ -59,7 +62,9 @@ fn mobile_bottom_bar_exists() {
     // Mobile must have bottom bar instead of hamburger sidebar
     // Look for bottom-0 or fixed bottom patterns
     assert!(
-        layout.contains("bottom-0") || layout.contains("bottom-bar") || layout.contains("bottombar"),
+        layout.contains("bottom-0")
+            || layout.contains("bottom-bar")
+            || layout.contains("bottombar"),
         "mobile layout must have bottom navigation bar"
     );
 }

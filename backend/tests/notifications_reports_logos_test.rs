@@ -126,11 +126,7 @@ mod notifications_tests {
     }
 
     fn mock_mark_all_read(user_id: Uuid) -> i64 {
-        if !user_id.is_nil() {
-            5
-        } else {
-            0
-        }
+        if !user_id.is_nil() { 5 } else { 0 }
     }
 
     fn mock_delete_notification(notification_id: Uuid, user_id: Uuid) -> bool {

@@ -72,7 +72,9 @@ pub async fn get_rates_with(
 ) -> AppResult<RatesResponse> {
     let base = base.trim().to_uppercase();
     if base.is_empty() {
-        return Err(AppError::BadRequest("Base currency is required".to_string()));
+        return Err(AppError::BadRequest(
+            "Base currency is required".to_string(),
+        ));
     }
     let env_key = std::env::var("FIXER_API_KEY")
         .ok()
@@ -95,7 +97,9 @@ pub async fn get_rates_with(
     };
     let cache_key = format!("{provider}:{}", key.as_deref().unwrap_or(""));
     let cached = {
-        let guard = CACHE.lock().map_err(|_| AppError::Internal("Rate cache poisoned".into()))?;
+        let guard = CACHE
+            .lock()
+            .map_err(|_| AppError::Internal("Rate cache poisoned".into()))?;
         guard
             .as_ref()
             .filter(|cached| {
@@ -127,11 +131,7 @@ pub async fn get_rates_with(
         }
     };
 
-    let base_rate = cached
-        .eur_rates
-        .get(&base)
-        .copied()
-        .unwrap_or(Decimal::ONE);
+    let base_rate = cached.eur_rates.get(&base).copied().unwrap_or(Decimal::ONE);
     let mut rates = HashMap::new();
     rates.insert(base.clone(), Decimal::ONE);
     for (currency, rate) in &cached.eur_rates {
@@ -311,7 +311,9 @@ pub async fn update_currency_settings(
         .or_else(|| existing.as_ref().map(|row| row.provider.clone()))
         .unwrap_or_else(|| PROVIDER_FRANKFURTER.to_string());
     if !validate_provider(&provider) {
-        return Err(AppError::BadRequest("Unknown exchange-rate provider".into()));
+        return Err(AppError::BadRequest(
+            "Unknown exchange-rate provider".into(),
+        ));
     }
     let key = if req.clear_fixer_api_key {
         None
@@ -393,26 +395,40 @@ mod tests {
     #[test]
     fn same_currency_is_identity() {
         let rates = rates("EUR", &[]);
-        assert_eq!(convert(Decimal::from(10), "EUR", "EUR", &rates), Decimal::from(10));
+        assert_eq!(
+            convert(Decimal::from(10), "EUR", "EUR", &rates),
+            Decimal::from(10)
+        );
     }
 
     #[test]
     fn converts_using_base_rate() {
         let rates = rates("EUR", &[("USD", Decimal::new(11, 1))]);
-        assert_eq!(convert(Decimal::from(11), "USD", "EUR", &rates), Decimal::from(10));
+        assert_eq!(
+            convert(Decimal::from(11), "USD", "EUR", &rates),
+            Decimal::from(10)
+        );
     }
 
     #[test]
     fn missing_rate_falls_back_to_original() {
         let rates = rates("EUR", &[]);
-        assert_eq!(convert(Decimal::from(10), "GBP", "EUR", &rates), Decimal::from(10));
+        assert_eq!(
+            convert(Decimal::from(10), "GBP", "EUR", &rates),
+            Decimal::from(10)
+        );
     }
     #[test]
     fn conversion_rejects_zero_and_negative_rates() {
         let zero = rates("EUR", &[("USD", Decimal::ZERO)]);
-        assert_eq!(convert(Decimal::from(10), "USD", "EUR", &zero), Decimal::from(10));
+        assert_eq!(
+            convert(Decimal::from(10), "USD", "EUR", &zero),
+            Decimal::from(10)
+        );
         let negative = rates("EUR", &[("USD", Decimal::from(-1))]);
-        assert_eq!(convert(Decimal::from(10), "USD", "EUR", &negative), Decimal::from(10));
+        assert_eq!(
+            convert(Decimal::from(10), "USD", "EUR", &negative),
+            Decimal::from(10)
+        );
     }
-
 }

@@ -1297,7 +1297,8 @@ impl MockReportService {
 
 pub struct MockPreferencesService {
     pub(crate) config: MockConfig,
-    pub(crate) preferences: Arc<std::sync::Mutex<std::collections::HashMap<Uuid, PreferencesResponse>>>,
+    pub(crate) preferences:
+        Arc<std::sync::Mutex<std::collections::HashMap<Uuid, PreferencesResponse>>>,
 }
 
 impl Default for MockPreferencesService {
@@ -2329,7 +2330,7 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 account_id: None,
                 category_id: None,
@@ -2358,7 +2359,7 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: None,
@@ -2382,7 +2383,7 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 account_id: None,
                 category_id: None,
@@ -3416,7 +3417,7 @@ mod tests {
             let user = User {
                 id: Uuid::new_v4(),
                 email: "clone@test.com".to_string(),
-            avatar: None,
+                avatar: None,
                 password_hash: "hash".to_string(),
                 name: Some("Clone".to_string()),
                 currency: "USD".to_string(),
@@ -3661,7 +3662,7 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: None,
@@ -4033,7 +4034,7 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: None,
@@ -4083,7 +4084,7 @@ mod tests {
                 is_active: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
                 account_id: None,
                 category_id: None,
@@ -4133,7 +4134,7 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: Some(false),

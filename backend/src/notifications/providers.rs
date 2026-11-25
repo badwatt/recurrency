@@ -171,7 +171,8 @@ pub fn validate_config(provider: NotificationProvider, config: &Value) -> Result
                 .filter(|value| *value > 0)
                 .ok_or_else(|| "Email SMTP port is required".to_string())?;
             let from_email = required_string(object, "from_email")?;
-            let encryption = optional_string(object, "encryption").unwrap_or_else(|| "tls".to_string());
+            let encryption =
+                optional_string(object, "encryption").unwrap_or_else(|| "tls".to_string());
             if !matches!(encryption.as_str(), "tls" | "ssl" | "none") {
                 return Err("Email encryption must be tls, ssl or none".to_string());
             }
@@ -266,7 +267,11 @@ pub fn mask_config(provider: NotificationProvider, config: &Value) -> Value {
         NotificationProvider::ServerChan => &["send_key"],
     };
     for key in secret_keys {
-        if masked.get(*key).and_then(Value::as_str).is_some_and(|value| !value.is_empty()) {
+        if masked
+            .get(*key)
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.is_empty())
+        {
             masked.insert((*key).to_string(), Value::String(MASKED_VALUE.to_string()));
         }
     }
@@ -277,10 +282,7 @@ pub fn merge_config(provider: NotificationProvider, existing: &Value, incoming: 
     let Some(incoming_object) = incoming.as_object() else {
         return existing.clone();
     };
-    let mut merged = existing
-        .as_object()
-        .cloned()
-        .unwrap_or_default();
+    let mut merged = existing.as_object().cloned().unwrap_or_default();
     let secret_keys: &[&str] = match provider {
         NotificationProvider::Email => &["smtp_password"],
         NotificationProvider::Ntfy => &["token"],
@@ -514,7 +516,10 @@ async fn send_serverchan(config: &Value, message: &NotificationMessage) -> AppRe
     let response = client()
         .await?
         .post(url)
-        .form(&[("title", message.title.as_str()), ("desp", message.body.as_str())])
+        .form(&[
+            ("title", message.title.as_str()),
+            ("desp", message.body.as_str()),
+        ])
         .send()
         .await
         .map_err(|_| AppError::Internal("ServerChan request failed".to_string()))?;
@@ -625,23 +630,45 @@ mod tests {
             validate_config(NotificationProvider::Email, &json!({})).unwrap(),
             json!({})
         );
-        assert!(validate_config(NotificationProvider::Email, &json!({"smtp_host": "smtp.example.com"})).is_err());
-        assert!(validate_config(NotificationProvider::Email, &json!({
-            "smtp_host": "smtp.example.com",
-            "smtp_port": 0,
-            "from_email": "a@b.c"
-        })).is_err());
-        assert!(validate_config(NotificationProvider::Email, &json!({
-            "smtp_host": "smtp.example.com",
-            "smtp_port": 587,
-            "encryption": "starttls",
-            "from_email": "a@b.c"
-        })).is_err());
-        let validated = validate_config(NotificationProvider::Email, &json!({
-            "smtp_host": "smtp.example.com",
-            "smtp_port": 465,
-            "from_email": "a@b.c"
-        })).unwrap();
+        assert!(
+            validate_config(
+                NotificationProvider::Email,
+                &json!({"smtp_host": "smtp.example.com"})
+            )
+            .is_err()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Email,
+                &json!({
+                    "smtp_host": "smtp.example.com",
+                    "smtp_port": 0,
+                    "from_email": "a@b.c"
+                })
+            )
+            .is_err()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Email,
+                &json!({
+                    "smtp_host": "smtp.example.com",
+                    "smtp_port": 587,
+                    "encryption": "starttls",
+                    "from_email": "a@b.c"
+                })
+            )
+            .is_err()
+        );
+        let validated = validate_config(
+            NotificationProvider::Email,
+            &json!({
+                "smtp_host": "smtp.example.com",
+                "smtp_port": 465,
+                "from_email": "a@b.c"
+            }),
+        )
+        .unwrap();
         assert_eq!(validated["encryption"], "tls");
         assert_eq!(validated["smtp_username"], "");
         assert_eq!(validated["smtp_password"], "");
@@ -650,51 +677,138 @@ mod tests {
     #[test]
     fn ntfy_and_gotify_validate_required_fields() {
         assert!(validate_config(NotificationProvider::Ntfy, &json!({})).is_err());
-        assert!(validate_config(NotificationProvider::Ntfy, &json!({"server": "https://ntfy.sh"})).is_err());
-        assert!(validate_config(NotificationProvider::Ntfy, &json!({
-            "server": "https://ntfy.sh",
-            "topic": "alerts",
-            "token": "secret"
-        })).unwrap()["token"].is_string());
+        assert!(
+            validate_config(
+                NotificationProvider::Ntfy,
+                &json!({"server": "https://ntfy.sh"})
+            )
+            .is_err()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Ntfy,
+                &json!({
+                    "server": "https://ntfy.sh",
+                    "topic": "alerts",
+                    "token": "secret"
+                })
+            )
+            .unwrap()["token"]
+                .is_string()
+        );
         assert!(validate_config(NotificationProvider::Gotify, &json!({})).is_err());
-        assert!(validate_config(NotificationProvider::Gotify, &json!({
-            "server_url": "https://gotify.example.com",
-            "token": "secret"
-        })).is_ok());
+        assert!(
+            validate_config(
+                NotificationProvider::Gotify,
+                &json!({
+                    "server_url": "https://gotify.example.com",
+                    "token": "secret"
+                })
+            )
+            .is_ok()
+        );
     }
 
     #[test]
     fn webhooks_validate_scheme_and_host() {
         assert!(validate_config(NotificationProvider::Webhook, &json!({})).is_err());
-        assert!(validate_config(NotificationProvider::Webhook, &json!({"url": "https://example.com/hook"})).is_ok());
-        assert!(validate_config(NotificationProvider::Discord, &json!({
-            "webhook_url": "https://discord.com/api/webhooks/1/2"
-        })).is_ok());
-        assert!(validate_config(NotificationProvider::Discord, &json!({
-            "webhook_url": "http://discord.com/api/webhooks/1/2"
-        })).is_err());
-        assert!(validate_config(NotificationProvider::Slack, &json!({
-            "webhook_url": "https://hooks.slack.com/services/x"
-        })).is_ok());
-        assert!(validate_config(NotificationProvider::Slack, &json!({
-            "webhook_url": "https://example.com/services/x"
-        })).is_err());
-        assert!(validate_config(NotificationProvider::Mattermost, &json!({
-            "webhook_url": "https://mattermost.example.com/hooks/x"
-        })).is_ok());
+        assert!(
+            validate_config(
+                NotificationProvider::Webhook,
+                &json!({"url": "https://example.com/hook"})
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Discord,
+                &json!({
+                    "webhook_url": "https://discord.com/api/webhooks/1/2"
+                })
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Discord,
+                &json!({
+                    "webhook_url": "http://discord.com/api/webhooks/1/2"
+                })
+            )
+            .is_err()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Slack,
+                &json!({
+                    "webhook_url": "https://hooks.slack.com/services/x"
+                })
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Slack,
+                &json!({
+                    "webhook_url": "https://example.com/services/x"
+                })
+            )
+            .is_err()
+        );
+        assert!(
+            validate_config(
+                NotificationProvider::Mattermost,
+                &json!({
+                    "webhook_url": "https://mattermost.example.com/hooks/x"
+                })
+            )
+            .is_ok()
+        );
     }
 
     #[test]
     fn remaining_providers_validate_and_mask_their_secrets() {
         let cases = [
-            (NotificationProvider::Telegram, json!({"bot_token": "token", "chat_id": "1"}), "bot_token"),
-            (NotificationProvider::Gotify, json!({"server_url": "https://gotify.example.com", "token": "token"}), "token"),
-            (NotificationProvider::Webhook, json!({"url": "https://example.com/hook"}), "url"),
-            (NotificationProvider::Slack, json!({"webhook_url": "https://hooks.slack.com/services/x"}), "webhook_url"),
-            (NotificationProvider::Mattermost, json!({"webhook_url": "https://mattermost.example.com/hooks/x"}), "webhook_url"),
-            (NotificationProvider::Pushover, json!({"token": "token", "user_key": "user"}), "token"),
-            (NotificationProvider::PushPlus, json!({"token": "token"}), "token"),
-            (NotificationProvider::ServerChan, json!({"send_key": "key"}), "send_key"),
+            (
+                NotificationProvider::Telegram,
+                json!({"bot_token": "token", "chat_id": "1"}),
+                "bot_token",
+            ),
+            (
+                NotificationProvider::Gotify,
+                json!({"server_url": "https://gotify.example.com", "token": "token"}),
+                "token",
+            ),
+            (
+                NotificationProvider::Webhook,
+                json!({"url": "https://example.com/hook"}),
+                "url",
+            ),
+            (
+                NotificationProvider::Slack,
+                json!({"webhook_url": "https://hooks.slack.com/services/x"}),
+                "webhook_url",
+            ),
+            (
+                NotificationProvider::Mattermost,
+                json!({"webhook_url": "https://mattermost.example.com/hooks/x"}),
+                "webhook_url",
+            ),
+            (
+                NotificationProvider::Pushover,
+                json!({"token": "token", "user_key": "user"}),
+                "token",
+            ),
+            (
+                NotificationProvider::PushPlus,
+                json!({"token": "token"}),
+                "token",
+            ),
+            (
+                NotificationProvider::ServerChan,
+                json!({"send_key": "key"}),
+                "send_key",
+            ),
         ];
         for (provider, config, secret) in cases {
             let validated = validate_config(provider, &config).unwrap();
@@ -726,7 +840,10 @@ mod tests {
             &json!("not-an-object"),
         );
         assert_eq!(merged["send_key"], "old");
-        assert_eq!(mask_config(NotificationProvider::ServerChan, &json!("bad")), json!({}));
+        assert_eq!(
+            mask_config(NotificationProvider::ServerChan, &json!("bad")),
+            json!({})
+        );
     }
 
     #[test]
@@ -840,5 +957,4 @@ mod tests {
         assert!(!encrypted.is_empty());
         assert_ne!(encrypted, b"{\"token\":\"value\"}");
     }
-
 }

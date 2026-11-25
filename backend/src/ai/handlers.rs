@@ -122,13 +122,9 @@ mod tests {
         #[tokio::test]
         async fn handlers_delegate_to_the_service() {
             let state = state();
-            let Json(settings) = get_settings(
-                State(state.clone()),
-                OptionalQuery(None),
-                headers(),
-            )
-            .await
-            .unwrap();
+            let Json(settings) = get_settings(State(state.clone()), OptionalQuery(None), headers())
+                .await
+                .unwrap();
             assert!(!settings.enabled);
 
             let Json(updated) = update_settings(
@@ -186,12 +182,8 @@ mod tests {
             .unwrap();
             assert!(!transcribed.text.is_empty());
 
-            let unauthorized = get_settings(
-                State(state),
-                OptionalQuery(None),
-                HeaderMap::new(),
-            )
-            .await;
+            let unauthorized =
+                get_settings(State(state), OptionalQuery(None), HeaderMap::new()).await;
             assert!(unauthorized.is_err());
         }
 

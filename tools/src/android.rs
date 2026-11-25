@@ -1694,7 +1694,10 @@ mod tests {
             "github-light",
             "solarized-light",
         ] {
-            assert!(LOADER_SCRIPT.contains(theme), "Android loader must know {theme}");
+            assert!(
+                LOADER_SCRIPT.contains(theme),
+                "Android loader must know {theme}"
+            );
         }
     }
 

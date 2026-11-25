@@ -362,7 +362,6 @@ mod tests {
         assert_eq!(req1.subscriptions_view, req2.subscriptions_view);
     }
 
-
     // Apply preference edge cases using the 3-arg function
     #[test]
     fn apply_preference_theme_only() {

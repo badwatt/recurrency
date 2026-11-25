@@ -1,4 +1,4 @@
-use crate::components::entry_form::{EntryForm as EditForm, EntityType};
+use crate::components::entry_form::{EntityType, EntryForm as EditForm};
 use crate::models::subscription::{CalendarItem, Recurrence};
 use crate::pages::subscriptions_page::dialog::render_dialog;
 use crate::state::accounts::ACCOUNTS;
@@ -88,7 +88,11 @@ pub fn EditSubscriptionDialog(
                     .find(|subscription| subscription.id == id)
                     .map(|subscription| subscription.account_id.to_string())
             })
-            .or_else(|| ACCOUNTS().default_account().map(|account| account.id.to_string()))
+            .or_else(|| {
+                ACCOUNTS()
+                    .default_account()
+                    .map(|account| account.id.to_string())
+            })
             .unwrap_or_default()
     });
 

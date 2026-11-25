@@ -7,17 +7,19 @@ use uuid::Uuid;
 
 use crate::components::ConvertedAmount;
 use crate::components::ListToolbar;
-use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton};
-use crate::components::dialog::Dialog;
+use crate::components::button::{
+    Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton,
+};
 use crate::components::date_picker::DatePicker;
+use crate::components::dialog::Dialog;
 use crate::components::field::Field;
-use crate::components::popover::{Popover, PopoverAlign};
 use crate::components::input::Input;
-use crate::components::textarea::Textarea;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::popover::{Popover, PopoverAlign};
 use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::DebtCardSkeleton;
+use crate::components::textarea::Textarea;
 use crate::components::{AccountCombobox, CategoryCombobox};
 use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest};
 use crate::state::accounts::ACCOUNTS;

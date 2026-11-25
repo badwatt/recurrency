@@ -31,7 +31,12 @@ async fn optional_user_id(
     headers: &HeaderMap,
 ) -> Option<Uuid> {
     let token = extract_token_from_request(query_token, headers).ok()?;
-    state.auth_service.verify_token(&token).await.ok().map(|claims| claims.sub)
+    state
+        .auth_service
+        .verify_token(&token)
+        .await
+        .ok()
+        .map(|claims| claims.sub)
 }
 
 pub async fn rates(
@@ -54,9 +59,7 @@ pub async fn get_settings(
 ) -> AppResult<Json<CurrencySettingsResponse>> {
     let token = extract_token_from_request(query.token.as_ref(), &headers)?;
     let claims = state.auth_service.verify_token(&token).await?;
-    Ok(Json(
-        get_currency_settings(&state.pool, claims.sub).await?,
-    ))
+    Ok(Json(get_currency_settings(&state.pool, claims.sub).await?))
 }
 
 pub async fn update_settings(

@@ -3,7 +3,7 @@
 
 use crate::components::badge::{Badge, BadgeVariant};
 use crate::components::button::{Button, ButtonSize, ButtonVariant, IconButton};
-use crate::components::card::{Card, CardRadius, CardContent, CardHeader, CardTitle, SectionCard};
+use crate::components::card::{Card, CardContent, CardHeader, CardRadius, CardTitle, SectionCard};
 use crate::components::checkbox::Checkbox;
 use crate::components::empty_state::EmptyState;
 use crate::components::field::Field;

@@ -68,11 +68,7 @@ pub fn occurrences_between(
     }
     let mut guard = 0usize;
     let mut push = |date: NaiveDate| {
-        if date >= start
-            && date >= from
-            && date <= to
-            && end_date.is_none_or(|end| date <= end)
-        {
+        if date >= start && date >= from && date <= to && end_date.is_none_or(|end| date <= end) {
             result.push((date, amount_for(date, recurrence, base_amount)));
         }
     };
@@ -164,10 +160,12 @@ pub fn next_occurrence_on_or_after(
         .map(|(date, _)| date)
 }
 
-pub fn first_occurrence_on_or_after(start: NaiveDate, recurrence: &Recurrence) -> Option<NaiveDate> {
+pub fn first_occurrence_on_or_after(
+    start: NaiveDate,
+    recurrence: &Recurrence,
+) -> Option<NaiveDate> {
     next_occurrence_on_or_after(start, recurrence, start, None)
 }
-
 
 /// Progress of the next payment inside its calendar year. Only shown for
 /// schedules with multiple payments per year, capped to avoid noisy daily rows.
@@ -193,11 +191,12 @@ pub fn payment_progress_for_year(
         if !(2..=MAX_DISPLAY).contains(&total) {
             return None;
         }
-        let next_day = if next_payment.day() == days_in_month(next_payment.year(), next_payment.month()) {
-            0
-        } else {
-            next_payment.day() as u8
-        };
+        let next_day =
+            if next_payment.day() == days_in_month(next_payment.year(), next_payment.month()) {
+                0
+            } else {
+                next_payment.day() as u8
+            };
         let index = dates
             .iter()
             .position(|date| (date.month, date.day) >= (next_payment.month() as u8, next_day))
@@ -223,7 +222,11 @@ pub fn payment_progress_for_year(
     let index = occurrences
         .iter()
         .position(|(date, _)| *date == next_payment)
-        .or_else(|| occurrences.iter().position(|(date, _)| *date >= next_payment))?
+        .or_else(|| {
+            occurrences
+                .iter()
+                .position(|(date, _)| *date >= next_payment)
+        })?
         + 1;
     Some((index, total))
 }
@@ -349,19 +352,26 @@ mod tests {
             interval: 1,
             unit: "year".into(),
             dates: vec![
-                AnnualDate { month: 6, day: 24, amount: None },
-                AnnualDate { month: 8, day: 8, amount: None },
-                AnnualDate { month: 9, day: 22, amount: None },
+                AnnualDate {
+                    month: 6,
+                    day: 24,
+                    amount: None,
+                },
+                AnnualDate {
+                    month: 8,
+                    day: 8,
+                    amount: None,
+                },
+                AnnualDate {
+                    month: 9,
+                    day: 22,
+                    amount: None,
+                },
             ],
             ..Default::default()
         };
         assert_eq!(
-            payment_progress_for_year(
-                date(2026, 6, 24),
-                &recurrence,
-                None,
-                date(2027, 6, 24),
-            ),
+            payment_progress_for_year(date(2026, 6, 24), &recurrence, None, date(2027, 6, 24),),
             Some((1, 3))
         );
     }
@@ -372,18 +382,21 @@ mod tests {
             interval: 1,
             unit: "year".into(),
             dates: vec![
-                AnnualDate { month: 5, day: 27, amount: None },
-                AnnualDate { month: 11, day: 11, amount: None },
+                AnnualDate {
+                    month: 5,
+                    day: 27,
+                    amount: None,
+                },
+                AnnualDate {
+                    month: 11,
+                    day: 11,
+                    amount: None,
+                },
             ],
             ..Default::default()
         };
         assert_eq!(
-            payment_progress_for_year(
-                date(2026, 1, 1),
-                &recurrence,
-                None,
-                date(2026, 11, 11),
-            ),
+            payment_progress_for_year(date(2026, 1, 1), &recurrence, None, date(2026, 11, 11),),
             Some((2, 2))
         );
     }

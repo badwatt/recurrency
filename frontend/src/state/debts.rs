@@ -43,10 +43,7 @@ impl DebtsState {
     }
 
     pub fn remaining_total(&self) -> rust_decimal::Decimal {
-        self.active()
-            .iter()
-            .map(|debt| debt.remaining_amount)
-            .sum()
+        self.active().iter().map(|debt| debt.remaining_amount).sum()
     }
 }
 

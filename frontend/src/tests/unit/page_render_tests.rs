@@ -2,15 +2,14 @@
 
 use dioxus::prelude::*;
 
+use crate::components::ai_chat::AiChat;
+use crate::pages::subscriptions_page::SubscriptionsPage;
 use crate::pages::{
     AccountsPage, AdminPage, CalendarPage, CategoriesPage, Dashboard, DebtsPage, ReportsPage,
-    SettingsAboutPage, SettingsAdminPage, SettingsAiPage, SettingsDataPage, SettingsMoneyPage,
-    SettingsAppearancePage, SettingsNotificationsPage, SettingsPreferencesPage,
-    SettingsProfilePage, SettingsServerPage,
-    TransactionsPage,
+    SettingsAboutPage, SettingsAdminPage, SettingsAiPage, SettingsAppearancePage, SettingsDataPage,
+    SettingsMoneyPage, SettingsNotificationsPage, SettingsPreferencesPage, SettingsProfilePage,
+    SettingsServerPage, TransactionsPage,
 };
-use crate::pages::subscriptions_page::SubscriptionsPage;
-use crate::components::ai_chat::AiChat;
 
 fn render(component: fn() -> Element) {
     let _guard = crate::storage::STORAGE_TEST_LOCK
@@ -20,10 +19,7 @@ fn render(component: fn() -> Element) {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     crate::api::client::force_offline_for_tests();
-    let dir = std::env::temp_dir().join(format!(
-        "recurrency-render-auth-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let dir = std::env::temp_dir().join(format!("recurrency-render-auth-{}", uuid::Uuid::new_v4()));
     crate::storage::local_auth::set_render_test_dir(dir);
     let mut dom = VirtualDom::new(component);
     dom.rebuild_in_place();
@@ -125,10 +121,7 @@ fn admin_page_renders_for_an_administrator() {
     let _auth_guard = crate::storage::local_auth::AUTH_TEST_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let dir = std::env::temp_dir().join(format!(
-        "recurrency-render-auth-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let dir = std::env::temp_dir().join(format!("recurrency-render-auth-{}", uuid::Uuid::new_v4()));
     crate::storage::local_auth::set_render_test_dir(dir);
     let mut dom = VirtualDom::new(AdminPage);
     dom.in_runtime(|| {

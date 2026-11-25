@@ -2,9 +2,9 @@
 mod test_helpers;
 
 pub mod app_state;
-pub mod constants;
 pub mod app_utils;
 pub mod auth_extractor;
+pub mod constants;
 pub mod date_utils;
 pub mod db;
 pub mod error;

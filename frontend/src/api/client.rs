@@ -9,7 +9,10 @@ pub static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::n
 
 pub fn get_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(|| {
-        #[cfg_attr(target_arch = "wasm32", expect(unused_mut, reason = "builder mut only needed on non-WASM"))]
+        #[cfg_attr(
+            target_arch = "wasm32",
+            expect(unused_mut, reason = "builder mut only needed on non-WASM")
+        )]
         let mut builder = reqwest::Client::builder();
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -96,9 +99,10 @@ pub fn get_base_url() -> String {
     // 1. Check override (set by tests or runtime) — always works without Dioxus runtime
     if let Ok(lock) = BASE_URL_OVERRIDE.read()
         && let Some(url) = lock.as_ref()
-            && !url.is_empty() {
-                return normalize_base_url(url);
-            }
+        && !url.is_empty()
+    {
+        return normalize_base_url(url);
+    }
     // 2. Check APP_MODE — may panic without Dioxus runtime, use catch_unwind
     let mode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         crate::state::app_mode::APP_MODE.try_read()
@@ -126,7 +130,10 @@ pub fn get_base_url() -> String {
 pub fn set_base_url(url: &str) {
     let url = url.trim();
     if !url.is_empty() && !url.starts_with("http://") && !url.starts_with("https://") {
-        log::error!("set_base_url: invalid URL (must start with http:// or https://): {}", url);
+        log::error!(
+            "set_base_url: invalid URL (must start with http:// or https://): {}",
+            url
+        );
         return;
     }
     if let Ok(mut lock) = BASE_URL_OVERRIDE.write() {
@@ -146,9 +153,10 @@ fn is_offline_mode_from_storage() -> bool {
         if let Some(window) = web_sys::window() {
             if let Ok(Some(storage)) = window.local_storage() {
                 if let Ok(Some(mode)) = storage.get_item("RECURRENCY_APP_MODE")
-                    && mode == "offline" {
-                        return true;
-                    }
+                    && mode == "offline"
+                {
+                    return true;
+                }
             }
         }
         false
@@ -158,9 +166,10 @@ fn is_offline_mode_from_storage() -> bool {
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let mode_file = data_dir.join("recurrency").join("app_mode.txt");
             if let Ok(mode) = std::fs::read_to_string(&mode_file)
-                && mode.trim() == "offline" {
-                    return true;
-                }
+                && mode.trim() == "offline"
+            {
+                return true;
+            }
         }
         false
     }
@@ -185,9 +194,10 @@ fn get_base_url_impl() -> String {
     {
         // Check env var first, then app data file
         if let Ok(url) = std::env::var("RECURRENCY_API_URL")
-            && !url.is_empty() {
-                return url;
-            }
+            && !url.is_empty()
+        {
+            return url;
+        }
         if let Some(data_dir) = crate::state::auth::get_app_data_dir() {
             let url_file: std::path::PathBuf = data_dir.join("recurrency").join("server_url.txt");
             if let Ok(url) = std::fs::read_to_string(&url_file) {
@@ -335,14 +345,18 @@ pub async fn api_get<T: DeserializeOwned + Send + 'static>(path: &str) -> Result
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let req = ureq_request("GET", &url, &headers);
-                req.call().map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+                req.call()
+                    .map_err(|e| ApiError::Network(e.to_string()))
+                    .and_then(|r| ureq_handle_resp(r))
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
                 Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
-        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
+        return rx
+            .await
+            .map_err(|_| ApiError::Network("channel closed".into()))?;
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -351,7 +365,10 @@ pub async fn api_get<T: DeserializeOwned + Send + 'static>(path: &str) -> Result
         for (k, v) in headers {
             req = req.header(k, v);
         }
-        let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
         if status == 401 {
             crate::state::auth::mark_session_expired();
@@ -361,7 +378,9 @@ pub async fn api_get<T: DeserializeOwned + Send + 'static>(path: &str) -> Result
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));
         }
-        resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
+        resp.json::<T>()
+            .await
+            .map_err(|e| ApiError::Parse(e.to_string()))
     }
 }
 
@@ -373,7 +392,10 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
-    #[cfg_attr(not(target_os = "android"), expect(unused_variables, reason = "used in android cfg block"))]
+    #[cfg_attr(
+        not(target_os = "android"),
+        expect(unused_variables, reason = "used in android cfg block")
+    )]
     let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
     #[cfg(target_os = "android")]
@@ -382,14 +404,18 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let req = ureq_request_with_body("POST", &url, &headers);
-                req.send(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+                req.send(&body_json)
+                    .map_err(|e| ApiError::Network(e.to_string()))
+                    .and_then(|r| ureq_handle_resp(r))
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
                 Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
-        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
+        return rx
+            .await
+            .map_err(|_| ApiError::Network("channel closed".into()))?;
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -398,7 +424,11 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
         for (k, v) in headers {
             req = req.header(k, v);
         }
-        let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let resp = req
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
         if status == 401 {
             crate::state::auth::mark_session_expired();
@@ -408,7 +438,9 @@ pub async fn api_post<B: serde::Serialize, T: DeserializeOwned + Send + 'static>
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));
         }
-        resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
+        resp.json::<T>()
+            .await
+            .map_err(|e| ApiError::Parse(e.to_string()))
     }
 }
 
@@ -420,7 +452,10 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
     let url = auth_url(path);
     let mut headers = Vec::new();
     auth_headers(&mut headers);
-    #[cfg_attr(not(target_os = "android"), expect(unused_variables, reason = "used in android cfg block"))]
+    #[cfg_attr(
+        not(target_os = "android"),
+        expect(unused_variables, reason = "used in android cfg block")
+    )]
     let body_json = serde_json::to_string(body).map_err(|e| ApiError::Parse(e.to_string()))?;
 
     #[cfg(target_os = "android")]
@@ -429,14 +464,18 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let req = ureq_request_with_body("PUT", &url, &headers);
-                req.send(&body_json).map_err(|e| ApiError::Network(e.to_string())).and_then(|r| ureq_handle_resp(r))
+                req.send(&body_json)
+                    .map_err(|e| ApiError::Network(e.to_string()))
+                    .and_then(|r| ureq_handle_resp(r))
             }));
             let _ = tx.send(match result {
                 Ok(r) => r,
                 Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
-        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
+        return rx
+            .await
+            .map_err(|_| ApiError::Network("channel closed".into()))?;
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -445,7 +484,11 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
         for (k, v) in headers {
             req = req.header(k, v);
         }
-        let resp = req.json(body).send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let resp = req
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
         if status == 401 {
             crate::state::auth::mark_session_expired();
@@ -455,7 +498,9 @@ pub async fn api_put<B: serde::Serialize, T: DeserializeOwned + Send + 'static>(
             let body = resp.text().await.unwrap_or_default();
             return Err(ApiError::Http(status, body));
         }
-        resp.json::<T>().await.map_err(|e| ApiError::Parse(e.to_string()))
+        resp.json::<T>()
+            .await
+            .map_err(|e| ApiError::Parse(e.to_string()))
     }
 }
 
@@ -474,9 +519,9 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
                 let mut resp = req.call().map_err(|e| ApiError::Network(e.to_string()))?;
                 let status = resp.status().as_u16();
                 if status == 401 {
-            crate::state::auth::mark_session_expired();
-            return Err(ApiError::Unauthorized);
-        }
+                    crate::state::auth::mark_session_expired();
+                    return Err(ApiError::Unauthorized);
+                }
                 if !(200..300).contains(&status) {
                     let body = resp.body_mut().read_to_string().unwrap_or_default();
                     return Err(ApiError::Http(status, body));
@@ -488,7 +533,9 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
                 Err(p) => Err(ApiError::Network(panic_msg(p.as_ref()))),
             });
         });
-        return rx.await.map_err(|_| ApiError::Network("channel closed".into()))?;
+        return rx
+            .await
+            .map_err(|_| ApiError::Network("channel closed".into()))?;
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -497,7 +544,10 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
         for (k, v) in headers {
             req = req.header(k, v);
         }
-        let resp = req.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| ApiError::Network(e.to_string()))?;
         let status = resp.status().as_u16();
         if status == 401 {
             crate::state::auth::mark_session_expired();
@@ -512,9 +562,13 @@ pub async fn api_delete(path: &str) -> Result<(), ApiError> {
 }
 
 fn panic_msg(p: &(dyn std::any::Any + Send)) -> String {
-    if let Some(s) = p.downcast_ref::<&str>() { s.to_string() }
-    else if let Some(s) = p.downcast_ref::<String>() { s.clone() }
-    else { "Unknown panic".to_string() }
+    if let Some(s) = p.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = p.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "Unknown panic".to_string()
+    }
 }
 
 #[cfg(test)]
@@ -524,7 +578,11 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
 
-    fn serve_once(status: &str, content_type: &str, body: &'static str) -> (String, std::thread::JoinHandle<()>) {
+    fn serve_once(
+        status: &str,
+        content_type: &str,
+        body: &'static str,
+    ) -> (String, std::thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let status = status.to_string();
@@ -650,9 +708,11 @@ mod tests {
     fn auth_headers_contains_content_type() {
         let mut headers: Vec<(String, String)> = Vec::new();
         headers.push(("Content-Type".into(), "application/json".into()));
-        assert!(headers
-            .iter()
-            .any(|(k, v)| k == "Content-Type" && v == "application/json"));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "Content-Type" && v == "application/json")
+        );
     }
 
     #[test]
@@ -708,9 +768,11 @@ mod tests {
         let mut headers: Vec<(String, String)> = Vec::new();
         // Manually add Content-Type (mirrors auth_headers logic)
         headers.push(("Content-Type".into(), "application/json".into()));
-        assert!(headers
-            .iter()
-            .any(|(k, v)| k == "Content-Type" && v == "application/json"));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "Content-Type" && v == "application/json")
+        );
     }
 
     #[test]
@@ -945,9 +1007,11 @@ mod tests {
         headers.push(("Content-Type".into(), "application/json".into()));
         headers.push(("Authorization".into(), "Bearer abc123".into()));
         assert_eq!(headers.len(), 2);
-        assert!(headers
-            .iter()
-            .any(|(k, v)| k == "Authorization" && v.starts_with("Bearer")));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "Authorization" && v.starts_with("Bearer"))
+        );
     }
 
     // ── Response status handling ──
@@ -1239,8 +1303,14 @@ mod tests {
 
     #[test]
     fn normalize_base_url_trims_trailing_slash() {
-        assert_eq!(super::normalize_base_url("http://localhost:8080/"), "http://localhost:8080");
-        assert_eq!(super::normalize_base_url("  http://localhost:8080///  "), "http://localhost:8080");
+        assert_eq!(
+            super::normalize_base_url("http://localhost:8080/"),
+            "http://localhost:8080"
+        );
+        assert_eq!(
+            super::normalize_base_url("  http://localhost:8080///  "),
+            "http://localhost:8080"
+        );
     }
 
     #[test]
@@ -1370,7 +1440,6 @@ mod tests {
     }
 }
 
-
 // ── Integration: Full URL building example ──
 
 #[test]
@@ -1388,7 +1457,6 @@ fn full_url_construction_example() {
 
     assert!(full_url.starts_with("http://api.example.com"));
     assert!(full_url.contains("token=jwt-token-abc123"));
-
 }
 // ── Additional pure function tests ────────────────────────────────────
 // (api_client_tests module removed: referenced non-existent types StatusCode, RequestContext, and variants that don't exist in ApiError)

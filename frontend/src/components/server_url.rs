@@ -2,7 +2,9 @@ use crate::components::button::{Button, ButtonVariant};
 use crate::components::field::Field;
 use crate::components::input::Input;
 use crate::components::toast::TOAST;
-use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE, last_server_url, normalize_server_url};
+use crate::state::app_mode::{
+    APP_MODE, NATIVE_SERVER_OVERRIDE, last_server_url, normalize_server_url,
+};
 use crate::state::auth::AUTH;
 use dioxus::prelude::*;
 

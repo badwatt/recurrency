@@ -29,11 +29,7 @@ use crate::shared::constants::DEMO_EMAIL;
 /// Generate a 256-bit secret from two UUID v4 values. The result is a
 /// 64-character lowercase hexadecimal string.
 fn generate_jwt_secret() -> String {
-    format!(
-        "{}{}",
-        Uuid::new_v4().simple(),
-        Uuid::new_v4().simple()
-    )
+    format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
 /// Validate and resolve the JWT secret from an environment value.
@@ -328,13 +324,12 @@ impl SqlxAuthService {
             if !is_valid_email(&email) {
                 return Err(AppError::BadRequest("Invalid email".to_string()));
             }
-            let taken: Option<Uuid> = sqlx::query_scalar(
-                "SELECT id FROM users WHERE lower(email) = $1 AND id <> $2",
-            )
-            .bind(&email)
-            .bind(user_id)
-            .fetch_optional(&self.pool)
-            .await?;
+            let taken: Option<Uuid> =
+                sqlx::query_scalar("SELECT id FROM users WHERE lower(email) = $1 AND id <> $2")
+                    .bind(&email)
+                    .bind(user_id)
+                    .fetch_optional(&self.pool)
+                    .await?;
             if taken.is_some() {
                 return Err(AppError::Conflict("Email already registered".to_string()));
             }
@@ -745,7 +740,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "a@b.com".to_string(),
-            avatar: None,
+                avatar: None,
                 name: None,
                 currency: "EUR".to_string(),
                 verified: false,
@@ -763,7 +758,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "a@b.com".to_string(),
-            avatar: None,
+                avatar: None,
                 name: None,
                 currency: "EUR".to_string(),
                 verified: true,
@@ -781,7 +776,7 @@ mod tests {
             user: UserResponse {
                 id: Uuid::new_v4(),
                 email: "resp@test.com".to_string(),
-            avatar: None,
+                avatar: None,
                 name: None,
                 currency: "USD".to_string(),
                 verified: true,
@@ -1013,7 +1008,6 @@ mod tests {
         assert!(!response.verified);
     }
 }
-
 
 #[cfg(test)]
 mod avatar_validation_tests {

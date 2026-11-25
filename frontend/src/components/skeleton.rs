@@ -218,32 +218,52 @@ mod tests {
     }
 
     #[test]
-    fn subscription_card_skeleton_builds() { let _el: Element = rsx! { SubscriptionCardSkeleton {} }; }
+    fn subscription_card_skeleton_builds() {
+        let _el: Element = rsx! { SubscriptionCardSkeleton {} };
+    }
 
     #[test]
-    fn subscription_list_skeleton_builds() { let _el: Element = rsx! { SubscriptionListSkeleton {} }; }
+    fn subscription_list_skeleton_builds() {
+        let _el: Element = rsx! { SubscriptionListSkeleton {} };
+    }
 
     #[test]
-    fn transaction_row_skeleton_builds() { let _el: Element = rsx! { TransactionRowSkeleton {} }; }
+    fn transaction_row_skeleton_builds() {
+        let _el: Element = rsx! { TransactionRowSkeleton {} };
+    }
 
     #[test]
-    fn category_card_skeleton_builds() { let _el: Element = rsx! { CategoryCardSkeleton {} }; }
+    fn category_card_skeleton_builds() {
+        let _el: Element = rsx! { CategoryCardSkeleton {} };
+    }
 
     #[test]
-    fn debt_card_skeleton_builds() { let _el: Element = rsx! { DebtCardSkeleton {} }; }
+    fn debt_card_skeleton_builds() {
+        let _el: Element = rsx! { DebtCardSkeleton {} };
+    }
 
     #[test]
-    fn report_card_skeleton_builds() { let _el: Element = rsx! { ReportCardSkeleton {} }; }
+    fn report_card_skeleton_builds() {
+        let _el: Element = rsx! { ReportCardSkeleton {} };
+    }
 
     #[test]
-    fn report_donut_skeleton_builds() { let _el: Element = rsx! { ReportDonutSkeleton {} }; }
+    fn report_donut_skeleton_builds() {
+        let _el: Element = rsx! { ReportDonutSkeleton {} };
+    }
 
     #[test]
-    fn report_table_skeleton_builds() { let _el: Element = rsx! { ReportTableSkeleton {} }; }
+    fn report_table_skeleton_builds() {
+        let _el: Element = rsx! { ReportTableSkeleton {} };
+    }
 
     #[test]
-    fn skeleton_calendar_builds() { let _el: Element = rsx! { SkeletonCalendar {} }; }
+    fn skeleton_calendar_builds() {
+        let _el: Element = rsx! { SkeletonCalendar {} };
+    }
 
     #[test]
-    fn dashboard_row_skeleton_builds() { let _el: Element = rsx! { DashboardRowSkeleton {} }; }
+    fn dashboard_row_skeleton_builds() {
+        let _el: Element = rsx! { DashboardRowSkeleton {} };
+    }
 }

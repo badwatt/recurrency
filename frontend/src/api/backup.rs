@@ -48,5 +48,4 @@ mod tests {
         .unwrap();
         assert_eq!(counts["accounts"], 1);
     }
-
 }

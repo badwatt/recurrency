@@ -1,4 +1,4 @@
-use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
+use crate::api::client::{ApiError, api_delete, api_get, api_post, api_put};
 use crate::models::transaction::*;
 
 pub async fn list() -> Result<Vec<Transaction>, ApiError> {
@@ -230,11 +230,12 @@ mod tests {
     async fn transaction_endpoints_exchange_json() {
         let transaction = sample_transaction();
         let json = serde_json::to_string(&transaction).unwrap();
-        let listed: Vec<Transaction> =
-            with_server(format!("[{json}]"), list()).await.unwrap();
+        let listed: Vec<Transaction> = with_server(format!("[{json}]"), list()).await.unwrap();
         assert_eq!(listed.len(), 1);
 
-        let fetched: Transaction = with_server(json.clone(), get(&transaction.id)).await.unwrap();
+        let fetched: Transaction = with_server(json.clone(), get(&transaction.id))
+            .await
+            .unwrap();
         assert_eq!(fetched.name, "Coffee");
 
         let created: Transaction = with_server(
@@ -266,5 +267,4 @@ mod tests {
             .await
             .unwrap();
     }
-
 }

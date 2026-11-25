@@ -216,18 +216,21 @@ mod tests {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // Verify the Android path format
-            let android_path =
-                std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");
+            let android_path = std::path::PathBuf::from("/data/data/com.badwatt.recurrency/files");
             let parent = android_path.parent().expect("Android path has parent");
             // On Linux test machines, /data/data does not exist
             // On Android devices, /data/data exists
             // This tests the path construction (line 18 in auth.rs)
-            assert!(android_path
-                .to_string_lossy()
-                .contains("com.badwatt.recurrency"));
-            assert!(parent
-                .to_string_lossy()
-                .ends_with("/data/data/com.badwatt.recurrency"));
+            assert!(
+                android_path
+                    .to_string_lossy()
+                    .contains("com.badwatt.recurrency")
+            );
+            assert!(
+                parent
+                    .to_string_lossy()
+                    .ends_with("/data/data/com.badwatt.recurrency")
+            );
         }
     }
 

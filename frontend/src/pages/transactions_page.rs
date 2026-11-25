@@ -1,7 +1,7 @@
 use crate::components::ConvertedAmount;
-use crate::components::logo_image_with_fallback;
 use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::empty_state::EmptyState;
+use crate::components::logo_image_with_fallback;
 use crate::components::page_header::PageHeader;
 use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::TransactionRowSkeleton;

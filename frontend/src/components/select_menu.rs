@@ -65,7 +65,9 @@ pub fn SelectMenu(
     let visible: Vec<SelectOption> = options
         .into_iter()
         .filter(|option| {
-            !searchable || query_value.is_empty() || option.label.to_lowercase().contains(&query_value)
+            !searchable
+                || query_value.is_empty()
+                || option.label.to_lowercase().contains(&query_value)
         })
         .collect();
 

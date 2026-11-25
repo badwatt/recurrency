@@ -355,10 +355,7 @@ impl AdminServiceTrait for SqlxAdminService {
     }
 }
 
-pub(crate) async fn delete_user_data(
-    pool: &PgPool,
-    user_id: uuid::Uuid,
-) -> AppResult<()> {
+pub(crate) async fn delete_user_data(pool: &PgPool, user_id: uuid::Uuid) -> AppResult<()> {
     let mut transaction = pool.begin().await?;
     for table in USER_DELETE_ORDER {
         let query = format!("DELETE FROM \"{table}\" WHERE user_id = $1");

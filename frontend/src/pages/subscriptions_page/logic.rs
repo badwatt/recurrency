@@ -80,14 +80,10 @@ pub fn matches_search(name: &str, notes: Option<&str>, query: &str) -> bool {
         return true;
     }
     name.to_lowercase().contains(&query)
-        || notes
-            .is_some_and(|notes| notes.to_lowercase().contains(&query))
+        || notes.is_some_and(|notes| notes.to_lowercase().contains(&query))
 }
 
-pub fn filter_subscriptions_by_search(
-    subs: Vec<Subscription>,
-    query: &str,
-) -> Vec<Subscription> {
+pub fn filter_subscriptions_by_search(subs: Vec<Subscription>, query: &str) -> Vec<Subscription> {
     subs.into_iter()
         .filter(|sub| matches_search(&sub.name, sub.notes.as_deref(), query))
         .collect()
@@ -97,9 +93,18 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
     let mut result: Vec<Subscription> = subs.to_vec();
 
     match filters.status.as_deref() {
-        Some("active") => result.retain(|s| s.is_active && !subscription_is_finalized(s.is_active, s.end_date, chrono::Utc::now().date_naive())),
+        Some("active") => result.retain(|s| {
+            s.is_active
+                && !subscription_is_finalized(
+                    s.is_active,
+                    s.end_date,
+                    chrono::Utc::now().date_naive(),
+                )
+        }),
         Some("inactive") => result.retain(|s| !s.is_active),
-        Some("finalized") => result.retain(|s| subscription_is_finalized(s.is_active, s.end_date, chrono::Utc::now().date_naive())),
+        Some("finalized") => result.retain(|s| {
+            subscription_is_finalized(s.is_active, s.end_date, chrono::Utc::now().date_naive())
+        }),
         _ => {}
     }
 
@@ -133,23 +138,27 @@ pub fn filter_subscriptions(subs: &[Subscription], filters: &FilterConfig) -> Ve
 }
 
 pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
-    let unit_order: std::collections::HashMap<&str, i32> = std::collections::HashMap::from([
-        ("day", 0),
-        ("week", 1),
-        ("month", 2),
-        ("year", 3),
-    ]);
+    let unit_order: std::collections::HashMap<&str, i32> =
+        std::collections::HashMap::from([("day", 0), ("week", 1), ("month", 2), ("year", 3)]);
 
     subs.sort_by(|a, b| {
         let cmp = match sort.field.as_str() {
             "next_billing_date" => {
                 let a_val = a
                     .next_billing_date
-                    .map(|d| d.and_time(chrono::NaiveTime::MIN).and_utc().timestamp_millis())
+                    .map(|d| {
+                        d.and_time(chrono::NaiveTime::MIN)
+                            .and_utc()
+                            .timestamp_millis()
+                    })
                     .unwrap_or(i64::MAX);
                 let b_val = b
                     .next_billing_date
-                    .map(|d| d.and_time(chrono::NaiveTime::MIN).and_utc().timestamp_millis())
+                    .map(|d| {
+                        d.and_time(chrono::NaiveTime::MIN)
+                            .and_utc()
+                            .timestamp_millis()
+                    })
                     .unwrap_or(i64::MAX);
                 a_val.cmp(&b_val)
             }
@@ -164,14 +173,26 @@ pub fn sort_subscriptions(subs: &mut [Subscription], sort: &SortConfig) {
                         ("quarterly", 3),
                         ("yearly", 4),
                     ]);
-                let a_ord = unit_order.get(a.recurrence.unit.as_str()).copied().unwrap_or(99);
-                let b_ord = unit_order.get(b.recurrence.unit.as_str()).copied().unwrap_or(99);
+                let a_ord = unit_order
+                    .get(a.recurrence.unit.as_str())
+                    .copied()
+                    .unwrap_or(99);
+                let b_ord = unit_order
+                    .get(b.recurrence.unit.as_str())
+                    .copied()
+                    .unwrap_or(99);
                 a_ord
                     .cmp(&b_ord)
                     .then_with(|| a.recurrence.interval.cmp(&b.recurrence.interval))
                     .then_with(|| {
-                        let a_legacy = legacy_order.get(a.frequency.as_str()).copied().unwrap_or(99);
-                        let b_legacy = legacy_order.get(b.frequency.as_str()).copied().unwrap_or(99);
+                        let a_legacy = legacy_order
+                            .get(a.frequency.as_str())
+                            .copied()
+                            .unwrap_or(99);
+                        let b_legacy = legacy_order
+                            .get(b.frequency.as_str())
+                            .copied()
+                            .unwrap_or(99);
                         a_legacy.cmp(&b_legacy)
                     })
             }
@@ -221,7 +242,11 @@ pub fn subscription_is_finalized(
 
 /// Returns CSS opacity class based on active/finalized status.
 pub fn subscription_card_opacity(is_active: bool, finalized: bool) -> &'static str {
-    if is_active && !finalized { "" } else { "opacity-60" }
+    if is_active && !finalized {
+        ""
+    } else {
+        "opacity-60"
+    }
 }
 
 /// Human-readable end-date state shown under the next payment line.

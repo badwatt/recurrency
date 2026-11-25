@@ -31,10 +31,8 @@ impl RatesState {
         if self.base.is_empty() || currency.eq_ignore_ascii_case(&self.base) {
             return (original, None);
         }
-        let converted = crate::utils::format::format_currency(
-            self.convert(amount, currency),
-            &self.base,
-        );
+        let converted =
+            crate::utils::format::format_currency(self.convert(amount, currency), &self.base);
         (converted, Some(original))
     }
 

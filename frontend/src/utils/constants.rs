@@ -159,10 +159,22 @@ pub const CURRENCIES: &[(&str, &str)] = &[
     ("XAF", "XAF — CFA Franc BEAC"),
     ("XAG", "XAG — Silver"),
     ("XAU", "XAU — Gold"),
-    ("XBA", "XBA — Bond Markets Unit European Composite Unit (EURCO)"),
-    ("XBB", "XBB — Bond Markets Unit European Monetary Unit (E.M.U.-6)"),
-    ("XBC", "XBC — Bond Markets Unit European Unit of Account 9 (E.U.A.-9)"),
-    ("XBD", "XBD — Bond Markets Unit European Unit of Account 17 (E.U.A.-17)"),
+    (
+        "XBA",
+        "XBA — Bond Markets Unit European Composite Unit (EURCO)",
+    ),
+    (
+        "XBB",
+        "XBB — Bond Markets Unit European Monetary Unit (E.M.U.-6)",
+    ),
+    (
+        "XBC",
+        "XBC — Bond Markets Unit European Unit of Account 9 (E.U.A.-9)",
+    ),
+    (
+        "XBD",
+        "XBD — Bond Markets Unit European Unit of Account 17 (E.U.A.-17)",
+    ),
     ("XCD", "XCD — East Caribbean Dollar"),
     ("XCG", "XCG — Caribbean Guilder"),
     ("XDR", "XDR — SDR (Special Drawing Right)"),
@@ -171,9 +183,15 @@ pub const CURRENCIES: &[(&str, &str)] = &[
     ("XPF", "XPF — CFP Franc"),
     ("XPT", "XPT — Platinum"),
     ("XSU", "XSU — Sucre"),
-    ("XTS", "XTS — Codes specifically reserved for testing purposes"),
+    (
+        "XTS",
+        "XTS — Codes specifically reserved for testing purposes",
+    ),
     ("XUA", "XUA — ADB Unit of Account"),
-    ("XXX", "XXX — The codes assigned for transactions where no currency is involved"),
+    (
+        "XXX",
+        "XXX — The codes assigned for transactions where no currency is involved",
+    ),
     ("YER", "YER — Yemeni Rial"),
     ("ZAR", "ZAR — Rand"),
     ("ZMW", "ZMW — Zambian Kwacha"),
@@ -189,7 +207,6 @@ pub const FREQUENCIES: &[(&str, &str)] = &[
     ("yearly", "Yearly"),
 ];
 
-
 /// Recurrence units for filters and summaries.
 pub const RECURRENCE_UNITS: &[(&str, &str)] = &[
     ("day", "Days"),
@@ -197,7 +214,6 @@ pub const RECURRENCE_UNITS: &[(&str, &str)] = &[
     ("month", "Months"),
     ("year", "Years"),
 ];
-
 
 /// Debt types stored by the backend.
 pub const DEBT_TYPE_MANUAL: &str = "manual";
@@ -282,7 +298,11 @@ mod tests {
     fn currency_labels() {
         assert_eq!(CURRENCIES[0].1, "EUR — Euro");
         assert_eq!(
-            CURRENCIES.iter().find(|(code, _)| *code == "CLP").unwrap().1,
+            CURRENCIES
+                .iter()
+                .find(|(code, _)| *code == "CLP")
+                .unwrap()
+                .1,
             "CLP — Chilean Peso"
         );
     }

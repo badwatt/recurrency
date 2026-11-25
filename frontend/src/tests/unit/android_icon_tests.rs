@@ -53,7 +53,9 @@ fn test_mipmap_directories_exist_with_icons() {
 /// Fix: drawable-v24/ic_launcher_foreground.xml should reference bitmap.
 #[test]
 fn test_foreground_xml_not_vector_pathdata() {
-    let foreground = std::path::PathBuf::from("frontend/target/dx/recurrency/release/android/app/app/src/main/res/drawable-v24/ic_launcher_foreground.xml");
+    let foreground = std::path::PathBuf::from(
+        "frontend/target/dx/recurrency/release/android/app/app/src/main/res/drawable-v24/ic_launcher_foreground.xml",
+    );
     if !foreground.exists() {
         return;
     }
@@ -61,15 +63,20 @@ fn test_foreground_xml_not_vector_pathdata() {
     let has_path_data = xml.contains("android:pathData");
     let has_bitmap = xml.contains("bitmap") || xml.contains("drawable/ic_launcher");
     // Either bitmap reference OR no pathData (replaced with image)
-    assert!(has_bitmap || !has_path_data,
+    assert!(
+        has_bitmap || !has_path_data,
         "ic_launcher_foreground should be bitmap reference, not default vector pathData. Has pathData: {}, Has bitmap: {}",
-        has_path_data, has_bitmap);
+        has_path_data,
+        has_bitmap
+    );
 }
 
 /// TDD RED: foreground drawable directory must exist with icon image.
 #[test]
 fn test_drawable_foreground_icon_exists() {
-    let foreground_png = std::path::PathBuf::from("frontend/target/dx/recurrency/release/android/app/app/src/main/res/drawable/ic_launcher_foreground.png");
+    let foreground_png = std::path::PathBuf::from(
+        "frontend/target/dx/recurrency/release/android/app/app/src/main/res/drawable/ic_launcher_foreground.png",
+    );
     if !foreground_png.exists() {
         return;
     }

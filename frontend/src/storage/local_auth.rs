@@ -78,8 +78,7 @@ fn accounts_file() -> Option<std::path::PathBuf> {
         }
         return None;
     }
-    crate::state::auth::get_app_data_dir()
-        .map(|d| d.join("recurrency").join(ACCOUNTS_FILE))
+    crate::state::auth::get_app_data_dir().map(|d| d.join("recurrency").join(ACCOUNTS_FILE))
 }
 
 #[cfg(test)]
@@ -91,7 +90,6 @@ pub(crate) static AUTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new((
 #[cfg(test)]
 static TEST_DIR_OWNER: std::sync::Mutex<Option<std::thread::ThreadId>> =
     std::sync::Mutex::new(None);
-
 
 #[cfg(test)]
 pub(crate) fn set_render_test_dir(dir: std::path::PathBuf) {
@@ -115,8 +113,7 @@ pub(crate) fn clear_render_test_dir() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn legacy_accounts_file() -> Option<std::path::PathBuf> {
-    dirs::data_dir()
-        .map(|dir| dir.join("recurrency").join("local_accounts.json"))
+    dirs::data_dir().map(|dir| dir.join("recurrency").join("local_accounts.json"))
 }
 
 fn load_accounts() -> Vec<LocalAccount> {
@@ -273,10 +270,8 @@ mod tests {
             let lock = crate::storage::local_auth::AUTH_TEST_LOCK
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            let dir = std::env::temp_dir().join(format!(
-                "recurrency-local-auth-{}",
-                Uuid::new_v4()
-            ));
+            let dir =
+                std::env::temp_dir().join(format!("recurrency-local-auth-{}", Uuid::new_v4()));
             let _ = std::fs::remove_dir_all(&dir);
             *TEST_DIR
                 .lock()
@@ -397,7 +392,12 @@ mod tests {
         let _test = AuthTest::new();
         std::fs::create_dir_all(TEST_DIR.lock().unwrap().as_ref().unwrap()).unwrap();
         std::fs::write(
-            TEST_DIR.lock().unwrap().as_ref().unwrap().join(ACCOUNTS_FILE),
+            TEST_DIR
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .join(ACCOUNTS_FILE),
             "not json",
         )
         .unwrap();

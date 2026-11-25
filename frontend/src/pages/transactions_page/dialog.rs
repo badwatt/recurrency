@@ -1,13 +1,13 @@
 use crate::components::AccountCombobox;
+use crate::components::CategoryCombobox;
 use crate::components::button::{Button, ButtonVariant};
-use crate::components::dialog::Dialog;
 use crate::components::date_picker::DatePicker;
+use crate::components::dialog::Dialog;
 use crate::components::field::Field;
 use crate::components::input::Input;
-use crate::components::textarea::Textarea;
 use crate::components::logo_search::LogoSearch;
-use crate::components::CategoryCombobox;
 use crate::components::select_menu::{SelectMenu, SelectOption};
+use crate::components::textarea::Textarea;
 use crate::models::transaction::{CreateTransactionRequest, UpdateTransactionRequest};
 use crate::state::accounts::ACCOUNTS;
 use crate::state::auth::AUTH;
@@ -23,10 +23,7 @@ use uuid::Uuid;
 /// Create/edit transaction dialog. Mounted fresh each time it opens, so its
 /// form state is initialised from `editing_id` (None = create).
 #[component]
-pub fn TransactionDialog(
-    open: Signal<bool>,
-    editing_id: Signal<Option<Uuid>>,
-) -> Element {
+pub fn TransactionDialog(open: Signal<bool>, editing_id: Signal<Option<Uuid>>) -> Element {
     let existing = editing_id().and_then(|id| {
         TRANSACTIONS()
             .transactions
@@ -35,7 +32,10 @@ pub fn TransactionDialog(
             .cloned()
     });
 
-    let init_name = existing.as_ref().map(|t| t.name.clone()).unwrap_or_default();
+    let init_name = existing
+        .as_ref()
+        .map(|t| t.name.clone())
+        .unwrap_or_default();
     let init_amount = existing
         .as_ref()
         .map(|t| t.amount.to_string())
@@ -173,7 +173,11 @@ pub fn TransactionDialog(
                 Storage::update_transaction(
                     &id,
                     &UpdateTransactionRequest {
-                        account_id: if account_id.is_nil() { None } else { Some(account_id) },
+                        account_id: if account_id.is_nil() {
+                            None
+                        } else {
+                            Some(account_id)
+                        },
                         name: Some(name_val),
                         amount: Some(amount),
                         currency: Some(form_currency()),

@@ -11,9 +11,9 @@ use crate::pages::settings_page::exchange_rates_card::ExchangeRatesCard;
 use crate::pages::settings_page::preferences_card::PreferencesCard;
 use crate::pages::settings_page::summary_card::SummaryCard;
 use crate::pages::settings_page::sync_card::SyncFolderCard;
+use crate::pages::transactions_page::cards::TransactionCard;
 use crate::pages::transactions_page::dialog::TransactionDialog;
 use crate::pages::transactions_page::notes_dialog::NotesDialog;
-use crate::pages::transactions_page::cards::TransactionCard;
 
 fn render(component: fn() -> Element) {
     let _guard = crate::storage::STORAGE_TEST_LOCK
@@ -23,10 +23,8 @@ fn render(component: fn() -> Element) {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     crate::api::client::force_offline_for_tests();
-    let dir = std::env::temp_dir().join(format!(
-        "recurrency-shared-render-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("recurrency-shared-render-{}", uuid::Uuid::new_v4()));
     crate::storage::local_auth::set_render_test_dir(dir);
     let mut dom = VirtualDom::new(component);
     dom.rebuild_in_place();
@@ -37,13 +35,34 @@ fn render(component: fn() -> Element) {
 #[test]
 fn settings_content_cards_render_with_ssr() {
     for (html, expected) in [
-        (dioxus_ssr::render_element(rsx! { PreferencesCard {} }), "Defaults"),
-        (dioxus_ssr::render_element(rsx! { SummaryCard {} }), "Dashboard summary"),
-        (dioxus_ssr::render_element(rsx! { ExchangeRatesCard {} }), "Exchange rates"),
-        (dioxus_ssr::render_element(rsx! { SyncFolderCard {} }), "Cloud folder sync"),
-        (dioxus_ssr::render_element(rsx! { DeliveryCard {} }), "Delivery channels"),
-        (dioxus_ssr::render_element(rsx! { AboutPage {} }), "Every expense is a subscription"),
-        (dioxus_ssr::render_element(rsx! { ApkCard {} }), "Android app"),
+        (
+            dioxus_ssr::render_element(rsx! { PreferencesCard {} }),
+            "Defaults",
+        ),
+        (
+            dioxus_ssr::render_element(rsx! { SummaryCard {} }),
+            "Dashboard summary",
+        ),
+        (
+            dioxus_ssr::render_element(rsx! { ExchangeRatesCard {} }),
+            "Exchange rates",
+        ),
+        (
+            dioxus_ssr::render_element(rsx! { SyncFolderCard {} }),
+            "Cloud folder sync",
+        ),
+        (
+            dioxus_ssr::render_element(rsx! { DeliveryCard {} }),
+            "Delivery channels",
+        ),
+        (
+            dioxus_ssr::render_element(rsx! { AboutPage {} }),
+            "Every expense is a subscription",
+        ),
+        (
+            dioxus_ssr::render_element(rsx! { ApkCard {} }),
+            "Android app",
+        ),
     ] {
         assert!(html.contains(expected), "missing {expected}");
     }
@@ -79,7 +98,9 @@ fn list_pages_render_with_ssr() {
     crate::api::client::force_offline_for_tests();
     for (html, expected) in [
         (
-            dioxus_ssr::render_element(rsx! { crate::pages::subscriptions_page::SubscriptionsPage {} }),
+            dioxus_ssr::render_element(
+                rsx! { crate::pages::subscriptions_page::SubscriptionsPage {} },
+            ),
             "Subscriptions",
         ),
         (
@@ -279,7 +300,10 @@ fn sample_category(id: uuid::Uuid) -> crate::models::category::Category {
     }
 }
 
-fn sample_subscription(account_id: uuid::Uuid, category_id: uuid::Uuid) -> crate::models::subscription::Subscription {
+fn sample_subscription(
+    account_id: uuid::Uuid,
+    category_id: uuid::Uuid,
+) -> crate::models::subscription::Subscription {
     let start = chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap_or_default();
     crate::models::subscription::Subscription {
         id: uuid::Uuid::new_v4(),
@@ -292,7 +316,12 @@ fn sample_subscription(account_id: uuid::Uuid, category_id: uuid::Uuid) -> crate
         frequency: "monthly".to_string(),
         schedule_day: Some(1),
         schedule_month: None,
-        recurrence: crate::models::subscription::Recurrence::from_legacy("monthly", start, Some(1), None),
+        recurrence: crate::models::subscription::Recurrence::from_legacy(
+            "monthly",
+            start,
+            Some(1),
+            None,
+        ),
         start_date: start,
         end_date: None,
         next_billing_date: Some(start),
@@ -304,7 +333,10 @@ fn sample_subscription(account_id: uuid::Uuid, category_id: uuid::Uuid) -> crate
     }
 }
 
-fn sample_transaction_with_account(account_id: uuid::Uuid, category_id: uuid::Uuid) -> crate::models::transaction::Transaction {
+fn sample_transaction_with_account(
+    account_id: uuid::Uuid,
+    category_id: uuid::Uuid,
+) -> crate::models::transaction::Transaction {
     crate::models::transaction::Transaction {
         id: uuid::Uuid::new_v4(),
         user_id: uuid::Uuid::new_v4(),
@@ -337,13 +369,24 @@ fn SeededPages(children: Element) -> Element {
             .set_data(vec![sample_subscription(account_id, category_id)]);
         crate::state::transactions::TRANSACTIONS
             .write()
-            .set_data(vec![sample_transaction_with_account(account_id, category_id)]);
+            .set_data(vec![sample_transaction_with_account(
+                account_id,
+                category_id,
+            )]);
     });
     use_drop(|| {
-        crate::state::accounts::ACCOUNTS.write().set_data(Vec::new());
-        crate::state::categories::CATEGORIES.write().set_data(Vec::new());
-        crate::state::subscriptions::SUBSCRIPTIONS.write().set_data(Vec::new());
-        crate::state::transactions::TRANSACTIONS.write().set_data(Vec::new());
+        crate::state::accounts::ACCOUNTS
+            .write()
+            .set_data(Vec::new());
+        crate::state::categories::CATEGORIES
+            .write()
+            .set_data(Vec::new());
+        crate::state::subscriptions::SUBSCRIPTIONS
+            .write()
+            .set_data(Vec::new());
+        crate::state::transactions::TRANSACTIONS
+            .write()
+            .set_data(Vec::new());
     });
     rsx! { {children} }
 }
@@ -375,10 +418,10 @@ fn pages_render_with_sample_data() {
     crate::api::client::reset_offline_for_tests();
 }
 
-
 #[test]
 fn privacy_and_account_form_primitives_render_with_ssr() {
-    let html = dioxus_ssr::render_element(rsx! { crate::components::privacy_toggle::PrivacyToggle {} });
+    let html =
+        dioxus_ssr::render_element(rsx! { crate::components::privacy_toggle::PrivacyToggle {} });
     assert!(html.contains("Hide amounts") || html.contains("Show amounts"));
 
     #[component]

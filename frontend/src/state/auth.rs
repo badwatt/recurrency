@@ -557,10 +557,8 @@ mod tests {
         let _guard = AUTH_FILE_TEST_LOCK.lock().unwrap();
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let dir = std::env::temp_dir().join(format!(
-                "recurrency-auth-persist-{}",
-                uuid::Uuid::new_v4()
-            ));
+            let dir = std::env::temp_dir()
+                .join(format!("recurrency-auth-persist-{}", uuid::Uuid::new_v4()));
             let _ = std::fs::remove_dir_all(&dir);
 
             let mut state = AuthState::default();

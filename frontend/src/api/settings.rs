@@ -1,6 +1,6 @@
-use dioxus::prelude::ReadableExt;
-use crate::api::client::{api_get, api_post, api_put, is_offline_mode, ApiError};
+use crate::api::client::{ApiError, api_get, api_post, api_put, is_offline_mode};
 use crate::models::auth::*;
+use dioxus::prelude::ReadableExt;
 
 #[allow(dead_code)]
 pub async fn get() -> Result<SettingsResponse, ApiError> {
@@ -72,7 +72,7 @@ mod tests {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
             email: None,
-                avatar: None,
+            avatar: None,
             name: Some("Alice".into()),
             currency: Some("USD".into()),
         };
@@ -89,7 +89,7 @@ mod tests {
         let user_response = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Alice".into()),
             currency: "USD".into(),
             verified: true,
@@ -135,7 +135,7 @@ mod tests {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
             email: None,
-                avatar: None,
+            avatar: None,
             name: None,
             currency: Some("EUR".into()),
         };
@@ -148,7 +148,7 @@ mod tests {
         use crate::models::auth::UpdateSettingsRequest;
         let req = UpdateSettingsRequest {
             email: None,
-                avatar: None,
+            avatar: None,
             name: Some("Bob".into()),
             currency: None,
         };
@@ -222,5 +222,4 @@ mod tests {
         .await
         .unwrap();
     }
-
 }

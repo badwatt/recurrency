@@ -39,7 +39,5 @@ pub async fn import(
             &headers,
         )?)
         .await?;
-    Ok(Json(
-        state.backup_service.import(claims.sub, backup).await?,
-    ))
+    Ok(Json(state.backup_service.import(claims.sub, backup).await?))
 }

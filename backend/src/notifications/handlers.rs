@@ -1,17 +1,17 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::HeaderMap,
-    Json,
 };
 use uuid::Uuid;
 
 use crate::notifications::models::{
     NotificationPreferencesResponse, NotificationResponse, UpdateNotificationPreferencesRequest,
 };
+use crate::shared::OptionalQuery;
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::{AppError, AppResult};
-use crate::shared::OptionalQuery;
 
 #[derive(serde::Deserialize)]
 pub struct NotificationQuery {
@@ -23,11 +23,13 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<NotificationResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
     let notifications = state.notification_service.list(claims.sub).await?;
     Ok(Json(notifications))
 }
@@ -38,14 +40,19 @@ pub async fn mark_read(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
     let notification_id = Uuid::parse_str(&id)
         .map_err(|_| AppError::NotFound("Invalid notification ID".to_string()))?;
-    let success = state.notification_service.mark_read(claims.sub, notification_id).await?;
+    let success = state
+        .notification_service
+        .mark_read(claims.sub, notification_id)
+        .await?;
     Ok(Json(serde_json::json!({ "success": success })))
 }
 
@@ -54,11 +61,13 @@ pub async fn mark_all_read(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
     let count = state.notification_service.mark_all_read(claims.sub).await?;
     Ok(Json(serde_json::json!({ "marked_count": count })))
 }
@@ -69,14 +78,19 @@ pub async fn delete(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> AppResult<Json<serde_json::Value>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
     let notification_id = Uuid::parse_str(&id)
         .map_err(|_| AppError::NotFound("Invalid notification ID".to_string()))?;
-    let success = state.notification_service.delete(claims.sub, notification_id).await?;
+    let success = state
+        .notification_service
+        .delete(claims.sub, notification_id)
+        .await?;
     Ok(Json(serde_json::json!({ "success": success })))
 }
 
@@ -86,13 +100,17 @@ pub async fn get_notification_preferences(
     OptionalQuery(query): OptionalQuery<NotificationQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
-    let preferences =
-        state.notification_service.get_notification_preferences(claims.sub).await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
+    let preferences = state
+        .notification_service
+        .get_notification_preferences(claims.sub)
+        .await?;
     Ok(Json(NotificationPreferencesResponse { preferences }))
 }
 
@@ -102,16 +120,17 @@ pub async fn update_notification_preferences(
     headers: HeaderMap,
     Json(req): Json<UpdateNotificationPreferencesRequest>,
 ) -> AppResult<Json<NotificationPreferencesResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
-    let preferences = state.notification_service.update_notification_preferences(
-        claims.sub,
-        req.preferences,
-    )
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
+    let preferences = state
+        .notification_service
+        .update_notification_preferences(claims.sub, req.preferences)
+        .await?;
     Ok(Json(NotificationPreferencesResponse { preferences }))
 }
 

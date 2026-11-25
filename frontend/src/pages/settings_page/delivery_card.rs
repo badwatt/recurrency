@@ -1,16 +1,16 @@
 use crate::api::notification_channels;
-use crate::components::select_menu::{SelectMenu, SelectOption};
-use crate::components::toast::TOAST;
-use crate::models::notification::{
-    NotificationChannel, UpdateNotificationChannelRequest,
-};
-use dioxus::prelude::*;
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::SectionCard;
 use crate::components::field::Field;
 use crate::components::input::{Input, InputSize};
+use crate::components::select_menu::{SelectMenu, SelectOption};
+use crate::components::toast::TOAST;
 use crate::components::toggle::Toggle;
-use lucide_dioxus::{Bell, Gamepad2, Hash, Mail, BotMessageSquare, Plus, Send, Server, Smartphone, Webhook};
+use crate::models::notification::{NotificationChannel, UpdateNotificationChannelRequest};
+use dioxus::prelude::*;
+use lucide_dioxus::{
+    Bell, BotMessageSquare, Gamepad2, Hash, Mail, Plus, Send, Server, Smartphone, Webhook,
+};
 use serde_json::{Value, json};
 
 #[derive(Clone, Copy)]
@@ -21,17 +21,61 @@ struct Provider {
 }
 
 const PROVIDERS: &[Provider] = &[
-    Provider { id: "email", label: "Email", color: "#6366f1" },
-    Provider { id: "ntfy", label: "ntfy", color: "#22c55e" },
-    Provider { id: "telegram", label: "Telegram", color: "#0ea5e9" },
-    Provider { id: "discord", label: "Discord", color: "#5865f2" },
-    Provider { id: "gotify", label: "Gotify", color: "#f59e0b" },
-    Provider { id: "webhook", label: "Webhook", color: "#8b5cf6" },
-    Provider { id: "slack", label: "Slack", color: "#e01e5a" },
-    Provider { id: "mattermost", label: "Mattermost", color: "#0058cc" },
-    Provider { id: "pushover", label: "Pushover", color: "#e11d48" },
-    Provider { id: "pushplus", label: "PushPlus", color: "#14b8a6" },
-    Provider { id: "serverchan", label: "ServerChan", color: "#64748b" },
+    Provider {
+        id: "email",
+        label: "Email",
+        color: "#6366f1",
+    },
+    Provider {
+        id: "ntfy",
+        label: "ntfy",
+        color: "#22c55e",
+    },
+    Provider {
+        id: "telegram",
+        label: "Telegram",
+        color: "#0ea5e9",
+    },
+    Provider {
+        id: "discord",
+        label: "Discord",
+        color: "#5865f2",
+    },
+    Provider {
+        id: "gotify",
+        label: "Gotify",
+        color: "#f59e0b",
+    },
+    Provider {
+        id: "webhook",
+        label: "Webhook",
+        color: "#8b5cf6",
+    },
+    Provider {
+        id: "slack",
+        label: "Slack",
+        color: "#e01e5a",
+    },
+    Provider {
+        id: "mattermost",
+        label: "Mattermost",
+        color: "#0058cc",
+    },
+    Provider {
+        id: "pushover",
+        label: "Pushover",
+        color: "#e11d48",
+    },
+    Provider {
+        id: "pushplus",
+        label: "PushPlus",
+        color: "#14b8a6",
+    },
+    Provider {
+        id: "serverchan",
+        label: "ServerChan",
+        color: "#64748b",
+    },
 ];
 
 fn field(config: &Value, key: &str) -> String {
@@ -175,15 +219,17 @@ pub fn DeliveryCard() -> Element {
 
     // Load the selected provider's config into the form without going through
     // a select input. The rail calls this with the clicked provider.
-    let load = Callback::new(move |(provider, list): (String, Vec<NotificationChannel>)| {
-        let channel = list.iter().find(|channel| channel.provider == provider);
-        let config = channel
-            .map(|channel| channel.config.clone())
-            .unwrap_or_else(|| json!({}));
-        *enabled.write() = channel.is_some_and(|channel| channel.enabled);
-        *form.write() = ChannelFields::from_config(&config);
-        *selected.write() = provider;
-    });
+    let load = Callback::new(
+        move |(provider, list): (String, Vec<NotificationChannel>)| {
+            let channel = list.iter().find(|channel| channel.provider == provider);
+            let config = channel
+                .map(|channel| channel.config.clone())
+                .unwrap_or_else(|| json!({}));
+            *enabled.write() = channel.is_some_and(|channel| channel.enabled);
+            *form.write() = ChannelFields::from_config(&config);
+            *selected.write() = provider;
+        },
+    );
 
     use_future(move || async move {
         if crate::api::client::is_offline_mode() {
@@ -214,7 +260,10 @@ pub fn DeliveryCard() -> Element {
             match notification_channels::update(&provider, &req).await {
                 Ok(channel) => {
                     let mut list = channels();
-                    if let Some(item) = list.iter_mut().find(|item| item.provider == channel.provider) {
+                    if let Some(item) = list
+                        .iter_mut()
+                        .find(|item| item.provider == channel.provider)
+                    {
                         *item = channel;
                     }
                     channels.set(list);
@@ -252,270 +301,270 @@ pub fn DeliveryCard() -> Element {
         .unwrap_or("Delivery");
 
     rsx! {
-        SectionCard {
-            title: "Delivery channels",
-            description: "One summary, several destinations. Secrets stay encrypted.",
-            content_class: "p-0",
-            div { class: "p-4 sm:p-6 grid gap-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-6",
-                div {
-                    class: "flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:border-r lg:border-border/40 lg:pr-4",
-                    role: "tablist",
-                    aria_label: "Delivery channels",
-                    for provider in PROVIDERS {
-                        {
-                            let active = selected() == provider.id;
-                            let is_enabled = channels()
-                                .iter()
-                                .find(|channel| channel.provider == provider.id)
-                                .is_some_and(|channel| channel.enabled);
-                            let class = if active {
-                                "flex shrink-0 items-center gap-2.5 rounded-lg bg-accent px-2.5 py-2 text-left text-sm font-medium text-accent-foreground lg:w-full"
-                            } else {
-                                "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground lg:w-full"
-                            };
-                            rsx! {
-                                button {
-                                    r#type: "button",
-                                    role: "tab",
-                                    aria_selected: if active { "true" } else { "false" },
-                                    class,
-                                    onclick: move |_| load.call((provider.id.to_string(), channels())),
-                                    span {
-                                        class: "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white",
-                                        style: "background-color: {provider.color}",
-                                        {provider_icon(provider.id)}
-                                    }
-                                    span { class: "whitespace-nowrap", {provider.label} }
-                                    if is_enabled {
-                                        span { class: "ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400", title: "Enabled" }
+            SectionCard {
+                title: "Delivery channels",
+                description: "One summary, several destinations. Secrets stay encrypted.",
+                content_class: "p-0",
+                div { class: "p-4 sm:p-6 grid gap-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-6",
+                    div {
+                        class: "flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:border-r lg:border-border/40 lg:pr-4",
+                        role: "tablist",
+                        aria_label: "Delivery channels",
+                        for provider in PROVIDERS {
+                            {
+                                let active = selected() == provider.id;
+                                let is_enabled = channels()
+                                    .iter()
+                                    .find(|channel| channel.provider == provider.id)
+                                    .is_some_and(|channel| channel.enabled);
+                                let class = if active {
+                                    "flex shrink-0 items-center gap-2.5 rounded-lg bg-accent px-2.5 py-2 text-left text-sm font-medium text-accent-foreground lg:w-full"
+                                } else {
+                                    "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground lg:w-full"
+                                };
+                                rsx! {
+                                    button {
+                                        r#type: "button",
+                                        role: "tab",
+                                        aria_selected: if active { "true" } else { "false" },
+                                        class,
+                                        onclick: move |_| load.call((provider.id.to_string(), channels())),
+                                        span {
+                                            class: "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white",
+                                            style: "background-color: {provider.color}",
+                                            {provider_icon(provider.id)}
+                                        }
+                                        span { class: "whitespace-nowrap", {provider.label} }
+                                        if is_enabled {
+                                            span { class: "ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400", title: "Enabled" }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                div { class: "min-w-0 space-y-4",
-                    div { class: "flex items-center justify-between gap-3 border-b border-border/40 pb-3",
-                        div {
-                            h3 { class: "text-sm font-semibold", {label} }
-                            p { class: "text-xs text-muted-foreground", "Configure this delivery channel" }
-                        }
-                        Toggle {
-                            checked: enabled(),
-                            label: if enabled() { format!("Disable {label}") } else { format!("Enable {label}") },
-                            on_change: move |value| enabled.set(value),
-                        }
-                    }
-
-                    if selected() == "email" {
-                        p { class: "text-sm text-muted-foreground", "Leave the SMTP fields empty to use the server-wide SMTP configuration." }
-                        div { class: "grid gap-3 sm:grid-cols-2",
-                            Field { label: "SMTP host", html_for: "smtp-host", class: "text-sm",
-Input {
-id: "smtp-host",
-value: form().email_host,
-on_input: move |value| form.write().email_host = value,
-placeholder: "smtp.example.com",
-size: InputSize::Sm,
-}
-}
-                            Field { label: "SMTP port", html_for: "smtp-port", class: "text-sm",
-Input {
-id: "smtp-port",
-r#type: "number",
-value: form().email_port,
-on_input: move |value| form.write().email_port = value,
-size: InputSize::Sm,
-}
-}
-                            div { class: "space-y-1 text-sm",
-                                p { class: "font-medium", "Encryption" }
-                                SelectMenu {
-                                    value: form().email_encryption.clone(),
-                                    options: vec![
-                                        SelectOption::new("tls", "TLS / STARTTLS"),
-                                        SelectOption::new("ssl", "SSL"),
-                                        SelectOption::new("none", "None"),
-                                    ],
-                                    on_change: move |value: String| form.write().email_encryption = value,
-                                    searchable: false,
-                                    class: "mt-1",
-                                }
+                    div { class: "min-w-0 space-y-4",
+                        div { class: "flex items-center justify-between gap-3 border-b border-border/40 pb-3",
+                            div {
+                                h3 { class: "text-sm font-semibold", {label} }
+                                p { class: "text-xs text-muted-foreground", "Configure this delivery channel" }
                             }
-                            Field { label: "From email", html_for: "smtp-from", class: "text-sm",
-Input {
-id: "smtp-from",
-value: form().email_from,
-on_input: move |value| form.write().email_from = value,
-size: InputSize::Sm,
-}
-}
-                            Field { label: "SMTP username", html_for: "smtp-username", class: "text-sm",
-Input {
-id: "smtp-username",
-value: form().email_username,
-on_input: move |value| form.write().email_username = value,
-size: InputSize::Sm,
-}
-}
-                            Field { label: "SMTP password", html_for: "smtp-password", class: "text-sm",
-Input {
-id: "smtp-password",
-r#type: "password",
-value: form().email_password,
-on_input: move |value| form.write().email_password = value,
-size: InputSize::Sm,
-}
-}
+                            Toggle {
+                                checked: enabled(),
+                                label: if enabled() { format!("Disable {label}") } else { format!("Enable {label}") },
+                                on_change: move |value| enabled.set(value),
+                            }
                         }
-                    } else if selected() == "ntfy" {
-                        div { class: "grid gap-3 sm:grid-cols-2",
-                            Field { label: "Server", class: "text-sm",
-Input {
-value: form().server,
-on_input: move |value| form.write().server = value,
-placeholder: "https://ntfy.sh",
-size: InputSize::Sm,
-}
-}
-                            Field { label: "Topic", class: "text-sm",
-Input {
-value: form().topic,
-on_input: move |value| form.write().topic = value,
-placeholder: "recurrency",
-size: InputSize::Sm,
-}
-}
-                        }
-                        Field { label: "Access token (optional)", class: "text-sm",
-Input {
-r#type: "password",
-value: form().token,
-on_input: move |value| form.write().token = value,
-size: InputSize::Sm,
-}
-}
-                    } else if selected() == "telegram" {
-                        div { class: "grid gap-3 sm:grid-cols-2",
-                            Field { label: "Bot token", class: "text-sm",
-Input {
-r#type: "password",
-value: form().bot_token,
-on_input: move |value| form.write().bot_token = value,
-size: InputSize::Sm,
-}
-}
-                            Field { label: "Chat ID", class: "text-sm",
-Input {
-value: form().chat_id,
-on_input: move |value| form.write().chat_id = value,
-size: InputSize::Sm,
-}
-}
-                        }
-                    } else if selected() == "discord" {
-                        Field { label: "Webhook URL", class: "text-sm",
-Input {
-r#type: "password",
-value: form().webhook_url,
-on_input: move |value| form.write().webhook_url = value,
-size: InputSize::Sm,
-}
-}
-                    } else if selected() == "gotify" {
-                        div { class: "grid gap-3 sm:grid-cols-2",
-                            Field { label: "Server URL", class: "text-sm",
-Input {
-value: form().gotify_server,
-on_input: move |value| form.write().gotify_server = value,
-placeholder: "https://gotify.example.com",
-size: InputSize::Sm,
-}
-}
-                            Field { label: "App token", class: "text-sm",
-Input {
-r#type: "password",
-value: form().gotify_token,
-on_input: move |value| form.write().gotify_token = value,
-size: InputSize::Sm,
-}
-}
-                        }
-                    } else if selected() == "webhook" {
-                        Field { label: "Webhook URL", class: "text-sm",
-Input {
-r#type: "password",
-value: form().webhook_url,
-on_input: move |value| form.write().webhook_url = value,
-size: InputSize::Sm,
-}
-}
-                        p { class: "text-xs text-muted-foreground", "The webhook receives a JSON body with title and message." }
-                    } else if selected() == "slack" || selected() == "mattermost" {
-                        Field { label: "Incoming webhook URL", class: "text-sm",
-Input {
-r#type: "password",
-value: form().webhook_url,
-on_input: move |value| form.write().webhook_url = value,
-size: InputSize::Sm,
-}
-}
-                    } else if selected() == "pushover" {
-                        div { class: "grid gap-3 sm:grid-cols-2",
-                            Field { label: "Application token", class: "text-sm",
-Input {
-r#type: "password",
-value: form().token,
-on_input: move |value| form.write().token = value,
-size: InputSize::Sm,
-}
-}
-                            Field { label: "User key", class: "text-sm",
-Input {
-value: form().pushover_user,
-on_input: move |value| form.write().pushover_user = value,
-size: InputSize::Sm,
-}
-}
-                        }
-                    } else if selected() == "pushplus" {
-                        Field { label: "PushPlus token", class: "text-sm",
-Input {
-r#type: "password",
-value: form().token,
-on_input: move |value| form.write().token = value,
-size: InputSize::Sm,
-}
-}
-                    } else if selected() == "serverchan" {
-                        Field { label: "SendKey", class: "text-sm",
-Input {
-r#type: "password",
-value: form().serverchan_key,
-on_input: move |value| form.write().serverchan_key = value,
-size: InputSize::Sm,
-}
-}
-                    }
 
-                    div { class: "flex flex-wrap items-center gap-2 pt-1",
-                        Button {
-                            disabled: saving(),
-                            onclick: save,
-                            if saving() { "Saving..." } else { "Save {label}" }
+                        if selected() == "email" {
+                            p { class: "text-sm text-muted-foreground", "Leave the SMTP fields empty to use the server-wide SMTP configuration." }
+                            div { class: "grid gap-3 sm:grid-cols-2",
+                                Field { label: "SMTP host", html_for: "smtp-host", class: "text-sm",
+    Input {
+    id: "smtp-host",
+    value: form().email_host,
+    on_input: move |value| form.write().email_host = value,
+    placeholder: "smtp.example.com",
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "SMTP port", html_for: "smtp-port", class: "text-sm",
+    Input {
+    id: "smtp-port",
+    r#type: "number",
+    value: form().email_port,
+    on_input: move |value| form.write().email_port = value,
+    size: InputSize::Sm,
+    }
+    }
+                                div { class: "space-y-1 text-sm",
+                                    p { class: "font-medium", "Encryption" }
+                                    SelectMenu {
+                                        value: form().email_encryption.clone(),
+                                        options: vec![
+                                            SelectOption::new("tls", "TLS / STARTTLS"),
+                                            SelectOption::new("ssl", "SSL"),
+                                            SelectOption::new("none", "None"),
+                                        ],
+                                        on_change: move |value: String| form.write().email_encryption = value,
+                                        searchable: false,
+                                        class: "mt-1",
+                                    }
+                                }
+                                Field { label: "From email", html_for: "smtp-from", class: "text-sm",
+    Input {
+    id: "smtp-from",
+    value: form().email_from,
+    on_input: move |value| form.write().email_from = value,
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "SMTP username", html_for: "smtp-username", class: "text-sm",
+    Input {
+    id: "smtp-username",
+    value: form().email_username,
+    on_input: move |value| form.write().email_username = value,
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "SMTP password", html_for: "smtp-password", class: "text-sm",
+    Input {
+    id: "smtp-password",
+    r#type: "password",
+    value: form().email_password,
+    on_input: move |value| form.write().email_password = value,
+    size: InputSize::Sm,
+    }
+    }
+                            }
+                        } else if selected() == "ntfy" {
+                            div { class: "grid gap-3 sm:grid-cols-2",
+                                Field { label: "Server", class: "text-sm",
+    Input {
+    value: form().server,
+    on_input: move |value| form.write().server = value,
+    placeholder: "https://ntfy.sh",
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "Topic", class: "text-sm",
+    Input {
+    value: form().topic,
+    on_input: move |value| form.write().topic = value,
+    placeholder: "recurrency",
+    size: InputSize::Sm,
+    }
+    }
+                            }
+                            Field { label: "Access token (optional)", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().token,
+    on_input: move |value| form.write().token = value,
+    size: InputSize::Sm,
+    }
+    }
+                        } else if selected() == "telegram" {
+                            div { class: "grid gap-3 sm:grid-cols-2",
+                                Field { label: "Bot token", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().bot_token,
+    on_input: move |value| form.write().bot_token = value,
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "Chat ID", class: "text-sm",
+    Input {
+    value: form().chat_id,
+    on_input: move |value| form.write().chat_id = value,
+    size: InputSize::Sm,
+    }
+    }
+                            }
+                        } else if selected() == "discord" {
+                            Field { label: "Webhook URL", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().webhook_url,
+    on_input: move |value| form.write().webhook_url = value,
+    size: InputSize::Sm,
+    }
+    }
+                        } else if selected() == "gotify" {
+                            div { class: "grid gap-3 sm:grid-cols-2",
+                                Field { label: "Server URL", class: "text-sm",
+    Input {
+    value: form().gotify_server,
+    on_input: move |value| form.write().gotify_server = value,
+    placeholder: "https://gotify.example.com",
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "App token", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().gotify_token,
+    on_input: move |value| form.write().gotify_token = value,
+    size: InputSize::Sm,
+    }
+    }
+                            }
+                        } else if selected() == "webhook" {
+                            Field { label: "Webhook URL", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().webhook_url,
+    on_input: move |value| form.write().webhook_url = value,
+    size: InputSize::Sm,
+    }
+    }
+                            p { class: "text-xs text-muted-foreground", "The webhook receives a JSON body with title and message." }
+                        } else if selected() == "slack" || selected() == "mattermost" {
+                            Field { label: "Incoming webhook URL", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().webhook_url,
+    on_input: move |value| form.write().webhook_url = value,
+    size: InputSize::Sm,
+    }
+    }
+                        } else if selected() == "pushover" {
+                            div { class: "grid gap-3 sm:grid-cols-2",
+                                Field { label: "Application token", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().token,
+    on_input: move |value| form.write().token = value,
+    size: InputSize::Sm,
+    }
+    }
+                                Field { label: "User key", class: "text-sm",
+    Input {
+    value: form().pushover_user,
+    on_input: move |value| form.write().pushover_user = value,
+    size: InputSize::Sm,
+    }
+    }
+                            }
+                        } else if selected() == "pushplus" {
+                            Field { label: "PushPlus token", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().token,
+    on_input: move |value| form.write().token = value,
+    size: InputSize::Sm,
+    }
+    }
+                        } else if selected() == "serverchan" {
+                            Field { label: "SendKey", class: "text-sm",
+    Input {
+    r#type: "password",
+    value: form().serverchan_key,
+    on_input: move |value| form.write().serverchan_key = value,
+    size: InputSize::Sm,
+    }
+    }
                         }
-                        Button {
-                            variant: ButtonVariant::Outline,
-                            disabled: testing(),
-                            onclick: test,
-                            if testing() { "Testing..." } else { "Send test" }
+
+                        div { class: "flex flex-wrap items-center gap-2 pt-1",
+                            Button {
+                                disabled: saving(),
+                                onclick: save,
+                                if saving() { "Saving..." } else { "Save {label}" }
+                            }
+                            Button {
+                                variant: ButtonVariant::Outline,
+                                disabled: testing(),
+                                onclick: test,
+                                if testing() { "Testing..." } else { "Send test" }
+                            }
                         }
                     }
                 }
             }
         }
-    }
 }
 
 #[cfg(test)]
@@ -526,7 +575,11 @@ mod tests {
     fn providers_are_unique_and_have_icons() {
         let mut ids = std::collections::HashSet::new();
         for provider in PROVIDERS {
-            assert!(ids.insert(provider.id), "duplicate provider {}", provider.id);
+            assert!(
+                ids.insert(provider.id),
+                "duplicate provider {}",
+                provider.id
+            );
             assert!(!provider.label.is_empty());
             assert!(provider.color.starts_with('#'));
             let _ = provider_icon(provider.id);

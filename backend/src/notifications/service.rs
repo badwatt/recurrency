@@ -19,12 +19,9 @@ pub fn notification_secret() -> AppResult<String> {
     })
 }
 
-pub const SELECT_NOTIFICATIONS_SQL: &str =
-"SELECT id, user_id, type as \"notification_type\", title, message, is_read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50";
+pub const SELECT_NOTIFICATIONS_SQL: &str = "SELECT id, user_id, type as \"notification_type\", title, message, is_read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50";
 
-pub const INSERT_NOTIFICATION_SQL: &str =
-"INSERT INTO notifications (id, user_id, type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())";
-
+pub const INSERT_NOTIFICATION_SQL: &str = "INSERT INTO notifications (id, user_id, type, title, message, is_read, created_at) VALUES ($1, $2, $3, $4, $5, false, NOW())";
 
 pub struct NotificationService;
 
@@ -179,8 +176,8 @@ impl NotificationService {
     ) -> AppResult<Vec<NotificationPreferenceResponse>> {
         for req in prefs {
             // Check if enabling push or system notifications
-            let should_send_confirmation = req.enabled
-                && (req.channel == "push" || req.channel == "system");
+            let should_send_confirmation =
+                req.enabled && (req.channel == "push" || req.channel == "system");
 
             sqlx::query(
                 "INSERT INTO notification_preferences (user_id, channel, enabled, reminder_days_before) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, channel) DO UPDATE SET enabled = $3, reminder_days_before = $4",
@@ -191,20 +188,25 @@ impl NotificationService {
             // Send confirmation notification if enabled
             if should_send_confirmation {
                 let (title, message) = if req.channel == "push" {
-                    ("Push notifications enabled", "You will receive push notifications for upcoming payments.")
+                    (
+                        "Push notifications enabled",
+                        "You will receive push notifications for upcoming payments.",
+                    )
                 } else {
-                    ("System notifications enabled", "You will receive desktop notifications for upcoming payments.")
+                    (
+                        "System notifications enabled",
+                        "You will receive desktop notifications for upcoming payments.",
+                    )
                 };
 
-                sqlx::query(
-                    INSERT_NOTIFICATION_SQL,
-                )
-                .bind(Uuid::new_v4())
-                .bind(user_id)
-                .bind("system")
-                .bind(title)
-                .bind(message)
-                .execute(pool).await?;
+                sqlx::query(INSERT_NOTIFICATION_SQL)
+                    .bind(Uuid::new_v4())
+                    .bind(user_id)
+                    .bind("system")
+                    .bind(title)
+                    .bind(message)
+                    .execute(pool)
+                    .await?;
             }
         }
         Self::get_notification_preferences(pool, user_id).await
@@ -671,16 +673,22 @@ mod tests {
 
     #[test]
     fn select_query_uses_db_type_column() {
-        assert!(!SELECT_NOTIFICATIONS_SQL.contains("notification_type as type"),
-            "SELECT SQL uses wrong column name");
-        assert!(SELECT_NOTIFICATIONS_SQL.contains(r#"type as "notification_type""#),
-            "SELECT SQL must alias DB column 'type' for sqlx FromRow");
+        assert!(
+            !SELECT_NOTIFICATIONS_SQL.contains("notification_type as type"),
+            "SELECT SQL uses wrong column name"
+        );
+        assert!(
+            SELECT_NOTIFICATIONS_SQL.contains(r#"type as "notification_type""#),
+            "SELECT SQL must alias DB column 'type' for sqlx FromRow"
+        );
     }
 
     #[test]
     fn insert_query_uses_db_type_column() {
-        assert!(!INSERT_NOTIFICATION_SQL.contains("notification_type"),
-            "INSERT SQL uses wrong column name");
+        assert!(
+            !INSERT_NOTIFICATION_SQL.contains("notification_type"),
+            "INSERT SQL uses wrong column name"
+        );
     }
 }
 

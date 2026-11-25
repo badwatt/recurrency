@@ -1,7 +1,7 @@
 pub mod account;
-pub mod currency;
 pub mod auth;
 pub mod category;
+pub mod currency;
 pub mod debt;
 pub mod logo;
 pub mod notification;

@@ -8,17 +8,19 @@ pub fn extract_token_from_request(
 ) -> Result<String, crate::shared::error::AppError> {
     // 1. Query param takes priority
     if let Some(token) = query_token
-        && !token.is_empty() {
-            return Ok(token.clone());
-        }
+        && !token.is_empty()
+    {
+        return Ok(token.clone());
+    }
 
     // 2. Fallback to Authorization: Bearer <token>
     if let Some(auth_header) = headers.get("authorization")
         && let Ok(auth_str) = auth_header.to_str()
-            && let Some(token) = auth_str.strip_prefix("Bearer ")
-                && !token.is_empty() {
-                    return Ok(token.to_string());
-                }
+        && let Some(token) = auth_str.strip_prefix("Bearer ")
+        && !token.is_empty()
+    {
+        return Ok(token.to_string());
+    }
 
     Err(crate::shared::error::AppError::Unauthorized(
         "Missing authentication token".into(),

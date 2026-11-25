@@ -4,14 +4,19 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
             inherit system;
             overlays = [
+              (import rust-overlay)
               (final: prev: {
                 wasm-bindgen-cli = final.rustPlatform.buildRustPackage rec {
                   pname = "wasm-bindgen-cli";
@@ -25,17 +30,17 @@
               })
             ];
           };
+        rustToolchain = pkgs.rust-bin.stable."1.100.0".default.override {
+          extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ];
+        };
       in
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             # Rust toolchain
-            cargo
-            rustc
-            rust-analyzer
-            clippy
-            rustfmt
+            rustToolchain
             cargo-llvm-cov
+            cargo-machete
             llvmPackages.llvm
             llvmPackages.lld
             # Wasm toolchain
@@ -105,7 +110,7 @@
 
         devShells.android = pkgs.mkShell {
           packages = with pkgs; [
-            cargo rustc rustfmt clippy
+            rustToolchain
             nodejs_22 bun
             gtk3 webkitgtk_4_1 librsvg glib libsoup_3 glib-networking
             pkg-config openssl cacert dbus libxml2 libxslt

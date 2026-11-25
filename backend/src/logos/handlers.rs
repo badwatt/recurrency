@@ -1,9 +1,9 @@
-use crate::logos::service::{search_logos, LogoResult};
-use axum::{extract::Query, Json};
+use crate::logos::service::{LogoResult, search_logos};
+use axum::{Json, extract::Query};
 use serde::Deserialize;
 
 #[cfg(test)]
-use axum::{body::Body, routing::get, Router};
+use axum::{Router, body::Body, routing::get};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchQuery {
@@ -17,9 +17,7 @@ pub struct LogoSearchResponse {
 
 // ── Handler ──
 
-pub async fn search(
-    Query(query): Query<SearchQuery>,
-) -> Json<LogoSearchResponse> {
+pub async fn search(Query(query): Query<SearchQuery>) -> Json<LogoSearchResponse> {
     // Logo search is non-critical — return empty results on any error
     // (DDG rate limits, network failures, parsing issues)
     let results = match search_logos(&query.q).await {
@@ -263,7 +261,10 @@ mod tests {
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
         let empty: Vec<serde_json::Value> = vec![];
-        let results = json.get("results").and_then(|v| v.as_array()).unwrap_or(&empty);
+        let results = json
+            .get("results")
+            .and_then(|v| v.as_array())
+            .unwrap_or(&empty);
 
         // Each logo should have expected fields
         for logo in results.iter().take(1) {
@@ -274,8 +275,8 @@ mod tests {
     }
     #[tokio::test]
     async fn empty_search_returns_no_results_without_network() {
-        let Json(response) = super::search(axum::extract::Query(super::SearchQuery { q: "   ".into() })).await;
+        let Json(response) =
+            super::search(axum::extract::Query(super::SearchQuery { q: "   ".into() })).await;
         assert!(response.results.is_empty());
     }
-
 }

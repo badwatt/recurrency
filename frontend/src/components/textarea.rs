@@ -16,7 +16,11 @@ pub fn Textarea(
 ) -> Element {
     let generated_id = use_hook(|| format!("textarea-{}", uuid::Uuid::new_v4()));
     let field_id = if id.is_empty() { generated_id } else { id };
-    let accessible_label = if aria_label.is_empty() { placeholder.clone() } else { aria_label };
+    let accessible_label = if aria_label.is_empty() {
+        placeholder.clone()
+    } else {
+        aria_label
+    };
     let field_name = if name.is_empty() {
         field_id.clone()
     } else {

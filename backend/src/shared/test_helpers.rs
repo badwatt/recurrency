@@ -3,9 +3,9 @@
 //! This module provides utilities to test HTTP handlers with mocked services.
 
 use axum::{
+    Router,
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
 use serde::de::DeserializeOwned;
 use tower::util::ServiceExt;

@@ -16,9 +16,23 @@ fn font_import_in_tailwind_src() {
     let fonts_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts");
     assert!(fonts_dir.exists(), "assets/fonts directory must exist");
     let woff2_count = std::fs::read_dir(&fonts_dir)
-        .map(|entries| entries.filter(|e| e.as_ref().unwrap().path().extension().map_or(false, |ext| ext == "woff2")).count())
+        .map(|entries| {
+            entries
+                .filter(|e| {
+                    e.as_ref()
+                        .unwrap()
+                        .path()
+                        .extension()
+                        .map_or(false, |ext| ext == "woff2")
+                })
+                .count()
+        })
         .unwrap_or(0);
-    assert!(woff2_count >= 2, "Must have at least 2 woff2 font files, found {}", woff2_count);
+    assert!(
+        woff2_count >= 2,
+        "Must have at least 2 woff2 font files, found {}",
+        woff2_count
+    );
 }
 
 #[test]

@@ -23,13 +23,21 @@ pub enum SpeechInput {
     Pcm(String),
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), feature = "desktop"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(target_os = "android"),
+    feature = "desktop"
+))]
 #[path = "speech_native.rs"]
 mod native_audio;
 
 /// Start dictation and wait for a final transcript or a recorded audio clip.
 pub async fn listen(mode: VoiceMode) -> Result<SpeechInput, String> {
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), feature = "desktop"))]
+    #[cfg(all(
+        not(target_arch = "wasm32"),
+        not(target_os = "android"),
+        feature = "desktop"
+    ))]
     {
         if mode == VoiceMode::Browser {
             listen_js(mode).await
@@ -37,7 +45,11 @@ pub async fn listen(mode: VoiceMode) -> Result<SpeechInput, String> {
             native_audio::listen(mode).await
         }
     }
-    #[cfg(not(all(not(target_arch = "wasm32"), not(target_os = "android"), feature = "desktop")))]
+    #[cfg(not(all(
+        not(target_arch = "wasm32"),
+        not(target_os = "android"),
+        feature = "desktop"
+    )))]
     {
         listen_js(mode).await
     }
@@ -73,7 +85,11 @@ fn should_retry_with_provider(error: &str) -> bool {
 /// Stop the active recording or browser recognition. The pending `listen`
 /// future resolves with whatever was captured so far.
 pub fn stop() {
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android"), feature = "desktop"))]
+    #[cfg(all(
+        not(target_arch = "wasm32"),
+        not(target_os = "android"),
+        feature = "desktop"
+    ))]
     native_audio::stop();
     let _ = document::eval(
         "try { window.__recurrencySpeechStop && window.__recurrencySpeechStop(); } catch (_) {}",
@@ -401,9 +417,15 @@ mod tests {
 
     #[test]
     fn unavailable_browser_speech_can_fall_back_to_provider() {
-        assert!(should_retry_with_provider("The speech service is unavailable"));
-        assert!(should_retry_with_provider("Voice input failed: service-not-allowed"));
-        assert!(should_retry_with_provider("Voice input is not supported on this device. Check the microphone permission."));
+        assert!(should_retry_with_provider(
+            "The speech service is unavailable"
+        ));
+        assert!(should_retry_with_provider(
+            "Voice input failed: service-not-allowed"
+        ));
+        assert!(should_retry_with_provider(
+            "Voice input is not supported on this device. Check the microphone permission."
+        ));
         assert!(!should_retry_with_provider("No speech detected"));
         assert!(!should_retry_with_provider("Microphone permission denied"));
         assert!(!should_retry_with_provider("Dictation cancelled"));

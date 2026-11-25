@@ -73,9 +73,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         };
         args.next();
         if cli.command == Command::Admin {
-            let action = args
-                .next()
-                .ok_or_else(|| "admin needs an action: list, create, update or delete".to_string())?;
+            let action = args.next().ok_or_else(|| {
+                "admin needs an action: list, create, update or delete".to_string()
+            })?;
             let action = match action.as_str() {
                 "list" => AdminAction::List,
                 "create" => AdminAction::Create,
@@ -100,8 +100,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--help" | "-h" => cli.command = Command::Help,
             "--version" | "-V" => cli.command = Command::Version,
             "--port" => {
-                let value = args.next().ok_or_else(|| "--port needs a value".to_string())?;
-                cli.port = Some(value.parse().map_err(|_| format!("invalid port: {value}"))?);
+                let value = args
+                    .next()
+                    .ok_or_else(|| "--port needs a value".to_string())?;
+                cli.port = Some(
+                    value
+                        .parse()
+                        .map_err(|_| format!("invalid port: {value}"))?,
+                );
             }
             "--database-url" => {
                 cli.database_url = Some(
@@ -116,7 +122,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 cli.backup_dir = Some(PathBuf::from(value));
             }
             "--email" => {
-                let value = args.next().ok_or_else(|| "--email needs a value".to_string())?;
+                let value = args
+                    .next()
+                    .ok_or_else(|| "--email needs a value".to_string())?;
                 if let Some(admin) = &mut cli.admin {
                     admin.email = Some(value);
                 } else {
@@ -134,7 +142,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 }
             }
             "--name" => {
-                let value = args.next().ok_or_else(|| "--name needs a value".to_string())?;
+                let value = args
+                    .next()
+                    .ok_or_else(|| "--name needs a value".to_string())?;
                 if let Some(admin) = &mut cli.admin {
                     admin.name = Some(value);
                 } else {
@@ -167,9 +177,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             }
             "--no-web" => cli.enable_web = Some(false),
             "--enable-web" => cli.enable_web = Some(true),
-            other if cli.command == Command::Admin
-                && !other.starts_with('-')
-                && cli.admin.as_ref().is_some_and(|admin| admin.target.is_none()) =>
+            other
+                if cli.command == Command::Admin
+                    && !other.starts_with('-')
+                    && cli
+                        .admin
+                        .as_ref()
+                        .is_some_and(|admin| admin.target.is_none()) =>
             {
                 if let Some(admin) = &mut cli.admin {
                     admin.target = Some(other.to_string());
@@ -232,7 +246,10 @@ mod tests {
         assert_eq!(cli.enable_web, Some(false));
         let backup = parse(args(&["backup", "--backup-dir", "/tmp/backups"])).unwrap();
         assert_eq!(backup.command, Command::Backup);
-        assert_eq!(backup.backup_dir.as_deref(), Some(std::path::Path::new("/tmp/backups")));
+        assert_eq!(
+            backup.backup_dir.as_deref(),
+            Some(std::path::Path::new("/tmp/backups"))
+        );
     }
 
     #[test]
@@ -244,7 +261,10 @@ mod tests {
         assert_eq!(admin.command, Command::Admin);
         assert_eq!(admin.admin.unwrap().action, AdminAction::List);
         assert_eq!(parse(args(&["--help"])).unwrap().command, Command::Help);
-        assert_eq!(parse(args(&["--version"])).unwrap().command, Command::Version);
+        assert_eq!(
+            parse(args(&["--version"])).unwrap().command,
+            Command::Version
+        );
     }
 
     #[test]
@@ -284,7 +304,10 @@ mod tests {
         assert_eq!(update.is_admin, Some(false));
 
         let delete = parse(args(&["admin", "delete", "user@example.com"])).unwrap();
-        assert_eq!(delete.admin.unwrap().target.as_deref(), Some("user@example.com"));
+        assert_eq!(
+            delete.admin.unwrap().target.as_deref(),
+            Some("user@example.com")
+        );
     }
 
     #[test]

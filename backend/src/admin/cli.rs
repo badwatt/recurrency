@@ -45,13 +45,14 @@ async fn ensure_email_available(
     email: &str,
     except: Option<Uuid>,
 ) -> Result<(), String> {
-    let existing: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE lower(email) = $1 AND ($2::uuid IS NULL OR id <> $2)")
-            .bind(email)
-            .bind(except)
-            .fetch_optional(pool)
-            .await
-            .map_err(|error| error.to_string())?;
+    let existing: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM users WHERE lower(email) = $1 AND ($2::uuid IS NULL OR id <> $2)",
+    )
+    .bind(email)
+    .bind(except)
+    .fetch_optional(pool)
+    .await
+    .map_err(|error| error.to_string())?;
     if existing.is_some() {
         return Err("email already registered".to_string());
     }
@@ -65,10 +66,7 @@ async fn count_admins(pool: &PgPool) -> Result<i64, String> {
         .map_err(|error| error.to_string())
 }
 
-async fn create_user(
-    pool: &PgPool,
-    args: &AdminArgs,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn create_user(pool: &PgPool, args: &AdminArgs) -> Result<(), Box<dyn std::error::Error>> {
     let email = validate_email(required(args.email.as_deref(), "--email")?)?;
     let password = validate_password(required(args.password.as_deref(), "--password")?)?;
     let name = required(args.name.as_deref(), "--name")?.trim().to_string();
@@ -113,19 +111,17 @@ async fn create_user(
     Ok(())
 }
 
-async fn update_user(
-    pool: &PgPool,
-    args: &AdminArgs,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn update_user(pool: &PgPool, args: &AdminArgs) -> Result<(), Box<dyn std::error::Error>> {
     let target = args
         .target
         .as_deref()
         .or(args.email.as_deref())
         .ok_or("admin update needs an email")?;
-    let target_id: Option<Uuid> = sqlx::query_scalar("SELECT id FROM users WHERE lower(email) = lower($1)")
-        .bind(target)
-        .fetch_optional(pool)
-        .await?;
+    let target_id: Option<Uuid> =
+        sqlx::query_scalar("SELECT id FROM users WHERE lower(email) = lower($1)")
+            .bind(target)
+            .fetch_optional(pool)
+            .await?;
     let target_id = target_id.ok_or("user not found")?;
     let target_email: String = sqlx::query_scalar("SELECT email FROM users WHERE id = $1")
         .bind(target_id)
@@ -245,7 +241,10 @@ mod tests {
 
     #[test]
     fn email_validation_normalizes_and_rejects_demo() {
-        assert_eq!(validate_email(" User@Example.COM ").unwrap(), "user@example.com");
+        assert_eq!(
+            validate_email(" User@Example.COM ").unwrap(),
+            "user@example.com"
+        );
         assert!(validate_email(DEMO_EMAIL).is_err());
         assert!(validate_email("invalid").is_err());
     }

@@ -1,12 +1,12 @@
 pub mod accounts;
 pub mod admin;
 pub mod ai;
-pub mod currency;
 pub mod app;
 pub mod auth;
 pub mod backup;
 pub mod categories;
 pub mod client;
+pub mod currency;
 pub mod debts;
 pub mod demo;
 pub mod logos;

@@ -4,8 +4,8 @@ use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::date_picker::DatePicker;
 use crate::components::field::Field;
 use crate::components::input::{Input, InputSize};
-use crate::components::textarea::Textarea;
 use crate::components::select_menu::{SelectMenu, SelectOption};
+use crate::components::textarea::Textarea;
 use chrono::Datelike;
 
 const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

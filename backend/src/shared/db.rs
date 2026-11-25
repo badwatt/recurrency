@@ -428,8 +428,11 @@ pub async fn create_pool_with_url(database_url: Option<&str>) -> Result<PgPool, 
                     "SQLite is not supported; use PostgreSQL or omit DATABASE_URL for the embedded database",
                 ));
             }
-            let max_connections =
-                parse_max_connections(crate::shared::test_env::var("DATABASE_MAX_CONNECTIONS").ok().as_deref());
+            let max_connections = parse_max_connections(
+                crate::shared::test_env::var("DATABASE_MAX_CONNECTIONS")
+                    .ok()
+                    .as_deref(),
+            );
             (url, max_connections)
         }
         None => {
@@ -729,5 +732,4 @@ mod tests {
             DEFAULT_MAX_CONNECTIONS
         );
     }
-
 }

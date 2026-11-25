@@ -1,10 +1,10 @@
-pub mod handlers;
 pub mod channel_handlers;
 pub mod channels;
 pub mod crypto;
+pub mod handlers;
 pub mod models;
 pub mod providers;
 pub mod scheduler;
+pub mod service;
 pub mod settings;
 pub mod summary;
-pub mod service;

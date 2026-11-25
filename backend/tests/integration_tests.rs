@@ -1842,10 +1842,7 @@ async fn ai_chat_executes_a_subscription_action(pool: PgPool) {
 
 fn auth_headers(token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        format!("Bearer {token}").parse().unwrap(),
-    );
+    headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
     headers
 }
 
@@ -1881,13 +1878,9 @@ async fn debt_handlers_cover_the_full_api(pool: PgPool) {
     assert_eq!(status, axum::http::StatusCode::CREATED);
     assert_eq!(created.name, "Handler debt");
 
-    let Json(list) = handlers::list(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(list) = handlers::list(State(state.clone()), OptionalQuery(None), headers.clone())
+        .await
+        .unwrap();
     assert_eq!(list.len(), 1);
 
     let Json(found) = handlers::get(
@@ -1970,23 +1963,16 @@ async fn account_handlers_cover_crud_and_defaults(pool: PgPool) {
     let state = AppState::new(pool);
     let headers = auth_headers(&token);
 
-    let Json(initial) = handlers::list(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(initial) = handlers::list(State(state.clone()), OptionalQuery(None), headers.clone())
+        .await
+        .unwrap();
     assert_eq!(initial.len(), 1);
     let original_id = initial[0].id;
 
-    let Json(with_counts) = handlers::list_with_counts(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(with_counts) =
+        handlers::list_with_counts(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert_eq!(with_counts.len(), 1);
 
     let Json(created) = handlers::create(
@@ -2088,13 +2074,10 @@ async fn notification_channel_handlers_cover_listing_updates_and_summary(pool: P
     let state = AppState::new(pool);
     let headers = auth_headers(&token);
 
-    let Json(channels) = channel_handlers::list_channels(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(channels) =
+        channel_handlers::list_channels(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert_eq!(channels.len(), NotificationProvider::ALL.len());
 
     let Json(updated) = channel_handlers::update_channel(
@@ -2139,13 +2122,10 @@ async fn notification_channel_handlers_cover_listing_updates_and_summary(pool: P
     .await;
     assert!(unknown_test.is_err());
 
-    let Json(summary) = channel_handlers::get_summary(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(summary) =
+        channel_handlers::get_summary(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert!(summary.timezone.is_empty() == false);
 
     let Json(saved) = channel_handlers::update_summary(
@@ -2206,11 +2186,14 @@ async fn currency_handlers_cover_settings(pool: PgPool) {
     .unwrap();
     assert_eq!(updated.provider, "frankfurter");
 
-    let unauthorized =
-        handlers::get_settings(State(state), axum::extract::Query(query()), HeaderMap::new()).await;
+    let unauthorized = handlers::get_settings(
+        State(state),
+        axum::extract::Query(query()),
+        HeaderMap::new(),
+    )
+    .await;
     assert!(unauthorized.is_err());
 }
-
 
 #[sqlx::test]
 async fn admin_handlers_cover_settings_backups_roles_and_deletion(pool: PgPool) {
@@ -2225,13 +2208,10 @@ async fn admin_handlers_cover_settings_backups_roles_and_deletion(pool: PgPool) 
     let state = AppState::new(pool);
     let headers = auth_headers(&admin_token);
 
-    let Json(initial) = handlers::get_settings(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(initial) =
+        handlers::get_settings(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert!(initial.registration_enabled);
 
     let Json(disabled) = handlers::update_settings(
@@ -2246,13 +2226,10 @@ async fn admin_handlers_cover_settings_backups_roles_and_deletion(pool: PgPool) 
     .unwrap();
     assert!(!disabled.registration_enabled);
 
-    let Json(backup) = handlers::full_backup(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(backup) =
+        handlers::full_backup(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert!(!backup.tables.is_empty());
 
     let Json(promoted) = handlers::update_role(
@@ -2297,11 +2274,15 @@ async fn admin_handlers_cover_settings_backups_roles_and_deletion(pool: PgPool) 
     .unwrap();
     assert_eq!(restored.restored_tables, 14);
 
-    let unauthorized = handlers::list_users(State(state), OptionalQuery(None), HeaderMap::new()).await;
+    let unauthorized =
+        handlers::list_users(State(state), OptionalQuery(None), HeaderMap::new()).await;
     assert!(unauthorized.is_err());
 }
 
-fn ai_provider_server(status: &'static str, body: &'static str) -> (u16, std::thread::JoinHandle<()>) {
+fn ai_provider_server(
+    status: &'static str,
+    body: &'static str,
+) -> (u16, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     use std::net::TcpListener;
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -2348,10 +2329,20 @@ async fn configure_ai(pool: &PgPool, user_id: Uuid, base_url: String, enabled: b
 async fn ai_rejects_unconfigured_and_disabled_users(pool: PgPool) {
     let (user_id, _) = create_test_user(&pool).await;
     let service = SqlxAiService::new(pool.clone());
-    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+    assert!(
+        service
+            .models(user_id, AiModelsRequest { base_url: None })
+            .await
+            .is_err()
+    );
 
     configure_ai(&pool, user_id, "https://example.test/v1".to_string(), false).await;
-    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+    assert!(
+        service
+            .models(user_id, AiModelsRequest { base_url: None })
+            .await
+            .is_err()
+    );
 }
 
 #[sqlx::test]
@@ -2361,12 +2352,22 @@ async fn ai_surfaces_provider_failures(pool: PgPool) {
 
     let (port, server) = ai_provider_server("500 Internal Server Error", "{\"error\":\"boom\"}");
     configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
-    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+    assert!(
+        service
+            .models(user_id, AiModelsRequest { base_url: None })
+            .await
+            .is_err()
+    );
     server.join().unwrap();
 
     let (port, server) = ai_provider_server("200 OK", "not-json");
     configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
-    assert!(service.models(user_id, AiModelsRequest { base_url: None }).await.is_err());
+    assert!(
+        service
+            .models(user_id, AiModelsRequest { base_url: None })
+            .await
+            .is_err()
+    );
     server.join().unwrap();
 }
 
@@ -2416,16 +2417,18 @@ async fn ai_transcription_validates_audio_and_provider_errors(pool: PgPool) {
 
     let (port, server) = ai_provider_server("500 Internal Server Error", "{\"error\":\"boom\"}");
     configure_ai(&pool, user_id, format!("http://127.0.0.1:{port}/v1"), true).await;
-    assert!(service
-        .transcribe(
-            user_id,
-            AiTranscriptionRequest {
-                audio_base64: valid_audio,
-                mime_type: "audio/webm".to_string(),
-            },
-        )
-        .await
-        .is_err());
+    assert!(
+        service
+            .transcribe(
+                user_id,
+                AiTranscriptionRequest {
+                    audio_base64: valid_audio,
+                    mime_type: "audio/webm".to_string(),
+                },
+            )
+            .await
+            .is_err()
+    );
     server.join().unwrap();
 }
 
@@ -2434,8 +2437,12 @@ async fn demo_service_creates_and_resets_a_populated_user(pool: PgPool) {
     use recurrency_backend::demo::service::DemoService;
 
     let email = format!("demo_{}@test.com", Uuid::new_v4());
-    DemoService::create_demo_user(&pool, &email, "hash").await.unwrap();
-    DemoService::create_demo_user(&pool, &email, "hash2").await.unwrap();
+    DemoService::create_demo_user(&pool, &email, "hash")
+        .await
+        .unwrap();
+    DemoService::create_demo_user(&pool, &email, "hash2")
+        .await
+        .unwrap();
 
     let demo_id: Uuid = sqlx::query_scalar("SELECT id FROM users WHERE email = $1")
         .bind(&email)
@@ -2461,12 +2468,11 @@ async fn demo_service_creates_and_resets_a_populated_user(pool: PgPool) {
         .fetch_one(&pool)
         .await
         .unwrap();
-    let categories: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM categories WHERE user_id = $1")
-            .bind(demo_id)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let categories: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM categories WHERE user_id = $1")
+        .bind(demo_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     assert_eq!(subscriptions, 5);
     assert!(transactions > 0);
     assert_eq!(accounts, 1);
@@ -2484,7 +2490,7 @@ async fn demo_service_creates_and_resets_a_populated_user(pool: PgPool) {
 
 #[sqlx::test]
 async fn debt_service_rejects_invalid_requests_and_missing_records(pool: PgPool) {
-    use recurrency_backend::debts::models::{UpdateDebtRequest, DEBT_TYPE_MANUAL};
+    use recurrency_backend::debts::models::{DEBT_TYPE_MANUAL, UpdateDebtRequest};
 
     let (user_id, _) = create_test_user(&pool).await;
     let base = CreateDebtRequest {
@@ -2518,14 +2524,22 @@ async fn debt_service_rejects_invalid_requests_and_missing_records(pool: PgPool)
     assert!(DebtService::create(&pool, user_id, invalid).await.is_err());
 
     let missing = Uuid::new_v4();
-    assert!(DebtService::get_by_id(&pool, user_id, missing).await.is_err());
+    assert!(
+        DebtService::get_by_id(&pool, user_id, missing)
+            .await
+            .is_err()
+    );
     assert!(
         DebtService::update(&pool, user_id, missing, UpdateDebtRequest::default())
             .await
             .is_err()
     );
     assert!(DebtService::delete(&pool, user_id, missing).await.is_err());
-    assert!(DebtService::payments(&pool, user_id, missing).await.is_err());
+    assert!(
+        DebtService::payments(&pool, user_id, missing)
+            .await
+            .is_err()
+    );
     assert!(
         DebtService::record_payment(
             &pool,
@@ -2560,8 +2574,16 @@ async fn debt_service_rejects_invalid_requests_and_missing_records(pool: PgPool)
     }
 
     let (other_user, _) = create_test_user(&pool).await;
-    assert!(DebtService::get_by_id(&pool, other_user, debt.id).await.is_err());
-    assert!(DebtService::delete(&pool, other_user, debt.id).await.is_err());
+    assert!(
+        DebtService::get_by_id(&pool, other_user, debt.id)
+            .await
+            .is_err()
+    );
+    assert!(
+        DebtService::delete(&pool, other_user, debt.id)
+            .await
+            .is_err()
+    );
 }
 
 #[sqlx::test]
@@ -2576,23 +2598,17 @@ async fn category_handlers_cover_crud_and_defaults(pool: PgPool) {
     let state = AppState::new(pool);
     let headers = auth_headers(&token);
 
-    let Json(categories) = handlers::list(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(categories) =
+        handlers::list(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert_eq!(categories.len(), 1);
     let system_id = categories[0].id;
 
-    let Json(with_counts) = handlers::list_with_counts(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(with_counts) =
+        handlers::list_with_counts(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert_eq!(with_counts.len(), 1);
 
     let (status, Json(created)) = handlers::create(
@@ -2685,8 +2701,7 @@ async fn category_handlers_cover_crud_and_defaults(pool: PgPool) {
 async fn transaction_handlers_cover_crud_and_date_range(pool: PgPool) {
     use recurrency_backend::shared::OptionalQuery;
     use recurrency_backend::transactions::{
-        handlers::DateRangeQuery,
-        models::UpdateTransactionRequest,
+        handlers::DateRangeQuery, models::UpdateTransactionRequest,
     };
 
     let (_, token) = create_test_user(&pool).await;
@@ -2698,16 +2713,18 @@ async fn transaction_handlers_cover_crud_and_date_range(pool: PgPool) {
         State(state.clone()),
         OptionalQuery(None),
         headers.clone(),
-        Json(recurrency_backend::transactions::models::CreateTransactionRequest {
-            name: "Handler transaction".into(),
-            amount: Decimal::from(5),
-            currency: "EUR".into(),
-            date,
-            account_id: Uuid::nil(),
-            category_id: None,
-            notes: None,
-            logo_url: None,
-        }),
+        Json(
+            recurrency_backend::transactions::models::CreateTransactionRequest {
+                name: "Handler transaction".into(),
+                amount: Decimal::from(5),
+                currency: "EUR".into(),
+                date,
+                account_id: Uuid::nil(),
+                category_id: None,
+                notes: None,
+                logo_url: None,
+            },
+        ),
     )
     .await
     .unwrap();
@@ -2971,13 +2988,10 @@ async fn notification_and_preference_handlers_cover_the_user_flow(pool: PgPool) 
     .unwrap();
     assert_eq!(read["success"], true);
 
-    let Json(all) = handlers::mark_all_read(
-        State(state.clone()),
-        OptionalQuery(None),
-        headers.clone(),
-    )
-    .await
-    .unwrap();
+    let Json(all) =
+        handlers::mark_all_read(State(state.clone()), OptionalQuery(None), headers.clone())
+            .await
+            .unwrap();
     assert!(all["marked_count"].is_number());
 
     let Json(deleted) = handlers::delete(
@@ -3039,16 +3053,23 @@ async fn notification_and_preference_handlers_cover_the_user_flow(pool: PgPool) 
         OptionalQuery(None),
         headers.clone(),
         Json(UpdateNotificationPreferencesRequest {
-            preferences: vec![recurrency_backend::notifications::models::UpdatePreferenceRequest {
-                channel: "email".into(),
-                enabled: true,
-                reminder_days_before: 2,
-            }],
+            preferences: vec![
+                recurrency_backend::notifications::models::UpdatePreferenceRequest {
+                    channel: "email".into(),
+                    enabled: true,
+                    reminder_days_before: 2,
+                },
+            ],
         }),
     )
     .await
     .unwrap();
-    assert!(updated_channels.preferences.iter().any(|preference| preference.channel == "email"));
+    assert!(
+        updated_channels
+            .preferences
+            .iter()
+            .any(|preference| preference.channel == "email")
+    );
 
     let unauthorized = handlers::list(State(state), OptionalQuery(None), HeaderMap::new()).await;
     assert!(unauthorized.is_err());
@@ -3098,24 +3119,22 @@ async fn auth_service_rejects_invalid_credentials_and_profiles(pool: PgPool) {
         .unwrap();
 
     assert!(
-        service.login(
-            LoginRequest {
+        service
+            .login(LoginRequest {
                 email: email.clone(),
                 password: "wrong".into(),
-            },
-        )
-        .await
-        .is_err()
+            },)
+            .await
+            .is_err()
     );
     assert!(
-        service.login(
-            LoginRequest {
+        service
+            .login(LoginRequest {
                 email: "missing@test.com".into(),
                 password: "password".into(),
-            },
-        )
-        .await
-        .is_err()
+            },)
+            .await
+            .is_err()
     );
     assert!(service.verify_token("invalid").await.is_err());
 
@@ -3141,20 +3160,24 @@ async fn auth_service_rejects_invalid_credentials_and_profiles(pool: PgPool) {
     );
     assert!(
         service
-            .delete_account(
-                user_id,
-                "wrong".to_string(),
-            )
+            .delete_account(user_id, "wrong".to_string(),)
             .await
             .is_err()
     );
-    assert!(service.delete_account(Uuid::new_v4(), "password".to_string()).await.is_err());
+    assert!(
+        service
+            .delete_account(Uuid::new_v4(), "password".to_string())
+            .await
+            .is_err()
+    );
     let _ = token;
 }
 
 #[sqlx::test]
 async fn notification_service_handles_missing_notifications(pool: PgPool) {
-    use recurrency_backend::notifications::service::{NotificationServiceTrait, SqlxNotificationService};
+    use recurrency_backend::notifications::service::{
+        NotificationServiceTrait, SqlxNotificationService,
+    };
 
     let (user_id, _) = create_test_user(&pool).await;
     let service = SqlxNotificationService::new(pool);
@@ -3248,13 +3271,26 @@ async fn subscription_service_rejects_invalid_or_missing_records(pool: PgPool) {
 
     let (user_id, _) = create_test_user(&pool).await;
     let missing = Uuid::new_v4();
-    assert!(SubscriptionService::get_by_id(&pool, user_id, missing).await.is_err());
     assert!(
-        SubscriptionService::update(&pool, user_id, missing, UpdateSubscriptionRequest::default())
+        SubscriptionService::get_by_id(&pool, user_id, missing)
             .await
             .is_err()
     );
-    assert!(SubscriptionService::delete(&pool, user_id, missing).await.is_err());
+    assert!(
+        SubscriptionService::update(
+            &pool,
+            user_id,
+            missing,
+            UpdateSubscriptionRequest::default()
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        SubscriptionService::delete(&pool, user_id, missing)
+            .await
+            .is_err()
+    );
 
     let base = CreateSubscriptionRequest {
         name: "Invalid".into(),
@@ -3275,11 +3311,19 @@ async fn subscription_service_rejects_invalid_or_missing_records(pool: PgPool) {
     let mut invalid = base.clone();
     invalid.amount = Decimal::from(1);
     invalid.account_id = Uuid::new_v4();
-    assert!(SubscriptionService::create(&pool, user_id, invalid).await.is_err());
+    assert!(
+        SubscriptionService::create(&pool, user_id, invalid)
+            .await
+            .is_err()
+    );
     let mut invalid = base.clone();
     invalid.amount = Decimal::from(1);
     invalid.category_id = Some(Uuid::new_v4());
-    assert!(SubscriptionService::create(&pool, user_id, invalid).await.is_err());
+    assert!(
+        SubscriptionService::create(&pool, user_id, invalid)
+            .await
+            .is_err()
+    );
     let _ = base;
 }
 
@@ -3291,7 +3335,10 @@ async fn auth_settings_verification_and_resend_flows(pool: PgPool) {
     let service = SqlxAuthService::new(pool.clone());
 
     let settings = service.get_settings(user_id).await.unwrap();
-    assert_eq!(settings.email, service.get_user_by_id(user_id).await.unwrap().email);
+    assert_eq!(
+        settings.email,
+        service.get_user_by_id(user_id).await.unwrap().email
+    );
     assert!(service.get_user_by_id(Uuid::new_v4()).await.is_err());
 
     let updated = service
@@ -3320,7 +3367,10 @@ async fn auth_settings_verification_and_resend_flows(pool: PgPool) {
             .await
             .is_err()
     );
-    let verified = service.verify_email(user_id, "123456".into()).await.unwrap();
+    let verified = service
+        .verify_email(user_id, "123456".into())
+        .await
+        .unwrap();
     assert!(verified.verified);
     let _ = service.resend_verification(user_id).await;
 

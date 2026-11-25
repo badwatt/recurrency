@@ -800,5 +800,4 @@ mod tests {
         assert_eq!(result.results.len(), 1);
         assert_eq!(result.results[0].url, "https://example.test/logo.png");
     }
-
 }

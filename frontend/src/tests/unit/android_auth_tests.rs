@@ -24,10 +24,8 @@ fn test_dirs_data_dir_returns_some_on_native() {
 #[serial]
 fn test_set_authenticated_writes_auth_files() {
     let _guard = crate::state::auth::AUTH_FILE_TEST_LOCK.lock().unwrap();
-    let auth_dir = std::env::temp_dir().join(format!(
-        "recurrency-android-auth-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let auth_dir =
+        std::env::temp_dir().join(format!("recurrency-android-auth-{}", uuid::Uuid::new_v4()));
     let _ = std::fs::remove_dir_all(&auth_dir);
 
     let mut state = crate::state::auth::AuthState::default();

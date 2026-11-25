@@ -709,11 +709,19 @@ mod tests {
     }
     #[test]
     fn brave_tiny_images_are_filtered_by_dimensions() {
-        assert!(brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:32:32:1:0/g:ce/a"));
-        assert!(brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:64:32:1:0/g:ce/a"));
-        assert!(!brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:500:0:1:0/g:ce/a"));
+        assert!(brave_fit_is_tiny(
+            "https://imgs.search.brave.com/x/rs:fit:32:32:1:0/g:ce/a"
+        ));
+        assert!(brave_fit_is_tiny(
+            "https://imgs.search.brave.com/x/rs:fit:64:32:1:0/g:ce/a"
+        ));
+        assert!(!brave_fit_is_tiny(
+            "https://imgs.search.brave.com/x/rs:fit:500:0:1:0/g:ce/a"
+        ));
         assert!(!brave_fit_is_tiny("https://imgs.search.brave.com/x/no-fit"));
-        assert!(!brave_fit_is_tiny("https://imgs.search.brave.com/x/rs:fit:::/g:ce/a"));
+        assert!(!brave_fit_is_tiny(
+            "https://imgs.search.brave.com/x/rs:fit:::/g:ce/a"
+        ));
     }
 
     #[test]
@@ -736,10 +744,7 @@ mod tests {
             width: None,
             height: None,
         };
-        let results = dedupe_and_limit(
-            vec![make("a"), make("b"), make("a"), make("c")],
-            2,
-        );
+        let results = dedupe_and_limit(vec![make("a"), make("b"), make("a"), make("c")], 2);
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].url, "a");
         assert_eq!(results[1].url, "b");
@@ -751,7 +756,10 @@ mod tests {
         assert!(cached_index(&cache).is_none());
         store_index(&cache, vec!["one".to_string()]);
         assert_eq!(cached_index(&cache), Some(vec!["one".to_string()]));
-        *cache.lock().unwrap() = Some((Instant::now() - INDEX_TTL - Duration::from_secs(1), vec!["old".to_string()]));
+        *cache.lock().unwrap() = Some((
+            Instant::now() - INDEX_TTL - Duration::from_secs(1),
+            vec!["old".to_string()],
+        ));
         assert!(cached_index(&cache).is_none());
     }
 
@@ -775,5 +783,4 @@ mod tests {
             .block_on(search_logos("   "));
         assert!(empty.unwrap().is_empty());
     }
-
 }

@@ -68,8 +68,7 @@ pub async fn models(base_url: Option<&str>) -> Result<Vec<String>, ApiError> {
     struct Request<'a> {
         base_url: Option<&'a str>,
     }
-    let response: AiModelsResponse =
-        api_post(AI_MODELS_PATH, &Request { base_url }).await?;
+    let response: AiModelsResponse = api_post(AI_MODELS_PATH, &Request { base_url }).await?;
     Ok(response.models)
 }
 
@@ -207,5 +206,4 @@ mod tests {
         assert_eq!(chat.actions.len(), 1);
         assert!(chat.actions[0].success);
     }
-
 }

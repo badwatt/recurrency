@@ -1,9 +1,13 @@
+use crate::api::client::ApiError;
 use crate::models::account::{Account, CreateAccountRequest, UpdateAccountRequest};
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
-use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Recurrence, Subscription, UpdateSubscriptionRequest};
+use crate::models::debt::{
+    CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest, UpdateDebtRequest,
+};
+use crate::models::subscription::{
+    CalendarItem, CreateSubscriptionRequest, Recurrence, Subscription, UpdateSubscriptionRequest,
+};
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
-use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest, UpdateDebtRequest};
-use crate::api::client::ApiError;
 use chrono::{Datelike, NaiveDate, Utc};
 
 #[allow(unused_imports)]
@@ -53,10 +57,7 @@ fn data_dir() -> Option<std::path::PathBuf> {
         // Only the thread running the storage test may use its temporary
         // directory. Page effects run on other threads and must not observe
         // or remove test files.
-        let owner = TEST_DATA_OWNER
-            .lock()
-            .ok()
-            .and_then(|owner| *owner);
+        let owner = TEST_DATA_OWNER.lock().ok().and_then(|owner| *owner);
         if owner == Some(std::thread::current().id()) {
             return Some(dir);
         }
@@ -76,7 +77,9 @@ static TEST_DATA_OWNER: std::sync::Mutex<Option<std::thread::ThreadId>> =
 fn load_collection<T: serde::de::DeserializeOwned>(name: &str) -> Option<Vec<T>> {
     let dir = data_dir()?;
     let file = dir.join(format!("local_{}.json", name));
-    std::fs::read_to_string(&file).ok().and_then(|s| serde_json::from_str(&s).ok())
+    std::fs::read_to_string(&file)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -107,7 +110,9 @@ fn save_collection<T: serde::Serialize>(name: &str, data: &Vec<T>) -> Result<(),
     let json = serde_json::to_string(data).map_err(|e| ApiError::Parse(e.to_string()))?;
     if let Some(window) = web_sys::window() {
         if let Ok(Some(storage)) = window.local_storage() {
-            storage.set_item(&key, &json).map_err(|e| ApiError::Network(format!("localStorage error: {:?}", e)))?;
+            storage
+                .set_item(&key, &json)
+                .map_err(|e| ApiError::Network(format!("localStorage error: {:?}", e)))?;
         }
     }
     Ok(())
@@ -117,7 +122,9 @@ fn save_collection<T: serde::Serialize>(name: &str, data: &Vec<T>) -> Result<(),
 
 pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
     ensure_accounts().await?;
-    let mut cache = SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = SUBSCRIPTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("subscriptions");
     }
@@ -164,22 +171,23 @@ pub async fn list_subscriptions() -> Result<Vec<Subscription>, ApiError> {
     Ok(list)
 }
 
-pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subscription, ApiError> {
+pub async fn create_subscription(
+    req: &CreateSubscriptionRequest,
+) -> Result<Subscription, ApiError> {
     ensure_accounts().await?;
     let account_id = if req.account_id.is_nil() {
         default_account_id()?
     } else {
         req.account_id
     };
-    let recurrence = req
-        .recurrence
-        .clone()
-        .unwrap_or_else(|| Recurrence::from_legacy(
+    let recurrence = req.recurrence.clone().unwrap_or_else(|| {
+        Recurrence::from_legacy(
             &req.frequency,
             req.start_date,
             req.schedule_day,
             req.schedule_month,
-        ));
+        )
+    });
     let next_billing_date = crate::utils::recurrence::next_occurrence_on_or_after(
         req.start_date,
         &recurrence,
@@ -207,7 +215,9 @@ pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subs
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let mut cache = SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = SUBSCRIPTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("subscriptions");
     }
@@ -217,20 +227,40 @@ pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subs
     Ok(sub)
 }
 
-pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> Result<Subscription, ApiError> {
-    let mut cache = SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+pub async fn update_subscription(
+    id: &Uuid,
+    req: &UpdateSubscriptionRequest,
+) -> Result<Subscription, ApiError> {
+    let mut cache = SUBSCRIPTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("subscriptions");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No subscriptions".into()))?;
-    let sub = list.iter_mut().find(|s| &s.id == id).ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
-    if let Some(name) = &req.name { sub.name = name.clone(); }
-    if let Some(amount) = req.amount { sub.amount = amount; }
-    if let Some(currency) = &req.currency { sub.currency = currency.clone(); }
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No subscriptions".into()))?;
+    let sub = list
+        .iter_mut()
+        .find(|s| &s.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    if let Some(name) = &req.name {
+        sub.name = name.clone();
+    }
+    if let Some(amount) = req.amount {
+        sub.amount = amount;
+    }
+    if let Some(currency) = &req.currency {
+        sub.currency = currency.clone();
+    }
     if let Some(recurrence) = &req.recurrence {
         sub.recurrence = recurrence.clone();
-    } else if req.frequency.is_some() || req.schedule_day.is_some() || req.schedule_month.is_some() {
-        let frequency = req.frequency.clone().unwrap_or_else(|| sub.frequency.clone());
+    } else if req.frequency.is_some() || req.schedule_day.is_some() || req.schedule_month.is_some()
+    {
+        let frequency = req
+            .frequency
+            .clone()
+            .unwrap_or_else(|| sub.frequency.clone());
         sub.recurrence = Recurrence::from_legacy(
             &frequency,
             req.start_date.unwrap_or(sub.start_date),
@@ -238,11 +268,23 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
             req.schedule_month.or(sub.schedule_month),
         );
     }
-    if let Some(frequency) = &req.frequency { sub.frequency = frequency.clone(); }
-    if let Some(day) = req.schedule_day { sub.schedule_day = Some(day); }
-    if let Some(month) = req.schedule_month { sub.schedule_month = Some(month); }
-    if let Some(start_date) = req.start_date { sub.start_date = start_date; }
-    if req.clear_end_date { sub.end_date = None; } else if let Some(end_date) = req.end_date { sub.end_date = Some(end_date); }
+    if let Some(frequency) = &req.frequency {
+        sub.frequency = frequency.clone();
+    }
+    if let Some(day) = req.schedule_day {
+        sub.schedule_day = Some(day);
+    }
+    if let Some(month) = req.schedule_month {
+        sub.schedule_month = Some(month);
+    }
+    if let Some(start_date) = req.start_date {
+        sub.start_date = start_date;
+    }
+    if req.clear_end_date {
+        sub.end_date = None;
+    } else if let Some(end_date) = req.end_date {
+        sub.end_date = Some(end_date);
+    }
     if let Some(next_billing_date) = req.next_billing_date {
         sub.next_billing_date = Some(next_billing_date);
     } else {
@@ -253,13 +295,25 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
             sub.end_date,
         );
     }
-    if let Some(account_id) = req.account_id { sub.account_id = account_id; }
-    if let Some(category_id) = req.category_id { sub.category_id = category_id; }
-    if let Some(is_active) = req.is_active { sub.is_active = is_active; }
-    if let Some(notes) = &req.notes {
-        sub.notes = if notes.trim().is_empty() { None } else { Some(notes.clone()) };
+    if let Some(account_id) = req.account_id {
+        sub.account_id = account_id;
     }
-    if let Some(logo_url) = &req.logo_url { sub.logo_url = Some(logo_url.clone()); }
+    if let Some(category_id) = req.category_id {
+        sub.category_id = category_id;
+    }
+    if let Some(is_active) = req.is_active {
+        sub.is_active = is_active;
+    }
+    if let Some(notes) = &req.notes {
+        sub.notes = if notes.trim().is_empty() {
+            None
+        } else {
+            Some(notes.clone())
+        };
+    }
+    if let Some(logo_url) = &req.logo_url {
+        sub.logo_url = Some(logo_url.clone());
+    }
     sub.updated_at = Utc::now();
     let updated = sub.clone();
     save_collection("subscriptions", list)?;
@@ -267,11 +321,15 @@ pub async fn update_subscription(id: &Uuid, req: &UpdateSubscriptionRequest) -> 
 }
 
 pub async fn delete_subscription(id: &Uuid) -> Result<(), ApiError> {
-    let mut cache = SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = SUBSCRIPTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("subscriptions");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No subscriptions".into()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No subscriptions".into()))?;
     list.retain(|s| &s.id != id);
     record_tombstone("subscription", *id);
     save_collection("subscriptions", list)
@@ -309,7 +367,9 @@ pub async fn calendar_month(year: i32, month: u32) -> Result<Vec<CalendarItem>, 
 
 pub async fn list_transactions() -> Result<Vec<Transaction>, ApiError> {
     ensure_accounts().await?;
-    let mut cache = TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = TRANSACTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("transactions");
     }
@@ -337,7 +397,9 @@ pub async fn create_transaction(req: &CreateTransactionRequest) -> Result<Transa
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let mut cache = TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = TRANSACTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("transactions");
     }
@@ -347,23 +409,51 @@ pub async fn create_transaction(req: &CreateTransactionRequest) -> Result<Transa
     Ok(txn)
 }
 
-pub async fn update_transaction(id: &Uuid, req: &UpdateTransactionRequest) -> Result<Transaction, ApiError> {
-    let mut cache = TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+pub async fn update_transaction(
+    id: &Uuid,
+    req: &UpdateTransactionRequest,
+) -> Result<Transaction, ApiError> {
+    let mut cache = TRANSACTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("transactions");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No transactions".into()))?;
-    let txn = list.iter_mut().find(|t| &t.id == id).ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
-    if let Some(name) = &req.name { txn.name = name.clone(); }
-    if let Some(amount) = req.amount { txn.amount = amount; }
-    if let Some(currency) = &req.currency { txn.currency = currency.clone(); }
-    if let Some(date) = req.date { txn.date = date; }
-    if let Some(account_id) = req.account_id { txn.account_id = account_id; }
-    if let Some(category_id) = req.category_id { txn.category_id = category_id; }
-    if let Some(notes) = &req.notes {
-        txn.notes = if notes.trim().is_empty() { None } else { Some(notes.clone()) };
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No transactions".into()))?;
+    let txn = list
+        .iter_mut()
+        .find(|t| &t.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    if let Some(name) = &req.name {
+        txn.name = name.clone();
     }
-    if let Some(logo_url) = &req.logo_url { txn.logo_url = Some(logo_url.clone()); }
+    if let Some(amount) = req.amount {
+        txn.amount = amount;
+    }
+    if let Some(currency) = &req.currency {
+        txn.currency = currency.clone();
+    }
+    if let Some(date) = req.date {
+        txn.date = date;
+    }
+    if let Some(account_id) = req.account_id {
+        txn.account_id = account_id;
+    }
+    if let Some(category_id) = req.category_id {
+        txn.category_id = category_id;
+    }
+    if let Some(notes) = &req.notes {
+        txn.notes = if notes.trim().is_empty() {
+            None
+        } else {
+            Some(notes.clone())
+        };
+    }
+    if let Some(logo_url) = &req.logo_url {
+        txn.logo_url = Some(logo_url.clone());
+    }
     txn.updated_at = Utc::now();
     let updated = txn.clone();
     save_collection("transactions", list)?;
@@ -371,24 +461,34 @@ pub async fn update_transaction(id: &Uuid, req: &UpdateTransactionRequest) -> Re
 }
 
 pub async fn delete_transaction(id: &Uuid) -> Result<(), ApiError> {
-    let mut cache = TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = TRANSACTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("transactions");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No transactions".into()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No transactions".into()))?;
     list.retain(|t| &t.id != id);
     record_tombstone("transaction", *id);
     save_collection("transactions", list)
 }
 
-
 // ── Account operations ──
 
 fn default_account_id() -> Result<Uuid, ApiError> {
-    let cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let cache = ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     cache
         .as_ref()
-        .and_then(|accounts| accounts.iter().find(|a| a.is_default).or_else(|| accounts.first()))
+        .and_then(|accounts| {
+            accounts
+                .iter()
+                .find(|a| a.is_default)
+                .or_else(|| accounts.first())
+        })
         .map(|a| a.id)
         .ok_or_else(|| ApiError::Network("No accounts".into()))
 }
@@ -396,7 +496,11 @@ fn default_account_id() -> Result<Uuid, ApiError> {
 /// Seed accounts from legacy categories when local data predates accounts,
 /// or create a single General account for a brand-new user.
 async fn ensure_accounts() -> Result<(), ApiError> {
-    if ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?.is_some() {
+    if ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?
+        .is_some()
+    {
         return Ok(());
     }
 
@@ -488,19 +592,25 @@ async fn ensure_accounts() -> Result<(), ApiError> {
         }
     }
 
-    *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts);
+    *ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts);
     Ok(())
 }
 
 pub async fn list_accounts() -> Result<Vec<Account>, ApiError> {
     ensure_accounts().await?;
-    let cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let cache = ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     Ok(cache.clone().unwrap_or_default())
 }
 
 pub async fn create_account(req: &CreateAccountRequest) -> Result<Account, ApiError> {
     ensure_accounts().await?;
-    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     let list = cache.get_or_insert_with(Vec::new);
     let is_default = list.is_empty();
     let account = Account {
@@ -520,8 +630,12 @@ pub async fn create_account(req: &CreateAccountRequest) -> Result<Account, ApiEr
 
 pub async fn update_account(id: &Uuid, req: &UpdateAccountRequest) -> Result<Account, ApiError> {
     ensure_accounts().await?;
-    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No accounts".into()))?;
+    let mut cache = ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No accounts".into()))?;
     let account = list
         .iter_mut()
         .find(|a| &a.id == id)
@@ -543,14 +657,21 @@ pub async fn update_account(id: &Uuid, req: &UpdateAccountRequest) -> Result<Acc
 
 pub async fn delete_account(id: &Uuid) -> Result<(), ApiError> {
     ensure_accounts().await?;
-    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No accounts".into()))?;
+    let mut cache = ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No accounts".into()))?;
     let target = list
         .iter()
         .find(|a| &a.id == id)
         .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
     if target.is_default {
-        return Err(ApiError::Http(400, "Cannot delete the default account".into()));
+        return Err(ApiError::Http(
+            400,
+            "Cannot delete the default account".into(),
+        ));
     }
     let default_id = list
         .iter()
@@ -588,8 +709,12 @@ pub async fn delete_account(id: &Uuid) -> Result<(), ApiError> {
 
 pub async fn set_default_account(id: &Uuid) -> Result<(), ApiError> {
     ensure_accounts().await?;
-    let mut cache = ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No accounts".into()))?;
+    let mut cache = ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No accounts".into()))?;
     if !list.iter().any(|a| &a.id == id) {
         return Err(ApiError::Http(404, "Not found".into()));
     }
@@ -661,10 +786,16 @@ pub async fn create_debt(req: &CreateDebtRequest) -> Result<Debt, ApiError> {
     if debt_type != crate::utils::constants::DEBT_TYPE_MANUAL
         && debt_type != crate::utils::constants::DEBT_TYPE_AUTOMATIC
     {
-        return Err(ApiError::Http(400, "Debt type must be manual or automatic".into()));
+        return Err(ApiError::Http(
+            400,
+            "Debt type must be manual or automatic".into(),
+        ));
     }
     if req.total_amount <= Decimal::ZERO {
-        return Err(ApiError::Http(400, "Debt amount must be greater than zero".into()));
+        return Err(ApiError::Http(
+            400,
+            "Debt amount must be greater than zero".into(),
+        ));
     }
     if req.name.trim().is_empty() {
         return Err(ApiError::Http(400, "Debt name is required".into()));
@@ -681,26 +812,30 @@ pub async fn create_debt(req: &CreateDebtRequest) -> Result<Debt, ApiError> {
                 ApiError::Http(400, "Automatic debts need a monthly payment".into())
             })?;
             if monthly <= Decimal::ZERO {
-                return Err(ApiError::Http(400, "Monthly payment must be greater than zero".into()));
+                return Err(ApiError::Http(
+                    400,
+                    "Monthly payment must be greater than zero".into(),
+                ));
             }
             let recurrence = monthly_recurrence(&payment_days);
-            let subscription = create_subscription(&crate::models::subscription::CreateSubscriptionRequest {
-                name: req.name.clone(),
-                amount: monthly,
-                currency: req.currency.clone(),
-                frequency: "monthly".into(),
-                schedule_day: payment_days.first().map(|day| i16::from(*day)),
-                schedule_month: None,
-                recurrence: Some(recurrence.clone()),
-                is_active: Some(true),
-                start_date,
-                end_date: None,
-                account_id,
-                category_id: Some(category_id),
-                notes: Some("Automatic debt payment".to_string()),
-                logo_url: req.logo_url.clone(),
-            })
-            .await?;
+            let subscription =
+                create_subscription(&crate::models::subscription::CreateSubscriptionRequest {
+                    name: req.name.clone(),
+                    amount: monthly,
+                    currency: req.currency.clone(),
+                    frequency: "monthly".into(),
+                    schedule_day: payment_days.first().map(|day| i16::from(*day)),
+                    schedule_month: None,
+                    recurrence: Some(recurrence.clone()),
+                    is_active: Some(true),
+                    start_date,
+                    end_date: None,
+                    account_id,
+                    category_id: Some(category_id),
+                    notes: Some("Automatic debt payment".to_string()),
+                    logo_url: req.logo_url.clone(),
+                })
+                .await?;
             let next = crate::utils::recurrence::next_occurrence_on_or_after(
                 start_date,
                 &recurrence,
@@ -762,11 +897,17 @@ pub async fn update_debt(id: &Uuid, req: &UpdateDebtRequest) -> Result<Debt, Api
     if debt_type != crate::utils::constants::DEBT_TYPE_MANUAL
         && debt_type != crate::utils::constants::DEBT_TYPE_AUTOMATIC
     {
-        return Err(ApiError::Http(400, "Debt type must be manual or automatic".into()));
+        return Err(ApiError::Http(
+            400,
+            "Debt type must be manual or automatic".into(),
+        ));
     }
     let total_amount = req.total_amount.unwrap_or(existing.total_amount);
     if total_amount <= Decimal::ZERO {
-        return Err(ApiError::Http(400, "Debt amount must be greater than zero".into()));
+        return Err(ApiError::Http(
+            400,
+            "Debt amount must be greater than zero".into(),
+        ));
     }
     let paid = existing.total_amount - existing.remaining_amount;
     let remaining_amount = if total_amount == existing.total_amount {
@@ -775,7 +916,10 @@ pub async fn update_debt(id: &Uuid, req: &UpdateDebtRequest) -> Result<Debt, Api
         (total_amount - paid).max(Decimal::ZERO)
     };
     let start_date = req.start_date.unwrap_or(existing.start_date);
-    let mut payment_days = req.payment_days.clone().unwrap_or_else(|| existing.payment_days.clone());
+    let mut payment_days = req
+        .payment_days
+        .clone()
+        .unwrap_or_else(|| existing.payment_days.clone());
     let mut subscription_id = existing.subscription_id;
     let mut monthly_payment = None;
     let mut next_payment_date = None;
@@ -807,23 +951,27 @@ pub async fn update_debt(id: &Uuid, req: &UpdateDebtRequest) -> Result<Debt, Api
             )
             .await?;
         } else {
-            let subscription = create_subscription(&crate::models::subscription::CreateSubscriptionRequest {
-                name: req.name.clone().unwrap_or_else(|| existing.name.clone()),
-                amount: monthly,
-                currency: req.currency.clone().unwrap_or_else(|| existing.currency.clone()),
-                frequency: "monthly".into(),
-                schedule_day: payment_days.first().map(|day| i16::from(*day)),
-                schedule_month: None,
-                recurrence: Some(recurrence.clone()),
-                is_active: Some(true),
-                start_date,
-                end_date: None,
-                account_id,
-                category_id: Some(category_id),
-                notes: Some("Automatic debt payment".to_string()),
-                logo_url: req.logo_url.clone().or_else(|| existing.logo_url.clone()),
-            })
-            .await?;
+            let subscription =
+                create_subscription(&crate::models::subscription::CreateSubscriptionRequest {
+                    name: req.name.clone().unwrap_or_else(|| existing.name.clone()),
+                    amount: monthly,
+                    currency: req
+                        .currency
+                        .clone()
+                        .unwrap_or_else(|| existing.currency.clone()),
+                    frequency: "monthly".into(),
+                    schedule_day: payment_days.first().map(|day| i16::from(*day)),
+                    schedule_month: None,
+                    recurrence: Some(recurrence.clone()),
+                    is_active: Some(true),
+                    start_date,
+                    end_date: None,
+                    account_id,
+                    category_id: Some(category_id),
+                    notes: Some("Automatic debt payment".to_string()),
+                    logo_url: req.logo_url.clone().or_else(|| existing.logo_url.clone()),
+                })
+                .await?;
             subscription_id = Some(subscription.id);
         }
         next_payment_date = crate::utils::recurrence::next_occurrence_on_or_after(
@@ -852,7 +1000,11 @@ pub async fn update_debt(id: &Uuid, req: &UpdateDebtRequest) -> Result<Debt, Api
         account_id: req.account_id.unwrap_or(existing.account_id),
         category_id: req.category_id.unwrap_or(existing.category_id),
         name: req.name.clone().unwrap_or(existing.name),
-        currency: req.currency.clone().unwrap_or(existing.currency).to_uppercase(),
+        currency: req
+            .currency
+            .clone()
+            .unwrap_or(existing.currency)
+            .to_uppercase(),
         total_amount,
         remaining_amount,
         paid_amount: total_amount - remaining_amount,
@@ -869,8 +1021,13 @@ pub async fn update_debt(id: &Uuid, req: &UpdateDebtRequest) -> Result<Debt, Api
         ..existing
     };
     let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No debts".into()))?;
-    let item = list.iter_mut().find(|debt| &debt.id == id).ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No debts".into()))?;
+    let item = list
+        .iter_mut()
+        .find(|debt| &debt.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?;
     *item = updated.clone();
     save_collection("debts", list)?;
     Ok(updated)
@@ -882,7 +1039,9 @@ pub async fn delete_debt(id: &Uuid) -> Result<(), ApiError> {
         if cache.is_none() {
             *cache = load_collection("debts");
         }
-        let list = cache.as_mut().ok_or_else(|| ApiError::Network("No debts".into()))?;
+        let list = cache
+            .as_mut()
+            .ok_or_else(|| ApiError::Network("No debts".into()))?;
         let subscription_id = list
             .iter()
             .find(|debt| &debt.id == id)
@@ -895,7 +1054,9 @@ pub async fn delete_debt(id: &Uuid) -> Result<(), ApiError> {
         let _ = delete_subscription(&sub_id).await;
     }
     record_tombstone("debt", *id);
-    let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut payments = DEBT_PAYMENTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if payments.is_none() {
         *payments = load_collection("debt_payments");
     }
@@ -906,22 +1067,36 @@ pub async fn delete_debt(id: &Uuid) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub async fn record_debt_payment(id: &Uuid, req: &RecordDebtPaymentRequest) -> Result<Debt, ApiError> {
+pub async fn record_debt_payment(
+    id: &Uuid,
+    req: &RecordDebtPaymentRequest,
+) -> Result<Debt, ApiError> {
     if req.amount <= Decimal::ZERO {
-        return Err(ApiError::Http(400, "Payment must be greater than zero".into()));
+        return Err(ApiError::Http(
+            400,
+            "Payment must be greater than zero".into(),
+        ));
     }
     let existing = {
         let mut cache = DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
         if cache.is_none() {
             *cache = load_collection("debts");
         }
-        let list = cache.as_mut().ok_or_else(|| ApiError::Network("No debts".into()))?;
-        let debt = list.iter_mut().find(|debt| &debt.id == id).ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?;
+        let list = cache
+            .as_mut()
+            .ok_or_else(|| ApiError::Network("No debts".into()))?;
+        let debt = list
+            .iter_mut()
+            .find(|debt| &debt.id == id)
+            .ok_or_else(|| ApiError::Http(404, "Debt not found".into()))?;
         if debt.remaining_amount <= Decimal::ZERO {
             return Err(ApiError::Http(400, "Debt is already paid".into()));
         }
         if req.amount > debt.remaining_amount {
-            return Err(ApiError::Http(400, "Payment exceeds the remaining debt".into()));
+            return Err(ApiError::Http(
+                400,
+                "Payment exceeds the remaining debt".into(),
+            ));
         }
         debt.remaining_amount -= req.amount;
         debt.paid_amount += req.amount;
@@ -932,7 +1107,9 @@ pub async fn record_debt_payment(id: &Uuid, req: &RecordDebtPaymentRequest) -> R
         clone
     };
     {
-        let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+        let mut payments = DEBT_PAYMENTS
+            .lock()
+            .map_err(|e| ApiError::Network(e.to_string()))?;
         let list = payments.get_or_insert_with(Vec::new);
         list.push(DebtPayment {
             id: Uuid::new_v4(),
@@ -962,7 +1139,9 @@ pub async fn record_debt_payment(id: &Uuid, req: &RecordDebtPaymentRequest) -> R
 }
 
 pub async fn list_debt_payments(id: &Uuid) -> Result<Vec<DebtPayment>, ApiError> {
-    let mut cache = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = DEBT_PAYMENTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("debt_payments");
     }
@@ -1032,7 +1211,9 @@ fn migrate_legacy_categories(categories: &mut Vec<Category>) -> Result<bool, Api
                 changed = true;
             }
         }
-        if changed { save_collection("subscriptions", &subscriptions)?; }
+        if changed {
+            save_collection("subscriptions", &subscriptions)?;
+        }
     }
     if let Some(mut transactions) = load_collection::<Transaction>("transactions") {
         let mut changed = false;
@@ -1043,7 +1224,9 @@ fn migrate_legacy_categories(categories: &mut Vec<Category>) -> Result<bool, Api
                 changed = true;
             }
         }
-        if changed { save_collection("transactions", &transactions)?; }
+        if changed {
+            save_collection("transactions", &transactions)?;
+        }
     }
     if let Some(mut debts) = load_collection::<Debt>("debts") {
         let mut changed = false;
@@ -1054,7 +1237,9 @@ fn migrate_legacy_categories(categories: &mut Vec<Category>) -> Result<bool, Api
                 changed = true;
             }
         }
-        if changed { save_collection("debts", &debts)?; }
+        if changed {
+            save_collection("debts", &debts)?;
+        }
     }
     categories.retain(|category| !removed.contains(&category.id));
     for category in categories.iter_mut() {
@@ -1067,7 +1252,9 @@ fn migrate_legacy_categories(categories: &mut Vec<Category>) -> Result<bool, Api
 }
 
 pub async fn list_categories() -> Result<Vec<Category>, ApiError> {
-    let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("categories");
         // Seed defaults if empty
@@ -1098,7 +1285,9 @@ pub async fn create_category(req: &CreateCategoryRequest) -> Result<Category, Ap
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("categories");
     }
@@ -1109,21 +1298,34 @@ pub async fn create_category(req: &CreateCategoryRequest) -> Result<Category, Ap
 }
 
 pub async fn update_category(id: &Uuid, req: &UpdateCategoryRequest) -> Result<Category, ApiError> {
-    let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("categories");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
-    let cat = list.iter_mut().find(|c| &c.id == id).ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No categories".into()))?;
+    let cat = list
+        .iter_mut()
+        .find(|c| &c.id == id)
+        .ok_or_else(|| ApiError::Http(404, "Not found".into()))?;
     if cat.is_system {
         return Err(ApiError::Http(
             400,
             "Uncategorized is a system category and cannot be edited".into(),
         ));
     }
-    if let Some(name) = &req.name { cat.name = name.clone(); }
-    if let Some(icon) = &req.icon { cat.icon = Some(icon.clone()); }
-    if let Some(color) = &req.color { cat.color = Some(color.clone()); }
+    if let Some(name) = &req.name {
+        cat.name = name.clone();
+    }
+    if let Some(icon) = &req.icon {
+        cat.icon = Some(icon.clone());
+    }
+    if let Some(color) = &req.color {
+        cat.color = Some(color.clone());
+    }
     cat.updated_at = Utc::now();
     let updated = cat.clone();
     save_collection("categories", list)?;
@@ -1131,11 +1333,15 @@ pub async fn update_category(id: &Uuid, req: &UpdateCategoryRequest) -> Result<C
 }
 
 pub async fn delete_category(id: &Uuid) -> Result<(), ApiError> {
-    let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("categories");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No categories".into()))?;
     let category = list
         .iter()
         .find(|c| &c.id == id)
@@ -1152,11 +1358,15 @@ pub async fn delete_category(id: &Uuid) -> Result<(), ApiError> {
 }
 
 pub async fn set_default_category(id: &Uuid) -> Result<(), ApiError> {
-    let mut cache = CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))?;
+    let mut cache = CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))?;
     if cache.is_none() {
         *cache = load_collection("categories");
     }
-    let list = cache.as_mut().ok_or_else(|| ApiError::Network("No categories".into()))?;
+    let list = cache
+        .as_mut()
+        .ok_or_else(|| ApiError::Network("No categories".into()))?;
     let Some(category) = list.iter().find(|c| &c.id == id) else {
         return Err(ApiError::Http(404, "Not found".into()));
     };
@@ -1174,8 +1384,11 @@ pub async fn set_default_category(id: &Uuid) -> Result<(), ApiError> {
 
 // ── Reports ──
 
-pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::report::ReportResponse, ApiError> {
-    use crate::models::report::{MonthlySummary, CategoryBreakdown, ReportResponse};
+pub async fn get_report_summary(
+    year: i32,
+    month: u32,
+) -> Result<crate::models::report::ReportResponse, ApiError> {
+    use crate::models::report::{CategoryBreakdown, MonthlySummary, ReportResponse};
     use chrono::Datelike;
     use rust_decimal::Decimal;
 
@@ -1184,28 +1397,32 @@ pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::
     let cats = list_categories().await.unwrap_or_default();
 
     // Filter subscriptions active in the given month
-    let month_subs: Vec<_> = subs.iter()
+    let month_subs: Vec<_> = subs
+        .iter()
         .filter(|s| {
             let start = s.start_date;
             // Subscription started before or during this month
-            (start.year() < year || (start.year() == year && start.month() <= month))
-            && s.is_active
+            (start.year() < year || (start.year() == year && start.month() <= month)) && s.is_active
         })
         .collect();
 
     let subs_total: Decimal = month_subs.iter().map(|s| s.amount).sum();
 
     // Filter transactions in the given month
-    let month_txns: Vec<_> = txns.iter()
+    let month_txns: Vec<_> = txns
+        .iter()
         .filter(|t| t.date.year() == year && t.date.month() == month)
         .collect();
 
     let txn_total: Decimal = month_txns.iter().map(|t| t.amount).sum();
 
     // Category breakdown (from subscriptions)
-    let mut cat_map: std::collections::HashMap<Uuid, (String, Decimal, i64)> = std::collections::HashMap::new();
+    let mut cat_map: std::collections::HashMap<Uuid, (String, Decimal, i64)> =
+        std::collections::HashMap::new();
     for s in &month_subs {
-        let entry = cat_map.entry(s.category_id).or_insert((String::new(), Decimal::ZERO, 0));
+        let entry = cat_map
+            .entry(s.category_id)
+            .or_insert((String::new(), Decimal::ZERO, 0));
         if let Some(cat) = cats.iter().find(|c| c.id == s.category_id) {
             entry.0 = cat.name.clone();
         }
@@ -1213,16 +1430,26 @@ pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::
         entry.2 += 1;
     }
     let overall = subs_total + txn_total;
-    let category_breakdown: Vec<CategoryBreakdown> = cat_map.into_iter().map(|(_, (name, total, count))| {
-        let pct = if overall > Decimal::ZERO { (total / overall * Decimal::from(100)).to_string().parse::<f64>().unwrap_or(0.0) } else { 0.0 };
-        CategoryBreakdown {
-            category_id: None,
-            category_name: name,
-            total,
-            count,
-            percentage: pct,
-        }
-    }).collect();
+    let category_breakdown: Vec<CategoryBreakdown> = cat_map
+        .into_iter()
+        .map(|(_, (name, total, count))| {
+            let pct = if overall > Decimal::ZERO {
+                (total / overall * Decimal::from(100))
+                    .to_string()
+                    .parse::<f64>()
+                    .unwrap_or(0.0)
+            } else {
+                0.0
+            };
+            CategoryBreakdown {
+                category_id: None,
+                category_name: name,
+                total,
+                count,
+                percentage: pct,
+            }
+        })
+        .collect();
 
     Ok(ReportResponse {
         monthly_summary: MonthlySummary {
@@ -1257,10 +1484,8 @@ mod tests {
             let lock = crate::storage::STORAGE_TEST_LOCK
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            let dir = std::env::temp_dir().join(format!(
-                "recurrency-local-test-{}",
-                Uuid::new_v4()
-            ));
+            let dir =
+                std::env::temp_dir().join(format!("recurrency-local-test-{}", Uuid::new_v4()));
             let _ = std::fs::remove_dir_all(&dir);
             *TEST_DATA_DIR
                 .lock()
@@ -1404,8 +1629,6 @@ mod tests {
         assert_eq!(back.device_id, "device");
         assert_eq!(back.tombstones.len(), 1);
     }
-
-
 
     #[test]
     fn default_categories_count() {
@@ -1578,7 +1801,9 @@ mod tests {
             assert!(list_subscriptions().await.unwrap().is_empty());
 
             let start = today();
-            let subscription = create_subscription(&subscription_request(start)).await.unwrap();
+            let subscription = create_subscription(&subscription_request(start))
+                .await
+                .unwrap();
             assert!(!subscription.account_id.is_nil());
             assert_eq!(subscription.next_billing_date, Some(start));
             assert_eq!(list_subscriptions().await.unwrap().len(), 1);
@@ -1619,9 +1844,17 @@ mod tests {
 
             delete_subscription(&subscription.id).await.unwrap();
             assert!(list_subscriptions().await.unwrap().is_empty());
-            assert!(load_tombstones().iter().any(|item| item.kind == "subscription" && item.id == subscription.id));
+            assert!(
+                load_tombstones()
+                    .iter()
+                    .any(|item| item.kind == "subscription" && item.id == subscription.id)
+            );
 
-            assert!(update_subscription(&Uuid::new_v4(), &UpdateSubscriptionRequest::default()).await.is_err());
+            assert!(
+                update_subscription(&Uuid::new_v4(), &UpdateSubscriptionRequest::default())
+                    .await
+                    .is_err()
+            );
         });
     }
 
@@ -1651,21 +1884,56 @@ mod tests {
     fn local_missing_collections_return_errors() {
         let _test = LocalTest::new();
         run(async {
-            assert!(update_subscription(&Uuid::new_v4(), &UpdateSubscriptionRequest::default()).await.is_err());
+            assert!(
+                update_subscription(&Uuid::new_v4(), &UpdateSubscriptionRequest::default())
+                    .await
+                    .is_err()
+            );
             assert!(delete_subscription(&Uuid::new_v4()).await.is_err());
-            assert!(update_transaction(&Uuid::new_v4(), &UpdateTransactionRequest::default()).await.is_err());
+            assert!(
+                update_transaction(&Uuid::new_v4(), &UpdateTransactionRequest::default())
+                    .await
+                    .is_err()
+            );
             assert!(delete_transaction(&Uuid::new_v4()).await.is_err());
-            assert!(update_category(&Uuid::new_v4(), &UpdateCategoryRequest { name: None, icon: None, color: None }).await.is_err());
+            assert!(
+                update_category(
+                    &Uuid::new_v4(),
+                    &UpdateCategoryRequest {
+                        name: None,
+                        icon: None,
+                        color: None
+                    }
+                )
+                .await
+                .is_err()
+            );
             assert!(delete_category(&Uuid::new_v4()).await.is_err());
             assert!(set_default_category(&Uuid::new_v4()).await.is_err());
-            assert!(update_debt(&Uuid::new_v4(), &UpdateDebtRequest::default()).await.is_err());
+            assert!(
+                update_debt(&Uuid::new_v4(), &UpdateDebtRequest::default())
+                    .await
+                    .is_err()
+            );
             assert!(delete_debt(&Uuid::new_v4()).await.is_err());
-            assert!(record_debt_payment(&Uuid::new_v4(), &RecordDebtPaymentRequest {
-                amount: dec!(1),
-                paid_on: today(),
-                note: None,
-            }).await.is_err());
-            assert!(list_debt_payments(&Uuid::new_v4()).await.unwrap().is_empty());
+            assert!(
+                record_debt_payment(
+                    &Uuid::new_v4(),
+                    &RecordDebtPaymentRequest {
+                        amount: dec!(1),
+                        paid_on: today(),
+                        note: None,
+                    }
+                )
+                .await
+                .is_err()
+            );
+            assert!(
+                list_debt_payments(&Uuid::new_v4())
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
         });
     }
 
@@ -1674,7 +1942,9 @@ mod tests {
         let _test = LocalTest::new();
         run(async {
             assert!(list_transactions().await.unwrap().is_empty());
-            let transaction = create_transaction(&transaction_request(today())).await.unwrap();
+            let transaction = create_transaction(&transaction_request(today()))
+                .await
+                .unwrap();
             assert!(!transaction.account_id.is_nil());
 
             let updated = update_transaction(
@@ -1696,12 +1966,19 @@ mod tests {
             assert_eq!(updated.amount, dec!(12.25));
             assert_eq!(updated.date, date(2024, 3, 4));
             assert!(updated.notes.is_none());
-            assert_eq!(updated.logo_url.as_deref(), Some("https://example.test/logo.png"));
+            assert_eq!(
+                updated.logo_url.as_deref(),
+                Some("https://example.test/logo.png")
+            );
 
             assert_eq!(list_transactions().await.unwrap().len(), 1);
             delete_transaction(&transaction.id).await.unwrap();
             assert!(list_transactions().await.unwrap().is_empty());
-            assert!(update_transaction(&Uuid::new_v4(), &UpdateTransactionRequest::default()).await.is_err());
+            assert!(
+                update_transaction(&Uuid::new_v4(), &UpdateTransactionRequest::default())
+                    .await
+                    .is_err()
+            );
         });
     }
 
@@ -1739,7 +2016,13 @@ mod tests {
 
             set_default_account(&second.id).await.unwrap();
             let accounts = list_accounts().await.unwrap();
-            assert!(accounts.iter().find(|account| account.id == second.id).unwrap().is_default);
+            assert!(
+                accounts
+                    .iter()
+                    .find(|account| account.id == second.id)
+                    .unwrap()
+                    .is_default
+            );
 
             let subscription = create_subscription(&CreateSubscriptionRequest {
                 account_id: second.id,
@@ -1757,10 +2040,20 @@ mod tests {
             assert!(delete_account(&second.id).await.is_err());
             set_default_account(&accounts[0].id).await.unwrap();
             delete_account(&second.id).await.unwrap();
-            assert_eq!(list_subscriptions().await.unwrap()[0].account_id, accounts[0].id);
-            assert_eq!(list_transactions().await.unwrap()[0].account_id, accounts[0].id);
+            assert_eq!(
+                list_subscriptions().await.unwrap()[0].account_id,
+                accounts[0].id
+            );
+            assert_eq!(
+                list_transactions().await.unwrap()[0].account_id,
+                accounts[0].id
+            );
 
-            assert!(update_account(&Uuid::new_v4(), &UpdateAccountRequest::default()).await.is_err());
+            assert!(
+                update_account(&Uuid::new_v4(), &UpdateAccountRequest::default())
+                    .await
+                    .is_err()
+            );
             assert!(delete_account(&Uuid::new_v4()).await.is_err());
             assert!(set_default_account(&Uuid::new_v4()).await.is_err());
             assert_eq!(subscription.id, list_subscriptions().await.unwrap()[0].id);
@@ -1835,15 +2128,46 @@ mod tests {
             assert_eq!(updated.icon.as_deref(), Some("ShoppingCart"));
             assert_eq!(updated.color.as_deref(), Some("#f97316"));
 
-            assert!(update_category(&system_id, &UpdateCategoryRequest { name: Some("Nope".into()), icon: None, color: None }).await.is_err());
+            assert!(
+                update_category(
+                    &system_id,
+                    &UpdateCategoryRequest {
+                        name: Some("Nope".into()),
+                        icon: None,
+                        color: None
+                    }
+                )
+                .await
+                .is_err()
+            );
             assert!(delete_category(&system_id).await.is_err());
             assert!(set_default_category(&custom.id).await.is_err());
             set_default_category(&system_id).await.unwrap();
-            assert!(list_categories().await.unwrap().iter().find(|category| category.id == custom.id).unwrap().is_default == false);
+            assert!(
+                list_categories()
+                    .await
+                    .unwrap()
+                    .iter()
+                    .find(|category| category.id == custom.id)
+                    .unwrap()
+                    .is_default
+                    == false
+            );
 
             delete_category(&custom.id).await.unwrap();
             assert_eq!(list_categories().await.unwrap().len(), 1);
-            assert!(update_category(&Uuid::new_v4(), &UpdateCategoryRequest { name: None, icon: None, color: None }).await.is_err());
+            assert!(
+                update_category(
+                    &Uuid::new_v4(),
+                    &UpdateCategoryRequest {
+                        name: None,
+                        icon: None,
+                        color: None
+                    }
+                )
+                .await
+                .is_err()
+            );
             assert!(delete_category(&Uuid::new_v4()).await.is_err());
             assert!(set_default_category(&Uuid::new_v4()).await.is_err());
         });
@@ -1876,20 +2200,43 @@ mod tests {
                 updated_at: Utc::now(),
             };
             save_collection("categories", &vec![old_system.clone(), custom.clone()]).unwrap();
-            save_collection("subscriptions", &vec![stored_subscription(old_system.id, today())]).unwrap();
+            save_collection(
+                "subscriptions",
+                &vec![stored_subscription(old_system.id, today())],
+            )
+            .unwrap();
             save_collection("transactions", &vec![stored_transaction(old_system.id)]).unwrap();
             save_collection("debts", &vec![stored_debt(old_system.id)]).unwrap();
 
             let categories = list_categories().await.unwrap();
             assert_eq!(categories.len(), 2);
-            let new_system = categories.iter().find(|category| category.is_system).unwrap();
+            let new_system = categories
+                .iter()
+                .find(|category| category.is_system)
+                .unwrap();
             assert_eq!(new_system.name, "Uncategorized");
             assert!(new_system.is_default);
-            assert!(!categories.iter().find(|category| category.id == custom.id).unwrap().is_default);
-            assert_eq!(list_subscriptions().await.unwrap()[0].category_id, new_system.id);
-            assert_eq!(list_transactions().await.unwrap()[0].category_id, new_system.id);
+            assert!(
+                !categories
+                    .iter()
+                    .find(|category| category.id == custom.id)
+                    .unwrap()
+                    .is_default
+            );
+            assert_eq!(
+                list_subscriptions().await.unwrap()[0].category_id,
+                new_system.id
+            );
+            assert_eq!(
+                list_transactions().await.unwrap()[0].category_id,
+                new_system.id
+            );
             assert_eq!(list_debts().await.unwrap()[0].category_id, new_system.id);
-            assert!(load_tombstones().iter().any(|item| item.kind == "category" && item.id == old_system.id));
+            assert!(
+                load_tombstones()
+                    .iter()
+                    .any(|item| item.kind == "category" && item.id == old_system.id)
+            );
         });
     }
     #[test]
@@ -1910,8 +2257,28 @@ mod tests {
             assert_eq!(debt.currency, "EUR");
             assert_eq!(debt.paid_amount, Decimal::ZERO);
 
-            assert!(update_debt(&debt.id, &UpdateDebtRequest { debt_type: Some("bad".into()), ..Default::default() }).await.is_err());
-            assert!(update_debt(&debt.id, &UpdateDebtRequest { total_amount: Some(Decimal::ZERO), ..Default::default() }).await.is_err());
+            assert!(
+                update_debt(
+                    &debt.id,
+                    &UpdateDebtRequest {
+                        debt_type: Some("bad".into()),
+                        ..Default::default()
+                    }
+                )
+                .await
+                .is_err()
+            );
+            assert!(
+                update_debt(
+                    &debt.id,
+                    &UpdateDebtRequest {
+                        total_amount: Some(Decimal::ZERO),
+                        ..Default::default()
+                    }
+                )
+                .await
+                .is_err()
+            );
 
             let updated = update_debt(
                 &debt.id,
@@ -1931,22 +2298,41 @@ mod tests {
             assert_eq!(updated.currency, "USD");
             assert_eq!(updated.notes.as_deref(), Some("tracked"));
 
-            assert!(record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: Decimal::ZERO,
-                paid_on: today(),
-                note: None,
-            }).await.is_err());
-            assert!(record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: dec!(201),
-                paid_on: today(),
-                note: None,
-            }).await.is_err());
+            assert!(
+                record_debt_payment(
+                    &debt.id,
+                    &RecordDebtPaymentRequest {
+                        amount: Decimal::ZERO,
+                        paid_on: today(),
+                        note: None,
+                    }
+                )
+                .await
+                .is_err()
+            );
+            assert!(
+                record_debt_payment(
+                    &debt.id,
+                    &RecordDebtPaymentRequest {
+                        amount: dec!(201),
+                        paid_on: today(),
+                        note: None,
+                    }
+                )
+                .await
+                .is_err()
+            );
 
-            let paid = record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: dec!(50),
-                paid_on: today(),
-                note: Some("first".into()),
-            }).await.unwrap();
+            let paid = record_debt_payment(
+                &debt.id,
+                &RecordDebtPaymentRequest {
+                    amount: dec!(50),
+                    paid_on: today(),
+                    note: Some("first".into()),
+                },
+            )
+            .await
+            .unwrap();
             assert_eq!(paid.remaining_amount, dec!(150));
             assert_eq!(list_debt_payments(&debt.id).await.unwrap().len(), 1);
 
@@ -1961,11 +2347,18 @@ mod tests {
             .unwrap();
             assert_eq!(reduced.remaining_amount, Decimal::ZERO);
             assert!(!reduced.is_active);
-            assert!(record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: dec!(1),
-                paid_on: today(),
-                note: None,
-            }).await.is_err());
+            assert!(
+                record_debt_payment(
+                    &debt.id,
+                    &RecordDebtPaymentRequest {
+                        amount: dec!(1),
+                        paid_on: today(),
+                        note: None,
+                    }
+                )
+                .await
+                .is_err()
+            );
 
             delete_debt(&debt.id).await.unwrap();
             assert!(list_debt_payments(&debt.id).await.unwrap().is_empty());
@@ -2037,16 +2430,26 @@ mod tests {
             .unwrap();
             assert!(automatic.subscription_id.is_some());
 
-            record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: dec!(60),
-                paid_on: today(),
-                note: None,
-            }).await.unwrap();
-            let closed = record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: dec!(60),
-                paid_on: today(),
-                note: None,
-            }).await.unwrap();
+            record_debt_payment(
+                &debt.id,
+                &RecordDebtPaymentRequest {
+                    amount: dec!(60),
+                    paid_on: today(),
+                    note: None,
+                },
+            )
+            .await
+            .unwrap();
+            let closed = record_debt_payment(
+                &debt.id,
+                &RecordDebtPaymentRequest {
+                    amount: dec!(60),
+                    paid_on: today(),
+                    note: None,
+                },
+            )
+            .await
+            .unwrap();
             assert!(!closed.is_active);
             assert_eq!(list_debt_payments(&debt.id).await.unwrap().len(), 2);
             let subscription = list_subscriptions().await.unwrap();
@@ -2064,19 +2467,31 @@ mod tests {
         run(async {
             let accounts = list_accounts().await.unwrap();
             let categories = list_categories().await.unwrap();
-            let subscription = create_subscription(&subscription_request(today())).await.unwrap();
-            let transaction = create_transaction(&transaction_request(today())).await.unwrap();
+            let subscription = create_subscription(&subscription_request(today()))
+                .await
+                .unwrap();
+            let transaction = create_transaction(&transaction_request(today()))
+                .await
+                .unwrap();
             let debt = create_debt(&debt_request("manual")).await.unwrap();
-            record_debt_payment(&debt.id, &RecordDebtPaymentRequest {
-                amount: dec!(10),
-                paid_on: today(),
-                note: Some("backup payment".into()),
-            }).await.unwrap();
+            record_debt_payment(
+                &debt.id,
+                &RecordDebtPaymentRequest {
+                    amount: dec!(10),
+                    paid_on: today(),
+                    note: Some("backup payment".into()),
+                },
+            )
+            .await
+            .unwrap();
 
             let backup = export_backup().await.unwrap();
             assert_eq!(backup["format_version"], 1);
             assert_eq!(backup["accounts"].as_array().unwrap().len(), accounts.len());
-            assert_eq!(backup["categories"].as_array().unwrap().len(), categories.len());
+            assert_eq!(
+                backup["categories"].as_array().unwrap().len(),
+                categories.len()
+            );
             assert_eq!(backup["subscriptions"].as_array().unwrap().len(), 1);
             assert_eq!(backup["transactions"].as_array().unwrap().len(), 1);
             assert_eq!(backup["debts"].as_array().unwrap().len(), 1);
@@ -2099,17 +2514,29 @@ mod tests {
             assert_eq!(list_debts().await.unwrap()[0].paid_amount, dec!(10));
             assert_eq!(list_accounts().await.unwrap()[0].user_id, Uuid::nil());
 
-            assert!(import_backup(&serde_json::json!({"format_version": 2})).await.is_err());
-            assert!(import_backup(&serde_json::json!({
-                "format_version": 1,
-                "accounts": [],
-                "categories": [],
-            })).await.is_err());
-            assert!(import_backup(&serde_json::json!({
-                "format_version": 1,
-                "accounts": "bad",
-                "categories": [],
-            })).await.is_err());
+            assert!(
+                import_backup(&serde_json::json!({"format_version": 2}))
+                    .await
+                    .is_err()
+            );
+            assert!(
+                import_backup(&serde_json::json!({
+                    "format_version": 1,
+                    "accounts": [],
+                    "categories": [],
+                }))
+                .await
+                .is_err()
+            );
+            assert!(
+                import_backup(&serde_json::json!({
+                    "format_version": 1,
+                    "accounts": "bad",
+                    "categories": [],
+                }))
+                .await
+                .is_err()
+            );
 
             let _ = (subscription.id, transaction.id);
         });
@@ -2160,8 +2587,12 @@ mod tests {
         run(async {
             let account = list_accounts().await.unwrap()[0].clone();
             let category = list_categories().await.unwrap()[0].clone();
-            let subscription = create_subscription(&subscription_request(today())).await.unwrap();
-            let transaction = create_transaction(&transaction_request(today())).await.unwrap();
+            let subscription = create_subscription(&subscription_request(today()))
+                .await
+                .unwrap();
+            let transaction = create_transaction(&transaction_request(today()))
+                .await
+                .unwrap();
             let debt = create_debt(&debt_request("manual")).await.unwrap();
 
             let snapshot = sync_snapshot().await.unwrap();
@@ -2203,15 +2634,25 @@ mod tests {
                     deleted_at: Utc::now(),
                 }],
             };
-            let merged = sync_merge(&[
-                "not json".into(),
-                serde_json::to_string(&remote).unwrap(),
-            ])
-            .await
-            .unwrap();
+            let merged = sync_merge(&["not json".into(), serde_json::to_string(&remote).unwrap()])
+                .await
+                .unwrap();
             let merged: SyncDocument = serde_json::from_str(&merged).unwrap();
-            assert_eq!(merged.subscriptions.iter().find(|item| item.id == subscription.id).unwrap().name, "Remote newer");
-            assert!(merged.transactions.iter().all(|item| item.id != transaction.id));
+            assert_eq!(
+                merged
+                    .subscriptions
+                    .iter()
+                    .find(|item| item.id == subscription.id)
+                    .unwrap()
+                    .name,
+                "Remote newer"
+            );
+            assert!(
+                merged
+                    .transactions
+                    .iter()
+                    .all(|item| item.id != transaction.id)
+            );
             assert!(merged.transactions.iter().any(|item| item.id == fresh.id));
             assert_eq!(merged.debts.len(), 1);
             assert_eq!(merged.debts[0].id, debt.id);
@@ -2247,7 +2688,9 @@ mod tests {
             )
             .await
             .unwrap();
-            Storage::set_default_category(&categories[0].id).await.unwrap();
+            Storage::set_default_category(&categories[0].id)
+                .await
+                .unwrap();
 
             let accounts = Storage::list_accounts().await.unwrap();
             let account = Storage::create_account(&CreateAccountRequest {
@@ -2282,10 +2725,12 @@ mod tests {
             .await
             .unwrap();
             assert_eq!(Storage::list_subscriptions().await.unwrap().len(), 1);
-            assert!(!Storage::calendar_month(today().year(), today().month())
-                .await
-                .unwrap()
-                .is_empty());
+            assert!(
+                !Storage::calendar_month(today().year(), today().month())
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
 
             let transaction = Storage::create_transaction(&transaction_request(today()))
                 .await
@@ -2322,7 +2767,10 @@ mod tests {
             .await
             .unwrap();
             assert_eq!(Storage::list_debts().await.unwrap().len(), 1);
-            assert_eq!(Storage::list_debt_payments(&debt.id).await.unwrap().len(), 1);
+            assert_eq!(
+                Storage::list_debt_payments(&debt.id).await.unwrap().len(),
+                1
+            );
             assert_eq!(
                 Storage::get_report_summary(today().year(), today().month())
                     .await
@@ -2334,7 +2782,9 @@ mod tests {
 
             Storage::delete_debt(&debt.id).await.unwrap();
             Storage::delete_transaction(&transaction.id).await.unwrap();
-            Storage::delete_subscription(&subscription.id).await.unwrap();
+            Storage::delete_subscription(&subscription.id)
+                .await
+                .unwrap();
             Storage::delete_account(&account.id).await.unwrap();
             Storage::delete_category(&category.id).await.unwrap();
 
@@ -2346,15 +2796,18 @@ mod tests {
             crate::api::client::reset_offline_for_tests();
         });
     }
-
 }
 
 // ── Portable backup ─────────────────────────────────────────
 
 pub async fn export_backup() -> Result<serde_json::Value, ApiError> {
     let debt_payments = {
-        let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-        if payments.is_none() { *payments = load_collection("debt_payments"); }
+        let mut payments = DEBT_PAYMENTS
+            .lock()
+            .map_err(|e| ApiError::Network(e.to_string()))?;
+        if payments.is_none() {
+            *payments = load_collection("debt_payments");
+        }
         payments.clone().unwrap_or_default()
     };
     Ok(serde_json::json!({
@@ -2371,47 +2824,85 @@ pub async fn export_backup() -> Result<serde_json::Value, ApiError> {
 }
 
 pub async fn import_backup(backup: &serde_json::Value) -> Result<serde_json::Value, ApiError> {
-    if backup.get("format_version").and_then(|value| value.as_u64()) != Some(1) {
-        return Err(ApiError::Http(400, "Unsupported backup format version".into()));
+    if backup
+        .get("format_version")
+        .and_then(|value| value.as_u64())
+        != Some(1)
+    {
+        return Err(ApiError::Http(
+            400,
+            "Unsupported backup format version".into(),
+        ));
     }
     let mut accounts: Vec<Account> = serde_json::from_value(
-        backup.get("accounts").cloned().unwrap_or_else(|| serde_json::json!([])),
+        backup
+            .get("accounts")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
     )
     .map_err(|error| ApiError::Parse(error.to_string()))?;
     let mut categories: Vec<Category> = serde_json::from_value(
-        backup.get("categories").cloned().unwrap_or_else(|| serde_json::json!([])),
+        backup
+            .get("categories")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
     )
     .map_err(|error| ApiError::Parse(error.to_string()))?;
     let mut subscriptions: Vec<Subscription> = serde_json::from_value(
-        backup.get("subscriptions").cloned().unwrap_or_else(|| serde_json::json!([])),
+        backup
+            .get("subscriptions")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
     )
     .map_err(|error| ApiError::Parse(error.to_string()))?;
     let mut transactions: Vec<Transaction> = serde_json::from_value(
-        backup.get("transactions").cloned().unwrap_or_else(|| serde_json::json!([])),
+        backup
+            .get("transactions")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
     )
     .map_err(|error| ApiError::Parse(error.to_string()))?;
     let mut debts: Vec<Debt> = serde_json::from_value(
-        backup.get("debts").cloned().unwrap_or_else(|| serde_json::json!([])),
+        backup
+            .get("debts")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
     )
     .map_err(|error| ApiError::Parse(error.to_string()))?;
     let mut debt_payments: Vec<DebtPayment> = serde_json::from_value(
-        backup.get("debt_payments").cloned().unwrap_or_else(|| serde_json::json!([])),
+        backup
+            .get("debt_payments")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
     )
     .map_err(|error| ApiError::Parse(error.to_string()))?;
     if accounts.is_empty() || categories.is_empty() {
-        return Err(ApiError::Http(400, "Backup must contain at least one account and category".into()));
+        return Err(ApiError::Http(
+            400,
+            "Backup must contain at least one account and category".into(),
+        ));
     }
 
-    for account in &mut accounts { account.user_id = Uuid::nil(); }
-    for category in &mut categories { category.user_id = Uuid::nil(); }
-    for subscription in &mut subscriptions { subscription.user_id = Uuid::nil(); }
-    for transaction in &mut transactions { transaction.user_id = Uuid::nil(); }
+    for account in &mut accounts {
+        account.user_id = Uuid::nil();
+    }
+    for category in &mut categories {
+        category.user_id = Uuid::nil();
+    }
+    for subscription in &mut subscriptions {
+        subscription.user_id = Uuid::nil();
+    }
+    for transaction in &mut transactions {
+        transaction.user_id = Uuid::nil();
+    }
     for debt in &mut debts {
         debt.user_id = Uuid::nil();
         // Server backups omit the derived paid_amount field.
         debt.paid_amount = (debt.total_amount - debt.remaining_amount).max(Decimal::ZERO);
     }
-    for payment in &mut debt_payments { payment.user_id = Uuid::nil(); }
+    for payment in &mut debt_payments {
+        payment.user_id = Uuid::nil();
+    }
 
     normalize_defaults(&mut accounts);
     // Restoring a backup must preserve every category from the backup,
@@ -2432,12 +2923,22 @@ pub async fn import_backup(backup: &serde_json::Value) -> Result<serde_json::Val
         "debts": debts.len(),
         "debt_payments": debt_payments.len(),
     });
-    *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts);
-    *CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(categories);
-    *SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions);
-    *TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions);
+    *ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts);
+    *CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(categories);
+    *SUBSCRIPTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions);
+    *TRANSACTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions);
     *DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debts);
-    *DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debt_payments);
+    *DEBT_PAYMENTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(debt_payments);
 
     Ok(counts)
 }
@@ -2473,7 +2974,9 @@ pub struct SyncDocument {
     pub tombstones: Vec<Tombstone>,
 }
 
-fn sync_format_version() -> u32 { 1 }
+fn sync_format_version() -> u32 {
+    1
+}
 
 fn load_text(name: &str) -> Option<String> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -2559,13 +3062,21 @@ trait IsDefaultRecord {
 }
 
 impl IsDefaultRecord for Account {
-    fn is_default(&self) -> bool { self.is_default }
-    fn set_default(&mut self, value: bool) { self.is_default = value; }
+    fn is_default(&self) -> bool {
+        self.is_default
+    }
+    fn set_default(&mut self, value: bool) {
+        self.is_default = value;
+    }
 }
 
 impl IsDefaultRecord for Category {
-    fn is_default(&self) -> bool { self.is_default }
-    fn set_default(&mut self, value: bool) { self.is_default = value; }
+    fn is_default(&self) -> bool {
+        self.is_default
+    }
+    fn set_default(&mut self, value: bool) {
+        self.is_default = value;
+    }
 }
 
 pub async fn sync_snapshot() -> Result<String, ApiError> {
@@ -2578,8 +3089,12 @@ pub async fn sync_snapshot() -> Result<String, ApiError> {
         categories: list_categories().await?,
         debts: list_debts().await?,
         debt_payments: {
-            let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-            if payments.is_none() { *payments = load_collection("debt_payments"); }
+            let mut payments = DEBT_PAYMENTS
+                .lock()
+                .map_err(|e| ApiError::Network(e.to_string()))?;
+            if payments.is_none() {
+                *payments = load_collection("debt_payments");
+            }
             payments.clone().unwrap_or_default()
         },
         tombstones: load_tombstones(),
@@ -2624,21 +3139,48 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
     let mut categories = list_categories().await?;
     let mut debts = list_debts().await?;
     let mut debt_payments = {
-        let mut payments = DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))?;
-        if payments.is_none() { *payments = load_collection("debt_payments"); }
+        let mut payments = DEBT_PAYMENTS
+            .lock()
+            .map_err(|e| ApiError::Network(e.to_string()))?;
+        if payments.is_none() {
+            *payments = load_collection("debt_payments");
+        }
         payments.clone().unwrap_or_default()
     };
     let mut tombstones = load_tombstones();
 
     for doc in &remote_docs {
-        subscriptions = merge_by_id(subscriptions, doc.subscriptions.clone(), |i| i.id, |i| i.updated_at);
-        transactions = merge_by_id(transactions, doc.transactions.clone(), |i| i.id, |i| i.updated_at);
+        subscriptions = merge_by_id(
+            subscriptions,
+            doc.subscriptions.clone(),
+            |i| i.id,
+            |i| i.updated_at,
+        );
+        transactions = merge_by_id(
+            transactions,
+            doc.transactions.clone(),
+            |i| i.id,
+            |i| i.updated_at,
+        );
         accounts = merge_by_id(accounts, doc.accounts.clone(), |i| i.id, |i| i.updated_at);
-        categories = merge_by_id(categories, doc.categories.clone(), |i| i.id, |i| i.updated_at);
+        categories = merge_by_id(
+            categories,
+            doc.categories.clone(),
+            |i| i.id,
+            |i| i.updated_at,
+        );
         debts = merge_by_id(debts, doc.debts.clone(), |i| i.id, |i| i.updated_at);
-        debt_payments = merge_by_id(debt_payments, doc.debt_payments.clone(), |i| i.id, |i| i.created_at);
+        debt_payments = merge_by_id(
+            debt_payments,
+            doc.debt_payments.clone(),
+            |i| i.id,
+            |i| i.created_at,
+        );
         for tombstone in &doc.tombstones {
-            if let Some(existing) = tombstones.iter_mut().find(|item| item.kind == tombstone.kind && item.id == tombstone.id) {
+            if let Some(existing) = tombstones
+                .iter_mut()
+                .find(|item| item.kind == tombstone.kind && item.id == tombstone.id)
+            {
                 if tombstone.deleted_at > existing.deleted_at {
                     existing.deleted_at = tombstone.deleted_at;
                 }
@@ -2649,7 +3191,9 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
     }
 
     let is_deleted = |kind: &str, id: Uuid, updated: chrono::DateTime<Utc>| {
-        tombstones.iter().any(|t| t.kind == kind && t.id == id && t.deleted_at >= updated)
+        tombstones
+            .iter()
+            .any(|t| t.kind == kind && t.id == id && t.deleted_at >= updated)
     };
     subscriptions.retain(|i| !is_deleted("subscription", i.id, i.updated_at));
     transactions.retain(|i| !is_deleted("transaction", i.id, i.updated_at));
@@ -2666,12 +3210,22 @@ pub async fn sync_merge(remote_files: &[String]) -> Result<String, ApiError> {
     save_collection("debts", &debts)?;
     save_collection("debt_payments", &debt_payments)?;
     save_collection("tombstones", &tombstones)?;
-    *SUBSCRIPTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions.clone());
-    *TRANSACTIONS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions.clone());
-    *ACCOUNTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts.clone());
-    *CATEGORIES.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(categories.clone());
+    *SUBSCRIPTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(subscriptions.clone());
+    *TRANSACTIONS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(transactions.clone());
+    *ACCOUNTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(accounts.clone());
+    *CATEGORIES
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(categories.clone());
     *DEBTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debts.clone());
-    *DEBT_PAYMENTS.lock().map_err(|e| ApiError::Network(e.to_string()))? = Some(debt_payments.clone());
+    *DEBT_PAYMENTS
+        .lock()
+        .map_err(|e| ApiError::Network(e.to_string()))? = Some(debt_payments.clone());
 
     let document = SyncDocument {
         format_version: 1,

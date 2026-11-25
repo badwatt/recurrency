@@ -80,8 +80,12 @@ pub fn Input(
     let size_class = size.class();
     let width_class = if full_width { "w-full" } else { "" };
     let surface_class = match variant {
-        InputVariant::Default => "rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-primary/60",
-        InputVariant::Bare => "bg-transparent text-foreground placeholder:text-muted-foreground outline-none",
+        InputVariant::Default => {
+            "rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground outline-none transition-colors focus-visible:border-primary/60"
+        }
+        InputVariant::Bare => {
+            "bg-transparent text-foreground placeholder:text-muted-foreground outline-none"
+        }
     };
 
     rsx! {
@@ -140,7 +144,9 @@ mod tests {
     #[test]
     fn bare_input_does_not_paint_a_focus_ring() {
         let source = include_str!("input.rs");
-        assert!(source.contains("InputVariant::Bare => \"bg-transparent"));
+        assert!(source.contains(
+            "\"bg-transparent text-foreground placeholder:text-muted-foreground outline-none\""
+        ));
         assert!(!source.contains("InputVariant::Bare => \"bg-transparent text-foreground placeholder:text-muted-foreground outline-none focus"));
     }
 

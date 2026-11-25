@@ -1,5 +1,5 @@
-use crate::state::preferences::PREFERENCES;
 use crate::components::button::{Button, ButtonRadius, ButtonSize, ButtonVariant};
+use crate::state::preferences::PREFERENCES;
 use crate::theme::catalog::{APPEARANCE_GROUPS, THEMES, ThemeDefinition, theme_by_id};
 use crate::theme::hooks::apply_theme_class;
 use dioxus::prelude::*;

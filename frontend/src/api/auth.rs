@@ -1,9 +1,13 @@
-use crate::api::client::{api_get, api_post, ApiError};
+use crate::api::client::{ApiError, api_get, api_post};
 use crate::models::auth::*;
 
 /// Synchronous login using ureq (no tokio, supports TLS). Works on Android.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn blocking_login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, ApiError> {
+pub fn blocking_login(
+    base_url: &str,
+    email: &str,
+    password: &str,
+) -> Result<AuthResponse, ApiError> {
     let url = format!("{}/api/auth/login", base_url);
     let mut resp = ureq::post(&url)
         .config()
@@ -57,7 +61,10 @@ pub async fn verify_email(token: &str, code: &str) -> Result<serde_json::Value, 
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
+        let body = resp.text().await.unwrap_or_else(|e| {
+            log::error!("Failed to read response body: {}", e);
+            String::new()
+        });
         return Err(ApiError::Http(status, body));
     }
     resp.json::<serde_json::Value>()
@@ -80,7 +87,10 @@ pub async fn resend_verification(token: &str) -> Result<serde_json::Value, ApiEr
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
-        let body = resp.text().await.unwrap_or_else(|e| { log::error!("Failed to read response body: {}", e); String::new() });
+        let body = resp.text().await.unwrap_or_else(|e| {
+            log::error!("Failed to read response body: {}", e);
+            String::new()
+        });
         return Err(ApiError::Http(status, body));
     }
     resp.json::<serde_json::Value>()
@@ -171,7 +181,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("John".into()),
             currency: "EUR".into(),
             verified: true,
@@ -188,7 +198,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: None,
             currency: "USD".into(),
             verified: false,
@@ -265,7 +275,6 @@ mod tests {
     }
 }
 
-
 const REGISTRATION_STATUS_PATH: &str = "/api/auth/registration";
 
 #[derive(Debug, Clone, serde::Deserialize, PartialEq, Eq)]
@@ -303,9 +312,7 @@ mod registration_status_tests {
     async fn login_register_and_verification_use_the_api() {
         let (base, server) = serve_once("200 OK", AUTH_RESPONSE);
         crate::api::client::set_base_url(&base);
-        let login_result = login("a@b.c".into(), "password".into())
-            .await
-            .unwrap();
+        let login_result = login("a@b.c".into(), "password".into()).await.unwrap();
         crate::api::client::clear_base_url();
         server.join().unwrap();
         assert_eq!(login_result.token, "token");
@@ -347,5 +354,4 @@ mod registration_status_tests {
         server.join().unwrap();
         assert!(matches!(error, ApiError::Http(401, _)));
     }
-
 }

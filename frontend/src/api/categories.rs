@@ -1,4 +1,4 @@
-use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
+use crate::api::client::{ApiError, api_delete, api_get, api_post, api_put};
 use crate::models::category::*;
 
 pub async fn list() -> Result<Vec<Category>, ApiError> {
@@ -403,8 +403,8 @@ mod tests {
         }
     }
     use crate::api::test_support::{with_response, with_server};
-    use serial_test::serial;
     use chrono::Utc;
+    use serial_test::serial;
 
     fn sample_category() -> Category {
         Category {
@@ -442,11 +442,14 @@ mod tests {
 
         let updated: Category = with_server(
             json.clone(),
-            update(&category.id, &UpdateCategoryRequest {
-                name: Some("Dining".into()),
-                icon: None,
-                color: None,
-            }),
+            update(
+                &category.id,
+                &UpdateCategoryRequest {
+                    name: Some("Dining".into()),
+                    icon: None,
+                    color: None,
+                },
+            ),
         )
         .await
         .unwrap();
@@ -460,5 +463,4 @@ mod tests {
             .await
             .unwrap();
     }
-
 }

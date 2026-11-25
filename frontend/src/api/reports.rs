@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, ApiError};
+use crate::api::client::{ApiError, api_get};
 use crate::models::report::*;
 
 pub async fn get_summary(year: i32, month: u32) -> Result<ReportResponse, ApiError> {
@@ -190,5 +190,4 @@ mod tests {
         assert_eq!(report.monthly_summary.overall_total, dec!(150));
         assert_eq!(report.monthly_summary.year, 2024);
     }
-
 }

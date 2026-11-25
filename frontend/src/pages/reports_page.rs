@@ -1,6 +1,6 @@
-use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::button::{Button, ButtonAlign, ButtonSize, ButtonVariant};
 use crate::components::card::{Card, CardRadius};
+use crate::components::chart::{DonutChart, DonutData, LineChart, LineData};
 use crate::components::page_header::PageHeader;
 use crate::components::popover::{Popover, PopoverAlign};
 use crate::components::select_menu::{SelectMenu, SelectOption};
@@ -21,7 +21,9 @@ use crate::utils::icons::icon_display;
 use crate::utils::pdf::build_report_pdf;
 use chrono::{Datelike, Utc};
 use dioxus::prelude::*;
-use lucide_dioxus::{ChevronDown, CreditCard, Download, FileSpreadsheet, FileText, Receipt, TrendingUp, Wallet};
+use lucide_dioxus::{
+    ChevronDown, CreditCard, Download, FileSpreadsheet, FileText, Receipt, TrendingUp, Wallet,
+};
 
 const MONTH_OPTIONS: &[(&str, &str)] = &[
     ("1", "January"),

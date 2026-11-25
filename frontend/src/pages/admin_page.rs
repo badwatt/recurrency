@@ -110,13 +110,11 @@ pub fn AdminPage() -> Element {
         });
     };
 
-    let stage_restore = move |text: String| {
-        match serde_json::from_str::<serde_json::Value>(&text) {
-            Ok(value) => restore_pending.set(Some(value)),
-            Err(_) => TOAST
-                .write()
-                .error("That file is not a valid Recurrency full backup"),
-        }
+    let stage_restore = move |text: String| match serde_json::from_str::<serde_json::Value>(&text) {
+        Ok(value) => restore_pending.set(Some(value)),
+        Err(_) => TOAST
+            .write()
+            .error("That file is not a valid Recurrency full backup"),
     };
 
     let confirm_restore = move |_| {
@@ -435,7 +433,6 @@ fn UserRow(
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -108,7 +108,7 @@ mod tests {
         for day in ["monday", "sunday"] {
             let prefs = PreferencesResponse {
                 theme: "mocha".to_string(),
-            theme_is_set: true,
+                theme_is_set: true,
                 subscriptions_view: "grid".to_string(),
                 first_day_of_week: day.to_string(),
                 date_format: "DD-MM-YYYY".to_string(),
@@ -122,7 +122,7 @@ mod tests {
         for fmt in ["DD-MM-YYYY", "YYYY-MM-DD"] {
             let prefs = PreferencesResponse {
                 theme: "mocha".to_string(),
-            theme_is_set: true,
+                theme_is_set: true,
                 subscriptions_view: "grid".to_string(),
                 first_day_of_week: "monday".to_string(),
                 date_format: fmt.to_string(),

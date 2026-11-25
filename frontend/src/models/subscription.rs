@@ -3,7 +3,6 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-
 /// Unified recurrence definition. Kept in sync with the backend JSONB model.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Recurrence {
@@ -29,7 +28,6 @@ pub struct AnnualDate {
     pub amount: Option<Decimal>,
 }
 
-
 impl Recurrence {
     /// Build the new recurrence model from the legacy frequency columns.
     pub fn from_legacy(
@@ -39,7 +37,9 @@ impl Recurrence {
         month: Option<i16>,
     ) -> Self {
         let fallback_day = start.day().min(31) as u8;
-        let day = day.map(|value| value.clamp(1, 31) as u8).unwrap_or(fallback_day);
+        let day = day
+            .map(|value| value.clamp(1, 31) as u8)
+            .unwrap_or(fallback_day);
         match frequency {
             "daily" => Self {
                 interval: 1,
@@ -97,13 +97,10 @@ impl Recurrence {
                 .iter()
                 .min_by_key(|date| (date.month, date.day))
                 .map(|date| i16::from(date.day)),
-            "month" => self.days.first().map(|day| {
-                if *day == 0 {
-                    31
-                } else {
-                    i16::from(*day)
-                }
-            }),
+            "month" => self
+                .days
+                .first()
+                .map(|day| if *day == 0 { 31 } else { i16::from(*day) }),
             _ => None,
         }
     }

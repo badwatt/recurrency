@@ -8,8 +8,10 @@ use crate::notifications::channels::{NotificationProvider, SummaryNotificationSe
 use crate::notifications::crypto::decrypt_with_secret;
 use crate::notifications::providers::{NotificationMessage, send_message};
 use crate::notifications::service::notification_secret;
+use crate::notifications::summary::{
+    SummaryAccount, SummarySubscription, SummaryTransaction, build_message,
+};
 use crate::shared::date_utils::days_in_month;
-use crate::notifications::summary::{build_message, SummaryAccount, SummarySubscription, SummaryTransaction};
 
 #[derive(Debug, Clone)]
 pub struct ScheduleSpec {
@@ -38,8 +40,8 @@ pub fn validate_schedule(spec: &ScheduleSpec) -> Result<Tz, String> {
     if !(0..=23).contains(&spec.hour) || !(0..=59).contains(&spec.minute) {
         return Err("Notification time is invalid".to_string());
     }
-    let timezone = Tz::from_str(&spec.timezone)
-        .map_err(|_| "Notification timezone is invalid".to_string())?;
+    let timezone =
+        Tz::from_str(&spec.timezone).map_err(|_| "Notification timezone is invalid".to_string())?;
     match spec.frequency.as_str() {
         "daily" => {}
         "weekly" => {
@@ -144,8 +146,6 @@ fn local_datetime(
         .single()
         .ok_or_else(|| "Notification time does not exist in that timezone".to_string())
 }
-
-
 
 pub fn spawn(pool: PgPool) {
     tokio::spawn(async move {
@@ -327,7 +327,14 @@ pub(crate) async fn build_summary(
     })
     .collect::<Vec<_>>();
 
-    let body = build_message(&accounts, &subscriptions, &transactions, today, currency, &rates);
+    let body = build_message(
+        &accounts,
+        &subscriptions,
+        &transactions,
+        today,
+        currency,
+        &rates,
+    );
     Ok(NotificationMessage {
         title: format!("Recurrency summary {}/{:02}", today.year(), today.month()),
         body,
@@ -349,7 +356,6 @@ mod tests {
             timezone: "UTC".to_string(),
         }
     }
-
 
     #[test]
     fn summary_date_selects_next_month() {
@@ -451,8 +457,11 @@ mod tests {
         let next = next_run_at(december, &spec("monthly", None, Some(1))).unwrap();
         assert_eq!(next, Utc.with_ymd_and_hms(2027, 1, 1, 9, 0, 0).unwrap());
 
-        let next = next_run_at(Utc.with_ymd_and_hms(2026, 11, 10, 8, 0, 0).unwrap(), &spec("monthly", None, Some(10))).unwrap();
+        let next = next_run_at(
+            Utc.with_ymd_and_hms(2026, 11, 10, 8, 0, 0).unwrap(),
+            &spec("monthly", None, Some(10)),
+        )
+        .unwrap();
         assert_eq!(next, Utc.with_ymd_and_hms(2026, 11, 10, 9, 0, 0).unwrap());
     }
-
 }

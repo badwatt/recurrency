@@ -54,8 +54,8 @@ mod tests {
         assert_eq!(back, req);
     }
     use crate::api::test_support::{with_response, with_server};
-    use serial_test::serial;
     use chrono::Utc;
+    use serial_test::serial;
 
     fn sample_account() -> Account {
         Account {
@@ -92,11 +92,14 @@ mod tests {
 
         let updated: Account = with_server(
             json,
-            update(&account.id, &UpdateAccountRequest {
-                name: Some("Renamed".into()),
-                icon: None,
-                color: None,
-            }),
+            update(
+                &account.id,
+                &UpdateAccountRequest {
+                    name: Some("Renamed".into()),
+                    icon: None,
+                    color: None,
+                },
+            ),
         )
         .await
         .unwrap();
@@ -105,9 +108,6 @@ mod tests {
         with_response("204 No Content", "", delete(&account.id))
             .await
             .unwrap();
-        with_server("null", set_default(&account.id))
-            .await
-            .unwrap();
+        with_server("null", set_default(&account.id)).await.unwrap();
     }
-
 }

@@ -1,4 +1,4 @@
-use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
+use crate::api::client::{ApiError, api_delete, api_get, api_post, api_put};
 use crate::models::subscription::*;
 
 pub async fn list() -> Result<Vec<Subscription>, ApiError> {
@@ -401,23 +401,26 @@ mod tests {
     async fn subscription_endpoints_exchange_json() {
         let sub = sample_subscription();
         let json = serde_json::to_string(&sub).unwrap();
-        let listed: Vec<Subscription> =
-            with_server(format!("[{json}]"), list()).await.unwrap();
+        let listed: Vec<Subscription> = with_server(format!("[{json}]"), list()).await.unwrap();
         assert_eq!(listed.len(), 1);
 
         let fetched: Subscription = with_server(json.clone(), get(&sub.id)).await.unwrap();
         assert_eq!(fetched.id, sub.id);
 
-        let created: Subscription =
-            with_server(json.clone(), create(&sample_request())).await.unwrap();
+        let created: Subscription = with_server(json.clone(), create(&sample_request()))
+            .await
+            .unwrap();
         assert_eq!(created.name, "Netflix");
 
         let updated: Subscription = with_server(
             json.clone(),
-            update(&sub.id, &UpdateSubscriptionRequest {
-                name: Some("Renamed".into()),
-                ..Default::default()
-            }),
+            update(
+                &sub.id,
+                &UpdateSubscriptionRequest {
+                    name: Some("Renamed".into()),
+                    ..Default::default()
+                },
+            ),
         )
         .await
         .unwrap();
@@ -427,17 +430,13 @@ mod tests {
             with_server(format!("[{json}]"), upcoming()).await.unwrap();
         assert_eq!(upcoming.len(), 1);
 
-        let calendar: Vec<CalendarItem> = with_server(
-            "[]".to_string(),
-            calendar_month(2024, 1),
-        )
-        .await
-        .unwrap();
+        let calendar: Vec<CalendarItem> = with_server("[]".to_string(), calendar_month(2024, 1))
+            .await
+            .unwrap();
         assert!(calendar.is_empty());
 
         with_response("204 No Content", "", delete(&sub.id))
             .await
             .unwrap();
     }
-
 }

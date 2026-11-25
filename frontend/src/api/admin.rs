@@ -167,5 +167,4 @@ mod tests {
         crate::api::client::clear_base_url();
         server.join().unwrap();
     }
-
 }

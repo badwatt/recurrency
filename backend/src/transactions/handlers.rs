@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    Json,
 };
 use uuid::Uuid;
 
@@ -27,11 +27,13 @@ pub async fn create(
     headers: HeaderMap,
     Json(req): Json<CreateTransactionRequest>,
 ) -> AppResult<(StatusCode, Json<TransactionResponse>)> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let transaction = state.transaction_service.create(claims.sub, req).await?;
 
@@ -43,11 +45,13 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let transactions = state.transaction_service.get_all(claims.sub).await?;
 
@@ -60,11 +64,13 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<TransactionResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let transaction = state.transaction_service.get_by_id(claims.sub, id).await?;
 
@@ -78,13 +84,18 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateTransactionRequest>,
 ) -> AppResult<Json<TransactionResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
-    let transaction = state.transaction_service.update(claims.sub, id, req).await?;
+    let transaction = state
+        .transaction_service
+        .update(claims.sub, id, req)
+        .await?;
 
     Ok(Json(transaction.into()))
 }
@@ -95,11 +106,13 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     state.transaction_service.delete(claims.sub, id).await?;
 
@@ -111,11 +124,13 @@ pub async fn by_date_range(
     OptionalQuery(query): OptionalQuery<DateRangeQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<TransactionResponse>>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let from_date = match query.as_ref().and_then(|q| q.from_date.as_deref()) {
         Some(d) => chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
@@ -129,8 +144,10 @@ pub async fn by_date_range(
         None => chrono::Utc::now().date_naive(),
     };
 
-    let transactions =
-        state.transaction_service.get_by_date_range(claims.sub, from_date, to_date).await?;
+    let transactions = state
+        .transaction_service
+        .get_by_date_range(claims.sub, from_date, to_date)
+        .await?;
 
     Ok(Json(transactions.into_iter().map(Into::into).collect()))
 }

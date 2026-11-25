@@ -1,14 +1,14 @@
 use crate::api::notification_channels;
-use crate::components::select_menu::{SelectMenu, SelectOption};
-use crate::components::timezone_select::TimezoneSelect;
-use crate::components::toast::TOAST;
-use crate::models::notification::UpdateSummaryNotificationSettingsRequest;
-use dioxus::prelude::*;
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::SectionCard;
 use crate::components::field::Field;
 use crate::components::input::{Input, InputSize};
+use crate::components::select_menu::{SelectMenu, SelectOption};
+use crate::components::timezone_select::TimezoneSelect;
+use crate::components::toast::TOAST;
 use crate::components::toggle::Toggle;
+use crate::models::notification::UpdateSummaryNotificationSettingsRequest;
+use dioxus::prelude::*;
 const WEEKDAYS: &[(i16, &str)] = &[
     (1, "Monday"),
     (2, "Tuesday"),
@@ -74,8 +74,14 @@ pub fn SummaryCard() -> Element {
         saving.set(true);
         let time_value = time();
         let mut parts = time_value.split(':');
-        let hour = parts.next().and_then(|v| v.parse::<i16>().ok()).unwrap_or(9);
-        let minute = parts.next().and_then(|v| v.parse::<i16>().ok()).unwrap_or(0);
+        let hour = parts
+            .next()
+            .and_then(|v| v.parse::<i16>().ok())
+            .unwrap_or(9);
+        let minute = parts
+            .next()
+            .and_then(|v| v.parse::<i16>().ok())
+            .unwrap_or(0);
         let req = UpdateSummaryNotificationSettingsRequest {
             enabled: enabled(),
             frequency: frequency(),

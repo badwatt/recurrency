@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    Json,
 };
 use chrono::Datelike;
 use uuid::Uuid;
@@ -32,11 +32,13 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<SubscriptionResponse>)> {
     req.validate()?;
 
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let subscription = state.subscription_service.create(claims.sub, req).await?;
 
@@ -48,11 +50,13 @@ pub async fn list(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<SubscriptionResponse>>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let subscriptions = state.subscription_service.get_all(claims.sub).await?;
 
@@ -65,11 +69,13 @@ pub async fn get(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<Json<SubscriptionResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let subscription = state.subscription_service.get_by_id(claims.sub, id).await?;
 
@@ -83,13 +89,18 @@ pub async fn update(
     headers: HeaderMap,
     Json(req): Json<UpdateSubscriptionRequest>,
 ) -> AppResult<Json<SubscriptionResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
-    let subscription = state.subscription_service.update(claims.sub, id, req).await?;
+    let subscription = state
+        .subscription_service
+        .update(claims.sub, id, req)
+        .await?;
 
     Ok(Json(subscription.into()))
 }
@@ -100,11 +111,13 @@ pub async fn delete(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> AppResult<StatusCode> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     state.subscription_service.delete(claims.sub, id).await?;
 
@@ -116,13 +129,18 @@ pub async fn upcoming(
     OptionalQuery(query): OptionalQuery<AuthQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<SubscriptionResponse>>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
-    let subscriptions = state.subscription_service.get_upcoming(claims.sub, 7).await?;
+    let subscriptions = state
+        .subscription_service
+        .get_upcoming(claims.sub, 7)
+        .await?;
 
     Ok(Json(subscriptions.into_iter().map(Into::into).collect()))
 }
@@ -132,11 +150,13 @@ pub async fn calendar(
     OptionalQuery(query): OptionalQuery<CalendarQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<Vec<CalendarItem>>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
 
     let today = chrono::Utc::now().date_naive();
     let year = query.as_ref().and_then(|q| q.year).unwrap_or(today.year());
@@ -145,7 +165,10 @@ pub async fn calendar(
         .and_then(|q| q.month)
         .unwrap_or(today.month());
 
-    let items = state.subscription_service.get_calendar(claims.sub, year, month).await?;
+    let items = state
+        .subscription_service
+        .get_calendar(claims.sub, year, month)
+        .await?;
 
     Ok(Json(items))
 }
@@ -788,7 +811,7 @@ fn resolve_subscription_name_unicode() {
         recurrence: None,
         start_date: None,
         end_date: None,
-            clear_end_date: false,
+        clear_end_date: false,
         next_billing_date: None,
         category_id: None,
         is_active: None,
@@ -834,7 +857,7 @@ fn resolve_subscription_all_none_preserves_existing() {
         recurrence: None,
         start_date: None,
         end_date: None,
-            clear_end_date: false,
+        clear_end_date: false,
         next_billing_date: None,
         account_id: None,
         category_id: None,
@@ -884,7 +907,7 @@ fn resolve_subscription_partial_update_amount_only() {
         recurrence: None,
         start_date: None,
         end_date: None,
-            clear_end_date: false,
+        clear_end_date: false,
         next_billing_date: None,
         category_id: None,
         is_active: None,
@@ -933,7 +956,7 @@ fn resolve_subscription_start_date_change() {
         recurrence: None,
         start_date: Some(chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
         end_date: None,
-            clear_end_date: false,
+        clear_end_date: false,
         next_billing_date: None,
         category_id: None,
         is_active: None,
@@ -942,5 +965,8 @@ fn resolve_subscription_start_date_change() {
     };
     // Inline: start_date overridden from req
     let start_date = req.start_date.unwrap_or(existing.start_date);
-    assert_eq!(start_date, chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap());
+    assert_eq!(
+        start_date,
+        chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()
+    );
 }

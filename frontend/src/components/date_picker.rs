@@ -1,4 +1,6 @@
-use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton};
+use crate::components::button::{
+    Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton,
+};
 use crate::components::input::Input;
 use chrono::{Datelike, NaiveDate};
 use dioxus::prelude::*;
@@ -40,7 +42,11 @@ fn calendar_cells(view: NaiveDate) -> Vec<Option<NaiveDate>> {
     let total = days_in_month(view) as usize;
     let mut cells = vec![None; leading];
     for day in 1..=total {
-        cells.push(NaiveDate::from_ymd_opt(view.year(), view.month(), day as u32));
+        cells.push(NaiveDate::from_ymd_opt(
+            view.year(),
+            view.month(),
+            day as u32,
+        ));
     }
     while cells.len() % 7 != 0 {
         cells.push(None);

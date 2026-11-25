@@ -1,8 +1,8 @@
 use crate::Route;
 use crate::api::auth;
-use dioxus::prelude::*;
 use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::input::{Input, InputSize};
+use dioxus::prelude::*;
 
 #[component]
 pub fn VerifyEmailPage(email: String, token: String, on_verified: EventHandler<()>) -> Element {

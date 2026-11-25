@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, ApiError};
+use crate::api::client::{ApiError, api_get};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -42,5 +42,4 @@ mod tests {
         assert_eq!(info.status, "OK");
         assert!(info.smtp_configured);
     }
-
 }

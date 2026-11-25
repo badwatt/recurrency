@@ -147,10 +147,8 @@ mod tests {
             let lock = PERSISTENCE_TEST_LOCK
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            let dir = std::env::temp_dir().join(format!(
-                "recurrency-persistence-{}",
-                uuid::Uuid::new_v4()
-            ));
+            let dir = std::env::temp_dir()
+                .join(format!("recurrency-persistence-{}", uuid::Uuid::new_v4()));
             let _ = std::fs::remove_dir_all(&dir);
             *TEST_DIR
                 .lock()
@@ -288,5 +286,4 @@ mod tests {
         remove("missing.txt");
         assert!(!exists("missing.txt"));
     }
-
 }

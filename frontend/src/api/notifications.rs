@@ -1,4 +1,4 @@
-use crate::api::client::{api_delete, api_get, api_post, ApiError};
+use crate::api::client::{ApiError, api_delete, api_get, api_post};
 use crate::models::notification::*;
 
 pub async fn list() -> Result<NotificationListResponse, ApiError> {
@@ -195,8 +195,8 @@ mod tests {
         assert_eq!(ids.len(), 100);
     }
     use crate::api::test_support::{with_response, with_server};
-    use serial_test::serial;
     use chrono::Utc;
+    use serial_test::serial;
 
     #[tokio::test]
     #[serial]
@@ -218,11 +218,12 @@ mod tests {
         .unwrap();
         assert_eq!(listed.unread_count, 1);
 
-        with_server("null", mark_as_read(&notification.id)).await.unwrap();
+        with_server("null", mark_as_read(&notification.id))
+            .await
+            .unwrap();
         with_server("null", mark_all_as_read()).await.unwrap();
         with_response("204 No Content", "", delete(&notification.id))
             .await
             .unwrap();
     }
-
 }

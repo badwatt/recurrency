@@ -87,7 +87,11 @@ pub fn AboutPage() -> Element {
         .as_ref()
         .map(|release| release.tag_name.trim_start_matches('v').to_string())
         .unwrap_or_else(|| APP_VERSION.to_string());
-    let displayed = if show_latest() { latest_release.as_ref() } else { current_release.as_ref() };
+    let displayed = if show_latest() {
+        latest_release.as_ref()
+    } else {
+        current_release.as_ref()
+    };
     let displayed_version = displayed
         .map(|release| release.tag_name.trim_start_matches('v').to_string())
         .unwrap_or_else(|| APP_VERSION.to_string());

@@ -1,8 +1,10 @@
+use crate::api::client::ApiError;
 use crate::models::account::{Account, CreateAccountRequest, UpdateAccountRequest};
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
-use crate::models::subscription::{CalendarItem, CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest};
+use crate::models::subscription::{
+    CalendarItem, CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
+};
 use crate::models::transaction::{CreateTransactionRequest, Transaction, UpdateTransactionRequest};
-use crate::api::client::ApiError;
 
 /// Abstract storage interface.
 /// In Server mode: delegates to API calls.
@@ -20,7 +22,9 @@ impl Storage {
         }
     }
 
-    pub async fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subscription, ApiError> {
+    pub async fn create_subscription(
+        req: &CreateSubscriptionRequest,
+    ) -> Result<Subscription, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::create_subscription(req).await
         } else {
@@ -28,7 +32,10 @@ impl Storage {
         }
     }
 
-    pub async fn update_subscription(id: &uuid::Uuid, req: &UpdateSubscriptionRequest) -> Result<Subscription, ApiError> {
+    pub async fn update_subscription(
+        id: &uuid::Uuid,
+        req: &UpdateSubscriptionRequest,
+    ) -> Result<Subscription, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::update_subscription(id, req).await
         } else {
@@ -62,7 +69,9 @@ impl Storage {
         }
     }
 
-    pub async fn create_transaction(req: &CreateTransactionRequest) -> Result<Transaction, ApiError> {
+    pub async fn create_transaction(
+        req: &CreateTransactionRequest,
+    ) -> Result<Transaction, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::create_transaction(req).await
         } else {
@@ -70,7 +79,10 @@ impl Storage {
         }
     }
 
-    pub async fn update_transaction(id: &uuid::Uuid, req: &UpdateTransactionRequest) -> Result<Transaction, ApiError> {
+    pub async fn update_transaction(
+        id: &uuid::Uuid,
+        req: &UpdateTransactionRequest,
+    ) -> Result<Transaction, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::update_transaction(id, req).await
         } else {
@@ -104,7 +116,10 @@ impl Storage {
         }
     }
 
-    pub async fn update_account(id: &uuid::Uuid, req: &UpdateAccountRequest) -> Result<Account, ApiError> {
+    pub async fn update_account(
+        id: &uuid::Uuid,
+        req: &UpdateAccountRequest,
+    ) -> Result<Account, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::update_account(id, req).await
         } else {
@@ -146,7 +161,10 @@ impl Storage {
         }
     }
 
-    pub async fn update_category(id: &uuid::Uuid, req: &UpdateCategoryRequest) -> Result<Category, ApiError> {
+    pub async fn update_category(
+        id: &uuid::Uuid,
+        req: &UpdateCategoryRequest,
+    ) -> Result<Category, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::update_category(id, req).await
         } else {
@@ -179,7 +197,9 @@ impl Storage {
         }
     }
 
-    pub async fn create_debt(req: &crate::models::debt::CreateDebtRequest) -> Result<crate::models::debt::Debt, ApiError> {
+    pub async fn create_debt(
+        req: &crate::models::debt::CreateDebtRequest,
+    ) -> Result<crate::models::debt::Debt, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::create_debt(req).await
         } else {
@@ -187,7 +207,10 @@ impl Storage {
         }
     }
 
-    pub async fn update_debt(id: &uuid::Uuid, req: &crate::models::debt::UpdateDebtRequest) -> Result<crate::models::debt::Debt, ApiError> {
+    pub async fn update_debt(
+        id: &uuid::Uuid,
+        req: &crate::models::debt::UpdateDebtRequest,
+    ) -> Result<crate::models::debt::Debt, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::update_debt(id, req).await
         } else {
@@ -203,7 +226,10 @@ impl Storage {
         }
     }
 
-    pub async fn record_debt_payment(id: &uuid::Uuid, req: &crate::models::debt::RecordDebtPaymentRequest) -> Result<crate::models::debt::Debt, ApiError> {
+    pub async fn record_debt_payment(
+        id: &uuid::Uuid,
+        req: &crate::models::debt::RecordDebtPaymentRequest,
+    ) -> Result<crate::models::debt::Debt, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::record_debt_payment(id, req).await
         } else {
@@ -211,7 +237,9 @@ impl Storage {
         }
     }
 
-    pub async fn list_debt_payments(id: &uuid::Uuid) -> Result<Vec<crate::models::debt::DebtPayment>, ApiError> {
+    pub async fn list_debt_payments(
+        id: &uuid::Uuid,
+    ) -> Result<Vec<crate::models::debt::DebtPayment>, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::list_debt_payments(id).await
         } else {
@@ -221,7 +249,10 @@ impl Storage {
 
     // ── Reports ──
 
-    pub async fn get_report_summary(year: i32, month: u32) -> Result<crate::models::report::ReportResponse, ApiError> {
+    pub async fn get_report_summary(
+        year: i32,
+        month: u32,
+    ) -> Result<crate::models::report::ReportResponse, ApiError> {
         if crate::api::client::is_offline_mode() {
             crate::storage::local::get_report_summary(year, month).await
         } else {

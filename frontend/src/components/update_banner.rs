@@ -1,6 +1,6 @@
 use crate::api::update::{self, Release};
-use crate::components::toast::TOAST;
 use crate::components::button::{Button, ButtonSize, ButtonVariant, IconButton};
+use crate::components::toast::TOAST;
 use dioxus::prelude::*;
 
 const DISMISSED_FILE: &str = "update_dismissed.txt";

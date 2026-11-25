@@ -6,7 +6,6 @@ use sqlx::types::Json;
 use uuid::Uuid;
 use validator::Validate;
 
-
 /// Unified recurrence definition stored as JSONB.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Recurrence {

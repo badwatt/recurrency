@@ -1,10 +1,10 @@
-use axum::{extract::State, http::HeaderMap, Json};
+use axum::{Json, extract::State, http::HeaderMap};
 
 use crate::preferences::models::{PreferencesResponse, UpdatePreferencesRequest};
+use crate::shared::OptionalQuery;
 use crate::shared::app_state::AppState;
 use crate::shared::auth_extractor::extract_token_from_request;
 use crate::shared::error::AppResult;
-use crate::shared::OptionalQuery;
 
 #[derive(serde::Deserialize)]
 pub struct PreferencesQuery {
@@ -16,12 +16,17 @@ pub async fn get_preferences(
     OptionalQuery(query): OptionalQuery<PreferencesQuery>,
     headers: HeaderMap,
 ) -> AppResult<Json<PreferencesResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
-    let preferences = state.preferences_service.get_preferences(claims.sub).await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
+    let preferences = state
+        .preferences_service
+        .get_preferences(claims.sub)
+        .await?;
     Ok(Json(preferences))
 }
 
@@ -31,12 +36,17 @@ pub async fn update_preferences(
     headers: HeaderMap,
     Json(req): Json<UpdatePreferencesRequest>,
 ) -> AppResult<Json<PreferencesResponse>> {
-    let claims = state.auth_service.verify_token(&extract_token_from_request(
-        query.as_ref().and_then(|q| q.token.as_ref()),
-        &headers,
-    )?)
-    .await?;
-    let preferences = state.preferences_service.update_preferences(claims.sub, req).await?;
+    let claims = state
+        .auth_service
+        .verify_token(&extract_token_from_request(
+            query.as_ref().and_then(|q| q.token.as_ref()),
+            &headers,
+        )?)
+        .await?;
+    let preferences = state
+        .preferences_service
+        .update_preferences(claims.sub, req)
+        .await?;
     Ok(Json(preferences))
 }
 #[cfg(test)]

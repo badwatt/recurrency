@@ -1,8 +1,8 @@
-use chrono::{Datelike, Local, NaiveDate};
-use dioxus::prelude::*;
 use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::card::Card;
 use crate::components::segmented::{SegmentOption, SegmentedControl};
+use chrono::{Datelike, Local, NaiveDate};
+use dioxus::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -15,8 +15,8 @@ use crate::models::category::Category;
 use crate::models::subscription::Subscription;
 use crate::models::transaction::Transaction;
 use crate::state::accounts::ACCOUNTS;
-use crate::state::categories::CATEGORIES;
 use crate::state::auth::AUTH;
+use crate::state::categories::CATEGORIES;
 use crate::state::rates::RatesState;
 use crate::state::subscriptions::SUBSCRIPTIONS;
 use crate::state::transactions::TRANSACTIONS;
@@ -417,7 +417,9 @@ pub fn build_category_budgets(
     let mut plan: HashMap<Uuid, CategoryBudget> = HashMap::new();
 
     let mut add = |category_id: Uuid, amount: Decimal, pending: bool| {
-        let category = categories.iter().find(|category| category.id == category_id);
+        let category = categories
+            .iter()
+            .find(|category| category.id == category_id);
         let entry = plan.entry(category_id).or_insert_with(|| CategoryBudget {
             category_id,
             name: category
@@ -440,7 +442,10 @@ pub fn build_category_budgets(
         }
     };
 
-    for subscription in subscriptions.iter().filter(|subscription| subscription.is_active) {
+    for subscription in subscriptions
+        .iter()
+        .filter(|subscription| subscription.is_active)
+    {
         let occurrences = crate::utils::recurrence::occurrences_in_month(
             subscription.start_date,
             &subscription.recurrence,
@@ -470,11 +475,7 @@ pub fn build_category_budgets(
     }
 
     let mut result: Vec<CategoryBudget> = plan.into_values().collect();
-    result.sort_by(|a, b| {
-        b.amount
-            .cmp(&a.amount)
-            .then_with(|| a.name.cmp(&b.name))
-    });
+    result.sort_by(|a, b| b.amount.cmp(&a.amount).then_with(|| a.name.cmp(&b.name)));
     result
 }
 
@@ -658,11 +659,7 @@ pub fn Dashboard() -> Element {
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "there".to_string());
 
-    let upcoming = upcoming_payments(
-        &sub_state.subscriptions,
-        &txns_state.transactions,
-        today,
-    );
+    let upcoming = upcoming_payments(&sub_state.subscriptions, &txns_state.transactions, today);
     let upcoming_top5: Vec<_> = upcoming.iter().take(5).collect();
 
     let mut hovered_account = use_signal(|| None::<Uuid>);
@@ -678,7 +675,8 @@ pub fn Dashboard() -> Element {
         &crate::state::rates::RATES(),
     );
     let category_total: Decimal = category_plan.iter().map(|category| category.amount).sum();
-    let category_pending_total: Decimal = category_plan.iter().map(|category| category.pending).sum();
+    let category_pending_total: Decimal =
+        category_plan.iter().map(|category| category.pending).sum();
     let account_pending_label = if accounts_with_pending == 1 {
         "1 account with pending payments".to_string()
     } else {
@@ -1510,14 +1508,7 @@ mod tests {
                 Some(date(2026, 11, 22)),
                 false,
             ),
-            subscription(
-                main_id,
-                dec!(50),
-                "monthly",
-                date(2026, 11, 20),
-                None,
-                true,
-            ),
+            subscription(main_id, dec!(50), "monthly", date(2026, 11, 20), None, true),
         ];
         let txns = vec![
             transaction(main_id, dec!(4), date(2026, 11, 20)),

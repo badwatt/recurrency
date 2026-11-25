@@ -52,7 +52,9 @@ impl NotificationProvider {
     }
 
     pub fn parse(value: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|provider| provider.as_str() == value)
+        Self::ALL
+            .into_iter()
+            .find(|provider| provider.as_str() == value)
     }
 }
 

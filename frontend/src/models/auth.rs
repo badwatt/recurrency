@@ -97,7 +97,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "a@b.c".into(),
-                avatar: None,
+            avatar: None,
             name: None,
             currency: "EUR".into(),
             verified: false,
@@ -157,7 +157,14 @@ mod tests {
 
     #[test]
     fn email_validation_rejects_invalid_addresses() {
-        for email in ["", "user", "user@", "@example.com", "a b@example.com", "a@b"] {
+        for email in [
+            "",
+            "user",
+            "user@",
+            "@example.com",
+            "a b@example.com",
+            "a@b",
+        ] {
             assert!(!is_valid_email(email), "should reject {email}");
         }
     }
@@ -177,7 +184,7 @@ mod tests {
     fn update_settings_request_partial() {
         let req = UpdateSettingsRequest {
             email: None,
-                avatar: None,
+            avatar: None,
             name: Some("New Name".into()),
             currency: None,
         };
@@ -233,7 +240,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "u@t.com".into(),
-                avatar: None,
+            avatar: None,
             name: None,
             currency: "GBP".into(),
             verified: true,
@@ -246,7 +253,7 @@ mod tests {
     fn update_settings_both_fields() {
         let req = UpdateSettingsRequest {
             email: None,
-                avatar: None,
+            avatar: None,
             name: Some("New".into()),
             currency: Some("JPY".into()),
         };

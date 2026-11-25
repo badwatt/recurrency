@@ -1,5 +1,7 @@
 #![allow(clippy::suspicious_else_formatting)]
-use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton};
+use crate::components::button::{
+    Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton,
+};
 use crate::components::input::{Input, InputSize, InputVariant};
 use dioxus::prelude::*;
 use lucide_dioxus::X;

@@ -2,8 +2,7 @@
 
 use serde::Deserialize;
 
-const LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/badwatt/recurrency/releases/latest";
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/badwatt/recurrency/releases/latest";
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct ReleaseAsset {
@@ -47,8 +46,7 @@ impl Release {
         }
         #[cfg(target_os = "macos")]
         {
-            self.has_asset_suffix("-aarch64.dmg")
-                && self.has_asset_suffix("-x86_64.dmg")
+            self.has_asset_suffix("-aarch64.dmg") && self.has_asset_suffix("-x86_64.dmg")
         }
         #[cfg(not(any(
             target_os = "android",
@@ -63,10 +61,20 @@ impl Release {
 
     /// Pick the installer for the current native platform.
     pub fn native_asset(&self) -> Option<&ReleaseAsset> {
-        #[cfg(not(any(target_os = "android", target_os = "linux", target_os = "macos", target_os = "windows")))]
+        #[cfg(not(any(
+            target_os = "android",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "windows"
+        )))]
         return None;
 
-        #[cfg(any(target_os = "android", target_os = "linux", target_os = "macos", target_os = "windows"))]
+        #[cfg(any(
+            target_os = "android",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "windows"
+        ))]
         {
             #[cfg(target_os = "android")]
             let suffix = "-aarch64.apk";
@@ -95,12 +103,10 @@ pub async fn web_image_available(tag: &str) -> bool {
     if tag.is_empty() {
         return false;
     }
-    crate::api::client::api_get::<UpdateImageResponse>(&format!(
-        "/api/update/image?tag={tag}"
-    ))
-    .await
-    .map(|result| result.image_available)
-    .unwrap_or(false)
+    crate::api::client::api_get::<UpdateImageResponse>(&format!("/api/update/image?tag={tag}"))
+        .await
+        .map(|result| result.image_available)
+        .unwrap_or(false)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -231,8 +237,7 @@ async fn install_native(url: &str, filename: &str) -> Result<(), String> {
     let path = tokio::time::timeout(std::time::Duration::from_secs(125), rx)
         .await
         .map_err(|_| "Timed out downloading the update".to_string())?
-        .map_err(|_| "The update download was cancelled".to_string())?
-        ?;
+        .map_err(|_| "The update download was cancelled".to_string())??;
 
     #[cfg(unix)]
     {
@@ -289,11 +294,20 @@ mod tests {
             ],
         };
         #[cfg(target_os = "linux")]
-        assert_eq!(release.native_asset().unwrap().browser_download_url, "linux");
+        assert_eq!(
+            release.native_asset().unwrap().browser_download_url,
+            "linux"
+        );
         #[cfg(target_os = "windows")]
-        assert_eq!(release.native_asset().unwrap().browser_download_url, "windows");
+        assert_eq!(
+            release.native_asset().unwrap().browser_download_url,
+            "windows"
+        );
         #[cfg(target_os = "android")]
-        assert_eq!(release.native_asset().unwrap().browser_download_url, "android");
+        assert_eq!(
+            release.native_asset().unwrap().browser_download_url,
+            "android"
+        );
     }
 
     #[test]
@@ -375,7 +389,8 @@ mod tests {
 
     #[test]
     fn install_rejects_untrusted_urls_before_downloading() {
-        let error = block_on(install("https://evil.example/app.AppImage", "app.AppImage")).unwrap_err();
+        let error =
+            block_on(install("https://evil.example/app.AppImage", "app.AppImage")).unwrap_err();
         assert!(error.contains("not trusted"));
     }
 

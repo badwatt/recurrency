@@ -87,11 +87,13 @@ pub fn build_account_summaries(
         if occurrences.is_empty() {
             continue;
         }
-        let entry = plan.entry(subscription.account_id).or_insert_with(|| AccountSummary {
-            name: "No account".to_string(),
-            budget: Decimal::ZERO,
-            pending: Decimal::ZERO,
-        });
+        let entry = plan
+            .entry(subscription.account_id)
+            .or_insert_with(|| AccountSummary {
+                name: "No account".to_string(),
+                budget: Decimal::ZERO,
+                pending: Decimal::ZERO,
+            });
         for (date, amount) in occurrences {
             let amount = convert(amount, &subscription.currency, &rates.base, rates);
             entry.budget += amount;
@@ -101,15 +103,23 @@ pub fn build_account_summaries(
         }
     }
 
-    for transaction in transactions.iter().filter(|item| {
-        item.date.year() == today.year() && item.date.month() == today.month()
-    }) {
-        let entry = plan.entry(transaction.account_id).or_insert_with(|| AccountSummary {
-            name: "No account".to_string(),
-            budget: Decimal::ZERO,
-            pending: Decimal::ZERO,
-        });
-        let amount = convert(transaction.amount, &transaction.currency, &rates.base, rates);
+    for transaction in transactions
+        .iter()
+        .filter(|item| item.date.year() == today.year() && item.date.month() == today.month())
+    {
+        let entry = plan
+            .entry(transaction.account_id)
+            .or_insert_with(|| AccountSummary {
+                name: "No account".to_string(),
+                budget: Decimal::ZERO,
+                pending: Decimal::ZERO,
+            });
+        let amount = convert(
+            transaction.amount,
+            &transaction.currency,
+            &rates.base,
+            rates,
+        );
         entry.budget += amount;
         if transaction.date > today {
             entry.pending += amount;
@@ -253,7 +263,13 @@ mod tests {
                 date: NaiveDate::from_ymd_opt(2026, 11, 20).unwrap(),
             },
         ];
-        let summaries = build_account_summaries(&accounts, &subscriptions, &transactions, today, &test_rates());
+        let summaries = build_account_summaries(
+            &accounts,
+            &subscriptions,
+            &transactions,
+            today,
+            &test_rates(),
+        );
         assert_eq!(summaries[0].budget, Decimal::from(35));
         assert_eq!(summaries[0].pending, Decimal::from(18));
         assert_eq!(total_budget(&summaries), Decimal::from(35));

@@ -9,9 +9,9 @@ use axum::extract::{DefaultBodyLimit, State};
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, ORIGIN};
 use axum::http::{HeaderValue, StatusCode};
 use axum::{
+    Router,
     extract::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 use recurrency_backend::cli::{self, Command};
 use recurrency_backend::shared::app_state::AppState;
@@ -57,7 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Command::Migrate => {
-            let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
+            let db_pool =
+                shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             shared::db::run_migrations(&db_pool).await?;
             shared::db::shutdown_embedded().await;
             println!("Migrations complete.");
@@ -70,16 +71,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .or_else(|| std::env::var("DATABASE_URL").ok())
                 .filter(|url| !url.trim().is_empty())
                 .ok_or_else(|| {
-                    std::io::Error::other(
-                        "DATABASE_URL or --database-url is required for backups",
-                    )
+                    std::io::Error::other("DATABASE_URL or --database-url is required for backups")
                 })?;
             backup::cli::run(&database_url, cli.backup_dir.clone()).await?;
             shared::db::shutdown_embedded().await;
             return Ok(());
         }
         Command::Admin => {
-            let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
+            let db_pool =
+                shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             shared::db::run_migrations(&db_pool).await?;
             let admin = cli
                 .admin
@@ -90,10 +90,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Ok(());
         }
         Command::Doctor => {
-            let db_pool = shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
+            let db_pool =
+                shared::db::create_pool_with_retry_url(cli.database_url.as_deref()).await?;
             let one: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&db_pool).await?;
             shared::db::shutdown_embedded().await;
-            println!("recurrency {}: configuration OK (database={one})", env!("CARGO_PKG_VERSION"));
+            println!(
+                "recurrency {}: configuration OK (database={one})",
+                env!("CARGO_PKG_VERSION")
+            );
             return Ok(());
         }
         Command::Serve => {}
@@ -108,9 +112,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(std::io::Error::other)?;
     tracing::info!("Database connected and migrations complete");
 
-    let enable_web = cli
-        .enable_web
-        .unwrap_or_else(|| !matches!(std::env::var("ENABLE_WEB").as_deref(), Ok("false" | "FALSE" | "0")));
+    let enable_web = cli.enable_web.unwrap_or_else(|| {
+        !matches!(
+            std::env::var("ENABLE_WEB").as_deref(),
+            Ok("false" | "FALSE" | "0")
+        )
+    });
     let app = build_app(db_pool.clone(), enable_web);
     notifications::scheduler::spawn(db_pool);
     let port = cli.port.unwrap_or_else(parse_port);
@@ -121,7 +128,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = axum::serve(listener, app);
     #[cfg(unix)]
     let terminate = async {
-        if let Ok(mut signal) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+        if let Ok(mut signal) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
             signal.recv().await;
         }
     };
@@ -154,7 +163,10 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         .route("/api/update/image", get(shared::update::image))
         .route("/api/info", get(app_info))
         .route("/api/currency/rates", get(currency::handlers::rates))
-        .route("/api/currency/settings", get(currency::handlers::get_settings).put(currency::handlers::update_settings))
+        .route(
+            "/api/currency/settings",
+            get(currency::handlers::get_settings).put(currency::handlers::update_settings),
+        )
         .route("/api/backup", get(backup::handlers::export))
         .route(
             "/api/backup/import",
@@ -167,15 +179,27 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
             get(auth::handlers::registration_status),
         )
         .route("/api/admin/users", get(admin::handlers::list_users))
-        .route("/api/admin/settings", get(admin::handlers::get_settings).put(admin::handlers::update_settings))
+        .route(
+            "/api/admin/settings",
+            get(admin::handlers::get_settings).put(admin::handlers::update_settings),
+        )
         .route("/api/admin/backup", get(admin::handlers::full_backup))
         .route(
             "/api/admin/backup/restore",
             post(admin::handlers::restore_backup).layer(DefaultBodyLimit::max(64 * 1024 * 1024)),
         )
-        .route("/api/admin/users/{id}", delete(admin::handlers::delete_user))
-        .route("/api/admin/users/{id}/role", put(admin::handlers::update_role))
-        .route("/api/ai/settings", get(ai::handlers::get_settings).put(ai::handlers::update_settings))
+        .route(
+            "/api/admin/users/{id}",
+            delete(admin::handlers::delete_user),
+        )
+        .route(
+            "/api/admin/users/{id}/role",
+            put(admin::handlers::update_role),
+        )
+        .route(
+            "/api/ai/settings",
+            get(ai::handlers::get_settings).put(ai::handlers::update_settings),
+        )
         .route("/api/ai/chat", post(ai::handlers::chat))
         .route("/api/ai/models", post(ai::handlers::models))
         .route(
@@ -187,59 +211,140 @@ fn build_app(db_pool: sqlx::PgPool, enable_web: bool) -> Router {
         .route("/api/auth/verify", get(auth::handlers::verify))
         .route("/api/auth/verify", post(auth::handlers::verify_post))
         .route("/api/auth/verify-email", post(auth::handlers::verify_email))
-        .route("/api/auth/resend-verification", post(auth::handlers::resend_verification))
+        .route(
+            "/api/auth/resend-verification",
+            post(auth::handlers::resend_verification),
+        )
         .route("/api/settings", get(auth::handlers::get_settings))
         .route("/api/settings", put(auth::handlers::update_settings))
-        .route("/api/settings/account", post(auth::handlers::delete_account))
+        .route(
+            "/api/settings/account",
+            post(auth::handlers::delete_account),
+        )
         .route("/api/subscriptions", post(subscriptions::handlers::create))
         .route("/api/subscriptions", get(subscriptions::handlers::list))
         .route("/api/subscriptions/{id}", get(subscriptions::handlers::get))
-        .route("/api/subscriptions/{id}", put(subscriptions::handlers::update))
-        .route("/api/subscriptions/{id}", delete(subscriptions::handlers::delete))
-        .route("/api/subscriptions/upcoming", get(subscriptions::handlers::upcoming))
-        .route("/api/subscriptions/calendar", get(subscriptions::handlers::calendar))
+        .route(
+            "/api/subscriptions/{id}",
+            put(subscriptions::handlers::update),
+        )
+        .route(
+            "/api/subscriptions/{id}",
+            delete(subscriptions::handlers::delete),
+        )
+        .route(
+            "/api/subscriptions/upcoming",
+            get(subscriptions::handlers::upcoming),
+        )
+        .route(
+            "/api/subscriptions/calendar",
+            get(subscriptions::handlers::calendar),
+        )
         .route("/api/transactions", post(transactions::handlers::create))
         .route("/api/transactions", get(transactions::handlers::list))
-        .route("/api/transactions/date-range", get(transactions::handlers::by_date_range))
+        .route(
+            "/api/transactions/date-range",
+            get(transactions::handlers::by_date_range),
+        )
         .route("/api/transactions/{id}", get(transactions::handlers::get))
-        .route("/api/transactions/{id}", put(transactions::handlers::update))
-        .route("/api/transactions/{id}", delete(transactions::handlers::delete))
+        .route(
+            "/api/transactions/{id}",
+            put(transactions::handlers::update),
+        )
+        .route(
+            "/api/transactions/{id}",
+            delete(transactions::handlers::delete),
+        )
         .route("/api/accounts", post(accounts::handlers::create))
         .route("/api/accounts", get(accounts::handlers::list))
-        .route("/api/accounts/with-counts", get(accounts::handlers::list_with_counts))
+        .route(
+            "/api/accounts/with-counts",
+            get(accounts::handlers::list_with_counts),
+        )
         .route("/api/accounts/{id}", get(accounts::handlers::get))
         .route("/api/accounts/{id}", put(accounts::handlers::update))
         .route("/api/accounts/{id}", delete(accounts::handlers::delete))
-        .route("/api/accounts/default", put(accounts::handlers::set_default))
+        .route(
+            "/api/accounts/default",
+            put(accounts::handlers::set_default),
+        )
         .route("/api/categories", post(categories::handlers::create))
         .route("/api/categories", get(categories::handlers::list))
-        .route("/api/categories/with-counts", get(categories::handlers::list_with_counts))
+        .route(
+            "/api/categories/with-counts",
+            get(categories::handlers::list_with_counts),
+        )
         .route("/api/categories/{id}", get(categories::handlers::get))
         .route("/api/categories/{id}", put(categories::handlers::update))
         .route("/api/categories/{id}", delete(categories::handlers::delete))
-        .route("/api/categories/default", put(categories::handlers::set_default))
+        .route(
+            "/api/categories/default",
+            put(categories::handlers::set_default),
+        )
         .route("/api/debts", post(debts::handlers::create))
         .route("/api/debts", get(debts::handlers::list))
         .route("/api/debts/{id}", get(debts::handlers::get))
         .route("/api/debts/{id}", put(debts::handlers::update))
         .route("/api/debts/{id}", delete(debts::handlers::delete))
-        .route("/api/debts/{id}/payments", post(debts::handlers::record_payment))
+        .route(
+            "/api/debts/{id}/payments",
+            post(debts::handlers::record_payment),
+        )
         .route("/api/debts/{id}/payments", get(debts::handlers::payments))
         .route("/api/reports/summary", get(reports::handlers::get_report))
         .route("/api/notifications", get(notifications::handlers::list))
-        .route("/api/notifications/read-all", post(notifications::handlers::mark_all_read))
-        .route("/api/notifications/{id}/read", post(notifications::handlers::mark_read))
-        .route("/api/notifications/{id}", delete(notifications::handlers::delete))
-        .route("/api/settings/notifications", get(notifications::handlers::get_notification_preferences))
-        .route("/api/settings/notifications", put(notifications::handlers::update_notification_preferences))
-        .route("/api/settings/notification-channels", get(notifications::channel_handlers::list_channels))
-        .route("/api/settings/notification-channels/{provider}", put(notifications::channel_handlers::update_channel))
-        .route("/api/settings/notification-channels/{provider}/test", post(notifications::channel_handlers::test_channel))
-        .route("/api/settings/summary-notification", get(notifications::channel_handlers::get_summary))
-        .route("/api/settings/summary-notification", put(notifications::channel_handlers::update_summary))
-        .route("/api/settings/summary-notification/test", post(notifications::channel_handlers::send_summary_now))
-        .route("/api/preferences", get(preferences::handlers::get_preferences))
-        .route("/api/preferences", put(preferences::handlers::update_preferences))
+        .route(
+            "/api/notifications/read-all",
+            post(notifications::handlers::mark_all_read),
+        )
+        .route(
+            "/api/notifications/{id}/read",
+            post(notifications::handlers::mark_read),
+        )
+        .route(
+            "/api/notifications/{id}",
+            delete(notifications::handlers::delete),
+        )
+        .route(
+            "/api/settings/notifications",
+            get(notifications::handlers::get_notification_preferences),
+        )
+        .route(
+            "/api/settings/notifications",
+            put(notifications::handlers::update_notification_preferences),
+        )
+        .route(
+            "/api/settings/notification-channels",
+            get(notifications::channel_handlers::list_channels),
+        )
+        .route(
+            "/api/settings/notification-channels/{provider}",
+            put(notifications::channel_handlers::update_channel),
+        )
+        .route(
+            "/api/settings/notification-channels/{provider}/test",
+            post(notifications::channel_handlers::test_channel),
+        )
+        .route(
+            "/api/settings/summary-notification",
+            get(notifications::channel_handlers::get_summary),
+        )
+        .route(
+            "/api/settings/summary-notification",
+            put(notifications::channel_handlers::update_summary),
+        )
+        .route(
+            "/api/settings/summary-notification/test",
+            post(notifications::channel_handlers::send_summary_now),
+        )
+        .route(
+            "/api/preferences",
+            get(preferences::handlers::get_preferences),
+        )
+        .route(
+            "/api/preferences",
+            put(preferences::handlers::update_preferences),
+        )
         .route("/api/demo/status", get(demo::handlers::status))
         .route("/api/demo/init", get(demo::handlers::init))
         .route("/api/demo/reset", post(demo::handlers::reset))

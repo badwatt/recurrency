@@ -21,7 +21,8 @@ pub fn encrypt_with_key(key: &[u8; 32], value: &Value) -> Result<Vec<u8>, String
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|_| "Invalid notification encryption key".to_string())?;
     let nonce = NotificationNonce::generate();
-    let plaintext = serde_json::to_vec(value).map_err(|_| "Invalid notification config".to_string())?;
+    let plaintext =
+        serde_json::to_vec(value).map_err(|_| "Invalid notification config".to_string())?;
     let ciphertext = cipher
         .encrypt(&nonce, plaintext.as_ref())
         .map_err(|_| "Could not encrypt notification config".to_string())?;
@@ -93,7 +94,8 @@ mod tests {
 
     #[test]
     fn secret_roundtrip() {
-        let encrypted = encrypt_with_secret("test-secret", &json!({"url": "https://example.com"})).unwrap();
+        let encrypted =
+            encrypt_with_secret("test-secret", &json!({"url": "https://example.com"})).unwrap();
         assert_eq!(
             decrypt_with_secret("test-secret", &encrypted).unwrap(),
             json!({"url": "https://example.com"})

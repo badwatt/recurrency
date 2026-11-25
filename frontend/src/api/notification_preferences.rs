@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_put, ApiError};
+use crate::api::client::{ApiError, api_get, api_put};
 use crate::models::notification::*;
 
 pub async fn get() -> Result<NotificationPreferencesResponse, ApiError> {
@@ -150,12 +150,10 @@ mod tests {
                 reminder_days_before: 3,
             }],
         };
-        let listed: NotificationPreferencesResponse = with_server(
-            serde_json::to_string(&response).unwrap(),
-            get(),
-        )
-        .await
-        .unwrap();
+        let listed: NotificationPreferencesResponse =
+            with_server(serde_json::to_string(&response).unwrap(), get())
+                .await
+                .unwrap();
         assert_eq!(listed.preferences.len(), 1);
 
         let updated: NotificationPreferencesResponse = with_server(
@@ -171,5 +169,4 @@ mod tests {
         .unwrap();
         assert!(updated.preferences[0].enabled);
     }
-
 }

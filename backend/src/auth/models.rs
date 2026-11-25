@@ -255,8 +255,7 @@ mod tests {
 
     #[test]
     fn delete_account_request_deserializes() {
-        let req: DeleteAccountRequest =
-            serde_json::from_str(r#"{"password":"secret"}"#).unwrap();
+        let req: DeleteAccountRequest = serde_json::from_str(r#"{"password":"secret"}"#).unwrap();
         assert_eq!(req.password, "secret");
     }
 
@@ -268,7 +267,14 @@ mod tests {
 
     #[test]
     fn email_validation_rejects_invalid_addresses() {
-        for email in ["", "user", "user@", "@example.com", "a b@example.com", "a@b"] {
+        for email in [
+            "",
+            "user",
+            "user@",
+            "@example.com",
+            "a b@example.com",
+            "a@b",
+        ] {
             assert!(!is_valid_email(email), "should reject {email}");
         }
     }

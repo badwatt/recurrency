@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_post, api_put, ApiError};
+use crate::api::client::{ApiError, api_get, api_post, api_put};
 use crate::models::notification::*;
 use serde_json::Value;
 
@@ -86,18 +86,23 @@ mod tests {
             configured: true,
             config: serde_json::json!({"topic": "alerts"}),
         };
-        let listed: Vec<NotificationChannel> =
-            with_server(format!("[{}]", serde_json::to_string(&channel).unwrap()), list())
-                .await
-                .unwrap();
+        let listed: Vec<NotificationChannel> = with_server(
+            format!("[{}]", serde_json::to_string(&channel).unwrap()),
+            list(),
+        )
+        .await
+        .unwrap();
         assert_eq!(listed.len(), 1);
 
         let updated: NotificationChannel = with_server(
             serde_json::to_string(&channel).unwrap(),
-            update("ntfy", &UpdateNotificationChannelRequest {
-                enabled: true,
-                config: serde_json::json!({"topic": "alerts"}),
-            }),
+            update(
+                "ntfy",
+                &UpdateNotificationChannelRequest {
+                    enabled: true,
+                    config: serde_json::json!({"topic": "alerts"}),
+                },
+            ),
         )
         .await
         .unwrap();
@@ -121,12 +126,10 @@ mod tests {
             last_sent_at: None,
             last_error: None,
         };
-        let fetched: SummaryNotificationSettings = with_server(
-            serde_json::to_string(&summary).unwrap(),
-            get_summary(),
-        )
-        .await
-        .unwrap();
+        let fetched: SummaryNotificationSettings =
+            with_server(serde_json::to_string(&summary).unwrap(), get_summary())
+                .await
+                .unwrap();
         assert!(fetched.enabled);
 
         let saved: SummaryNotificationSettings = with_server(
@@ -146,5 +149,4 @@ mod tests {
         .unwrap();
         assert_eq!(saved.frequency, "daily");
     }
-
 }

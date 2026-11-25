@@ -9,9 +9,8 @@ use dioxus::prelude::*;
 pub(crate) mod about_page;
 mod ai_card;
 mod ai_page;
-mod appearance_card;
-mod voice_card;
 pub(crate) mod apk_card;
+mod appearance_card;
 mod backup_card;
 mod delete_account_card;
 pub(crate) mod delivery_card;
@@ -21,12 +20,12 @@ mod profile_card;
 mod server_card;
 pub(crate) mod summary_card;
 pub(crate) mod sync_card;
+mod voice_card;
 
 use about_page::AboutPage;
 use ai_card::AiConnectionCard;
-use appearance_card::AppearanceCard;
-use voice_card::AiVoiceCard;
 use apk_card::ApkCard;
+use appearance_card::AppearanceCard;
 use backup_card::BackupCard;
 use delete_account_card::DeleteAccountCard;
 use delivery_card::DeliveryCard;
@@ -36,6 +35,7 @@ use profile_card::ProfileCard;
 use server_card::ServerCard;
 use summary_card::SummaryCard;
 use sync_card::SyncFolderCard;
+use voice_card::AiVoiceCard;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum MoneyTab {

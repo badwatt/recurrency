@@ -1,11 +1,14 @@
-#[cfg_attr(target_arch = "wasm32", expect(unused_imports, reason = "imports only used on non-WASM targets"))]
-use crate::api::{auth, demo, client::ApiError};
-use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE};
+use crate::Route;
+#[cfg_attr(
+    target_arch = "wasm32",
+    expect(unused_imports, reason = "imports only used on non-WASM targets")
+)]
+use crate::api::{auth, client::ApiError, demo};
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::field::Field;
 use crate::components::input::Input;
+use crate::state::app_mode::{APP_MODE, NATIVE_SERVER_OVERRIDE};
 use crate::state::auth::AUTH;
-use crate::Route;
 use dioxus::prelude::*;
 use std::sync::Mutex;
 
@@ -113,7 +116,8 @@ pub fn LoginPage() -> Element {
         if APP_MODE().mode.is_offline() {
             match crate::storage::local_auth::login(&email_val, &password_val) {
                 Ok(user) => {
-                    AUTH.write().set_authenticated("offline".into(), user, false);
+                    AUTH.write()
+                        .set_authenticated("offline".into(), user, false);
                     clear_login_draft();
                     navigator().push(Route::Dashboard {});
                 }
@@ -135,7 +139,9 @@ pub fn LoginPage() -> Element {
                         auth::blocking_login(&base_url, &email_val, &password_val)
                     }));
                     match result {
-                        Ok(login_result) => { let _ = tx.send(login_result); }
+                        Ok(login_result) => {
+                            let _ = tx.send(login_result);
+                        }
                         Err(panic) => {
                             let msg = if let Some(s) = panic.downcast_ref::<&str>() {
                                 s.to_string()
@@ -148,15 +154,15 @@ pub fn LoginPage() -> Element {
                         }
                     }
                 });
-                let login_result = tokio::time::timeout(
-                    std::time::Duration::from_secs(20),
-                    rx,
-                )
-                .await;
+                let login_result =
+                    tokio::time::timeout(std::time::Duration::from_secs(20), rx).await;
                 match login_result {
                     Ok(Ok(Ok(resp))) => {
-                        AUTH.write()
-                            .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                        AUTH.write().set_authenticated(
+                            resp.token,
+                            resp.user,
+                            resp.requires_verification,
+                        );
                         clear_login_draft();
                         nav.push(Route::Dashboard {});
                     }
@@ -175,8 +181,11 @@ pub fn LoginPage() -> Element {
             {
                 match auth::login(email_val.clone(), password_val.clone()).await {
                     Ok(resp) => {
-                        AUTH.write()
-                            .set_authenticated(resp.token, resp.user, resp.requires_verification);
+                        AUTH.write().set_authenticated(
+                            resp.token,
+                            resp.user,
+                            resp.requires_verification,
+                        );
                         clear_login_draft();
                         nav.push(Route::Dashboard {});
                     }
@@ -206,43 +215,54 @@ pub fn LoginPage() -> Element {
                         demo::blocking_init(&base_url)
                     }));
                     match result {
-                        Ok(r) => { let _ = tx.send(r); }
+                        Ok(r) => {
+                            let _ = tx.send(r);
+                        }
                         Err(panic) => {
-                            let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
-                            else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
-                            else { "Unknown panic".to_string() };
+                            let msg = if let Some(s) = panic.downcast_ref::<&str>() {
+                                s.to_string()
+                            } else if let Some(s) = panic.downcast_ref::<String>() {
+                                s.clone()
+                            } else {
+                                "Unknown panic".to_string()
+                            };
                             let _ = tx.send(Err(ApiError::Network(msg)));
                         }
                     }
                 });
-                let init_result = tokio::time::timeout(
-                    std::time::Duration::from_secs(20),
-                    rx,
-                )
-                .await;
+                let init_result =
+                    tokio::time::timeout(std::time::Duration::from_secs(20), rx).await;
                 match init_result {
                     Ok(Ok(Ok(init_resp))) => {
                         let base_url = crate::api::client::get_base_url();
                         let (tx2, rx2) = tokio::sync::oneshot::channel();
                         std::thread::spawn(move || {
-                            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                auth::blocking_login(&base_url, &init_resp.email, &init_resp.password)
-                            }));
+                            let result =
+                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                    auth::blocking_login(
+                                        &base_url,
+                                        &init_resp.email,
+                                        &init_resp.password,
+                                    )
+                                }));
                             match result {
-                                Ok(r) => { let _ = tx2.send(r); }
+                                Ok(r) => {
+                                    let _ = tx2.send(r);
+                                }
                                 Err(panic) => {
-                                    let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
-                                    else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
-                                    else { "Unknown panic".to_string() };
+                                    let msg = if let Some(s) = panic.downcast_ref::<&str>() {
+                                        s.to_string()
+                                    } else if let Some(s) = panic.downcast_ref::<String>() {
+                                        s.clone()
+                                    } else {
+                                        "Unknown panic".to_string()
+                                    };
                                     let _ = tx2.send(Err(ApiError::Network(msg)));
                                 }
                             }
                         });
-                        let login_result = tokio::time::timeout(
-                            std::time::Duration::from_secs(20),
-                            rx2,
-                        )
-                        .await;
+                        let login_result =
+                            tokio::time::timeout(std::time::Duration::from_secs(20), rx2).await;
                         match login_result {
                             Ok(Ok(Ok(auth_resp))) => {
                                 AUTH.write().set_authenticated(
@@ -260,7 +280,9 @@ pub fn LoginPage() -> Element {
                                 error.set("Login channel closed".to_string());
                             }
                             Err(_) => {
-                                error.set("Connection timed out. Check your server URL.".to_string());
+                                error.set(
+                                    "Connection timed out. Check your server URL.".to_string(),
+                                );
                             }
                         }
                     }
@@ -279,7 +301,8 @@ pub fn LoginPage() -> Element {
             {
                 match demo::init().await {
                     Ok(init_resp) => {
-                        match auth::login(init_resp.email.clone(), init_resp.password.clone()).await {
+                        match auth::login(init_resp.email.clone(), init_resp.password.clone()).await
+                        {
                             Ok(auth_resp) => {
                                 AUTH.write().set_authenticated(
                                     auth_resp.token,
@@ -449,7 +472,7 @@ mod tests {
         UserResponse {
             id: Uuid::new_v4(),
             email: "user@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Test User".into()),
             currency: "EUR".into(),
             verified,
@@ -532,7 +555,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "demo@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: Some("Demo".into()),
             currency: "EUR".into(),
             verified: true,
@@ -661,7 +684,7 @@ mod tests {
         let user = UserResponse {
             id: Uuid::new_v4(),
             email: "test@test.com".into(),
-                avatar: None,
+            avatar: None,
             name: None,
             currency: "USD".into(),
             verified: true,
@@ -707,5 +730,4 @@ mod tests {
         assert!(source.contains("registration_enabled"));
         assert!(source.contains("if registration_enabled()"));
     }
-
 }

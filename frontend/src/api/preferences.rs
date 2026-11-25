@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_put, ApiError};
+use crate::api::client::{ApiError, api_get, api_put};
 use crate::models::preferences::*;
 
 pub async fn get() -> Result<PreferencesResponse, ApiError> {
@@ -120,5 +120,4 @@ mod tests {
         .unwrap();
         assert_eq!(updated.theme, "light");
     }
-
 }
