@@ -1,17 +1,19 @@
+<p align="center">
+  <img src="frontend/assets/icons/clock-1024.png" width="96" alt="Recurrency">
+</p>
+
 <h1 align="center">Recurrency</h1>
 
 <p align="center">
   <strong>Every expense is a subscription.</strong><br>
-  A self-hosted subscription, expense and debt tracker for people who want to see
-  the real cost of what they keep paying for.
+  A calm, self-hosted tracker for recurring payments, one-time expenses and debts.
 </p>
 
 <p align="center">
-  <img alt="Rust" src="https://img.shields.io/badge/Rust-1.98+-orange?logo=rust&logoColor=white">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-orange?logo=rust&logoColor=white">
   <img alt="Dioxus" src="https://img.shields.io/badge/UI-Dioxus-6f42c1">
   <img alt="PostgreSQL" src="https://img.shields.io/badge/Database-PostgreSQL-336791?logo=postgresql&logoColor=white">
   <img alt="Docker" src="https://img.shields.io/badge/Deploy-Docker-2496ed?logo=docker&logoColor=white">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-blue">
 </p>
 
 <p align="center">
@@ -22,17 +24,20 @@
   <a href="#development">Development</a>
 </p>
 
-![Recurrency dashboard](assets/dashboard.png)
+---
 
-Recurrency treats recurring payments the way your brain actually experiences
-them: as ongoing commitments. It answers three questions without spreadsheets:
+Recurrency shows what your commitments really cost. Instead of treating a
+subscription as a single purchase, it keeps the next charge, the account it
+leaves from and the months ahead in one place.
+
+It answers three questions without a spreadsheet:
 
 - **What do I need to transfer this month?**
 - **What is still pending from today?**
 - **Would I subscribe to this again today?**
 
-The stack is deliberately boring to operate: a Rust/Axum backend, PostgreSQL and
-a Dioxus web frontend, shipped as one all-in-one Docker image with an optional
+The stack is intentionally boring to run: **Rust + Axum**, **PostgreSQL** and a
+**Dioxus** web frontend, shipped as one all-in-one Docker image with an optional
 headless API mode.
 
 ---
@@ -49,35 +54,28 @@ docker run -d \
   ghcr.io/badwatt/recurrency:latest
 ```
 
-Open **http://localhost**. The binary serves the web UI and the API on the
-same port; the API is available at `http://localhost/api` and directly at
-`http://localhost:8080/api`.
+Open **http://localhost**. The same binary serves the web UI and the API:
 
-The image includes PostgreSQL **18**. If `DATABASE_URL` is set, the entrypoint
-does not start the bundled PostgreSQL at all and connects to that external
-server instead.
+| Service | URL |
+|---|---|
+| Web UI | `http://localhost` |
+| API | `http://localhost/api` |
+| API (direct) | `http://localhost:8080/api` |
 
-The named volume persists PostgreSQL across container recreation. On first boot
-the application generates a random JWT signing secret and stores it in the
-database, so no configuration is required. Set `JWT_SECRET` to override it;
-changing the effective secret invalidates existing sessions.
-
-> PostgreSQL 18 uses a new data directory (`/var/lib/postgresql/18/main`).
-> Volumes created by the old PostgreSQL 15 image need a `pg_dump`/restore before
-> upgrading. Keep the old volume until the restored instance has been verified.
+The image bundles **PostgreSQL 18**. Set `DATABASE_URL` to use an external
+PostgreSQL instead; the entrypoint then skips the bundled database.
 
 > [!IMPORTANT]
-> The container fails fast if the application cannot start (failed migration or
-> database error). It exits instead of serving an empty frontend, so Docker can
-> restart it or surface the failure.
+> The container fails fast if migrations or the database fail. It exits instead
+> of serving an empty frontend, so Docker can restart it or show the error.
 
 > [!TIP]
-> Pin a release tag instead of `latest` in production, for example
-> `ghcr.io/badwatt/recurrency:0.56.0`.
+> Pin a release instead of `latest` in production:
+> `ghcr.io/badwatt/recurrency:X.Y.Z`.
 
 ### From source
 
-Nix is the only prerequisite for development.
+Nix is the only prerequisite.
 
 ```bash
 git clone https://github.com/badwatt/recurrency.git
@@ -90,369 +88,191 @@ cargo up
 
 | Service | URL |
 |---|---|
-| Web UI | http://localhost:1420 |
-| API | http://localhost:8080/api |
-| PostgreSQL | localhost:5432 |
+| Web UI | `http://localhost:1420` |
+| API | `http://localhost:8080/api` |
+| PostgreSQL | `localhost:5432` |
 
-Press `Ctrl+C` to stop all three.
-
-> [!NOTE]
-> Development uses PostgreSQL 18. Its Compose volume is mounted at
-> `/var/lib/postgresql`; a PostgreSQL 16 volume from an older checkout is
-> preserved inside it but is not reused. Export it with `pg_dump` first if you
-> need that development data.
+Press `Ctrl+C` to stop everything.
 
 > [!NOTE]
-> **Demo mode is optional.** The production image ships with it disabled
-> (`ENABLE_DEMO=false`). `cargo up` enables it for local development; set
-> `ENABLE_DEMO=false` to hide the demo login button. There is no demo data unless
-> you explicitly enable it.
+> Demo mode is optional. The production image ships with it disabled
+> (`ENABLE_DEMO=false`); `cargo up` enables it locally.
 
 ---
 
 ## Screenshots
 
 | Dashboard | Subscriptions |
-|---|---|
+|:---:|:---:|
 | ![Dashboard](assets/dashboard.png) | ![Subscriptions](assets/subscriptions.png) |
 
 | Calendar | Reports |
-|---|---|
+|:---:|:---:|
 | ![Calendar](assets/calendar.png) | ![Reports](assets/reports.png) |
 
 The dashboard is a monthly transfer ledger: what each account needs, what is
-already covered and what is still pending. Subscriptions keep their account,
-category, logo and next charge visible; the calendar puts every charge on a
-timeline; reports turn the same data into trends and category breakdowns.
+covered and what is still pending. Subscriptions keep the account, category,
+logo and next charge visible; the calendar puts every charge on a timeline;
+reports turn the same data into trends and category breakdowns.
 
 ---
 
 ## Features
 
-### Know what this month costs
-
-- **Monthly plan** — fixed budget and pending-from-today, per account and in total.
-- **Personal date format** — choose DD/MM/YYYY, MM/DD/YYYY or YYYY/MM/DD in Settings.
-- **Accounts as budgeting buckets** — every subscription and transaction belongs to one.
-- **Real charges, not averages** — summaries use the charges that actually fall in the month.
-- **Current or next month** — switch the dashboard summary period from Settings.
-- **Calendar plan** — the same transfer/pending totals sit above the calendar on desktop and mobile.
-- **Upcoming payments** — recurring charges and future one-time transactions in one chronological list. Hovering one highlights its account in the transfer ledger.
-
-### Track everything that repeats
-
-- **Flexible recurrence** — every N days, weeks, months or years.
-- **Multiple weekdays** — one subscription can charge on several days of the week.
-- **Multiple monthly days** — including `Last day` for short months.
-- **Custom annual dates** — unlimited dates per year, each with an optional amount.
-- **Payment progress** — multi-charge schedules show `Payment 1/3`, `2/3`, `3/3`.
-- **Inclusive end dates** — decide exactly when a subscription stops.
-- **Finalized / inactive** — finished schedules stay out of upcoming charges without losing history.
-- **Duplicate** — copy a subscription and edit only what changed.
-- **Notes** — attach context, clear it when it is no longer needed.
-- **Search and bulk actions** — search every list, switch grid/list views and pause, activate or delete several subscriptions at once.
-
-### Expenses, not only subscriptions
-
-- **Transactions** — one-time expenses with the same account and optional category model.
-- **Calendar** — charges by day, including completed and overdue payments.
-- **Debts** — manual debts with payment history, or automatic debts paid month by month.
-- **Installments** — automatic debts show progress such as `Payment 2/6`.
-- **Bulk actions** — select transactions or debts to recategorize or delete them together; subscriptions can be paused, activated or deleted in bulk.
-
-### Currency without surprises
-
-- **One main currency** — all 178 active ISO 4217 codes, including CLP, MXN and the other regional currencies, selectable in Settings.
-- **Original currency preserved** — converted values show the source amount in parentheses.
-- **Automatic rates** — Frankfurter works without a key; choose Fixer and save an encrypted per-user API key from Settings.
-- **Graceful fallback** — unknown rates keep the original amount instead of breaking reports.
-- **Totals and reports convert** — no mixed-currency arithmetic in summaries.
-
-### Notifications that reach you
-
-- **11 delivery channels** — Email, ntfy, Telegram, Discord, Gotify, Slack, Mattermost, Pushover, PushPlus, ServerChan and webhooks.
-- **Per-user SMTP** — your own mail server, not a shared vendor.
-- **Encrypted channel secrets** — credentials are stored encrypted at rest.
-- **Summary scheduler** — daily, weekly or monthly, in your timezone, for the current or next month.
-- **SSRF guard** — private network targets require an explicit opt-in.
-
-### Built for real devices
-
-- **Web** — responsive layouts, grid/list toggle and mobile floating actions.
-- **Android and desktop** — native Android, Windows, macOS and Linux clients with a configurable server URL.
-- **QR server setup** — scan a server QR instead of typing its address.
-- **In-app Android update** — download the latest APK and hand it to the installer.
-- **APK download QR** — settings shows a code for the latest Android build.
-- **18 color themes** — Catppuccin Mocha, Frappé, Macchiato, Latte and Mocha Bloom, plus Dracula, Nord, Tokyo Night, Gruvbox, Rosé Pine, One Dark, Kanagawa, Everforest, GitHub Dark/Light, Solarized Light, Midnight Amber and Paper. Pick one from Settings → Appearance or the top-bar theme menu; dark and light palettes are listed separately, and the choice syncs across devices when signed in.
-- **Update notice** — dismissible banner when a newer GitHub release exists; can be turned off in Settings.
-- **Custom icons and colors** — searchable icon picker for accounts and categories. Subscriptions, transactions and debts sort by created date and last-modified date.
-- **AI assistant (BYOK)** — optional OpenAI-compatible chat that can create, update and delete subscriptions, transactions and debts, including logos and multiple annual billing dates. Settings → AI assistant has provider presets, an endpoint-backed model list with refresh and custom model entry, and an encrypted API key. Desktop has a floating AI button; mobile opens the same agent from the + menu or by long-pressing +.
-- **Voice input** — dictate into the AI chat with the browser speech engine, Android SpeechRecognizer, an OpenAI-compatible transcription endpoint, or a downloadable on-device Whisper model on desktop. Desktop builds record through the OS microphone API; local model recommendations follow the device RAM and CPU.
-- **Admin panel** — server-mode administration: review users, promote or demote administrators, delete users, close registrations, download and restore full installation backups using the same Backup & restore interface as Data & backup. The first real account becomes administrator.
-
-### Your data and the project
-
-- **Backup & restore** — download your accounts, categories, subscriptions, transactions, debts and payments as JSON, or restore a backup by click or drag-and-drop.
-- **About** — installed version, current and latest changelog, and a quiet reminder to star the project on GitHub.
-- **Console welcome** — a small developer thank-you and the running version in the browser console.
+- **Monthly plan** — transfer total, pending amount and budget progress per
+  account.
+- **Recurring payments** — daily, weekly, monthly, yearly or custom intervals,
+  including “last day of the month”.
+- **One-time expenses** — transactions that share the same accounts, categories
+  and reports as subscriptions.
+- **Debts** — manual balances or automatic month-by-month payments.
+- **Calendar** — every charge and transaction, with a day popup and filters.
+- **Reports** — spending trends, category breakdown and CSV/PDF export.
+- **Multi-currency** — all active ISO 4217 currencies with daily exchange rates.
+- **Notifications** — email, ntfy, Gotify, Telegram, Discord, Slack, webhooks
+  and more, plus a scheduled dashboard summary.
+- **AI assistant** — bring your own OpenAI-compatible key; keys stay encrypted
+  on the server.
+- **Privacy mode** — mask every amount with one click.
+- **Real devices** — responsive web UI, desktop bundles and an Android APK.
+- **Local mode** — opt-in, device-local storage without a server.
+- **Backups** — automatic PostgreSQL dumps, validated restores and JSON export.
 
 ---
 
 ## How it fits together
 
 ```text
-                    ┌─────────────────────────────┐
-                    │  Dioxus web / Android /     │
-                    │  desktop clients            │
-                    └──────────────┬──────────────┘
-                                   │ REST + JWT
-                    ┌──────────────▼──────────────┐
-                    │  Axum backend               │
-                    │  auth · subscriptions ·      │
-                    │  transactions · debts ·      │
-                    │  reports · notifications    │
-                    └───────┬──────────────┬──────┘
-                            │              │
-                 ┌──────────▼────┐   ┌────▼─────────────┐
-                 │ PostgreSQL    │   │ Email, push,     │
-                 │ users, money, │   │ ntfy, webhooks…  │
-                 │ schedules     │   └──────────────────┘
-                 └───────────────┘
+┌──────────────────────────────┐
+│  Browser / desktop / Android │
+│  Dioxus UI · local mode      │
+└──────────────┬───────────────┘
+               │ HTTP / JSON
+┌──────────────▼───────────────┐
+│  Axum API                    │
+│  auth · features · reports   │
+└──────────────┬───────────────┘
+               │ SQL
+┌──────────────▼───────────────┐
+│  PostgreSQL 18               │
+│  users · money · schedules   │
+└──────────────────────────────┘
 ```
 
-**Core stack**
-
-| Layer | Technology |
-|---|---|
-| Frontend | Dioxus (Rust WASM) + Tailwind |
-| Backend | Rust + Axum + SQLx |
-| Database | PostgreSQL |
-| Auth | JWT + Argon2 |
-| Currency | Frankfurter (default) or Fixer |
-| Notifications | SMTP + 11 delivery providers |
-| Packaging | Nix · Cargo · Docker |
+The backend is organized by feature (`auth`, `accounts`, `subscriptions`,
+`transactions`, `debts`, `notifications`, `reports`), with shared database and
+auth helpers in `shared`.
 
 ---
 
 ## Configuration
 
-| Variable | Default | Description |
+The image works with no configuration: the first boot generates a JWT secret,
+creates the schema and stores the secret in the database.
+
+| Variable | Default | Purpose |
 |---|---|---|
-| `DATABASE_URL` | bundled local PostgreSQL | PostgreSQL connection string; when set, Docker does not start its bundled database |
-| `DATABASE_MAX_CONNECTIONS` | `5` | PostgreSQL pool size |
-| `BACKUP_ENABLED` | `true` | Run the daily PostgreSQL logical backup loop |
-| `BACKUP_DIR` | `/var/lib/recurrency/backups` | Directory for `.dump` files |
-| `BACKUP_RETENTION_DAYS` | `7` | Delete backups older than this many days |
-| `BACKUP_INTERVAL_SECONDS` | `86400` | Delay between automatic backups |
-| `BACKUP_RESTORE_TEST` | `true` | Restore each dump into a temporary database |
-| `DATABASE_ADMIN_URL` | bundled `postgres` URL | Admin connection used only for the restore test |
-| `JWT_SECRET` | generated in `app_secrets` | Optional JWT signing secret; when set it overrides the database-stored secret |
-| `APP_PORT` | `8080` (`80` in the Docker image) | Application listen port |
-| `APP_ENV` | `development` | Set `production` to lower the default log level |
-| `RUST_LOG` | `APP_ENV` default | Tracing filter, for example `info` or `debug` |
-| `CORS_ALLOWED_ORIGIN` | `*` | Restrict browser requests to one origin |
-| `ENABLE_DEMO` | `false` | Enable the optional demo login |
-| `ENABLE_WEB` | `true` | Serve the embedded web UI; `false` for headless |
-| `RECURRENCY_DATA_DIR` | `recurrency-data` | Standalone binary only: local database directory when `DATABASE_URL` is unset |
-| `PGPASSWORD` | `recurrency` | Password for the bundled PostgreSQL; ignored with an external `DATABASE_URL` |
-| `RECURRENCY_API_URL` | — | Optional native server override; never prefilled |
-| `FIXER_API_KEY` | — | Optional server-wide Fixer key; users can also save their own key in Settings |
-| `SMTP_HOST` | — | SMTP server |
-| `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | — | SMTP username |
-| `SMTP_PASSWORD` | — | SMTP password |
-| `SMTP_FROM` | — | Sender address |
-| `SMTP_ENCRYPTION` | auto (`ssl` on 465, otherwise `tls`) | SMTP transport security |
-| `NOTIFICATION_ALLOW_PRIVATE_HOSTS` | `false` | Allow ntfy/Gotify/webhook targets on private networks |
+| `DATABASE_URL` | bundled PostgreSQL | External PostgreSQL connection |
+| `APP_PORT` | `80` in Docker, `8080` locally | Listen port |
+| `JWT_SECRET` | generated in DB | Override the signing secret |
+| `ENABLE_DEMO` | `false` | Show the demo login |
+| `ENABLE_WEB` | `true` | Serve the embedded UI; `false` for headless |
+| `BACKUP_ENABLED` | `true` | Daily logical backups |
+| `BACKUP_DIR` | `/var/lib/recurrency/backups` | Backup directory |
+| `BACKUP_RETENTION_DAYS` | `7` | Days to keep dumps |
+| `CORS_ALLOWED_ORIGIN` | `*` | Restrict browser requests |
+| `RECURRENCY_DATA_DIR` | `recurrency-data` | Standalone binary database directory |
 
-### Standalone all-in-one binary
+> [!WARNING]
+> PostgreSQL 18 uses `/var/lib/postgresql/18/main`. A volume created by the old
+> PostgreSQL 15 image needs a `pg_dump`/restore before upgrading. Keep the old
+> volume until the restored instance is verified.
 
-The application can also be built as one native binary with the web frontend
-embedded and served by Axum:
+---
+
+## Standalone binary
+
+The same application can run as one native binary with the frontend embedded:
 
 ```bash
-cd recurrency
 nix develop
 cargo build-app
 ./target/bin/recurrency --help
+```
 
-# API + embedded web UI
+```bash
+# API + web UI
 DATABASE_URL="postgres://recurrency:recurrency@localhost:5432/recurrency" \
   ./target/bin/recurrency serve
 
-# API only, same binary
+# API only
 ENABLE_WEB=false ./target/bin/recurrency serve
+```
 
-# Migrations and configuration check
+Without `DATABASE_URL`, the binary starts a private PostgreSQL under
+`./recurrency-data` (override with `RECURRENCY_DATA_DIR`), creates the schema on
+first run and stops the database on `Ctrl+C`/`SIGTERM`.
+
+Useful commands:
+
+```bash
 ./target/bin/recurrency migrate --database-url "$DATABASE_URL"
-./target/bin/recurrency backup --database-url "$DATABASE_URL" --backup-dir ./backups
+./target/bin/recurrency backup --database-url "$DATABASE_URL"
+./target/bin/recurrency doctor
 ./target/bin/recurrency admin list
 ./target/bin/recurrency admin create --email admin@example.com --password "$PASSWORD" --name Admin --admin
-./target/bin/recurrency admin update admin@example.com --name "New name" --no-admin
-./target/bin/recurrency admin delete admin@example.com
-./target/bin/recurrency doctor
 ```
 
-The binary embeds both the built frontend and a local PostgreSQL 18.7 runtime.
-If `DATABASE_URL` is omitted, it starts a private database under
-`./recurrency-data` (override with `RECURRENCY_DATA_DIR`), creates the schema on
-first run, and stops the local database on `Ctrl-C`/`SIGTERM`. Set
-`DATABASE_URL` to use an external PostgreSQL instead.
-
-`recurrency backup` creates a validated logical dump in `/var/lib/recurrency/backups`
-(or `BACKUP_DIR`, or the explicit `--backup-dir`) and applies the retention window. The all-in-one image runs
-it daily after `/api/ready` succeeds. The `recurrency_backups` volume keeps the
-dumps outside the database volume.
-
-Existing local clusters created by older releases (PostgreSQL 17) are upgraded
-automatically on startup with `pg_dump`/restore. The old data directory is kept
-as `data.pg17` for rollback.
-
-Embedded PostgreSQL is used rather than SQLite because the application relies
-on PostgreSQL types and SQL semantics (UUID, JSONB, decimal money, intervals,
-partial indexes). A SQLite backend would require a second repository for every
-domain module and would risk changing financial behaviour.
-
-`--no-web` is equivalent to `ENABLE_WEB=false`. `cargo build-api` builds the
-API-only binary without embedded assets or the local database.
-
-The administration panel is available in server mode. Native clients running
-in local/on-device mode have no server users to manage. The `recurrency admin`
-commands operate directly on a PostgreSQL database and provide the same user
-CRUD operations from a terminal.
-
-### Database backups
-
-The container backs up PostgreSQL automatically:
-
-```text
-/var/lib/recurrency/backups/recurrency-YYYYMMDD-HHMMSS.dump
-```
-
-Each dump is validated with `pg_restore --list`; when `DATABASE_ADMIN_URL` is
-available it is also restored into a temporary database and queried. Old dumps
-are removed after `BACKUP_RETENTION_DAYS`.
-
-Run one manually:
-
-```bash
-docker exec recurrency recurrency backup
-```
-
-Keep the `recurrency_backups` volume mounted. For an external PostgreSQL, set
-`DATABASE_ADMIN_URL` to a role that can create/drop the temporary restore
-database.
-
-### Headless API
-
-The same image can run without the web UI:
-
-```bash
-docker run -d \
-  --name recurrency \
-  -p 8080:80 \
-  -v recurrency_db:/var/lib/postgresql/18/main \
-  -e ENABLE_WEB=false \
-  ghcr.io/badwatt/recurrency:latest
-```
-
-- API: `http://localhost:8080/api`.
-- The web UI is not mounted; PostgreSQL and the binary still run.
-- `ENABLE_WEB=false` is a runtime toggle; no rebuild is needed.
-- Put Caddy, Traefik, nginx or another reverse proxy in front for TLS.
-- Native clients enter the server URL **without** `/api`; the app adds API paths.
-
-### Docker Compose
-
-```bash
-curl -O https://raw.githubusercontent.com/badwatt/recurrency/main/docker/docker-compose.yml
-docker compose up -d recurrency
-```
-
-Headless:
-
-```bash
-ENABLE_WEB=false docker compose up -d recurrency
-```
-
-The compose file publishes `80` and `8080` (both map to the binary's port
-`80`). In headless mode nothing listens on port 80; remove `80:8080` if you do
-not want to expose it.
+`recurrency backup` creates a validated logical dump and applies the retention
+window. The container runs it daily after `/api/ready` succeeds.
 
 ---
 
 ## Development
 
-All commands run inside `nix develop`.
+All commands run inside the Nix shell.
 
 | Task | Command |
 |---|---|
-| Start all services | `cargo up` |
-| Stop all services | `cargo down` |
-| PostgreSQL only | `cargo db` |
+| Start everything | `cargo up` |
+| Stop everything | `cargo down` |
+| Database only | `cargo db` |
 | Reset database | `cargo reset` |
 | Backend only | `cargo backend` |
 | Frontend only | `cargo frontend` |
-| List project commands | `cargo dev-help` |
 | Tests | `cargo test-all` |
 | Format | `cargo fmt-all` |
 | Clippy | `cargo clippy-all` |
 | Coverage | `cargo coverage` |
 | Tailwind CSS | `cargo css` |
-| Local debug APK | `cargo build-android` |
-| Desktop bundle | `cargo build-desktop` (Linux AppImage, macOS DMG, Windows NSIS) |
-| Install Android SDK/NDK | `cargo setup-android` |
-| Patch an existing Android build | `cargo patch-android` |
+| Android APK | `cargo build-android` |
+| Desktop bundle | `cargo build-desktop` |
 
-Artifacts land in `target/bin/` (APK, desktop bundle and `recurrency`).
-
-### macOS and Gatekeeper
-
-Release DMGs are ad-hoc signed, but they are not notarized because the project
-does not ship an Apple Developer certificate. If macOS says the app is damaged,
-remove the download quarantine after installing it:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Recurrency.app
-```
-
-Right-clicking the app and choosing **Open** also allows it. Both Intel
-(`x86_64`) and Apple Silicon (`aarch64`) DMGs are built separately; use the one
-matching your Mac.
-
-The aliases live in `.cargo/config.toml`. Their raw equivalents are
-`cargo test --workspace --lib`, `cargo fmt --all`,
-`cargo clippy --workspace --lib -- -D warnings` and
-`cargo run -p recurrency_tools -- <command>`.
+Artifacts land in `target/bin/`.
 
 ### Project layout
 
 ```text
 backend/src/
-├── auth/           # JWT, registration, login, account settings
-├── accounts/       # Mandatory budgeting accounts
-├── subscriptions/  # Recurrence engine and subscription CRUD
-├── transactions/   # One-time expenses
-├── categories/     # Optional categories and icons
-├── currency/       # Exchange-rate providers and conversion
-├── debts/          # Manual and automatic debt tracking
-├── notifications/  # Delivery channels, encryption, scheduler
-├── email/          # SMTP delivery
-├── reports/        # Trends, breakdowns and exports
-├── preferences/    # User preferences
-├── demo/           # Optional demo mode
-├── logos/          # Logo search
-└── shared/         # DB, auth extractor, app state, test helpers
+├── auth/           JWT, registration, login
+├── accounts/       mandatory budgeting accounts
+├── subscriptions/  recurrence engine and CRUD
+├── transactions/   one-time expenses
+├── categories/     optional categories and icons
+├── currency/       exchange rates and conversion
+├── debts/          manual and automatic debts
+├── notifications/  delivery channels and scheduler
+├── reports/        trends, breakdowns and exports
+└── shared/         database, auth extractor, app state
 
 frontend/src/
-├── pages/          # Route pages
-├── components/     # Reusable UI
-├── api/            # HTTP client
-├── state/          # Signals and shared state
-├── layout/         # App and settings shells
-├── storage/        # Local/offline storage
-├── theme/          # Theme handling
-└── auth/           # Auth pages
+├── pages/          route pages
+├── components/     reusable UI
+├── api/            HTTP client
+├── state/          signals and shared state
+├── layout/         app and settings shells
+├── storage/        local/offline storage
+└── theme/          themes and palette tokens
 ```
 
 ### Tests
@@ -468,49 +288,31 @@ DATABASE_URL='postgres://recurrency:recurrency_test_password@localhost:5433/recu
   JWT_SECRET=test-jwt-secret-key \
   cargo test --features integration-tests
 docker compose -f docker/docker-compose.test.yml down -v
-
-# Coverage
-cd backend
-DATABASE_URL='postgres://recurrency:recurrency_test_password@localhost:5433/recurrency_test' \
-  JWT_SECRET=test-jwt-secret-key \
-  nix develop .. -c cargo llvm-cov test --features integration-tests --lib \
-    --test integration_tests --ignore-filename-regex '(^|/)main\.rs$'
-cd frontend && nix develop .. -c cargo llvm-cov test --lib
 ```
 
-CI enforces at least **85% backend** (excluding the binary entry point) and
-**76% frontend** line coverage. The binary entry point is excluded because it
-only wires the runtime; all application modules remain in the report.
+CI enforces **85% backend** and **76% frontend** line coverage.
 
-Current suite: **1276 backend unit tests**, **87 backend integration tests**,
-**1943 frontend tests** and **10 tooling tests**.
+### macOS and Gatekeeper
+
+Release DMGs are ad-hoc signed, not notarized. If macOS says the app is damaged
+after installing, remove the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Recurrency.app
+```
 
 ### Releasing
 
-1. Bump `version` in the root `Cargo.toml` (the single source of truth).
-2. Commit and push to `main`.
-3. The Release workflow runs only when that version increases. It builds and
-   pushes the all-in-one image, signs the latest APK, builds the standalone
-   `recurrency` binary, builds Linux/macOS/Windows desktop bundles, and creates
-   one GitHub release with every artifact. Release notes list every commit since
-   the previous tag, followed by the compare link.
-
-A manual `workflow_dispatch` releases the current version.
+A release starts when `version` changes in the workspace `Cargo.toml`. The
+workflow derives the `v<version>` tag, verifies the project and publishes the
+artifacts. Re-running it is idempotent.
 
 ---
 
 ## Security
 
-- Argon2 password hashing and JWT authentication.
-- The bundled PostgreSQL application role is `NOSUPERUSER`; `uuid-ossp` is
-  installed by the container's `postgres` role before migrations.
-- The JWT signing secret is generated once and stored in `app_secrets` when
-  `JWT_SECRET` is not set. Full PostgreSQL backups include it; set `JWT_SECRET`
-  from a secret manager in production if the signing key must stay outside the
-  database.
-- Notification credentials encrypted at rest with AES-256-GCM.
-- Private-network notification targets blocked unless explicitly allowed.
-- No `unsafe` Rust.
-- Fail-closed configuration: missing or placeholder secrets stop startup.
-
-Found a security issue? Please open a private report instead of a public issue.
+- Passwords are hashed; sessions use JWT.
+- AI and delivery secrets are encrypted at rest.
+- Demo credentials are never administrators and are excluded from backups.
+- Put Recurrency behind HTTPS when exposing it outside your network.
+- Keep database and backup volumes private; they contain financial data.
