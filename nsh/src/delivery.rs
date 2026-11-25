@@ -6,7 +6,6 @@ use crate::api::DeliveryChannel;
 use crate::components::button::{ButtonProps, ButtonVariant, button};
 use crate::components::field::{FieldProps, field};
 use crate::components::input::text_input_value;
-use crate::components::toggle::toggle;
 use nsh_base::{button as raw_button, theme};
 use nsh_core::prelude::*;
 use serde_json::{Map, Value, json};
@@ -429,8 +428,8 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                                 .text_color(move || theme().muted_foreground),
                         ),
                 )
-                .child(toggle(
-                    enabled.get(),
+                .child(crate::components::toggle::toggle_signal(
+                    enabled,
                     format!("Enable {}", current()),
                     move |value| enabled.set(value),
                 )),
@@ -519,9 +518,24 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 .flex_wrap()
                 .items_center()
                 .gap(px(8.0))
-                .child(button(
-                    ButtonProps::new(format!("Save {}", current())).on_press(save),
-                ))
+                .child(
+                    raw_button()
+                        .cursor_pointer()
+                        .h(px(40.0))
+                        .px(px(16.0))
+                        .flex_row()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(6.0))
+                        .bg(move || theme().primary)
+                        .on_press(save)
+                        .child(
+                            text(move || format!("Save {}", current()))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
+                        ),
+                )
                 .child(button(
                     ButtonProps::new("Send test")
                         .variant(ButtonVariant::Outline)

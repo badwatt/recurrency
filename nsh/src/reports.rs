@@ -350,6 +350,7 @@ fn summary_card(
 
 fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl IntoElement {
     let _currency = currency.to_string();
+    let hovered = signal(None::<usize>);
     view()
         .flex_grow(1.0)
         .basis(px(0.0))
@@ -369,48 +370,88 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                 .text_color(move || theme().foreground),
         )
         .child(
-            view().w_full().items_center().child(
-                canvas(move || {
-                    let size = 180.0_f32;
-                    let center = size / 2.0;
-                    let radius = 72.0;
-                    let mut painter = Painter::new()
-                        .stroke_color(rgb(0x454759))
-                        .line_width(25.2)
-                        .begin_path()
-                        .arc(center, center, radius, 0.0, TAU)
-                        .stroke()
-                        .line_width(21.6);
-                    let categories = data.get().unwrap_or_default().report.category_breakdown;
-                    let total: f64 = categories.iter().map(|category| category.percentage).sum();
-                    if categories.is_empty() || total <= 0.0 {
-                        return painter;
-                    }
-                    if categories.len() == 1 {
-                        let color = category_color(data, &categories[0].category_name);
-                        return painter
-                            .stroke_color(rgb(parse_hex(&color)))
+            view()
+                .relative()
+                .w_full()
+                .items_center()
+                .child(
+                    canvas(move || {
+                        let size = 180.0_f32;
+                        let center = size / 2.0;
+                        let radius = 72.0;
+                        let mut painter = Painter::new()
+                            .stroke_color(rgb(0x454759))
+                            .line_width(25.2)
                             .begin_path()
                             .arc(center, center, radius, 0.0, TAU)
-                            .stroke();
-                    }
-                    let mut start = -TAU / 4.0;
-                    for (index, category) in categories.iter().enumerate() {
-                        let sweep = (category.percentage / total) as f32 * TAU;
-                        let color = category_color(data, &category.category_name);
-                        painter = painter
-                            .stroke_color(rgb(parse_hex(&color)))
-                            .begin_path()
-                            .arc(center, center, radius, start + 0.02, start + sweep - 0.02)
-                            .stroke();
-                        start += sweep;
-                        let _ = index;
-                    }
-                    painter
-                })
-                .h(px(180.0))
-                .w(px(180.0)),
-            ),
+                            .stroke()
+                            .line_width(21.6);
+                        let categories = data.get().unwrap_or_default().report.category_breakdown;
+                        let total: f64 =
+                            categories.iter().map(|category| category.percentage).sum();
+                        if categories.is_empty() || total <= 0.0 {
+                            return painter;
+                        }
+                        if categories.len() == 1 {
+                            let color = category_color(data, &categories[0].category_name);
+                            return painter
+                                .stroke_color(rgb(parse_hex(&color)))
+                                .begin_path()
+                                .arc(center, center, radius, 0.0, TAU)
+                                .stroke();
+                        }
+                        let mut start = -TAU / 4.0;
+                        for (index, category) in categories.iter().enumerate() {
+                            let sweep = (category.percentage / total) as f32 * TAU;
+                            let color = category_color(data, &category.category_name);
+                            painter = painter
+                                .stroke_color(rgb(parse_hex(&color)))
+                                .line_width(if hovered.get() == Some(index) {
+                                    27.0
+                                } else {
+                                    21.6
+                                })
+                                .begin_path()
+                                .arc(center, center, radius, start + 0.02, start + sweep - 0.02)
+                                .stroke();
+                            start += sweep;
+                        }
+                        painter
+                    })
+                    .h(px(180.0))
+                    .w(px(180.0)),
+                )
+                .child(when(
+                    move || hovered.get().is_some(),
+                    move || {
+                        let categories = data.get().unwrap_or_default().report.category_breakdown;
+                        let index = hovered.get().unwrap_or(0);
+                        let label = categories.get(index).map_or_else(String::new, |category| {
+                            format!("{} · {:.0}%", category.category_name, category.percentage)
+                        });
+                        view()
+                            .absolute()
+                            .inset_0()
+                            .items_center()
+                            .justify_center()
+                            .pointer_events(PointerEvents::None)
+                            .child(
+                                view()
+                                    .rounded(px(6.0))
+                                    .bg(move || theme().popover)
+                                    .border(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .px(px(8.0))
+                                    .py(px(4.0))
+                                    .child(
+                                        text(label)
+                                            .text_size(px(11.0))
+                                            .text_color(move || theme().foreground),
+                                    ),
+                            )
+                            .into_element()
+                    },
+                )),
         )
         .child(
             view()
@@ -419,10 +460,18 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                 .grid_template_columns(SharedString::from("repeat(2, minmax(0, 1fr))"))
                 .gap(px(6.0))
                 .child(each(
-                    move || data.get().unwrap_or_default().report.category_breakdown,
-                    |category| category.category_name.clone(),
-                    move |category, _| {
-                        let category = category.get();
+                    move || {
+                        data.get()
+                            .unwrap_or_default()
+                            .report
+                            .category_breakdown
+                            .into_iter()
+                            .enumerate()
+                            .collect::<Vec<_>>()
+                    },
+                    |(index, category)| format!("{index}-{}", category.category_name),
+                    move |item, _| {
+                        let (index, category) = item.get();
                         let color = category_color(data, &category.category_name);
                         let name = category.category_name.clone();
                         let percentage = format!("{:.0}%", category.percentage);
@@ -431,6 +480,26 @@ fn category_donut(data: Resource<ReportsData, String>, currency: &str) -> impl I
                             .flex_row()
                             .items_center()
                             .justify_between()
+                            .px(px(4.0))
+                            .py(px(2.0))
+                            .rounded(px(4.0))
+                            .cursor_pointer()
+                            .bg(move || {
+                                if hovered.get() == Some(index) {
+                                    theme().muted.opacity(0.5)
+                                } else {
+                                    theme().card.opacity(0.0)
+                                }
+                            })
+                            .opacity(move || {
+                                if hovered.get().is_none() || hovered.get() == Some(index) {
+                                    1.0_f32
+                                } else {
+                                    0.35_f32
+                                }
+                            })
+                            .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(index)))
+                            .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
                             .child(
                                 view()
                                     .flex_row()
@@ -648,11 +717,14 @@ fn trend_chart(data: Resource<ReportsData, String>, currency: &str) -> impl Into
                         .begin_path()
                         .move_to(left, y)
                         .line_to(right + plot_w, y)
-                        .stroke()
-                        .fill_color(rgb(0x949AB3))
-                        .font("10px Cabinet Grotesk")
-                        .text_align(CanvasTextAlign::Right)
-                        .fill_text(&format!("{value:.0}"), left - 6.0, y + 3.0);
+                        .stroke();
+                    if !crate::ui::privacy_active() {
+                        painter = painter
+                            .fill_color(rgb(0x949AB3))
+                            .font("10px Cabinet Grotesk")
+                            .text_align(CanvasTextAlign::Right)
+                            .fill_text(&format!("{value:.0}"), left - 6.0, y + 3.0);
+                    }
                 }
                 if trends.is_empty() {
                     return painter;

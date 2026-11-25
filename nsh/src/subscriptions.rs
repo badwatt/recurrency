@@ -11,11 +11,14 @@ use uuid::Uuid;
 use crate::api::{self, SubscriptionsData};
 use crate::auth::AuthSession;
 use crate::components::badge::{BadgeProps, BadgeTone, badge};
-use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::button::{
+    ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button as shared_button,
+};
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
+use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::format::format_date;
@@ -225,10 +228,6 @@ pub fn subscriptions(
 
     if let Some(request) = crate::ui::take_subscription_intent() {
         match request {
-            crate::ui::SubscriptionIntent::Create(date) => {
-                requested_date.set(Some(date));
-                open_form();
-            }
             crate::ui::SubscriptionIntent::Edit(id) => {
                 pending_edit.set(Some(id));
             }
@@ -267,17 +266,8 @@ pub fn subscriptions(
     let selected = signal(Vec::<Uuid>::new());
     let open_bulk = move || {
         if selection_mode.get() {
-            modal.open(move || {
-                bulk_modal(
-                    data,
-                    server_signal,
-                    token_signal,
-                    modal,
-                    selected,
-                    selection_mode,
-                )
-                .into_element()
-            });
+            selected.set(Vec::new());
+            selection_mode.set(false);
         } else {
             selected.set(Vec::new());
             selection_mode.set(true);
@@ -306,40 +296,14 @@ pub fn subscriptions(
         .child(when(
             move || selection_mode.get(),
             move || {
-                crate::components::selection_bar::selection_bar(
-                    move || selected.get().len(),
-                    move || {
-                        let mut values = selected.get();
-                        crate::components::selection_bar::add_all(
-                            &mut values,
-                            data.get()
-                                .unwrap_or_default()
-                                .subscriptions
-                                .into_iter()
-                                .map(|item| item.id),
-                        );
-                        selected.set(values);
-                    },
-                    move || selected.set(Vec::new()),
-                    move || {
-                        modal.open(move || {
-                            bulk_modal(
-                                data,
-                                server_signal,
-                                token_signal,
-                                modal,
-                                selected,
-                                selection_mode,
-                            )
-                            .into_element()
-                        });
-                    },
-                    move || {
-                        selected.set(Vec::new());
-                        selection_mode.set(false);
-                    },
+                bulk_bar(
+                    data,
+                    server_signal,
+                    token_signal,
+                    modal,
+                    selected,
+                    selection_mode,
                 )
-                .into_element()
             },
         ))
         .child(when(loading, || loading_card()).otherwise(move || {
@@ -478,6 +442,59 @@ fn open_edit_subscription(
     form_signals.editing.set(Some(subscription.id));
     form_signals.open.set(true);
     modal.open(move || form(data, form_signals, server, token, modal).into_element());
+}
+
+/// Opens the full subscription form over whichever page requested it.
+pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<NaiveDate>) {
+    let server = crate::auth::stored_server();
+    let token = auth.token.clone();
+    let currency = if auth.user.currency.is_empty() {
+        "EUR".to_string()
+    } else {
+        auth.user.currency.clone()
+    };
+    let resource_currency = currency.clone();
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
+            let server = server.clone();
+            let token = token.clone();
+            let currency = resource_currency.clone();
+            async move { api::load_subscriptions(server, token, currency).await }
+        }
+    });
+    let form_signals = FormSignals {
+        open: signal(true),
+        editing: signal(None::<Uuid>),
+        name: signal(String::new()),
+        amount: signal(String::new()),
+        start_date: signal(
+            date.map(|value| value.to_string())
+                .unwrap_or_else(|| Local::now().date_naive().to_string()),
+        ),
+        end_date: signal(String::new()),
+        currency: signal(currency),
+        interval: signal("1".to_string()),
+        days: signal(vec![
+            date.map_or_else(|| Local::now().day() as u8, |value| value.day() as u8),
+        ]),
+        annual_dates: signal(Vec::<AnnualDate>::new()),
+        unit: signal("month".to_string()),
+        account_id: signal(None::<Uuid>),
+        category_id: signal(None::<Uuid>),
+        error: signal(String::new()),
+        saving: signal(false),
+        active: signal(true),
+        notes: signal(String::new()),
+        logo_url: signal(String::new()),
+        logo_results: signal(Vec::<(String, String)>::new()),
+        logo_loading: signal(false),
+        logo_error: signal(String::new()),
+    };
+    let server_signal = signal(server);
+    let token_signal = signal(token);
+    modal.open(move || form(data, form_signals, server_signal, token_signal, modal).into_element());
 }
 
 fn form(
@@ -799,7 +816,7 @@ fn form(
                                                 interval.set(value.to_string())
                                             })
                                             .auto_fill(AutoFill::Off)
-                                            .h(px(34.0))
+                                            .h(px(40.0))
                                             .w_full()
                                             .px(px(10.0))
                                             .rounded(px(7.0))
@@ -2030,23 +2047,17 @@ fn card(
         ))
 }
 
-fn bulk_modal(
+fn bulk_bar(
     data: Resource<SubscriptionsData, String>,
     server: Signal<String>,
     token: Signal<String>,
     modal: ui::ModalHost,
     selected: Signal<Vec<Uuid>>,
     selection_mode: Signal<bool>,
-) -> impl IntoElement {
+) -> AnyElement {
     let busy = signal(false);
     let error = signal(String::new());
-    let confirm_delete = signal(false);
     let bulk_category = signal(None::<Uuid>);
-    let toggle = move |id: Uuid| {
-        let mut values = selected.get();
-        crate::components::selection_bar::toggle(&mut values, id);
-        selected.set(values);
-    };
     let all_ids = move || {
         data.get()
             .unwrap_or_default()
@@ -2055,16 +2066,8 @@ fn bulk_modal(
             .map(|item| item.id)
             .collect::<Vec<_>>()
     };
-    let select_all = move || {
-        let mut values = selected.get();
-        for id in all_ids() {
-            if !values.contains(&id) {
-                values.push(id);
-            }
-        }
-        selected.set(values);
-    };
     let clear = move || selected.set(Vec::new());
+    let count = move || selected.get().len();
     let set_active = move |active: bool| {
         let ids = selected.get();
         if ids.is_empty() || busy.get() {
@@ -2122,7 +2125,7 @@ fn bulk_modal(
             });
         }
     };
-    let delete = move || {
+    let delete = std::rc::Rc::new(move || {
         let ids = selected.get();
         if ids.is_empty() || busy.get() {
             return;
@@ -2137,163 +2140,153 @@ fn bulk_modal(
             }
             selected.set(Vec::new());
             selection_mode.set(false);
-            confirm_delete.set(false);
             data.refetch();
             busy.set(false);
         });
+    });
+    let confirm_delete = {
+        let delete = delete.clone();
+        move || {
+            let delete = delete.clone();
+            let modal = modal;
+            modal.open(move || {
+                let delete = delete.clone();
+                crate::components::dialog::dialog(
+                    crate::components::dialog::DialogProps::new(
+                        format!("Delete {} subscriptions?", count()),
+                        "This cannot be undone.",
+                        move || modal.close(),
+                    )
+                    .width(420.0)
+                    .footer(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(shared_button(
+                                ButtonProps::new("Delete")
+                                    .variant(ButtonVariant::Destructive)
+                                    .size(ButtonSize::Sm)
+                                    .on_press(move || {
+                                        delete();
+                                        modal.close();
+                                    }),
+                            ))
+                            .child(shared_button(
+                                ButtonProps::new("Cancel")
+                                    .variant(ButtonVariant::Outline)
+                                    .size(ButtonSize::Sm)
+                                    .on_press(move || modal.close()),
+                            ))
+                            .into_element(),
+                    ),
+                )
+                .into_element()
+            });
+        }
     };
-    let rows = move || {
+    let categories = move || {
         data.get()
             .unwrap_or_default()
-            .subscriptions
+            .categories
             .into_iter()
-            .map(|subscription| {
-                let id = subscription.id;
-                let name = subscription.name;
-                let active = subscription.is_active;
-                let is_selected = selected.get().contains(&id);
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(8.0))
-                    .p(px(8.0))
-                    .rounded(px(6.0))
-                    .bg(move || {
-                        if is_selected {
-                            theme().accent
-                        } else {
-                            theme().card.opacity(0.0)
-                        }
-                    })
-                    .cursor_pointer()
-                    .on_press(move || toggle(id))
-                    .child(
-                        view()
-                            .flex_col()
-                            .child(
-                                text(name)
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(
-                                text(if active { "Active" } else { "Inactive" })
-                                    .text_size(px(10.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                    )
-                    .into_element()
-            })
+            .filter(|category| !category.is_system)
+            .map(|category| SelectOption::new(category.id, category.name))
             .collect::<Vec<_>>()
     };
-    let count = move || selected.get().len();
-    crate::components::dialog::dialog(
-        crate::components::dialog::DialogProps::new(
-            "Bulk actions",
-            "Select subscriptions, then choose an action.",
-            move || modal.close(),
+    view()
+        .w_full()
+        .flex_row()
+        .flex_wrap()
+        .items_center()
+        .gap(px(8.0))
+        .px(px(12.0))
+        .py(px(8.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || theme().primary.opacity(0.3))
+        .bg(move || theme().primary.opacity(0.05))
+        .child(
+            text(move || {
+                if count() == 0 {
+                    "Select subscriptions".to_string()
+                } else {
+                    format!("{} selected", count())
+                }
+            })
+            .text_size(px(14.0))
+            .font_weight(FontWeight::MEDIUM)
+            .text_color(move || theme().foreground),
         )
-        .width(520.0)
-        .body(
-            view()
-                .p(px(20.0))
-                .gap(px(10.0))
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .gap(px(8.0))
-                        .child(
-                            text(move || format!("{} selected", count()))
-                                .text_size(px(12.0))
-                                .text_color(move || theme().muted_foreground),
-                        )
-                        .child(
-                            view()
-                                .flex_row()
-                                .gap(px(8.0))
-                                .child(ui::action_button("Select all", false, select_all))
-                                .child(ui::action_button("Clear", false, clear)),
-                        ),
-                )
-                .child(
-                    scroll()
-                        .max_h(px(300.0))
-                        .w_full()
-                        .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
-                )
-                .child(ui::choice_picker(
-                    "Move selected to category",
-                    move || {
-                        data.get()
-                            .unwrap_or_default()
-                            .categories
-                            .into_iter()
-                            .map(|category| (category.id, category.name))
-                            .collect()
-                    },
-                    bulk_category,
-                ))
-                .child(
-                    when(
-                        move || confirm_delete.get(),
-                        move || {
-                            view()
-                                .w_full()
-                                .flex_row()
-                                .items_center()
-                                .justify_between()
-                                .gap(px(8.0))
-                                .p(px(10.0))
-                                .rounded(px(7.0))
-                                .bg(move || theme().destructive.opacity(0.1))
-                                .child(
-                                    text(move || format!("Delete {} subscriptions?", count()))
-                                        .text_size(px(11.0))
-                                        .text_color(move || theme().destructive),
-                                )
-                                .child(
-                                    view()
-                                        .flex_row()
-                                        .gap(px(6.0))
-                                        .child(ui::action_button("Cancel", false, move || {
-                                            confirm_delete.set(false)
-                                        }))
-                                        .child(ui::action_button("Delete", true, delete)),
-                                )
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    text(move || error.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().destructive),
-                )
-                .into_element(),
+        .child(shared_button(
+            ButtonProps::new("Select all")
+                .variant(ButtonVariant::Outline)
+                .size(ButtonSize::Sm)
+                .on_press(move || {
+                    let ids = all_ids();
+                    let mut values = selected.get();
+                    if values.len() == ids.len() {
+                        values.clear();
+                    } else {
+                        for id in ids {
+                            if !values.contains(&id) {
+                                values.push(id);
+                            }
+                        }
+                    }
+                    selected.set(values);
+                }),
+        ))
+        .child(
+            view().w(px(176.0)).child(select_menu(
+                SelectMenuProps::new("", "Set category…", bulk_category, categories)
+                    .height(32.0)
+                    .show_label(false),
+            )),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .flex_wrap()
-                .justify_end()
-                .gap(px(8.0))
-                .child(ui::action_button("Apply category", false, apply_category))
-                .child(ui::action_button("Activate", false, move || {
-                    set_active(true)
-                }))
-                .child(ui::action_button("Pause", false, move || set_active(false)))
-                .child(ui::action_button("Delete", true, move || {
-                    confirm_delete.set(true)
-                }))
-                .into_element(),
-        ),
-    )
+        .child(shared_button(
+            ButtonProps::new("Apply category")
+                .variant(ButtonVariant::Outline)
+                .size(ButtonSize::Sm)
+                .on_press(apply_category),
+        ))
+        .child(shared_button(
+            ButtonProps::new("Activate")
+                .variant(ButtonVariant::Outline)
+                .size(ButtonSize::Sm)
+                .on_press(move || set_active(true)),
+        ))
+        .child(shared_button(
+            ButtonProps::new("Pause")
+                .variant(ButtonVariant::Outline)
+                .size(ButtonSize::Sm)
+                .on_press(move || set_active(false)),
+        ))
+        .child(shared_button(
+            ButtonProps::new("Delete")
+                .variant(ButtonVariant::Outline)
+                .size(ButtonSize::Sm)
+                .on_press(move || confirm_delete()),
+        ))
+        .child(shared_button(
+            ButtonProps::new("Clear")
+                .variant(ButtonVariant::Ghost)
+                .size(ButtonSize::Sm)
+                .align(ButtonAlign::Start)
+                .on_press(move || {
+                    clear();
+                    selection_mode.set(false);
+                }),
+        ))
+        .when(!error.get().is_empty(), |bar| {
+            bar.child(
+                text(move || error.get())
+                    .text_size(px(11.0))
+                    .text_color(move || theme().destructive),
+            )
+        })
+        .into_element()
 }
 
 fn notes_form(

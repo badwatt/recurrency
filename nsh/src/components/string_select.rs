@@ -32,6 +32,17 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
     } = props;
     let open = signal(false);
     let query = signal(String::new());
+    let select_id = crate::ui::next_select_id();
+    let host = crate::ui::select_host();
+    effect(move || {
+        if let Some(host) = host
+            && let Some(current) = host.get()
+            && current != select_id
+        {
+            open.set(false);
+            query.set(String::new());
+        }
+    });
     let option_rows = options.clone();
     let selected_label = move || {
         let current = selected.get();
@@ -40,7 +51,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
             .find(|(value, _)| *value == current)
             .map_or_else(|| current.clone(), |(_, label)| label.clone())
     };
-    let filtered = move || {
+    let filtered: std::rc::Rc<dyn Fn() -> Vec<(String, String)>> = std::rc::Rc::new(move || {
         let q = query.get().trim().to_lowercase();
         option_rows
             .iter()
@@ -51,7 +62,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
             })
             .cloned()
             .collect::<Vec<_>>()
-    };
+    });
     view()
         .w_full()
         .relative()
@@ -126,50 +137,53 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                             .text_size(px(11.0))
                             .text_color(move || theme().foreground),
                     )
-                    .child(
-                        scroll()
-                            .max_h(px(220.0))
-                            .w_full()
-                            .children(filtered().into_iter().map(|(value, label)| {
-                                let press_value = value.clone();
-                                let active = selected.get() == value;
-                                button()
-                                    .cursor_pointer()
-                                    .w_full()
-                                    .h(px(28.0))
-                                    .px(px(7.0))
-                                    .flex_row()
-                                    .items_center()
-                                    .justify_between()
-                                    .rounded(px(5.0))
-                                    .bg(move || {
-                                        if active {
-                                            theme().accent
-                                        } else {
-                                            theme().popover
-                                        }
-                                    })
-                                    .on_press(move || {
-                                        selected.set(press_value.clone());
-                                        open.set(false);
-                                        query.set(String::new());
-                                    })
-                                    .child(
-                                        text(label)
-                                            .number_of_lines(1)
-                                            .text_size(px(11.0))
-                                            .text_color(move || theme().foreground),
+                    .child(scroll().max_h(px(220.0)).w_full().child(each(
+                        {
+                            let filtered = filtered.clone();
+                            move || filtered()
+                        },
+                        |(value, _)| value.clone(),
+                        move |option, _| {
+                            let (value, label) = option.get();
+                            let press_value = value.clone();
+                            let active = selected.get() == value;
+                            button()
+                                .cursor_pointer()
+                                .w_full()
+                                .h(px(28.0))
+                                .px(px(7.0))
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .rounded(px(5.0))
+                                .bg(move || {
+                                    if active {
+                                        theme().accent
+                                    } else {
+                                        theme().popover
+                                    }
+                                })
+                                .on_press(move || {
+                                    selected.set(press_value.clone());
+                                    open.set(false);
+                                    query.set(String::new());
+                                })
+                                .child(
+                                    text(label)
+                                        .number_of_lines(1)
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().foreground),
+                                )
+                                .when(active, |row| {
+                                    row.child(
+                                        image(asset!("icons/check.svg"))
+                                            .size(px(12.0))
+                                            .tint_color(move || theme().primary),
                                     )
-                                    .when(active, |row| {
-                                        row.child(
-                                            image(asset!("icons/check.svg"))
-                                                .size(px(12.0))
-                                                .tint_color(move || theme().primary),
-                                        )
-                                    })
-                                    .into_element()
-                            })),
-                    )
+                                })
+                                .into_element()
+                        },
+                    )))
                     .into_element()
             })
             .otherwise(|| view().h(px(0.0)).mt(px(-6.0)).into_element()),

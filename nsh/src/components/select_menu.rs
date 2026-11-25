@@ -32,6 +32,7 @@ pub struct SelectMenuProps {
     pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn()>)>>,
     pub search_placeholder: String,
     pub create_title: String,
+    pub show_label: bool,
 }
 
 impl SelectMenuProps {
@@ -50,6 +51,7 @@ impl SelectMenuProps {
             create: None,
             search_placeholder: "Search...".to_string(),
             create_title: "Create new".to_string(),
+            show_label: true,
         }
     }
 
@@ -72,6 +74,11 @@ impl SelectMenuProps {
         self.create_title = title.into();
         self
     }
+
+    pub fn show_label(mut self, show: bool) -> Self {
+        self.show_label = show;
+        self
+    }
 }
 
 fn should_offer_create(options: &[SelectOption], query: &str, can_create: bool) -> bool {
@@ -91,10 +98,23 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         create,
         search_placeholder,
         create_title,
+        show_label,
     } = props;
     let open = signal(false);
     let query = signal(String::new());
     let creating = signal(false);
+    let select_id = crate::ui::next_select_id();
+    let host = crate::ui::select_host();
+    effect(move || {
+        if let Some(host) = host
+            && let Some(current) = host.get()
+            && current != select_id
+        {
+            open.set(false);
+            creating.set(false);
+            query.set(String::new());
+        }
+    });
     let create_name = signal(String::new());
     let filtered_options = options.clone();
     let filtered: Rc<dyn Fn() -> Vec<SelectOption>> = Rc::new(move || {
@@ -128,13 +148,15 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         .flex_col()
         .gap(px(6.0))
         .min_w(px(0.0))
-        .child(
-            text(label)
-                .text_size(px(14.0))
-                .line_height(px(20.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().muted_foreground),
-        )
+        .when(show_label, |panel| {
+            panel.child(
+                text(label)
+                    .text_size(px(14.0))
+                    .line_height(px(20.0))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(move || theme().muted_foreground),
+            )
+        })
         .child(
             button()
                 .cursor_pointer()
@@ -153,7 +175,9 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .on_press(move || {
                     if open.get() {
                         open.set(false);
+                        crate::ui::release_select(select_id);
                     } else {
+                        crate::ui::claim_select(select_id);
                         query.set(String::new());
                         open.set(true);
                     }
@@ -210,6 +234,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                 .on_press(move || {
                                     selected.set(None);
                                     open.set(false);
+                                    crate::ui::release_select(select_id);
                                 })
                                 .child(
                                     image(asset!("icons/x.svg"))
@@ -300,6 +325,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                     selected.set(Some(id));
                                     query.set(String::new());
                                     open.set(false);
+                                    crate::ui::release_select(select_id);
                                 })
                                 .child(
                                     text(option.label)
@@ -372,8 +398,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                     .left(px(0.0))
                                     .right(px(0.0))
                                     .z_index(120)
-                                    .p(px(8.0))
-                                    .gap(px(8.0))
+                                    .p(px(12.0))
+                                    .gap(px(10.0))
                                     .rounded(px(8.0))
                                     .border(px(1.0))
                                     .border_color(move || theme().border)

@@ -1630,6 +1630,43 @@ fn data_card(
                 .border(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().background)
+                .on_file_drop({
+                    let pending = pending;
+                    let status = status;
+                    move |event: &nsh_core::element::FileDropEvent| {
+                        let Some(uri) = event.uris.first().cloned() else {
+                            return;
+                        };
+                        let pending = pending;
+                        let status = status;
+                        spawn(async move {
+                            let path = uri.strip_prefix("file://").map(std::path::PathBuf::from);
+                            let Some(path) = path else {
+                                status.set("Could not read the dropped backup.".to_string());
+                                return;
+                            };
+                            match std::fs::read_to_string(path) {
+                                Ok(text) => {
+                                    match serde_json::from_str::<serde_json::Value>(&text) {
+                                        Ok(value) => {
+                                            pending.set(Some(value));
+                                            status.set(
+                                            "Backup loaded. Confirm to replace the current data."
+                                                .to_string(),
+                                        );
+                                        }
+                                        Err(_) => status.set(
+                                            "That file is not a Recurrency backup.".to_string(),
+                                        ),
+                                    }
+                                }
+                                Err(error) => {
+                                    status.set(format!("Could not read the backup: {error}"))
+                                }
+                            }
+                        });
+                    }
+                })
                 .child(
                     view()
                         .h(px(36.0))

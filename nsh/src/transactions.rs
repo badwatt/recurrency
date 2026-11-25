@@ -312,6 +312,7 @@ pub fn transactions(
                             price_max,
                             selection_mode,
                             selected,
+                            compact,
                         )
                     })
                 })),
@@ -342,6 +343,61 @@ fn header(on_add: impl Fn() + 'static, compact: Signal<bool>) -> impl IntoElemen
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Opens the full transaction form over whichever page requested it.
+pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<NaiveDate>) {
+    let server = crate::auth::stored_server();
+    let token = auth.token.clone();
+    let currency = if auth.user.currency.is_empty() {
+        "EUR".to_string()
+    } else {
+        auth.user.currency.clone()
+    };
+    let resource_currency = currency.clone();
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
+            let server = server.clone();
+            let token = token.clone();
+            let currency = resource_currency.clone();
+            async move { api::load_transactions(server, token, currency).await }
+        }
+    });
+    let form_signals = TxForm {
+        open: signal(true),
+        editing: signal(None::<Uuid>),
+        name: signal(String::new()),
+        amount: signal(String::new()),
+        currency: signal(currency.clone()),
+        date: signal(
+            date.unwrap_or_else(|| Local::now().date_naive())
+                .to_string(),
+        ),
+        account_id: signal(None::<Uuid>),
+        category_id: signal(None::<Uuid>),
+        error: signal(String::new()),
+        saving: signal(false),
+        notes: signal(String::new()),
+        logo_url: signal(String::new()),
+        logo_results: signal(Vec::<(String, String)>::new()),
+        logo_loading: signal(false),
+        logo_error: signal(String::new()),
+    };
+    let server_signal = signal(server);
+    let token_signal = signal(token);
+    modal.open(move || {
+        form(
+            data,
+            form_signals,
+            server_signal,
+            token_signal,
+            currency.clone(),
+            modal,
+        )
+        .into_element()
+    });
+}
+
 fn form(
     data: Resource<TransactionsData, String>,
     form: TxForm,
@@ -765,6 +821,7 @@ fn content(
     price_max: Signal<String>,
     selection_mode: Signal<bool>,
     selected: Signal<Vec<Uuid>>,
+    compact: Signal<bool>,
 ) -> AnyElement {
     let list_key = format!("{}-{}", sort_field.get(), sort_desc.get());
     let groups = move || {
@@ -791,14 +848,12 @@ fn content(
         }
         groups
     };
-    let grid = list_view.get() == false;
     view()
         .key(list_key)
         .w_full()
         .mt(px(-5.5))
         .flex_col()
-        .when(grid, |view| view.flex_row().flex_wrap().gap(px(16.0)))
-        .when(!grid, |view| view.gap(px(16.0)))
+        .gap(px(16.0))
         .child(each(
             groups,
             move |group| format!("{}-{}-{}", group.key, sort_field.get(), sort_desc.get()),
@@ -810,7 +865,8 @@ fn content(
                     actions,
                     server,
                     token,
-                    grid,
+                    list_view,
+                    compact,
                     selection_mode,
                     selected,
                 )
@@ -826,15 +882,19 @@ fn group_card(
     actions: TxActions,
     server: Signal<String>,
     token: Signal<String>,
-    grid: bool,
+    list_view: Signal<bool>,
+    compact: Signal<bool>,
     selection_mode: Signal<bool>,
     selected: Signal<Vec<Uuid>>,
 ) -> impl IntoElement {
     let count = ui::count_label(group.items.len(), "transaction", "transactions");
     let total = format_currency(group.total, &currency);
+    let list_items = group.items.clone();
+    let grid_items = group.items.clone();
+    let list_currency = currency.clone();
+    let grid_currency = currency.clone();
     view()
         .w_full()
-        .when(grid, |view| view.w(px(360.0)).flex_grow(1.0))
         .flex_col()
         .gap(px(5.0))
         .child(
@@ -867,22 +927,224 @@ fn group_card(
                     .text_color(move || theme().foreground),
                 ),
         )
-        .child(view().w_full().flex_col().gap(px(8.0)).child(each(
-            move || group.items.clone(),
-            |transaction| transaction.id,
-            move |transaction, _| {
-                row(
-                    transaction.get(),
-                    data,
-                    currency.clone(),
-                    actions,
-                    server,
-                    token,
-                    selection_mode,
-                    selected,
+        .child(
+            when(
+                move || list_view.get(),
+                move || {
+                    let items = list_items.clone();
+                    let currency = list_currency.clone();
+                    view()
+                        .w_full()
+                        .flex_col()
+                        .gap(px(8.0))
+                        .child(each(
+                            move || items.clone(),
+                            |transaction| transaction.id,
+                            move |transaction, _| {
+                                row(
+                                    transaction.get(),
+                                    data,
+                                    currency.clone(),
+                                    actions,
+                                    server,
+                                    token,
+                                    selection_mode,
+                                    selected,
+                                )
+                            },
+                        ))
+                        .into_element()
+                },
+            )
+            .otherwise(move || {
+                let items = grid_items.clone();
+                let currency = grid_currency.clone();
+                view()
+                    .w_full()
+                    .grid()
+                    .grid_template_columns(SharedString::from(if compact.get() {
+                        "repeat(1, minmax(0, 1fr))"
+                    } else {
+                        "repeat(3, minmax(0, 1fr))"
+                    }))
+                    .gap(px(12.0))
+                    .child(each(
+                        move || items.clone(),
+                        |transaction| transaction.id,
+                        move |transaction, _| {
+                            grid_card(
+                                transaction.get(),
+                                data,
+                                currency.clone(),
+                                actions,
+                                server,
+                                token,
+                                selection_mode,
+                                selected,
+                            )
+                        },
+                    ))
+                    .into_element()
+            }),
+        )
+}
+
+fn grid_card(
+    transaction: Transaction,
+    data: Resource<TransactionsData, String>,
+    currency: String,
+    actions: TxActions,
+    server: Signal<String>,
+    token: Signal<String>,
+    selection_mode: Signal<bool>,
+    selected: Signal<Vec<Uuid>>,
+) -> impl IntoElement {
+    let account = account_name(data, transaction.account_id);
+    let accent = account_color(data, transaction.account_id);
+    let accent_badge = accent.clone();
+    let accent_icon = accent.clone();
+    let accent_text = accent.clone();
+    let logo = transaction.logo_url.clone();
+    let action_transaction = transaction.clone();
+    let name = transaction.name;
+    let date = format_date(transaction.date);
+    let rates = data.get().unwrap_or_default().rates;
+    let amount_value = transaction.amount;
+    let amount_currency = transaction.currency.clone();
+    let select_id = transaction.id;
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(12.0))
+        .p(px(16.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || {
+            if selected.get().contains(&select_id) {
+                theme().primary.opacity(0.55)
+            } else {
+                theme().border
+            }
+        })
+        .bg(move || {
+            if selected.get().contains(&select_id) {
+                theme().accent
+            } else {
+                theme().card
+            }
+        })
+        .cursor_pointer()
+        .on_press(move || {
+            if selection_mode.get() {
+                let mut values = selected.get();
+                crate::components::selection_bar::toggle(&mut values, select_id);
+                selected.set(values);
+            }
+        })
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_start()
+                .gap(px(12.0))
+                .child(
+                    view()
+                        .h(px(40.0))
+                        .w(px(40.0))
+                        .flex_shrink_0()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(999.0))
+                        .bg(move || theme().muted)
+                        .child(
+                            when(logo.is_some(), move || {
+                                image(logo.clone().unwrap_or_default())
+                                    .size(px(22.0))
+                                    .into_element()
+                            })
+                            .otherwise(|| {
+                                image(asset!("icons/receipt.svg"))
+                                    .size(px(18.0))
+                                    .tint_color(move || theme().muted_foreground)
+                                    .into_element()
+                            }),
+                        ),
                 )
-            },
+                .child(
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .flex_grow(1.0)
+                        .child(
+                            text(name)
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .number_of_lines(1)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(date)
+                                .text_size(px(12.0))
+                                .line_height(px(16.0))
+                                .text_color(move || theme().muted_foreground),
+                        )
+                        .child(
+                            view()
+                                .self_start()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(4.0))
+                                .mt(px(4.0))
+                                .px(px(8.0))
+                                .h(px(20.0))
+                                .rounded(px(999.0))
+                                .bg(move || {
+                                    rgb(crate::theme::parse_hex(&accent_badge)).opacity(0.13)
+                                })
+                                .child(
+                                    image(asset!("icons/card.svg")).size(px(14.0)).tint_color(
+                                        move || rgb(crate::theme::parse_hex(&accent_icon)),
+                                    ),
+                                )
+                                .child(text(account).text_size(px(11.0)).text_color(move || {
+                                    rgb(crate::theme::parse_hex(&accent_text))
+                                })),
+                        ),
+                ),
+        )
+        .child(view().w_full().child(converted_amount(
+            amount_value,
+            &amount_currency,
+            &currency,
+            &rates,
+            16.0,
+            FontWeight::SEMIBOLD,
+            true,
         )))
+        .child(when(
+            move || !selection_mode.get(),
+            move || {
+                view()
+                    .w_full()
+                    .flex_row()
+                    .justify_end()
+                    .gap(px(4.0))
+                    .pt(px(2.0))
+                    .border_t(px(1.0))
+                    .border_color(move || theme().border.opacity(0.4))
+                    .child(transaction_actions(
+                        action_transaction.clone(),
+                        actions,
+                        data,
+                        server,
+                        token,
+                        currency.clone(),
+                    ))
+                    .into_element()
+            },
+        ))
+        .into_element()
 }
 
 fn row(

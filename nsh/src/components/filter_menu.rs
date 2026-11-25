@@ -11,6 +11,7 @@ pub fn filter_menu(
     active: impl Fn() -> usize + 'static,
     body: impl Fn() -> AnyElement + 'static,
 ) -> impl IntoElement {
+    let bounds = signal(None::<(f32, f32, f32, f32)>);
     let active = Rc::new(active);
     let active_border = active.clone();
     let active_icon = active.clone();
@@ -43,9 +44,27 @@ pub fn filter_menu(
         })
         .bg(move || theme().card)
         .accessibility_label("Filters")
+        .on_layout(
+            move |bounds_value: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                bounds.set(Some((
+                    bounds_value.origin.x.0,
+                    bounds_value.origin.y.0,
+                    bounds_value.size.width.0,
+                    bounds_value.size.height.0,
+                )));
+            },
+        )
         .on_press(move || {
             let build = build.clone();
-            crate::ui::open_menu(crate::ui::MenuPlacement::ToolbarRight, build);
+            let (x, y, width, height) = bounds.get().unwrap_or((24.0, 232.0, 40.0, 40.0));
+            let left = (x + width / 2.0 - 150.0).max(8.0);
+            crate::ui::open_menu(
+                crate::ui::MenuPlacement::At {
+                    top: y + height + 8.0,
+                    left,
+                },
+                build,
+            );
         })
         .child(
             image(asset!("icons/filter.svg"))
@@ -92,6 +111,6 @@ mod tests {
     fn the_filter_menu_uses_the_shared_menu_host() {
         let source = include_str!("filter_menu.rs");
         assert!(source.contains("open_menu"));
-        assert!(source.contains("MenuPlacement::TopRight"));
+        assert!(source.contains("MenuPlacement::At"));
     }
 }

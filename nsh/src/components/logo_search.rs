@@ -240,14 +240,6 @@ fn search_body(
             loading.set(false);
         });
     };
-    let total = results.get().len();
-    let pages = page_count(total);
-    let current = page.get().min(pages.saturating_sub(1));
-    let (start, end) = page_bounds(current, total);
-    let items = results.get();
-    let current_items = items[start..end].to_vec();
-    let has_items = !current_items.is_empty();
-    let grid_items = current_items.clone();
     view()
         .w_full()
         .p(px(24.0))
@@ -348,44 +340,54 @@ fn search_body(
         )
         .child(
             when(
-                move || has_items,
+                move || !results.get().is_empty(),
                 move || {
-                    let items = grid_items.clone();
                     view()
                         .w_full()
                         .grid()
                         .grid_template_columns(SharedString::from("repeat(4, minmax(0, 1fr))"))
                         .gap(px(12.0))
-                        .children(items.into_iter().map(|(url, thumbnail)| {
-                            let chosen = if thumbnail.is_empty() {
-                                url.clone()
-                            } else {
-                                thumbnail.clone()
-                            };
-                            button()
-                                .cursor_pointer()
-                                .h(px(72.0))
-                                .w_full()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(6.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().border)
-                                .bg(move || theme().card)
-                                .on_press(move || {
-                                    logo_url.set(chosen.clone());
-                                    ui::close_logo_modal();
-                                })
-                                .child(
-                                    image(if thumbnail.is_empty() {
-                                        url.clone()
-                                    } else {
-                                        thumbnail.clone()
+                        .child(each(
+                            move || {
+                                let items = results.get();
+                                let pages = page_count(items.len());
+                                let current = page.get().min(pages.saturating_sub(1));
+                                let (start, end) = page_bounds(current, items.len());
+                                items[start..end].to_vec()
+                            },
+                            |(url, thumbnail)| format!("{url}-{thumbnail}"),
+                            move |item, _| {
+                                let (url, thumbnail) = item.get();
+                                let chosen = if thumbnail.is_empty() {
+                                    url.clone()
+                                } else {
+                                    thumbnail.clone()
+                                };
+                                button()
+                                    .cursor_pointer()
+                                    .h(px(72.0))
+                                    .w_full()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(px(6.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().border)
+                                    .bg(move || theme().card)
+                                    .on_press(move || {
+                                        logo_url.set(chosen.clone());
+                                        ui::close_logo_modal();
                                     })
-                                    .size(px(48.0)),
-                                )
-                                .into_element()
-                        }))
+                                    .child(
+                                        image(if thumbnail.is_empty() {
+                                            url.clone()
+                                        } else {
+                                            thumbnail.clone()
+                                        })
+                                        .size(px(48.0)),
+                                    )
+                                    .into_element()
+                            },
+                        ))
                         .into_element()
                 },
             )
@@ -393,7 +395,7 @@ fn search_body(
         )
         .child(
             when(
-                move || total > 0,
+                move || !results.get().is_empty(),
                 move || {
                     view()
                         .w_full()
@@ -408,7 +410,11 @@ fn search_body(
                                 .rounded(px(5.0))
                                 .border(px(1.0))
                                 .border_color(move || theme().border)
-                                .on_press(move || page.set(current.saturating_sub(1)))
+                                .on_press(move || {
+                                    let pages = page_count(results.get().len());
+                                    let current = page.get().min(pages.saturating_sub(1));
+                                    page.set(current.saturating_sub(1));
+                                })
                                 .child(
                                     text("‹")
                                         .text_size(px(16.0))
@@ -416,9 +422,13 @@ fn search_body(
                                 ),
                         )
                         .child(
-                            text(move || format!("Page {} of {}", current + 1, pages))
-                                .text_size(px(12.0))
-                                .text_color(move || theme().muted_foreground),
+                            text(move || {
+                                let pages = page_count(results.get().len());
+                                let current = page.get().min(pages.saturating_sub(1));
+                                format!("Page {} of {}", current + 1, pages)
+                            })
+                            .text_size(px(12.0))
+                            .text_color(move || theme().muted_foreground),
                         )
                         .child(
                             button()
@@ -428,7 +438,11 @@ fn search_body(
                                 .rounded(px(5.0))
                                 .border(px(1.0))
                                 .border_color(move || theme().border)
-                                .on_press(move || page.set((current + 1).min(pages - 1)))
+                                .on_press(move || {
+                                    let pages = page_count(results.get().len());
+                                    let current = page.get().min(pages.saturating_sub(1));
+                                    page.set((current + 1).min(pages - 1));
+                                })
                                 .child(
                                     text("›")
                                         .text_size(px(16.0))

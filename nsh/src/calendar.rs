@@ -69,7 +69,6 @@ pub fn calendar(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     let has_error = move || data.error().is_some();
     let render_currency = currency.clone();
     let day_modal = ui::ModalHost::new();
-
     view()
         .w_full()
         .flex_col()
@@ -807,7 +806,7 @@ fn day_cell(
                 .on_press(move || {
                     let Some(date) = cell_date else { return };
                     if entries().is_empty() {
-                        crate::ui::request_subscription_create(date);
+                        crate::ui::create_subscription(Some(date));
                     } else {
                         open_day_dialog(
                             date,
@@ -831,7 +830,7 @@ fn day_cell(
                         .on_press(move || {
                             let Some(date) = cell_date else { return };
                             if entries().is_empty() {
-                                crate::ui::request_subscription_create(date);
+                                crate::ui::create_subscription(Some(date));
                             } else {
                                 open_day_dialog(
                                     date,
@@ -892,7 +891,7 @@ fn day_cell(
                                 .accessibility_label("Add subscription on this day")
                                 .on_press(move || {
                                     if let Some(date) = cell_date {
-                                        crate::ui::request_subscription_create(date);
+                                        crate::ui::create_subscription(Some(date));
                                     }
                                 })
                                 .child(

@@ -164,10 +164,24 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     });
     let chat_auth = auth.clone();
     let notification_auth = chat_auth.clone();
+    let creator_auth = auth.clone();
     let auth_signal = signal(auth);
     let compact = signal(false);
     ui::init_compact(compact);
+    ui::init_selects();
     let modal = ui::ModalHost::new();
+    ui::init_subscription_creator({
+        let auth = creator_auth.clone();
+        move |date| crate::subscriptions::open_create_dialog(auth.clone(), modal, date)
+    });
+    ui::init_transaction_creator({
+        let auth = creator_auth.clone();
+        move |date| crate::transactions::open_create_dialog(auth.clone(), modal, date)
+    });
+    ui::init_debt_creator({
+        let auth = creator_auth;
+        move |date| crate::debts::open_create_dialog(auth.clone(), modal, date)
+    });
     let create_intent = signal(None::<Route>);
     let fab_open = signal(false);
     let page_scroll = element_ref();
@@ -242,6 +256,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                         route,
                                         create_intent,
                                         compact,
+                                        modal,
                                     )
                                 },
                             )

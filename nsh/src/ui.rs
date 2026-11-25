@@ -3,7 +3,6 @@
 
 use crate::Route;
 use crate::auth::AuthSession;
-use chrono::NaiveDate;
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use std::cell::RefCell;
@@ -22,6 +21,103 @@ thread_local! {
 }
 thread_local! {
     static COMPACT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
+}
+
+thread_local! {
+    static SELECT_HOST: RefCell<Option<Signal<Option<u64>>>> = const { RefCell::new(None) };
+    static SELECT_COUNTER: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+thread_local! {
+    static SUBSCRIPTION_CREATOR: RefCell<Option<std::rc::Rc<dyn Fn(Option<chrono::NaiveDate>)>>> =
+        const { RefCell::new(None) };
+}
+
+thread_local! {
+    static TRANSACTION_CREATOR: RefCell<Option<std::rc::Rc<dyn Fn(Option<chrono::NaiveDate>)>>> =
+        const { RefCell::new(None) };
+    static DEBT_CREATOR: RefCell<Option<std::rc::Rc<dyn Fn(Option<chrono::NaiveDate>)>>> =
+        const { RefCell::new(None) };
+}
+
+pub fn init_transaction_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'static) {
+    TRANSACTION_CREATOR.with(|slot| {
+        *slot.borrow_mut() = Some(std::rc::Rc::new(create));
+    });
+}
+
+pub fn create_transaction(date: Option<chrono::NaiveDate>) {
+    TRANSACTION_CREATOR.with(|slot| {
+        if let Some(create) = slot.borrow().as_ref() {
+            create(date);
+        }
+    });
+}
+
+pub fn init_debt_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'static) {
+    DEBT_CREATOR.with(|slot| {
+        *slot.borrow_mut() = Some(std::rc::Rc::new(create));
+    });
+}
+
+pub fn create_debt(date: Option<chrono::NaiveDate>) {
+    DEBT_CREATOR.with(|slot| {
+        if let Some(create) = slot.borrow().as_ref() {
+            create(date);
+        }
+    });
+}
+
+pub fn init_subscription_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'static) {
+    SUBSCRIPTION_CREATOR.with(|slot| {
+        *slot.borrow_mut() = Some(std::rc::Rc::new(create));
+    });
+}
+
+pub fn create_subscription(date: Option<chrono::NaiveDate>) {
+    SUBSCRIPTION_CREATOR.with(|slot| {
+        if let Some(create) = slot.borrow().as_ref() {
+            create(date);
+        }
+    });
+}
+
+pub fn init_selects() {
+    SELECT_HOST.with(|slot| {
+        if slot.borrow().is_none() {
+            *slot.borrow_mut() = Some(signal(None::<u64>));
+        }
+    });
+}
+
+pub fn next_select_id() -> u64 {
+    SELECT_COUNTER.with(|counter| {
+        let next = counter.get().wrapping_add(1).max(1);
+        counter.set(next);
+        next
+    })
+}
+
+pub fn claim_select(id: u64) {
+    SELECT_HOST.with(|slot| {
+        if let Some(host) = *slot.borrow() {
+            host.set(Some(id));
+        }
+    });
+}
+
+pub fn release_select(id: u64) {
+    SELECT_HOST.with(|slot| {
+        if let Some(host) = *slot.borrow()
+            && host.get() == Some(id)
+        {
+            host.set(None);
+        }
+    });
+}
+
+pub fn select_host() -> Option<Signal<Option<u64>>> {
+    SELECT_HOST.with(|slot| *slot.borrow())
 }
 
 pub fn init_logo_modal() {
@@ -102,17 +198,7 @@ pub fn init_privacy() {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubscriptionIntent {
-    Create(NaiveDate),
     Edit(Uuid),
-}
-
-pub fn request_subscription_create(date: NaiveDate) {
-    SUBSCRIPTION_INTENT.with(|slot| {
-        if let Some(intent) = *slot.borrow() {
-            intent.set(Some(SubscriptionIntent::Create(date)));
-        }
-    });
-    navigate(Route::Subscriptions);
 }
 
 pub fn request_subscription_edit(id: Uuid) {
@@ -136,6 +222,7 @@ pub enum MenuPlacement {
     TopRight,
     ToolbarRight,
     ReportRight,
+    At { top: f32, left: f32 },
     BottomRight,
 }
 
@@ -206,6 +293,13 @@ pub fn menu_overlay() -> AnyElement {
                         })
                         .when(placement == MenuPlacement::ReportRight, |panel| {
                             panel.top(px(153.0)).right(px(24.0))
+                        })
+                        .when(matches!(placement, MenuPlacement::At { .. }), |panel| {
+                            if let MenuPlacement::At { top, left } = placement {
+                                panel.top(px(top)).left(px(left))
+                            } else {
+                                panel
+                            }
                         })
                         .when(placement == MenuPlacement::BottomRight, |panel| {
                             panel.bottom(px(140.0)).right(px(18.0))

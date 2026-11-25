@@ -17,7 +17,6 @@ pub fn text_area_with_height(
         .w_full()
         .h(px(height + 20.0))
         .flex_shrink_0()
-        .mt(px(-13.0))
         .p(px(10.0))
         .rounded(px(7.0))
         .border(px(1.0))

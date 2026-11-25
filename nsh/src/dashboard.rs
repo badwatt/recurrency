@@ -23,6 +23,7 @@ pub fn dashboard(
     route: Signal<Route>,
     intent: Signal<Option<Route>>,
     compact: Signal<bool>,
+    modal: ui::ModalHost,
 ) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
@@ -55,7 +56,14 @@ pub fn dashboard(
         .w_full()
         .flex_col()
         .gap(move || if compact.get() { px(6.0) } else { px(21.0) })
-        .child(header(&user_name, route, intent, compact))
+        .child(header(
+            &user_name,
+            route,
+            intent,
+            compact,
+            auth.clone(),
+            modal,
+        ))
         .child(when(loading, loading_card).otherwise(move || {
             let value = render_currency.clone();
             when(has_error, move || {
@@ -108,6 +116,8 @@ fn header(
     route: Signal<Route>,
     intent: Signal<Option<Route>>,
     compact: Signal<bool>,
+    auth: AuthSession,
+    modal: ui::ModalHost,
 ) -> impl IntoElement {
     let name = user_name.to_string();
     let mobile_name = name.clone();
@@ -131,7 +141,7 @@ fn header(
                 .justify_between()
                 .gap(px(24.0))
                 .child(title_block(name.clone()))
-                .child(actions(route, intent))
+                .child(actions(route, intent, auth.clone(), modal))
                 .into_element()
         }),
     )
@@ -169,61 +179,54 @@ fn title_block(user_name: String) -> impl IntoElement {
         )
 }
 
-fn actions(route: Signal<Route>, intent: Signal<Option<Route>>) -> impl IntoElement {
+fn actions(
+    _route: Signal<Route>,
+    _intent: Signal<Option<Route>>,
+    auth: AuthSession,
+    modal: ui::ModalHost,
+) -> impl IntoElement {
     view()
         .flex_row()
         .flex_wrap()
         .items_center()
         .gap(px(8.0))
         .mb(px(-2.0))
-        .child(action(
+        .child(action_in_place(
             "Add subscription",
             true,
-            route,
-            intent,
-            Route::Subscriptions,
+            auth.clone(),
+            modal,
             asset!("icons/plus.svg"),
         ))
-        .child(action(
+        .child(action_in_place(
             "Add transaction",
             false,
-            route,
-            intent,
-            Route::Transactions,
+            auth.clone(),
+            modal,
             asset!("icons/transactions.svg"),
         ))
-        .child(action(
+        .child(action_in_place(
             "Add debt",
             false,
-            route,
-            intent,
-            Route::Debts,
+            auth,
+            modal,
             asset!("icons/plus.svg"),
         ))
 }
 
-fn action(
+fn action_in_place(
     label: &'static str,
     primary: bool,
-    route: Signal<Route>,
-    intent: Signal<Option<Route>>,
-    target: Route,
+    _auth: AuthSession,
+    _modal: ui::ModalHost,
     icon: ImageAsset,
 ) -> impl IntoElement {
-    let width = if primary {
-        160.0
-    } else if label == "Add transaction" {
-        156.0
-    } else {
-        114.0
-    };
     button()
-        .cursor_pointer()
         .cursor_pointer()
         .items_center()
         .justify_center()
         .h(px(42.0))
-        .w(px(width))
+        .w(px(160.0))
         .rounded(px(8.0))
         .border(px(1.0))
         .border_color(move || theme().border)
@@ -237,9 +240,10 @@ fn action(
         .active(|state| state.opacity(0.8))
         .flex_row()
         .gap(px(6.0))
-        .on_press(move || {
-            intent.set(Some(target));
-            route.set(target);
+        .on_press(move || match label {
+            "Add subscription" => crate::ui::create_subscription(None),
+            "Add transaction" => crate::ui::create_transaction(None),
+            _ => crate::ui::create_debt(None),
         })
         .child(image(icon).size(px(14.0)).tint_color(move || {
             if primary {
@@ -547,9 +551,7 @@ fn upcoming_card(
                 move |item, _| {
                     let (index, payment) = item.get();
                     view()
-                        .when(index == 0, |row| row.mt(px(4.0)))
-                        .when(index == 1, |row| row.mt(px(8.0)))
-                        .when(index >= 2, |row| row.mt(px(4.0)))
+                        .when(index > 0, |row| row.mt(px(4.0)))
                         .child(upcoming_row(
                             payment,
                             data,

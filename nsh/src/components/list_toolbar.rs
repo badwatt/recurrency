@@ -1,10 +1,8 @@
 //! Compact list toolbar: shared search, extra actions and view switch.
 
-use crate::components::button::{
-    ButtonProps, ButtonSize, ButtonVariant, icon_button_when, icon_button_when_sized,
-};
+use crate::components::button::{ButtonProps, ButtonSize, ButtonVariant, icon_button_when};
 use crate::components::search_input::search_input;
-use nsh_base::theme;
+use nsh_base::{button as raw_button, theme};
 use nsh_core::prelude::*;
 
 pub fn list_toolbar(
@@ -34,25 +32,57 @@ pub fn list_toolbar(
                         .w(px(72.0))
                         .gap(px(0.0))
                         .p(px(0.0))
-                        .rounded(px(8.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().muted.opacity(0.4))
-                        .child(icon_button_when_sized(
+                        .child(view_toggle(
                             asset!("icons/grid.svg"),
                             "Grid view",
-                            ButtonSize::Toolbar,
                             move || !list_view.get(),
                             move || list_view.set(false),
                         ))
-                        .child(icon_button_when_sized(
+                        .child(view_toggle(
                             asset!("icons/list.svg"),
                             "List view",
-                            ButtonSize::Toolbar,
                             move || list_view.get(),
                             move || list_view.set(true),
                         )),
                 ),
+        )
+}
+
+fn view_toggle(
+    icon: ImageAsset,
+    label: &'static str,
+    active: impl Fn() -> bool + 'static,
+    on_press: impl Fn() + 'static,
+) -> impl IntoElement {
+    let active = std::rc::Rc::new(active);
+    let bg_active = active.clone();
+    raw_button()
+        .cursor_pointer()
+        .h(px(36.0))
+        .w(px(36.0))
+        .items_center()
+        .justify_center()
+        .rounded(px(6.0))
+        .bg(move || {
+            if bg_active() {
+                theme().accent
+            } else {
+                theme().card.opacity(0.0)
+            }
+        })
+        .accessibility_label(label)
+        .on_press(on_press)
+        .child(
+            image(icon)
+                .size(px(16.0))
+                .pointer_events(PointerEvents::None)
+                .tint_color(move || {
+                    if active() {
+                        theme().foreground
+                    } else {
+                        theme().muted_foreground
+                    }
+                }),
         )
 }
 

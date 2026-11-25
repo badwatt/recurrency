@@ -6,6 +6,20 @@ use std::rc::Rc;
 
 pub type ModalBuilder = Rc<dyn Fn() -> AnyElement>;
 
+thread_local! {
+    static CURRENT_CLOSE: std::cell::RefCell<Option<Rc<dyn Fn()>>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+pub fn close_current_dialog() {
+    CURRENT_CLOSE.with(|slot| {
+        if let Some(close) = slot.borrow().as_ref() {
+            close();
+        }
+    });
+}
+
 #[derive(Clone, Copy)]
 pub struct DialogHost {
     slot: Stored<Option<ModalBuilder>>,
@@ -47,12 +61,24 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
         .absolute()
         .inset_0()
         .z_index(80)
-        .items_center()
-        .justify_center()
-        .p(px(24.0))
-        .pr(px(28.0))
-        .bg(rgba(0x00000080))
-        .child(modal.render())
+        .child(
+            view()
+                .absolute()
+                .inset_0()
+                .bg(rgba(0x00000080))
+                .on_press(close_current_dialog),
+        )
+        .child(
+            view()
+                .absolute()
+                .inset_0()
+                .items_center()
+                .justify_center()
+                .p(px(24.0))
+                .pr(px(28.0))
+                .pointer_events(PointerEvents::BoxNone)
+                .child(modal.render()),
+        )
         .into_element()
 }
 
@@ -117,6 +143,9 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         show_footer,
         on_close,
     } = dialog;
+    CURRENT_CLOSE.with(|slot| {
+        *slot.borrow_mut() = Some(on_close.clone());
+    });
     let close = on_close.clone();
     view()
         .w_full()

@@ -22,6 +22,7 @@ pub fn sort_menu(
     descending: Signal<bool>,
     options: Vec<SortOption>,
 ) -> impl IntoElement {
+    let bounds = signal(None::<(f32, f32, f32, f32)>);
     let panel_options = options.clone();
     let build = move || {
         let options = panel_options.clone();
@@ -77,9 +78,27 @@ pub fn sort_menu(
         .border_color(move || theme().border)
         .bg(move || theme().card)
         .accessibility_label("Sort")
+        .on_layout(
+            move |bounds_value: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                bounds.set(Some((
+                    bounds_value.origin.x.0,
+                    bounds_value.origin.y.0,
+                    bounds_value.size.width.0,
+                    bounds_value.size.height.0,
+                )));
+            },
+        )
         .on_press(move || {
             let build = build.clone();
-            crate::ui::open_menu(crate::ui::MenuPlacement::ToolbarRight, build);
+            let (x, y, width, height) = bounds.get().unwrap_or((120.0, 232.0, 40.0, 40.0));
+            let left = (x + width / 2.0 - 105.0).max(8.0);
+            crate::ui::open_menu(
+                crate::ui::MenuPlacement::At {
+                    top: y + height + 8.0,
+                    left,
+                },
+                build,
+            );
         })
         .child(
             image(asset!("icons/sort.svg"))

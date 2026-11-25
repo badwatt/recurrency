@@ -831,6 +831,61 @@ fn bulk_modal(
     )
 }
 
+/// Opens the full debt form over whichever page requested it.
+pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<NaiveDate>) {
+    let server = crate::auth::stored_server();
+    let token = auth.token.clone();
+    let currency = if auth.user.currency.is_empty() {
+        "EUR".to_string()
+    } else {
+        auth.user.currency.clone()
+    };
+    let resource_currency = currency.clone();
+    let data = resource(|| Some(()), {
+        let server = server.clone();
+        let token = token.clone();
+        move |(), _| {
+            let server = server.clone();
+            let token = token.clone();
+            let currency = resource_currency.clone();
+            async move { api::load_debts(server, token, currency).await }
+        }
+    });
+    let form_state = DebtForm {
+        open: signal(true),
+        editing: signal(None::<Uuid>),
+        name: signal(String::new()),
+        total: signal(String::new()),
+        monthly: signal(String::new()),
+        start_date: signal(
+            date.unwrap_or_else(|| Local::now().date_naive())
+                .to_string(),
+        ),
+        debt_type: signal("manual".to_string()),
+        payment_days: signal(Vec::<u8>::new()),
+        currency: signal(currency.clone()),
+        notes: signal(String::new()),
+        logo_url: signal(String::new()),
+        account_id: signal(None::<Uuid>),
+        category_id: signal(None::<Uuid>),
+        error: signal(String::new()),
+        saving: signal(false),
+    };
+    let server_signal = signal(server);
+    let token_signal = signal(token);
+    modal.open(move || {
+        form(
+            data,
+            form_state,
+            server_signal,
+            token_signal,
+            currency.clone(),
+            modal,
+        )
+        .into_element()
+    });
+}
+
 fn form(
     data: Resource<DebtsData, String>,
     form: DebtForm,
