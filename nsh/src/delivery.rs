@@ -327,6 +327,11 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
             let id = spec.id;
             let label = spec.label;
             let color = provider_color(id);
+            let is_enabled = data
+                .get()
+                .unwrap_or_default()
+                .iter()
+                .any(|channel| channel.provider == id && channel.enabled);
             let active = move || selected.get() == id;
             raw_button()
                 .w(if compact {
@@ -384,7 +389,7 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 )
                 .child(
                     when(
-                        move || selected.get() == id,
+                        move || is_enabled,
                         move || {
                             view()
                                 .h(px(6.0))

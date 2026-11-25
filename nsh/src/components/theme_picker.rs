@@ -341,8 +341,7 @@ pub fn theme_menu() -> AnyElement {
 /// Full-screen theme catalogue used on compact screens.
 pub fn theme_fullscreen() -> AnyElement {
     let selected = signal(crate::theme::saved());
-    view()
-        .relative()
+    scroll()
         .w_full()
         .h_full()
         .flex_col()
@@ -380,42 +379,33 @@ pub fn theme_fullscreen() -> AnyElement {
                 ),
         )
         .child(
-            scroll()
-                .flex_grow(1.0)
+            view()
                 .w_full()
                 .p(px(16.0))
-                .child(view().w_full().child(theme_picker(
+                .flex_col()
+                .child(theme_picker(
                     selected,
                     crate::auth::stored_server(),
                     crate::auth::stored_token(),
-                ))),
-        )
-        .child(
-            view()
-                .absolute()
-                .left(px(0.0))
-                .right(px(0.0))
-                .bottom(px(0.0))
-                .p(px(16.0))
-                .bg(move || theme().background)
-                .border_t(px(1.0))
-                .border_color(move || theme().border)
+                ))
                 .child(
-                    button()
-                        .cursor_pointer()
-                        .w_full()
-                        .h(px(44.0))
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(8.0))
-                        .bg(move || theme().primary)
-                        .on_press(crate::ui::close_menu)
-                        .child(
-                            text("Close")
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().primary_foreground),
-                        ),
+                    view().w_full().pt(px(16.0)).child(
+                        button()
+                            .cursor_pointer()
+                            .w_full()
+                            .h(px(44.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(8.0))
+                            .bg(move || theme().primary)
+                            .on_press(crate::ui::close_menu)
+                            .child(
+                                text("Close")
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().primary_foreground),
+                            ),
+                    ),
                 ),
         )
         .into_element()

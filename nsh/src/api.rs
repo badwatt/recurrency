@@ -333,7 +333,7 @@ pub async fn record_debt_payment(
     token: String,
     debt_id: uuid::Uuid,
     request: &RecordDebtPaymentRequest,
-) -> Result<DebtPayment, String> {
+) -> Result<crate::models::Debt, String> {
     if crate::local::enabled() {
         return crate::local::record_payment(debt_id, request);
     }

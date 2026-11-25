@@ -53,6 +53,7 @@ pub struct UpcomingPayment {
     pub category_id: Uuid,
     pub date: NaiveDate,
     pub is_transaction: bool,
+    pub logo_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -266,6 +267,7 @@ pub fn upcoming_payments(
                 category_id: subscription.category_id,
                 date,
                 is_transaction: false,
+                logo_url: subscription.logo_url.clone(),
             });
         }
     }
@@ -284,6 +286,7 @@ pub fn upcoming_payments(
             category_id: transaction.category_id,
             date: transaction.date,
             is_transaction: true,
+            logo_url: transaction.logo_url.clone(),
         });
     }
     items.sort_by(|a, b| a.date.cmp(&b.date).then_with(|| a.name.cmp(&b.name)));

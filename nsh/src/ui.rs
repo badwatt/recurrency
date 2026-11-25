@@ -19,6 +19,7 @@ thread_local! {
     static MENU_VERSION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
     static SUBSCRIPTION_INTENT: RefCell<Option<Signal<Option<SubscriptionIntent>>>> = const { RefCell::new(None) };
     static LOGO_MODAL: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
+    static DATA_REVISION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
 }
 thread_local! {
     static COMPACT: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
@@ -172,6 +173,12 @@ pub fn init_privacy() {
             *slot = Some(signal(false));
         }
     });
+    DATA_REVISION.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(signal(0));
+        }
+    });
     SETTINGS_INTENT.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_none() {
@@ -232,6 +239,7 @@ pub enum MenuPlacement {
     ReportRight,
     At { top: f32, left: f32 },
     Center,
+    FullScreen,
     BottomRight,
 }
 
@@ -310,6 +318,9 @@ pub fn menu_overlay() -> AnyElement {
                                 .justify_center()
                                 .bg(rgba(0x00000066))
                                 .pointer_events(PointerEvents::BoxNone)
+                        })
+                        .when(placement == MenuPlacement::FullScreen, |panel| {
+                            panel.inset_0()
                         })
                         .when(matches!(placement, MenuPlacement::At { .. }), |panel| {
                             if let MenuPlacement::At { top, left } = placement {
@@ -401,6 +412,18 @@ pub fn privacy_signal() -> Signal<bool> {
     PRIVACY.with(|slot| slot.borrow().unwrap_or_else(|| signal(false)))
 }
 
+pub fn data_revision() -> u64 {
+    DATA_REVISION.with(|slot| slot.borrow().map_or(0, |version| version.get()))
+}
+
+pub fn bump_data() {
+    DATA_REVISION.with(|slot| {
+        if let Some(version) = *slot.borrow() {
+            version.set(version.get().wrapping_add(1));
+        }
+    });
+}
+
 pub fn privacy_active() -> bool {
     PRIVACY.with(|slot| slot.borrow().map_or(false, |privacy| privacy.get()))
 }
@@ -411,6 +434,7 @@ fn toggle_privacy() {
             privacy.set(!privacy.get());
         }
     });
+    bump_data();
 }
 
 pub fn init_compact(compact: Signal<bool>) {
@@ -512,7 +536,7 @@ fn theme_action() -> impl IntoElement {
         .accessibility_label("Choose color theme")
         .on_press(move || {
             if crate::ui::compact_active() {
-                open_menu(MenuPlacement::Center, || {
+                open_menu(MenuPlacement::FullScreen, || {
                     crate::components::theme_picker::theme_fullscreen()
                 });
             } else {

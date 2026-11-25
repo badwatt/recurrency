@@ -104,8 +104,8 @@ pub fn subscriptions(
     let resource_server = server.clone();
     let resource_token = token.clone();
     let data = resource(
-        || Some(()),
-        move |(), _| {
+        || Some(crate::ui::data_revision()),
+        move |_, _| {
             let server = resource_server.clone();
             let token = resource_token.clone();
             let currency = load_currency.clone();
@@ -304,13 +304,54 @@ pub fn subscriptions(
         .child(when(
             move || selection_mode.get(),
             move || {
-                bulk_bar(
-                    data,
-                    server_signal,
-                    token_signal,
-                    modal,
-                    selected,
-                    selection_mode,
+                let open_actions = move || {
+                    modal.open(move || {
+                        crate::components::dialog::dialog(
+                            crate::components::dialog::DialogProps::new(
+                                "Bulk actions",
+                                "",
+                                move || modal.close(),
+                            )
+                            .width(720.0)
+                            .body(
+                                view()
+                                    .w_full()
+                                    .p(px(24.0))
+                                    .child(bulk_bar(
+                                        data,
+                                        server_signal,
+                                        token_signal,
+                                        modal,
+                                        selected,
+                                        selection_mode,
+                                    ))
+                                    .into_element(),
+                            ),
+                        )
+                        .into_element()
+                    });
+                };
+                let clear = move || selected.set(Vec::new());
+                crate::components::selection_bar::selection_bar(
+                    move || selected.get().len(),
+                    move || {
+                        let mut values = selected.get();
+                        crate::components::selection_bar::add_all(
+                            &mut values,
+                            data.get()
+                                .unwrap_or_default()
+                                .subscriptions
+                                .into_iter()
+                                .map(|item| item.id),
+                        );
+                        selected.set(values);
+                    },
+                    clear,
+                    open_actions,
+                    move || {
+                        selected.set(Vec::new());
+                        selection_mode.set(false);
+                    },
                 )
             },
         ))
@@ -670,6 +711,7 @@ fn form(
                         modal.close();
                         crate::components::toast::success("Subscription saved.");
                         data.refetch();
+                        crate::ui::bump_data();
                     }
                     Err(message) => {
                         crate::components::toast::error(message.clone());
@@ -2167,6 +2209,7 @@ fn bulk_bar(
             selected.set(Vec::new());
             selection_mode.set(false);
             data.refetch();
+            crate::ui::bump_data();
             busy.set(false);
         });
     };
@@ -2198,6 +2241,7 @@ fn bulk_bar(
                 selected.set(Vec::new());
                 selection_mode.set(false);
                 data.refetch();
+                crate::ui::bump_data();
                 busy.set(false);
             });
         }
@@ -2218,6 +2262,7 @@ fn bulk_bar(
             selected.set(Vec::new());
             selection_mode.set(false);
             data.refetch();
+            crate::ui::bump_data();
             busy.set(false);
         });
     });
@@ -2394,6 +2439,7 @@ fn notes_form(
             {
                 Ok(_) => {
                     data.refetch();
+                    crate::ui::bump_data();
                     modal.close();
                 }
                 Err(message) => error.set(message),
@@ -2535,6 +2581,7 @@ fn card_actions(
                     .is_ok()
                 {
                     data.refetch();
+                    crate::ui::bump_data();
                 }
             });
         }
@@ -2554,6 +2601,7 @@ fn card_actions(
                     Ok(_) => {
                         crate::components::toast::success("Subscription updated.");
                         data.refetch();
+                        crate::ui::bump_data();
                     }
                     Err(message) => {
                         crate::components::toast::error(message.clone());
@@ -2601,6 +2649,7 @@ fn card_actions(
                     Ok(()) => {
                         crate::components::toast::success("Subscription deleted.");
                         data.refetch();
+                        crate::ui::bump_data();
                     }
                     Err(message) => {
                         crate::components::toast::error(message.clone());

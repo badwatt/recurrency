@@ -2043,8 +2043,12 @@ fn about_card() -> impl IntoElement {
         )
         .into_element();
     let whats_new = ui::surface()
-        .flex_grow(1.0)
-        .basis(px(0.0))
+        .flex_grow(if compact { 0.0 } else { 1.0 })
+        .basis(if compact {
+            nsh_core::geometry::Length::Auto
+        } else {
+            nsh_core::geometry::Length::from(px(0.0))
+        })
         .p(px(24.0))
         .gap(px(10.0))
         .child(
@@ -2103,8 +2107,12 @@ fn about_card() -> impl IntoElement {
         )
         .into_element();
     let enjoying = ui::surface()
-        .flex_grow(1.0)
-        .basis(px(0.0))
+        .flex_grow(if compact { 0.0 } else { 1.0 })
+        .basis(if compact {
+            nsh_core::geometry::Length::Auto
+        } else {
+            nsh_core::geometry::Length::from(px(0.0))
+        })
         .p(px(24.0))
         .gap(px(10.0))
         .child(

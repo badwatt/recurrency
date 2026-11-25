@@ -9,7 +9,10 @@
   "appearance": "dark",
   "capabilities": {
     "network": {
-      "hosts": ["*"]
-    }
+      "hosts": [
+        "*"
+      ]
+    },
+    "openUrl": true
   }
 }

@@ -48,8 +48,8 @@ pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
     let resource_server = server.clone();
     let resource_token = token.clone();
     let data = resource(
-        move || Some((year.get(), month.get())),
-        move |(load_year, load_month), _| {
+        move || Some((year.get(), month.get(), crate::ui::data_revision())),
+        move |(load_year, load_month, _version), _| {
             let server = resource_server.clone();
             let token = resource_token.clone();
             async move { api::load_report(server, token, load_year, load_month).await }

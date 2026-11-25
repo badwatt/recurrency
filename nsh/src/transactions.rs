@@ -95,8 +95,14 @@ pub fn transactions(
     let sort_desc = signal(true);
     let sort_field = signal("date".to_string());
     let data = resource(
-        move || Some((sort_field.get(), sort_desc.get())),
-        move |(field, descending), _| {
+        move || {
+            Some((
+                sort_field.get(),
+                sort_desc.get(),
+                crate::ui::data_revision(),
+            ))
+        },
+        move |(field, descending, _version), _| {
             let _ = (field, descending);
             let server = resource_server.clone();
             let token = resource_token.clone();
@@ -504,6 +510,7 @@ fn form(
                         editing.set(None);
                         modal.close();
                         data.refetch();
+                        crate::ui::bump_data();
                     }
                     Err(message) => form_error.set(message),
                 }
@@ -1350,6 +1357,7 @@ fn bulk_modal(
                 selected.set(Vec::new());
                 selection_mode.set(false);
                 data.refetch();
+                crate::ui::bump_data();
                 busy.set(false);
             });
         }
@@ -1371,6 +1379,7 @@ fn bulk_modal(
             selection_mode.set(false);
             confirm_delete.set(false);
             data.refetch();
+            crate::ui::bump_data();
             busy.set(false);
         });
     };
@@ -1546,6 +1555,7 @@ fn notes_form(
             {
                 Ok(_) => {
                     data.refetch();
+                    crate::ui::bump_data();
                     modal.close();
                 }
                 Err(message) => error.set(message),
@@ -1652,6 +1662,7 @@ fn transaction_actions(
                 Ok(()) => {
                     crate::components::toast::success("Transaction deleted.");
                     data.refetch();
+                    crate::ui::bump_data();
                 }
                 Err(message) => {
                     crate::components::toast::error(message.clone());

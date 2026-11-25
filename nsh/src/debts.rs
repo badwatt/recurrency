@@ -112,8 +112,8 @@ pub fn debts(
     let resource_server = server.clone();
     let resource_token = token.clone();
     let data = resource(
-        || Some(()),
-        move |(), _| {
+        || Some(crate::ui::data_revision()),
+        move |_, _| {
             let server = resource_server.clone();
             let token = resource_token.clone();
             let currency = load_currency.clone();
@@ -358,6 +358,7 @@ fn payment_form(
                 Ok(_) => {
                     pay_id.set(None);
                     data.refetch();
+                    crate::ui::bump_data();
                 }
                 Err(message) => error.set(message),
             }
@@ -664,6 +665,7 @@ fn bulk_modal(
                 selected.set(Vec::new());
                 selection_mode.set(false);
                 data.refetch();
+                crate::ui::bump_data();
                 busy.set(false);
             });
         }
@@ -685,6 +687,7 @@ fn bulk_modal(
             selection_mode.set(false);
             confirm_delete.set(false);
             data.refetch();
+            crate::ui::bump_data();
             busy.set(false);
         });
     };
@@ -1030,6 +1033,7 @@ fn form(
                         editing.set(None);
                         modal.close();
                         data.refetch();
+                        crate::ui::bump_data();
                     }
                     Err(message) => form_error.set(message),
                 }
@@ -1817,6 +1821,7 @@ fn card_actions(
                 Ok(()) => {
                     crate::components::toast::success("Debt deleted.");
                     data.refetch();
+                    crate::ui::bump_data();
                 }
                 Err(message) => {
                     crate::components::toast::error(message.clone());

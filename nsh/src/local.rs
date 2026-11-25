@@ -361,7 +361,7 @@ pub fn create_debt(req: &crate::debts::CreateDebtRequest) -> Result<Debt, String
 pub fn record_payment(
     debt_id: Uuid,
     req: &crate::debts::RecordDebtPaymentRequest,
-) -> Result<DebtPayment, String> {
+) -> Result<crate::models::Debt, String> {
     let items = payments();
     let payment = DebtPayment {
         id: Uuid::new_v4(),
@@ -380,8 +380,9 @@ pub fn record_payment(
     debt.remaining_amount = (debt.remaining_amount - req.amount).max(Decimal::ZERO);
     debt.paid_amount = debt.total_amount - debt.remaining_amount;
     debt.updated_at = Some(Utc::now());
+    let updated = debt.clone();
     save("debts", &debts)?;
-    Ok(payment)
+    Ok(updated)
 }
 
 pub fn today() -> chrono::NaiveDate {

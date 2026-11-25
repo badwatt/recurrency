@@ -40,8 +40,8 @@ pub fn dashboard(
         .unwrap_or_else(|| "there".to_string());
     let base_currency = currency.clone();
     let data = resource(
-        || Some(()),
-        move |(), _| {
+        || Some(crate::ui::data_revision()),
+        move |_, _| {
             let server = server.clone();
             let token = token.clone();
             let currency = base_currency.clone();
@@ -661,6 +661,7 @@ fn upcoming_row(
     let date = short_date(payment.date);
     let days = days_text(payment.date, today);
     let is_transaction = payment.is_transaction;
+    let logo = payment.logo_url;
     let account_id = payment.account_id;
     let category_id = payment.category_id;
     let name = payment.name;
@@ -705,10 +706,25 @@ fn upcoming_row(
                     view()
                         .h(px(36.0))
                         .w(px(36.0))
+                        .flex_shrink_0()
                         .items_center()
                         .justify_center()
                         .rounded(px(8.0))
-                        .bg(move || theme().muted.opacity(0.125)),
+                        .overflow_hidden()
+                        .bg(move || theme().muted.opacity(0.125))
+                        .child(
+                            when(logo.is_some(), move || {
+                                image(logo.clone().unwrap_or_default())
+                                    .size(px(24.0))
+                                    .into_element()
+                            })
+                            .otherwise(|| {
+                                image(asset!("icons/receipt.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().muted_foreground)
+                                    .into_element()
+                            }),
+                        ),
                 )
                 .child(
                     view()
