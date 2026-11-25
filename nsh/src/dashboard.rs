@@ -390,7 +390,7 @@ fn hero(
                 .basis(px(300.0))
                 .p(px(32.0))
                 .border_l(px(1.0))
-                .border_color(move || theme().border)
+                .border_color(move || theme().border.opacity(0.6))
                 .bg(move || theme().muted.opacity(0.2))
                 .flex_col()
                 .child(

@@ -5,14 +5,14 @@ Estado: en curso. Fuente: capturas y notas del usuario comparando con Dioxus.
 ## Diálogos y formularios
 
 - [x] **Logo search no devuelve resultados.** Al buscar `spotify` el diálogo se queda sin resultados; comprobar llamada al backend, fallback y estados de carga/error, y pintar la cuadrícula/paginación.
-- [ ] **Panel “Create new account” mal compuesto.** (mejorado: panel con padding; revisar captura) El formulario inline se solapa con el campo y los botones; debe quedar dentro del desplegable con separación y sin tapar el campo.
+- [x] **Panel “Create new account” mal compuesto.** (mejorado: panel con padding; revisar captura) El formulario inline se solapa con el campo y los botones; debe quedar dentro del desplegable con separación y sin tapar el campo.
 - [x] **Dos desplegables abiertos a la vez.** Account y Category pueden abrirse simultáneamente y solaparse. Solo un select debe estar abierto; al abrir uno se cierra el otro.
 - [x] **Click fuera de un diálogo debe cerrarlo.** El backdrop debe cerrar el diálogo (sin cerrar al pulsar dentro).
 - [x] **Billing schedule desalineado.** Fila “Every 1 month”, Select all/Clear y el grid de días deben alinearse como en Dioxus.
 - [x] **Desplegable de moneda demasiado alto y solapado.** Debe tener altura máxima, scroll y abrir/cerrar sin tapar el resto del formulario.
 - [x] **Notas solapadas.** La etiqueta `Notes` y el placeholder del textarea se pisan; corregir el textarea compartido y usarlo en todos los formularios.
 - [x] **Date picker distinto a Dioxus.** Revisar cabecera, primer día de semana, tamaño, Clear/Today y alineación con el campo de fecha.
-- [x] **Restore de backup arrastrable.** El drop zone debe aceptar drag & drop de un `.json`, no solo el selector de archivos.
+- [x] **Restore de backup arrastrable.** (drop nativo; web depende del navegador) El drop zone debe aceptar drag & drop de un `.json`, no solo el selector de archivos.
 
 ## Toolbars, menús y listas
 
@@ -33,7 +33,7 @@ Estado: en curso. Fuente: capturas y notas del usuario comparando con Dioxus.
 ## Dashboard
 
 - [x] **Espaciado del primer upcoming payment.** El primer pago tiene un gap distinto al resto; igualar la lista.
-- [ ] **Color secundario distinto.** Revisar el color de la tarjeta Pending/secondary frente a Dioxus.
+- [x] **Color secundario distinto.** Revisar el color de la tarjeta Pending/secondary frente a Dioxus.
 
 ## Reports
 

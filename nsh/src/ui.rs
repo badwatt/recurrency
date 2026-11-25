@@ -300,6 +300,7 @@ pub fn menu_overlay() -> AnyElement {
                                 .inset_0()
                                 .items_center()
                                 .justify_center()
+                                .bg(rgba(0x00000066))
                                 .pointer_events(PointerEvents::BoxNone)
                         })
                         .when(matches!(placement, MenuPlacement::At { .. }), |panel| {
