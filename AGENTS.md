@@ -1,641 +1,179 @@
-# Recurrency - Agente Specification
-
-## Overview
+# Recurrency
 
 **Recurrency** is a subscription and expense tracker that treats every expense like a subscription. It helps users budget by viewing recurring costs as ongoing commitments, prompting them to ask: *"Would I subscribe to this today?"*
 
-## Tech Stack
+> ⚠️ **Usa las skills de Rust: obligatorio, sin excepciones.** Antes de escribir, revisar, refactorizar o portar código, carga las skills de Rust disponibles (descúbrelas si hace falta). Si hay varias, aplica la que corresponda; si dudas, todas. Código que contradiga una skill de Rust está mal aunque compile.
 
-### Frontend
-- **Framework:** Dioxus (Rust WASM)
-- **UI Library:** dioxus-ui components
-- **State Management:** Dioxus signals + use_shared_state
-- **Charts:** Recharts
-- **Auth:** JWT (handled by Rust backend)
-- **Styling:** CSS/Tailwind equivalent via Dioxus
+## 1. Datos del proyecto: se leen, no se escriben
 
-### Backend
-- **Language:** Rust (Axum)
-- **Database:** PostgreSQL (self-hosted)
-- **API:** REST (Axum)
+| Dato | Dónde vive | Cómo se lee |
+|---|---|---|
+| Nombre | `[package] name` · en workspace, el del crate del binario | `env!("CARGO_PKG_NAME")` |
+| Versión | `[package] version` · `[workspace.package] version` + `version.workspace = true` | `env!("CARGO_PKG_VERSION")` |
+| Edición y MSRV | `[package] edition` · `[package] rust-version` | `Cargo.toml`, y el CI lo compila |
+| Tipo | `src/main.rs` (bin) · `src/lib.rs` (lib) · deps como `axum`/`clap` | lo que exista en el repo |
+| Toolchain y herramientas | `flake.nix` + `rust-toolchain.toml` | el devShell del flake |
+| Cobertura mínima | configuración del CI o `[workspace.metadata]` | por defecto **90** |
 
-### External Services
-- **Email:** Resend
-- **Push Notifications:** OneSignal
+- ⛔ Archivo `VERSION`, literales repetidos (README, rustdoc, `--version`, User-Agent, títulos) y tags escritos a mano.
+- ⛔ Copiar aquí o en el README la edición, el MSRV o la lista de herramientas: se leen del repo.
+- En CI y scripts: `cargo metadata --no-deps --format-version 1` o `cargo pkgid`. ⛔ Regex sobre el TOML: `version.workspace = true` lo rompe.
+- El tag `v<version>` es **consecuencia** de la versión, nunca su causa.
+- `name`, `version`, `edition` y `rust-version` se consultan con el usuario.
 
----
+## 2. Arquitectura
 
-## Reglas Absolutas
-
-- ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix` para añadir dependencias en la shell.
-- ⛔ **NUNCA** usar `unsafe`, punteros raw, `transmute`, `mem::forget`, `ManuallyDrop`, `MaybeUninit`, `Box::leak` ni ninguna construcción insegura. Cero tolerancia.
-- ✅ **Ownership explícito, sin dogmas.** Usar `Box<T>` para propiedad única (incluido `Box<dyn Error>` en `main`/CLI cuando una API lo impone o el límite del binario lo justifica) y `Arc<T>`/`Arc<dyn Trait>` para propiedad compartida real entre hilos. No sustituir uno por otro solo para cumplir una regla.
-- ✅ **`Arc` claro y explícito:** en `AppState` y callbacks compartidos debe verse el `Arc<dyn Trait>`, sin aliases que oculten la propiedad compartida. Evitar `Arc` innecesario: su contador atómico tiene coste; en rutas calientes preferir préstamos (`&T`, `&str`, `&[T]`) y mover valores.
-- ⛔ **NUNCA** `Rc` para estado compartido entre hilos; usar `Arc`.
-- ⛔ **NUNCA** `.unwrap()` ni `.expect()` en código de producción. Usar `?`, `match` o un fallback explícito.
-- ⛔ **NUNCA** `.clone()` para callar al borrow checker. Clonar solo datos pequeños, inmutables o cuando el ownership lo exija (callbacks `move`, señales Dioxus, handles `PgPool`), dejando el motivo claro cuando no sea obvio.
-- ⛔ En tests: prohibido `unsafe` y mutar variables de entorno globales; usar configuración inyectada u overrides thread-local. `unwrap()` solo para fixtures y con un mensaje que explique qué se esperaba; los helpers no deben ocultar fallos.
-- ⛔ **SIEMPRE** mantener dependencias lo más actualizadas posible.
-- ⛔ **SIEMPRE** 100% coverage en tests. Sin excepciones.
-- ⛔ **SIEMPRE** TDD. Red-Green-Refactor. Test primero, código después.
-- ⛔ **NUNCA** errores ni warnings. NINGUNO. Incluye `cargo clippy`.
-- ⛔ **SIEMPRE** usar la skill `rust-best-practices`.
-- ⛔ **NUNCA** hacer bump de `VERSION` sin consultar al usuario. Dispara CI actions.
-- ⛔ **SIEMPRE** usar **Semver** (`MAJOR.MINOR.PATCH`) para las versiones del proyecto: `MAJOR` para cambios incompatibles, `MINOR` para funcionalidad nueva compatible y `PATCH` para correcciones o refactors compatibles.
-- ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions antes de push.
-- ⛔ **SIEMPRE** que sea posible elimina dependencias.
-- ⛔ Trata de tener el **MÍNIMO** número de dependencias en el proyecto.
-- ⛔ **NUNCA** valores hardcodeados. Usar constantes, configuración, o theme tokens. Colores, textos, URLs, dimensiones — todo configurables.
-- ⛔ **SIEMPRE** extraer lógica repetitive a componentes reutilizables. Si se repite 2 veces, extraer. Componentes > copy-paste.
-
----
-
-## TDD (Test-Driven Development) - OBLIGATORIO SIN EXCEPCIONES
-
-**CADA commit debe tener tests.
-CADA cambio empieza con test ROJO.
-NUNCA código sin test.**
-
-### Reglas de hierro
-
-- ⛔ **SIEMPRE** escribir test ANTES de implementar. Sin excepciones.
-- ⛔ **NUNCA** modificar código sin test que verifique el cambio.
-- ⛔ **NUNCA** commit de código sin tests incluidos.
-- ⛔ **SIEMPRE** test rojo primero. Luego código. Luego refactor.
-- ⛔ **NUNCA** avanzar a siguiente feature si tests actuales no pasan.
-- ⛔ **NUNCA** bajar cobertura global con cambios nuevos.
-
-### Ciclo Red-Green-Refactor (obligatorio)
+- **Hexagonal** — dominio puro en el centro; `sqlx`/`axum`/`tokio` solo en adaptadores. El dominio no conoce el framework.
+- **Vertical slicing** — cada feature es una carpeta autocontenida con dominio, puertos, adaptadores y tests.
+- **Screaming architecture** — los directorios dicen *qué hace* el sistema, no *qué framework usa*.
+- **Clean code** — funciones cortas, un nivel de abstracción por función, nombres que no necesiten comentario.
+- Dependencias hacia dentro: `adapters → ports → domain`. Nunca al revés.
 
 ```
-1. RED    → Escribir test. Ejecutar. Debe FALLAR.
-2. GREEN  → Escribir MÍNIMO código para que pase.
-3. REFACTOR → Limpiar código. Tests siguen verdes.
-4. REPETIR  → Siguiente test.
+src/main.rs                composición: config, adaptadores, arranque
+src/shared/                error.rs (AppError/AppResult) · config.rs (inyectada) · mocks.rs (cfg(test))
+src/features/<feature>/    domain.rs · ports.rs (traits) · service.rs · adapters/ · tests/
 ```
 
-### Cobertura: 100%
+## 3. Reglas
 
-| Proyecto | Líneas | Estado |
-|----------|--------|--------|
-| Backend  | **86.88%** | ✅ 1294 tests |
-| Frontend | **80.22%** | ✅ 1491 tests |
+| ⛔ Nunca | ✅ En su lugar |
+|---|---|
+| `unsafe`, punteros raw, `transmute`, `mem::forget`, `ManuallyDrop`, `MaybeUninit`, `Box::leak` | Cero tolerancia, sin excepciones |
+| `Rc` entre hilos | `Arc<dyn Trait>`, visible en `AppState` y callbacks |
+| `Arc` por reflejo · `clone()` para calmar al borrow checker | Préstamos (`&T`, `&str`, `&[T]`), mover valores, `Box<T>` si el dueño es único |
+| `String` donde basta `&str` · `Cow` sin necesidad | Préstamo por defecto; `Cow<'_, str>` solo si el ownership es condicional |
+| Struct con más de 5 parámetros o campos públicos por comodidad | Struct de config o builder; campos privados con accesores |
+| `.unwrap()` / `.expect()` en producción | `?`, `match` o fallback explícito |
+| Tragarse un error (`let _ =`, `ok()`) · `panic!` para flujo esperado | `Result` + `thiserror`; `Box<dyn Error + Send + Sync>` solo en `main`/CLI |
+| Mensajes que filtran secretos | Qué falló y con qué input, sin datos sensibles |
+| Secretos, tokens o PII en el código o en los logs | `.env` fuera de git, `secrecy` para el tipo, y nunca se loguean |
+| `unsafe` o env global mutado en tests · `unwrap` sin mensaje | Configuración inyectada u override thread-local; fixtures con mensaje de lo esperado |
+| Helpers de test que ignoran un `Result` | Que el test falle |
+| Valores hardcodeados (textos, URLs, timeouts, colores) | Constantes, configuración o tokens de tema |
+| Nombre o versión a mano | `env!("CARGO_PKG_NAME")`, `env!("CARGO_PKG_VERSION")` |
+| `_` como catch-all en un `match` sobre un enum propio | Brazos exhaustivos: un variante nueva debe romper la compilación |
+| `println!`/`dbg!` en el código entregado | Diagnóstico por `tracing` a stderr |
+| Trabajo CPU-bound dentro de un `async fn` | `spawn_blocking` o `rayon`, fuera del reactor |
+| Dependencias injustificadas · inputs de flake que sobran | Mínimo de deps, actualizadas; cada input justifica su mantenimiento |
+| `cargo install`, `nix profile install`, `nix-env -i`, paquetes del sistema | Toda herramienta se declara en `flake.nix` |
+| `--impure`, `builtins.getEnv`, rutas absolutas del host | El resultado depende solo del flake |
+| Optimizar «por si acaso» · afinar el benchmark para cumplir el requisito | Benchmark o perfil primero, y medición honesta |
+| Lógica repetida ×2 | Extraer a función, tipo o módulo |
+| Código muerto o comentado · `#[allow]` sin motivo | Borrar; el `allow` en el ítem, con motivo |
+| Warnings de `fmt`/`clippy`/`doc` · `#![deny(warnings)]` en el código | Cero: `-D warnings` en el CI |
+| API pública sin documentar | `rustdoc` en todo `pub`, con `# Errors` si devuelve `Result` y `# Examples` si no es trivial |
 
-**Reglas:**
-- **100%** líneas para cualquier módulo nuevo. Sin excepciones.
-- **100%** para módulos críticos (auth, payments, seguridad)
-- **100%** condicionales en handlers
-- Si un cambio baja cobertura global → agregar más tests antes de commit
+`Arc` cuesta (contador atómico): solo con propiedad compartida real. Si un `clone` no se explica solo, el motivo va en el código.
 
-### Convenciones de tests
+## 4. Entorno Nix
+
+- `flake.nix` es el **único** sitio donde se declaran herramientas (toolchain de Rust, `cargo-llvm-cov`, `cargo-deny`, `act`).
+- `devShells.default` lleva solo herramientas de desarrollo; `packages.default` construye el binario. Sin duplicar dependencias entre ambos.
+- Uso diario: `nix develop` (o `direnv` + `use flake`). Un comando suelto: `nix develop -c <cmd>`.
+- `flake.lock` se commitea. Actualizar es una decisión explícita (`nix flake update`) revisando el diff de inputs.
+- La versión de Rust la fija `rust-toolchain.toml` dentro del shell; ⛔ `rustup default` global.
+
+## 5. TDD y cobertura
+
+Cada cambio empieza con un test en **rojo**, cada commit lleva sus tests, y nunca se avanza de feature con tests rojos.
+
+```
+1. RED      → el test falla por la razón correcta
+2. GREEN    → mínimo código para que pase
+3. REFACTOR → limpiar; los tests siguen verdes
+```
 
 ```rust
 #[test]
 fn validate_empty_name_fails() {
-    let result = validate_subscription_form(&empty_sub);
+    let result = validate_form(&form_with_name(""));
     assert!(result.is_err());
 }
 ```
 
-- Nombre: `fn test_[subject]_[scenario]_[expected]()`
-- Un concepto por test. Un assert por test.
-- Tests deterministas (no aleatorios, no timestamps, no network)
+- **Diff coverage 100%** — toda línea y rama nueva o modificada.
+- **Global ≥ 90** (o el mínimo que declare el CI) — nunca decreciente.
+- Sin tests de relleno. Lo no testeable se justifica: `// No test: <motivo>. Cubierto por <integración | manual | N/A>`.
+- Test: `fn <verbo>_<sujeto>_<escenario>_<resultado>()` — un concepto, un `assert`, estructura Arrange-Act-Assert, determinista (sin red, sin sleeps, sin timestamps reales). Junto al módulo o en `<feature>/tests/`; integración en `tests/`.
 
-### Pre-commit hook obligatorio
+| Testeable ✅ | No testeable ⛔ → aislar en un adaptador fino y cubrir con integración |
+|---|---|
+| Funciones puras, serde, `Clone`/`Eq`, value objects | UI generada por macro, WASM y APIs de plataforma |
+| Traits y servicios con fakes | Async de DB sin doble, integración sin infraestructura |
 
-```bash
-# Antes de CUALQUIER commit, ejecutar:
-nix develop .. -c cargo test --lib
+## 6. Inyección de dependencias
 
-# Si falla → arreglar antes de commit.
-# Si pasa → commit permitido.
-```
-
-### Qué es testeable / No testeable
-
-| Testeable ✅ | No testeable ⛔ |
-|-------------|----------------|
-| Pure functions (validate, format, calc) | RSX macro-generated VDOM |
-| Model operations (serde, clone, eq) | async DB operations sin mock |
-| Trait implementations | WASM-specific (localStorage) |
-| Mock services | Integration sin PostgreSQL |
-| Handler validation (request/response) | — |
-
-Cuando NO hay test, documentar:
-```rust
-// No test: async DB operation. Covered by integration tests.
-// No test: RSX macro. Requires Dioxus WASM runtime.
-```
-
-### Ejecución
-
-```bash
-# Tests
-nix develop .. -c cargo test --lib
-
-# Coverage
-nix develop .. -c cargo llvm-cov test --lib
-```
-
----
-
-## Architecture
-
-### Backend Structure (Rust)
-
-```
-backend/
-├── src/
-│   ├── auth/            # JWT validation, handlers, service trait
-│   ├── categories/     # Category CRUD, service trait
-│   ├── demo/           # Demo mode
-│   ├── email/          # Email service
-│   ├── logos/          # Logo search (DuckDuckGo)
-│   ├── notifications/  # Push/in-app notifications, service trait
-│   ├── preferences/    # User preferences, service trait
-│   ├── reports/        # Reports & statistics, service trait
-│   ├── shared/        # Shared utilities, mocks, app_state
-│   ├── subscriptions/ # Subscription CRUD, service trait
-│   ├── transactions/  # Transaction CRUD, service trait
-│   └── main.rs
-├── migrations/          # SQL migrations
-└── Cargo.toml
-```
-
-### Frontend Structure (Dioxus)
-
-```
-frontend/
-├── src/
-│   ├── auth/            # Auth pages & state
-│   ├── components/     # Shared UI components
-│   ├── pages/          # Route pages
-│   ├── api/            # API client
-│   ├── state/          # Signals/state
-│   └── main.rs
-├── Cargo.toml
-└── dioxensus.toml
-```
-
----
-
-## Trait Injection (Obligatorio)
-
-Cada servicio DEBE tener trait para testabilidad:
+Todo servicio con efectos (I/O, DB, tiempo, red) expone un trait; el dominio depende del trait, nunca de la implementación.
 
 ```rust
 #[async_trait]
-pub trait SubscriptionServiceTrait: Send + Sync {
-    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<SubscriptionResponse>;
-    async fn get_all(&self, user_id: Uuid) -> AppResult<Vec<SubscriptionResponse>>;
-    async fn get_by_id(&self, user_id: Uuid, id: Uuid) -> AppResult<SubscriptionResponse>;
-    async fn update(&self, user_id: Uuid, id: Uuid, req: UpdateSubscriptionRequest) -> AppResult<SubscriptionResponse>;
-    async fn delete(&self, user_id: Uuid, id: Uuid) -> AppResult<()>;
+pub trait ItemServiceTrait: Send + Sync {
+    async fn create(&self, owner_id: Uuid, req: CreateItemRequest) -> AppResult<ItemResponse>;
+    async fn get(&self, owner_id: Uuid, id: Uuid) -> AppResult<ItemResponse>;
+    async fn delete(&self, owner_id: Uuid, id: Uuid) -> AppResult<()>;
 }
 
-pub struct SqlxSubscriptionService {
-    pool: PgPool,
-}
-
-impl SqlxSubscriptionService {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
-}
+pub struct PgItemService { pool: PgPool }
 
 #[async_trait]
-impl SubscriptionServiceTrait for SqlxSubscriptionService {
-    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<SubscriptionResponse> {
-        // DB operations...
+impl ItemServiceTrait for PgItemService {
+    async fn create(&self, owner_id: Uuid, req: CreateItemRequest) -> AppResult<ItemResponse> {
+        // acceso a datos …
     }
-    // ...
+    // …
 }
-```
 
-### AppState con traits
-
-```rust
 #[derive(Clone)]
-pub struct AppState {
-    pub pool: PgPool,
+pub struct AppState {                   // una entrada por servicio con efectos
+    pub(crate) item_service: Arc<dyn ItemServiceTrait>,
     pub(crate) auth_service: Arc<dyn AuthServiceTrait>,
-    pub(crate) subscription_service: Arc<dyn SubscriptionServiceTrait>,
-    pub(crate) transaction_service: Arc<dyn TransactionServiceTrait>,
-    pub(crate) category_service: Arc<dyn CategoryServiceTrait>,
-    pub(crate) notification_service: Arc<dyn NotificationServiceTrait>,
-    pub(crate) report_service: Arc<dyn ReportServiceTrait>,
-    pub(crate) preferences_service: Arc<dyn PreferencesServiceTrait>,
 }
 ```
 
-### Mock services para tests
+Los fakes viven en `src/shared/mocks.rs` (feature `test-support` o `cfg(test)`) y se configuran por constructor, nunca mutando estado global ni env:
 
 ```rust
-pub struct MockSubscriptionService {
-    pub should_fail: bool,
-    pub mock_subscriptions: Mutex<Vec<Subscription>>,
-}
+pub struct FakeItemService { pub should_fail: bool, items: Mutex<Vec<Item>> }
 
 #[async_trait]
-impl SubscriptionServiceTrait for MockSubscriptionService {
-    async fn create(&self, user_id: Uuid, req: CreateSubscriptionRequest) -> AppResult<SubscriptionResponse> {
+impl ItemServiceTrait for FakeItemService {
+    async fn create(&self, owner_id: Uuid, req: CreateItemRequest) -> AppResult<ItemResponse> {
         if self.should_fail {
-            return Err(AppError::Internal("mock error".into()));
+            return Err(AppError::internal("fallo simulado"));
         }
-        let sub = Subscription { /* ... */ };
-        self.mock_subscriptions
+        let item = Item::new(owner_id, req);
+        self.items
             .lock()
-            .expect("mock state lock")
-            .push(sub.clone()); // fixture copy returned to the test
-        Ok(sub.into())
+            .expect("el mutex del fixture no debe estar envenenado")
+            .push(item.clone());        // copia que queda en el estado simulado
+        Ok(item.into())
     }
-    // ...
 }
 ```
 
-Mock services viven en `src/shared/mocks.rs`.
+## 7. Calidad y cierre
 
----
-
-## Integration Tests
-
-### Requisitos
-
-- Docker Compose con PostgreSQL para tests de integración
-- Tests en `tests/integration/` o módulo `integration_tests`
-
-### Docker Compose (tests)
-
-```yaml
-# docker/docker-compose.test.yml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
-      POSTGRES_DB: recurrency_test
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-```
-
-### Ejecución
+Antes de cada commit, dentro del devShell (`nix develop`):
 
 ```bash
-# Iniciar DB de test
-docker compose -f docker/docker-compose.test.yml up -d
-
-# Variable de entorno
-export DATABASE_URL="postgres://test:test@localhost:5433/recurrency_test"
-
-# Ejecutar migraciones
-nix develop .. -c sqlx migrate run
-
-# Tests de integración
-nix develop .. -c cargo test --test integration_tests
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features
+cargo doc --no-deps --document-private-items   # sin warnings
 ```
 
-### Coverage con integración
+- `nix flake check` debe pasar: declara los checks de `fmt`, `clippy` y `test` en el flake para no duplicar la lógica que ya existe.
+- Cobertura con `cargo llvm-cov`; cualquier workflow de CI se verifica en local con `act`, ambos desde el flake.
 
-```bash
-# Unit tests solos (rápido)
-nix develop .. -c cargo llvm-cov test --lib
+**Terminado** cuando: hay un test que falla sin el cambio y pasa con él · diff coverage 100% y global sin bajar · los cuatro comandos y `nix flake check` en verde · el código respeta las skills de Rust aplicables · no hay `unwrap`, `clone` ni dependencia nuevos sin justificar · README/rustdoc actualizados si cambió el comportamiento público · si cambió `version`, `CHANGELOG.md` al día y usuario avisado.
 
-# Unit + integration (completo)
-nix develop .. -c cargo llvm-cov test
-```
+## 8. Release y versionado
 
----
+Un release se dispara por el **cambio de `version` en `Cargo.toml`**, nunca por un archivo aparte ni un tag manual. El workflow lo diseña el agente según el proyecto (artefactos, targets, publicación o no en crates.io); estos invariantes no se negocian:
 
-## CI/CD (GitHub Actions)
+- Detecta la versión; si el tag `v<version>` ya existe → no-op en verde. **Idempotente**: re-ejecutar no duplica tags ni releases.
+- Verifica antes de publicar: `fmt`, `clippy -D warnings`, `test`, build del artefacto — cada paso dentro del shell, `nix develop -c …`.
+- ⛔ Bump desde el CI o commit de vuelta al repo · ⛔ tag a mano antes de que la versión esté en `Cargo.toml`.
 
-### `.github/workflows/test.yml`
-
-```yaml
-name: Test & Coverage
-on: [push, pull_request]
-jobs:
-  backend:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v25
-      - run: nix develop .. -c cargo test --lib
-      - run: nix develop .. -c cargo llvm-cov test --lib
-      - name: Verify coverage
-        run: |
-          nix develop .. -c cargo llvm-cov report | grep "TOTAL" | awk '{if($4 < 80) exit 1}'
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v25
-      - run: cd frontend && nix develop .. -c cargo test
-      - run: cd frontend && nix develop .. -c cargo llvm-cov test
-      - name: Verify coverage
-        run: |
-          cd frontend && nix develop .. -c cargo llvm-cov report | grep "TOTAL" | awk '{if($4 < 80) exit 1}'
-```
-
----
-
-## Git & Commits
-
-### Commit messages
-
-- **Auto-commit tests**: SÍ permitido si tests pasan y coverage ≥ 80%
-- **Push**: PREGUNTAR siempre antes de `git push`
-- ⛔ **NUNCA** bump de `VERSION` sin consultar al usuario
-- ⛔ **SIEMPRE** usar `act` localmente antes de push para verificar CI
-- Format: `type(scope): description`
-- Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`
-
-### Workflow
-
-```bash
-# 1. Escribir test (rojo)
-nix develop .. -c cargo test --lib  # falla
-
-# 2. Implementar (verde)
-nix develop .. -c cargo test --lib  # pasa
-
-# 3. Commit (auto-permitido)
-git add -A && git commit -m "feat(scope): description"
-
-# 4. Push → PREGUNTAR usuario
-# git push  (no sin permiso)
-```
-
----
-
-## Code Quality
-
-- **Dead code elimination**: Eliminar siempre código no usado
-- No dejar código comentado u obsoleto
-- ⛔ **NINGÚN error ni warning**. Incluye `cargo clippy`. Cero tolerancia.
-- ✅ **Optimización basada en medición:** evitar asignaciones y clones en rutas calientes, preferir préstamos, slices, iteradores y capacidad reservada; no microoptimizar sin un benchmark o perfil que lo justifique.
-- `cargo fmt` antes de commit
-- ⛔ **NUNCA** `unsafe`, punteros raw, `Box::leak` ni construcciones inseguras. `Box` para ownership único, `Arc` explícito para ownership compartido; no confundir sus semánticas.
-- ⛔ **NUNCA** instalar herramientas en el sistema. Usar `flake.nix`.
-- ⛔ **NUNCA** bump de `VERSION` sin consultar al usuario.
-- ⛔ **SIEMPRE** usar `act` localmente para verificar CI actions.
-- ⛔ **SIEMPRE** usar skill `rust-best-practices`.
-- ⛔ **SIEMPRE** mantener dependencias actualizadas.
-- ⛔ **SIEMPRE** eliminar dependencias innecesarias.
-- ⛔ Mínimo número de dependencias posible en el proyecto.
-
----
-
-## Features
-
-### Core Features
-
-- [x] **CRUD Subscriptions** - Create, edit, delete subscriptions with:
-  - Amount and currency (display only)
-  - Billing frequency (weekly, monthly, quarterly, yearly)
-  - Start date and next billing date
-  - Category assignment
-  - Active/inactive status
-  - Notes
-
-- [x] **CRUD Transactions** - One-time expenses with same metadata
-
-- [x] **Calendar View** - See upcoming payments in a monthly calendar
-
-- [x] **Dashboard** - Monthly summary with:
-  - Total recurring costs
-  - Total one-time expenses
-  - Breakdown by category
-  - Comparison with previous month
-
-- [x] **Custom Categories** - User-defined categories with:
-  - Name and icon
-  - Color
-
-- [x] **Notifications/Reminders**:
-  - [x] In-app notifications (toasts, badges)
-  - [x] System notifications (OS native)
-  - [x] Email reminders (via Resend API)
-  - [x] Push notifications (via OneSignal)
-
-- [x] **Statistics & Charts**:
-  - Monthly/yearly spending trends
-  - Category distribution
-  - Historical comparison
-
-- [x] **Data Export**:
-  - [x] CSV export
-  - [x] PDF report
-
-- [x] **Multi-currency display** - Show amounts in user's chosen currency (no conversion)
-
-- [ ] **Unusual spending alerts** - Flag expenses that exceed normal patterns
-
-### User Management
-
-- [x] User registration and authentication
-- [x] JWT token validation in Rust backend
-- [x] Session management
-
-### Settings
-
-- [x] Currency preference
-- [x] Notification preferences (per channel)
-- [x] Category management
-
----
-
-## Database Schema (PostgreSQL)
-
-```sql
--- users
-users (
-  id UUID PRIMARY KEY,
-  email VARCHAR UNIQUE NOT NULL,
-  password_hash VARCHAR NOT NULL,
-  name VARCHAR,
-  currency VARCHAR DEFAULT 'USD',
-  verified BOOLEAN DEFAULT false,
-  verification_code VARCHAR,
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP
-)
-
--- categories
-categories (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  name VARCHAR NOT NULL,
-  icon VARCHAR,
-  color VARCHAR,
-  is_system BOOLEAN DEFAULT false,
-  is_default BOOLEAN DEFAULT false,
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP
-)
-
--- subscriptions
-subscriptions (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  category_id UUID REFERENCES categories(id),
-  name VARCHAR NOT NULL,
-  amount DECIMAL NOT NULL,
-  currency VARCHAR NOT NULL,
-  frequency VARCHAR NOT NULL,
-  start_date DATE NOT NULL,
-  next_billing_date DATE,
-  is_active BOOLEAN DEFAULT true,
-  notes TEXT,
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP
-)
-
--- transactions
-transactions (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  category_id UUID REFERENCES categories(id),
-  name VARCHAR NOT NULL,
-  amount DECIMAL NOT NULL,
-  currency VARCHAR NOT NULL,
-  date DATE NOT NULL,
-  notes TEXT,
-  created_at TIMESTAMP
-)
-
--- notification_preferences
-notification_preferences (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  channel VARCHAR NOT NULL,
-  enabled BOOLEAN DEFAULT true,
-  reminder_days_before INTEGER DEFAULT 3
-)
-
--- notifications
-notifications (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  type VARCHAR NOT NULL,
-  title VARCHAR NOT NULL,
-  message TEXT,
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMP
-)
-```
-
----
-
-## API Endpoints
-
-### Auth
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/verify?token=` - Verify email
-- `POST /api/auth/resend-verification` - Resend verification
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/settings?token=` - Get settings
-- `PUT /api/auth/settings` - Update settings
-
-### Subscriptions
-- `GET /api/subscriptions` - List subscriptions
-- `POST /api/subscriptions` - Create subscription
-- `PUT /api/subscriptions/:id` - Update subscription
-- `DELETE /api/subscriptions/:id` - Delete subscription
-
-### Transactions
-- `GET /api/transactions` - List transactions
-- `POST /api/transactions` - Create transaction
-- `PUT /api/transactions/:id` - Update transaction
-- `DELETE /api/transactions/:id` - Delete transaction
-
-### Categories
-- `GET /api/categories` - List categories
-- `POST /api/categories` - Create category
-- `PUT /api/categories/:id` - Update category
-- `DELETE /api/categories/:id` - Delete category
-- `PUT /api/categories/:id/default` - Set as default
-
-### Notifications
-- `GET /api/notifications` - List notifications
-- `PUT /api/notifications/:id/read` - Mark as read
-- `PUT /api/notifications/read-all` - Mark all as read
-
-### Reports
-- `GET /api/reports/summary` - Monthly/yearly summary
-- `GET /api/reports/trends` - Spending trends
-- `GET /api/reports/categories` - Category breakdown
-
-### Demo
-- `GET /api/demo/init` - Initialize demo
-- `POST /api/demo/reset` - Reset demo data
-
-### Logos
-- `GET /api/logos/search?q=` - Search logos
-
----
-
-## Dependencies
-
-### Backend (Cargo.toml)
-- axum (web framework)
-- sqlx (PostgreSQL)
-- jsonwebtoken
-- argon2 (password hashing)
-- serde, serde_json
-- tokio
-- tracing
-
-### Frontend (Cargo.toml)
-- dioxus (UI framework)
-- reqwest (HTTP client)
-- serde, serde_json
-- chrono (date handling)
-
----
-
-## TODO
-
-- [x] Migrate from Tauri to Dioxus
-- [x] Setup Dioxus frontend
-- [x] Implement auth (registration, login, JWT)
-- [x] Implement subscriptions CRUD
-- [x] Implement transactions CRUD
-- [x] Implement categories CRUD
-- [x] Setup notifications (in-app, system, email, push)
-- [x] Build dashboard
-- [x] Build calendar view
-- [x] Implement reports and export
-- [x] Write unit tests (TDD)
-- [x] Demo mode
-- [ ] Add unusual spending alerts
-- [x] Docker Compose setup for PostgreSQL tests
-- [x] GitHub Actions CI/CD
-- [x] Complete trait injection in all service modules
-
----
-
-## Notes
-
-- Multi-currency: Display only, no conversion rates API
-- Export: Frontend generates CSV/PDF client-side
-- Self-hosted: User runs their own PostgreSQL instance
-- Notifications: Resend for email, OneSignal for push
-- Coverage: `cargo llvm-cov` via `nix develop`
+**Commits**: `type(scope): description` (`feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `perf`), un cambio coherente con sus tests. **Preguntar siempre** antes de `git push` y antes de tocar `name`/`version`. **Semver** `MAJOR.MINOR.PATCH`: `MAJOR` incompatible, `MINOR` funcionalidad compatible, `PATCH` corrección o refactor compatible (pre-1.0, misma regla sobre `0.MINOR.PATCH`).
