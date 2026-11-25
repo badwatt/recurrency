@@ -41,6 +41,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         show_label,
     } = props;
     let query = signal(String::new());
+    let panel_width = signal(300.0_f32);
     let option_rows = options.clone();
     let selected_label = move || {
         let current = selected.get();
@@ -65,7 +66,7 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
     let panel = move || {
         let filtered = panel_filtered.clone();
         view()
-            .w(px(300.0))
+            .w(move || px(panel_width.get()))
             .flex_col()
             .rounded(px(6.0))
             .border(px(1.0))
@@ -170,6 +171,11 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
                 .border(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().background)
+                .on_layout(
+                    move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
+                        panel_width.set(bounds.size.width.0);
+                    },
+                )
                 .on_press(move |event: &PressEvent| {
                     let panel = panel.clone();
                     let page = event.page_position;
