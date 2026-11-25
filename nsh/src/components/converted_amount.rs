@@ -18,27 +18,39 @@ pub fn converted_amount(
     mono: bool,
 ) -> impl IntoElement {
     let converted = rates.convert(amount, currency);
-    let main = format_currency(converted, display_currency);
     let original = (!currency.eq_ignore_ascii_case(display_currency))
         .then(|| format_currency(amount, currency));
+    let display_currency = display_currency.to_string();
     view()
         .flex_row()
         .items_baseline()
         .gap(px(4.0))
         .child(
-            text(main)
-                .text_size(px(size))
-                .line_height(px(size * 4.0 / 3.0))
-                .font_weight(weight)
-                .when(size >= 24.0, |text| text.letter_spacing(px(-0.6)))
-                .when(mono, |text| text.font_family(crate::theme::MONO))
-                .text_color(move || theme().foreground),
+            text(move || {
+                if crate::ui::privacy_active() {
+                    "••••".to_string()
+                } else {
+                    format_currency(converted, &display_currency)
+                }
+            })
+            .text_size(px(size))
+            .line_height(px(size * 4.0 / 3.0))
+            .font_weight(weight)
+            .when(size >= 24.0, |text| text.letter_spacing(px(-0.6)))
+            .when(mono, |text| text.font_family(crate::theme::MONO))
+            .text_color(move || theme().foreground),
         )
         .when(original.is_some(), move |row| {
             row.child(
-                text(original.clone().unwrap_or_default())
-                    .text_size(px(size * 0.55))
-                    .text_color(move || theme().muted_foreground),
+                text(move || {
+                    if crate::ui::privacy_active() {
+                        String::new()
+                    } else {
+                        original.clone().unwrap_or_default()
+                    }
+                })
+                .text_size(px(size * 0.55))
+                .text_color(move || theme().muted_foreground),
             )
         })
 }
