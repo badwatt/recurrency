@@ -30,6 +30,207 @@ fn days_in_month(date: NaiveDate) -> u32 {
         .clamp(0, 31) as u32
 }
 
+fn date_modal_panel(value: Signal<String>, month: Signal<NaiveDate>) -> AnyElement {
+    let cells = move || {
+        let first = month.get();
+        let leading = if crate::format::week_starts_sunday() {
+            first.weekday().num_days_from_sunday() as usize
+        } else {
+            first.weekday().num_days_from_monday() as usize
+        };
+        let total = days_in_month(first) as usize;
+        let selected = parse_date(&value.get());
+        let today = Local::now().date_naive();
+        let mut items = Vec::with_capacity(leading + total);
+        for _ in 0..leading {
+            items.push(view().h(px(32.0)).into_element());
+        }
+        for day in 1..=total {
+            let date =
+                NaiveDate::from_ymd_opt(first.year(), first.month(), day as u32).unwrap_or(first);
+            let is_selected = selected == Some(date);
+            let is_today = date == today;
+            items.push(
+                button()
+                    .cursor_pointer()
+                    .h(px(32.0))
+                    .w(px(32.0))
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(6.0))
+                    .bg(move || {
+                        if is_selected {
+                            theme().primary
+                        } else if is_today {
+                            theme().accent
+                        } else {
+                            theme().card.opacity(0.0)
+                        }
+                    })
+                    .on_press(move || {
+                        value.set(date.format("%Y-%m-%d").to_string());
+                        crate::ui::close_menu();
+                    })
+                    .child(
+                        text(day.to_string())
+                            .text_size(px(12.0))
+                            .font_weight(if is_selected {
+                                FontWeight::SEMIBOLD
+                            } else {
+                                FontWeight::NORMAL
+                            })
+                            .text_color(move || {
+                                if is_selected {
+                                    theme().primary_foreground
+                                } else {
+                                    theme().foreground
+                                }
+                            }),
+                    )
+                    .into_element(),
+            );
+        }
+        items
+    };
+    view()
+        .w(px(288.0))
+        .flex_col()
+        .gap(px(8.0))
+        .p(px(12.0))
+        .rounded(px(12.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().popover)
+        .shadow([BoxShadow {
+            offset_y: px(10.0),
+            blur: px(24.0),
+            color: rgba(0x00000040).into(),
+            ..BoxShadow::default()
+        }])
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(28.0))
+                        .w(px(28.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(5.0))
+                        .on_press(move || month.set(shift_month(month.get(), -1)))
+                        .child(
+                            image(asset!("icons/chevron-left.svg"))
+                                .size(px(16.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    text(move || month.get().format("%B %Y").to_string())
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(28.0))
+                        .w(px(28.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(5.0))
+                        .on_press(move || month.set(shift_month(month.get(), 1)))
+                        .child(
+                            image(asset!("icons/chevron-right.svg"))
+                                .size(px(16.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+        .child(
+            view()
+                .w_full()
+                .grid()
+                .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
+                .gap(px(1.0))
+                .children({
+                    let labels: [&'static str; 7] = if crate::format::week_starts_sunday() {
+                        ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+                    } else {
+                        WEEKDAYS
+                    };
+                    labels
+                        .into_iter()
+                        .map(|day| {
+                            view().items_center().justify_center().py(px(2.0)).child(
+                                text(day)
+                                    .text_size(px(10.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                }),
+        )
+        .child(
+            view()
+                .w_full()
+                .grid()
+                .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
+                .gap(px(1.0))
+                .children(cells()),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .pt(px(8.0))
+                .border_t(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(26.0))
+                        .px(px(6.0))
+                        .rounded(px(5.0))
+                        .on_press(move || {
+                            value.set(String::new());
+                            crate::ui::close_menu();
+                        })
+                        .child(
+                            text("Clear")
+                                .text_size(px(12.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(26.0))
+                        .px(px(6.0))
+                        .rounded(px(5.0))
+                        .on_press(move || {
+                            let today = Local::now().date_naive();
+                            value.set(today.format("%Y-%m-%d").to_string());
+                            month.set(month_start(today));
+                            crate::ui::close_menu();
+                        })
+                        .child(
+                            text("Today")
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().primary),
+                        ),
+                ),
+        )
+        .into_element()
+}
+
 pub fn date_picker(value: Signal<String>) -> impl IntoElement {
     let open = signal(false);
     let initial = parse_date(&value.get()).unwrap_or_else(|| Local::now().date_naive());
@@ -100,7 +301,9 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
         if let Some(date) = parse_date(&value.get()) {
             month.set(month_start(date));
         }
-        open.set(!open.get());
+        crate::ui::open_menu(crate::ui::MenuPlacement::Center, move || {
+            date_modal_panel(value, month)
+        });
     });
     let open_field = open_calendar.clone();
     view()

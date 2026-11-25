@@ -2,7 +2,7 @@
 
 use crate::components::button::{ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button};
 use crate::components::card::card;
-use nsh_base::{button as raw_button, theme};
+use nsh_base::theme;
 use nsh_core::prelude::*;
 
 #[derive(Clone)]
@@ -22,14 +22,14 @@ pub fn sort_menu(
     descending: Signal<bool>,
     options: Vec<SortOption>,
 ) -> impl IntoElement {
-    let bounds = signal(None::<(f32, f32, f32, f32)>);
     let panel_options = options.clone();
-    let build = move || {
+    let panel = move || {
         let options = panel_options.clone();
         card()
             .w(px(210.0))
             .p(px(8.0))
             .gap(px(2.0))
+            .bg(move || theme().popover)
             .child(
                 text("Sort by")
                     .text_size(px(10.0))
@@ -68,44 +68,39 @@ pub fn sort_menu(
             ))
             .into_element()
     };
-    raw_button()
-        .h(px(40.0))
-        .w(px(40.0))
-        .items_center()
-        .justify_center()
-        .rounded(px(7.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
-        .accessibility_label("Sort")
-        .on_layout(
-            move |bounds_value: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-                bounds.set(Some((
-                    bounds_value.origin.x.0,
-                    bounds_value.origin.y.0,
-                    bounds_value.size.width.0,
-                    bounds_value.size.height.0,
-                )));
-            },
-        )
-        .on_press(move || {
-            let build = build.clone();
-            let (x, y, width, height) = bounds.get().unwrap_or((120.0, 232.0, 40.0, 40.0));
-            let left = (x + width / 2.0 - 105.0).max(8.0);
-            crate::ui::open_menu(
-                crate::ui::MenuPlacement::At {
-                    top: y + height + 8.0,
-                    left,
-                },
-                build,
-            );
-        })
+    view()
+        .relative()
+        .z_index(120)
         .child(
-            image(asset!("icons/sort.svg"))
-                .size(px(18.0))
-                .pointer_events(PointerEvents::None)
-                .tint_color(move || theme().muted_foreground),
+            view()
+                .cursor_pointer()
+                .h(px(40.0))
+                .w(px(40.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().card)
+                .on_press(move |event: &PressEvent| {
+                    let panel = panel.clone();
+                    let page = event.page_position;
+                    crate::ui::open_menu(
+                        crate::ui::MenuPlacement::At {
+                            top: page.y.0 + 12.0,
+                            left: (page.x.0 - 105.0).max(8.0),
+                        },
+                        panel,
+                    );
+                })
+                .child(
+                    image(asset!("icons/sort.svg"))
+                        .size(px(18.0))
+                        .pointer_events(PointerEvents::None)
+                        .tint_color(move || theme().muted_foreground),
+                ),
         )
+        .into_element()
 }
 
 #[cfg(test)]
@@ -114,6 +109,6 @@ mod tests {
     fn the_sort_menu_uses_the_shared_global_menu_host() {
         let source = include_str!("sort_menu.rs");
         assert!(source.contains("open_menu"));
-        assert!(source.contains("close_menu"));
+        assert!(source.contains("MenuPlacement::At"));
     }
 }

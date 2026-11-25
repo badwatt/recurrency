@@ -4,14 +4,13 @@
 use std::rc::Rc;
 
 use crate::components::card::card;
-use nsh_base::{button as raw_button, theme};
+use nsh_base::theme;
 use nsh_core::prelude::*;
 
 pub fn filter_menu(
     active: impl Fn() -> usize + 'static,
     body: impl Fn() -> AnyElement + 'static,
 ) -> impl IntoElement {
-    let bounds = signal(None::<(f32, f32, f32, f32)>);
     let active = Rc::new(active);
     let active_border = active.clone();
     let active_icon = active.clone();
@@ -19,90 +18,85 @@ pub fn filter_menu(
     let badge_condition = active.clone();
     let body = Rc::new(body);
     let panel_body = body.clone();
-    let build = move || {
+    let panel = move || {
         card()
             .w(px(300.0))
             .p(px(12.0))
             .gap(px(10.0))
+            .bg(move || theme().popover)
             .child(panel_body())
             .into_element()
     };
-    raw_button()
+    view()
         .relative()
-        .h(px(40.0))
-        .w(px(40.0))
-        .items_center()
-        .justify_center()
-        .rounded(px(7.0))
-        .border(px(1.0))
-        .border_color(move || {
-            if active_border() > 0 {
-                theme().primary
-            } else {
-                theme().border
-            }
-        })
-        .bg(move || theme().card)
-        .accessibility_label("Filters")
-        .on_layout(
-            move |bounds_value: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-                bounds.set(Some((
-                    bounds_value.origin.x.0,
-                    bounds_value.origin.y.0,
-                    bounds_value.size.width.0,
-                    bounds_value.size.height.0,
-                )));
-            },
-        )
-        .on_press(move || {
-            let build = build.clone();
-            let (x, y, width, height) = bounds.get().unwrap_or((24.0, 232.0, 40.0, 40.0));
-            let left = (x + width / 2.0 - 150.0).max(8.0);
-            crate::ui::open_menu(
-                crate::ui::MenuPlacement::At {
-                    top: y + height + 8.0,
-                    left,
-                },
-                build,
-            );
-        })
+        .z_index(120)
         .child(
-            image(asset!("icons/filter.svg"))
-                .size(px(18.0))
-                .pointer_events(PointerEvents::None)
-                .tint_color(move || {
-                    if active_icon() > 0 {
+            view()
+                .cursor_pointer()
+                .h(px(40.0))
+                .w(px(40.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(7.0))
+                .border(px(1.0))
+                .border_color(move || {
+                    if active_border() > 0 {
                         theme().primary
                     } else {
-                        theme().muted_foreground
+                        theme().border
                     }
-                }),
+                })
+                .bg(move || theme().card)
+                .on_press(move |event: &PressEvent| {
+                    let panel = panel.clone();
+                    let page = event.page_position;
+                    crate::ui::open_menu(
+                        crate::ui::MenuPlacement::At {
+                            top: page.y.0 + 12.0,
+                            left: (page.x.0 - 150.0).max(8.0),
+                        },
+                        panel,
+                    );
+                })
+                .child(
+                    image(asset!("icons/filter.svg"))
+                        .size(px(18.0))
+                        .pointer_events(PointerEvents::None)
+                        .tint_color(move || {
+                            if active_icon() > 0 {
+                                theme().primary
+                            } else {
+                                theme().muted_foreground
+                            }
+                        }),
+                )
+                .child(
+                    when(
+                        move || badge_condition() > 0,
+                        move || {
+                            view()
+                                .absolute()
+                                .top(px(-4.0))
+                                .right(px(-4.0))
+                                .h(px(14.0))
+                                .min_w(px(14.0))
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(999.0))
+                                .bg(move || theme().primary)
+                                .child(
+                                    text(badge_active().to_string())
+                                        .text_size(px(8.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(move || theme().primary_foreground),
+                                )
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                ),
         )
-        .child(
-            when(
-                move || badge_condition() > 0,
-                move || {
-                    view()
-                        .absolute()
-                        .top(px(-4.0))
-                        .right(px(-4.0))
-                        .h(px(14.0))
-                        .min_w(px(14.0))
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(999.0))
-                        .bg(move || theme().primary)
-                        .child(
-                            text(badge_active().to_string())
-                                .text_size(px(8.0))
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(move || theme().primary_foreground),
-                        )
-                        .into_element()
-                },
-            )
-            .otherwise(|| view().h(px(0.0)).into_element()),
-        )
+        .into_element()
 }
 
 #[cfg(test)]

@@ -223,6 +223,7 @@ pub enum MenuPlacement {
     ToolbarRight,
     ReportRight,
     At { top: f32, left: f32 },
+    Center,
     BottomRight,
 }
 
