@@ -47,7 +47,7 @@ impl SelectMenuProps {
             placeholder: placeholder.into(),
             selected,
             options: Rc::new(options),
-            height: 40.0,
+            height: 36.0,
             create: None,
             search_placeholder: "Search...".to_string(),
             create_title: "Create new".to_string(),
@@ -163,15 +163,15 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                 .cursor_pointer()
                 .w_full()
                 .h(px(height))
-                .px(px(12.0))
+                .px(px(8.0))
                 .flex_row()
                 .items_center()
                 .justify_between()
                 .gap(px(8.0))
-                .rounded(px(7.0))
+                .rounded(px(6.0))
                 .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().card)
+                .border_color(move || theme().border)
+                .bg(move || theme().background)
                 .on_press(move || {
                     if open.get() {
                         open.set(false);
@@ -308,8 +308,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                             button()
                                 .cursor_pointer()
                                 .w_full()
-                                .h(px(30.0))
-                                .px(px(8.0))
+                                .h(px(36.0))
+                                .px(px(12.0))
                                 .flex_row()
                                 .items_center()
                                 .justify_between()
@@ -330,7 +330,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                                 .child(
                                     text(option.label)
                                         .number_of_lines(1)
-                                        .text_size(px(13.0))
+                                        .text_size(px(14.0))
                                         .text_color(move || theme().foreground),
                                 )
                                 .when(active, |row| {

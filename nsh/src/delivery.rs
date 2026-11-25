@@ -386,15 +386,20 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                             }
                         }),
                 )
-                .when(is_enabled, |row| {
-                    row.child(
-                        view()
-                            .h(px(6.0))
-                            .w(px(6.0))
-                            .rounded(px(99.0))
-                            .bg(move || crate::theme::success()),
+                .child(
+                    when(
+                        move || is_enabled || (selected.get() == id && enabled.get()),
+                        move || {
+                            view()
+                                .h(px(6.0))
+                                .w(px(6.0))
+                                .rounded(px(99.0))
+                                .bg(move || crate::theme::success())
+                                .into_element()
+                        },
                     )
-                })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .into_element()
         }));
     let form = view()

@@ -44,3 +44,18 @@ Estado: en curso. Fuente: capturas y notas del usuario comparando con Dioxus.
 
 - [x] **Timezone search no filtra.** Al escribir en el selector de timezone debe filtrar la lista.
 - [x] **Delivery: botón y toggle incorrectos.** En ntfy debe decir “Save ntfy” (no “Save Email”), y el toggle debe poder activarse/persistir.
+
+## Ronda 2 — feedback posterior
+
+- [x] **Menús emergentes por encima y cierre al pulsar fuera.** Selects de moneda/timezone, filtros, sort, export y calendario usan el host global con backdrop; los de entidad cierran al abrir otro.
+- [x] **Color secundario del bloque Pending.** Borde al 60% como Dioxus.
+- [x] **Toggle del Dashboard summary inútil.** Ahora es un toggle reactivo.
+- [x] **Indicador de delivery activo.** El rail muestra el punto verde al activar el canal seleccionado.
+- [x] **Diseño de la lista de select.** Trigger 36 px, panel con buscador, opciones 36 px/14 px, check 16 y cierre al elegir.
+- [ ] **Drop zone del backup en web.** El handler nativo existe; el navegador no expone el contenido del archivo a NSH. Pendiente de puente JS.
+- [x] **Textos descentrados en los chips del hero AI.** Altura y línea base corregidas.
+- [x] **Barra bulk.** Barra inline bajo el toolbar, controles y confirmación.
+- [x] **Billing schedule desalineado.** Selector sin etiqueta fantasma y campos a 36 px.
+- [x] **Last day al elegir 29-31.** Aparece el botón Last day y envía el sentinel 0.
+- [x] **Clear de fecha y ancho.** El date picker muestra Clear solo con fecha y el campo ocupa el ancho restante sin ella.
+- [x] **Persistencia de grid/list.** Subscriptions y Transactions guardan y restauran su vista desde Storage.

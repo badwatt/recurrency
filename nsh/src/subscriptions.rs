@@ -115,7 +115,7 @@ pub fn subscriptions(
     let search = signal(String::new());
     let sort_desc = signal(false);
     let sort_field = signal("next_billing_date".to_string());
-    let list_view = signal(false);
+    let list_view = signal(crate::view_state::subscriptions_list());
     let _ = (sort_field.get(), sort_desc.get());
     let status = signal("all".to_string());
     let frequency_filter = signal("all".to_string());
@@ -264,6 +264,7 @@ pub fn subscriptions(
 
     let selection_mode = signal(false);
     let selected = signal(Vec::<Uuid>::new());
+    effect(move || crate::view_state::save_subscriptions_list(list_view.get()));
     let open_bulk = move || {
         if selection_mode.get() {
             selected.set(Vec::new());
@@ -816,14 +817,14 @@ fn form(
                                                 interval.set(value.to_string())
                                             })
                                             .auto_fill(AutoFill::Off)
-                                            .h(px(40.0))
+                                            .h(px(36.0))
                                             .w_full()
-                                            .px(px(10.0))
-                                            .rounded(px(7.0))
+                                            .px(px(8.0))
+                                            .rounded(px(6.0))
                                             .border(px(1.0))
-                                            .border_color(move || theme().input)
+                                            .border_color(move || theme().border)
                                             .bg(move || theme().background)
-                                            .text_size(px(13.0))
+                                            .text_size(px(14.0))
                                             .text_color(move || theme().foreground),
                                     ),
                                 )
@@ -838,7 +839,8 @@ fn form(
                                                 ("month".to_string(), "month".to_string()),
                                                 ("year".to_string(), "year".to_string()),
                                             ],
-                                        ),
+                                        )
+                                        .show_label(false),
                                     )),
                                 ),
                         )
@@ -900,6 +902,68 @@ fn form(
                                             ),
                                     )
                                     .child(day_grid(days))
+                                    .child(
+                                        when(
+                                            move || {
+                                                let selected = days.get();
+                                                selected.iter().any(|day| *day >= 29)
+                                                    || selected.contains(&0)
+                                            },
+                                            move || {
+                                                view()
+                                                    .w_full()
+                                                    .flex_row()
+                                                    .justify_start()
+                                                    .pt(px(4.0))
+                                                    .child(
+                                                        button()
+                                                            .cursor_pointer()
+                                                            .h(px(28.0))
+                                                            .px(px(10.0))
+                                                            .rounded(px(6.0))
+                                                            .border(px(1.0))
+                                                            .border_color(move || {
+                                                                if days.get().contains(&0) {
+                                                                    theme().primary
+                                                                } else {
+                                                                    theme().border.opacity(0.6)
+                                                                }
+                                                            })
+                                                            .bg(move || {
+                                                                if days.get().contains(&0) {
+                                                                    theme().primary
+                                                                } else {
+                                                                    theme().card
+                                                                }
+                                                            })
+                                                            .on_press(move || {
+                                                                let mut selected = days.get();
+                                                                if selected.contains(&0) {
+                                                                    selected.retain(|day| *day != 0);
+                                                                } else {
+                                                                    selected.retain(|day| *day < 29);
+                                                                    selected.push(0);
+                                                                }
+                                                                days.set(selected);
+                                                            })
+                                                            .child(
+                                                                text("Last day")
+                                                                    .text_size(px(12.0))
+                                                                    .font_weight(FontWeight::MEDIUM)
+                                                                    .text_color(move || {
+                                                                        if days.get().contains(&0) {
+                                                                            theme().primary_foreground
+                                                                        } else {
+                                                                            theme().muted_foreground
+                                                                        }
+                                                                    }),
+                                                            ),
+                                                    )
+                                                .into_element()
+                                            },
+                                        )
+                                        .otherwise(|| view().h(px(0.0)).into_element()),
+                                    )
                                     .child(
                                         text("Days 29-31 use 'last day' for short months. Each selected day is a separate charge.")
                                             .text_size(px(10.0))

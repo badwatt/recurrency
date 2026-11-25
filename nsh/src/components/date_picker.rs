@@ -311,34 +311,74 @@ pub fn date_picker(value: Signal<String>) -> impl IntoElement {
         .flex_col()
         .gap(px(6.0))
         .child(
-            button()
-                .cursor_pointer()
+            view()
                 .w_full()
-                .h(px(40.0))
-                .px(px(12.0))
                 .flex_row()
                 .items_center()
-                .justify_between()
                 .gap(px(8.0))
-                .rounded(px(7.0))
-                .border(px(1.0))
-                .border_color(move || theme().input)
-                .bg(move || theme().card)
-                .on_press(move || open_field())
                 .child(
-                    text(move || {
-                        parse_date(&value.get())
-                            .map_or_else(|| "dd/mm/aaaa".to_string(), crate::format::format_date)
-                    })
-                    .text_size(px(14.0))
-                    .line_height(px(20.0))
-                    .text_color(move || theme().foreground),
+                    view().flex_grow(1.0).basis(px(0.0)).min_w(px(0.0)).child(
+                        button()
+                            .cursor_pointer()
+                            .w_full()
+                            .h(px(40.0))
+                            .px(px(12.0))
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(8.0))
+                            .rounded(px(7.0))
+                            .border(px(1.0))
+                            .border_color(move || theme().input)
+                            .bg(move || theme().card)
+                            .on_press(move || open_field())
+                            .child(
+                                text(move || {
+                                    parse_date(&value.get()).map_or_else(
+                                        || "dd/mm/aaaa".to_string(),
+                                        crate::format::format_date,
+                                    )
+                                })
+                                .text_size(px(14.0))
+                                .line_height(px(20.0))
+                                .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                image(asset!("icons/calendar.svg"))
+                                    .size(px(15.0))
+                                    .pointer_events(PointerEvents::None)
+                                    .tint_color(move || theme().muted_foreground),
+                            ),
+                    ),
                 )
                 .child(
-                    image(asset!("icons/calendar.svg"))
-                        .size(px(15.0))
-                        .pointer_events(PointerEvents::None)
-                        .tint_color(move || theme().muted_foreground),
+                    when(
+                        move || parse_date(&value.get()).is_some(),
+                        move || {
+                            view()
+                                .child(
+                                    button()
+                                        .cursor_pointer()
+                                        .h(px(40.0))
+                                        .px(px(12.0))
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(7.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .bg(move || theme().card)
+                                        .on_press(move || value.set(String::new()))
+                                        .child(
+                                            text("Clear")
+                                                .text_size(px(12.0))
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(move || theme().foreground),
+                                        ),
+                                )
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
                 ),
         )
         .child(

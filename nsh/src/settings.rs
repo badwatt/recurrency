@@ -2355,8 +2355,8 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
                                         .text_color(move || theme().muted_foreground),
                                 ),
                         )
-                        .child(shared_toggle(
-                            summary_enabled.get(),
+                        .child(crate::components::toggle::toggle_signal(
+                            summary_enabled,
                             "Dashboard summary".to_string(),
                             move |value| summary_enabled.set(value),
                         )),
@@ -2542,12 +2542,14 @@ fn ai_chip(label: impl Fn() -> String + 'static) -> impl IntoElement {
         .h(px(24.0))
         .px(px(10.0))
         .items_center()
+        .justify_center()
         .rounded(px(999.0))
         .border(px(1.0))
         .border_color(move || theme().border)
         .child(
             text(label)
                 .text_size(px(11.0))
+                .line_height(px(16.0))
                 .text_color(move || theme().muted_foreground),
         )
 }

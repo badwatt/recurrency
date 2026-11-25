@@ -30,6 +30,7 @@ mod transactions;
 mod ui;
 mod update_banner;
 mod updater;
+mod view_state;
 mod voice;
 #[cfg(target_arch = "wasm32")]
 mod web_files;

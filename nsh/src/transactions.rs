@@ -222,7 +222,8 @@ pub fn transactions(
     let category_filter = signal(String::new());
     let price_min = signal(String::new());
     let price_max = signal(String::new());
-    let list_view = signal(true);
+    let list_view = signal(crate::view_state::transactions_list());
+    effect(move || crate::view_state::save_transactions_list(list_view.get()));
     view()
         .key(format!("{}-{}", sort_field.get(), sort_desc.get()))
         .w_full()
