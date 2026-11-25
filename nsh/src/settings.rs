@@ -897,6 +897,7 @@ fn account_card(
             });
         }
     };
+    let compact = crate::ui::compact_active();
     view()
         .w_full()
         .flex_col()
@@ -932,9 +933,9 @@ fn account_card(
                 )
                 .child(
                     view()
-                        .px(px(49.0))
+                        .px(if compact { px(20.0) } else { px(49.0) })
                         .pt(px(24.0))
-                        .pb(px(45.0))
+                        .pb(px(if compact { 24.0 } else { 45.0 }))
                         .gap(px(16.0))
                         .flex_col()
                         .child(
@@ -1044,12 +1045,14 @@ fn account_card(
                 .child(
                     view()
                         .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
+                        .flex_col()
+                        .items_start()
                         .gap(px(12.0))
-                        .pr(px(25.0))
-                        .mt(px(56.0))
+                        .pr(if compact { px(0.0) } else { px(25.0) })
+                        .mt(if compact { px(16.0) } else { px(56.0) })
+                        .when(!compact, |row| {
+                            row.flex_row().items_center().justify_between()
+                        })
                         .child(
                             view()
                                 .flex_col()
@@ -1095,6 +1098,7 @@ fn settings_section(
     description: &'static str,
     content: AnyElement,
 ) -> AnyElement {
+    let compact = crate::ui::compact_active();
     ui::surface()
         .p(px(0.0))
         .child(
@@ -1102,7 +1106,7 @@ fn settings_section(
                 .w_full()
                 .flex_col()
                 .gap(px(4.0))
-                .px(px(24.0))
+                .px(if compact { px(16.0) } else { px(24.0) })
                 .pt(px(19.0))
                 .pb(px(25.0))
                 .border_b(px(1.0))
@@ -1124,8 +1128,8 @@ fn settings_section(
         .child(
             view()
                 .w_full()
-                .p(px(24.0))
-                .child(view().w_full().p(px(24.0)).child(content)),
+                .p(if compact { px(16.0) } else { px(24.0) })
+                .child(content),
         )
         .into_element()
 }
@@ -1228,6 +1232,9 @@ fn general_card(
                         .child(checkbox(show_updates, String::new()))
                         .child(
                             view()
+                                .basis(px(0.0))
+                                .flex_grow(1.0)
+                                .min_w(px(0.0))
                                 .flex_col()
                                 .gap(px(2.0))
                                 .child(
@@ -1239,6 +1246,8 @@ fn general_card(
                                 )
                                 .child(
                                     text("Check for new Recurrency releases and show a dismissible banner.")
+                                        .w_full()
+                                        .number_of_lines(2)
                                         .text_size(px(12.0))
                                         .line_height(px(16.0))
                                         .text_color(move || theme().muted_foreground),
@@ -1387,6 +1396,7 @@ fn data_card(
     status: Signal<String>,
     admin: bool,
 ) -> impl IntoElement {
+    let compact = crate::ui::compact_active();
     let pending = signal(None::<serde_json::Value>);
     #[cfg(target_arch = "wasm32")]
     crate::web_files::install_backup_drop(move |text| {
@@ -1484,10 +1494,18 @@ fn data_card(
         }
     };
     let save_card = ui::surface()
-        .flex_grow(1.0)
-        .basis(px(0.0))
+        .flex_grow(if compact { 0.0 } else { 1.0 })
+        .basis(if compact {
+            nsh_core::geometry::Length::Auto
+        } else {
+            nsh_core::geometry::Length::from(px(0.0))
+        })
         .p(px(20.0))
-        .h(px(282.0))
+        .h(if compact {
+            nsh_core::geometry::Length::Auto
+        } else {
+            nsh_core::geometry::Length::from(px(282.0))
+        })
         .gap(px(16.0))
         .child(
             view()
@@ -1554,10 +1572,13 @@ fn data_card(
                 )
                 .child(
                     view()
+                        .basis(px(0.0))
+                        .flex_grow(1.0)
                         .flex_col()
                         .min_w(px(0.0))
                         .child(
                             text(file_name)
+                                .number_of_lines(1)
                                 .text_size(px(14.0))
                                 .text_color(move || theme().foreground),
                         )
@@ -1572,12 +1593,16 @@ fn data_card(
             view()
                 .w_full()
                 .flex_grow(1.0)
-                .flex_row()
-                .items_center()
-                .justify_between()
+                .flex_col()
+                .items_start()
                 .gap(px(8.0))
+                .when(!compact, |row| {
+                    row.flex_row().items_center().justify_between()
+                })
                 .child(
                     text(note)
+                        .flex_grow(1.0)
+                        .min_w(px(0.0))
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 )
@@ -1607,10 +1632,18 @@ fn data_card(
         )
         .into_element();
     let restore_card = ui::surface()
-        .flex_grow(1.0)
-        .basis(px(0.0))
+        .flex_grow(if compact { 0.0 } else { 1.0 })
+        .basis(if compact {
+            nsh_core::geometry::Length::Auto
+        } else {
+            nsh_core::geometry::Length::from(px(0.0))
+        })
         .p(px(20.0))
-        .h(px(282.0))
+        .h(if compact {
+            nsh_core::geometry::Length::Auto
+        } else {
+            nsh_core::geometry::Length::from(px(282.0))
+        })
         .gap(px(16.0))
         .child(
             view()
@@ -1820,7 +1853,7 @@ fn data_card(
                 .child(
                     view()
                         .w_full()
-                        .px(px(24.0))
+                        .px(if compact { px(16.0) } else { px(24.0) })
                         .pt(px(18.0))
                         .pb(px(24.0))
                         .border_b(px(1.0))
@@ -1831,6 +1864,8 @@ fn data_card(
                         .gap(px(12.0))
                         .child(
                             view()
+                                .flex_grow(1.0)
+                                .min_w(px(0.0))
                                 .flex_row()
                                 .items_start()
                                 .gap(px(16.0))
@@ -1850,6 +1885,9 @@ fn data_card(
                                 )
                                 .child(
                                     view()
+                                        .w(px(0.0))
+                                        .flex_grow(1.0)
+                                        .min_w(px(0.0))
                                         .flex_col()
                                         .child(
                                             text("Backup & restore")
@@ -1860,6 +1898,8 @@ fn data_card(
                                         )
                                         .child(
                                             text("Keep a portable copy of your data, or bring it back in one step.")
+                                                .w_full()
+                                                .number_of_lines(3)
                                                 .text_size(px(14.0))
                                                 .line_height(px(20.0))
                                                 .text_color(move || theme().muted_foreground),
@@ -1880,9 +1920,10 @@ fn data_card(
                 .child(
                     view()
                         .w_full()
-                        .p(px(24.0))
-                        .flex_row()
+                        .p(if compact { px(16.0) } else { px(24.0) })
+                        .flex_col()
                         .gap(px(16.0))
+                        .when(!compact, |row| row.flex_row())
                         .child(save_card)
                         .child(restore_card),
                 ),
@@ -1905,6 +1946,7 @@ const LATEST_APK_URL: &str =
 const REPO_URL: &str = "https://github.com/badwatt/recurrency";
 
 fn about_card() -> impl IntoElement {
+    let compact = crate::ui::compact_active();
     let release = resource(
         || Some(()),
         |(), _| async { Ok::<_, String>(crate::api::latest_release().await) },
@@ -1933,15 +1975,15 @@ fn about_card() -> impl IntoElement {
             .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
     };
     let hero = ui::surface()
-        .p(px(32.0))
+        .p(if compact { px(20.0) } else { px(32.0) })
         .rounded(px(16.0))
         .child(
             view()
                 .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .gap(px(24.0))
+                .flex_col()
+                .items_start()
+                .gap(px(16.0))
+                .when(!compact, |row| row.flex_row().items_center().justify_between().gap(px(24.0)))
                 .child(
                     view()
                         .flex_grow(1.0)
@@ -1976,6 +2018,7 @@ fn about_card() -> impl IntoElement {
                         .px(px(20.0))
                         .py(px(20.0))
                         .gap(px(2.0))
+                        .when(compact, |card| card.w_full())
                         .flex_shrink_0()
                         .rounded(px(12.0))
                         .border(px(1.0))
@@ -2127,9 +2170,9 @@ fn about_card() -> impl IntoElement {
         .child(
             view()
                 .w_full()
-                .flex_row()
-                .items_stretch()
+                .flex_col()
                 .gap(px(16.0))
+                .when(!compact, |row| row.flex_row().items_stretch())
                 .child(whats_new)
                 .child(enjoying),
         )
@@ -2496,8 +2539,9 @@ fn notifications_card(server: String, token: String) -> impl IntoElement {
 }
 
 fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
+    let compact = crate::ui::compact_active();
     ui::surface()
-        .p(px(32.0))
+        .p(if compact { px(20.0) } else { px(32.0) })
         .pb(px(40.0))
         .rounded(px(16.0))
         .gap(px(16.0))
@@ -2525,6 +2569,9 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
                 )
                 .child(
                     view()
+                        .basis(px(0.0))
+                        .flex_grow(1.0)
+                        .min_w(px(0.0))
                         .flex_col()
                         .gap(px(3.0))
                         .child(
@@ -2542,7 +2589,9 @@ fn ai_hero(configured: impl Fn() -> bool + 'static) -> AnyElement {
                         )
                         .child(
                             text("Connect an OpenAI-compatible model to create and change your subscriptions, transactions and debts. Choose your provider, model and how you want to dictate.")
-                                .max_w(px(680.0))
+                                .w_full()
+                                .number_of_lines(if compact { 5 } else { 3 })
+                                .max_w(if compact { px(250.0) } else { px(680.0) })
                                 .text_size(px(14.0))
                                 .line_height(px(20.0))
                                 .text_color(move || theme().muted_foreground),
@@ -2586,6 +2635,7 @@ fn ai_chip(label: impl Fn() -> String + 'static) -> impl IntoElement {
 }
 
 fn ai_card(server: String, token: String) -> impl IntoElement {
+    let compact = crate::ui::compact_active();
     let data = resource(|| Some(()), {
         let server = server.clone();
         let token = token.clone();
@@ -2703,7 +2753,7 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
         .child(
             ui::surface()
                 .p(px(0.0))
-                .min_h(px(528.0))
+                .min_h(if compact { px(0.0) } else { px(528.0) })
                 .child(
                     view()
                         .w_full()
@@ -2714,8 +2764,12 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .items_center()
                         .justify_between()
                         .gap(px(16.0))
+                        .when(compact, |row| row.flex_col().items_start())
                         .child(
                             view()
+                                .flex_grow(1.0)
+                                .min_w(px(0.0))
+                                .when(compact, |group| group.w_full())
                                 .flex_row()
                                 .items_center()
                                 .gap(px(12.0))
@@ -2735,6 +2789,9 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                 )
                                 .child(
                                     view()
+                                        .basis(px(0.0))
+                                        .flex_grow(1.0)
+                                        .min_w(px(0.0))
                                         .flex_col()
                                         .child(
                                             view()
@@ -2752,6 +2809,9 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                                         )
                                         .child(
                                             text("Bring your own key. Keys stay encrypted on the server and are never returned to this device.")
+                                                .w_full()
+                                                .number_of_lines(if compact { 3 } else { 2 })
+                                                .max_w(if compact { px(280.0) } else { px(680.0) })
                                                 .text_size(px(14.0))
                                                 .line_height(px(20.0))
                                                 .text_color(move || theme().muted_foreground),
@@ -2772,8 +2832,9 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .child(
                             view()
                                 .w_full()
-                                .flex_row()
+                                .flex_col()
                                 .gap(px(12.0))
+                                .when(!compact, |row| row.flex_row())
                                 .child(
                                     view()
                                         .flex_grow(1.0)
@@ -2815,11 +2876,13 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .child(
                             view()
                                 .w_full()
-                                .flex_row()
-                                .items_end()
+                                .flex_col()
+                                .items_start()
                                 .gap(px(8.0))
+                                .when(!compact, |row| row.flex_row().items_end())
                                 .child(
                                     view()
+                                        .w_full()
                                         .flex_grow(1.0)
                                         .basis(px(0.0))
                                         .min_w(px(0.0))
@@ -2852,11 +2915,13 @@ fn ai_card(server: String, token: String) -> impl IntoElement {
                         .child(
                             view()
                                 .w_full()
-                                .flex_row()
-                                .items_center()
-                                .justify_between()
-                                .gap(px(8.0))
+                                .flex_col()
+                                .items_start()
+                                .gap(px(12.0))
                                 .pt(px(16.0))
+                                .when(!compact, |row| {
+                                    row.flex_row().items_center().justify_between()
+                                })
                                 .border_t(px(1.0))
                                 .border_color(move || theme().border.opacity(0.5))
                                 .child(
@@ -3372,6 +3437,7 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
 }
 
 fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoElement {
+    let compact = crate::ui::compact_active();
     let data = resource(|| Some(()), {
         let server = server.clone();
         let token = token.clone();
@@ -3651,7 +3717,11 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
         view()
             .w_full()
             .grid()
-            .grid_template_columns(SharedString::from("repeat(4, minmax(0, 1fr))"))
+            .grid_template_columns(if compact {
+                SharedString::from("repeat(1, minmax(0, 1fr))")
+            } else {
+                SharedString::from("repeat(4, minmax(0, 1fr))")
+            })
             .gap(px(16.0))
             .child(each(
                 move || data_for_accounts.get().unwrap_or_default().0,
@@ -3770,7 +3840,11 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
         view()
             .w_full()
             .grid()
-            .grid_template_columns(SharedString::from("repeat(4, minmax(0, 1fr))"))
+            .grid_template_columns(if compact {
+                SharedString::from("repeat(1, minmax(0, 1fr))")
+            } else {
+                SharedString::from("repeat(4, minmax(0, 1fr))")
+            })
             .gap(px(16.0))
             .child(each(
                 move || data_for_categories.get().unwrap_or_default().1,
@@ -3896,24 +3970,25 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
         .child(
             view()
                 .w_full()
-                .flex_row()
-                .items_start()
-                .justify_between()
-                .gap(px(24.0))
+                .flex_col()
+                .gap(px(12.0))
                 .pb(px(2.0))
                 .mb(px(-6.0))
+                .when(!compact, |row| {
+                    row.flex_row().items_start().justify_between().gap(px(24.0))
+                })
                 .child(
                     view()
                         .flex_col()
-                        .mt(px(-10.0))
+                        .mt(if compact { px(0.0) } else { px(-10.0) })
                         .pb(px(4.0))
                         .child(
                             text("Accounts & categories")
-                                .h(px(48.0))
+                                .h(if compact { px(40.0) } else { px(48.0) })
                                 .mb(px(-2.0))
-                                .text_size(px(48.0))
-                                .line_height(px(48.0))
-                                .letter_spacing(px(-2.4))
+                                .text_size(if compact { px(36.0) } else { px(48.0) })
+                                .line_height(if compact { px(40.0) } else { px(48.0) })
+                                .letter_spacing(if compact { px(-1.8) } else { px(-2.4) })
                                 .font_weight(FontWeight::BOLD)
                                 .text_color(move || theme().foreground),
                         )

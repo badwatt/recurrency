@@ -511,9 +511,15 @@ fn theme_action() -> impl IntoElement {
         .rounded(px(6.0))
         .accessibility_label("Choose color theme")
         .on_press(move || {
-            open_menu(MenuPlacement::TopRight, || {
-                crate::components::theme_picker::theme_menu()
-            });
+            if crate::ui::compact_active() {
+                open_menu(MenuPlacement::Center, || {
+                    crate::components::theme_picker::theme_fullscreen()
+                });
+            } else {
+                open_menu(MenuPlacement::TopRight, || {
+                    crate::components::theme_picker::theme_menu()
+                });
+            }
         })
         .child(
             image(asset!("icons/palette.svg"))

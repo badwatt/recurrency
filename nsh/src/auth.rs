@@ -120,6 +120,10 @@ pub fn clear_session() {
     Storage::remove_item(USER_KEY);
 }
 
+pub fn stored_token() -> String {
+    Storage::get_item(TOKEN_KEY).unwrap_or_default()
+}
+
 pub fn has_stored_session() -> bool {
     Storage::get_item(TOKEN_KEY).is_some_and(|token| !token.is_empty())
         && Storage::get_item(USER_KEY).is_some()

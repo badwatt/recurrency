@@ -436,6 +436,7 @@ fn category_donut(
                     })
                     .h(px(180.0))
                     .w(px(180.0))
+                    .cursor_pointer()
                     .on_mouse_move(move |event: &MouseEvent| {
                         let center = 90.0_f32;
                         let x = event.position.x.0 - center;

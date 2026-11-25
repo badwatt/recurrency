@@ -218,6 +218,8 @@ fn content(
     };
     let cells = move || cells_for(year.get(), month.get());
     let mobile_currency = currency.clone();
+    let mobile_server = server.clone();
+    let mobile_token = token.clone();
     let desktop_currency = currency.clone();
 
     view()
@@ -242,7 +244,17 @@ fn content(
                 move || compact.get(),
                 move || {
                     let mobile_currency = mobile_currency.clone();
-                    mobile_calendar(data, year, month, mobile_currency, today)
+                    mobile_calendar(
+                        data,
+                        year,
+                        month,
+                        mobile_currency,
+                        today,
+                        day_modal,
+                        mobile_server.clone(),
+                        mobile_token.clone(),
+                        subscriptions,
+                    )
                 },
             )
             .otherwise(move || {
@@ -354,6 +366,10 @@ fn mobile_calendar(
     month: Signal<u32>,
     currency: String,
     today: NaiveDate,
+    day_modal: ui::ModalHost,
+    server: String,
+    token: String,
+    subscriptions: Resource<crate::api::SubscriptionsData, String>,
 ) -> AnyElement {
     let entries =
         move || calendar_entries(&data.get().unwrap_or_default(), year.get(), month.get());
@@ -427,8 +443,23 @@ fn mobile_calendar(
             upcoming,
             row_currency.clone(),
             today,
+            data,
+            day_modal,
+            server.clone(),
+            token.clone(),
+            subscriptions,
         ))
-        .child(mobile_section("PAST", past, row_currency, today))
+        .child(mobile_section(
+            "PAST",
+            past,
+            row_currency,
+            today,
+            data,
+            day_modal,
+            server,
+            token,
+            subscriptions,
+        ))
         .into_element()
 }
 
@@ -437,6 +468,11 @@ fn mobile_section(
     entries: impl Fn() -> Vec<CalendarEntry> + Clone + 'static,
     currency: String,
     today: NaiveDate,
+    data: Resource<CalendarData, String>,
+    day_modal: ui::ModalHost,
+    server: String,
+    token: String,
+    subscriptions: Resource<crate::api::SubscriptionsData, String>,
 ) -> impl IntoElement {
     let count_entries = entries.clone();
     let empty_entries = count_entries.clone();
@@ -497,12 +533,10 @@ fn mobile_section(
                     entry.date.format("%a, %b %e").to_string()
                 };
                 let amount = format_currency(entry.amount, &currency);
-                let subscription_id = entry.subscription_id;
-                let target = if entry.is_transaction {
-                    crate::Route::Transactions
-                } else {
-                    crate::Route::Subscriptions
-                };
+                let entry_date = entry.date;
+                let dialog_currency = currency.clone();
+                let dialog_server = server.clone();
+                let dialog_token = token.clone();
                 view()
                     .w_full()
                     .flex_row()
@@ -510,11 +544,16 @@ fn mobile_section(
                     .justify_between()
                     .cursor_pointer()
                     .on_press(move || {
-                        if let Some(id) = subscription_id {
-                            crate::ui::request_subscription_edit(id);
-                        } else {
-                            crate::ui::navigate(target);
-                        }
+                        open_day_dialog(
+                            entry_date,
+                            data,
+                            dialog_currency.clone(),
+                            today,
+                            day_modal,
+                            dialog_server.clone(),
+                            dialog_token.clone(),
+                            subscriptions,
+                        );
                     })
                     .gap(px(10.0))
                     .p(px(12.0))

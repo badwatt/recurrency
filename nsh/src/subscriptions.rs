@@ -995,13 +995,7 @@ fn form(
                                     crate::components::field::FieldProps::new("Start date")
                                         .hint("Leave empty to start from today."),
                                     view()
-                                        .w(if compact {
-                                            nsh_core::geometry::Length::from(
-                                                nsh_core::geometry::Percentage(1.0),
-                                            )
-                                        } else {
-                                            nsh_core::geometry::Length::from(px(155.0))
-                                        })
+                                        .w_full()
                                         .child(
                                             crate::components::date_picker::date_picker(start_date),
                                         )
@@ -1015,13 +1009,7 @@ fn form(
                                     crate::components::field::FieldProps::new("End date")
                                         .hint("Last billing date (inclusive)."),
                                     view()
-                                        .w(if compact {
-                                            nsh_core::geometry::Length::from(
-                                                nsh_core::geometry::Percentage(1.0),
-                                            )
-                                        } else {
-                                            nsh_core::geometry::Length::from(px(155.0))
-                                        })
+                                        .w_full()
                                         .child(
                                             crate::components::date_picker::date_picker(end_date),
                                         )

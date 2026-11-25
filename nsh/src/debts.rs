@@ -1352,14 +1352,12 @@ fn debt_charge_days(payment_days: Signal<Vec<u8>>) -> AnyElement {
 }
 
 fn toolbar(
-    data: Resource<DebtsData, String>,
     search: Signal<String>,
     open_bulk: impl Fn() + 'static,
     type_filter: Signal<String>,
     sort_field: Signal<String>,
     sort_desc: Signal<bool>,
 ) -> impl IntoElement {
-    let count = move || filtered(data, search, type_filter, sort_field, sort_desc).len();
     view()
         .w_full()
         .flex_row()
@@ -1367,11 +1365,6 @@ fn toolbar(
         .items_center()
         .gap(px(12.0))
         .child(search_input(search, "Search"))
-        .child(
-            text(move || ui::count_label(count(), "debt", "debts"))
-                .text_size(px(13.0))
-                .text_color(move || theme().muted_foreground),
-        )
         .child(filter_menu(
             move || usize::from(type_filter.get() != "all"),
             move || {
@@ -1455,7 +1448,6 @@ fn content(
                     .flex_col()
                     .gap(px(16.0))
                     .child(toolbar(
-                        data,
                         open_search,
                         bulk,
                         type_filter,

@@ -293,13 +293,14 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
             });
         }
     };
+    let compact = crate::ui::compact_active();
     let current = move || provider(&selected.get()).map_or("Delivery", |provider| provider.label);
     let fields = move || provider(&selected.get()).map_or(&[][..], |provider| provider.fields);
     let header = view()
         .w_full()
         .flex_col()
         .gap(px(4.0))
-        .p(px(24.0))
+        .p(if compact { px(20.0) } else { px(24.0) })
         .border_b(px(1.0))
         .border_color(move || theme().border)
         .child(
@@ -320,26 +321,21 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 ),
         )
         .into_element();
-    let rail = view()
-        .w(px(190.0))
-        .flex_shrink_0()
-        .flex_col()
-        .gap(px(4.0))
-        .pr(px(16.0))
-        .border_r(px(1.0))
-        .border_color(move || theme().border.opacity(0.4))
-        .children(PROVIDERS.iter().map(|spec| {
+    let buttons: Vec<AnyElement> = PROVIDERS
+        .iter()
+        .map(|spec| {
             let id = spec.id;
             let label = spec.label;
             let color = provider_color(id);
-            let is_enabled = data
-                .get()
-                .unwrap_or_default()
-                .iter()
-                .any(|channel| channel.provider == id && channel.enabled);
             let active = move || selected.get() == id;
             raw_button()
-                .w_full()
+                .w(if compact {
+                    nsh_core::geometry::Length::Auto
+                } else {
+                    nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0))
+                })
+                .flex_shrink_0()
+                .cursor_pointer()
                 .h(px(44.0))
                 .px(px(10.0))
                 .flex_row()
@@ -388,7 +384,7 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                 )
                 .child(
                     when(
-                        move || is_enabled || (selected.get() == id && enabled.get()),
+                        move || selected.get() == id,
                         move || {
                             view()
                                 .h(px(6.0))
@@ -401,7 +397,26 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
                 .into_element()
-        }));
+        })
+        .collect();
+    let rail = if compact {
+        scroll()
+            .horizontal()
+            .w_full()
+            .child(view().flex_row().gap(px(4.0)).children(buttons))
+            .into_element()
+    } else {
+        view()
+            .w(px(190.0))
+            .flex_shrink_0()
+            .flex_col()
+            .gap(px(4.0))
+            .pr(px(16.0))
+            .border_r(px(1.0))
+            .border_color(move || theme().border.opacity(0.4))
+            .children(buttons)
+            .into_element()
+    };
     let form = view()
         .flex_grow(1.0)
         .basis(px(0.0))
@@ -557,16 +572,19 @@ pub fn delivery_card(server: String, token: String) -> impl IntoElement {
         .w_full()
         .p(px(0.0))
         .child(header)
-        .child(
-            view()
-                .w_full()
-                .p(px(48.0))
-                .flex_row()
-                .items_start()
-                .gap(px(24.0))
-                .child(rail)
-                .child(form),
-        )
+        .child({
+            let body = if compact {
+                view().w_full().p(px(16.0)).flex_col().gap(px(16.0))
+            } else {
+                view()
+                    .w_full()
+                    .p(px(48.0))
+                    .flex_row()
+                    .items_start()
+                    .gap(px(24.0))
+            };
+            body.child(rail).child(form)
+        })
         .into_element()
 }
 

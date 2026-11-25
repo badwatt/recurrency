@@ -34,6 +34,7 @@ fn theme_group(
     server: String,
     token: String,
 ) -> impl IntoElement {
+    let compact = crate::ui::compact_active();
     view()
         .w_full()
         .flex_col()
@@ -49,7 +50,11 @@ fn theme_group(
             view()
                 .w_full()
                 .grid()
-                .grid_template_columns(SharedString::from("repeat(3, minmax(0, 1fr))"))
+                .grid_template_columns(if compact {
+                    SharedString::from("repeat(1, minmax(0, 1fr))")
+                } else {
+                    SharedString::from("repeat(3, minmax(0, 1fr))")
+                })
                 .gap(px(12.0))
                 .children(definitions.into_iter().map(|definition| {
                     theme_card(definition, selected, server.clone(), token.clone())
@@ -329,6 +334,89 @@ pub fn theme_menu() -> AnyElement {
                         }),
                 ),
             ),
+        )
+        .into_element()
+}
+
+/// Full-screen theme catalogue used on compact screens.
+pub fn theme_fullscreen() -> AnyElement {
+    let selected = signal(crate::theme::saved());
+    view()
+        .relative()
+        .w_full()
+        .h_full()
+        .flex_col()
+        .bg(move || theme().background)
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .px(px(20.0))
+                .py(px(16.0))
+                .border_b(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    text("Color themes")
+                        .text_size(px(20.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .h(px(36.0))
+                        .w(px(36.0))
+                        .items_center()
+                        .justify_center()
+                        .accessibility_label("Close color themes")
+                        .on_press(crate::ui::close_menu)
+                        .child(
+                            image(asset!("icons/x.svg"))
+                                .size(px(18.0))
+                                .tint_color(move || theme().muted_foreground),
+                        ),
+                ),
+        )
+        .child(
+            scroll()
+                .flex_grow(1.0)
+                .w_full()
+                .p(px(16.0))
+                .child(view().w_full().child(theme_picker(
+                    selected,
+                    crate::auth::stored_server(),
+                    crate::auth::stored_token(),
+                ))),
+        )
+        .child(
+            view()
+                .absolute()
+                .left(px(0.0))
+                .right(px(0.0))
+                .bottom(px(0.0))
+                .p(px(16.0))
+                .bg(move || theme().background)
+                .border_t(px(1.0))
+                .border_color(move || theme().border)
+                .child(
+                    button()
+                        .cursor_pointer()
+                        .w_full()
+                        .h(px(44.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(8.0))
+                        .bg(move || theme().primary)
+                        .on_press(crate::ui::close_menu)
+                        .child(
+                            text("Close")
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
+                        ),
+                ),
         )
         .into_element()
 }
