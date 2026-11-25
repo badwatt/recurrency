@@ -184,6 +184,8 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         move |date| crate::debts::open_create_dialog(auth.clone(), modal, date)
     });
     let create_intent = signal(None::<Route>);
+    let data_key = signal(0_u64);
+    effect(move || data_key.set(ui::data_revision()));
     let fab_open = signal(false);
     let page_scroll = element_ref();
     effect(move || {
@@ -213,13 +215,14 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                         view()
                             .w_full()
                             .key(format!(
-                                "{}-{}",
+                                "{}-{}-{}",
                                 if compact.get() { "compact" } else { "wide" },
                                 if ui::privacy_active() {
                                     "private"
                                 } else {
                                     "public"
-                                }
+                                },
+                                data_key.get()
                             ))
                             .max_w(px(1242.0))
                             .pl(move || {
