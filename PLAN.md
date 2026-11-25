@@ -52,7 +52,7 @@ Estado: en curso. Fuente: capturas y notas del usuario comparando con Dioxus.
 - [x] **Toggle del Dashboard summary inútil.** Ahora es un toggle reactivo.
 - [x] **Indicador de delivery activo.** El rail muestra el punto verde al activar el canal seleccionado.
 - [x] **Diseño de la lista de select.** Trigger 36 px, panel con buscador, opciones 36 px/14 px, check 16 y cierre al elegir.
-- [ ] **Drop zone del backup en web.** El handler nativo existe; el navegador no expone el contenido del archivo a NSH. Pendiente de puente JS.
+- [x] **Drop zone del backup en web.** Listener JS de `drop` con FileReader y callback a Rust; el nativo ya lee `file://`.
 - [x] **Textos descentrados en los chips del hero AI.** Altura y línea base corregidas.
 - [x] **Barra bulk.** Barra inline bajo el toolbar, controles y confirmación.
 - [x] **Billing schedule desalineado.** Selector sin etiqueta fantasma y campos a 36 px.

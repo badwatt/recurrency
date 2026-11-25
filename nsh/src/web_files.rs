@@ -149,3 +149,59 @@ pub async fn pick_text_file(accept: &str) -> Result<Option<String>, String> {
 pub async fn pick_data_url(accept: &str) -> Result<Option<String>, String> {
     pick_file(accept, ReadMode::DataUrl).await
 }
+
+thread_local! {
+    static DROP_CALLBACKS: std::cell::RefCell<Option<(
+        Closure<dyn FnMut(web_sys::DragEvent)>,
+        Closure<dyn FnMut(web_sys::DragEvent)>,
+        std::rc::Rc<dyn Fn(String)>,
+    )>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Reads a JSON backup dropped anywhere in the page. NSH's canvas cannot
+/// expose a per-view DOM drop target on the web, so the document receives it.
+pub fn install_backup_drop(callback: impl Fn(String) + 'static) {
+    let callback: std::rc::Rc<dyn Fn(String)> = std::rc::Rc::new(callback);
+    let already = DROP_CALLBACKS.with(|slot| slot.borrow().is_some());
+    if already {
+        DROP_CALLBACKS.with(|slot| {
+            if let Some((_, _, existing)) = slot.borrow_mut().as_mut() {
+                *existing = callback;
+            }
+        });
+        return;
+    }
+    let Ok(document) = document() else { return };
+    let over = Closure::<dyn FnMut(web_sys::DragEvent)>::new(|event: web_sys::DragEvent| {
+        event.prevent_default()
+    });
+    let drop_callback = callback.clone();
+    let drop = Closure::<dyn FnMut(web_sys::DragEvent)>::new(move |event: web_sys::DragEvent| {
+        event.prevent_default();
+        let Some(data) = event.data_transfer() else {
+            return;
+        };
+        let Some(files) = data.files() else { return };
+        let Some(file) = files.get(0) else { return };
+        let Ok(reader) = FileReader::new() else {
+            return;
+        };
+        let reader_for_load = reader.clone();
+        let callback = drop_callback.clone();
+        let on_load = Closure::<dyn FnMut()>::new(move || {
+            if let Ok(value) = reader_for_load.result()
+                && let Some(text) = value.as_string()
+            {
+                callback(text);
+            }
+        });
+        reader.set_onload(Some(on_load.as_ref().unchecked_ref()));
+        on_load.forget();
+        let _ = reader.read_as_text(&file);
+    });
+    let _ = document.add_event_listener_with_callback("dragover", over.as_ref().unchecked_ref());
+    let _ = document.add_event_listener_with_callback("drop", drop.as_ref().unchecked_ref());
+    DROP_CALLBACKS.with(|slot| {
+        *slot.borrow_mut() = Some((over, drop, callback));
+    });
+}

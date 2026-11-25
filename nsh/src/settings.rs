@@ -1367,6 +1367,16 @@ fn data_card(
     admin: bool,
 ) -> impl IntoElement {
     let pending = signal(None::<serde_json::Value>);
+    #[cfg(target_arch = "wasm32")]
+    crate::web_files::install_backup_drop(move |text| {
+        match serde_json::from_str::<serde_json::Value>(&text) {
+            Ok(value) => {
+                pending.set(Some(value));
+                status.set("Backup loaded. Confirm to replace the current data.".to_string());
+            }
+            Err(_) => status.set("That file is not a Recurrency backup.".to_string()),
+        }
+    });
     let file_name = if admin {
         "recurrency-admin-backup.json"
     } else {
