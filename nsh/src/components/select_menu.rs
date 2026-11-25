@@ -33,6 +33,7 @@ pub struct SelectMenuProps {
     pub search_placeholder: String,
     pub create_title: String,
     pub show_label: bool,
+    pub searchable: bool,
 }
 
 impl SelectMenuProps {
@@ -52,6 +53,7 @@ impl SelectMenuProps {
             search_placeholder: "Search...".to_string(),
             create_title: "Create new".to_string(),
             show_label: true,
+            searchable: true,
         }
     }
 
@@ -79,6 +81,11 @@ impl SelectMenuProps {
         self.show_label = show;
         self
     }
+
+    pub fn searchable(mut self, searchable: bool) -> Self {
+        self.searchable = searchable;
+        self
+    }
 }
 
 fn should_offer_create(options: &[SelectOption], query: &str, can_create: bool) -> bool {
@@ -99,6 +106,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         search_placeholder,
         create_title,
         show_label,
+        searchable,
     } = props;
     let open = signal(false);
     let query = signal(String::new());
@@ -270,34 +278,36 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
                     .border(px(1.0))
                     .border_color(move || theme().border)
                     .bg(move || theme().popover)
-                    .child(
-                        view().w_full().p(px(4.0)).child(
-                            input()
-                                .value(query)
-                                .on_change(move |next: &str| query.set(next.to_string()))
-                                .on_submit(move |_: &str| {
-                                    if show_create_for_search() {
-                                        let name = query.get();
-                                        if !name.trim().is_empty() {
-                                            create_name.set(name);
-                                            creating.set(true);
+                    .when(searchable, |panel| {
+                        panel.child(
+                            view().w_full().p(px(4.0)).child(
+                                input()
+                                    .value(query)
+                                    .on_change(move |next: &str| query.set(next.to_string()))
+                                    .on_submit(move |_: &str| {
+                                        if show_create_for_search() {
+                                            let name = query.get();
+                                            if !name.trim().is_empty() {
+                                                create_name.set(name);
+                                                creating.set(true);
+                                            }
                                         }
-                                    }
-                                })
-                                .placeholder(search_placeholder.clone())
-                                .auto_fill(AutoFill::Off)
-                                .auto_focus(true)
-                                .h(px(30.0))
-                                .w_full()
-                                .px(px(8.0))
-                                .rounded(px(5.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().input)
-                                .bg(move || theme().background)
-                                .text_size(px(12.0))
-                                .text_color(move || theme().foreground),
-                        ),
-                    )
+                                    })
+                                    .placeholder(search_placeholder.clone())
+                                    .auto_fill(AutoFill::Off)
+                                    .auto_focus(true)
+                                    .h(px(30.0))
+                                    .w_full()
+                                    .px(px(8.0))
+                                    .rounded(px(5.0))
+                                    .border(px(1.0))
+                                    .border_color(move || theme().input)
+                                    .bg(move || theme().background)
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().foreground),
+                            ),
+                        )
+                    })
                     .child(scroll().max_h(px(200.0)).w_full().flex_col().child(each(
                         move || filtered(),
                         |option| option.value,

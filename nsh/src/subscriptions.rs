@@ -2291,6 +2291,8 @@ fn bulk_bar(
             .collect::<Vec<_>>()
     };
     view()
+        .relative()
+        .z_index(10)
         .w_full()
         .flex_row()
         .flex_wrap()
@@ -2337,7 +2339,8 @@ fn bulk_bar(
             view().w(px(176.0)).child(select_menu(
                 SelectMenuProps::new("", "Set category…", bulk_category, categories)
                     .height(32.0)
-                    .show_label(false),
+                    .show_label(false)
+                    .searchable(false),
             )),
         )
         .child(shared_button(
