@@ -77,8 +77,15 @@ pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
                 .w_full()
                 .flex_row()
                 .flex_wrap()
-                .justify_end()
+                .justify_start()
                 .items_center()
+                .child(
+                    when(
+                        move || !compact.get(),
+                        move || view().flex_grow(1.0).basis(px(0.0)).into_element(),
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .child(
                     view().w(px(144.0)).mr(px(8.0)).child(compact_select(
                         month_choice,
