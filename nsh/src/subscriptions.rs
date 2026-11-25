@@ -226,6 +226,8 @@ pub fn subscriptions(
         });
     };
 
+    let open_form = std::rc::Rc::new(open_form);
+
     if let Some(request) = crate::ui::take_subscription_intent() {
         match request {
             crate::ui::SubscriptionIntent::Edit(id) => {
@@ -257,10 +259,14 @@ pub fn subscriptions(
         }
     });
 
-    if intent.get() == Some(crate::Route::Subscriptions) {
-        intent.set(None);
-        open_form();
-    }
+    let intent_open = open_form.clone();
+    effect(move || {
+        if intent.get() == Some(crate::Route::Subscriptions) {
+            intent.set(None);
+            let open = intent_open.clone();
+            open();
+        }
+    });
 
     let selection_mode = signal(false);
     let selected = signal(Vec::<Uuid>::new());
@@ -275,12 +281,13 @@ pub fn subscriptions(
         }
     };
 
+    let open_header = open_form.clone();
     view()
         .w_full()
         .flex_col()
         .gap(px(24.0))
         .pt(move || if compact.get() { px(20.0) } else { px(0.0) })
-        .child(header(open_form, compact))
+        .child(header(move || open_header(), compact))
         .child(toolbar(
             data,
             search,

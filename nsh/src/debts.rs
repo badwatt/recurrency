@@ -232,10 +232,16 @@ pub fn debts(
         });
     };
 
-    if intent.get() == Some(crate::Route::Debts) {
-        intent.set(None);
-        open_form();
-    }
+    let open_form = std::rc::Rc::new(open_form);
+
+    let intent_open = open_form.clone();
+    effect(move || {
+        if intent.get() == Some(crate::Route::Debts) {
+            intent.set(None);
+            let open = intent_open.clone();
+            open();
+        }
+    });
 
     let type_filter = signal("all".to_string());
     let sort_field = signal("name".to_string());
@@ -262,6 +268,7 @@ pub fn debts(
             selection_mode.set(true);
         }
     };
+    let open_header = open_form.clone();
     view()
         .w_full()
         .flex_col()
@@ -273,7 +280,7 @@ pub fn debts(
                 px(0.0)
             }
         })
-        .child(header(open_form, compact))
+        .child(header(move || open_header(), compact))
         .child(when(loading, || loading_card()).otherwise(move || {
             let value = render_currency.clone();
             let empty_open = empty_open.clone();
@@ -289,7 +296,7 @@ pub fn debts(
                     actions,
                     server_signal,
                     token_signal,
-                    empty_open,
+                    move || empty_open(),
                     open_bulk,
                     type_filter,
                     sort_field,

@@ -192,10 +192,18 @@ pub fn transactions(
         });
     };
 
-    if intent.get() == Some(crate::Route::Transactions) {
-        intent.set(None);
-        open_form();
-    }
+    let open_form = std::rc::Rc::new(open_form);
+
+    let open_header = open_form.clone();
+
+    let intent_open = open_form.clone();
+    effect(move || {
+        if intent.get() == Some(crate::Route::Transactions) {
+            intent.set(None);
+            let open = intent_open.clone();
+            open();
+        }
+    });
 
     let selection_mode = signal(false);
     let selected = signal(Vec::<Uuid>::new());
@@ -236,7 +244,7 @@ pub fn transactions(
                 px(0.0)
             }
         })
-        .child(header(open_form, compact))
+        .child(header(move || open_header(), compact))
         .child(toolbar(
             data,
             search,
@@ -548,37 +556,12 @@ fn form(
                         ),
                 )
                 .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_end()
-                        .gap(px(8.0))
-                        .child(
-                            view()
-                                .flex_grow(1.0)
-                                .min_w(px(0.0))
-                                .child(ui::date_field("Date *", date)),
-                        )
-                        .child(
-                            button()
-                                .cursor_pointer()
-                                .items_center()
-                                .justify_center()
-                                .h(px(32.0))
-                                .w(px(55.0))
-                                .mb(px(4.0))
-                                .rounded(px(6.0))
-                                .border(px(1.0))
-                                .border_color(move || theme().border)
-                                .bg(move || theme().card)
-                                .on_press(move || date.set(String::new()))
-                                .child(
-                                    text("Clear")
-                                        .text_size(px(12.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().foreground),
-                                ),
-                        ),
+                    view().w_full().flex_row().items_end().gap(px(8.0)).child(
+                        view()
+                            .flex_grow(1.0)
+                            .min_w(px(0.0))
+                            .child(ui::date_field("Date *", date)),
+                    ),
                 )
                 .child(ui::editable_choice_picker(
                     "Account *",
