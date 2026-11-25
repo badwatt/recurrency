@@ -357,6 +357,7 @@ fn payment_form(
             match api::record_debt_payment(server_value, token_value, id, &request).await {
                 Ok(_) => {
                     pay_id.set(None);
+                    modal.close();
                     data.refetch();
                     crate::ui::bump_data();
                 }

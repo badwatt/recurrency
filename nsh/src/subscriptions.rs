@@ -304,54 +304,13 @@ pub fn subscriptions(
         .child(when(
             move || selection_mode.get(),
             move || {
-                let open_actions = move || {
-                    modal.open(move || {
-                        crate::components::dialog::dialog(
-                            crate::components::dialog::DialogProps::new(
-                                "Bulk actions",
-                                "",
-                                move || modal.close(),
-                            )
-                            .width(720.0)
-                            .body(
-                                view()
-                                    .w_full()
-                                    .p(px(24.0))
-                                    .child(bulk_bar(
-                                        data,
-                                        server_signal,
-                                        token_signal,
-                                        modal,
-                                        selected,
-                                        selection_mode,
-                                    ))
-                                    .into_element(),
-                            ),
-                        )
-                        .into_element()
-                    });
-                };
-                let clear = move || selected.set(Vec::new());
-                crate::components::selection_bar::selection_bar(
-                    move || selected.get().len(),
-                    move || {
-                        let mut values = selected.get();
-                        crate::components::selection_bar::add_all(
-                            &mut values,
-                            data.get()
-                                .unwrap_or_default()
-                                .subscriptions
-                                .into_iter()
-                                .map(|item| item.id),
-                        );
-                        selected.set(values);
-                    },
-                    clear,
-                    open_actions,
-                    move || {
-                        selected.set(Vec::new());
-                        selection_mode.set(false);
-                    },
+                bulk_bar(
+                    data,
+                    server_signal,
+                    token_signal,
+                    modal,
+                    selected,
+                    selection_mode,
                 )
             },
         ))
