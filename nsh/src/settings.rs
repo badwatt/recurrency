@@ -3733,7 +3733,15 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             .gap(px(16.0))
             .child(each(
                 move || data_for_accounts.get().unwrap_or_default().0,
-                |item| item.account.id,
+                |item| {
+                    format!(
+                        "{}-{}-{:?}-{}",
+                        item.account.id,
+                        item.account.name,
+                        item.account.icon,
+                        item.account.is_default
+                    )
+                },
                 move |item, _| {
                     let item = item.get();
                     let account = item.account;
@@ -3856,7 +3864,12 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             .gap(px(16.0))
             .child(each(
                 move || data_for_categories.get().unwrap_or_default().1,
-                |item| item.category.id,
+                |item| {
+                    format!(
+                        "{}-{}-{:?}",
+                        item.category.id, item.category.name, item.category.icon
+                    )
+                },
                 move |item, _| {
                     let item = item.get();
                     let category = item.category;

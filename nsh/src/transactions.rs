@@ -15,6 +15,7 @@ use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
 use crate::components::page_header::page_header as shared_page_header;
+use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::toggle::toggle;
@@ -214,22 +215,8 @@ pub fn transactions(
     let selection_mode = signal(false);
     let selected = signal(Vec::<Uuid>::new());
     let open_bulk = move || {
-        if selection_mode.get() {
-            modal.open(move || {
-                bulk_modal(
-                    data,
-                    server_signal,
-                    token_signal,
-                    modal,
-                    selected,
-                    selection_mode,
-                )
-                .into_element()
-            });
-        } else {
-            selected.set(Vec::new());
-            selection_mode.set(true);
-        }
+        selected.set(Vec::new());
+        selection_mode.set(!selection_mode.get());
     };
 
     let month_only = signal(false);
@@ -266,38 +253,13 @@ pub fn transactions(
         .child(when(
             move || selection_mode.get(),
             move || {
-                crate::components::selection_bar::selection_bar(
-                    move || selected.get().len(),
-                    move || {
-                        let mut values = selected.get();
-                        crate::components::selection_bar::add_all(
-                            &mut values,
-                            data.get()
-                                .unwrap_or_default()
-                                .transactions
-                                .into_iter()
-                                .map(|item| item.id),
-                        );
-                        selected.set(values);
-                    },
-                    move || selected.set(Vec::new()),
-                    move || {
-                        modal.open(move || {
-                            bulk_modal(
-                                data,
-                                server_signal,
-                                token_signal,
-                                modal,
-                                selected,
-                                selection_mode,
-                            )
-                            .into_element()
-                        });
-                    },
-                    move || {
-                        selected.set(Vec::new());
-                        selection_mode.set(false);
-                    },
+                bulk_bar(
+                    data,
+                    server_signal,
+                    token_signal,
+                    modal,
+                    selected,
+                    selection_mode,
                 )
                 .into_element()
             },
@@ -505,12 +467,24 @@ fn form(
                     api::create_transaction(server_value, token_value, &request).await
                 };
                 match result {
-                    Ok(_) => {
+                    Ok(saved) => {
                         form_open.set(false);
                         editing.set(None);
-                        modal.close();
+                        if let Some(mut snapshot) = data.get() {
+                            if let Some(item) = snapshot
+                                .transactions
+                                .iter_mut()
+                                .find(|item| item.id == saved.id)
+                            {
+                                *item = saved.clone();
+                            } else {
+                                snapshot.transactions.push(saved.clone());
+                            }
+                            data.mutate(snapshot);
+                        }
                         data.refetch();
                         crate::ui::bump_data();
+                        modal.close();
                     }
                     Err(message) => form_error.set(message),
                 }
@@ -930,7 +904,9 @@ fn group_card(
                         .gap(px(8.0))
                         .child(each(
                             move || items.clone(),
-                            |transaction| transaction.id,
+                            |transaction| {
+                                format!("{}-{:?}", transaction.id, transaction.updated_at)
+                            },
                             move |transaction, _| {
                                 row(
                                     transaction.get(),
@@ -961,7 +937,7 @@ fn group_card(
                     .gap(px(12.0))
                     .child(each(
                         move || items.clone(),
-                        |transaction| transaction.id,
+                        |transaction| format!("{}-{:?}", transaction.id, transaction.updated_at),
                         move |transaction, _| {
                             grid_card(
                                 transaction.get(),
@@ -1294,23 +1270,18 @@ fn row(
         )
 }
 
-fn bulk_modal(
+fn bulk_bar(
     data: Resource<TransactionsData, String>,
     server: Signal<String>,
     token: Signal<String>,
     modal: ui::ModalHost,
     selected: Signal<Vec<Uuid>>,
     selection_mode: Signal<bool>,
-) -> impl IntoElement {
+) -> AnyElement {
     let busy = signal(false);
     let error = signal(String::new());
-    let confirm_delete = signal(false);
     let bulk_category = signal(None::<Uuid>);
-    let toggle = move |id: Uuid| {
-        let mut values = selected.get();
-        crate::components::selection_bar::toggle(&mut values, id);
-        selected.set(values);
-    };
+    let count = move || selected.get().len();
     let all_ids = move || {
         data.get()
             .unwrap_or_default()
@@ -1319,16 +1290,16 @@ fn bulk_modal(
             .map(|item| item.id)
             .collect::<Vec<_>>()
     };
-    let select_all = move || {
-        let mut values = selected.get();
-        for id in all_ids() {
-            if !values.contains(&id) {
-                values.push(id);
-            }
-        }
-        selected.set(values);
-    };
     let clear = move || selected.set(Vec::new());
+    let categories = move || {
+        data.get()
+            .unwrap_or_default()
+            .categories
+            .into_iter()
+            .filter(|category| !category.is_system)
+            .map(|category| SelectOption::new(category.id, category.name))
+            .collect::<Vec<_>>()
+    };
     let apply_category = {
         let server = server;
         let token = token;
@@ -1362,7 +1333,7 @@ fn bulk_modal(
             });
         }
     };
-    let delete = move || {
+    let delete = std::rc::Rc::new(move || {
         let ids = selected.get();
         if ids.is_empty() || busy.get() {
             return;
@@ -1377,159 +1348,83 @@ fn bulk_modal(
             }
             selected.set(Vec::new());
             selection_mode.set(false);
-            confirm_delete.set(false);
             data.refetch();
             crate::ui::bump_data();
             busy.set(false);
         });
-    };
-    let rows = move || {
-        data.get()
-            .unwrap_or_default()
-            .transactions
-            .into_iter()
-            .map(|transaction| {
-                let id = transaction.id;
-                let name = transaction.name;
-                let date = format_date(transaction.date);
-                let is_selected = selected.get().contains(&id);
-                view()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(8.0))
-                    .p(px(8.0))
-                    .rounded(px(6.0))
-                    .bg(move || {
-                        if is_selected {
-                            theme().accent
-                        } else {
-                            theme().card.opacity(0.0)
-                        }
-                    })
-                    .cursor_pointer()
-                    .on_press(move || toggle(id))
-                    .child(
+    });
+    let confirm_delete = {
+        let delete = delete.clone();
+        move || {
+            let delete = delete.clone();
+            modal.open(move || {
+                let delete = delete.clone();
+                crate::components::dialog::dialog(
+                    crate::components::dialog::DialogProps::new(
+                        format!("Delete {} transactions?", count()),
+                        "This cannot be undone.",
+                        move || modal.close(),
+                    )
+                    .width(420.0)
+                    .footer(
                         view()
-                            .flex_col()
-                            .child(
-                                text(name)
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(
-                                text(date)
-                                    .text_size(px(10.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                    )
-                    .into_element()
-            })
-            .collect::<Vec<_>>()
+                            .w_full()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(ui::action_button("Delete", true, move || {
+                                delete();
+                                modal.close();
+                            }))
+                            .child(ui::action_button("Cancel", false, move || modal.close()))
+                            .into_element(),
+                    ),
+                )
+                .into_element()
+            });
+        }
     };
-    let count = move || selected.get().len();
-    crate::components::dialog::dialog(
-        crate::components::dialog::DialogProps::new(
-            "Bulk actions",
-            "Select transactions, then delete them together.",
-            move || modal.close(),
+    view()
+        .w_full()
+        .flex_row()
+        .flex_wrap()
+        .items_center()
+        .gap(px(8.0))
+        .px(px(12.0))
+        .py(px(8.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || theme().primary.opacity(0.3))
+        .bg(move || theme().primary.opacity(0.05))
+        .child(
+            text(move || format!("{} selected", count()))
+                .text_size(px(14.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().foreground),
         )
-        .width(520.0)
-        .body(
-            view()
-                .p(px(20.0))
-                .gap(px(10.0))
-                .child(
-                    view()
-                        .w_full()
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .gap(px(8.0))
-                        .child(
-                            text(move || format!("{} selected", count()))
-                                .text_size(px(12.0))
-                                .text_color(move || theme().muted_foreground),
-                        )
-                        .child(
-                            view()
-                                .flex_row()
-                                .gap(px(8.0))
-                                .child(ui::action_button("Select all", false, select_all))
-                                .child(ui::action_button("Clear", false, clear)),
-                        ),
-                )
-                .child(
-                    scroll()
-                        .max_h(px(320.0))
-                        .w_full()
-                        .child(view().w_full().flex_col().gap(px(2.0)).children(rows())),
-                )
-                .child(ui::choice_picker(
-                    "Move selected to category",
-                    move || {
-                        data.get()
-                            .unwrap_or_default()
-                            .categories
-                            .into_iter()
-                            .map(|category| (category.id, category.name))
-                            .collect()
-                    },
-                    bulk_category,
-                ))
-                .child(
-                    when(
-                        move || confirm_delete.get(),
-                        move || {
-                            view()
-                                .w_full()
-                                .flex_row()
-                                .items_center()
-                                .justify_between()
-                                .gap(px(8.0))
-                                .p(px(10.0))
-                                .rounded(px(7.0))
-                                .bg(move || theme().destructive.opacity(0.1))
-                                .child(
-                                    text(move || format!("Delete {} transactions?", count()))
-                                        .text_size(px(11.0))
-                                        .text_color(move || theme().destructive),
-                                )
-                                .child(
-                                    view()
-                                        .flex_row()
-                                        .gap(px(6.0))
-                                        .child(ui::action_button("Cancel", false, move || {
-                                            confirm_delete.set(false)
-                                        }))
-                                        .child(ui::action_button("Delete", true, delete)),
-                                )
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-                )
-                .child(
-                    text(move || error.get())
-                        .text_size(px(11.0))
-                        .text_color(move || theme().destructive),
-                )
-                .into_element(),
+        .child(ui::action_button("Select all", false, move || {
+            let mut values = selected.get();
+            crate::components::selection_bar::add_all(&mut values, all_ids());
+            selected.set(values);
+        }))
+        .child(
+            view().w(px(176.0)).child(select_menu(
+                SelectMenuProps::new("", "Set category…", bulk_category, categories)
+                    .height(32.0)
+                    .show_label(false),
+            )),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_end()
-                .gap(px(8.0))
-                .child(ui::action_button("Apply category", false, apply_category))
-                .child(ui::action_button("Delete", true, move || {
-                    confirm_delete.set(true)
-                }))
-                .into_element(),
-        ),
-    )
+        .child(ui::action_button("Apply category", false, apply_category))
+        .child(ui::action_button("Delete", true, move || confirm_delete()))
+        .child(ui::action_button("Clear", false, clear))
+        .when(!error.get().is_empty(), |bar| {
+            bar.child(
+                text(move || error.get())
+                    .text_size(px(11.0))
+                    .text_color(move || theme().destructive),
+            )
+        })
+        .into_element()
 }
 
 fn notes_form(

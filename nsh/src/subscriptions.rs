@@ -664,13 +664,25 @@ fn form(
                     api::create_subscription(server_value, token_value, &request).await
                 };
                 match result {
-                    Ok(_) => {
+                    Ok(saved) => {
                         form_open.set(false);
                         editing.set(None);
-                        modal.close();
-                        crate::components::toast::success("Subscription saved.");
+                        if let Some(mut snapshot) = data.get() {
+                            if let Some(item) = snapshot
+                                .subscriptions
+                                .iter_mut()
+                                .find(|item| item.id == saved.id)
+                            {
+                                *item = saved.clone();
+                            } else {
+                                snapshot.subscriptions.push(saved.clone());
+                            }
+                            data.mutate(snapshot);
+                        }
                         data.refetch();
                         crate::ui::bump_data();
+                        crate::components::toast::success("Subscription saved.");
+                        modal.close();
                     }
                     Err(message) => {
                         crate::components::toast::error(message.clone());
@@ -1655,8 +1667,9 @@ fn section(
                             list_items,
                             move |subscription| {
                                 format!(
-                                    "{}-{}-{}",
+                                    "{}-{:?}-{}-{}",
                                     subscription.id,
+                                    subscription.updated_at,
                                     sort_field.get(),
                                     sort_desc.get()
                                 )

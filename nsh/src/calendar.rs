@@ -998,11 +998,6 @@ fn day_cell(
                                         .convert(entry.amount, &entry.currency),
                                     &currency,
                                 );
-                                let target = if entry.is_transaction {
-                                    crate::Route::Transactions
-                                } else {
-                                    crate::Route::Subscriptions
-                                };
                                 view()
                                     .w_full()
                                     .h(px(20.0))
@@ -1014,8 +1009,6 @@ fn day_cell(
                                     .py(px(2.0))
                                     .rounded(px(4.0))
                                     .bg(move || theme().primary.opacity(0.1))
-                                    .cursor_pointer()
-                                    .on_press(move || crate::ui::navigate(target))
                                     .child(
                                         view()
                                             .flex_row()
@@ -1072,8 +1065,8 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
         if item.billing_date.year() == year && item.billing_date.month() == month {
             entries.push(CalendarEntry {
                 key: format!(
-                    "subscription-{}-{}",
-                    item.subscription_id, item.billing_date
+                    "subscription-{}-{}-{}-{}",
+                    item.subscription_id, item.billing_date, item.name, item.amount
                 ),
                 name: item.name.clone(),
                 amount: item.amount,
@@ -1089,7 +1082,10 @@ fn calendar_entries(data: &CalendarData, year: i32, month: u32) -> Vec<CalendarE
     for transaction in &data.transactions {
         if transaction.date.year() == year && transaction.date.month() == month {
             entries.push(CalendarEntry {
-                key: format!("transaction-{}", transaction.id),
+                key: format!(
+                    "transaction-{}-{}-{}",
+                    transaction.id, transaction.name, transaction.amount
+                ),
                 name: transaction.name.clone(),
                 amount: transaction.amount,
                 currency: transaction.currency.clone(),

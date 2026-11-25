@@ -803,28 +803,6 @@ pub fn date_field(label_text: &'static str, value: Signal<String>) -> impl IntoE
     )
 }
 
-pub fn choice_picker(
-    label_text: &'static str,
-    items: impl Fn() -> Vec<(Uuid, String)> + Clone + 'static,
-    selected: Signal<Option<Uuid>>,
-) -> impl IntoElement {
-    let options = move || {
-        items()
-            .into_iter()
-            .map(|(id, name)| crate::components::select_menu::SelectOption::new(id, name))
-            .collect()
-    };
-    crate::components::select_menu::select_menu(
-        crate::components::select_menu::SelectMenuProps::new(
-            label_text,
-            "Select...",
-            selected,
-            options,
-        )
-        .height(36.0),
-    )
-}
-
 #[derive(Clone, Copy)]
 pub enum EntityKind {
     Account,

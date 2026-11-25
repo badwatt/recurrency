@@ -994,7 +994,12 @@ fn account_rows(
     let currency = currency.to_string();
     view().flex_col().child(each(
         move || data.get().unwrap_or_default().accounts,
-        |entry| entry.account_id,
+        |entry| {
+            format!(
+                "{}-{}-{}-{}-{}",
+                entry.account_id, entry.budget, entry.pending, entry.subscriptions, entry.name
+            )
+        },
         move |entry, _| account_row(entry.get(), currency.clone(), hovered, compact),
     ))
 }
@@ -1195,7 +1200,12 @@ fn category_rows(
     let currency = currency.to_string();
     view().flex_col().child(each(
         move || data.get().unwrap_or_default().categories,
-        |entry| entry.category_id,
+        |entry| {
+            format!(
+                "{}-{}-{}-{}-{}",
+                entry.category_id, entry.amount, entry.pending, entry.name, entry.charge_count
+            )
+        },
         move |entry, _| category_row(entry.get(), currency.clone(), hovered, compact),
     ))
 }
