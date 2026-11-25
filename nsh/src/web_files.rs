@@ -205,3 +205,10 @@ pub fn install_backup_drop(callback: impl Fn(String) + 'static) {
         *slot.borrow_mut() = Some((over, drop, callback));
     });
 }
+
+/// The hostname the page is served from, without its port.
+pub fn page_host() -> Option<String> {
+    let location = web_sys::window()?.location();
+    let host = location.hostname().ok()?;
+    (!host.is_empty()).then_some(host)
+}

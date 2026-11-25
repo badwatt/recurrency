@@ -20,11 +20,11 @@ pub fn login_screen(session: Signal<Session>) -> impl IntoElement {
     let demo_enabled = signal(false);
     let demo_loading = signal(false);
     let verification = signal(None::<(String, String)>);
-    let demo_server = auth::stored_server();
-    spawn(async move {
-        if auth::demo_enabled(&demo_server).await {
-            demo_enabled.set(true);
-        }
+    effect(move || {
+        let server = server.get();
+        spawn(async move {
+            demo_enabled.set(auth::demo_enabled(&server).await);
+        });
     });
     let demo = {
         let server = server;

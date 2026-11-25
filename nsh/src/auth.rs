@@ -66,10 +66,39 @@ struct RegisterRequest<'a> {
 }
 
 pub fn stored_server() -> String {
-    Storage::get_item(SERVER_KEY)
+    let stored = Storage::get_item(SERVER_KEY)
         .map(|value| value.trim().trim_end_matches('/').to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| DEFAULT_SERVER.to_string())
+        .filter(|value| !value.is_empty());
+    if let Some(server) = stored {
+        #[cfg(target_arch = "wasm32")]
+        if page_is_remote()
+            && (server.starts_with("http://localhost")
+                || server.starts_with("https://localhost")
+                || server.starts_with("http://127.0.0.1")
+                || server.starts_with("https://127.0.0.1"))
+        {
+            return default_server();
+        }
+        return server;
+    }
+    default_server()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn page_is_remote() -> bool {
+    crate::web_files::page_host().is_some_and(|host| host != "localhost" && host != "127.0.0.1")
+}
+
+/// A page served by another machine reaches the backend on that machine.
+pub fn default_server() -> String {
+    #[cfg(target_arch = "wasm32")]
+    if let Some(host) = crate::web_files::page_host()
+        && host != "localhost"
+        && host != "127.0.0.1"
+    {
+        return format!("http://{host}:8080");
+    }
+    DEFAULT_SERVER.to_string()
 }
 
 pub fn store_server(server: &str) {
