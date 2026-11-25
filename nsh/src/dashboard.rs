@@ -89,25 +89,74 @@ fn body(
     view()
         .w_full()
         .flex_col()
-        .gap(px(26.0))
+        .gap(move || if compact.get() { px(16.0) } else { px(26.0) })
         .child(hero(data, &currency, &month, days_left, compact))
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .flex_wrap()
-                .gap(px(16.0))
-                .items_start()
-                .child(upcoming_card(
-                    data,
-                    &currency,
-                    route,
-                    today,
-                    hovered,
-                    hovered_category,
-                ))
-                .child(ledger_card(data, &currency, hovered, hovered_category)),
-        )
+        .child(dashboard_cards(
+            compact.get(),
+            data,
+            &currency,
+            route,
+            today,
+            hovered,
+            hovered_category,
+        ))
+        .into_element()
+}
+
+fn dashboard_cards(
+    compact: bool,
+    data: Resource<DashboardData, String>,
+    currency: &str,
+    route: Signal<Route>,
+    today: chrono::NaiveDate,
+    hovered: Signal<Option<Uuid>>,
+    hovered_category: Signal<Option<Uuid>>,
+) -> AnyElement {
+    if compact {
+        return view()
+            .w_full()
+            .flex_col()
+            .gap(px(16.0))
+            .child(ledger_card(
+                data,
+                currency,
+                hovered,
+                hovered_category,
+                compact,
+            ))
+            .child(upcoming_card(
+                data,
+                currency,
+                route,
+                today,
+                hovered,
+                hovered_category,
+                compact,
+            ))
+            .into_element();
+    }
+    view()
+        .w_full()
+        .flex_row()
+        .flex_wrap()
+        .gap(px(16.0))
+        .items_start()
+        .child(upcoming_card(
+            data,
+            currency,
+            route,
+            today,
+            hovered,
+            hovered_category,
+            compact,
+        ))
+        .child(ledger_card(
+            data,
+            currency,
+            hovered,
+            hovered_category,
+            compact,
+        ))
         .into_element()
 }
 
@@ -329,122 +378,152 @@ fn hero(
         }
     };
 
-    view()
+    let card = view()
         .w_full()
         .mt(px(6.0))
         .rounded(px(16.0))
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.6))
         .bg(move || theme().card)
-        .overflow_hidden()
-        .flex_row()
-        .flex_wrap()
-        .child(
-            view()
-                .flex_grow(1.153)
-                .basis(px(400.0))
-                .p(move || if compact.get() { px(24.0) } else { px(32.0) })
-                .child(
-                    text(format!("PLAN FOR {month}"))
-                        .text_size(px(12.0))
-                        .letter_spacing(px(2.16))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(
-                    text("Transfer this month")
-                        .text_size(px(14.0))
-                        .text_color(move || theme().muted_foreground)
-                        .mt(px(21.0)),
-                )
-                .child(
-                    text(move || format_currency(budget(), &currency_budget))
-                        .text_size(px(60.0))
-                        .line_height(px(60.0))
-                        .letter_spacing(px(-1.5))
-                        .font_family(crate::theme::MONO)
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().foreground)
-                        .mt(px(4.0)),
-                )
-                .child(
-                    text("Actual charges this month + manual payments.")
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground)
-                        .mt(px(12.0)),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .flex_wrap()
-                        .gap(px(20.0))
-                        .mt(px(26.0))
-                        .child(stat_dot(move || format!("{} accounts", count())))
-                        .child(stat(move || format!("{} active subscriptions", active())))
-                        .child(stat(move || format!("{} manual payments", manual_count()))),
-                ),
-        )
-        .child(
-            view()
-                .flex_grow(0.847)
-                .basis(px(300.0))
-                .p(px(32.0))
-                .border_l(px(1.0))
-                .border_color(move || theme().border.opacity(0.6))
-                .bg(move || theme().muted.opacity(0.2))
-                .flex_col()
-                .child(
-                    text("PENDING FROM TODAY")
-                        .text_size(px(12.0))
-                        .letter_spacing(px(2.16))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(
-                    text(move || format_currency(pending(), &currency_pending))
-                        .text_size(px(36.0))
-                        .line_height(px(40.0))
-                        .letter_spacing(px(-0.9))
-                        .font_family(crate::theme::MONO)
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(move || theme().muted_foreground)
-                        .mt(px(25.0)),
-                )
-                .child(
-                    text(pending_note)
-                        .text_size(px(12.0))
-                        .line_height(px(16.0))
-                        .text_color(move || theme().muted_foreground)
-                        .mt(px(3.0)),
-                )
-                .child(
-                    view()
-                        .h(px(8.0))
-                        .w_full()
-                        .rounded(px(999.0))
-                        .bg(move || theme().muted)
-                        .overflow_hidden()
-                        .flex_row()
-                        .mt(px(18.0))
-                        .child(
-                            view()
-                                .h_full()
-                                .flex_grow(ratio().max(0.01) as f32)
-                                .bg(move || theme().primary),
-                        )
-                        .child(
-                            view()
-                                .h_full()
-                                .flex_grow((100.0 - ratio()).max(0.01) as f32),
-                        ),
-                )
-                .child(
-                    text(ratio_label)
-                        .text_size(px(11.0))
-                        .text_color(move || theme().muted_foreground)
-                        .mt(px(12.0)),
-                ),
-        )
+        .overflow_hidden();
+    let card = if compact.get() {
+        card.flex_col()
+    } else {
+        card.flex_row().flex_wrap()
+    };
+    card.child(
+        view()
+            .flex_grow(move || if compact.get() { 0.0 } else { 1.153_f32 })
+            .basis(move || {
+                if compact.get() {
+                    nsh_core::geometry::Length::Auto
+                } else {
+                    nsh_core::geometry::Length::from(px(400.0))
+                }
+            })
+            .w(move || {
+                if compact.get() {
+                    nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0))
+                } else {
+                    nsh_core::geometry::Length::Auto
+                }
+            })
+            .p(move || if compact.get() { px(24.0) } else { px(32.0) })
+            .child(
+                text(format!("PLAN FOR {month}"))
+                    .text_size(px(12.0))
+                    .letter_spacing(px(2.16))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().muted_foreground),
+            )
+            .child(
+                text("Transfer this month")
+                    .text_size(px(14.0))
+                    .text_color(move || theme().muted_foreground)
+                    .mt(px(21.0)),
+            )
+            .child(
+                text(move || format_currency(budget(), &currency_budget))
+                    .text_size(px(60.0))
+                    .line_height(px(60.0))
+                    .letter_spacing(px(-1.5))
+                    .font_family(crate::theme::MONO)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(move || theme().foreground)
+                    .mt(px(4.0)),
+            )
+            .child(
+                text("Actual charges this month + manual payments.")
+                    .text_size(px(12.0))
+                    .text_color(move || theme().muted_foreground)
+                    .mt(px(12.0)),
+            )
+            .child(
+                view()
+                    .flex_row()
+                    .flex_wrap()
+                    .gap(px(20.0))
+                    .mt(px(26.0))
+                    .child(stat_dot(move || format!("{} accounts", count())))
+                    .child(stat(move || format!("{} active subscriptions", active())))
+                    .child(stat(move || format!("{} manual payments", manual_count()))),
+            ),
+    )
+    .child(
+        view()
+            .flex_grow(move || if compact.get() { 0.0 } else { 0.847_f32 })
+            .basis(move || {
+                if compact.get() {
+                    nsh_core::geometry::Length::Auto
+                } else {
+                    nsh_core::geometry::Length::from(px(300.0))
+                }
+            })
+            .w(move || {
+                if compact.get() {
+                    nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0))
+                } else {
+                    nsh_core::geometry::Length::Auto
+                }
+            })
+            .p(move || if compact.get() { px(24.0) } else { px(32.0) })
+            .border_l(px(0.0))
+            .border_t(move || if compact.get() { px(1.0) } else { px(0.0) })
+            .border_color(move || theme().border.opacity(0.6))
+            .bg(move || theme().muted.opacity(0.2))
+            .flex_col()
+            .child(
+                text("PENDING FROM TODAY")
+                    .text_size(px(12.0))
+                    .letter_spacing(px(2.16))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().muted_foreground),
+            )
+            .child(
+                text(move || format_currency(pending(), &currency_pending))
+                    .text_size(px(36.0))
+                    .line_height(px(40.0))
+                    .letter_spacing(px(-0.9))
+                    .font_family(crate::theme::MONO)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(move || theme().muted_foreground)
+                    .mt(px(25.0)),
+            )
+            .child(
+                text(pending_note)
+                    .text_size(px(12.0))
+                    .line_height(px(16.0))
+                    .text_color(move || theme().muted_foreground)
+                    .mt(px(3.0)),
+            )
+            .child(
+                view()
+                    .h(px(8.0))
+                    .w_full()
+                    .rounded(px(999.0))
+                    .bg(move || theme().muted)
+                    .overflow_hidden()
+                    .flex_row()
+                    .mt(px(18.0))
+                    .child(
+                        view()
+                            .h_full()
+                            .flex_grow(ratio().max(0.01) as f32)
+                            .bg(move || theme().primary),
+                    )
+                    .child(
+                        view()
+                            .h_full()
+                            .flex_grow((100.0 - ratio()).max(0.01) as f32),
+                    ),
+            )
+            .child(
+                text(ratio_label)
+                    .text_size(px(11.0))
+                    .text_color(move || theme().muted_foreground)
+                    .mt(px(12.0)),
+            ),
+    )
 }
 
 fn stat(label: impl Fn() -> String + 'static) -> impl IntoElement {
@@ -475,19 +554,20 @@ fn upcoming_card(
     today: chrono::NaiveDate,
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
+    compact: bool,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let total = move || data.get().unwrap_or_default().upcoming.len();
     view()
         .flex_grow(1.0)
-        .basis(px(500.0))
+        .basis(if compact { px(0.0) } else { px(500.0) })
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.4))
         .bg(move || theme().card.opacity(0.8))
         .child(
             view()
-                .p(px(24.0))
+                .p(if compact { px(20.0) } else { px(24.0) })
                 .pt(px(22.0))
                 .pb(px(20.0))
                 .flex_row()
@@ -712,6 +792,7 @@ fn ledger_card(
     currency: &str,
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
+    compact: bool,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let currency_accounts = currency.clone();
@@ -720,8 +801,13 @@ fn ledger_card(
     let account_count = move || data.get().unwrap_or_default().accounts.len();
     let category_count = move || data.get().unwrap_or_default().categories.len();
     view()
-        .w(px(460.0))
+        .w(if compact {
+            nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0))
+        } else {
+            nsh_core::geometry::Length::from(px(460.0))
+        })
         .flex_shrink(0.0)
+        .min_w(px(0.0))
         .rounded(px(12.0))
         .border(px(1.0))
         .border_color(move || theme().border.opacity(0.4))
@@ -729,9 +815,9 @@ fn ledger_card(
         .overflow_hidden()
         .child(
             view()
-                .p(px(24.0))
+                .p(if compact { px(20.0) } else { px(24.0) })
                 .pt(px(22.5))
-                .pb(px(28.0))
+                .pb(px(if compact { 20.0 } else { 28.0 }))
                 .gap(px(10.0))
                 .child(
                     view()
@@ -791,35 +877,39 @@ fn ledger_card(
                 ),
         )
         .child(
-            view()
-                .flex_row()
-                .px(px(24.0))
-                .py(px(8.0))
-                .gap(px(16.0))
-                .border_y(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().muted.opacity(0.2))
-                .child(column_header(
-                    move || {
-                        if show_categories.get() {
-                            "CATEGORY".to_string()
-                        } else {
-                            "ACCOUNT".to_string()
-                        }
-                    },
-                    1.0,
-                ))
-                .child(column_header_fixed(
-                    move || {
-                        if show_categories.get() {
-                            "AMOUNT".to_string()
-                        } else {
-                            "BUDGET".to_string()
-                        }
-                    },
-                    96.0,
-                ))
-                .child(column_header_fixed(move || "PENDING".to_string(), 96.0)),
+            when(!compact, move || {
+                view()
+                    .flex_row()
+                    .px(px(24.0))
+                    .py(px(8.0))
+                    .gap(px(16.0))
+                    .border_y(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().muted.opacity(0.2))
+                    .child(column_header(
+                        move || {
+                            if show_categories.get() {
+                                "CATEGORY".to_string()
+                            } else {
+                                "ACCOUNT".to_string()
+                            }
+                        },
+                        1.0,
+                    ))
+                    .child(column_header_fixed(
+                        move || {
+                            if show_categories.get() {
+                                "AMOUNT".to_string()
+                            } else {
+                                "BUDGET".to_string()
+                            }
+                        },
+                        96.0,
+                    ))
+                    .child(column_header_fixed(move || "PENDING".to_string(), 96.0))
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
         )
         .child(
             when(
@@ -828,7 +918,12 @@ fn ledger_card(
                     view()
                         .w_full()
                         .flex_col()
-                        .child(category_rows(data, &currency_categories, hovered_category))
+                        .child(category_rows(
+                            data,
+                            &currency_categories,
+                            hovered_category,
+                            compact,
+                        ))
                         .child(ledger_footer(
                             "THIS MONTH",
                             "AMOUNT",
@@ -850,6 +945,7 @@ fn ledger_card(
                                     .sum()
                             },
                             &currency_categories,
+                            compact,
                         ))
                         .into_element()
                 },
@@ -858,7 +954,7 @@ fn ledger_card(
                 view()
                     .w_full()
                     .flex_col()
-                    .child(account_rows(data, &currency_accounts, hovered))
+                    .child(account_rows(data, &currency_accounts, hovered, compact))
                     .child(ledger_footer(
                         "MONTH TOTAL",
                         "BUDGET",
@@ -866,6 +962,7 @@ fn ledger_card(
                         move || total_budget(&data.get().unwrap_or_default().accounts),
                         move || total_pending(&data.get().unwrap_or_default().accounts),
                         &currency_accounts,
+                        compact,
                     ))
                     .into_element()
             }),
@@ -876,12 +973,13 @@ fn account_rows(
     data: Resource<DashboardData, String>,
     currency: &str,
     hovered: Signal<Option<Uuid>>,
+    compact: bool,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     view().flex_col().child(each(
         move || data.get().unwrap_or_default().accounts,
         |entry| entry.account_id,
-        move |entry, _| account_row(entry.get(), currency.clone(), hovered),
+        move |entry, _| account_row(entry.get(), currency.clone(), hovered, compact),
     ))
 }
 
@@ -889,7 +987,8 @@ fn account_row(
     entry: AccountBudget,
     currency: String,
     hovered: Signal<Option<Uuid>>,
-) -> impl IntoElement {
+    compact: bool,
+) -> AnyElement {
     let name = entry.name;
     let color = entry.color;
     let color_bg = color.clone();
@@ -905,15 +1004,54 @@ fn account_row(
     let budget = format_currency(entry.budget, &currency);
     let pending = format_currency(entry.pending, &currency);
     let pending_count = entry.pending_count;
+    let subscriptions = entry.subscriptions;
     let id = entry.account_id;
+    let currency_recurring = currency.clone();
+    let currency_compact = currency.clone();
 
-    view()
-        .w_full()
+    let identity = view()
+        .flex_grow(if compact { 0.0 } else { 1.6 })
         .flex_row()
         .items_center()
-        .px(px(24.0))
+        .gap(px(10.0))
+        .min_w(px(0.0))
+        .child(
+            view()
+                .h(px(40.0))
+                .w(px(40.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(8.0))
+                .bg(move || rgba((crate::theme::parse_hex(&color_bg) << 8) | 0x20))
+                .child(
+                    image(asset!("icons/card.svg"))
+                        .size(px(16.0))
+                        .tint_color(move || rgb(crate::theme::parse_hex(&color_icon))),
+                ),
+        )
+        .child(
+            view()
+                .flex_col()
+                .min_w(px(0.0))
+                .child(
+                    text(name)
+                        .text_size(px(14.0))
+                        .line_height(px(20.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(counts)
+                        .text_size(px(12.0))
+                        .line_height(px(16.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        );
+
+    let mut row = view()
+        .w_full()
+        .px(if compact { px(20.0) } else { px(24.0) })
         .py(px(16.0))
-        .gap(px(16.0))
         .bg(move || {
             if hovered.get() == Some(id) {
                 theme().accent
@@ -924,47 +1062,65 @@ fn account_row(
         .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(id)))
         .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
         .border_b(px(1.0))
-        .border_color(move || theme().border)
-        .child(
+        .border_color(move || theme().border);
+
+    if compact {
+        row = row.flex_col().child(identity).child(
             view()
-                .flex_grow(1.6)
+                .w_full()
                 .flex_row()
-                .items_center()
-                .gap(px(10.0))
-                .min_w(px(0.0))
+                .items_start()
+                .gap(px(16.0))
+                .mt(px(12.0))
                 .child(
                     view()
-                        .h(px(40.0))
-                        .w(px(40.0))
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(8.0))
-                        .bg(move || rgba((crate::theme::parse_hex(&color_bg) << 8) | 0x20))
+                        .flex_grow(1.0)
+                        .flex_col()
+                        .items_start()
+                        .child(compact_label("BUDGET"))
+                        .child(amount_value(budget, 1.0))
                         .child(
-                            image(asset!("icons/card.svg"))
-                                .size(px(16.0))
-                                .tint_color(move || rgb(crate::theme::parse_hex(&color_icon))),
+                            text(move || {
+                                if crate::ui::privacy_active() {
+                                    "•••• recurring".to_string()
+                                } else {
+                                    format!(
+                                        "{} recurring",
+                                        format_currency(subscriptions, &currency_compact)
+                                    )
+                                }
+                            })
+                            .text_size(px(11.0))
+                            .line_height(px(16.0))
+                            .text_color(move || theme().muted_foreground),
                         ),
                 )
                 .child(
                     view()
+                        .flex_grow(1.0)
                         .flex_col()
-                        .min_w(px(0.0))
+                        .items_start()
+                        .child(compact_label("PENDING"))
+                        .child(amount_value(pending, 1.0))
                         .child(
-                            text(name)
-                                .text_size(px(14.0))
-                                .line_height(px(20.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(counts)
-                                .text_size(px(12.0))
-                                .line_height(px(16.0))
-                                .text_color(move || theme().muted_foreground),
+                            text(if pending_count == 0 {
+                                "Up to date".to_string()
+                            } else {
+                                ui::count_label(pending_count, "payment", "payments")
+                            })
+                            .text_size(px(11.0))
+                            .line_height(px(16.0))
+                            .text_color(move || theme().muted_foreground),
                         ),
                 ),
-        )
+        );
+        return row.into_element();
+    }
+
+    row.flex_row()
+        .items_center()
+        .gap(px(16.0))
+        .child(identity)
         .child(
             view()
                 .w(px(96.0))
@@ -977,7 +1133,7 @@ fn account_row(
                         } else {
                             format!(
                                 "{} recurring",
-                                format_currency(entry.subscriptions, &currency)
+                                format_currency(subscriptions, &currency_recurring)
                             )
                         }
                     })
@@ -1002,18 +1158,29 @@ fn account_row(
                     .text_color(move || theme().muted_foreground),
                 ),
         )
+        .into_element()
+}
+
+fn compact_label(label: &'static str) -> impl IntoElement {
+    text(label)
+        .text_size(px(10.0))
+        .line_height(px(15.0))
+        .letter_spacing(px(0.5))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(move || theme().muted_foreground)
 }
 
 fn category_rows(
     data: Resource<DashboardData, String>,
     currency: &str,
     hovered: Signal<Option<Uuid>>,
+    compact: bool,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     view().flex_col().child(each(
         move || data.get().unwrap_or_default().categories,
         |entry| entry.category_id,
-        move |entry, _| category_row(entry.get(), currency.clone(), hovered),
+        move |entry, _| category_row(entry.get(), currency.clone(), hovered, compact),
     ))
 }
 
@@ -1021,17 +1188,54 @@ fn category_row(
     entry: CategoryBudget,
     currency: String,
     hovered: Signal<Option<Uuid>>,
-) -> impl IntoElement {
+    compact: bool,
+) -> AnyElement {
     let id = entry.category_id;
     let name = entry.name;
     let count = format!("{} charges", entry.charge_count);
     let amount = format_currency(entry.amount, &currency);
     let pending = format_currency(entry.pending, &currency);
-    view()
-        .w_full()
+
+    let identity = view()
+        .flex_grow(if compact { 0.0 } else { 1.0 })
         .flex_row()
         .items_center()
-        .px(px(24.0))
+        .gap(px(10.0))
+        .min_w(px(0.0))
+        .child(
+            view()
+                .h(px(40.0))
+                .w(px(40.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(8.0))
+                .bg(move || theme().muted)
+                .child(
+                    image(asset!("icons/card.svg"))
+                        .size(px(16.0))
+                        .tint_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(
+            view()
+                .flex_col()
+                .min_w(px(0.0))
+                .child(
+                    text(name)
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text(count)
+                        .text_size(px(10.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        );
+
+    let mut row = view()
+        .w_full()
+        .px(if compact { px(20.0) } else { px(24.0) })
         .py(px(16.0))
         .border_b(px(1.0))
         .border_color(move || theme().border)
@@ -1043,45 +1247,39 @@ fn category_row(
             }
         })
         .on_mouse_enter(move |_: &MouseEvent| hovered.set(Some(id)))
-        .on_mouse_leave(move |_: &MouseEvent| hovered.set(None))
-        .child(
+        .on_mouse_leave(move |_: &MouseEvent| hovered.set(None));
+
+    if compact {
+        row = row.flex_col().child(identity).child(
             view()
-                .flex_grow(1.0)
+                .w_full()
                 .flex_row()
-                .items_center()
-                .gap(px(10.0))
-                .min_w(px(0.0))
+                .items_start()
+                .gap(px(16.0))
+                .mt(px(12.0))
                 .child(
                     view()
-                        .h(px(40.0))
-                        .w(px(40.0))
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(8.0))
-                        .bg(move || theme().muted)
-                        .child(
-                            image(asset!("icons/card.svg"))
-                                .size(px(16.0))
-                                .tint_color(move || theme().muted_foreground),
-                        ),
+                        .flex_grow(1.0)
+                        .flex_col()
+                        .items_start()
+                        .child(compact_label("AMOUNT"))
+                        .child(amount_value(amount, 1.0)),
                 )
                 .child(
                     view()
+                        .flex_grow(1.0)
                         .flex_col()
-                        .min_w(px(0.0))
-                        .child(
-                            text(name)
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(count)
-                                .text_size(px(10.0))
-                                .text_color(move || theme().muted_foreground),
-                        ),
+                        .items_start()
+                        .child(compact_label("PENDING"))
+                        .child(amount_value(pending, 1.0)),
                 ),
-        )
+        );
+        return row.into_element();
+    }
+
+    row.flex_row()
+        .items_center()
+        .child(identity)
         .child(
             view()
                 .w(px(96.0))
@@ -1094,6 +1292,7 @@ fn category_row(
                 .items_end()
                 .child(amount_value(pending, 0.0)),
         )
+        .into_element()
 }
 
 fn ledger_footer(
@@ -1103,49 +1302,76 @@ fn ledger_footer(
     budget: impl Fn() -> rust_decimal::Decimal + 'static,
     pending: impl Fn() -> rust_decimal::Decimal + 'static,
     currency: &str,
-) -> impl IntoElement {
+    compact: bool,
+) -> AnyElement {
     let currency = currency.to_string();
     let pending_currency = currency.clone();
-    view()
+    let heading = view()
+        .flex_grow(1.0)
+        .flex_col()
+        .child(
+            text(title)
+                .text_size(px(12.0))
+                .line_height(px(16.0))
+                .letter_spacing(px(1.6))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            text(label)
+                .text_size(px(12.0))
+                .line_height(px(16.0))
+                .text_color(move || theme().muted_foreground),
+        );
+    let mut footer = view()
         .w_full()
-        .flex_row()
-        .items_center()
-        .px(px(24.0))
+        .px(if compact { px(20.0) } else { px(24.0) })
         .py(px(15.0))
         .bg(move || theme().muted.opacity(0.3))
         .border_t(px(1.0))
-        .border_color(move || theme().border)
-        .child(
+        .border_color(move || theme().border);
+
+    if compact {
+        footer = footer.flex_col().child(heading).child(
             view()
-                .flex_grow(1.0)
-                .flex_col()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(32.0))
+                .mt(px(12.0))
                 .child(
-                    text(title)
-                        .text_size(px(12.0))
-                        .line_height(px(16.0))
-                        .letter_spacing(px(1.6))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground),
+                    view()
+                        .flex_col()
+                        .items_start()
+                        .child(compact_label(amount_label))
+                        .child(amount_cell(
+                            move || format_currency(budget(), &currency),
+                            0.0,
+                        )),
                 )
                 .child(
-                    text(label)
-                        .text_size(px(12.0))
-                        .line_height(px(16.0))
-                        .text_color(move || theme().muted_foreground),
+                    view()
+                        .flex_col()
+                        .items_start()
+                        .child(compact_label("PENDING"))
+                        .child(amount_cell(
+                            move || format_currency(pending(), &pending_currency),
+                            0.0,
+                        )),
                 ),
-        )
+        );
+        return footer.into_element();
+    }
+
+    footer
+        .flex_row()
+        .items_center()
+        .child(heading)
         .child(
             view()
                 .w(px(112.0))
                 .items_end()
-                .child(
-                    text(amount_label)
-                        .text_size(px(10.0))
-                        .line_height(px(15.0))
-                        .letter_spacing(px(0.5))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground),
-                )
+                .child(compact_label(amount_label))
                 .child(amount_cell(
                     move || format_currency(budget(), &currency),
                     0.0,
@@ -1155,18 +1381,13 @@ fn ledger_footer(
             view()
                 .w(px(96.0))
                 .items_end()
-                .child(
-                    text("PENDING")
-                        .text_size(px(10.0))
-                        .letter_spacing(px(0.5))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().muted_foreground),
-                )
+                .child(compact_label("PENDING"))
                 .child(amount_cell(
                     move || format_currency(pending(), &pending_currency),
                     0.0,
                 )),
         )
+        .into_element()
 }
 
 fn amount_value(amount: String, grow: f32) -> impl IntoElement {

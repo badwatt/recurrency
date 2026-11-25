@@ -148,69 +148,75 @@ impl Section {
 fn compact_nav(section: Signal<Section>, is_admin: bool) -> impl IntoElement {
     view()
         .w_full()
-        .flex_row()
-        .flex_wrap()
-        .gap(px(4.0))
-        .children(
-            Section::ALL
-                .iter()
-                .filter(|item| {
-                    !crate::local::enabled()
-                        || matches!(
-                            item,
-                            Section::Account
-                                | Section::Appearance
-                                | Section::General
-                                | Section::Money
-                                | Section::Data
-                                | Section::About
-                        )
-                })
-                .filter(|item| **item != Section::Admin || is_admin)
-                .map(|item| {
-                    let item = *item;
-                    let active = move || section.get() == item;
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(32.0))
-                        .px(px(10.0))
-                        .rounded(px(7.0))
-                        .bg(move || {
-                            if active() {
-                                theme().accent
-                            } else {
-                                theme().background
-                            }
-                        })
-                        .border(px(1.0))
-                        .border_color(move || {
-                            if active() {
-                                theme().primary
-                            } else {
-                                theme().border
-                            }
-                        })
-                        .on_press(move || section.set(item))
-                        .child(
-                            view()
-                                .flex_row()
-                                .items_center()
-                                .gap(px(5.0))
-                                .child(
-                                    image(item.icon())
-                                        .size(px(13.0))
-                                        .tint_color(move || theme().muted_foreground),
+        .border_b(px(1.0))
+        .border_color(move || theme().border)
+        .child(
+            scroll().horizontal().w_full().child(
+                view().flex_row().flex_shrink_0().children(
+                    Section::ALL
+                        .iter()
+                        .filter(|item| {
+                            !crate::local::enabled()
+                                || matches!(
+                                    item,
+                                    Section::Account
+                                        | Section::Appearance
+                                        | Section::General
+                                        | Section::Money
+                                        | Section::Data
+                                        | Section::About
                                 )
+                        })
+                        .filter(|item| **item != Section::Admin || is_admin)
+                        .map(|item| {
+                            let item = *item;
+                            let active = move || section.get() == item;
+                            button()
+                                .cursor_pointer()
+                                .h(px(48.0))
+                                .px(px(12.0))
+                                .items_center()
+                                .justify_center()
+                                .border_b(px(2.0))
+                                .border_color(move || {
+                                    if active() {
+                                        theme().primary
+                                    } else {
+                                        theme().border.opacity(0.0)
+                                    }
+                                })
+                                .on_press(move || section.set(item))
                                 .child(
-                                    text(item.label())
-                                        .text_size(px(11.0))
-                                        .text_color(move || theme().foreground),
-                                ),
-                        )
-                        .into_element()
-                }),
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(6.0))
+                                        .child(image(item.icon()).size(px(16.0)).tint_color(
+                                            move || {
+                                                if active() {
+                                                    theme().muted_foreground
+                                                } else {
+                                                    theme().muted_foreground
+                                                }
+                                            },
+                                        ))
+                                        .child(
+                                            text(item.label())
+                                                .text_size(px(14.0))
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(move || {
+                                                    if active() {
+                                                        theme().foreground
+                                                    } else {
+                                                        theme().muted_foreground
+                                                    }
+                                                }),
+                                        ),
+                                )
+                                .into_element()
+                        }),
+                ),
+            ),
         )
 }
 
@@ -484,6 +490,21 @@ pub fn settings(auth: AuthSession, session: Signal<Session>) -> AnyElement {
                 .flex_col()
                 .mt(px(0.0))
                 .gap(px(0.0))
+                .child(
+                    when(compact, move || {
+                        view()
+                            .w_full()
+                            .mt(px(12.0))
+                            .mb(px(8.0))
+                            .child(
+                                text(format!("Recurrency v{}", env!("CARGO_PKG_VERSION")))
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                            .into_element()
+                    })
+                    .otherwise(|| view().h(px(0.0)).into_element()),
+                )
                 .child(
                     when(
                         move || !matches!(section.get(), Section::Money | Section::Ai),

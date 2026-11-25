@@ -111,57 +111,65 @@ fn header(compact: Signal<bool>) -> impl IntoElement {
     shared_page_header(TITLE, SUBTITLE, view().into_element(), compact, false, 0.0)
 }
 
-fn navigation(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> impl IntoElement {
+fn navigation(
+    year: Signal<i32>,
+    month: Signal<u32>,
+    today: NaiveDate,
+    compact: bool,
+) -> impl IntoElement {
+    let group = view()
+        .flex_row()
+        .items_center()
+        .h(px(38.0))
+        .p(px(2.0))
+        .gap(px(4.0))
+        .rounded(px(8.0))
+        .border(px(1.0))
+        .border_color(move || theme().border)
+        .bg(move || theme().card)
+        .child(nav_arrow(
+            asset!("icons/chevron-left.svg"),
+            "Previous month",
+            move || {
+                let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
+                year.set(next_year);
+                month.set(next_month);
+            },
+        ))
+        .child(
+            text(move || month_label(year.get(), month.get()))
+                .w(px(if compact { 120.0 } else { 200.0 }))
+                .text_size(px(if compact { 16.0 } else { 20.0 }))
+                .line_height(px(28.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(move || theme().foreground),
+        )
+        .child(nav_arrow(
+            asset!("icons/chevron-right.svg"),
+            "Next month",
+            move || {
+                let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
+                year.set(next_year);
+                month.set(next_month);
+            },
+        ));
     view()
         .w_full()
         .flex_row()
         .items_center()
         .justify_between()
-        .p(px(16.0))
-        .border_b(px(1.0))
+        .p(if compact { px(0.0) } else { px(16.0) })
+        .border_b(px(if compact { 0.0 } else { 1.0 }))
         .border_color(move || theme().border)
-        .child(
-            view()
-                .flex_row()
-                .items_center()
-                .h(px(36.0))
-                .gap(px(12.0))
-                .child(nav_arrow(
-                    asset!("icons/chevron-left.svg"),
-                    "Previous month",
-                    move || {
-                        let (next_year, next_month) = shift_month(year.get(), month.get(), -1);
-                        year.set(next_year);
-                        month.set(next_month);
-                    },
-                ))
-                .child(
-                    text(move || month_label(year.get(), month.get()))
-                        .w(px(200.0))
-                        .text_size(px(20.0))
-                        .line_height(px(28.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(move || theme().foreground),
-                )
-                .child(nav_arrow(
-                    asset!("icons/chevron-right.svg"),
-                    "Next month",
-                    move || {
-                        let (next_year, next_month) = shift_month(year.get(), month.get(), 1);
-                        year.set(next_year);
-                        month.set(next_month);
-                    },
-                )),
-        )
+        .child(group)
         .child(
             button()
                 .cursor_pointer()
-                .cursor_pointer()
                 .items_center()
                 .justify_center()
-                .h(px(32.0))
-                .px(px(12.0))
-                .rounded(px(6.0))
+                .h(px(36.0))
+                .px(if compact { px(8.0) } else { px(12.0) })
+                .rounded(px(8.0))
                 .border(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().background)
@@ -216,18 +224,19 @@ fn content(
         .w_full()
         .flex_col()
         .gap(px(24.0))
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .gap(px(12.0))
-                .child(summary("TRANSFER THIS MONTH", move || {
-                    format_currency(total(), &total_currency)
-                }))
-                .child(summary("PENDING FROM TODAY", move || {
-                    format_currency(pending(), &pending_currency)
-                })),
-        )
+        .child({
+            let row = if compact.get() {
+                view().w_full().flex_col().gap(px(12.0))
+            } else {
+                view().w_full().flex_row().gap(px(12.0))
+            };
+            row.child(summary("TRANSFER THIS MONTH", move || {
+                format_currency(total(), &total_currency)
+            }))
+            .child(summary("PENDING FROM TODAY", move || {
+                format_currency(pending(), &pending_currency)
+            }))
+        })
         .child(
             when(
                 move || compact.get(),
@@ -247,7 +256,7 @@ fn content(
                     .border_color(move || theme().border)
                     .bg(move || theme().card)
                     .overflow_hidden()
-                    .child(navigation(year, month, today))
+                    .child(navigation(year, month, today, compact.get()))
                     .child(
                         view()
                             .w_full()
@@ -380,7 +389,7 @@ fn mobile_calendar(
                 .border(px(1.0))
                 .border_color(move || theme().border)
                 .bg(move || theme().card)
-                .child(navigation(year, month, today)),
+                .child(navigation(year, month, today, true)),
         )
         .child(
             view()
@@ -389,10 +398,21 @@ fn mobile_calendar(
                 .items_center()
                 .justify_between()
                 .child(
-                    text("Payments this month")
-                        .text_size(px(18.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            image(asset!("icons/calendar.svg"))
+                                .size(px(20.0))
+                                .tint_color(move || theme().foreground),
+                        )
+                        .child(
+                            text("Payments this month")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        ),
                 )
                 .child(
                     text(move || format_currency(total(), &total_currency))
@@ -419,6 +439,7 @@ fn mobile_section(
     today: NaiveDate,
 ) -> impl IntoElement {
     let count_entries = entries.clone();
+    let empty_entries = count_entries.clone();
     view()
         .w_full()
         .flex_col()
@@ -432,14 +453,37 @@ fn mobile_section(
                 .child(
                     text(label)
                         .text_size(px(11.0))
+                        .letter_spacing(px(1.6))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(move || theme().muted_foreground),
                 )
                 .child(
-                    text(move || count_entries().len().to_string())
+                    text(move || ui::count_label(count_entries().len(), "payment", "payments"))
                         .text_size(px(11.0))
                         .text_color(move || theme().muted_foreground),
                 ),
+        )
+        .child(
+            when(
+                move || label == "UPCOMING" && empty_entries().len() == 0,
+                move || {
+                    view()
+                        .w_full()
+                        .h(px(56.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border.opacity(0.6))
+                        .child(
+                            text("No upcoming payments left this month.")
+                                .text_size(px(14.0))
+                                .text_color(move || theme().muted_foreground),
+                        )
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
         )
         .child(view().flex_col().gap(px(6.0)).child(each(
             entries,
@@ -546,9 +590,7 @@ fn nav_arrow(
         .h(px(32.0))
         .w(px(32.0))
         .rounded(px(6.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || theme().card)
+        .bg(move || theme().card.opacity(0.0))
         .on_press(on_press)
         .child(
             image(icon)

@@ -15,23 +15,27 @@ pub fn list_toolbar(
         .flex_row()
         .flex_wrap()
         .items_center()
-        .gap(px(12.0))
+        .gap(px(8.0))
         .child(search_input(search, "Search"))
         .child(
             view()
                 .flex_row()
                 .flex_wrap()
                 .items_center()
-                .gap(px(12.0))
+                .gap(px(8.0))
                 .child(actions)
                 .child(
                     view()
                         .flex_row()
                         .items_center()
                         .flex_shrink_0()
-                        .w(px(72.0))
-                        .gap(px(0.0))
-                        .p(px(0.0))
+                        .h(px(40.0))
+                        .p(px(2.0))
+                        .gap(px(2.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().border.opacity(0.6))
+                        .bg(move || theme().muted.opacity(0.4))
                         .child(view_toggle(
                             asset!("icons/grid.svg"),
                             "Grid view",
@@ -65,7 +69,7 @@ fn view_toggle(
         .rounded(px(6.0))
         .bg(move || {
             if bg_active() {
-                theme().accent
+                theme().background
             } else {
                 theme().card.opacity(0.0)
             }

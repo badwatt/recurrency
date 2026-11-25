@@ -3,7 +3,7 @@
 use nsh_core::storage::Storage;
 
 const SUBSCRIPTIONS_KEY: &str = "recurrency.subscriptions-view";
-const TRANSACTIONS_KEY: &str = "recurrency.transactions-view";
+const TRANSACTIONS_KEY: &str = "recurrency.transactions-view.v3";
 
 fn value(key: &str, default: &str) -> String {
     Storage::get_item(key).unwrap_or_else(|| default.to_string())
