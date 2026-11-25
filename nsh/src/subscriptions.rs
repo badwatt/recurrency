@@ -1702,8 +1702,9 @@ fn section(
                         items,
                         move |subscription| {
                             format!(
-                                "{}-{}-{}",
+                                "{}-{:?}-{}-{}",
                                 subscription.id,
+                                subscription.updated_at,
                                 sort_field.get(),
                                 sort_desc.get()
                             )
