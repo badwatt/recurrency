@@ -29,7 +29,7 @@ pub fn color_picker(value: Signal<String>) -> impl IntoElement {
                         .rounded(px(999.0))
                         .border(px(2.0))
                         .border_color(move || theme().border)
-                        .bg(rgba(color_value(&value.get()))),
+                        .bg(move || rgba(color_value(&value.get()))),
                 )
                 .child(
                     text(move || value.get().to_uppercase())

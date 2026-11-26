@@ -48,6 +48,97 @@ fn icon_for(name: &str) -> Option<ImageAsset> {
     }
 }
 
+const LIVE_ICONS: &[&str] = &[
+    "wallet",
+    "tag",
+    "receipt",
+    "card",
+    "subscriptions",
+    "transactions",
+    "debts",
+    "calendar",
+    "reports",
+    "settings",
+    "database",
+    "bell",
+    "clock",
+    "trending",
+    "notes",
+    "bot",
+    "cloud",
+    "cpu",
+    "gamepad",
+    "globe",
+    "key",
+    "lock",
+    "mail",
+    "mic",
+    "monitor",
+    "smartphone",
+    "shield",
+    "star",
+    "sun",
+    "upload",
+    "webhook",
+    "sliders",
+    "sparkles",
+    "hash",
+    "play",
+    "pause",
+    "download",
+    "server",
+    "info",
+];
+
+/// Icon whose name and colour are signals, for editable previews.
+pub fn entity_icon_live(name: Signal<String>, color: Signal<String>, size: f32) -> AnyElement {
+    let mut container = view().items_center().justify_center();
+    for key in LIVE_ICONS {
+        let Some(icon) = icon_for(key) else { continue };
+        let key = *key;
+        container = container.child(
+            when(
+                move || name.get().eq_ignore_ascii_case(key),
+                move || {
+                    image(icon)
+                        .size(px(size))
+                        .tint_color(move || rgba(color_value(&color.get())))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        );
+    }
+    container.into_element()
+}
+
+/// Icon with a fixed name and a reactive colour.
+pub fn entity_icon_colored(name: &str, color: Signal<String>, size: f32) -> AnyElement {
+    match icon_for(name) {
+        Some(icon) => view()
+            .items_center()
+            .justify_center()
+            .child(
+                image(icon)
+                    .size(px(size))
+                    .tint_color(move || rgba(color_value(&color.get()))),
+            )
+            .into_element(),
+        None => view()
+            .h(px(size * 0.7))
+            .w(px(size * 0.7))
+            .rounded(px(999.0))
+            .bg(move || rgba(color_value(&color.get())))
+            .into_element(),
+    }
+}
+
+fn color_value(hex: &str) -> u32 {
+    let value = hex.trim_start_matches('#');
+    let parsed = u32::from_str_radix(value, 16).unwrap_or(0x8b5cf6);
+    (parsed << 8) | 0xff
+}
+
 pub fn entity_icon(name: &str, color: u32, size: f32) -> AnyElement {
     match icon_for(name) {
         Some(icon) => view()

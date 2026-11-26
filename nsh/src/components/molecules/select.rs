@@ -279,7 +279,6 @@ pub fn select(props: SelectProps) -> impl IntoElement {
         let default_color_for_row = default_color.clone();
         let placeholder_text = search_placeholder_for_panel.clone();
         let create_title_text = create_title_for_panel.clone();
-        let create_form_for_panel = create_form.clone();
         let can_create_for_input = can_create.clone();
         let filtered_for_empty = filtered.clone();
         let filtered_for_rows = filtered.clone();
@@ -300,10 +299,6 @@ pub fn select(props: SelectProps) -> impl IntoElement {
             .border_color(move || theme().border)
             .bg(move || theme().popover)
             .overflow_hidden()
-            .child(
-                when(move || creating.get(), move || (*create_form_for_panel)())
-                    .otherwise(|| view().h(px(0.0)).into_element()),
-            )
             .when(searchable, move |panel| {
                 let default_icon_for_search = default_icon_for_search.clone();
                 let default_color_for_search = default_color_for_search.clone();
@@ -460,6 +455,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
     });
     let has_value_for_text = has_value.clone();
     let has_value_for_color = has_value.clone();
+    let create_form_for_overlay = create_form.clone();
     view()
         .w_full()
         .flex_col()
@@ -548,6 +544,49 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                         .size(px(13.0))
                         .tint_color(move || theme().muted_foreground),
                 ),
+        )
+        .child(
+            when(
+                move || creating.get(),
+                move || {
+                    nsh_core::element::overlay()
+                        .inset_0()
+                        .z_index(200)
+                        .bg(rgba(0x00000080))
+                        .on_press(move || creating.set(false))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+        .child(
+            when(
+                move || creating.get(),
+                move || {
+                    let form = create_form_for_overlay.clone();
+                    nsh_core::element::overlay()
+                        .inset_0()
+                        .z_index(201)
+                        .items_center()
+                        .justify_center()
+                        .p(px(24.0))
+                        .pointer_events(PointerEvents::BoxNone)
+                        .child(
+                            view()
+                                .w_full()
+                                .max_w(px(512.0))
+                                .max_h(px(700.0))
+                                .rounded(px(12.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .bg(move || theme().card)
+                                .overflow_hidden()
+                                .child((*form)()),
+                        )
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
         )
 }
 
