@@ -564,6 +564,17 @@ fn form(
         }
     });
     effect(move || {
+        if unit.get() == "year" && annual_dates.get().is_empty() {
+            let start = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
+                .unwrap_or_else(|_| Local::now().date_naive());
+            annual_dates.set(vec![AnnualDate {
+                month: start.month() as u8,
+                day: start.day() as u8,
+                amount: None,
+            }]);
+        }
+    });
+    effect(move || {
         if account_id.get().is_none() {
             if let Some(account) = data
                 .get()
@@ -1177,80 +1188,111 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
         .flex_col()
         .gap(px(6.0))
         .child(
-            text("Annual dates")
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(
             view()
                 .w_full()
                 .flex_col()
-                .gap(px(6.0))
-                .children((0..12).map(|index| {
-                    when(
-                        move || dates.get().len() > index,
-                        move || {
-                            let date = dates.get().get(index).cloned().unwrap_or(AnnualDate {
-                                month: 1,
-                                day: 1,
-                                amount: None,
-                            });
-                            view()
-                                .w_full()
-                                .flex_row()
-                                .items_end()
-                                .gap(px(6.0))
-                                .child(annual_day_field(date.day.to_string(), move |value| {
+                .gap(px(2.0))
+                .child(
+                    text("Annual dates")
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(
+                    text("Each date creates one charge every year.")
+                        .text_size(px(11.0))
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
+        .child(view().w_full().flex_col().children((0..12).map(|index| {
+            when(
+                move || dates.get().len() > index,
+                move || {
+                    let date = dates.get().get(index).cloned().unwrap_or(AnnualDate {
+                        month: 1,
+                        day: 1,
+                        amount: None,
+                    });
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .items_end()
+                        .gap(px(6.0))
+                        .mb(px(6.0))
+                        .child(annual_day_field(date.day.to_string(), move |value| {
+                            let mut next = dates.get();
+                            if let Some(slot) = next.get_mut(index) {
+                                slot.day = value.parse().unwrap_or(0);
+                            }
+                            dates.set(next);
+                        }))
+                        .child(annual_month_field(dates, index))
+                        .child(annual_amount_field(
+                            date.amount
+                                .map(|value| value.to_string())
+                                .unwrap_or_default(),
+                            move |value| {
+                                let mut next = dates.get();
+                                if let Some(slot) = next.get_mut(index) {
+                                    slot.amount = value.trim().parse::<Decimal>().ok();
+                                }
+                                dates.set(next);
+                            },
+                        ))
+                        .child(view().h(px(57.0)).pt(px(22.0)).flex_shrink_0().child(
+                            ui::mini_icon_button_labeled(
+                                asset!("icons/trash.svg"),
+                                "Remove annual date",
+                                true,
+                                move || {
                                     let mut next = dates.get();
-                                    if let Some(slot) = next.get_mut(index) {
-                                        slot.day = value.parse().unwrap_or(0);
+                                    if index < next.len() {
+                                        next.remove(index);
                                     }
                                     dates.set(next);
-                                }))
-                                .child(annual_month_field(dates, index))
-                                .child(annual_amount_field(
-                                    date.amount
-                                        .map(|value| value.to_string())
-                                        .unwrap_or_default(),
-                                    move |value| {
-                                        let mut next = dates.get();
-                                        if let Some(slot) = next.get_mut(index) {
-                                            slot.amount = value.trim().parse::<Decimal>().ok();
-                                        }
-                                        dates.set(next);
-                                    },
-                                ))
-                                .child(view().h(px(57.0)).pt(px(22.0)).flex_shrink_0().child(
-                                    ui::mini_icon_button_labeled(
-                                        asset!("icons/trash.svg"),
-                                        "Remove annual date",
-                                        true,
-                                        move || {
-                                            let mut next = dates.get();
-                                            if index < next.len() {
-                                                next.remove(index);
-                                            }
-                                            dates.set(next);
-                                        },
-                                    ),
-                                ))
-                                .into_element()
-                        },
-                    )
-                    .otherwise(|| view().h(px(0.0)).into_element())
-                    .into_element()
-                })),
+                                },
+                            ),
+                        ))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element())
+            .into_element()
+        })))
+        .child(
+            button()
+                .cursor_pointer()
+                .w_full()
+                .h(px(40.0))
+                .flex_row()
+                .items_center()
+                .justify_center()
+                .gap(px(8.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().primary.opacity(0.35))
+                .bg(move || theme().primary.opacity(0.06))
+                .on_press(move || {
+                    let mut next = dates.get();
+                    next.push(AnnualDate {
+                        month: 1,
+                        day: 1,
+                        amount: None,
+                    });
+                    dates.set(next);
+                })
+                .child(
+                    image(asset!("icons/plus.svg"))
+                        .size(px(14.0))
+                        .tint_color(move || theme().primary),
+                )
+                .child(
+                    text("Add annual date")
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().primary),
+                ),
         )
-        .child(ui::action_button("Add annual date", false, move || {
-            let mut next = dates.get();
-            next.push(AnnualDate {
-                month: 1,
-                day: 1,
-                amount: None,
-            });
-            dates.set(next);
-        }))
 }
 
 fn annual_month_field(dates: Signal<Vec<AnnualDate>>, index: usize) -> impl IntoElement {
