@@ -209,7 +209,7 @@ fn content(
             let charts = if compact.get() {
                 view().w_full().flex_col().gap(px(16.0))
             } else {
-                view().w_full().flex_row().items_start().gap(px(24.0))
+                view().w_full().flex_row().items_stretch().gap(px(24.0))
             };
             charts
                 .child(trend_chart(data, &trend_currency))
@@ -282,7 +282,7 @@ fn export_menu(data: Resource<ReportsData, String>, currency: &str) -> impl Into
     )
 }
 
-fn month_name(month: u32) -> &'static str {
+pub(crate) fn month_name(month: u32) -> &'static str {
     const MONTHS: [&str; 12] = [
         "January",
         "February",
@@ -360,6 +360,14 @@ fn summary_card(
         )
 }
 
+fn format_percentage(percentage: f64) -> String {
+    if percentage > 0.0 && percentage < 0.5 {
+        "<1%".to_string()
+    } else {
+        format!("{percentage:.0}%")
+    }
+}
+
 fn category_donut(
     data: Resource<ReportsData, String>,
     currency: &str,
@@ -423,6 +431,7 @@ fn category_donut(
                                 continue;
                             }
                             let color = category_color(data, &category.category_name);
+                            let pad = (sweep * 0.2).min(0.02);
                             painter = painter
                                 .stroke_color(rgb(parse_hex(&color)))
                                 .line_width(if hovered.get() == Some(index) {
@@ -431,7 +440,7 @@ fn category_donut(
                                     21.6
                                 })
                                 .begin_path()
-                                .arc(center, center, radius, start + 0.02, start + sweep - 0.02)
+                                .arc(center, center, radius, start + pad, start + sweep - pad)
                                 .stroke();
                             start += sweep;
                         }
@@ -484,7 +493,11 @@ fn category_donut(
                         let categories = data.get().unwrap_or_default().report.category_breakdown;
                         let index = hovered.get().unwrap_or(0);
                         let label = categories.get(index).map_or_else(String::new, |category| {
-                            format!("{} · {:.0}%", category.category_name, category.percentage)
+                            format!(
+                                "{} · {}",
+                                category.category_name,
+                                format_percentage(category.percentage)
+                            )
                         });
                         view()
                             .absolute()
@@ -535,7 +548,7 @@ fn category_donut(
                         let (index, category) = item.get();
                         let color = category_color(data, &category.category_name);
                         let name = category.category_name.clone();
-                        let percentage = format!("{:.0}%", category.percentage);
+                        let percentage = format_percentage(category.percentage);
                         view()
                             .w_full()
                             .flex_row()
@@ -1100,6 +1113,14 @@ mod tests {
     fn the_donut_skips_empty_slices() {
         let source = include_str!("reports.rs");
         assert!(source.contains("if sweep <= 0.0001"));
+        assert!(source.contains("let pad = (sweep * 0.2).min(0.02)"));
+    }
+
+    #[test]
+    fn tiny_nonzero_percentages_do_not_read_as_zero() {
+        assert_eq!(format_percentage(0.18), "<1%");
+        assert_eq!(format_percentage(5.0), "5%");
+        assert_eq!(format_percentage(0.0), "0%");
     }
 
     #[test]

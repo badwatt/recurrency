@@ -1244,7 +1244,6 @@ fn category_row(
     let pending = format_currency(entry.pending, &currency);
     let icon = entry.icon;
     let color = entry.color;
-    let color_for_icon = color.clone();
 
     let identity = view()
         .flex_grow(if compact { 0.0 } else { 1.0 })
@@ -1259,10 +1258,10 @@ fn category_row(
                 .items_center()
                 .justify_center()
                 .rounded(px(8.0))
-                .bg(move || rgba((crate::theme::parse_hex(&color) << 8) | 0x20))
+                .bg(move || theme().muted)
                 .child(crate::components::entity_icon::entity_icon(
                     &icon,
-                    crate::theme::parse_hex(&color_for_icon),
+                    crate::theme::parse_hex(&color),
                     18.0,
                 )),
         )

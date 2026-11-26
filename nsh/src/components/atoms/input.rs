@@ -11,7 +11,7 @@ pub fn text_input(value: Signal<String>, placeholder: &'static str) -> impl Into
         .placeholder(placeholder)
         .auto_fill(AutoFill::Off)
         .h(px(40.0))
-        .flex_shrink_0()
+        .flex_shrink(1.0)
         .w_full()
         .min_w(px(0.0))
         .px(px(12.0))

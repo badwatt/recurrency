@@ -49,9 +49,10 @@ pub fn filter_menu(
                 .on_press(move |event: &PressEvent| {
                     let panel = panel.clone();
                     let page = event.page_position;
+                    let local = event.position;
                     crate::ui::open_menu(
                         crate::ui::MenuPlacement::At {
-                            top: page.y.0 + 12.0,
+                            top: page.y.0 - local.y.0 + 44.0,
                             left: (page.x.0 - 150.0).max(8.0),
                         },
                         panel,
@@ -105,5 +106,6 @@ mod tests {
         let source = include_str!("filter_menu.rs");
         assert!(source.contains("open_menu"));
         assert!(source.contains("MenuPlacement::At"));
+        assert!(source.contains("page.y.0 - local.y.0 + 44.0"));
     }
 }

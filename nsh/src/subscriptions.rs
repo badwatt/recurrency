@@ -18,11 +18,13 @@ use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
+use crate::components::select::{SelectProps, select};
 use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::format::format_date;
 use crate::models::{AnnualDate, Recurrence, Subscription};
+use crate::reports::month_name;
 use crate::ui;
 
 #[derive(Serialize)]
@@ -850,7 +852,7 @@ fn form(
                                     ),
                                 )
                                 .child(
-                                    view().w(px(140.0)).child(string_select(
+                                    view().w(px(140.0)).h(px(36.0)).child(string_select(
                                         StringSelectProps::new(
                                             "",
                                             unit,
@@ -1181,17 +1183,6 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                                 .flex_row()
                                 .items_end()
                                 .gap(px(6.0))
-                                .child(annual_field(
-                                    "Month",
-                                    date.month.to_string(),
-                                    move |value| {
-                                        let mut next = dates.get();
-                                        if let Some(slot) = next.get_mut(index) {
-                                            slot.month = value.parse().unwrap_or(0);
-                                        }
-                                        dates.set(next);
-                                    },
-                                ))
                                 .child(annual_field("Day", date.day.to_string(), move |value| {
                                     let mut next = dates.get();
                                     if let Some(slot) = next.get_mut(index) {
@@ -1199,6 +1190,7 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                                     }
                                     dates.set(next);
                                 }))
+                                .child(annual_month_field(dates, index))
                                 .child(annual_field(
                                     "Amount (optional)",
                                     date.amount
@@ -1212,13 +1204,15 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                                         dates.set(next);
                                     },
                                 ))
-                                .child(ui::action_button("Remove", true, move || {
-                                    let mut next = dates.get();
-                                    if index < next.len() {
-                                        next.remove(index);
-                                    }
-                                    dates.set(next);
-                                }))
+                                .child(view().h(px(40.0)).items_center().flex_shrink_0().child(
+                                    ui::action_button("Remove", true, move || {
+                                        let mut next = dates.get();
+                                        if index < next.len() {
+                                            next.remove(index);
+                                        }
+                                        dates.set(next);
+                                    }),
+                                ))
                                 .into_element()
                         },
                     )
@@ -1237,6 +1231,58 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
         }))
 }
 
+fn annual_month_field(dates: Signal<Vec<AnnualDate>>, index: usize) -> impl IntoElement {
+    let options = move || {
+        (1..=12u32)
+            .map(|month| (month.to_string(), month_name(month).to_string()))
+            .collect::<Vec<_>>()
+    };
+    view()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .min_w(px(0.0))
+        .h(px(57.0))
+        .flex_col()
+        .gap(px(4.0))
+        .child(
+            text("Month")
+                .text_size(px(10.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            view().h(px(40.0)).child(select(
+                SelectProps::new(
+                    "Month",
+                    "Month",
+                    move || {
+                        dates.get().get(index).map_or_else(
+                            || month_name(1).to_string(),
+                            |date| month_name(u32::from(date.month)).to_string(),
+                        )
+                    },
+                    move || {
+                        dates
+                            .get()
+                            .get(index)
+                            .map_or_else(String::new, |date| date.month.to_string())
+                    },
+                    move || dates.get().len() > index,
+                    options,
+                    move |value| {
+                        let mut next = dates.get();
+                        if let Some(slot) = next.get_mut(index) {
+                            slot.month = value.parse().unwrap_or(1);
+                        }
+                        dates.set(next);
+                    },
+                )
+                .searchable(false)
+                .show_label(false)
+                .height(40.0),
+            )),
+        )
+}
+
 fn annual_field(
     label: &'static str,
     value: String,
@@ -1244,6 +1290,7 @@ fn annual_field(
 ) -> impl IntoElement {
     view()
         .flex_grow(1.0)
+        .basis(px(0.0))
         .min_w(px(0.0))
         .flex_col()
         .gap(px(4.0))
@@ -2979,6 +3026,16 @@ mod tests {
     }
 
     #[test]
+    #[test]
+    fn annual_date_fields_shrink_inside_the_dialog() {
+        let source = include_str!("subscriptions.rs");
+        assert!(source.contains(".basis(px(0.0))"));
+        let input = include_str!("components/atoms/input.rs");
+        assert!(input.contains("flex_shrink(1.0)"));
+        assert!(source.contains("annual_month_field"));
+        assert!(source.contains("month_name"));
+    }
+
     fn yearly_recurrence_preserves_multiple_annual_dates() {
         let dates = vec![
             AnnualDate {

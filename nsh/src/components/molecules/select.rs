@@ -578,7 +578,11 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     let panel = panel_for_inline.clone();
                     view()
                         .absolute()
-                        .top(px(height + 4.0))
+                        .top(px(if show_label {
+                            height + 30.0
+                        } else {
+                            height + 4.0
+                        }))
                         .left(px(0.0))
                         .w_full()
                         .z_index(210)
@@ -633,5 +637,6 @@ mod tests {
         let source = include_str!("select.rs");
         assert!(source.contains("crate::ui::menu_open()"));
         assert!(source.contains("inline_open"));
+        assert!(source.contains("if show_label { height + 30.0 } else { height + 4.0 }"));
     }
 }
