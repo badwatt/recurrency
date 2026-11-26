@@ -156,6 +156,13 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
     });
     let close = on_close.clone();
     let compact = crate::ui::compact_active();
+    let body_scroll = element_ref();
+    let scrolled = stored(0.0_f32);
+    effect(move || {
+        let _ = crate::ui::menu_revision();
+        let offset = scrolled.with(|value| *value);
+        body_scroll.scroll_to_offset(px(offset), false);
+    });
     let full = nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0));
     view()
         .w_full()
@@ -229,6 +236,10 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         )
         .child(
             scroll()
+                .element_ref(&body_scroll)
+                .on_scroll(move |event: &ScrollEvent| {
+                    scrolled.replace(event.offset.y.0);
+                })
                 .flex_grow(1.0)
                 .basis(if compact {
                     nsh_core::geometry::Length::from(px(0.0))

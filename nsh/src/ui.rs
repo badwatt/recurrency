@@ -262,6 +262,10 @@ pub fn open_menu(placement: MenuPlacement, build: impl Fn() -> AnyElement + 'sta
     });
 }
 
+pub fn menu_revision() -> u64 {
+    MENU_VERSION.with(|slot| slot.borrow().map_or(0, |version| version.get()))
+}
+
 pub fn close_menu() {
     MENU_STATE.with(|slot| {
         *slot.borrow_mut() = None;
