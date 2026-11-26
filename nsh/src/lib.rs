@@ -274,7 +274,11 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             .max_w(px(1242.0))
                             .pl(move || {
                                 if compact.get() {
-                                    px(24.0)
+                                    if route.get() == Route::Dashboard {
+                                        px(16.0)
+                                    } else {
+                                        px(24.0)
+                                    }
                                 } else if route.get() == Route::Dashboard {
                                     px(13.0)
                                 } else {
@@ -283,7 +287,11 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             })
                             .pr(move || {
                                 if compact.get() {
-                                    px(24.0)
+                                    if route.get() == Route::Dashboard {
+                                        px(16.0)
+                                    } else {
+                                        px(24.0)
+                                    }
                                 } else if route.get() == Route::Dashboard {
                                     px(13.0)
                                 } else {
