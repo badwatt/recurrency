@@ -723,7 +723,7 @@ fn form(
             editing.set(None);
             modal.close();
         })
-        .width(512.0)
+        .width(720.0)
         .body(
             view()
                 .pl(px(22.0))

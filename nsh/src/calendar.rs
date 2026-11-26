@@ -822,7 +822,7 @@ fn day_dialog(
         .into_element();
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(title, "", move || modal.close())
-            .width(512.0)
+            .width(720.0)
             .footer_visible(false)
             .body(body),
     )
