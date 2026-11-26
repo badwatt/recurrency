@@ -10,6 +10,7 @@ pub mod entity_form;
 pub mod entity_icon;
 pub mod field;
 pub mod list_toolbar;
+pub mod optional_date;
 pub mod privacy_toggle;
 pub mod search_input;
 pub mod select;

@@ -1,5 +1,7 @@
-use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
-use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest, UpdateDebtRequest};
+use crate::api::client::{ApiError, api_delete, api_get, api_post, api_put};
+use crate::models::debt::{
+    CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest, UpdateDebtRequest,
+};
 use uuid::Uuid;
 
 pub async fn list() -> Result<Vec<Debt>, ApiError> {
@@ -78,6 +80,8 @@ mod tests {
                 debt_type: "manual".into(),
                 monthly_payment: None,
                 payment_days: Vec::new(),
+                first_payment: None,
+                clear_first_payment: false,
                 start_date: None,
                 notes: None,
                 logo_url: None,

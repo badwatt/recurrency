@@ -12,7 +12,7 @@ use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
 use crate::subscriptions::recurrence::{
-    legacy_from_recurrence, next_occurrence_on_or_after, occurrences_in_month,
+    first_billing_date, legacy_from_recurrence, next_occurrence_on_or_after, occurrences_in_month,
     recurrence_from_legacy, validate_recurrence,
 };
 
@@ -117,7 +117,8 @@ impl SubscriptionService {
         validate_recurrence(&recurrence)?;
         validate_end_date(req.start_date, req.end_date)?;
         let (frequency, schedule_day, schedule_month) = legacy_from_recurrence(&recurrence);
-        let next_billing_date = next_occurrence_on_or_after(
+        let next_billing_date = first_billing_date(
+            req.first_payment,
             req.start_date,
             &recurrence,
             Utc::now().date_naive(),
@@ -319,7 +320,15 @@ impl SubscriptionService {
             || start_date != existing.start_date
             || end_date != existing.end_date;
 
-        let next_billing_date = if let Some(next) = req.next_billing_date {
+        let next_billing_date = if let Some(first) = req.first_payment {
+            if end_date.is_some_and(|end| first > end) {
+                None
+            } else {
+                Some(first)
+            }
+        } else if req.clear_first_payment {
+            next_occurrence_on_or_after(start_date, &recurrence, Utc::now().date_naive(), end_date)
+        } else if let Some(next) = req.next_billing_date {
             if end_date.is_some_and(|end| next > end) {
                 None
             } else {

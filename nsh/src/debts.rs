@@ -13,6 +13,7 @@ use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
+use crate::components::optional_date::optional_date;
 use crate::components::page_header::page_header as shared_page_header;
 use crate::components::search_input::search_input;
 use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
@@ -36,6 +37,10 @@ pub struct CreateDebtRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monthly_payment: Option<Decimal>,
     pub payment_days: Vec<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_payment: Option<NaiveDate>,
+    #[serde(default)]
+    pub clear_first_payment: bool,
     pub start_date: Option<NaiveDate>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
@@ -780,10 +785,7 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
         name: signal(String::new()),
         total: signal(String::new()),
         monthly: signal(String::new()),
-        start_date: signal(
-            date.unwrap_or_else(|| Local::now().date_naive())
-                .to_string(),
-        ),
+        start_date: signal(date.map(|value| value.to_string()).unwrap_or_default()),
         debt_type: signal("manual".to_string()),
         payment_days: signal(Vec::<u8>::new()),
         currency: signal(currency.clone()),
@@ -855,9 +857,9 @@ fn form(
     });
     effect(move || {
         if debt_type.get() == "automatic" && payment_days.get().is_empty() {
-            if let Ok(date) = NaiveDate::parse_from_str(&start_date.get(), "%Y-%m-%d") {
-                payment_days.set(vec![date.day() as u8]);
-            }
+            let date = NaiveDate::parse_from_str(&start_date.get(), "%Y-%m-%d")
+                .unwrap_or_else(|_| Local::now().date_naive());
+            payment_days.set(vec![date.day() as u8]);
         }
     });
     let schedule_interval = signal("1".to_string());
@@ -889,11 +891,18 @@ fn form(
                 form_error.set("Total must be positive.".to_string());
                 return;
             }
-            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
-            else {
-                form_error.set("Use YYYY-MM-DD for the first payment.".to_string());
-                return;
+            let first_payment = if start_date.get().trim().is_empty() {
+                None
+            } else {
+                match NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d") {
+                    Ok(date) => Some(date),
+                    Err(_) => {
+                        form_error.set("Enter a valid first payment.".to_string());
+                        return;
+                    }
+                }
             };
+            let start_value = first_payment.unwrap_or_else(|| Local::now().date_naive());
             let automatic = debt_type.get() == "automatic";
             let mut days = if automatic {
                 let mut selected = payment_days.get();
@@ -929,6 +938,8 @@ fn form(
                 debt_type: debt_type.get(),
                 monthly_payment: monthly_value,
                 payment_days: days,
+                first_payment,
+                clear_first_payment: first_payment.is_none(),
                 start_date: Some(start_value),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
                 logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
@@ -1035,7 +1046,11 @@ fn form(
                                     monthly,
                                     "",
                                 )))
-                                .child(ui::row_item(ui::date_field("First payment", start_date)))
+                                .child(optional_date(
+                                    "First payment",
+                                    "Add first payment",
+                                    start_date,
+                                ))
                                 .into_element()
                         },
                     )
@@ -1910,6 +1925,8 @@ mod tests {
             debt_type: "automatic".to_string(),
             monthly_payment: Some(Decimal::from(250)),
             payment_days: vec![22],
+            first_payment: Some(date(2026, 11, 22)),
+            clear_first_payment: false,
             start_date: Some(date(2026, 11, 22)),
             notes: Some("Loan paperwork".to_string()),
             logo_url: Some("https://example.test/logo.png".to_string()),

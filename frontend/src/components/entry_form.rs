@@ -39,7 +39,12 @@ impl EntryForm {
     }
 
     /// Initialize form for creating a new entry.
-    pub fn init_for_create(date: &str, currency: &str, category_id: &str, entity: EntityType) -> Self {
+    pub fn init_for_create(
+        date: &str,
+        currency: &str,
+        category_id: &str,
+        entity: EntityType,
+    ) -> Self {
         Self {
             name: String::new(),
             amount: String::new(),
@@ -126,14 +131,19 @@ impl EntryForm {
             frequency: Some(self.frequency.clone()),
             schedule_day: self.schedule_day,
             schedule_month: self.schedule_month,
-            start_date: Some(self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
-            )),
+            start_date: Some(
+                self.parse_start_date()
+                    .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default()),
+            ),
             end_date: self.parse_end_date(),
             clear_end_date: self.end_date.is_empty(),
             category_id: category,
             notes: Some(self.notes.clone()),
-            logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
+            logo_url: if self.logo_url.is_empty() {
+                None
+            } else {
+                Some(self.logo_url.clone())
+            },
             ..Default::default()
         })
     }
@@ -155,13 +165,23 @@ impl EntryForm {
             schedule_month: self.schedule_month,
             recurrence: None,
             is_active: None,
-            start_date: self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
-            ),
+            start_date: self
+                .parse_start_date()
+                .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default()),
             end_date: self.parse_end_date(),
             category_id: category,
-            notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
-            logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
+            notes: if self.notes.is_empty() {
+                None
+            } else {
+                Some(self.notes.clone())
+            },
+            logo_url: if self.logo_url.is_empty() {
+                None
+            } else {
+                Some(self.logo_url.clone())
+            },
+
+            first_payment: None,
         })
     }
 
@@ -177,12 +197,17 @@ impl EntryForm {
             name: Some(self.name.clone()),
             amount: Some(amount),
             currency: Some(self.currency.clone()),
-            date: Some(self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
-            )),
+            date: Some(
+                self.parse_start_date()
+                    .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default()),
+            ),
             category_id: category,
             notes: Some(self.notes.clone()),
-            logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
+            logo_url: if self.logo_url.is_empty() {
+                None
+            } else {
+                Some(self.logo_url.clone())
+            },
         })
     }
 
@@ -198,12 +223,20 @@ impl EntryForm {
             name: self.name.clone(),
             amount,
             currency: self.currency.clone(),
-            date: self.parse_start_date().unwrap_or(
-                chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default(),
-            ),
+            date: self
+                .parse_start_date()
+                .unwrap_or(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap_or_default()),
             category_id: category,
-            notes: if self.notes.is_empty() { None } else { Some(self.notes.clone()) },
-            logo_url: if self.logo_url.is_empty() { None } else { Some(self.logo_url.clone()) },
+            notes: if self.notes.is_empty() {
+                None
+            } else {
+                Some(self.notes.clone())
+            },
+            logo_url: if self.logo_url.is_empty() {
+                None
+            } else {
+                Some(self.logo_url.clone())
+            },
         })
     }
 
@@ -289,13 +322,9 @@ pub fn validate_entry_form(
         result.frequency_error = Some("Frequency is required".into());
     }
 
-    if start_date.is_empty() {
-        let label = match entity {
-            EntityType::Subscription => "Start date",
-            EntityType::Transaction => "Date",
-        };
-        result.start_date_error = Some(format!("{} is required", label));
-    } else if start_date.parse::<chrono::NaiveDate>().is_err() {
+    if matches!(entity, EntityType::Transaction) && start_date.is_empty() {
+        result.start_date_error = Some("Date is required".into());
+    } else if !start_date.is_empty() && start_date.parse::<chrono::NaiveDate>().is_err() {
         result.start_date_error = Some("Invalid date format".into());
     }
 
@@ -315,7 +344,15 @@ pub fn validate_subscription_form(
     start_date: &str,
     category_id: &str,
 ) -> ValidationResult {
-    validate_entry_form(name, amount, currency, frequency, start_date, category_id, EntityType::Subscription)
+    validate_entry_form(
+        name,
+        amount,
+        currency,
+        frequency,
+        start_date,
+        category_id,
+        EntityType::Subscription,
+    )
 }
 
 /// Transaction-specific validation result (no frequency_error).
@@ -346,7 +383,15 @@ pub fn validate_transaction_form(
     date: &str,
     category_id: &str,
 ) -> TransactionValidationResult {
-    let result = validate_entry_form(name, amount, currency, "", date, category_id, EntityType::Transaction);
+    let result = validate_entry_form(
+        name,
+        amount,
+        currency,
+        "",
+        date,
+        category_id,
+        EntityType::Transaction,
+    );
     TransactionValidationResult {
         name_error: result.name_error,
         amount_error: result.amount_error,
@@ -377,7 +422,8 @@ mod tests {
 
     #[test]
     fn form_init_for_create_subscription() {
-        let form = EntryForm::init_for_create("2024-06-15", "USD", "cat-123", EntityType::Subscription);
+        let form =
+            EntryForm::init_for_create("2024-06-15", "USD", "cat-123", EntityType::Subscription);
         assert!(form.name.is_empty());
         assert_eq!(form.frequency, "monthly");
         assert_eq!(form.start_date, "2024-06-15");
@@ -385,7 +431,8 @@ mod tests {
 
     #[test]
     fn form_init_for_create_transaction() {
-        let form = EntryForm::init_for_create("2024-06-15", "USD", "cat-123", EntityType::Transaction);
+        let form =
+            EntryForm::init_for_create("2024-06-15", "USD", "cat-123", EntityType::Transaction);
         assert!(form.frequency.is_empty());
         assert_eq!(form.start_date, "2024-06-15");
     }
@@ -393,7 +440,17 @@ mod tests {
     #[test]
     fn form_from_entry_populates_all_fields() {
         let form = EntryForm::from_entry(
-            "Netflix", "9.99", "EUR", "monthly", None, None, "2024-01-01", "", "cat-456", "notes", "logo.png",
+            "Netflix",
+            "9.99",
+            "EUR",
+            "monthly",
+            None,
+            None,
+            "2024-01-01",
+            "",
+            "cat-456",
+            "notes",
+            "logo.png",
         );
         assert_eq!(form.name, "Netflix");
         assert_eq!(form.frequency, "monthly");
@@ -403,7 +460,17 @@ mod tests {
     #[test]
     fn form_reset_clears_all_fields() {
         let mut form = EntryForm::from_entry(
-            "Netflix", "9.99", "EUR", "monthly", None, None, "2024-01-01", "", "cat-456", "notes", "logo.png",
+            "Netflix",
+            "9.99",
+            "EUR",
+            "monthly",
+            None,
+            None,
+            "2024-01-01",
+            "",
+            "cat-456",
+            "notes",
+            "logo.png",
         );
         form.reset();
         assert!(form.name.is_empty());
@@ -411,19 +478,28 @@ mod tests {
 
     #[test]
     fn form_parse_amount_valid() {
-        let form = EntryForm { amount: "9.99".into(), ..Default::default() };
+        let form = EntryForm {
+            amount: "9.99".into(),
+            ..Default::default()
+        };
         assert_eq!(form.parse_amount(), Some(Decimal::new(999, 2)));
     }
 
     #[test]
     fn form_parse_amount_invalid() {
-        let form = EntryForm { amount: "abc".into(), ..Default::default() };
+        let form = EntryForm {
+            amount: "abc".into(),
+            ..Default::default()
+        };
         assert!(form.parse_amount().is_none());
     }
 
     #[test]
     fn form_parse_start_date_valid() {
-        let form = EntryForm { start_date: "2024-06-15".into(), ..Default::default() };
+        let form = EntryForm {
+            start_date: "2024-06-15".into(),
+            ..Default::default()
+        };
         assert!(form.parse_start_date().is_some());
     }
 
@@ -458,62 +534,130 @@ mod tests {
 
     #[test]
     fn validation_result_with_error_is_invalid() {
-        let result = ValidationResult { name_error: Some("Required".into()), ..Default::default() };
+        let result = ValidationResult {
+            name_error: Some("Required".into()),
+            ..Default::default()
+        };
         assert!(!result.is_valid());
     }
 
     #[test]
     fn validate_subscription_empty_name_fails() {
-        let result = validate_entry_form("", "10", "EUR", "monthly", "2024-01-01", "cat", EntityType::Subscription);
+        let result = validate_entry_form(
+            "",
+            "10",
+            "EUR",
+            "monthly",
+            "2024-01-01",
+            "cat",
+            EntityType::Subscription,
+        );
         assert!(result.name_error.is_some());
     }
 
     #[test]
     fn validate_transaction_empty_name_fails() {
-        let result = validate_entry_form("", "10", "EUR", "", "2024-01-01", "cat", EntityType::Transaction);
+        let result = validate_entry_form(
+            "",
+            "10",
+            "EUR",
+            "",
+            "2024-01-01",
+            "cat",
+            EntityType::Transaction,
+        );
         assert!(result.name_error.is_some());
     }
 
     #[test]
     fn validate_subscription_empty_frequency_fails() {
-        let result = validate_entry_form("Netflix", "10", "EUR", "", "2024-01-01", "cat", EntityType::Subscription);
+        let result = validate_entry_form(
+            "Netflix",
+            "10",
+            "EUR",
+            "",
+            "2024-01-01",
+            "cat",
+            EntityType::Subscription,
+        );
         assert!(result.frequency_error.is_some());
     }
 
     #[test]
     fn validate_transaction_empty_frequency_ok() {
-        let result = validate_entry_form("Coffee", "10", "EUR", "", "2024-01-01", "cat", EntityType::Transaction);
+        let result = validate_entry_form(
+            "Coffee",
+            "10",
+            "EUR",
+            "",
+            "2024-01-01",
+            "cat",
+            EntityType::Transaction,
+        );
         assert!(result.frequency_error.is_none());
     }
 
     #[test]
     fn validate_empty_date_subscription_label() {
-        let result = validate_entry_form("Netflix", "10", "EUR", "monthly", "", "cat", EntityType::Subscription);
-        assert_eq!(result.start_date_error.unwrap(), "Start date is required");
+        let result = validate_entry_form(
+            "Netflix",
+            "10",
+            "EUR",
+            "monthly",
+            "",
+            "cat",
+            EntityType::Subscription,
+        );
+        assert!(result.start_date_error.is_none());
     }
 
     #[test]
     fn validate_empty_date_transaction_label() {
-        let result = validate_entry_form("Coffee", "10", "EUR", "", "", "cat", EntityType::Transaction);
+        let result = validate_entry_form(
+            "Coffee",
+            "10",
+            "EUR",
+            "",
+            "",
+            "cat",
+            EntityType::Transaction,
+        );
         assert_eq!(result.start_date_error.unwrap(), "Date is required");
     }
 
     #[test]
     fn validate_valid_subscription_succeeds() {
-        let result = validate_entry_form("Netflix", "9.99", "EUR", "monthly", "2024-01-01", "cat-1", EntityType::Subscription);
+        let result = validate_entry_form(
+            "Netflix",
+            "9.99",
+            "EUR",
+            "monthly",
+            "2024-01-01",
+            "cat-1",
+            EntityType::Subscription,
+        );
         assert!(result.is_valid());
     }
 
     #[test]
     fn validate_valid_transaction_succeeds() {
-        let result = validate_entry_form("Coffee", "4.50", "USD", "", "2024-01-01", "cat-1", EntityType::Transaction);
+        let result = validate_entry_form(
+            "Coffee",
+            "4.50",
+            "USD",
+            "",
+            "2024-01-01",
+            "cat-1",
+            EntityType::Transaction,
+        );
         assert!(result.is_valid());
         assert!(result.frequency_error.is_none());
     }
 
     #[test]
     fn backward_compat_validate_subscription() {
-        let result = validate_subscription_form("Netflix", "10", "EUR", "monthly", "2024-01-01", "cat");
+        let result =
+            validate_subscription_form("Netflix", "10", "EUR", "monthly", "2024-01-01", "cat");
         assert!(result.is_valid());
     }
 

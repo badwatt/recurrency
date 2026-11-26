@@ -7,17 +7,19 @@ use uuid::Uuid;
 
 use crate::components::ConvertedAmount;
 use crate::components::ListToolbar;
-use crate::components::button::{Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton};
-use crate::components::dialog::Dialog;
+use crate::components::button::{
+    Button, ButtonAlign, ButtonRadius, ButtonSize, ButtonVariant, IconButton,
+};
 use crate::components::date_picker::DatePicker;
+use crate::components::dialog::Dialog;
 use crate::components::field::Field;
-use crate::components::popover::{Popover, PopoverAlign};
 use crate::components::input::Input;
-use crate::components::textarea::Textarea;
 use crate::components::logo_search::LogoSearch;
 use crate::components::page_header::PageHeader;
+use crate::components::popover::{Popover, PopoverAlign};
 use crate::components::select_menu::{SelectMenu, SelectOption};
 use crate::components::skeleton::DebtCardSkeleton;
+use crate::components::textarea::Textarea;
 use crate::components::{AccountCombobox, CategoryCombobox};
 use crate::models::debt::{CreateDebtRequest, Debt, DebtPayment, RecordDebtPaymentRequest};
 use crate::state::accounts::ACCOUNTS;
@@ -114,7 +116,7 @@ pub fn DebtsPage() -> Element {
         debt_type.set(crate::utils::constants::DEBT_TYPE_MANUAL.into());
         monthly_payment.set(String::new());
         payment_days.set(vec![chrono::Utc::now().date_naive().day() as u8]);
-        start_date.set(chrono::Utc::now().date_naive().to_string());
+        start_date.set(String::new());
         notes.set(String::new());
         logo_url.set(String::new());
         error.set(String::new());
@@ -216,6 +218,8 @@ pub fn DebtsPage() -> Element {
                         debt_type: Some(debt_type()),
                         monthly_payment: monthly,
                         payment_days: Some(payment_days()),
+                        first_payment: start,
+                        clear_first_payment: start.is_none(),
                         start_date: start,
                         notes: note_value,
                         clear_notes: false,
@@ -233,6 +237,8 @@ pub fn DebtsPage() -> Element {
                     debt_type: debt_type(),
                     monthly_payment: monthly,
                     payment_days: payment_days(),
+                    first_payment: start,
+                    clear_first_payment: start.is_none(),
                     start_date: start,
                     notes: note_value,
                     logo_url: logo_value,
@@ -677,7 +683,10 @@ pub fn DebtsPage() -> Element {
                                     payment_days.set(vec![start_date()
                                         .parse::<chrono::NaiveDate>()
                                         .map(|date| chrono::Datelike::day(&date) as u8)
-                                        .unwrap_or(1)]);
+                                        .unwrap_or_else(|_| {
+                                            chrono::Datelike::day(&chrono::Utc::now().date_naive())
+                                                as u8
+                                        })]);
                                 }
                                 debt_type.set(value);
                             },
@@ -694,11 +703,23 @@ pub fn DebtsPage() -> Element {
                                     on_input: move |value| monthly_payment.set(value),
                                 }
                             }
-                            Field { label: "First payment", html_for: "debt-first-payment",
-                                DatePicker {
-                                    id: "debt-first-payment",
-                                    value: start_date(),
-                                    on_input: move |value| start_date.set(value),
+                            if start_date().is_empty() {
+                                Button {
+                                    variant: ButtonVariant::Outline,
+                                    size: ButtonSize::Sm,
+                                    class: "h-10 w-full border-dashed text-muted-foreground",
+                                    onclick: move |_| {
+                                        start_date.set(chrono::Utc::now().date_naive().to_string());
+                                    },
+                                    "+ Add first payment"
+                                }
+                            } else {
+                                Field { label: "First payment", html_for: "debt-first-payment",
+                                    DatePicker {
+                                        id: "debt-first-payment",
+                                        value: start_date(),
+                                        on_input: move |value| start_date.set(value),
+                                    }
                                 }
                             }
                         }

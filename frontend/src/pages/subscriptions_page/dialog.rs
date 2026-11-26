@@ -4,8 +4,8 @@ use crate::components::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::date_picker::DatePicker;
 use crate::components::field::Field;
 use crate::components::input::{Input, InputSize};
-use crate::components::textarea::Textarea;
 use crate::components::select_menu::{SelectMenu, SelectOption};
+use crate::components::textarea::Textarea;
 use chrono::Datelike;
 
 const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -89,8 +89,12 @@ pub(crate) fn render_dialog(
     let preview_start = form_start_date
         .parse::<chrono::NaiveDate>()
         .unwrap_or(today);
-    let first_charge = crate::utils::recurrence::first_occurrence_on_or_after(preview_start, &rec)
-        .map(|date| crate::utils::dates::format_date(&date, &PREFERENCES().date_format()));
+    let first_charge = if form_start_date.trim().is_empty() {
+        crate::utils::recurrence::first_occurrence_on_or_after(today, &rec)
+    } else {
+        Some(preview_start)
+    }
+    .map(|date| crate::utils::dates::format_date(&date, &PREFERENCES().date_format()));
     let unit_options: [(&str, &str); 4] = if rec_interval == 1 {
         [
             ("day", "day"),
@@ -204,6 +208,9 @@ pub(crate) fn render_dialog(
                                     }
                                 });
 
+                            let first_payment = start_date;
+                            let start_anchor = first_payment.unwrap_or_else(|| chrono::Utc::now().date_naive());
+
                             // Validate optional end date
                             let end_date = if f.end_date.is_empty() {
                                 None
@@ -247,7 +254,9 @@ pub(crate) fn render_dialog(
                                     schedule_month: rec.legacy_month(),
                                     recurrence: Some(rec),
                                     is_active: Some(active()),
-                                    start_date: Some(f.start_date.parse().unwrap_or_else(|_| chrono::Utc::now().date_naive())),
+                                    start_date: Some(start_anchor),
+                                    first_payment,
+                                    clear_first_payment: first_payment.is_none(),
                                     end_date,
                                     clear_end_date: f.end_date.is_empty(),
                                     category_id: category,
@@ -276,7 +285,8 @@ pub(crate) fn render_dialog(
                                     schedule_month: rec.legacy_month(),
                                     recurrence: Some(rec),
                                     is_active: Some(active()),
-                                    start_date: f.start_date.parse().unwrap_or_else(|_| chrono::Utc::now().date_naive()),
+                                    start_date: start_anchor,
+                                    first_payment,
                                     end_date,
                                     category_id: category,
                                     notes: if f.notes.is_empty() { None } else { Some(f.notes.clone()) },
@@ -342,6 +352,60 @@ pub(crate) fn render_dialog(
                             },
                             searchable: true,
                             placeholder: if currency_err.is_empty() { "Select currency..." } else { "Currency is required" },
+                        }
+                    }
+                }
+
+                // Optional first payment and end date, hidden until requested.
+                div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
+                    if form_start_date.is_empty() {
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            size: ButtonSize::Sm,
+                            class: "h-10 w-full border-dashed text-muted-foreground",
+                            onclick: move |_| {
+                                form.write().start_date = today.to_string();
+                                start_date_error.set(String::new());
+                            },
+                            "+ Add first payment"
+                        }
+                    } else {
+                        Field { label: "First payment", html_for: "subscription-start-date", error: start_date_err.to_string(), hint: "Optional. If empty, the next charge is calculated from the recurrence.",
+                            DatePicker {
+                                id: "subscription-start-date",
+                                reserve_clear: true,
+                                value: form_start_date.clone(),
+                                class: if start_date_err.is_empty() { "" } else { "border-red-500" },
+                                on_input: move |value| {
+                                    form.write().start_date = value;
+                                    start_date_error.set(String::new());
+                                },
+                            }
+                        }
+                    }
+                    if form_end_date.is_empty() {
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            size: ButtonSize::Sm,
+                            class: "h-10 w-full border-dashed text-muted-foreground",
+                            onclick: move |_| {
+                                form.write().end_date = today.to_string();
+                                end_date_error.set(String::new());
+                            },
+                            "+ Add end date"
+                        }
+                    } else {
+                        Field { label: "End date", html_for: "subscription-end-date", error: end_date_err.to_string(), hint: "Last billing date (inclusive).",
+                            DatePicker {
+                                id: "subscription-end-date",
+                                reserve_clear: true,
+                                value: form_end_date.clone(),
+                                class: if end_date_err.is_empty() { "" } else { "border-red-500" },
+                                on_input: move |value| {
+                                    form.write().end_date = value;
+                                    end_date_error.set(String::new());
+                                },
+                            }
                         }
                     }
                 }
@@ -611,34 +675,6 @@ pub(crate) fn render_dialog(
 
                     if !frequency_err.is_empty() {
                         p { class: "text-xs text-red-500", {frequency_err} }
-                    }
-                }
-
-                // Start and optional end date
-                div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
-                    Field { label: "Start date", html_for: "subscription-start-date", error: start_date_err.to_string(), hint: "Leave empty to start from today.",
-                        DatePicker {
-                            id: "subscription-start-date",
-                            reserve_clear: true,
-                            value: form_start_date,
-                            class: if start_date_err.is_empty() { "" } else { "border-red-500" },
-                            on_input: move |value| {
-                                form.write().start_date = value;
-                                start_date_error.set(String::new());
-                            },
-                        }
-                    }
-                    Field { label: "End date", html_for: "subscription-end-date", error: end_date_err.to_string(), hint: "Last billing date (inclusive).",
-                        DatePicker {
-                            id: "subscription-end-date",
-                            reserve_clear: true,
-                            value: form_end_date.clone(),
-                            class: if end_date_err.is_empty() { "" } else { "border-red-500" },
-                            on_input: move |value| {
-                                form.write().end_date = value;
-                                end_date_error.set(String::new());
-                            },
-                        }
                     }
                 }
 

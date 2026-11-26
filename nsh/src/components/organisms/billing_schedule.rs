@@ -9,7 +9,8 @@ use rust_decimal::Decimal;
 use crate::components::charge_days::charge_days;
 use crate::components::select::{SelectProps, select};
 use crate::components::string_select::{StringSelectProps, string_select};
-use crate::models::AnnualDate;
+use crate::models::{AnnualDate, Recurrence};
+use crate::recurrence::next_occurrence_on_or_after;
 use crate::reports::month_name;
 use crate::ui;
 
@@ -154,14 +155,35 @@ pub fn billing_schedule(props: BillingScheduleProps) -> impl IntoElement {
                     )
                     .child(
                         text(move || {
-                            let first = NaiveDate::parse_from_str(
+                            let explicit = NaiveDate::parse_from_str(
                                 start_date.get().trim(),
                                 "%Y-%m-%d",
                             )
-                            .unwrap_or_else(|_| Local::now().date_naive());
-                            format!(
-                                "First charge · {}",
-                                crate::format::format_date(first)
+                            .ok();
+                            let today = Local::now().date_naive();
+                            let recurrence = Recurrence {
+                                interval: interval
+                                    .get()
+                                    .trim()
+                                    .parse::<u16>()
+                                    .unwrap_or(1)
+                                    .clamp(1, 100),
+                                unit: unit.get(),
+                                days: days.get(),
+                                weekdays: weekdays.get(),
+                                dates: annual_dates.get(),
+                            };
+                            let first = explicit.or_else(|| {
+                                next_occurrence_on_or_after(today, &recurrence, today, None)
+                            });
+                            first.map_or_else(
+                                || "First charge · —".to_string(),
+                                |date| {
+                                    format!(
+                                        "First charge · {}",
+                                        crate::format::format_date(date)
+                                    )
+                                },
                             )
                         })
                         .text_size(px(11.0))

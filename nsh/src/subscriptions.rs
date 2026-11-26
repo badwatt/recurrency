@@ -18,6 +18,7 @@ use crate::components::converted_amount::converted_amount;
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
+use crate::components::optional_date::optional_date;
 use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
@@ -34,7 +35,13 @@ pub struct CreateSubscriptionRequest {
     pub frequency: String,
     pub start_date: NaiveDate,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_payment: Option<NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub end_date: Option<NaiveDate>,
+    #[serde(default)]
+    pub clear_first_payment: bool,
+    #[serde(default)]
+    pub clear_end_date: bool,
     pub account_id: Uuid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Uuid>,
@@ -493,10 +500,7 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
         editing: signal(None::<Uuid>),
         name: signal(String::new()),
         amount: signal(String::new()),
-        start_date: signal(
-            date.map(|value| value.to_string())
-                .unwrap_or_else(|| Local::now().date_naive().to_string()),
-        ),
+        start_date: signal(date.map(|value| value.to_string()).unwrap_or_default()),
         end_date: signal(String::new()),
         currency: signal(currency),
         interval: signal("1".to_string()),
@@ -596,11 +600,18 @@ fn form(
                 form_error.set("Amount must be positive.".to_string());
                 return;
             }
-            let Ok(start_value) = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
-            else {
-                form_error.set("Use YYYY-MM-DD for the start date.".to_string());
-                return;
+            let first_payment = if start_date.get().trim().is_empty() {
+                None
+            } else {
+                match NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d") {
+                    Ok(date) => Some(date),
+                    Err(_) => {
+                        form_error.set("Enter a valid first payment.".to_string());
+                        return;
+                    }
+                }
             };
+            let start_value = first_payment.unwrap_or_else(|| Local::now().date_naive());
             let currency_value = currency.get().trim().to_uppercase();
             if currency_value.is_empty() {
                 form_error.set("Enter a currency.".to_string());
@@ -656,7 +667,10 @@ fn form(
                 currency: currency_value.clone(),
                 frequency: frequency_for(&unit_value).to_string(),
                 start_date: start_value,
+                first_payment,
                 end_date: end_value,
+                clear_first_payment: first_payment.is_none(),
+                clear_end_date: end_value.is_none(),
                 account_id: account_id_value,
                 category_id: category_id.get(),
                 recurrence: recurrence_for(
@@ -761,6 +775,20 @@ fn form(
                             ),
                         ),
                 )
+                .child(
+                    view()
+                        .w_full()
+                        .mt(px(4.0))
+                        .flex_col()
+                        .gap(px(12.0))
+                        .when(!compact, |row| row.flex_row())
+                        .child(optional_date(
+                            "First payment",
+                            "Add first payment",
+                            start_date,
+                        ))
+                        .child(optional_date("End date", "Add end date", end_date)),
+                )
                 .child(billing_schedule(BillingScheduleProps {
                     interval,
                     unit,
@@ -770,42 +798,6 @@ fn form(
                     start_date,
                     mode: BillingMode::Full,
                 }))
-                .child(
-                    view()
-                        .w_full()
-                        .mt(px(4.0))
-                        .flex_col()
-                        .gap(px(12.0))
-                        .when(!compact, |row| row.flex_row())
-                        .child(
-                            view().flex_grow(1.0).min_w(px(0.0)).child(
-                                crate::components::field::field(
-                                    crate::components::field::FieldProps::new("Start date")
-                                        .hint("Leave empty to start from today."),
-                                    view()
-                                        .w_full()
-                                        .child(crate::components::date_picker::date_picker(
-                                            start_date,
-                                        ))
-                                        .into_element(),
-                                ),
-                            ),
-                        )
-                        .child(
-                            view().flex_grow(1.0).min_w(px(0.0)).child(
-                                crate::components::field::field(
-                                    crate::components::field::FieldProps::new("End date")
-                                        .hint("Last billing date (inclusive)."),
-                                    view()
-                                        .w_full()
-                                        .child(crate::components::date_picker::date_picker(
-                                            end_date,
-                                        ))
-                                        .into_element(),
-                                ),
-                            ),
-                        ),
-                )
                 .child(ui::editable_choice_picker(
                     "Account *",
                     move || {
@@ -2180,7 +2172,10 @@ fn card_actions(
                 currency: currency.clone(),
                 frequency: frequency_for(&original.recurrence.unit).to_string(),
                 start_date: original.start_date,
+                first_payment: original.next_billing_date,
                 end_date: original.end_date,
+                clear_first_payment: false,
+                clear_end_date: false,
                 account_id: original.account_id,
                 category_id: Some(original.category_id),
                 recurrence: original.recurrence.clone(),
@@ -2698,7 +2693,10 @@ mod tests {
             currency: "EUR".to_string(),
             frequency: "monthly".to_string(),
             start_date: date(2026, 11, 22),
+            first_payment: Some(date(2026, 11, 22)),
             end_date: None,
+            clear_first_payment: false,
+            clear_end_date: false,
             account_id: Uuid::new_v4(),
             category_id: None,
             recurrence: recurrence_for("month", &[23], &[], &[], date(2026, 11, 22), 1),

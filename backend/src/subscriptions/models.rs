@@ -6,7 +6,6 @@ use sqlx::types::Json;
 use uuid::Uuid;
 use validator::Validate;
 
-
 /// Unified recurrence definition stored as JSONB.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Recurrence {
@@ -86,6 +85,8 @@ pub struct CreateSubscriptionRequest {
     #[serde(default = "today_date")]
     pub start_date: NaiveDate,
     #[serde(default)]
+    pub first_payment: Option<NaiveDate>,
+    #[serde(default)]
     pub end_date: Option<NaiveDate>,
     #[serde(default)]
     pub account_id: Uuid,
@@ -105,6 +106,10 @@ pub struct UpdateSubscriptionRequest {
     #[serde(default)]
     pub recurrence: Option<Recurrence>,
     pub start_date: Option<NaiveDate>,
+    #[serde(default)]
+    pub first_payment: Option<NaiveDate>,
+    #[serde(default)]
+    pub clear_first_payment: bool,
     pub end_date: Option<NaiveDate>,
     #[serde(default)]
     pub clear_end_date: bool,
@@ -185,6 +190,16 @@ mod tests {
     }
 
     #[test]
+    fn create_request_accepts_an_explicit_first_payment() {
+        let day = NaiveDate::from_ymd_opt(2026, 11, 26).unwrap();
+        let req: CreateSubscriptionRequest = serde_json::from_str(
+            r#"{"name":"First","amount":"10.00","currency":"EUR","frequency":"monthly","first_payment":"2026-11-26"}"#,
+        )
+        .unwrap();
+        assert_eq!(req.first_payment, Some(day));
+    }
+
+    #[test]
     fn create_subscription_request_valid() {
         let req = CreateSubscriptionRequest {
             account_id: Uuid::new_v4(),
@@ -201,6 +216,8 @@ mod tests {
             category_id: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         assert!(req.validate().is_ok());
     }
@@ -222,6 +239,8 @@ mod tests {
             category_id: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         assert!(req.validate().is_err());
     }
@@ -243,6 +262,8 @@ mod tests {
             category_id: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         assert!(req.validate().is_err());
     }
@@ -266,6 +287,9 @@ mod tests {
             is_active: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         assert!(req.name.is_none());
         assert!(req.amount.is_none());
@@ -291,6 +315,9 @@ mod tests {
             is_active: Some(false),
             notes: None,
             logo_url: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         assert_eq!(req.name.as_deref(), Some("New Name"));
         assert_eq!(req.frequency.as_deref(), Some("yearly"));
@@ -378,6 +405,8 @@ mod tests {
                 category_id: None,
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
             };
             assert!(req.validate().is_ok());
         }
@@ -456,6 +485,8 @@ mod tests {
             category_id: Some(cat_id),
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         assert!(req.validate().is_ok());
         assert_eq!(req.category_id, Some(cat_id));
@@ -480,6 +511,9 @@ mod tests {
             is_active: Some(true),
             notes: None,
             logo_url: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         assert!(req.next_billing_date.is_some());
         assert_eq!(req.is_active, Some(true));

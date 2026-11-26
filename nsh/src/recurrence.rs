@@ -147,6 +147,20 @@ pub fn occurrences_between(
     result
 }
 
+/// First occurrence on or after `from`, respecting the inclusive end date.
+pub fn next_occurrence_on_or_after(
+    start: NaiveDate,
+    recurrence: &Recurrence,
+    from: NaiveDate,
+    end_date: Option<NaiveDate>,
+) -> Option<NaiveDate> {
+    let horizon = from + Duration::days(366 * 200);
+    occurrences_between(start, recurrence, from, horizon, end_date, Decimal::ZERO)
+        .into_iter()
+        .next()
+        .map(|(date, _)| date)
+}
+
 pub fn occurrences_in_month(
     start: NaiveDate,
     recurrence: &Recurrence,

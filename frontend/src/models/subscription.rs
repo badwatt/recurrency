@@ -3,7 +3,6 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-
 /// Unified recurrence definition. Kept in sync with the backend JSONB model.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Recurrence {
@@ -29,7 +28,6 @@ pub struct AnnualDate {
     pub amount: Option<Decimal>,
 }
 
-
 impl Recurrence {
     /// Build the new recurrence model from the legacy frequency columns.
     pub fn from_legacy(
@@ -39,7 +37,9 @@ impl Recurrence {
         month: Option<i16>,
     ) -> Self {
         let fallback_day = start.day().min(31) as u8;
-        let day = day.map(|value| value.clamp(1, 31) as u8).unwrap_or(fallback_day);
+        let day = day
+            .map(|value| value.clamp(1, 31) as u8)
+            .unwrap_or(fallback_day);
         match frequency {
             "daily" => Self {
                 interval: 1,
@@ -97,13 +97,10 @@ impl Recurrence {
                 .iter()
                 .min_by_key(|date| (date.month, date.day))
                 .map(|date| i16::from(date.day)),
-            "month" => self.days.first().map(|day| {
-                if *day == 0 {
-                    31
-                } else {
-                    i16::from(*day)
-                }
-            }),
+            "month" => self
+                .days
+                .first()
+                .map(|day| if *day == 0 { 31 } else { i16::from(*day) }),
             _ => None,
         }
     }
@@ -173,6 +170,8 @@ pub struct CreateSubscriptionRequest {
     #[serde(default)]
     pub is_active: Option<bool>,
     pub start_date: NaiveDate,
+    #[serde(default)]
+    pub first_payment: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
     #[serde(default)]
     pub account_id: Uuid,
@@ -192,6 +191,10 @@ pub struct UpdateSubscriptionRequest {
     #[serde(default)]
     pub recurrence: Option<Recurrence>,
     pub start_date: Option<NaiveDate>,
+    #[serde(default)]
+    pub first_payment: Option<NaiveDate>,
+    #[serde(default)]
+    pub clear_first_payment: bool,
     pub end_date: Option<NaiveDate>,
     #[serde(default)]
     pub clear_end_date: bool,
@@ -279,6 +282,8 @@ mod tests {
             category_id: None,
             notes: Some("Music streaming".into()),
             logo_url: None,
+
+            first_payment: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("Spotify"));
@@ -418,6 +423,8 @@ mod tests {
             category_id: Some(Uuid::new_v4()),
             notes: None,
             logo_url: Some("https://logo.com/hulu.png".into()),
+
+            first_payment: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("hulu.png"));
@@ -542,6 +549,8 @@ mod subscription_tests {
             category_id: Some(cat),
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         assert_eq!(req.name, "Netflix");
         assert_eq!(req.frequency, "monthly");
@@ -565,6 +574,8 @@ mod subscription_tests {
             category_id: Some(cat),
             notes: Some("Family plan".into()),
             logo_url: Some("spotify.png".into()),
+
+            first_payment: None,
         };
         assert_eq!(req.name, "Spotify");
         assert_eq!(req.amount, dec!(5.99));
@@ -609,6 +620,9 @@ mod subscription_tests {
             logo_url: None,
             is_active: None,
             next_billing_date: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         assert_eq!(req.name, Some("Updated Name".into()));
         assert!(req.amount.is_none());
@@ -836,6 +850,9 @@ mod subscription_tests {
             logo_url: Some("new-logo.png".into()),
             is_active: Some(false),
             next_billing_date: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         assert!(req.name.is_some());
         assert!(req.amount.is_some());

@@ -1297,7 +1297,8 @@ impl MockReportService {
 
 pub struct MockPreferencesService {
     pub(crate) config: MockConfig,
-    pub(crate) preferences: Arc<std::sync::Mutex<std::collections::HashMap<Uuid, PreferencesResponse>>>,
+    pub(crate) preferences:
+        Arc<std::sync::Mutex<std::collections::HashMap<Uuid, PreferencesResponse>>>,
 }
 
 impl Default for MockPreferencesService {
@@ -2208,6 +2209,7 @@ mod tests {
                 recurrence: None,
                 is_active: None,
                 start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                first_payment: None,
                 end_date: None,
                 account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
@@ -2329,13 +2331,16 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 account_id: None,
                 category_id: None,
                 is_active: Some(false),
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -2358,12 +2363,15 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: None,
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2382,13 +2390,16 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 account_id: None,
                 category_id: None,
                 is_active: None,
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -3416,7 +3427,7 @@ mod tests {
             let user = User {
                 id: Uuid::new_v4(),
                 email: "clone@test.com".to_string(),
-            avatar: None,
+                avatar: None,
                 password_hash: "hash".to_string(),
                 name: Some("Clone".to_string()),
                 currency: "USD".to_string(),
@@ -3645,6 +3656,8 @@ mod tests {
                         category_id: None,
                         notes: None,
                         logo_url: None,
+
+                        first_payment: None,
                     },
                 )
                 .await
@@ -3661,12 +3674,15 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: None,
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4017,6 +4033,8 @@ mod tests {
                         category_id: None,
                         notes: None,
                         logo_url: None,
+
+                        first_payment: None,
                     },
                 )
                 .await
@@ -4033,12 +4051,15 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: None,
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4067,6 +4088,8 @@ mod tests {
                         category_id: None,
                         notes: None,
                         logo_url: None,
+
+                        first_payment: None,
                     },
                 )
                 .await
@@ -4083,12 +4106,15 @@ mod tests {
                 is_active: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 1).unwrap()),
                 account_id: None,
                 category_id: None,
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4116,6 +4142,8 @@ mod tests {
                         category_id: None,
                         notes: None,
                         logo_url: None,
+
+                        first_payment: None,
                     },
                 )
                 .await
@@ -4133,12 +4161,15 @@ mod tests {
                 recurrence: None,
                 start_date: None,
                 end_date: None,
-            clear_end_date: false,
+                clear_end_date: false,
                 next_billing_date: None,
                 category_id: None,
                 is_active: Some(false),
                 notes: None,
                 logo_url: None,
+
+                first_payment: None,
+                clear_first_payment: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());

@@ -40,6 +40,7 @@ components/
 | `entity_icon` | stored icon name + color, dot fallback |
 | `field` | label + control + hint/error |
 | `list_toolbar` | search, actions and grid/list switch |
+| `optional_date` | first payment / end date hidden behind an add action |
 | `privacy_toggle` | eye control that masks every amount |
 | `search_input` | search field with icon |
 | `select` | the one select: trigger, fixed panel, optional search, optional create |

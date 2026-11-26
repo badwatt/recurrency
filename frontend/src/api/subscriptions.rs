@@ -1,4 +1,4 @@
-use crate::api::client::{api_delete, api_get, api_post, api_put, ApiError};
+use crate::api::client::{ApiError, api_delete, api_get, api_post, api_put};
 use crate::models::subscription::*;
 
 pub async fn list() -> Result<Vec<Subscription>, ApiError> {
@@ -98,6 +98,8 @@ mod tests {
             category_id: Some(Uuid::new_v4()),
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         assert_eq!(req.name, "Netflix");
         assert_eq!(req.amount, dec!(15.99));
@@ -123,6 +125,8 @@ mod tests {
             category_id: None,
             notes: Some("Family plan".into()),
             logo_url: Some("https://logo.com/spotify.png".into()),
+
+            first_payment: None,
         };
         assert!(req.notes.is_some());
         assert!(req.logo_url.is_some());
@@ -147,6 +151,9 @@ mod tests {
             is_active: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         assert_eq!(req.name.as_deref(), Some("Netflix Premium"));
         assert_eq!(req.amount.as_ref().unwrap(), &dec!(19.99));
@@ -314,6 +321,8 @@ mod tests {
             category_id: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("Netflix"));
@@ -339,6 +348,9 @@ mod tests {
             is_active: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
+            clear_first_payment: false,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("Updated Name"));
@@ -393,6 +405,8 @@ mod tests {
             category_id: None,
             notes: None,
             logo_url: None,
+
+            first_payment: None,
         }
     }
 
@@ -401,23 +415,26 @@ mod tests {
     async fn subscription_endpoints_exchange_json() {
         let sub = sample_subscription();
         let json = serde_json::to_string(&sub).unwrap();
-        let listed: Vec<Subscription> =
-            with_server(format!("[{json}]"), list()).await.unwrap();
+        let listed: Vec<Subscription> = with_server(format!("[{json}]"), list()).await.unwrap();
         assert_eq!(listed.len(), 1);
 
         let fetched: Subscription = with_server(json.clone(), get(&sub.id)).await.unwrap();
         assert_eq!(fetched.id, sub.id);
 
-        let created: Subscription =
-            with_server(json.clone(), create(&sample_request())).await.unwrap();
+        let created: Subscription = with_server(json.clone(), create(&sample_request()))
+            .await
+            .unwrap();
         assert_eq!(created.name, "Netflix");
 
         let updated: Subscription = with_server(
             json.clone(),
-            update(&sub.id, &UpdateSubscriptionRequest {
-                name: Some("Renamed".into()),
-                ..Default::default()
-            }),
+            update(
+                &sub.id,
+                &UpdateSubscriptionRequest {
+                    name: Some("Renamed".into()),
+                    ..Default::default()
+                },
+            ),
         )
         .await
         .unwrap();
@@ -427,17 +444,13 @@ mod tests {
             with_server(format!("[{json}]"), upcoming()).await.unwrap();
         assert_eq!(upcoming.len(), 1);
 
-        let calendar: Vec<CalendarItem> = with_server(
-            "[]".to_string(),
-            calendar_month(2024, 1),
-        )
-        .await
-        .unwrap();
+        let calendar: Vec<CalendarItem> = with_server("[]".to_string(), calendar_month(2024, 1))
+            .await
+            .unwrap();
         assert!(calendar.is_empty());
 
         with_response("204 No Content", "", delete(&sub.id))
             .await
             .unwrap();
     }
-
 }

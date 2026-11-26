@@ -60,6 +60,8 @@ pub struct CreateDebtRequest {
     #[serde(default)]
     pub payment_days: Vec<u8>,
     #[serde(default)]
+    pub first_payment: Option<NaiveDate>,
+    #[serde(default)]
     pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
     pub logo_url: Option<String>,
@@ -76,6 +78,9 @@ pub struct UpdateDebtRequest {
     pub monthly_payment: Option<Decimal>,
     #[serde(default)]
     pub payment_days: Option<Vec<u8>>,
+    pub first_payment: Option<NaiveDate>,
+    #[serde(default)]
+    pub clear_first_payment: bool,
     pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
     #[serde(default)]
