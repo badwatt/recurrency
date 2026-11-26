@@ -64,6 +64,7 @@ struct FormSignals {
     currency: Signal<String>,
     interval: Signal<String>,
     days: Signal<Vec<u8>>,
+    weekdays: Signal<Vec<u8>>,
     annual_dates: Signal<Vec<AnnualDate>>,
     unit: Signal<String>,
     account_id: Signal<Option<Uuid>>,
@@ -139,6 +140,7 @@ pub fn subscriptions(
     });
     let interval = signal("1".to_string());
     let days = signal(Vec::<u8>::new());
+    let weekdays = signal(Vec::<u8>::new());
     let annual_dates = signal(Vec::<AnnualDate>::new());
     let unit = signal("month".to_string());
     let account_id = signal(None::<Uuid>);
@@ -163,6 +165,7 @@ pub fn subscriptions(
         currency: form_currency,
         interval,
         days,
+        weekdays,
         annual_dates,
         unit,
         account_id,
@@ -212,6 +215,7 @@ pub fn subscriptions(
         });
         interval.set("1".to_string());
         days.set(vec![date.day() as u8]);
+        weekdays.set(Vec::new());
         annual_dates.set(Vec::new());
         unit.set("month".to_string());
         account_id.set(
@@ -445,6 +449,7 @@ fn open_edit_subscription(
         .interval
         .set(recurrence.interval.max(1).to_string());
     form_signals.days.set(days);
+    form_signals.weekdays.set(recurrence.weekdays.clone());
     form_signals.annual_dates.set(recurrence.dates.clone());
     form_signals.unit.set(recurrence.unit.clone());
     form_signals.account_id.set(Some(subscription.account_id));
@@ -500,6 +505,7 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
         days: signal(vec![
             date.map_or_else(|| Local::now().day() as u8, |value| value.day() as u8),
         ]),
+        weekdays: signal(Vec::<u8>::new()),
         annual_dates: signal(Vec::<AnnualDate>::new()),
         unit: signal("month".to_string()),
         account_id: signal(None::<Uuid>),
@@ -535,6 +541,7 @@ fn form(
         currency,
         interval,
         days,
+        weekdays,
         annual_dates,
         unit,
         account_id,
@@ -548,6 +555,13 @@ fn form(
         logo_loading,
         logo_error,
     } = form;
+    effect(move || {
+        if unit.get() == "week" && weekdays.get().is_empty() {
+            let start = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
+                .unwrap_or_else(|_| Local::now().date_naive());
+            weekdays.set(vec![start.weekday().number_from_monday() as u8]);
+        }
+    });
     effect(move || {
         if account_id.get().is_none() {
             if let Some(account) = data
@@ -657,6 +671,7 @@ fn form(
                 recurrence: recurrence_for(
                     &unit_value,
                     &day_values,
+                    &weekdays.get(),
                     &annual_values,
                     start_value,
                     interval_value,
@@ -892,18 +907,23 @@ fn form(
                                 move || annual_dates_editor(annual_dates).into_element(),
                             )
                             .otherwise(move || {
-                                view()
-                                    .w_full()
-                                    .flex_col()
-                                    .gap(px(6.0))
-                                    .child(
-                                        view()
-                                            .w_full()
-                                            .flex_row()
-                                            .items_center()
-                                            .justify_between()
-                                            .child(
-                                                text("Charge on these days")
+                                when(
+                                    move || unit.get() == "week",
+                                    move || weekday_picker(weekdays).into_element(),
+                                )
+                                .otherwise(move || {
+                                    view()
+                                        .w_full()
+                                        .flex_col()
+                                        .gap(px(6.0))
+                                        .child(
+                                            view()
+                                                .w_full()
+                                                .flex_row()
+                                                .items_center()
+                                                .justify_between()
+                                                .child(
+                                                    text("Charge on these days")
                                                     .text_size(px(12.0))
                                                     .font_weight(FontWeight::MEDIUM)
                                                     .text_color(move || theme().muted_foreground),
@@ -945,74 +965,14 @@ fn form(
                                     )
                                     .child(day_grid(days))
                                     .child(
-                                        when(
-                                            move || {
-                                                let selected = days.get();
-                                                selected.iter().any(|day| *day >= 29)
-                                                    || selected.contains(&0)
-                                            },
-                                            move || {
-                                                view()
-                                                    .w_full()
-                                                    .flex_row()
-                                                    .justify_start()
-                                                    .pt(px(4.0))
-                                                    .child(
-                                                        button()
-                                                            .cursor_pointer()
-                                                            .h(px(28.0))
-                                                            .px(px(10.0))
-                                                            .rounded(px(6.0))
-                                                            .border(px(1.0))
-                                                            .border_color(move || {
-                                                                if days.get().contains(&0) {
-                                                                    theme().primary
-                                                                } else {
-                                                                    theme().border.opacity(0.6)
-                                                                }
-                                                            })
-                                                            .bg(move || {
-                                                                if days.get().contains(&0) {
-                                                                    theme().primary
-                                                                } else {
-                                                                    theme().card
-                                                                }
-                                                            })
-                                                            .on_press(move || {
-                                                                let mut selected = days.get();
-                                                                if selected.contains(&0) {
-                                                                    selected.retain(|day| *day != 0);
-                                                                } else {
-                                                                    selected.retain(|day| *day < 29);
-                                                                    selected.push(0);
-                                                                }
-                                                                days.set(selected);
-                                                            })
-                                                            .child(
-                                                                text("Last day")
-                                                                    .text_size(px(12.0))
-                                                                    .font_weight(FontWeight::MEDIUM)
-                                                                    .text_color(move || {
-                                                                        if days.get().contains(&0) {
-                                                                            theme().primary_foreground
-                                                                        } else {
-                                                                            theme().muted_foreground
-                                                                        }
-                                                                    }),
-                                                            ),
-                                                    )
-                                                .into_element()
-                                            },
-                                        )
-                                        .otherwise(|| view().h(px(0.0)).into_element()),
-                                    )
-                                    .child(
                                         text("Days 29-31 use 'last day' for short months. Each selected day is a separate charge.")
                                             .text_size(px(10.0))
                                             .mt(px(9.0))
                                             .text_color(move || theme().muted_foreground),
                                     )
                                     .into_element()
+                                })
+                                .into_element()
                             }),
                         ),
                 )
@@ -1340,6 +1300,75 @@ fn annual_amount_field(value: String, on_change: impl Fn(String) + 'static) -> i
         ))
 }
 
+fn weekday_picker(weekdays: Signal<Vec<u8>>) -> impl IntoElement {
+    const LABELS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .child(
+            text("Charge on")
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .flex_wrap()
+                .gap(px(4.0))
+                .children(LABELS.into_iter().enumerate().map(|(index, label)| {
+                    let day = index as u8 + 1;
+                    let active = move || weekdays.get().contains(&day);
+                    button()
+                        .cursor_pointer()
+                        .h(px(28.0))
+                        .px(px(10.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(6.0))
+                        .border(px(1.0))
+                        .border_color(move || {
+                            if active() {
+                                theme().primary
+                            } else {
+                                theme().border.opacity(0.6)
+                            }
+                        })
+                        .bg(move || {
+                            if active() {
+                                theme().primary
+                            } else {
+                                theme().card
+                            }
+                        })
+                        .on_press(move || {
+                            let mut values = weekdays.get();
+                            if let Some(position) = values.iter().position(|value| *value == day) {
+                                values.remove(position);
+                            } else {
+                                values.push(day);
+                                values.sort_unstable();
+                            }
+                            weekdays.set(values);
+                        })
+                        .child(
+                            text(label)
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || {
+                                    if active() {
+                                        theme().primary_foreground
+                                    } else {
+                                        theme().muted_foreground
+                                    }
+                                }),
+                        )
+                })),
+        )
+}
+
 fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
     view()
         .w_full()
@@ -1395,6 +1424,53 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                         }),
                 )
         }))
+        .child({
+            let active = move || days.get().contains(&0);
+            button()
+                .cursor_pointer()
+                .items_center()
+                .justify_center()
+                .h(px(32.0))
+                .w_full()
+                .rounded(px(6.0))
+                .border(px(1.0))
+                .border_color(move || {
+                    if active() {
+                        theme().primary
+                    } else {
+                        theme().border
+                    }
+                })
+                .bg(move || {
+                    if active() {
+                        theme().primary
+                    } else {
+                        theme().card
+                    }
+                })
+                .on_press(move || {
+                    let mut selected = days.get();
+                    if selected.contains(&0) {
+                        selected.retain(|day| *day != 0);
+                    } else {
+                        selected.retain(|day| *day < 29);
+                        selected.push(0);
+                    }
+                    days.set(selected);
+                })
+                .child(
+                    text("Last day")
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || {
+                            if active() {
+                                theme().primary_foreground
+                            } else {
+                                theme().foreground
+                            }
+                        }),
+                )
+        })
 }
 
 fn frequency_for(unit: &str) -> &'static str {
@@ -1409,6 +1485,7 @@ fn frequency_for(unit: &str) -> &'static str {
 fn recurrence_for(
     unit: &str,
     days: &[u8],
+    weekdays: &[u8],
     annual: &[AnnualDate],
     start: NaiveDate,
     interval: u16,
@@ -1441,7 +1518,11 @@ fn recurrence_for(
             };
         }
         "week" => {
-            recurrence.weekdays = vec![start.weekday().number_from_monday() as u8];
+            recurrence.weekdays = if weekdays.is_empty() {
+                vec![start.weekday().number_from_monday() as u8]
+            } else {
+                weekdays.to_vec()
+            };
         }
         _ => {
             recurrence.days = days.to_vec();
@@ -3078,7 +3159,7 @@ mod tests {
 
     #[test]
     fn monthly_recurrence_uses_the_chosen_day() {
-        let recurrence = recurrence_for("month", &[15], &[], date(2026, 11, 22), 1);
+        let recurrence = recurrence_for("month", &[15], &[], &[], date(2026, 11, 22), 1);
         assert_eq!(recurrence.unit, "month");
         assert_eq!(recurrence.days, vec![15]);
         assert!(recurrence.dates.is_empty());
@@ -3118,13 +3199,13 @@ mod tests {
                 amount: None,
             },
         ];
-        let recurrence = recurrence_for("year", &[], &dates, date(2026, 11, 22), 1);
+        let recurrence = recurrence_for("year", &[], &[], &dates, date(2026, 11, 22), 1);
         assert_eq!(recurrence.dates, dates);
     }
 
     #[test]
     fn yearly_recurrence_uses_a_single_annual_date() {
-        let recurrence = recurrence_for("year", &[5], &[], date(2026, 11, 22), 1);
+        let recurrence = recurrence_for("year", &[5], &[], &[], date(2026, 11, 22), 1);
         assert_eq!(recurrence.unit, "year");
         assert_eq!(
             recurrence.dates,
@@ -3138,9 +3219,11 @@ mod tests {
     }
 
     #[test]
-    fn weekly_recurrence_uses_the_start_weekday() {
-        let recurrence = recurrence_for("week", &[1], &[], date(2026, 11, 22), 1);
-        assert_eq!(recurrence.weekdays, vec![7]);
+    fn weekly_recurrence_uses_the_selected_weekdays() {
+        let recurrence = recurrence_for("week", &[1], &[3], &[], date(2026, 11, 22), 1);
+        assert_eq!(recurrence.weekdays, vec![3]);
+        let fallback = recurrence_for("week", &[1], &[], &[], date(2026, 11, 22), 1);
+        assert_eq!(fallback.weekdays, vec![7]);
         assert_eq!(frequency_for("week"), "weekly");
     }
 
@@ -3163,7 +3246,7 @@ mod tests {
             end_date: None,
             account_id: Uuid::new_v4(),
             category_id: None,
-            recurrence: recurrence_for("month", &[23], &[], date(2026, 11, 22), 1),
+            recurrence: recurrence_for("month", &[23], &[], &[], date(2026, 11, 22), 1),
             is_active: true,
             notes: None,
             logo_url: None,
