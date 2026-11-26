@@ -195,7 +195,6 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                         icon: create_icon_value,
                         color: create_color_value,
                         error: create_error,
-                        preview_label: "NEW".to_string(),
                     },
                 ),
             ))

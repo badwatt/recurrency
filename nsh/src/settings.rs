@@ -3636,7 +3636,6 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             modal.open(move || {
                 entity_dialog(
                     "Add Account",
-                    "ACCOUNT",
                     account_name,
                     account_icon,
                     account_color,
@@ -3660,7 +3659,6 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             modal.open(move || {
                 entity_dialog(
                     "Add Category",
-                    "CATEGORY",
                     category_name,
                     category_icon,
                     category_color,
@@ -3684,7 +3682,6 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             modal.open(move || {
                 entity_dialog(
                     "Edit Account",
-                    "ACCOUNT",
                     account_name,
                     account_icon,
                     account_color,
@@ -3708,7 +3705,6 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             modal.open(move || {
                 entity_dialog(
                     "Edit Category",
-                    "CATEGORY",
                     category_name,
                     category_icon,
                     category_color,
@@ -4126,7 +4122,6 @@ fn settings_tab(
 
 fn entity_dialog(
     title: &'static str,
-    preview_label: &'static str,
     name: Signal<String>,
     icon: Signal<String>,
     color: Signal<String>,
@@ -4148,7 +4143,6 @@ fn entity_dialog(
                             icon,
                             color,
                             error,
-                            preview_label: preview_label.to_string(),
                         },
                     ))
                     .into_element(),

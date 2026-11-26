@@ -32,7 +32,6 @@ pub struct EntityFormProps {
     pub icon: Signal<String>,
     pub color: Signal<String>,
     pub error: Signal<String>,
-    pub preview_label: String,
 }
 
 pub fn entity_form(props: EntityFormProps) -> AnyElement {
@@ -41,50 +40,11 @@ pub fn entity_form(props: EntityFormProps) -> AnyElement {
         icon,
         color,
         error,
-        preview_label,
     } = props;
     view()
         .w_full()
         .flex_col()
-        .gap(px(16.0))
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .gap(px(12.0))
-                .p(px(12.0))
-                .rounded(px(10.0))
-                .border(px(1.0))
-                .border_color(move || theme().border.opacity(0.6))
-                .bg(move || theme().muted.opacity(0.18))
-                .child(entity_icon(&icon.get(), color_value(&color.get()), 42.0))
-                .child(
-                    view()
-                        .flex_col()
-                        .gap(px(2.0))
-                        .child(
-                            text(preview_label)
-                                .text_size(px(11.0))
-                                .letter_spacing(px(1.2))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().muted_foreground),
-                        )
-                        .child(
-                            text(move || {
-                                let value = name.get();
-                                if value.trim().is_empty() {
-                                    "Preview".to_string()
-                                } else {
-                                    value
-                                }
-                            })
-                            .text_size(px(16.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(move || theme().foreground),
-                        ),
-                ),
-        )
+        .gap(px(12.0))
         .child(field(
             FieldProps::new("Name").required(),
             text_input(name, "Name").into_element(),
