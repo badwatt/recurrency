@@ -12,6 +12,7 @@ use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
+use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
 use crate::components::page_header::page_header as shared_page_header;
@@ -163,6 +164,10 @@ pub fn transactions(
     };
     let loading = move || data.loading() && data.get().is_none();
     let has_error = move || data.error().is_some();
+    let has_items = move || {
+        data.get()
+            .is_some_and(|snapshot| !snapshot.transactions.is_empty())
+    };
     let render_currency = currency.clone();
 
     let open_form = move || {
@@ -238,20 +243,26 @@ pub fn transactions(
             }
         })
         .child(header(move || open_header(), compact))
-        .child(toolbar(
-            data,
-            search,
-            list_view,
-            month_only,
-            sort_desc,
-            sort_field,
-            category_filter,
-            price_min,
-            price_max,
-            open_bulk,
-        ))
+        .child(
+            when(has_items, move || {
+                toolbar(
+                    data,
+                    search,
+                    list_view,
+                    month_only,
+                    sort_desc,
+                    sort_field,
+                    category_filter,
+                    price_min,
+                    price_max,
+                    open_bulk,
+                )
+                .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(when(
-            move || selection_mode.get(),
+            move || selection_mode.get() && has_items(),
             move || {
                 bulk_bar(
                     data,
@@ -815,40 +826,61 @@ fn content(
         }
         groups
     };
-    view()
-        .key(list_key)
-        .w_full()
-        .mt(px(-5.5))
-        .flex_col()
-        .gap(px(16.0))
-        .child(each(
-            groups,
-            move |group| {
-                format!(
-                    "{}-{}-{}-{}-{}",
-                    group.key,
-                    group.items.len(),
-                    group.total,
-                    sort_field.get(),
-                    sort_desc.get()
-                )
-            },
-            move |group, _| {
-                group_card(
-                    group.get(),
-                    data,
-                    currency.clone(),
-                    actions,
-                    server,
-                    token,
-                    list_view,
-                    compact,
-                    selection_mode,
-                    selected,
-                )
-            },
-        ))
+    let empty = move || data.get().unwrap_or_default().transactions.is_empty();
+    when(empty, move || {
+        empty_state(
+            asset!("icons/transactions.svg"),
+            "No transactions yet",
+            "Add your first one-time expense",
+            shared_button(
+                ButtonProps::new("Add Transaction")
+                    .icon(asset!("icons/plus.svg"))
+                    .min_width(113.0)
+                    .on_press(move || crate::ui::create_transaction(None)),
+            )
+            .into_element(),
+        )
         .into_element()
+    })
+    .otherwise(move || {
+        let list_key = list_key.clone();
+        let currency = currency.clone();
+        view()
+            .key(list_key)
+            .w_full()
+            .mt(px(-5.5))
+            .flex_col()
+            .gap(px(16.0))
+            .child(each(
+                groups,
+                move |group| {
+                    format!(
+                        "{}-{}-{}-{}-{}",
+                        group.key,
+                        group.items.len(),
+                        group.total,
+                        sort_field.get(),
+                        sort_desc.get()
+                    )
+                },
+                move |group, _| {
+                    group_card(
+                        group.get(),
+                        data,
+                        currency.clone(),
+                        actions,
+                        server,
+                        token,
+                        list_view,
+                        compact,
+                        selection_mode,
+                        selected,
+                    )
+                },
+            ))
+            .into_element()
+    })
+    .into_element()
 }
 
 fn group_card(
@@ -1919,6 +1951,14 @@ mod tests {
         assert_eq!(filter_transactions(&items, &accounts, "groc").len(), 1);
         assert_eq!(filter_transactions(&items, &accounts, "every").len(), 1);
         assert_eq!(filter_transactions(&items, &accounts, "").len(), 2);
+    }
+
+    #[test]
+    fn empty_transactions_reuse_the_shared_empty_state() {
+        let source = include_str!("transactions.rs");
+        assert!(source.contains("No transactions yet"));
+        assert!(source.contains("empty_state("));
+        assert!(source.contains("let has_items"));
     }
 
     #[test]

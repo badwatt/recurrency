@@ -16,6 +16,7 @@ use crate::components::button::{
 };
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
+use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
 use crate::components::list_toolbar::list_toolbar;
 use crate::components::select::{SelectProps, select};
@@ -188,6 +189,10 @@ pub fn subscriptions(
     let pending_edit = signal(None::<Uuid>);
     let loading = move || data.loading() && data.get().is_none() && !form_open.get();
     let has_error = move || data.error().is_some() && !form_open.get();
+    let has_items = move || {
+        data.get()
+            .is_some_and(|snapshot| !snapshot.subscriptions.is_empty())
+    };
     let render_currency = currency.clone();
 
     let open_form = move || {
@@ -290,21 +295,27 @@ pub fn subscriptions(
         .gap(px(24.0))
         .pt(move || if compact.get() { px(20.0) } else { px(0.0) })
         .child(header(move || open_header(), compact))
-        .child(toolbar(
-            data,
-            search,
-            sort_desc,
-            sort_field,
-            list_view,
-            status,
-            frequency_filter,
-            category_filter,
-            price_min,
-            price_max,
-            open_bulk,
-        ))
+        .child(
+            when(has_items, move || {
+                toolbar(
+                    data,
+                    search,
+                    sort_desc,
+                    sort_field,
+                    list_view,
+                    status,
+                    frequency_filter,
+                    category_filter,
+                    price_min,
+                    price_max,
+                    open_bulk,
+                )
+                .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(when(
-            move || selection_mode.get(),
+            move || selection_mode.get() && has_items(),
             move || {
                 bulk_bar(
                     data,
@@ -1642,31 +1653,32 @@ fn content(
         .collect::<Vec<_>>()
     };
     let has_inactive = !inactive().is_empty();
-
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(24.0))
-        .mt(px(0.0))
-        .child(section(
-            "ACTIVE",
-            active,
-            data,
-            currency.clone(),
-            actions,
-            server,
-            token,
-            list_view,
-            sort_field,
-            sort_desc,
-            selection_mode,
-            selected,
-            compact,
-        ))
-        .when(has_inactive, move |page| {
-            page.child(section(
-                "INACTIVE",
-                inactive,
+    let empty = move || data.get().unwrap_or_default().subscriptions.is_empty();
+    when(empty, move || {
+        empty_state(
+            asset!("icons/subscriptions.svg"),
+            "No subscriptions yet",
+            "Add your first recurring expense",
+            shared_button(
+                ButtonProps::new("Add Subscription")
+                    .icon(asset!("icons/plus.svg"))
+                    .min_width(113.0)
+                    .on_press(move || crate::ui::create_subscription(None)),
+            )
+            .into_element(),
+        )
+        .into_element()
+    })
+    .otherwise(move || {
+        let currency = currency.clone();
+        view()
+            .w_full()
+            .flex_col()
+            .gap(px(24.0))
+            .mt(px(0.0))
+            .child(section(
+                "ACTIVE",
+                active,
                 data,
                 currency.clone(),
                 actions,
@@ -1679,8 +1691,26 @@ fn content(
                 selected,
                 compact,
             ))
-        })
-        .into_element()
+            .when(has_inactive, move |page| {
+                page.child(section(
+                    "INACTIVE",
+                    inactive,
+                    data,
+                    currency.clone(),
+                    actions,
+                    server,
+                    token,
+                    list_view,
+                    sort_field,
+                    sort_desc,
+                    selection_mode,
+                    selected,
+                    compact,
+                ))
+            })
+            .into_element()
+    })
+    .into_element()
 }
 
 fn section(
@@ -3056,6 +3086,14 @@ mod tests {
     }
 
     #[test]
+    #[test]
+    fn empty_subscriptions_reuse_the_shared_empty_state() {
+        let source = include_str!("subscriptions.rs");
+        assert!(source.contains("No subscriptions yet"));
+        assert!(source.contains("empty_state("));
+        assert!(source.contains("let has_items"));
+    }
+
     #[test]
     fn annual_date_fields_shrink_inside_the_dialog() {
         let source = include_str!("subscriptions.rs");
