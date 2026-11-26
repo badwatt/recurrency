@@ -126,18 +126,33 @@ pub fn logo_search(
                         .items_center()
                         .gap(px(8.0))
                         .child(
-                            when(
-                                move || !logo_url.get().trim().is_empty(),
-                                move || {
-                                    image(logo_url.get())
-                                        .size(px(40.0))
-                                        .rounded(px(8.0))
-                                        .border(px(1.0))
-                                        .border_color(move || theme().border)
-                                        .into_element()
-                                },
-                            )
-                            .otherwise(|| view().h(px(0.0)).into_element()),
+                            view()
+                                .h(px(40.0))
+                                .w(px(40.0))
+                                .flex_shrink_0()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(8.0))
+                                .border(px(1.0))
+                                .border_color(move || theme().border)
+                                .bg(move || theme().muted.opacity(0.35))
+                                .child(
+                                    when(
+                                        move || !logo_url.get().trim().is_empty(),
+                                        move || {
+                                            image(logo_url.get())
+                                                .size(px(38.0))
+                                                .rounded(px(7.0))
+                                                .into_element()
+                                        },
+                                    )
+                                    .otherwise(|| {
+                                        image(asset!("icons/tag.svg"))
+                                            .size(px(18.0))
+                                            .tint_color(move || theme().muted_foreground)
+                                            .into_element()
+                                    }),
+                                ),
                         )
                         .child(crate::components::button::button(
                             crate::components::button::ButtonProps::new(

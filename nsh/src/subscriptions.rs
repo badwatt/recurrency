@@ -232,6 +232,11 @@ pub fn subscriptions(
                 .map(|account| account.id),
         );
         category_id.set(snapshot.categories.first().map(|category| category.id));
+        notes.set(String::new());
+        logo_url.set(String::new());
+        logo_results.set(Vec::new());
+        logo_loading.set(false);
+        logo_error.set(String::new());
         form_error.set(String::new());
         saving.set(false);
         editing.set(None);
@@ -1483,13 +1488,19 @@ fn list_card(
     let amount_value = subscription.amount;
     let amount_currency = subscription.currency.clone();
     let action_list = action_subscription.clone();
+    let compact = crate::ui::compact_active();
+    let row_currency = currency.clone();
+    let mobile_currency = currency.clone();
+    let desktop_amount_currency = amount_currency.clone();
+    let mobile_amount_currency = amount_currency;
+    let desktop_rates = rates.clone();
+    let mobile_rates = rates;
+    let desktop_action = action_list.clone();
+    let mobile_action = action_list.clone();
     view()
         .cursor_pointer()
         .w_full()
-        .flex_row()
-        .items_center()
-        .justify_between()
-        .gap(px(12.0))
+        .flex_col()
         .p(px(14.0))
         .rounded(px(12.0))
         .border(px(1.0))
@@ -1510,64 +1521,115 @@ fn list_card(
         })
         .child(
             view()
+                .w_full()
                 .flex_row()
                 .items_center()
-                .gap(px(10.0))
-                .min_w(px(0.0))
-                .flex_1()
-                .child(crate::components::logo_avatar::logo_avatar(
-                    logo.clone(),
-                    asset!("icons/card.svg"),
-                    36.0,
-                    false,
-                ))
+                .justify_between()
+                .gap(px(12.0))
                 .child(
                     view()
-                        .flex_col()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(10.0))
                         .min_w(px(0.0))
+                        .flex_1()
+                        .child(crate::components::logo_avatar::logo_avatar(
+                            logo.clone(),
+                            asset!("icons/card.svg"),
+                            36.0,
+                            false,
+                        ))
                         .child(
-                            text(name)
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(format!("{account} · {next}"))
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
+                            view()
+                                .flex_col()
+                                .min_w(px(0.0))
+                                .child(
+                                    text(name)
+                                        .number_of_lines(1)
+                                        .text_size(px(14.0))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(move || theme().foreground),
+                                )
+                                .child(
+                                    text(format!("{account} · {next}"))
+                                        .number_of_lines(1)
+                                        .text_size(px(11.0))
+                                        .text_color(move || theme().muted_foreground),
+                                ),
                         ),
-                ),
+                )
+                .when(!compact, move |row| {
+                    row.child(
+                        view()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(12.0))
+                            .flex_shrink_0()
+                            .child(converted_amount(
+                                amount_value,
+                                &desktop_amount_currency,
+                                &row_currency,
+                                &desktop_rates,
+                                14.0,
+                                FontWeight::SEMIBOLD,
+                                true,
+                            ))
+                            .child(when(
+                                move || !selection_mode.get(),
+                                move || {
+                                    card_actions(
+                                        desktop_action.clone(),
+                                        subscription.is_active,
+                                        actions,
+                                        data,
+                                        server,
+                                        token,
+                                        row_currency.clone(),
+                                    )
+                                    .into_element()
+                                },
+                            )),
+                    )
+                }),
         )
-        .child(
-            view()
-                .flex_row()
-                .items_center()
-                .gap(px(12.0))
-                .child(converted_amount(
-                    amount_value,
-                    &amount_currency,
-                    &currency,
-                    &rates,
-                    14.0,
-                    FontWeight::SEMIBOLD,
-                    true,
-                ))
-                .child(when(
-                    move || !selection_mode.get(),
-                    move || {
-                        card_actions(
-                            action_list.clone(),
-                            subscription.is_active,
-                            actions,
-                            data,
-                            server,
-                            token,
-                            currency.clone(),
-                        )
-                        .into_element()
-                    },
-                )),
-        )
+        .when(compact, move |card| {
+            card.child(
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(8.0))
+                    .mt(px(12.0))
+                    .pt(px(8.0))
+                    .border_t(px(1.0))
+                    .border_color(move || theme().border.opacity(0.4))
+                    .child(converted_amount(
+                        amount_value,
+                        &mobile_amount_currency,
+                        &mobile_currency,
+                        &mobile_rates,
+                        14.0,
+                        FontWeight::SEMIBOLD,
+                        true,
+                    ))
+                    .child(when(
+                        move || !selection_mode.get(),
+                        move || {
+                            card_actions(
+                                mobile_action.clone(),
+                                subscription.is_active,
+                                actions,
+                                data,
+                                server,
+                                token,
+                                mobile_currency.clone(),
+                            )
+                            .into_element()
+                        },
+                    )),
+            )
+        })
 }
 
 fn card(

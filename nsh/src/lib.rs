@@ -217,9 +217,13 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     let data_key = signal(0_u64);
     effect(move || data_key.set(ui::data_revision()));
     let fab_open = signal(false);
+    let bottom_hidden = signal(false);
+    let last_scroll = stored(0.0_f32);
     let page_scroll = element_ref();
     effect(move || {
         let _ = route.get();
+        bottom_hidden.set(false);
+        last_scroll.replace(0.0);
         page_scroll.scroll_to_offset(px(0.0), false);
     });
     view()
@@ -240,6 +244,19 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                 .flex_1()
                 .pr(px(10.0))
                 .element_ref(&page_scroll)
+                .on_scroll(move |event: &ScrollEvent| {
+                    let offset = event.offset.y.0;
+                    let max = (event.content_size.height.0 - event.size.height.0).max(0.0);
+                    let last = last_scroll.with(|value| *value);
+                    if offset >= max - 8.0 {
+                        bottom_hidden.set(false);
+                    } else if offset > last + 6.0 {
+                        bottom_hidden.set(true);
+                    } else if offset < last - 6.0 {
+                        bottom_hidden.set(false);
+                    }
+                    last_scroll.replace(offset);
+                })
                 .child(
                     view().w_full().items_center().child(
                         view()
@@ -282,6 +299,13 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                     px(24.0)
                                 } else {
                                     px(29.0)
+                                }
+                            })
+                            .pb(move || {
+                                if compact.get() && route.get() != Route::Settings {
+                                    px(76.0)
+                                } else {
+                                    px(16.0)
                                 }
                             })
                             .child(
@@ -384,16 +408,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         )
         .child(
             when(
-                move || {
-                    compact.get()
-                        && matches!(
-                            route.get(),
-                            Route::Dashboard
-                                | Route::Subscriptions
-                                | Route::Transactions
-                                | Route::Debts
-                        )
-                },
+                move || compact.get() && route.get() != Route::Settings,
                 move || {
                     let ai_route = route;
                     let ai_auth = auth_signal;
@@ -428,8 +443,20 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
             .otherwise(|| view().h(px(0.0))),
         )
         .child(
-            when(move || compact.get(), move || ui::bottom_bar(route))
-                .otherwise(|| view().h(px(0.0))),
+            when(
+                move || compact.get() && !bottom_hidden.get() && route.get() != Route::Settings,
+                move || {
+                    view()
+                        .absolute()
+                        .left(px(0.0))
+                        .right(px(0.0))
+                        .bottom(px(0.0))
+                        .z_index(90)
+                        .child(ui::bottom_bar(route))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0))),
         )
         .child(
             when(move || modal.active(), move || ui::modal_overlay(modal))
