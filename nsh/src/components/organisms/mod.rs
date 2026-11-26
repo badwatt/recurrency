@@ -1,5 +1,6 @@
 //! Organisms: complete surfaces and flows composed from molecules.
 
+pub mod billing_schedule;
 pub mod confirm;
 pub mod dialog;
 pub mod dropdown_menu;

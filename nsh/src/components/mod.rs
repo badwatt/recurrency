@@ -17,6 +17,7 @@ pub use molecules::{
     entity_icon, field, list_toolbar, privacy_toggle, search_input, select, select_menu,
     selection_bar, string_select, timezone_select, toast,
 };
+pub use organisms::billing_schedule::{BillingScheduleProps, billing_schedule};
 pub use organisms::{
     confirm, dialog, dropdown_menu, fab_menu, filter_menu, logo_search, page_header, sort_menu,
     theme_picker, web_server_qr,

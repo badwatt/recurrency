@@ -32,6 +32,7 @@ components/
 | Component | Purpose |
 | --- | --- |
 | `card` | shared rounded bordered surface |
+| `charge_days` | month-day grid with Select all/Clear and Last day |
 | `compact_select` | compact toolbar select |
 | `converted_amount` | display-currency amount with conversion/privacy |
 | `date_picker` | themed calendar popup |
@@ -52,6 +53,7 @@ components/
 
 | Component | Purpose |
 | --- | --- |
+| `billing_schedule` | interval/unit, weekly, monthly, yearly and day schedule |
 | `confirm` | destructive confirmation row and dialog |
 | `dialog` + `ModalHost` | one shell for every form and destructive flow |
 | `dropdown_menu` | labelled action menu |
