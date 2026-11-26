@@ -2839,7 +2839,7 @@ mod tests {
 
     #[test]
     fn sort_menu_exposes_every_sortable_field() {
-        let source = include_str!("components/sort_menu.rs");
+        let source = include_str!("components/organisms/sort_menu.rs");
         assert!(source.contains("Sort by"));
         assert!(source.contains("Ascending"));
         assert!(source.contains("icons/sort.svg"));

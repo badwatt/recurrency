@@ -1,40 +1,23 @@
-//! Shared component library mirrored from `frontend/src/components`.
-//! Pages compose these primitives instead of painting raw views.
+//! Shared component library, organized as atoms → molecules → organisms.
+//!
+//! Pages compose these primitives; they do not paint their own buttons,
+//! inputs, cards, dialogs or selects.
 
-pub mod avatar;
-pub mod badge;
-pub mod button;
-pub mod card;
-pub mod checkbox;
-pub mod color_picker;
-pub mod compact_select;
-pub mod confirm;
-pub mod converted_amount;
-pub mod date_picker;
-pub mod dialog;
-pub mod dropdown_menu;
-pub mod empty_state;
-pub mod entity_icon;
-pub mod fab_menu;
-pub mod field;
-pub mod filter_menu;
-pub mod input;
-pub mod list_toolbar;
-pub mod logo_avatar;
-pub mod logo_search;
-pub mod page_header;
-pub mod privacy_toggle;
-pub mod search_input;
-pub mod segmented;
-pub mod select;
-pub mod select_menu;
-pub mod selection_bar;
-pub mod skeleton;
-pub mod sort_menu;
-pub mod string_select;
-pub mod textarea;
-pub mod theme_picker;
-pub mod timezone_select;
-pub mod toast;
-pub mod toggle;
-pub mod web_server_qr;
+pub mod atoms;
+pub mod molecules;
+pub mod organisms;
+
+// Flat re-exports keep existing call sites stable while the tree stays atomic.
+pub use atoms::{
+    avatar, badge, button, checkbox, color_picker, input, logo_avatar, segmented, skeleton,
+    textarea, toggle,
+};
+pub use molecules::{
+    card, compact_select, converted_amount, date_picker, empty_state, entity_icon, field,
+    list_toolbar, privacy_toggle, search_input, select, select_menu, selection_bar, string_select,
+    timezone_select, toast,
+};
+pub use organisms::{
+    confirm, dialog, dropdown_menu, fab_menu, filter_menu, logo_search, page_header, sort_menu,
+    theme_picker, web_server_qr,
+};
