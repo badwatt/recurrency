@@ -86,6 +86,7 @@ fn body(
         crate::recurrence::days_in_month(today.year(), today.month()).saturating_sub(today.day());
     let hovered = signal(None::<Uuid>);
     let hovered_category = signal(None::<Uuid>);
+    let show_categories = signal(false);
     view()
         .w_full()
         .flex_col()
@@ -99,6 +100,7 @@ fn body(
             today,
             hovered,
             hovered_category,
+            show_categories,
         ))
         .into_element()
 }
@@ -111,6 +113,7 @@ fn dashboard_cards(
     today: chrono::NaiveDate,
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
+    show_categories: Signal<bool>,
 ) -> AnyElement {
     if compact {
         return view()
@@ -123,6 +126,7 @@ fn dashboard_cards(
                 hovered,
                 hovered_category,
                 compact,
+                show_categories,
             ))
             .child(upcoming_card(
                 data,
@@ -132,6 +136,7 @@ fn dashboard_cards(
                 hovered,
                 hovered_category,
                 compact,
+                show_categories,
             ))
             .into_element();
     }
@@ -149,6 +154,7 @@ fn dashboard_cards(
             hovered,
             hovered_category,
             compact,
+            show_categories,
         ))
         .child(ledger_card(
             data,
@@ -156,6 +162,7 @@ fn dashboard_cards(
             hovered,
             hovered_category,
             compact,
+            show_categories,
         ))
         .into_element()
 }
@@ -555,6 +562,7 @@ fn upcoming_card(
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
     compact: bool,
+    show_categories: Signal<bool>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let total = move || data.get().unwrap_or_default().upcoming.len();
@@ -639,6 +647,7 @@ fn upcoming_card(
                             today,
                             hovered,
                             hovered_category,
+                            show_categories,
                         ))
                 },
             )))
@@ -652,6 +661,7 @@ fn upcoming_row(
     today: chrono::NaiveDate,
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
+    show_categories: Signal<bool>,
 ) -> impl IntoElement {
     let converted = {
         let rates = data.get().unwrap_or_default().rates;
@@ -680,7 +690,9 @@ fn upcoming_row(
         .gap(px(12.0))
         .rounded(px(8.0))
         .bg(move || {
-            if hovered.get() == Some(account_id) || hovered_category.get() == Some(category_id) {
+            if hovered.get() == Some(account_id)
+                || (show_categories.get() && hovered_category.get() == Some(category_id))
+            {
                 theme().primary.opacity(0.05)
             } else {
                 theme().card
@@ -809,11 +821,11 @@ fn ledger_card(
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
     compact: bool,
+    show_categories: Signal<bool>,
 ) -> impl IntoElement {
     let currency = currency.to_string();
     let currency_accounts = currency.clone();
     let currency_categories = currency.clone();
-    let show_categories = signal(false);
     let account_count = move || data.get().unwrap_or_default().accounts.len();
     let category_count = move || data.get().unwrap_or_default().categories.len();
     view()

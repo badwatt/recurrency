@@ -1,10 +1,10 @@
-//! Searchable single-choice menu for string-valued catalogues (currencies).
+//! String-valued select used by currencies, timezones and other catalogues.
 
 use std::rc::Rc;
 
-use nsh_base::{button, input, theme};
-use nsh_core::element::AutoFill;
 use nsh_core::prelude::*;
+
+use crate::components::select::{SelectProps, select};
 
 pub struct StringSelectProps {
     pub label: String,
@@ -40,180 +40,37 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
         options,
         show_label,
     } = props;
-    let query = signal(String::new());
-    let panel_width = signal(300.0_f32);
-    let option_rows = options.clone();
-    let selected_label = move || {
-        let current = selected.get();
-        options
-            .iter()
-            .find(|(value, _)| *value == current)
-            .map_or_else(|| current.clone(), |(_, label)| label.clone())
-    };
-    let filtered: Rc<dyn Fn() -> Vec<(String, String)>> = Rc::new(move || {
-        let q = query.get().trim().to_lowercase();
-        option_rows
-            .iter()
-            .filter(|(value, label)| {
-                q.is_empty()
-                    || value.to_lowercase().contains(&q)
-                    || label.to_lowercase().contains(&q)
-            })
-            .cloned()
-            .collect::<Vec<_>>()
-    });
-    let panel_filtered = filtered.clone();
-    let panel = move || {
-        let filtered = panel_filtered.clone();
-        view()
-            .w(move || px(panel_width.get()))
-            .flex_col()
-            .rounded(px(6.0))
-            .border(px(1.0))
-            .border_color(move || theme().border)
-            .bg(move || theme().popover)
-            .overflow_hidden()
-            .child(
-                view()
-                    .w_full()
-                    .px(px(12.0))
-                    .border_b(px(1.0))
-                    .border_color(move || theme().border)
-                    .child(
-                        input()
-                            .value(query)
-                            .on_change(move |value: &str| query.set(value.to_string()))
-                            .placeholder("Search...")
-                            .auto_fill(AutoFill::Off)
-                            .h(px(36.0))
-                            .w_full()
-                            .px(px(0.0))
-                            .border(px(0.0))
-                            .bg(move || theme().popover)
-                            .text_size(px(14.0))
-                            .text_color(move || theme().foreground),
-                    ),
-            )
-            .child(scroll().max_h(px(220.0)).w_full().child(each(
-                {
-                    let filtered = filtered.clone();
-                    move || filtered()
-                },
-                |(value, _)| value.clone(),
-                move |option, _| {
-                    let (value, label) = option.get();
-                    let press_value = value.clone();
-                    let active = selected.get() == value;
-                    button()
-                        .cursor_pointer()
-                        .w_full()
-                        .h(px(28.0))
-                        .px(px(7.0))
-                        .flex_row()
-                        .items_center()
-                        .justify_between()
-                        .rounded(px(5.0))
-                        .bg(move || {
-                            if active {
-                                theme().accent
-                            } else {
-                                theme().popover
-                            }
-                        })
-                        .on_press(move || {
-                            selected.set(press_value.clone());
-                            query.set(String::new());
-                            crate::ui::close_menu();
-                        })
-                        .child(
-                            text(label)
-                                .number_of_lines(1)
-                                .text_size(px(11.0))
-                                .text_color(move || theme().foreground),
-                        )
-                        .when(active, |row| {
-                            row.child(
-                                image(asset!("icons/check.svg"))
-                                    .size(px(12.0))
-                                    .tint_color(move || theme().primary),
-                            )
-                        })
-                        .into_element()
-                },
-            )))
-            .into_element()
-    };
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(6.0))
-        .min_w(px(0.0))
-        .when(show_label, |column| {
-            column.child(
-                text(label)
-                    .text_size(px(14.0))
-                    .line_height(px(20.0))
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(move || theme().muted_foreground),
-            )
-        })
-        .child(
-            view()
-                .cursor_pointer()
-                .w_full()
-                .h(px(36.0))
-                .px(px(8.0))
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .gap(px(8.0))
-                .rounded(px(6.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().background)
-                .on_layout(
-                    move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-                        panel_width.set(bounds.size.width.0);
-                    },
-                )
-                .on_press(move |event: &PressEvent| {
-                    let panel = panel.clone();
-                    let page = event.page_position;
-                    let local = event.position;
-                    crate::ui::open_menu(
-                        crate::ui::MenuPlacement::At {
-                            top: page.y.0 - local.y.0 + 40.0,
-                            left: (page.x.0 - local.x.0).max(8.0),
-                        },
-                        panel,
-                    );
-                })
-                .child(
-                    text(move || selected_label())
-                        .number_of_lines(1)
-                        .text_size(px(14.0))
-                        .text_color(move || {
-                            if selected.get().is_empty() {
-                                theme().muted_foreground
-                            } else {
-                                theme().foreground
-                            }
-                        }),
-                )
-                .child(
-                    image(asset!("icons/chevron-down.svg"))
-                        .size(px(13.0))
-                        .tint_color(move || theme().muted_foreground),
-                ),
+    let options = Rc::new(options);
+    let label_options = options.clone();
+    let panel_options = options.clone();
+    select(
+        SelectProps::new(
+            label,
+            "Select...",
+            move || {
+                let current = selected.get();
+                label_options
+                    .iter()
+                    .find(|(value, _)| *value == current)
+                    .map_or_else(|| current.clone(), |(_, label)| label.clone())
+            },
+            move || selected.get(),
+            move || !selected.get().is_empty(),
+            move || (*panel_options).clone(),
+            move |value| selected.set(value),
         )
+        .searchable(true)
+        .show_label(show_label)
+        .height(36.0),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn options_float_and_the_trigger_is_reactive() {
+    fn string_select_uses_the_shared_select() {
         let source = include_str!("string_select.rs");
-        assert!(source.contains("open_menu"));
-        assert!(source.contains("text(move || selected_label())"));
+        assert!(source.contains("SelectProps::new"));
+        assert!(source.contains("select("));
     }
 }
