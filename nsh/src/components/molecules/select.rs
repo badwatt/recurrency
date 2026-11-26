@@ -119,29 +119,44 @@ pub fn select(props: SelectProps) -> impl IntoElement {
             query.set(String::new());
         }
     });
-    let options_for_panel = options.clone();
+    let filter_options = options.clone();
+    let filtered = Rc::new(move || {
+        let needle = query.get().trim().to_lowercase();
+        filter_options()
+            .into_iter()
+            .filter(|(_, label)| needle.is_empty() || label.to_lowercase().contains(&needle))
+            .collect::<Vec<_>>()
+    });
+    let can_create_options = options.clone();
+    let can_create_request = create.clone();
+    let can_create = Rc::new(move || {
+        let needle = query.get().trim().to_lowercase();
+        can_create_request.is_some()
+            && !needle.is_empty()
+            && !can_create_options()
+                .iter()
+                .any(|(_, label)| label.eq_ignore_ascii_case(needle.trim()))
+    });
     let current_for_panel = selected_value.clone();
     let create_for_panel = create.clone();
     let create_title_for_panel = create_title.clone();
     let search_placeholder_for_panel = search_placeholder.clone();
     let panel = Rc::new(move || {
-        let needle = query.get().trim().to_lowercase();
-        let current = current_for_panel();
-        let all = options_for_panel();
-        let visible = all
-            .iter()
-            .filter(|(_, label)| needle.is_empty() || label.to_lowercase().contains(&needle))
-            .cloned()
-            .collect::<Vec<_>>();
-        let can_create = create_for_panel.is_some()
-            && !needle.is_empty()
-            && !all
-                .iter()
-                .any(|(_, label)| label.eq_ignore_ascii_case(needle.trim()));
-        let create_for_row = create_for_panel.clone();
-        let create_for_button = create_for_panel.clone();
         let placeholder_text = search_placeholder_for_panel.clone();
         let create_title_text = create_title_for_panel.clone();
+        let create_for_row = create_for_panel.clone();
+        let create_for_button = create_for_panel.clone();
+        let can_create_for_input = can_create.clone();
+        let filtered_for_empty = filtered.clone();
+        let filtered_for_rows = filtered.clone();
+        let current_for_rows = current_for_panel.clone();
+        let on_select_for_rows = on_select.clone();
+        let empty_when = {
+            let filtered = filtered_for_empty;
+            let can_create = can_create.clone();
+            move || filtered().is_empty() && !(*can_create)()
+        };
+        let create_when = can_create.clone();
         view()
             .w(move || px(panel_width.get()))
             .flex_col()
@@ -162,7 +177,9 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                                 .value(query)
                                 .on_change(move |value: &str| query.set(value.to_string()))
                                 .on_submit(move |_: &str| {
-                                    if can_create && let Some(create) = create_for_row.as_ref() {
+                                    if (*can_create_for_input)()
+                                        && let Some(create) = create_for_row.as_ref()
+                                    {
                                         let close = std::rc::Rc::new(crate::ui::close_menu);
                                         create(query.get(), close);
                                     }
@@ -181,86 +198,104 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                 )
             })
             .child(
+                when(empty_when, move || {
+                    view().h(px(48.0)).items_center().justify_center().child(
+                        text("No results found")
+                            .text_size(px(13.0))
+                            .text_color(move || theme().muted_foreground),
+                    )
+                })
+                .otherwise(|| view().h(px(0.0)).into_element()),
+            )
+            .child(
                 scroll()
                     .max_h(px(220.0))
                     .w_full()
                     .py(px(4.0))
                     .flex_col()
-                    .when(visible.is_empty() && !can_create, |panel| {
-                        panel.child(
-                            view().h(px(48.0)).items_center().justify_center().child(
-                                text("No results found")
-                                    .text_size(px(13.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                        )
-                    })
-                    .children(visible.into_iter().map(|(value, label)| {
-                        let active = current == value;
-                        let value_for_press = value.clone();
-                        let on_select = on_select.clone();
-                        button()
-                            .cursor_pointer()
-                            .w_full()
-                            .h(px(36.0))
-                            .px(px(12.0))
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .bg(move || {
-                                if active {
-                                    theme().accent
-                                } else {
-                                    theme().popover
-                                }
-                            })
-                            .on_press(move || {
-                                on_select(value_for_press.clone());
-                                query.set(String::new());
-                                crate::ui::release_select(select_id);
-                                crate::ui::close_menu();
-                            })
-                            .child(
-                                text(label)
-                                    .flex_grow(1.0)
-                                    .number_of_lines(1)
-                                    .text_size(px(14.0))
-                                    .text_color(move || theme().foreground),
-                            )
-                            .when(active, |row| {
-                                row.child(
-                                    image(asset!("icons/check.svg"))
-                                        .size(px(16.0))
-                                        .tint_color(move || theme().primary),
-                                )
-                            })
-                    }))
-                    .when(can_create, move |panel| {
-                        panel.child(
+                    .child(each(
+                        move || (*filtered_for_rows)(),
+                        |(value, _)| value.clone(),
+                        move |item, _| {
+                            let (value, label) = item.get();
+                            let active = current_for_rows() == value;
+                            let value_for_press = value.clone();
+                            let on_select = on_select_for_rows.clone();
                             button()
                                 .cursor_pointer()
                                 .w_full()
-                                .h(px(40.0))
+                                .h(px(36.0))
                                 .px(px(12.0))
-                                .border_t(px(1.0))
-                                .border_color(move || theme().border)
                                 .flex_row()
                                 .items_center()
-                                .gap(px(6.0))
-                                .on_press(move || {
-                                    if let Some(create) = create_for_button.as_ref() {
-                                        let close = std::rc::Rc::new(crate::ui::close_menu);
-                                        create(query.get(), close);
+                                .justify_between()
+                                .bg(move || {
+                                    if active {
+                                        theme().accent
+                                    } else {
+                                        theme().popover
                                     }
                                 })
+                                .on_press(move || {
+                                    on_select(value_for_press.clone());
+                                    query.set(String::new());
+                                    crate::ui::release_select(select_id);
+                                    crate::ui::close_menu();
+                                })
                                 .child(
-                                    text(format!("{} “{}”", create_title_text, query.get().trim()))
-                                        .text_size(px(13.0))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(move || theme().primary),
-                                ),
-                        )
-                    }),
+                                    text(label)
+                                        .flex_grow(1.0)
+                                        .number_of_lines(1)
+                                        .text_size(px(14.0))
+                                        .text_color(move || theme().foreground),
+                                )
+                                .when(active, |row| {
+                                    row.child(
+                                        image(asset!("icons/check.svg"))
+                                            .size(px(16.0))
+                                            .tint_color(move || theme().primary),
+                                    )
+                                })
+                        },
+                    )),
+            )
+            .child(
+                when(
+                    move || (*create_when)(),
+                    move || {
+                        let create_for_press = create_for_button.clone();
+                        let title = create_title_text.clone();
+                        button()
+                            .cursor_pointer()
+                            .w_full()
+                            .h(px(40.0))
+                            .px(px(12.0))
+                            .border_t(px(1.0))
+                            .border_color(move || theme().border)
+                            .flex_row()
+                            .items_center()
+                            .gap(px(6.0))
+                            .on_press(move || {
+                                if let Some(create) = create_for_press.as_ref() {
+                                    let close = std::rc::Rc::new(crate::ui::close_menu);
+                                    create(query.get(), close);
+                                }
+                            })
+                            .child(
+                                image(asset!("icons/plus.svg"))
+                                    .size(px(14.0))
+                                    .tint_color(move || theme().primary),
+                            )
+                            .child(
+                                text(move || format!("{} “{}”", title, query.get().trim()))
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || theme().primary),
+                            )
+                            .into_element()
+                    },
+                )
+                .otherwise(|| view().h(px(0.0)).into_element()),
             )
             .into_element()
     });
