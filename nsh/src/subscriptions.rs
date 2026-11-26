@@ -565,11 +565,10 @@ fn form(
     });
     effect(move || {
         if unit.get() == "year" && annual_dates.get().is_empty() {
-            let start = NaiveDate::parse_from_str(start_date.get().trim(), "%Y-%m-%d")
-                .unwrap_or_else(|_| Local::now().date_naive());
+            let today = Local::now().date_naive();
             annual_dates.set(vec![AnnualDate {
-                month: start.month() as u8,
-                day: start.day() as u8,
+                month: today.month() as u8,
+                day: today.day() as u8,
                 amount: None,
             }]);
         }
