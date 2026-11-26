@@ -1353,6 +1353,7 @@ fn bulk_bar(
             data.refetch();
             crate::ui::bump_data();
             busy.set(false);
+            modal.close();
         });
     });
     let confirm_delete = {
@@ -1374,10 +1375,7 @@ fn bulk_bar(
                             .flex_row()
                             .justify_end()
                             .gap(px(8.0))
-                            .child(ui::action_button("Delete", true, move || {
-                                delete();
-                                modal.close();
-                            }))
+                            .child(ui::action_button("Delete", true, move || delete()))
                             .child(ui::action_button("Cancel", false, move || modal.close()))
                             .into_element(),
                     ),
@@ -1552,7 +1550,9 @@ fn transaction_actions(
         });
     };
     let delete = move || {
-        actions.delete_confirm.set(None);
+        if actions.busy.get() == Some(id) {
+            return;
+        }
         actions.busy.set(Some(id));
         actions.error.set(String::new());
         let server_value = server.get();
@@ -1569,6 +1569,7 @@ fn transaction_actions(
                     actions.error.set(message);
                 }
             }
+            actions.delete_confirm.set(None);
             actions.busy.set(None);
         });
     };

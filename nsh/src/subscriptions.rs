@@ -2313,6 +2313,7 @@ fn bulk_bar(
             data.refetch();
             crate::ui::bump_data();
             busy.set(false);
+            modal.close();
         });
     });
     let confirm_delete = {
@@ -2339,10 +2340,7 @@ fn bulk_bar(
                                 ButtonProps::new("Delete")
                                     .variant(ButtonVariant::Destructive)
                                     .size(ButtonSize::Sm)
-                                    .on_press(move || {
-                                        delete();
-                                        modal.close();
-                                    }),
+                                    .on_press(move || delete()),
                             ))
                             .child(shared_button(
                                 ButtonProps::new("Cancel")
@@ -2691,7 +2689,9 @@ fn card_actions(
     let confirm = actions.delete_confirm;
     let delete = {
         move || {
-            actions.delete_confirm.set(None);
+            if actions.busy.get() == Some(id) {
+                return;
+            }
             actions.busy.set(Some(id));
             actions.error.set(String::new());
             let server_value = server.get();
@@ -2708,6 +2708,7 @@ fn card_actions(
                         actions.error.set(message);
                     }
                 }
+                actions.delete_confirm.set(None);
                 actions.busy.set(None);
             });
         }
