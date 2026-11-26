@@ -307,6 +307,9 @@ pub async fn update_debt<B: Serialize>(
 }
 
 pub async fn delete_debt(server: String, token: String, id: uuid::Uuid) -> Result<(), String> {
+    if crate::local::enabled() {
+        return crate::local::delete_entity("debts", id);
+    }
     Client::new(server, token)
         .delete(&format!("/api/debts/{id}"))
         .await
@@ -1202,4 +1205,18 @@ pub async fn delete_subscription(
     Client::new(server, token)
         .delete(&format!("/api/subscriptions/{id}"))
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn deleting_a_debt_uses_local_storage_in_local_mode() {
+        let source = include_str!("api.rs");
+        let start = source.find("pub async fn delete_debt").unwrap();
+        let end = source[start..]
+            .find("pub async fn load_debt_payments")
+            .unwrap()
+            + start;
+        assert!(source[start..end].contains("crate::local::delete_entity(\"debts\", id)"));
+    }
 }
