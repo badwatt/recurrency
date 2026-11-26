@@ -141,6 +141,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
             && current != select_id
         {
             open.set(false);
+            inline_open.set(false);
             query.set(String::new());
         }
     });
@@ -499,6 +500,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                 )
                 .on_press(move |event: &PressEvent| {
                     if crate::ui::menu_open() {
+                        crate::ui::claim_select(select_id);
                         inline_open.update(|open| *open = !*open);
                         return;
                     }
@@ -637,6 +639,7 @@ mod tests {
         let source = include_str!("select.rs");
         assert!(source.contains("crate::ui::menu_open()"));
         assert!(source.contains("inline_open"));
+        assert!(source.contains("crate::ui::claim_select(select_id)"));
         assert!(source.contains("if show_label { height + 30.0 } else { height + 4.0 }"));
     }
 }
