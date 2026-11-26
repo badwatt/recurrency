@@ -520,7 +520,9 @@ fn form(
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::row_item(ui::required_field("Amount", amount, "")))
+                        .child(ui::row_item(ui::required_numeric_field(
+                            "Amount", amount, "",
+                        )))
                         .child(
                             view().flex_grow(1.6).basis(px(0.0)).min_w(px(0.0)).child(
                                 string_select(StringSelectProps::new(
@@ -727,8 +729,8 @@ fn toolbar(
                             view()
                                 .flex_row()
                                 .gap(px(8.0))
-                                .child(ui::row_item(ui::field("Min", price_min, "0.00")))
-                                .child(ui::row_item(ui::field("Max", price_max, "999.99"))),
+                                .child(ui::row_item(ui::numeric_field("Min", price_min, "0.00")))
+                                .child(ui::row_item(ui::numeric_field("Max", price_max, "999.99"))),
                         )
                         .child(
                             view()

@@ -815,6 +815,45 @@ pub fn field(
         .child(crate::components::input::text_input(value, placeholder))
 }
 
+pub fn numeric_field(
+    label_text: &'static str,
+    value: Signal<String>,
+    placeholder: &'static str,
+) -> impl IntoElement {
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .min_w(px(0.0))
+        .child(label(label_text))
+        .child(crate::components::input::numeric_input(value, placeholder))
+}
+
+pub fn required_numeric_field(
+    label_text: &'static str,
+    value: Signal<String>,
+    placeholder: &'static str,
+) -> impl IntoElement {
+    crate::components::field::field(
+        crate::components::field::FieldProps::new(label_text).required(),
+        crate::components::input::numeric_input(value, placeholder).into_element(),
+    )
+}
+
+pub fn integer_field(
+    label_text: &'static str,
+    value: Signal<String>,
+    placeholder: &'static str,
+) -> impl IntoElement {
+    view()
+        .w_full()
+        .flex_col()
+        .gap(px(6.0))
+        .min_w(px(0.0))
+        .child(label(label_text))
+        .child(crate::components::input::integer_input(value, placeholder))
+}
+
 pub fn required_field(
     label_text: &'static str,
     value: Signal<String>,

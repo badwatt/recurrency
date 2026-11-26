@@ -411,7 +411,11 @@ fn verification_dialog(
             view()
                 .p(px(24.0))
                 .gap(px(12.0))
-                .child(crate::ui::field("Verification code", code, "123456"))
+                .child(crate::ui::integer_field(
+                    "Verification code",
+                    code,
+                    "123456",
+                ))
                 .child(
                     text(move || error.get())
                         .text_size(px(11.0))

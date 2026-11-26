@@ -726,7 +726,7 @@ fn form(
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::row_item(ui::required_field("Amount", amount, "9.99")))
+                        .child(ui::row_item(ui::required_numeric_field("Amount", amount, "9.99")))
                         .child(
                             view()
                                 .flex_grow(1.6)
@@ -837,7 +837,15 @@ fn form(
                                         input()
                                             .value(interval)
                                             .on_change(move |value: &str| {
-                                                interval.set(value.to_string())
+                                                let clean =
+                                                    crate::components::input::sanitize_integer(value);
+                                                if clean != value {
+                                                    interval.set(value.to_string());
+                                                    let target = interval;
+                                                    spawn(async move { target.set(clean) });
+                                                } else {
+                                                    interval.set(clean);
+                                                }
                                             })
                                             .auto_fill(AutoFill::Off)
                                             .h(px(36.0))
@@ -1183,7 +1191,7 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                                 .flex_row()
                                 .items_end()
                                 .gap(px(6.0))
-                                .child(annual_field("Day", date.day.to_string(), move |value| {
+                                .child(annual_day_field(date.day.to_string(), move |value| {
                                     let mut next = dates.get();
                                     if let Some(slot) = next.get_mut(index) {
                                         slot.day = value.parse().unwrap_or(0);
@@ -1191,8 +1199,7 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                                     dates.set(next);
                                 }))
                                 .child(annual_month_field(dates, index))
-                                .child(annual_field(
-                                    "Amount (optional)",
+                                .child(annual_amount_field(
                                     date.amount
                                         .map(|value| value.to_string())
                                         .unwrap_or_default(),
@@ -1288,11 +1295,7 @@ fn annual_month_field(dates: Signal<Vec<AnnualDate>>, index: usize) -> impl Into
         )
 }
 
-fn annual_field(
-    label: &'static str,
-    value: String,
-    on_change: impl Fn(String) + 'static,
-) -> impl IntoElement {
+fn annual_day_field(value: String, on_change: impl Fn(String) + 'static) -> impl IntoElement {
     view()
         .flex_grow(1.0)
         .basis(px(0.0))
@@ -1300,11 +1303,28 @@ fn annual_field(
         .flex_col()
         .gap(px(4.0))
         .child(
-            text(label)
+            text("Day")
                 .text_size(px(10.0))
                 .text_color(move || theme().muted_foreground),
         )
-        .child(crate::components::input::text_input_value(
+        .child(crate::components::input::integer_input_value(
+            value, "", on_change,
+        ))
+}
+
+fn annual_amount_field(value: String, on_change: impl Fn(String) + 'static) -> impl IntoElement {
+    view()
+        .flex_grow(1.0)
+        .basis(px(0.0))
+        .min_w(px(0.0))
+        .flex_col()
+        .gap(px(4.0))
+        .child(
+            text("Amount (optional)")
+                .text_size(px(10.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(crate::components::input::numeric_input_value(
             value, "", on_change,
         ))
 }
@@ -1530,8 +1550,12 @@ fn toolbar(
                                 view()
                                     .flex_row()
                                     .gap(px(8.0))
-                                    .child(ui::row_item(ui::field("Min", price_min, "0.00")))
-                                    .child(ui::row_item(ui::field("Max", price_max, "999.99"))),
+                                    .child(ui::row_item(ui::numeric_field(
+                                        "Min", price_min, "0.00",
+                                    )))
+                                    .child(ui::row_item(ui::numeric_field(
+                                        "Max", price_max, "999.99",
+                                    ))),
                             )
                             .into_element()
                     },

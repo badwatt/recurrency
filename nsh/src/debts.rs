@@ -379,7 +379,7 @@ fn payment_form(
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::row_item(ui::field("Amount", amount, "250")))
+                        .child(ui::row_item(ui::numeric_field("Amount", amount, "250")))
                         .child(ui::row_item(ui::date_field("Paid on", paid_on))),
                 )
                 .child(ui::field("Note", note, "November payment"))
@@ -991,7 +991,11 @@ fn form(
                         .w_full()
                         .flex_row()
                         .gap(px(16.0))
-                        .child(ui::row_item(ui::required_field("Total owed", total, "")))
+                        .child(ui::row_item(ui::required_numeric_field(
+                            "Total owed",
+                            total,
+                            "",
+                        )))
                         .child(ui::row_item(string_select(StringSelectProps::new(
                             "Currency *",
                             form_currency,
@@ -1023,7 +1027,7 @@ fn form(
                                 .w_full()
                                 .flex_row()
                                 .gap(px(16.0))
-                                .child(ui::row_item(ui::required_field(
+                                .child(ui::row_item(ui::required_numeric_field(
                                     "Monthly payment",
                                     monthly,
                                     "",
